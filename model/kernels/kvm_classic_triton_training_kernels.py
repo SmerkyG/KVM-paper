@@ -1,0 +1,2496 @@
+"""Integrated Triton kernels for classic KVM semantics.
+
+This module retains the optimized KVM2 prefill, periodic state-update, compact
+saved-forward, and reconstruct-live backward implementation while restoring
+the two classic routing behaviors: one global append ranking per overflow
+chunk, and append-before-merge visibility.
+"""
+
+from __future__ import annotations
+
+import argparse
+import math
+from dataclasses import dataclass
+
+import torch
+import triton
+import triton.language as tl
+
+
+
+# Schedule helpers.
+
+def round_down_to_multiple(x: int, multiple: int) -> int:
+    x_i = max(int(x), 0)
+    multiple_i = max(int(multiple), 1)
+    return (x_i // multiple_i) * multiple_i
+
+def bswa_begin_for_total_len(total_len: int, chunk_len: int, n_bswa_chunks: int) -> int:
+    bswa_end = round_down_to_multiple(total_len + chunk_len - 1, chunk_len)
+    return max(0, bswa_end - (n_bswa_chunks * chunk_len))
+
+def desired_state_len(
+    ctx_len: int,
+    available_context: int,
+    current_state_len: int,
+    schedule_factor: float,
+    schedule_exponent: float,
+    state_min_len: int,
+    state_round_down: int,
+    max_state_len: int,
+) -> int:
+    target = int(math.floor(schedule_factor * (float(max(ctx_len, 0)) ** schedule_exponent)))
+    target = round_down_to_multiple(target, state_round_down)
+    target = max(target, state_min_len)
+    target = min(target, max(available_context, 0), max_state_len)
+    return max(target, max(int(current_state_len), 0))
+
+@dataclass(frozen=True)
+class MixerPrefillSchedule:
+    before_by_macro: torch.Tensor
+    after_by_macro: torch.Tensor
+    n_append_by_macro: torch.Tensor
+    valid_update_by_macro: torch.Tensor
+    attention_state_len_by_macro: torch.Tensor
+    front_len: int
+    initial_state_len: int
+    final_state_len: int
+    final_state_coverage_len: int
+
+def build_mixer_prefill_schedule(
+    *,
+    q_len: int,
+    padded_q_len: int | None = None,
+    chunk_len: int,
+    n_bswa_chunks: int,
+    initial_state_len: int,
+    schedule_factor: float,
+    schedule_exponent: float,
+    state_min_len: int,
+    state_round_down: int,
+    max_state_len: int,
+) -> MixerPrefillSchedule:
+    if chunk_len <= 0:
+        raise ValueError("chunk_len must be positive")
+    if padded_q_len is None:
+        padded_q_len = q_len
+    if padded_q_len % chunk_len:
+        raise ValueError("padded_q_len must be divisible by chunk_len for this schedule")
+    if padded_q_len < q_len:
+        raise ValueError("padded_q_len must be >= q_len")
+    if n_bswa_chunks <= 0:
+        raise ValueError("n_bswa_chunks must be positive")
+    if initial_state_len != min(q_len, chunk_len):
+        raise ValueError("kvm_mixer.py initializes state from the first chunk only")
+
+    macro_blocks = padded_q_len // chunk_len
+    front_len = min(q_len, n_bswa_chunks * chunk_len)
+    current = initial_state_len
+    state_coverage_len = initial_state_len
+
+    before = [current for _ in range(macro_blocks)]
+    after = [current for _ in range(macro_blocks)]
+    n_append = [0 for _ in range(macro_blocks)]
+    valid_update = [0 for _ in range(macro_blocks)]
+    attention_state_len = [0 for _ in range(macro_blocks)]
+
+    for query_begin in range(front_len, q_len, chunk_len):
+        query_macro = query_begin // chunk_len
+        query_end = min(q_len, query_begin + chunk_len)
+        bswa_begin = bswa_begin_for_total_len(query_end, chunk_len, n_bswa_chunks)
+        if bswa_begin != state_coverage_len:
+            raise AssertionError("KVM prefill state coverage drifted from active BSWA window")
+
+        attention_state_len[query_macro] = current
+
+        next_bswa_begin = bswa_begin_for_total_len(
+            min(q_len, query_end + chunk_len), chunk_len, n_bswa_chunks
+        )
+        if next_bswa_begin <= bswa_begin:
+            continue
+
+        overflow_macro = bswa_begin // chunk_len
+        overflow_len = next_bswa_begin - bswa_begin
+        before[overflow_macro] = current
+        wanted = desired_state_len(
+            query_end,
+            next_bswa_begin,
+            current,
+            schedule_factor,
+            schedule_exponent,
+            state_min_len,
+            state_round_down,
+            max_state_len,
+        )
+        append_count = min(max(wanted - current, 0), overflow_len)
+        current += append_count
+        after[overflow_macro] = current
+        n_append[overflow_macro] = append_count
+        valid_update[overflow_macro] = 1
+        state_coverage_len = next_bswa_begin
+
+    return MixerPrefillSchedule(
+        before_by_macro=torch.tensor(before, dtype=torch.int32),
+        after_by_macro=torch.tensor(after, dtype=torch.int32),
+        n_append_by_macro=torch.tensor(n_append, dtype=torch.int32),
+        valid_update_by_macro=torch.tensor(valid_update, dtype=torch.int32),
+        attention_state_len_by_macro=torch.tensor(attention_state_len, dtype=torch.int32),
+        front_len=front_len,
+        initial_state_len=initial_state_len,
+        final_state_len=current,
+        final_state_coverage_len=state_coverage_len,
+    )
+
+
+
+# Launch and state update kernels.
+
+def triton_launch_kwargs(num_warps: int, num_stages: int, waves_per_eu: int) -> dict:
+    kwargs = {"num_warps": num_warps, "num_stages": num_stages}
+    if torch.version.hip is not None:
+        kwargs["waves_per_eu"] = waves_per_eu
+    return kwargs
+
+@triton.jit
+def _grouped_scan_oldstate_maxsim_kernel(
+    state_k_attn,
+    overflow_select_k,
+    overflow_merge_k,
+    partial_select_scores,
+    partial_scores,
+    partial_indices,
+    before_by_macro,
+    macro_id,
+    MAX_STATE_LEN: tl.constexpr,
+    STATE_CHUNK: tl.constexpr,
+    GROUP_CHUNKS: tl.constexpr,
+    MAX_STATE_GROUPS: tl.constexpr,
+    MACRO_BLOCKS: tl.constexpr,
+    MACRO_BLOCK: tl.constexpr,
+    SUB_BLOCK: tl.constexpr,
+    SUB_BLOCKS: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    SINK_LEN: tl.constexpr,
+    SPLIT_SELECT_MERGE: tl.constexpr,
+):
+    row = tl.program_id(0).to(tl.int64)
+    group_id = tl.program_id(1).to(tl.int64)
+    sub_id = tl.program_id(2).to(tl.int64)
+    token_offsets = tl.arange(0, SUB_BLOCK)
+    state_offsets = tl.arange(0, STATE_CHUNK)
+    key_offsets = tl.arange(0, HEAD_DIM)
+
+    macro_token = sub_id * SUB_BLOCK + token_offsets
+    overflow_idx = macro_id * MACRO_BLOCK + macro_token
+
+    state_k_attn_row = state_k_attn + row * MAX_STATE_LEN * HEAD_DIM
+    overflow_select_k_row = overflow_select_k + row * (MACRO_BLOCKS * MACRO_BLOCK) * HEAD_DIM
+    overflow_merge_k_row = overflow_merge_k + row * (MACRO_BLOCKS * MACRO_BLOCK) * HEAD_DIM
+    partial_select_row = partial_select_scores + row * SUB_BLOCKS * MAX_STATE_GROUPS * SUB_BLOCK
+    partial_row = partial_scores + row * SUB_BLOCKS * MAX_STATE_GROUPS * SUB_BLOCK
+    partial_idx_row = partial_indices + row * SUB_BLOCKS * MAX_STATE_GROUPS * SUB_BLOCK
+
+    state_before = tl.load(before_by_macro + macro_id)
+    select_k = tl.load(
+        overflow_select_k_row + overflow_idx[:, None] * HEAD_DIM + key_offsets[None, :]
+    )
+    if SPLIT_SELECT_MERGE:
+        merge_k = tl.load(
+            overflow_merge_k_row
+            + overflow_idx[:, None] * HEAD_DIM
+            + key_offsets[None, :]
+        )
+
+    select_best_score = tl.full((SUB_BLOCK,), -float("inf"), tl.float32)
+    best_score = tl.full((SUB_BLOCK,), -float("inf"), tl.float32)
+    best_idx = tl.full((SUB_BLOCK,), -1, tl.int32)
+    group_chunk_start = group_id * GROUP_CHUNKS
+
+    for local_chunk in tl.range(0, GROUP_CHUNKS, 1, num_stages=1):
+        chunk_id = group_chunk_start + local_chunk
+        state_idx = chunk_id * STATE_CHUNK + state_offsets
+        valid_state = state_idx < state_before
+        merge_candidate = valid_state & (state_idx >= SINK_LEN)
+
+        k_norm = tl.load(
+            state_k_attn_row
+            + state_idx[:, None] * HEAD_DIM
+            + key_offsets[None, :],
+            mask=valid_state[:, None],
+            other=0.0,
+        )
+
+        select_scores_raw = tl.dot(select_k, tl.trans(k_norm), out_dtype=tl.float32)
+        if SPLIT_SELECT_MERGE:
+            merge_scores_raw = tl.dot(merge_k, tl.trans(k_norm), out_dtype=tl.float32)
+        else:
+            merge_scores_raw = select_scores_raw
+        select_scores = tl.where(valid_state[None, :], select_scores_raw, -float("inf"))
+        local_select_score = tl.max(select_scores, axis=1)
+        select_best_score = tl.maximum(select_best_score, local_select_score)
+
+        merge_scores = tl.where(merge_candidate[None, :], merge_scores_raw, -float("inf"))
+        local_best_score = tl.max(merge_scores, axis=1)
+        rel_candidates = tl.where(
+            merge_scores == local_best_score[:, None],
+            state_offsets[None, :],
+            STATE_CHUNK,
+        )
+        local_best_rel = tl.min(rel_candidates, axis=1)
+        local_best_idx = (chunk_id * STATE_CHUNK + local_best_rel).to(tl.int32)
+        take_local = local_best_score > best_score
+        best_score = tl.where(take_local, local_best_score, best_score)
+        best_idx = tl.where(take_local, local_best_idx, best_idx)
+
+    out_offsets = sub_id * MAX_STATE_GROUPS * SUB_BLOCK + group_id * SUB_BLOCK + token_offsets
+    tl.store(partial_select_row + out_offsets, select_best_score)
+    tl.store(partial_row + out_offsets, best_score)
+    tl.store(partial_idx_row + out_offsets, best_idx)
+
+@triton.jit
+def _reduce_oldstate_maxsim_global_append_kernel(
+    state_k,
+    state_v,
+    state_k_attn,
+    state_v_attn,
+    state_vlen,
+    overflow_k,
+    overflow_v,
+    append_pos_by_token,
+    partial_select_scores,
+    before_by_macro,
+    n_append_by_macro,
+    macro_id,
+    ln_weight,
+    ln_bias,
+    MAX_STATE_LEN: tl.constexpr,
+    MAX_STATE_GROUPS: tl.constexpr,
+    MACRO_BLOCKS: tl.constexpr,
+    MACRO_BLOCK: tl.constexpr,
+    SUB_BLOCK: tl.constexpr,
+    SUB_BLOCKS: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+    LN_EPS: tl.constexpr,
+):
+    row = tl.program_id(0).to(tl.int64)
+    token_offsets = tl.arange(0, MACRO_BLOCK)
+    key_offsets = tl.arange(0, HEAD_DIM)
+    value_offsets = tl.arange(0, VALUE_DIM)
+
+    state_before = tl.load(before_by_macro + macro_id)
+    n_append = tl.load(n_append_by_macro + macro_id)
+    overflow_idx = macro_id * MACRO_BLOCK + token_offsets
+    sub_id = token_offsets // SUB_BLOCK
+    sub_token = token_offsets - sub_id * SUB_BLOCK
+
+    state_k_row = state_k + row * MAX_STATE_LEN * HEAD_DIM
+    state_v_row = state_v + row * MAX_STATE_LEN * VALUE_DIM
+    state_k_attn_row = state_k_attn + row * MAX_STATE_LEN * HEAD_DIM
+    state_v_attn_row = state_v_attn + row * MAX_STATE_LEN * VALUE_DIM
+    state_vlen_row = state_vlen + row * MAX_STATE_LEN
+    overflow_k_row = overflow_k + row * (MACRO_BLOCKS * MACRO_BLOCK) * HEAD_DIM
+    overflow_v_row = overflow_v + row * (MACRO_BLOCKS * MACRO_BLOCK) * VALUE_DIM
+    append_pos_row = append_pos_by_token + row * MACRO_BLOCKS * MACRO_BLOCK
+    partial_select_row = partial_select_scores + row * SUB_BLOCKS * MAX_STATE_GROUPS * SUB_BLOCK
+
+    select_best_score = tl.full((MACRO_BLOCK,), -float("inf"), tl.float32)
+
+    for group_id in tl.range(0, MAX_STATE_GROUPS, 1, num_stages=1):
+        offsets = (
+            sub_id * MAX_STATE_GROUPS * SUB_BLOCK
+            + group_id * SUB_BLOCK
+            + sub_token
+        )
+        select_score = tl.load(partial_select_row + offsets)
+        select_best_score = tl.maximum(select_best_score, select_score)
+
+    lower_score = select_best_score[None, :] < select_best_score[:, None]
+    tie_before = (select_best_score[None, :] == select_best_score[:, None]) & (
+        token_offsets[None, :] < token_offsets[:, None]
+    )
+    score_rank = tl.sum((lower_score | tie_before).to(tl.int32), axis=1)
+    append_token = score_rank < n_append
+
+    append_before = append_token[None, :] & (
+        token_offsets[None, :] < token_offsets[:, None]
+    )
+    append_rank = tl.sum(append_before.to(tl.int32), axis=1)
+    append_pos = state_before + append_rank
+    tl.store(
+        append_pos_row + macro_id * MACRO_BLOCK + token_offsets,
+        tl.where(append_token, append_pos, -1),
+    )
+    o_k = tl.load(
+        overflow_k_row + overflow_idx[:, None] * HEAD_DIM + key_offsets[None, :]
+    )
+    o_v = tl.load(
+        overflow_v_row
+        + overflow_idx[:, None] * VALUE_DIM
+        + value_offsets[None, :]
+    )
+    ln_w = tl.load(ln_weight + key_offsets).to(tl.float32)
+    ln_b = tl.load(ln_bias + key_offsets).to(tl.float32)
+    o_k_float = o_k.to(tl.float32)
+    o_k_mean = tl.sum(o_k_float, axis=1) / HEAD_DIM
+    o_k_centered = o_k_float - o_k_mean[:, None]
+    o_k_var = tl.sum(o_k_centered * o_k_centered, axis=1) / HEAD_DIM
+    o_k_norm = o_k_centered * tl.rsqrt(o_k_var[:, None] + LN_EPS)
+    o_k_norm = (o_k_norm * ln_w[None, :] + ln_b[None, :]).to(tl.bfloat16)
+    o_v_float = o_v.to(tl.float32)
+    o_v_norm = tl.sqrt(tl.sum(o_v_float * o_v_float, axis=1))
+    tl.store(
+        state_k_row + append_pos[:, None] * HEAD_DIM + key_offsets[None, :],
+        o_k,
+        mask=append_token[:, None],
+    )
+    tl.store(
+        state_v_row + append_pos[:, None] * VALUE_DIM + value_offsets[None, :],
+        o_v,
+        mask=append_token[:, None],
+    )
+    tl.store(
+        state_k_attn_row + append_pos[:, None] * HEAD_DIM + key_offsets[None, :],
+        o_k_norm,
+        mask=append_token[:, None],
+    )
+    tl.store(
+        state_v_attn_row
+        + append_pos[:, None] * VALUE_DIM
+        + value_offsets[None, :],
+        o_v,
+        mask=append_token[:, None],
+    )
+    tl.store(state_vlen_row + append_pos, o_v_norm, mask=append_token)
+
+
+
+# Attention backward kernels.
+
+@triton.jit
+def _kvm_attn_bwd_preprocess_kernel(
+    out,
+    dout,
+    delta,
+    VALUE_DIM: tl.constexpr,
+    BLOCK_M: tl.constexpr,
+):
+    row = tl.program_id(0).to(tl.int64)
+    block = tl.program_id(1).to(tl.int64)
+    token_offsets = block * BLOCK_M + tl.arange(0, BLOCK_M)
+    value_offsets = tl.arange(0, VALUE_DIM)
+    total_len: tl.constexpr = tl.num_programs(1) * BLOCK_M
+    out_row = out + row * total_len * VALUE_DIM
+    dout_row = dout + row * total_len * VALUE_DIM
+    o = tl.load(out_row + token_offsets[:, None] * VALUE_DIM + value_offsets[None, :]).to(
+        tl.float32
+    )
+    do = tl.load(
+        dout_row + token_offsets[:, None] * VALUE_DIM + value_offsets[None, :]
+    ).to(tl.float32)
+    tl.store(delta + row * total_len + token_offsets, tl.sum(o * do, axis=1))
+
+@triton.jit
+def _kvm_attn_snapshot_bswa_dkdv_kernel(
+    q,
+    bswa_k,
+    bswa_v,
+    dout,
+    lse,
+    delta,
+    d_bswa_k,
+    d_bswa_v,
+    d_front_temperature,
+    d_front_temperature_partials,
+    front_temperature,
+    Q_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    MACRO_BLOCKS: tl.constexpr,
+    MACRO_BLOCK: tl.constexpr,
+    ATTN_BLOCK: tl.constexpr,
+    ATTN_BLOCKS_PER_MACRO: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+    SCALE_LOG2: tl.constexpr,
+    SCALE: tl.constexpr,
+    Q_HEAD_LOOP_UNROLL: tl.constexpr,
+    COMPUTE_TEMP_GRAD: tl.constexpr,
+    STORE_TEMP_GRAD: tl.constexpr,
+    WRITE_TEMP_PARTIAL: tl.constexpr,
+    BATCH_TEMP_GRAD: tl.constexpr,
+):
+    kv_row = tl.program_id(0).to(tl.int64)
+    kv_macro = tl.program_id(1).to(tl.int64)
+    kv_block = tl.program_id(2).to(tl.int64)
+    group_size: tl.constexpr = Q_HEADS // KV_HEADS
+    batch_id = kv_row // KV_HEADS
+    kv_head = kv_row - batch_id * KV_HEADS
+
+    token_offsets = tl.arange(0, ATTN_BLOCK)
+    key_offsets = tl.arange(0, HEAD_DIM)
+    value_offsets = tl.arange(0, VALUE_DIM)
+    total_len: tl.constexpr = MACRO_BLOCKS * MACRO_BLOCK
+    kv_idx = kv_macro * MACRO_BLOCK + kv_block * ATTN_BLOCK + token_offsets
+    bswa_k_row = bswa_k + kv_row * total_len * HEAD_DIM
+    bswa_v_row = bswa_v + kv_row * total_len * VALUE_DIM
+    d_bswa_k_row = d_bswa_k + kv_row * total_len * HEAD_DIM
+    d_bswa_v_row = d_bswa_v + kv_row * total_len * VALUE_DIM
+    k_block = tl.load(bswa_k_row + kv_idx[:, None] * HEAD_DIM + key_offsets[None, :])
+    v_block = tl.load(
+        bswa_v_row + kv_idx[:, None] * VALUE_DIM + value_offsets[None, :]
+    )
+    dk = tl.zeros((ATTN_BLOCK, HEAD_DIM), tl.float32)
+    dv = tl.zeros((ATTN_BLOCK, VALUE_DIM), tl.float32)
+
+    for group_i in tl.range(
+        0, group_size, 1, num_stages=1, loop_unroll_factor=Q_HEAD_LOOP_UNROLL
+    ):
+        q_head = kv_head * group_size + group_i
+        q_row = batch_id * Q_HEADS + q_head
+        q_row_ptr = q + q_row * total_len * HEAD_DIM
+        dout_row = dout + q_row * total_len * VALUE_DIM
+        lse_row = lse + q_row * total_len
+        delta_row = delta + q_row * total_len
+        front_temp = tl.load(front_temperature + q_head).to(tl.float32)
+        k_eff = (k_block.to(tl.float32) * front_temp).to(tl.bfloat16)
+        if COMPUTE_TEMP_GRAD:
+            temp_grad = tl.full((), 0.0, tl.float32)
+
+        for q_block in tl.range(0, ATTN_BLOCKS_PER_MACRO, 1, num_stages=1):
+            if q_block >= kv_block:
+                q_idx = kv_macro * MACRO_BLOCK + q_block * ATTN_BLOCK + token_offsets
+                q_block_data = tl.load(
+                    q_row_ptr + q_idx[:, None] * HEAD_DIM + key_offsets[None, :]
+                )
+                do = tl.load(
+                    dout_row + q_idx[:, None] * VALUE_DIM + value_offsets[None, :]
+                ).to(tl.float32)
+                do_bf16 = do.to(tl.bfloat16)
+                lse_i = tl.load(lse_row + q_idx)
+                delta_i = tl.load(delta_row + q_idx)
+                scores = (
+                    tl.dot(q_block_data, tl.trans(k_eff), out_dtype=tl.float32)
+                    * SCALE_LOG2
+                )
+                if q_block == kv_block:
+                    causal = token_offsets[None, :] <= token_offsets[:, None]
+                    scores = tl.where(causal, scores, -float("inf"))
+                p = tl.exp2(scores - lse_i[:, None])
+                if q_block == kv_block:
+                    p = tl.where(token_offsets[None, :] <= token_offsets[:, None], p, 0.0)
+                dp = tl.dot(do_bf16, tl.trans(v_block), out_dtype=tl.float32)
+                ds = p * (dp - delta_i[:, None])
+                dk_eff = tl.dot(
+                    tl.trans(ds.to(tl.bfloat16)), q_block_data, out_dtype=tl.float32
+                ) * SCALE
+                dk += dk_eff * front_temp
+                if COMPUTE_TEMP_GRAD:
+                    temp_grad += tl.sum(
+                        tl.sum(dk_eff * k_block.to(tl.float32), axis=1),
+                        axis=0,
+                    )
+                p_bf16 = p.to(tl.bfloat16)
+                dv_block = tl.trans(
+                    tl.dot(tl.trans(do_bf16), p_bf16, out_dtype=tl.float32)
+                )
+                dv += dv_block
+
+        if kv_macro + 1 < MACRO_BLOCKS:
+            q_macro = kv_macro + 1
+            for q_block in tl.range(0, ATTN_BLOCKS_PER_MACRO, 1, num_stages=1):
+                q_idx = q_macro * MACRO_BLOCK + q_block * ATTN_BLOCK + token_offsets
+                q_block_data = tl.load(
+                    q_row_ptr + q_idx[:, None] * HEAD_DIM + key_offsets[None, :]
+                )
+                do = tl.load(
+                    dout_row + q_idx[:, None] * VALUE_DIM + value_offsets[None, :]
+                ).to(tl.float32)
+                do_bf16 = do.to(tl.bfloat16)
+                lse_i = tl.load(lse_row + q_idx)
+                delta_i = tl.load(delta_row + q_idx)
+                scores = (
+                    tl.dot(q_block_data, tl.trans(k_eff), out_dtype=tl.float32)
+                    * SCALE_LOG2
+                )
+                p = tl.exp2(scores - lse_i[:, None])
+                dp = tl.dot(do_bf16, tl.trans(v_block), out_dtype=tl.float32)
+                ds = p * (dp - delta_i[:, None])
+                dk_eff = tl.dot(
+                    tl.trans(ds.to(tl.bfloat16)), q_block_data, out_dtype=tl.float32
+                ) * SCALE
+                dk += dk_eff * front_temp
+                if COMPUTE_TEMP_GRAD:
+                    temp_grad += tl.sum(
+                        tl.sum(dk_eff * k_block.to(tl.float32), axis=1),
+                        axis=0,
+                    )
+                p_bf16 = p.to(tl.bfloat16)
+                dv_block = tl.trans(
+                    tl.dot(tl.trans(do_bf16), p_bf16, out_dtype=tl.float32)
+                )
+                dv += dv_block
+        if STORE_TEMP_GRAD:
+            temp_idx = tl.where(BATCH_TEMP_GRAD, batch_id * Q_HEADS + q_head, q_head)
+            tl.atomic_add(d_front_temperature + temp_idx, temp_grad, sem="relaxed")
+        if WRITE_TEMP_PARTIAL:
+            partial_idx = (
+                ((kv_row * MACRO_BLOCKS + kv_macro) * ATTN_BLOCKS_PER_MACRO + kv_block)
+                * group_size
+                + group_i
+            )
+            tl.store(d_front_temperature_partials + partial_idx, temp_grad)
+
+    tl.store(d_bswa_k_row + kv_idx[:, None] * HEAD_DIM + key_offsets[None, :], dk)
+    tl.store(d_bswa_v_row + kv_idx[:, None] * VALUE_DIM + value_offsets[None, :], dv)
+
+
+
+# Prefill and reverse reconstruction update kernels.
+
+@triton.jit
+def _init_state_normcache_kernel(
+    state_k,
+    state_v,
+    state_k_attn,
+    state_v_attn,
+    state_vlen,
+    ln_weight,
+    ln_bias,
+    INITIAL_STATE_LEN: tl.constexpr,
+    MAX_STATE_LEN: tl.constexpr,
+    STATE_CHUNK: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+    LN_EPS: tl.constexpr,
+):
+    row = tl.program_id(0).to(tl.int64)
+    chunk = tl.program_id(1).to(tl.int64)
+    state_offsets = tl.arange(0, STATE_CHUNK)
+    key_offsets = tl.arange(0, HEAD_DIM)
+    value_offsets = tl.arange(0, VALUE_DIM)
+    state_idx = chunk * STATE_CHUNK + state_offsets
+    valid = state_idx < INITIAL_STATE_LEN
+
+    state_k_row = state_k + row * MAX_STATE_LEN * HEAD_DIM
+    state_v_row = state_v + row * MAX_STATE_LEN * VALUE_DIM
+    state_k_attn_row = state_k_attn + row * MAX_STATE_LEN * HEAD_DIM
+    state_v_attn_row = state_v_attn + row * MAX_STATE_LEN * VALUE_DIM
+    state_vlen_row = state_vlen + row * MAX_STATE_LEN
+
+    raw_k = tl.load(
+        state_k_row + state_idx[:, None] * HEAD_DIM + key_offsets[None, :],
+        mask=valid[:, None],
+        other=0.0,
+    ).to(tl.float32)
+    raw_v = tl.load(
+        state_v_row + state_idx[:, None] * VALUE_DIM + value_offsets[None, :],
+        mask=valid[:, None],
+        other=0.0,
+    ).to(tl.float32)
+    ln_w = tl.load(ln_weight + key_offsets).to(tl.float32)
+    ln_b = tl.load(ln_bias + key_offsets).to(tl.float32)
+    k_mean = tl.sum(raw_k, axis=1) / HEAD_DIM
+    k_centered = raw_k - k_mean[:, None]
+    k_var = tl.sum(k_centered * k_centered, axis=1) / HEAD_DIM
+    k_norm = k_centered * tl.rsqrt(k_var[:, None] + LN_EPS)
+    k_norm = (k_norm * ln_w[None, :] + ln_b[None, :]).to(tl.bfloat16)
+    v_norm = tl.sqrt(tl.sum(raw_v * raw_v, axis=1))
+    v_scale = tl.where(v_norm > 1.0e-12, v_norm / v_norm, 0.0)
+    v_attn = (raw_v * v_scale[:, None]).to(tl.bfloat16)
+    tl.store(
+        state_k_attn_row + state_idx[:, None] * HEAD_DIM + key_offsets[None, :],
+        k_norm,
+        mask=valid[:, None],
+    )
+    tl.store(
+        state_v_attn_row + state_idx[:, None] * VALUE_DIM + value_offsets[None, :],
+        v_attn,
+        mask=valid[:, None],
+    )
+    tl.store(state_vlen_row + state_idx, v_norm, mask=valid)
+
+@triton.jit
+def _token_fp16_delta_update_updated_state_store_bestidx_kernel(
+    delta_k,
+    delta_v,
+    touched_slots,
+    state_k,
+    state_v,
+    state_k_attn,
+    overflow_target_k,
+    overflow_k,
+    overflow_v,
+    undo_k_by_token,
+    undo_v_by_token,
+    partial_scores,
+    partial_indices,
+    append_pos_by_token,
+    best_idx_by_token,
+    after_by_macro,
+    macro_id,
+    MAX_STATE_LEN: tl.constexpr,
+    GROUP_CHUNKS: tl.constexpr,
+    MAX_STATE_GROUPS: tl.constexpr,
+    MACRO_BLOCKS: tl.constexpr,
+    MACRO_BLOCK: tl.constexpr,
+    SUB_BLOCK: tl.constexpr,
+    SUB_BLOCKS: tl.constexpr,
+    TOKEN_BLOCK: tl.constexpr,
+    TOKEN_GROUPS: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+    STORE_UNDO: tl.constexpr,
+    SCAN_APPEND_TARGETS: tl.constexpr,
+):
+    row = tl.program_id(0).to(tl.int64)
+    token_group_pid = tl.program_id(1).to(tl.int64)
+    sub_id = token_group_pid // TOKEN_GROUPS
+    local_token_group = token_group_pid - sub_id * TOKEN_GROUPS
+    token_offsets = local_token_group * TOKEN_BLOCK + tl.arange(0, TOKEN_BLOCK)
+    appended_offsets = tl.arange(0, SUB_BLOCK)
+    key_offsets = tl.arange(0, HEAD_DIM)
+    value_offsets = tl.arange(0, VALUE_DIM)
+
+    state_after = tl.load(after_by_macro + macro_id)
+    macro_token = sub_id * SUB_BLOCK + token_offsets
+    route_offset = macro_id * MACRO_BLOCK + macro_token
+    append_pos_row = append_pos_by_token + row * MACRO_BLOCKS * MACRO_BLOCK
+    best_idx_row = best_idx_by_token + row * MACRO_BLOCKS * MACRO_BLOCK
+    append_pos = tl.load(append_pos_row + route_offset)
+    merge_token = append_pos < 0
+
+    delta_k_row = delta_k + row * MAX_STATE_LEN * HEAD_DIM
+    delta_v_row = delta_v + row * MAX_STATE_LEN * VALUE_DIM
+    touched_row = touched_slots + row * MAX_STATE_LEN
+    state_k_row = state_k + row * MAX_STATE_LEN * HEAD_DIM
+    state_v_row = state_v + row * MAX_STATE_LEN * VALUE_DIM
+    state_k_attn_row = state_k_attn + row * MAX_STATE_LEN * HEAD_DIM
+    overflow_target_k_row = overflow_target_k + row * (MACRO_BLOCKS * MACRO_BLOCK) * HEAD_DIM
+    overflow_k_row = overflow_k + row * (MACRO_BLOCKS * MACRO_BLOCK) * HEAD_DIM
+    overflow_v_row = overflow_v + row * (MACRO_BLOCKS * MACRO_BLOCK) * VALUE_DIM
+    undo_k_row = undo_k_by_token + row * MACRO_BLOCKS * MACRO_BLOCK * HEAD_DIM
+    undo_v_row = undo_v_by_token + row * MACRO_BLOCKS * MACRO_BLOCK * VALUE_DIM
+    partial_row = partial_scores + row * SUB_BLOCKS * MAX_STATE_GROUPS * SUB_BLOCK
+    partial_idx_row = partial_indices + row * SUB_BLOCKS * MAX_STATE_GROUPS * SUB_BLOCK
+
+    best_score = tl.full((TOKEN_BLOCK,), -float("inf"), tl.float32)
+    best_idx = tl.full((TOKEN_BLOCK,), -1, tl.int32)
+    for group_id in tl.range(0, MAX_STATE_GROUPS, 1, num_stages=1):
+        offsets = sub_id * MAX_STATE_GROUPS * SUB_BLOCK + group_id * SUB_BLOCK + token_offsets
+        group_score = tl.load(partial_row + offsets)
+        group_idx = tl.load(partial_idx_row + offsets)
+        take_group = group_score > best_score
+        best_score = tl.where(take_group, group_score, best_score)
+        best_idx = tl.where(take_group, group_idx, best_idx)
+
+    overflow_idx = macro_id * MACRO_BLOCK + macro_token
+    o_k_target = tl.load(
+        overflow_target_k_row
+        + overflow_idx[:, None] * HEAD_DIM
+        + key_offsets[None, :]
+    )
+    o_k = tl.load(
+        overflow_k_row + overflow_idx[:, None] * HEAD_DIM + key_offsets[None, :]
+    )
+
+    if SCAN_APPEND_TARGETS:
+        for append_sub_id in tl.range(0, SUB_BLOCKS, 1, num_stages=1):
+            append_macro_token = append_sub_id * SUB_BLOCK + appended_offsets
+            candidate_pos = tl.load(
+                append_pos_row + macro_id * MACRO_BLOCK + append_macro_token
+            )
+            valid_candidate = candidate_pos >= 0
+            candidate_k = tl.load(
+                state_k_attn_row
+                + candidate_pos[:, None] * HEAD_DIM
+                + key_offsets[None, :],
+                mask=valid_candidate[:, None],
+                other=0.0,
+            )
+            scores = tl.dot(o_k_target, tl.trans(candidate_k), out_dtype=tl.float32)
+            scores = tl.where(valid_candidate[None, :], scores, -float("inf"))
+            local_best_score = tl.max(scores, axis=1)
+            local_best_idx = tl.min(
+                tl.where(
+                    scores == local_best_score[:, None],
+                    candidate_pos[None, :],
+                    state_after,
+                ),
+                axis=1,
+            ).to(tl.int32)
+            take_local = local_best_score > best_score
+            best_score = tl.where(take_local, local_best_score, best_score)
+            best_idx = tl.where(take_local, local_best_idx, best_idx)
+
+    o_v = tl.load(
+        overflow_v_row + overflow_idx[:, None] * VALUE_DIM + value_offsets[None, :]
+    )
+    best_idx = tl.where(merge_token, best_idx, -1)
+    tl.store(best_idx_row + route_offset, best_idx)
+
+    best_idx_i64 = best_idx.to(tl.int64)
+    valid_update = merge_token & (best_idx >= 0) & (best_idx < state_after)
+    if STORE_UNDO:
+        old_k = tl.load(
+            state_k_row + best_idx_i64[:, None] * HEAD_DIM + key_offsets[None, :],
+            mask=valid_update[:, None],
+            other=0.0,
+        )
+        old_v = tl.load(
+            state_v_row + best_idx_i64[:, None] * VALUE_DIM + value_offsets[None, :],
+            mask=valid_update[:, None],
+            other=0.0,
+        )
+        tl.store(
+            undo_k_row + route_offset[:, None] * HEAD_DIM + key_offsets[None, :],
+            old_k,
+            mask=valid_update[:, None],
+        )
+        tl.store(
+            undo_v_row + route_offset[:, None] * VALUE_DIM + value_offsets[None, :],
+            old_v,
+            mask=valid_update[:, None],
+        )
+    tl.atomic_or(touched_row + best_idx_i64, 1, sem="relaxed", mask=valid_update)
+    tl.atomic_add(
+        delta_k_row + best_idx_i64[:, None] * HEAD_DIM + key_offsets[None, :],
+        o_k.to(tl.float32),
+        sem="relaxed",
+        mask=valid_update[:, None],
+    )
+    tl.atomic_add(
+        delta_v_row + best_idx_i64[:, None] * VALUE_DIM + value_offsets[None, :],
+        o_v.to(tl.float32),
+        sem="relaxed",
+        mask=valid_update[:, None],
+    )
+
+@triton.jit
+def _apply_fp16_delta_normcache_rounded_kernel(
+    state_k,
+    state_v,
+    state_k_attn,
+    state_v_attn,
+    state_vlen,
+    delta_k,
+    delta_v,
+    touched_slots,
+    after_by_macro,
+    macro_id,
+    ln_weight,
+    ln_bias,
+    MAX_STATE_LEN: tl.constexpr,
+    STATE_CHUNK: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+    LN_EPS: tl.constexpr,
+):
+    row = tl.program_id(0).to(tl.int64)
+    chunk = tl.program_id(1).to(tl.int64)
+    state_offsets = tl.arange(0, STATE_CHUNK)
+    key_offsets = tl.arange(0, HEAD_DIM)
+    value_offsets = tl.arange(0, VALUE_DIM)
+
+    state_after = tl.load(after_by_macro + macro_id)
+    state_idx = chunk * STATE_CHUNK + state_offsets
+    valid_state = state_idx < state_after
+
+    state_k_row = state_k + row * MAX_STATE_LEN * HEAD_DIM
+    state_v_row = state_v + row * MAX_STATE_LEN * VALUE_DIM
+    state_k_attn_row = state_k_attn + row * MAX_STATE_LEN * HEAD_DIM
+    state_v_attn_row = state_v_attn + row * MAX_STATE_LEN * VALUE_DIM
+    state_vlen_row = state_vlen + row * MAX_STATE_LEN
+    delta_k_row = delta_k + row * MAX_STATE_LEN * HEAD_DIM
+    delta_v_row = delta_v + row * MAX_STATE_LEN * VALUE_DIM
+    touched_row = touched_slots + row * MAX_STATE_LEN
+
+    touched = tl.load(touched_row + state_idx, mask=valid_state, other=0) != 0
+    update_mask = valid_state & touched
+    old_k = tl.load(
+        state_k_row + state_idx[:, None] * HEAD_DIM + key_offsets[None, :],
+        mask=update_mask[:, None],
+        other=0.0,
+    ).to(tl.float32)
+    old_v = tl.load(
+        state_v_row + state_idx[:, None] * VALUE_DIM + value_offsets[None, :],
+        mask=update_mask[:, None],
+        other=0.0,
+    ).to(tl.float32)
+    add_k = tl.load(
+        delta_k_row + state_idx[:, None] * HEAD_DIM + key_offsets[None, :],
+        mask=update_mask[:, None],
+        other=0.0,
+    )
+    add_v = tl.load(
+        delta_v_row + state_idx[:, None] * VALUE_DIM + value_offsets[None, :],
+        mask=update_mask[:, None],
+        other=0.0,
+    )
+    next_k = (old_k + add_k.to(tl.bfloat16)).to(tl.bfloat16)
+    next_v = (old_v + add_v.to(tl.bfloat16)).to(tl.bfloat16)
+    tl.store(
+        state_k_row + state_idx[:, None] * HEAD_DIM + key_offsets[None, :],
+        next_k,
+        mask=update_mask[:, None],
+    )
+    tl.store(
+        state_v_row + state_idx[:, None] * VALUE_DIM + value_offsets[None, :],
+        next_v,
+        mask=update_mask[:, None],
+    )
+    next_k_f = next_k.to(tl.float32)
+    next_v_f = next_v.to(tl.float32)
+    ln_w = tl.load(ln_weight + key_offsets).to(tl.float32)
+    ln_b = tl.load(ln_bias + key_offsets).to(tl.float32)
+    k_mean = tl.sum(next_k_f, axis=1) / HEAD_DIM
+    k_centered = next_k_f - k_mean[:, None]
+    k_var = tl.sum(k_centered * k_centered, axis=1) / HEAD_DIM
+    k_norm = k_centered * tl.rsqrt(k_var[:, None] + LN_EPS)
+    k_norm = (k_norm * ln_w[None, :] + ln_b[None, :]).to(tl.bfloat16)
+    vlen = tl.load(state_vlen_row + state_idx, mask=update_mask, other=0.0).to(
+        tl.float32
+    )
+    v_norm = tl.sqrt(tl.sum(next_v_f * next_v_f, axis=1))
+    v_scale = tl.where(v_norm > 1.0e-12, vlen / v_norm, 0.0)
+    v_attn = (next_v_f * v_scale[:, None]).to(tl.bfloat16)
+    tl.store(
+        state_k_attn_row + state_idx[:, None] * HEAD_DIM + key_offsets[None, :],
+        k_norm,
+        mask=update_mask[:, None],
+    )
+    tl.store(
+        state_v_attn_row + state_idx[:, None] * VALUE_DIM + value_offsets[None, :],
+        v_attn,
+        mask=update_mask[:, None],
+    )
+    tl.store(
+        delta_k_row + state_idx[:, None] * HEAD_DIM + key_offsets[None, :],
+        0.0,
+        mask=update_mask[:, None],
+    )
+    tl.store(
+        delta_v_row + state_idx[:, None] * VALUE_DIM + value_offsets[None, :],
+        0.0,
+        mask=update_mask[:, None],
+    )
+    tl.store(touched_row + state_idx, 0, mask=update_mask)
+def make_schedule(args: argparse.Namespace):
+    return build_mixer_prefill_schedule(
+        q_len=getattr(args, "logical_q_len", args.q_len),
+        padded_q_len=args.q_len,
+        chunk_len=args.macro_block,
+        n_bswa_chunks=args.bswa_chunks,
+        initial_state_len=args.initial_state_len,
+        schedule_factor=args.schedule_factor,
+        schedule_exponent=args.schedule_exponent,
+        state_min_len=args.state_min_len,
+        state_round_down=args.state_round_down,
+        max_state_len=args.max_state_len or (1 << 30),
+    )
+
+def allocate_work_buffers(args: argparse.Namespace, schedule, device: torch.device):
+    kv_rows = args.batch * args.kv_heads
+    macro_blocks = args.q_len // args.macro_block
+    sub_blocks = args.macro_block // args.sub_block
+    max_state_len = args.max_state_len or schedule.final_state_len
+    max_state_chunks = triton.cdiv(max_state_len, args.state_chunk)
+    max_state_groups = triton.cdiv(max_state_chunks, args.group_chunks)
+    update_token_groups = args.sub_block // args.update_token_block
+    max_update_groups = sub_blocks * update_token_groups
+    partial_scores = torch.empty(
+        kv_rows, sub_blocks, max_state_groups, args.sub_block, device=device, dtype=torch.float32
+    )
+    partial_select_scores = torch.empty_like(partial_scores)
+    partial_indices = torch.empty(
+        kv_rows, sub_blocks, max_state_groups, args.sub_block, device=device, dtype=torch.int32
+    )
+    delta_k = torch.zeros(kv_rows, max_state_len, args.dim, device=device, dtype=torch.float16)
+    delta_v = torch.zeros(
+        kv_rows, max_state_len, args.value_dim, device=device, dtype=torch.float16
+    )
+    touched_slots = torch.zeros(kv_rows, max_state_len, device=device, dtype=torch.int32)
+    return {
+        "max_state_len": max_state_len,
+        "max_state_chunks": max_state_chunks,
+        "max_state_groups": max_state_groups,
+        "max_update_groups": max_update_groups,
+        "update_token_groups": update_token_groups,
+        "partial_scores": partial_scores,
+        "partial_select_scores": partial_select_scores,
+        "partial_indices": partial_indices,
+        "delta_k": delta_k,
+        "delta_v": delta_v,
+        "touched_slots": touched_slots,
+    }
+
+def run_forward_state_update(
+    args: argparse.Namespace,
+    schedule,
+    overflow_k_flat: torch.Tensor,
+    overflow_v_flat: torch.Tensor,
+    ln_weight: torch.Tensor,
+    ln_bias: torch.Tensor,
+    buffers: dict,
+    state_k: torch.Tensor,
+    state_v: torch.Tensor,
+    state_k_attn: torch.Tensor,
+    state_v_attn: torch.Tensor,
+    state_vlen: torch.Tensor,
+    append_pos_by_token: torch.Tensor,
+    best_idx_by_token: torch.Tensor,
+    undo_k_by_token: torch.Tensor,
+    undo_v_by_token: torch.Tensor,
+    overflow_macro_id: int,
+    store_undo: bool,
+    *,
+    overflow_select_k_flat: torch.Tensor | None = None,
+    overflow_append_k_flat: torch.Tensor | None = None,
+    overflow_append_v_flat: torch.Tensor | None = None,
+    overflow_merge_k_flat: torch.Tensor | None = None,
+    overflow_merge_v_flat: torch.Tensor | None = None,
+):
+    if overflow_select_k_flat is None:
+        overflow_select_k_flat = overflow_k_flat
+    if overflow_append_k_flat is None:
+        overflow_append_k_flat = overflow_k_flat
+    if overflow_append_v_flat is None:
+        overflow_append_v_flat = overflow_v_flat
+    if overflow_merge_k_flat is None:
+        overflow_merge_k_flat = overflow_k_flat
+    if overflow_merge_v_flat is None:
+        overflow_merge_v_flat = overflow_v_flat
+
+    kv_rows = args.batch * args.kv_heads
+    macro_blocks = args.q_len // args.macro_block
+    sub_blocks = args.macro_block // args.sub_block
+    before = schedule.before_by_macro.to(overflow_select_k_flat.device)
+    after = schedule.after_by_macro.to(overflow_select_k_flat.device)
+    n_append = schedule.n_append_by_macro.to(overflow_select_k_flat.device)
+    append_policy = getattr(args, "append_policy", "global")
+    merge_order = getattr(args, "merge_order", "append_before_merge")
+    if append_policy != "global":
+        raise ValueError("kvm_classic_triton_training_kernels only supports global append")
+    if merge_order != "append_before_merge":
+        raise ValueError(
+            "kvm_classic_triton_training_kernels only supports append_before_merge"
+        )
+    if not getattr(args, "cache_from_rounded_state", False):
+        raise ValueError(
+            "kvm_classic_triton_training_kernels requires cache_from_rounded_state"
+        )
+
+    _grouped_scan_oldstate_maxsim_kernel[
+        (kv_rows, buffers["max_state_groups"], sub_blocks)
+    ](
+        state_k_attn,
+        overflow_select_k_flat,
+        overflow_merge_k_flat,
+        buffers["partial_select_scores"],
+        buffers["partial_scores"],
+        buffers["partial_indices"],
+        before,
+        overflow_macro_id,
+        MAX_STATE_LEN=buffers["max_state_len"],
+        STATE_CHUNK=args.state_chunk,
+        GROUP_CHUNKS=args.group_chunks,
+        MAX_STATE_GROUPS=buffers["max_state_groups"],
+        MACRO_BLOCKS=macro_blocks,
+        MACRO_BLOCK=args.macro_block,
+        SUB_BLOCK=args.sub_block,
+        SUB_BLOCKS=sub_blocks,
+        HEAD_DIM=args.dim,
+        SINK_LEN=args.sink_len,
+        SPLIT_SELECT_MERGE=True,
+        **triton_launch_kwargs(
+            args.scan_num_warps, 1, args.scan_waves_per_eu or args.waves_per_eu
+        ),
+    )
+    _reduce_oldstate_maxsim_global_append_kernel[(kv_rows,)](
+        state_k,
+        state_v,
+        state_k_attn,
+        state_v_attn,
+        state_vlen,
+        overflow_append_k_flat,
+        overflow_append_v_flat,
+        append_pos_by_token,
+        buffers["partial_select_scores"],
+        before,
+        n_append,
+        overflow_macro_id,
+        ln_weight,
+        ln_bias,
+        MAX_STATE_LEN=buffers["max_state_len"],
+        MAX_STATE_GROUPS=buffers["max_state_groups"],
+        MACRO_BLOCKS=macro_blocks,
+        MACRO_BLOCK=args.macro_block,
+        SUB_BLOCK=args.sub_block,
+        SUB_BLOCKS=sub_blocks,
+        HEAD_DIM=args.dim,
+        VALUE_DIM=args.value_dim,
+        LN_EPS=args.ln_eps,
+        **triton_launch_kwargs(
+            args.update_num_warps, 1, args.update_waves_per_eu or args.waves_per_eu
+        ),
+    )
+    _token_fp16_delta_update_updated_state_store_bestidx_kernel[
+        (kv_rows, buffers["max_update_groups"])
+    ](
+        buffers["delta_k"],
+        buffers["delta_v"],
+        buffers["touched_slots"],
+        state_k,
+        state_v,
+        state_k_attn,
+        overflow_merge_k_flat,
+        overflow_merge_k_flat,
+        overflow_merge_v_flat,
+        undo_k_by_token,
+        undo_v_by_token,
+        buffers["partial_scores"],
+        buffers["partial_indices"],
+        append_pos_by_token,
+        best_idx_by_token,
+        after,
+        overflow_macro_id,
+        MAX_STATE_LEN=buffers["max_state_len"],
+        GROUP_CHUNKS=args.group_chunks,
+        MAX_STATE_GROUPS=buffers["max_state_groups"],
+        MACRO_BLOCKS=macro_blocks,
+        MACRO_BLOCK=args.macro_block,
+        SUB_BLOCK=args.sub_block,
+        SUB_BLOCKS=sub_blocks,
+        TOKEN_BLOCK=args.update_token_block,
+        TOKEN_GROUPS=buffers["update_token_groups"],
+        HEAD_DIM=args.dim,
+        VALUE_DIM=args.value_dim,
+        STORE_UNDO=store_undo,
+        SCAN_APPEND_TARGETS=True,
+        **triton_launch_kwargs(
+            args.update_num_warps, 1, args.update_waves_per_eu or args.waves_per_eu
+        ),
+    )
+    _forward_apply_fp16_delta_normcache(
+        args,
+        schedule,
+        buffers,
+        state_k,
+        state_v,
+        state_k_attn,
+        state_v_attn,
+        state_vlen,
+        ln_weight,
+        ln_bias,
+        overflow_macro_id,
+    )
+
+def _forward_apply_fp16_delta_normcache(
+    args: argparse.Namespace,
+    schedule,
+    buffers: dict,
+    state_k: torch.Tensor,
+    state_v: torch.Tensor,
+    state_k_attn: torch.Tensor,
+    state_v_attn: torch.Tensor,
+    state_vlen: torch.Tensor,
+    ln_weight: torch.Tensor,
+    ln_bias: torch.Tensor,
+    overflow_macro_id: int,
+):
+    kv_rows = args.batch * args.kv_heads
+    after = schedule.after_by_macro.to(state_k.device)
+    if not getattr(args, "cache_from_rounded_state", False):
+        raise ValueError("kvm_classic_triton_training_kernels requires cache_from_rounded_state")
+    _apply_fp16_delta_normcache_rounded_kernel[(kv_rows, buffers["max_state_chunks"])](
+        state_k,
+        state_v,
+        state_k_attn,
+        state_v_attn,
+        state_vlen,
+        buffers["delta_k"],
+        buffers["delta_v"],
+        buffers["touched_slots"],
+        after,
+        overflow_macro_id,
+        ln_weight,
+        ln_bias,
+        MAX_STATE_LEN=buffers["max_state_len"],
+        STATE_CHUNK=args.state_chunk,
+        HEAD_DIM=args.dim,
+        VALUE_DIM=args.value_dim,
+        LN_EPS=args.ln_eps,
+        **triton_launch_kwargs(
+            args.update_num_warps, 1, args.update_waves_per_eu or args.waves_per_eu
+        ),
+    )
+
+_run_forward_update = run_forward_state_update
+
+
+
+# Training forward/backward kernels.
+
+@triton.jit
+def _kvm_attn_live_state_fwd_kernel(
+    q,
+    state_k,
+    state_v,
+    bswa_k,
+    bswa_v,
+    out,
+    lse,
+    active_state_len_by_macro,
+    state_temperature,
+    front_temperature,
+    macro_id,
+    MAX_STATE_LEN: tl.constexpr,
+    STATE_CHUNK: tl.constexpr,
+    Q_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    MACRO_BLOCKS: tl.constexpr,
+    MACRO_BLOCK: tl.constexpr,
+    ATTN_BLOCK: tl.constexpr,
+    ATTN_BLOCKS_PER_MACRO: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+    SCALE_LOG2: tl.constexpr,
+):
+    q_row = tl.program_id(0).to(tl.int64)
+    local_block = tl.program_id(1).to(tl.int64)
+    group_size: tl.constexpr = Q_HEADS // KV_HEADS
+    batch_id = q_row // Q_HEADS
+    q_head = q_row - batch_id * Q_HEADS
+    kv_head = q_head // group_size
+    kv_row = batch_id * KV_HEADS + kv_head
+
+    token_offsets = tl.arange(0, ATTN_BLOCK)
+    state_offsets = tl.arange(0, STATE_CHUNK)
+    key_offsets = tl.arange(0, HEAD_DIM)
+    value_offsets = tl.arange(0, VALUE_DIM)
+    total_len: tl.constexpr = MACRO_BLOCKS * MACRO_BLOCK
+    q_idx = macro_id * MACRO_BLOCK + local_block * ATTN_BLOCK + token_offsets
+    q_row_ptr = q + q_row * total_len * HEAD_DIM
+    state_base = state_k + kv_row * MAX_STATE_LEN * HEAD_DIM
+    state_v_base = state_v + kv_row * MAX_STATE_LEN * VALUE_DIM
+    bswa_k_row = bswa_k + kv_row * total_len * HEAD_DIM
+    bswa_v_row = bswa_v + kv_row * total_len * VALUE_DIM
+    out_row = out + q_row * total_len * VALUE_DIM
+    lse_row = lse + q_row * total_len
+
+    q_block = tl.load(q_row_ptr + q_idx[:, None] * HEAD_DIM + key_offsets[None, :])
+    active_state_len = tl.load(active_state_len_by_macro + macro_id)
+    active_chunks = tl.cdiv(active_state_len, STATE_CHUNK)
+    state_temp = tl.load(state_temperature + q_head).to(tl.float32)
+    front_temp = tl.load(front_temperature + q_head).to(tl.float32)
+    m_i = tl.full((ATTN_BLOCK,), -float("inf"), tl.float32)
+    l_i = tl.zeros((ATTN_BLOCK,), tl.float32)
+    acc = tl.zeros((ATTN_BLOCK, VALUE_DIM), tl.float32)
+
+    for chunk_id in tl.range(0, active_chunks, 1, num_stages=1):
+        state_idx = chunk_id * STATE_CHUNK + state_offsets
+        valid_state = state_idx < active_state_len
+        k_chunk = tl.load(
+            state_base + state_idx[:, None] * HEAD_DIM + key_offsets[None, :],
+            mask=valid_state[:, None],
+            other=0.0,
+        )
+        k_eff = (k_chunk.to(tl.float32) * state_temp).to(tl.bfloat16)
+        scores = tl.dot(q_block, tl.trans(k_eff), out_dtype=tl.float32) * SCALE_LOG2
+        scores = tl.where(valid_state[None, :], scores, -float("inf"))
+        block_m = tl.max(scores, axis=1)
+        m_new = tl.maximum(m_i, block_m)
+        alpha = tl.exp2(m_i - m_new)
+        p = tl.exp2(scores - m_new[:, None])
+        p = tl.where(valid_state[None, :], p, 0.0)
+        v_chunk = tl.load(
+            state_v_base + state_idx[:, None] * VALUE_DIM + value_offsets[None, :],
+            mask=valid_state[:, None],
+            other=0.0,
+        )
+        acc = acc * alpha[:, None] + tl.dot(
+            p.to(tl.bfloat16), v_chunk, out_dtype=tl.float32
+        )
+        l_i = l_i * alpha + tl.sum(p, axis=1)
+        m_i = m_new
+
+    if macro_id > 0:
+        for prev_block in tl.range(0, ATTN_BLOCKS_PER_MACRO, 1, num_stages=1):
+            kv_idx = (
+                (macro_id - 1) * MACRO_BLOCK
+                + prev_block * ATTN_BLOCK
+                + token_offsets
+            )
+            k_block = tl.load(
+                bswa_k_row + kv_idx[:, None] * HEAD_DIM + key_offsets[None, :]
+            )
+            k_eff = (k_block.to(tl.float32) * front_temp).to(tl.bfloat16)
+            scores = tl.dot(q_block, tl.trans(k_eff), out_dtype=tl.float32) * SCALE_LOG2
+            block_m = tl.max(scores, axis=1)
+            m_new = tl.maximum(m_i, block_m)
+            alpha = tl.exp2(m_i - m_new)
+            p = tl.exp2(scores - m_new[:, None])
+            v_block = tl.load(
+                bswa_v_row + kv_idx[:, None] * VALUE_DIM + value_offsets[None, :]
+            )
+            acc = acc * alpha[:, None] + tl.dot(
+                p.to(tl.bfloat16), v_block, out_dtype=tl.float32
+            )
+            l_i = l_i * alpha + tl.sum(p, axis=1)
+            m_i = m_new
+
+    for cur_block in tl.range(0, ATTN_BLOCKS_PER_MACRO, 1, num_stages=1):
+        if cur_block <= local_block:
+            kv_idx = macro_id * MACRO_BLOCK + cur_block * ATTN_BLOCK + token_offsets
+            k_block = tl.load(
+                bswa_k_row + kv_idx[:, None] * HEAD_DIM + key_offsets[None, :]
+            )
+            k_eff = (k_block.to(tl.float32) * front_temp).to(tl.bfloat16)
+            scores = tl.dot(q_block, tl.trans(k_eff), out_dtype=tl.float32) * SCALE_LOG2
+            if cur_block == local_block:
+                causal = token_offsets[None, :] <= token_offsets[:, None]
+                scores = tl.where(causal, scores, -float("inf"))
+            block_m = tl.max(scores, axis=1)
+            m_new = tl.maximum(m_i, block_m)
+            alpha = tl.exp2(m_i - m_new)
+            p = tl.exp2(scores - m_new[:, None])
+            if cur_block == local_block:
+                p = tl.where(token_offsets[None, :] <= token_offsets[:, None], p, 0.0)
+            v_block = tl.load(
+                bswa_v_row + kv_idx[:, None] * VALUE_DIM + value_offsets[None, :]
+            )
+            acc = acc * alpha[:, None] + tl.dot(
+                p.to(tl.bfloat16), v_block, out_dtype=tl.float32
+            )
+            l_i = l_i * alpha + tl.sum(p, axis=1)
+            m_i = m_new
+
+    o = acc / l_i[:, None]
+    tl.store(out_row + q_idx[:, None] * VALUE_DIM + value_offsets[None, :], o)
+    tl.store(lse_row + q_idx, m_i + tl.log2(l_i))
+
+@triton.jit
+def _kvm_attn_live_state_dq_kernel(
+    q,
+    state_k,
+    state_v,
+    bswa_k,
+    bswa_v,
+    dout,
+    lse,
+    delta,
+    dq,
+    active_state_len_by_macro,
+    state_temperature,
+    front_temperature,
+    macro_id,
+    MAX_STATE_LEN: tl.constexpr,
+    STATE_CHUNK: tl.constexpr,
+    Q_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    MACRO_BLOCKS: tl.constexpr,
+    MACRO_BLOCK: tl.constexpr,
+    ATTN_BLOCK: tl.constexpr,
+    ATTN_BLOCKS_PER_MACRO: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+    SCALE_LOG2: tl.constexpr,
+    SCALE: tl.constexpr,
+):
+    q_row = tl.program_id(0).to(tl.int64)
+    local_block = tl.program_id(1).to(tl.int64)
+    group_size: tl.constexpr = Q_HEADS // KV_HEADS
+    batch_id = q_row // Q_HEADS
+    q_head = q_row - batch_id * Q_HEADS
+    kv_head = q_head // group_size
+    kv_row = batch_id * KV_HEADS + kv_head
+
+    token_offsets = tl.arange(0, ATTN_BLOCK)
+    state_offsets = tl.arange(0, STATE_CHUNK)
+    key_offsets = tl.arange(0, HEAD_DIM)
+    value_offsets = tl.arange(0, VALUE_DIM)
+    total_len: tl.constexpr = MACRO_BLOCKS * MACRO_BLOCK
+    q_idx = macro_id * MACRO_BLOCK + local_block * ATTN_BLOCK + token_offsets
+    q_row_ptr = q + q_row * total_len * HEAD_DIM
+    dout_row = dout + q_row * total_len * VALUE_DIM
+    lse_row = lse + q_row * total_len
+    delta_row = delta + q_row * total_len
+    dq_row = dq + q_row * total_len * HEAD_DIM
+    state_base = state_k + kv_row * MAX_STATE_LEN * HEAD_DIM
+    state_v_base = state_v + kv_row * MAX_STATE_LEN * VALUE_DIM
+    bswa_k_row = bswa_k + kv_row * total_len * HEAD_DIM
+    bswa_v_row = bswa_v + kv_row * total_len * VALUE_DIM
+
+    q_block = tl.load(q_row_ptr + q_idx[:, None] * HEAD_DIM + key_offsets[None, :])
+    do = tl.load(dout_row + q_idx[:, None] * VALUE_DIM + value_offsets[None, :]).to(
+        tl.float32
+    )
+    do_bf16 = do.to(tl.bfloat16)
+    lse_i = tl.load(lse_row + q_idx)
+    delta_i = tl.load(delta_row + q_idx)
+    dq_acc = tl.zeros((ATTN_BLOCK, HEAD_DIM), tl.float32)
+    active_state_len = tl.load(active_state_len_by_macro + macro_id)
+    active_chunks = tl.cdiv(active_state_len, STATE_CHUNK)
+    state_temp = tl.load(state_temperature + q_head).to(tl.float32)
+    front_temp = tl.load(front_temperature + q_head).to(tl.float32)
+
+    for chunk_id in tl.range(0, active_chunks, 1, num_stages=1):
+        state_idx = chunk_id * STATE_CHUNK + state_offsets
+        valid_state = state_idx < active_state_len
+        k_chunk = tl.load(
+            state_base + state_idx[:, None] * HEAD_DIM + key_offsets[None, :],
+            mask=valid_state[:, None],
+            other=0.0,
+        )
+        v_chunk = tl.load(
+            state_v_base + state_idx[:, None] * VALUE_DIM + value_offsets[None, :],
+            mask=valid_state[:, None],
+            other=0.0,
+        )
+        k_eff = (k_chunk.to(tl.float32) * state_temp).to(tl.bfloat16)
+        scores = tl.dot(q_block, tl.trans(k_eff), out_dtype=tl.float32) * SCALE_LOG2
+        scores = tl.where(valid_state[None, :], scores, -float("inf"))
+        p = tl.exp2(scores - lse_i[:, None])
+        p = tl.where(valid_state[None, :], p, 0.0)
+        dp = tl.dot(do_bf16, tl.trans(v_chunk), out_dtype=tl.float32)
+        ds = p * (dp - delta_i[:, None])
+        dq_acc += tl.dot(ds.to(tl.bfloat16), k_eff, out_dtype=tl.float32) * SCALE
+
+    if macro_id > 0:
+        for prev_block in tl.range(0, ATTN_BLOCKS_PER_MACRO, 1, num_stages=1):
+            kv_idx = (
+                (macro_id - 1) * MACRO_BLOCK
+                + prev_block * ATTN_BLOCK
+                + token_offsets
+            )
+            k_block = tl.load(
+                bswa_k_row + kv_idx[:, None] * HEAD_DIM + key_offsets[None, :]
+            )
+            v_block = tl.load(
+                bswa_v_row + kv_idx[:, None] * VALUE_DIM + value_offsets[None, :]
+            )
+            k_eff = (k_block.to(tl.float32) * front_temp).to(tl.bfloat16)
+            scores = tl.dot(q_block, tl.trans(k_eff), out_dtype=tl.float32) * SCALE_LOG2
+            p = tl.exp2(scores - lse_i[:, None])
+            dp = tl.dot(do_bf16, tl.trans(v_block), out_dtype=tl.float32)
+            ds = p * (dp - delta_i[:, None])
+            dq_acc += tl.dot(ds.to(tl.bfloat16), k_eff, out_dtype=tl.float32) * SCALE
+
+    for cur_block in tl.range(0, ATTN_BLOCKS_PER_MACRO, 1, num_stages=1):
+        if cur_block <= local_block:
+            kv_idx = macro_id * MACRO_BLOCK + cur_block * ATTN_BLOCK + token_offsets
+            k_block = tl.load(
+                bswa_k_row + kv_idx[:, None] * HEAD_DIM + key_offsets[None, :]
+            )
+            v_block = tl.load(
+                bswa_v_row + kv_idx[:, None] * VALUE_DIM + value_offsets[None, :]
+            )
+            k_eff = (k_block.to(tl.float32) * front_temp).to(tl.bfloat16)
+            scores = tl.dot(q_block, tl.trans(k_eff), out_dtype=tl.float32) * SCALE_LOG2
+            if cur_block == local_block:
+                causal = token_offsets[None, :] <= token_offsets[:, None]
+                scores = tl.where(causal, scores, -float("inf"))
+            p = tl.exp2(scores - lse_i[:, None])
+            if cur_block == local_block:
+                p = tl.where(token_offsets[None, :] <= token_offsets[:, None], p, 0.0)
+            dp = tl.dot(do_bf16, tl.trans(v_block), out_dtype=tl.float32)
+            ds = p * (dp - delta_i[:, None])
+            dq_acc += tl.dot(ds.to(tl.bfloat16), k_eff, out_dtype=tl.float32) * SCALE
+
+    tl.store(dq_row + q_idx[:, None] * HEAD_DIM + key_offsets[None, :], dq_acc)
+
+@triton.jit
+def _live_state_dkdv_to_raw_grad_kernel(
+    q,
+    state_k_attn,
+    state_v_attn,
+    state_k,
+    state_v,
+    state_vlen,
+    dout,
+    lse,
+    delta,
+    d_state_k,
+    d_state_v,
+    d_state_vlen,
+    d_ln_weight,
+    d_ln_bias,
+    d_state_temperature,
+    d_state_temperature_partials,
+    active_state_len_by_macro,
+    macro_id,
+    ln_weight,
+    state_temperature,
+    MAX_STATE_LEN: tl.constexpr,
+    STATE_CHUNK: tl.constexpr,
+    Q_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    MACRO_BLOCKS: tl.constexpr,
+    MACRO_BLOCK: tl.constexpr,
+    ATTN_BLOCK: tl.constexpr,
+    ATTN_BLOCKS_PER_MACRO: tl.constexpr,
+    STATE_CHUNKS: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+    LN_EPS: tl.constexpr,
+    SCALE_LOG2: tl.constexpr,
+    SCALE: tl.constexpr,
+    Q_HEAD_LOOP_UNROLL: tl.constexpr,
+    COMPUTE_TEMP_GRAD: tl.constexpr,
+    STORE_TEMP_GRAD: tl.constexpr,
+    WRITE_TEMP_PARTIAL: tl.constexpr,
+    BATCH_TEMP_GRAD: tl.constexpr,
+):
+    kv_row = tl.program_id(0).to(tl.int64)
+    chunk_id = tl.program_id(1).to(tl.int64)
+    group_size: tl.constexpr = Q_HEADS // KV_HEADS
+    batch_id = kv_row // KV_HEADS
+    kv_head = kv_row - batch_id * KV_HEADS
+
+    state_offsets = tl.arange(0, STATE_CHUNK)
+    token_offsets = tl.arange(0, ATTN_BLOCK)
+    key_offsets = tl.arange(0, HEAD_DIM)
+    value_offsets = tl.arange(0, VALUE_DIM)
+    total_len: tl.constexpr = MACRO_BLOCKS * MACRO_BLOCK
+    state_idx = chunk_id * STATE_CHUNK + state_offsets
+    active_state_len = tl.load(active_state_len_by_macro + macro_id)
+    valid_state = state_idx < active_state_len
+
+    state_k_attn_base = state_k_attn + kv_row * MAX_STATE_LEN * HEAD_DIM
+    state_v_attn_base = state_v_attn + kv_row * MAX_STATE_LEN * VALUE_DIM
+    raw_state_k_base = state_k + kv_row * MAX_STATE_LEN * HEAD_DIM
+    raw_state_v_base = state_v + kv_row * MAX_STATE_LEN * VALUE_DIM
+    raw_state_vlen_base = state_vlen + kv_row * MAX_STATE_LEN
+    d_state_k_row = d_state_k + kv_row * MAX_STATE_LEN * HEAD_DIM
+    d_state_v_row = d_state_v + kv_row * MAX_STATE_LEN * VALUE_DIM
+    d_state_vlen_row = d_state_vlen + kv_row * MAX_STATE_LEN
+
+    k_chunk = tl.load(
+        state_k_attn_base + state_idx[:, None] * HEAD_DIM + key_offsets[None, :],
+        mask=valid_state[:, None],
+        other=0.0,
+    )
+    v_chunk = tl.load(
+        state_v_attn_base + state_idx[:, None] * VALUE_DIM + value_offsets[None, :],
+        mask=valid_state[:, None],
+        other=0.0,
+    )
+    dk_attn = tl.zeros((STATE_CHUNK, HEAD_DIM), tl.float32)
+    dv_attn = tl.zeros((STATE_CHUNK, VALUE_DIM), tl.float32)
+
+    for group_i in tl.range(
+        0, group_size, 1, num_stages=1, loop_unroll_factor=Q_HEAD_LOOP_UNROLL
+    ):
+        q_head = kv_head * group_size + group_i
+        q_row = batch_id * Q_HEADS + q_head
+        q_row_ptr = q + q_row * total_len * HEAD_DIM
+        dout_row = dout + q_row * total_len * VALUE_DIM
+        lse_row = lse + q_row * total_len
+        delta_row = delta + q_row * total_len
+        state_temp = tl.load(state_temperature + q_head).to(tl.float32)
+        k_eff = (k_chunk.to(tl.float32) * state_temp).to(tl.bfloat16)
+        if COMPUTE_TEMP_GRAD:
+            temp_grad = tl.full((), 0.0, tl.float32)
+
+        for local_block in tl.range(0, ATTN_BLOCKS_PER_MACRO, 1, num_stages=1):
+            q_idx = macro_id * MACRO_BLOCK + local_block * ATTN_BLOCK + token_offsets
+            q_block = tl.load(
+                q_row_ptr + q_idx[:, None] * HEAD_DIM + key_offsets[None, :]
+            )
+            do = tl.load(
+                dout_row + q_idx[:, None] * VALUE_DIM + value_offsets[None, :]
+            ).to(tl.float32)
+            do_bf16 = do.to(tl.bfloat16)
+            lse_i = tl.load(lse_row + q_idx)
+            delta_i = tl.load(delta_row + q_idx)
+            scores = tl.dot(q_block, tl.trans(k_eff), out_dtype=tl.float32) * SCALE_LOG2
+            scores = tl.where(valid_state[None, :], scores, -float("inf"))
+            p = tl.exp2(scores - lse_i[:, None])
+            p = tl.where(valid_state[None, :], p, 0.0)
+            dp = tl.dot(do_bf16, tl.trans(v_chunk), out_dtype=tl.float32)
+            ds = p * (dp - delta_i[:, None])
+            dk_eff = tl.dot(
+                tl.trans(ds.to(tl.bfloat16)), q_block, out_dtype=tl.float32
+            ) * SCALE
+            dk_attn += dk_eff * state_temp
+            if COMPUTE_TEMP_GRAD:
+                temp_grad += tl.sum(
+                    tl.sum(
+                        tl.where(
+                            valid_state[:, None], dk_eff * k_chunk.to(tl.float32), 0.0
+                        ),
+                        axis=1,
+                    ),
+                    axis=0,
+                )
+            p_bf16 = p.to(tl.bfloat16)
+            dv_block = tl.trans(
+                tl.dot(tl.trans(do_bf16), p_bf16, out_dtype=tl.float32)
+            )
+            dv_attn += dv_block
+
+        if STORE_TEMP_GRAD:
+            temp_idx = tl.where(BATCH_TEMP_GRAD, batch_id * Q_HEADS + q_head, q_head)
+            tl.atomic_add(d_state_temperature + temp_idx, temp_grad, sem="relaxed")
+        if WRITE_TEMP_PARTIAL:
+            partial_idx = (
+                ((kv_row * MACRO_BLOCKS + macro_id) * STATE_CHUNKS + chunk_id)
+                * group_size
+                + group_i
+            )
+            tl.store(d_state_temperature_partials + partial_idx, temp_grad)
+
+    raw_k = tl.load(
+        raw_state_k_base + state_idx[:, None] * HEAD_DIM + key_offsets[None, :],
+        mask=valid_state[:, None],
+        other=0.0,
+    ).to(tl.float32)
+    ln_w = tl.load(ln_weight + key_offsets).to(tl.float32)
+    mean = tl.sum(raw_k, axis=1) / HEAD_DIM
+    centered = raw_k - mean[:, None]
+    var = tl.sum(centered * centered, axis=1) / HEAD_DIM
+    rstd = tl.rsqrt(var + LN_EPS)
+    xhat = centered * rstd[:, None]
+    gw = dk_attn * ln_w[None, :]
+    mean_gw = tl.sum(gw, axis=1) / HEAD_DIM
+    mean_gw_xhat = tl.sum(gw * xhat, axis=1) / HEAD_DIM
+    grad_raw_k = (gw - mean_gw[:, None] - xhat * mean_gw_xhat[:, None]) * rstd[:, None]
+    old_dk = tl.load(
+        d_state_k_row + state_idx[:, None] * HEAD_DIM + key_offsets[None, :],
+        mask=valid_state[:, None],
+        other=0.0,
+    ).to(tl.float32)
+    tl.store(
+        d_state_k_row + state_idx[:, None] * HEAD_DIM + key_offsets[None, :],
+        old_dk + grad_raw_k,
+        mask=valid_state[:, None],
+    )
+    part_w = tl.sum(tl.where(valid_state[:, None], dk_attn * xhat, 0.0), axis=0)
+    part_b = tl.sum(tl.where(valid_state[:, None], dk_attn, 0.0), axis=0)
+    tl.atomic_add(d_ln_weight + key_offsets, part_w, sem="relaxed")
+    tl.atomic_add(d_ln_bias + key_offsets, part_b, sem="relaxed")
+
+    raw_v = tl.load(
+        raw_state_v_base + state_idx[:, None] * VALUE_DIM + value_offsets[None, :],
+        mask=valid_state[:, None],
+        other=0.0,
+    ).to(tl.float32)
+    vlen = tl.load(raw_state_vlen_base + state_idx, mask=valid_state, other=0.0).to(
+        tl.float32
+    )
+    norm = tl.sqrt(tl.sum(raw_v * raw_v, axis=1))
+    safe_norm = tl.maximum(norm, 1.0e-12)
+    dot = tl.sum(dv_attn * raw_v, axis=1)
+    grad_raw_v = dv_attn * (vlen / safe_norm)[:, None] - raw_v * (
+        vlen * dot / (safe_norm * safe_norm * safe_norm)
+    )[:, None]
+    grad_raw_v = tl.where((norm > 1.0e-12)[:, None], grad_raw_v, 0.0)
+    grad_vlen = tl.where(norm > 1.0e-12, dot / safe_norm, 0.0)
+    old_dv = tl.load(
+        d_state_v_row + state_idx[:, None] * VALUE_DIM + value_offsets[None, :],
+        mask=valid_state[:, None],
+        other=0.0,
+    ).to(tl.float32)
+    old_dvlen = tl.load(d_state_vlen_row + state_idx, mask=valid_state, other=0.0).to(
+        tl.float32
+    )
+    tl.store(
+        d_state_v_row + state_idx[:, None] * VALUE_DIM + value_offsets[None, :],
+        old_dv + grad_raw_v,
+        mask=valid_state[:, None],
+    )
+    tl.store(d_state_vlen_row + state_idx, old_dvlen + grad_vlen, mask=valid_state)
+
+@triton.jit
+def _reverse_route_scatter_grad_split_kernel(
+    d_state_k,
+    d_state_v,
+    d_state_vlen,
+    d_append_k,
+    d_append_v,
+    d_merge_k,
+    d_merge_v,
+    append_v,
+    append_pos_by_token,
+    best_idx_by_token,
+    after_by_macro,
+    macro_id,
+    MAX_STATE_LEN: tl.constexpr,
+    MACRO_BLOCKS: tl.constexpr,
+    MACRO_BLOCK: tl.constexpr,
+    TOKEN_BLOCK: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+):
+    row = tl.program_id(0).to(tl.int64)
+    token_group = tl.program_id(1).to(tl.int64)
+    token_offsets = token_group * TOKEN_BLOCK + tl.arange(0, TOKEN_BLOCK)
+    key_offsets = tl.arange(0, HEAD_DIM)
+    value_offsets = tl.arange(0, VALUE_DIM)
+    route_offset = macro_id * MACRO_BLOCK + token_offsets
+    after_len = tl.load(after_by_macro + macro_id)
+
+    append_pos_row = append_pos_by_token + row * MACRO_BLOCKS * MACRO_BLOCK
+    best_idx_row = best_idx_by_token + row * MACRO_BLOCKS * MACRO_BLOCK
+    append_pos = tl.load(append_pos_row + route_offset)
+    best_idx = tl.load(best_idx_row + route_offset)
+    append_mask = append_pos >= 0
+    merge_mask = (~append_mask) & (best_idx >= 0) & (best_idx < after_len)
+    app_i64 = append_pos.to(tl.int64)
+    best_i64 = best_idx.to(tl.int64)
+
+    d_state_k_row = d_state_k + row * MAX_STATE_LEN * HEAD_DIM
+    d_state_v_row = d_state_v + row * MAX_STATE_LEN * VALUE_DIM
+    d_state_vlen_row = d_state_vlen + row * MAX_STATE_LEN
+    d_append_k_row = d_append_k + row * (MACRO_BLOCKS * MACRO_BLOCK) * HEAD_DIM
+    d_append_v_row = d_append_v + row * (MACRO_BLOCKS * MACRO_BLOCK) * VALUE_DIM
+    d_merge_k_row = d_merge_k + row * (MACRO_BLOCKS * MACRO_BLOCK) * HEAD_DIM
+    d_merge_v_row = d_merge_v + row * (MACRO_BLOCKS * MACRO_BLOCK) * VALUE_DIM
+    append_v_row = append_v + row * (MACRO_BLOCKS * MACRO_BLOCK) * VALUE_DIM
+
+    app_gk = tl.load(
+        d_state_k_row + app_i64[:, None] * HEAD_DIM + key_offsets[None, :],
+        mask=append_mask[:, None],
+        other=0.0,
+    )
+    merge_gk = tl.load(
+        d_state_k_row + best_i64[:, None] * HEAD_DIM + key_offsets[None, :],
+        mask=merge_mask[:, None],
+        other=0.0,
+    )
+    tl.store(
+        d_append_k_row + route_offset[:, None] * HEAD_DIM + key_offsets[None, :],
+        app_gk,
+    )
+    tl.store(
+        d_merge_k_row + route_offset[:, None] * HEAD_DIM + key_offsets[None, :],
+        merge_gk,
+    )
+
+    app_gv = tl.load(
+        d_state_v_row + app_i64[:, None] * VALUE_DIM + value_offsets[None, :],
+        mask=append_mask[:, None],
+        other=0.0,
+    ).to(tl.float32)
+    merge_gv = tl.load(
+        d_state_v_row + best_i64[:, None] * VALUE_DIM + value_offsets[None, :],
+        mask=merge_mask[:, None],
+        other=0.0,
+    ).to(tl.float32)
+    app_gvlen = tl.load(d_state_vlen_row + app_i64, mask=append_mask, other=0.0).to(
+        tl.float32
+    )
+    o_v = tl.load(
+        append_v_row + route_offset[:, None] * VALUE_DIM + value_offsets[None, :],
+        mask=append_mask[:, None],
+        other=0.0,
+    ).to(tl.float32)
+    o_norm = tl.sqrt(tl.sum(o_v * o_v, axis=1))
+    safe_norm = tl.maximum(o_norm, 1.0e-12)
+    app_vlen_grad = tl.where(
+        (o_norm > 1.0e-12)[:, None],
+        o_v * (app_gvlen / safe_norm)[:, None],
+        0.0,
+    )
+    tl.store(
+        d_append_v_row + route_offset[:, None] * VALUE_DIM + value_offsets[None, :],
+        app_gv + app_vlen_grad,
+    )
+    tl.store(
+        d_merge_v_row + route_offset[:, None] * VALUE_DIM + value_offsets[None, :],
+        merge_gv,
+    )
+
+@triton.jit
+def _clear_appended_state_grad_kernel(
+    d_state_k,
+    d_state_v,
+    d_state_vlen,
+    before_by_macro,
+    after_by_macro,
+    macro_id,
+    MAX_STATE_LEN: tl.constexpr,
+    STATE_CHUNK: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+):
+    row = tl.program_id(0).to(tl.int64)
+    chunk = tl.program_id(1).to(tl.int64)
+    state_offsets = chunk * STATE_CHUNK + tl.arange(0, STATE_CHUNK)
+    key_offsets = tl.arange(0, HEAD_DIM)
+    value_offsets = tl.arange(0, VALUE_DIM)
+    before_len = tl.load(before_by_macro + macro_id)
+    after_len = tl.load(after_by_macro + macro_id)
+    appended = (state_offsets >= before_len) & (state_offsets < after_len)
+
+    d_state_k_row = d_state_k + row * MAX_STATE_LEN * HEAD_DIM
+    d_state_v_row = d_state_v + row * MAX_STATE_LEN * VALUE_DIM
+    d_state_vlen_row = d_state_vlen + row * MAX_STATE_LEN
+    tl.store(
+        d_state_k_row + state_offsets[:, None] * HEAD_DIM + key_offsets[None, :],
+        0.0,
+        mask=appended[:, None],
+    )
+    tl.store(
+        d_state_v_row + state_offsets[:, None] * VALUE_DIM + value_offsets[None, :],
+        0.0,
+        mask=appended[:, None],
+    )
+    tl.store(d_state_vlen_row + state_offsets, 0.0, mask=appended)
+
+@triton.jit
+def _restore_refresh_from_undo_routes_kernel(
+    state_k,
+    state_v,
+    state_k_attn,
+    state_v_attn,
+    state_vlen,
+    undo_k_by_token,
+    undo_v_by_token,
+    append_pos_by_token,
+    best_idx_by_token,
+    before_by_macro,
+    after_by_macro,
+    macro_id,
+    ln_weight,
+    ln_bias,
+    MAX_STATE_LEN: tl.constexpr,
+    MACRO_BLOCKS: tl.constexpr,
+    MACRO_BLOCK: tl.constexpr,
+    TOKEN_BLOCK: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+    LN_EPS: tl.constexpr,
+):
+    row = tl.program_id(0).to(tl.int64)
+    token_group = tl.program_id(1).to(tl.int64)
+    token_offsets = token_group * TOKEN_BLOCK + tl.arange(0, TOKEN_BLOCK)
+    key_offsets = tl.arange(0, HEAD_DIM)
+    value_offsets = tl.arange(0, VALUE_DIM)
+    route_offset = macro_id * MACRO_BLOCK + token_offsets
+
+    state_before = tl.load(before_by_macro + macro_id)
+    state_after = tl.load(after_by_macro + macro_id)
+    append_pos_row = append_pos_by_token + row * MACRO_BLOCKS * MACRO_BLOCK
+    best_idx_row = best_idx_by_token + row * MACRO_BLOCKS * MACRO_BLOCK
+    append_pos = tl.load(append_pos_row + route_offset)
+    best_idx = tl.load(best_idx_row + route_offset)
+
+    append_mask = (append_pos >= 0) & (append_pos < state_after)
+    restore_mask = (append_pos < 0) & (best_idx >= 0) & (best_idx < state_before)
+    append_i64 = append_pos.to(tl.int64)
+    best_i64 = best_idx.to(tl.int64)
+
+    state_k_row = state_k + row * MAX_STATE_LEN * HEAD_DIM
+    state_v_row = state_v + row * MAX_STATE_LEN * VALUE_DIM
+    state_k_attn_row = state_k_attn + row * MAX_STATE_LEN * HEAD_DIM
+    state_v_attn_row = state_v_attn + row * MAX_STATE_LEN * VALUE_DIM
+    state_vlen_row = state_vlen + row * MAX_STATE_LEN
+    undo_k_row = undo_k_by_token + row * MACRO_BLOCKS * MACRO_BLOCK * HEAD_DIM
+    undo_v_row = undo_v_by_token + row * MACRO_BLOCKS * MACRO_BLOCK * VALUE_DIM
+
+    old_k = tl.load(
+        undo_k_row + route_offset[:, None] * HEAD_DIM + key_offsets[None, :],
+        mask=restore_mask[:, None],
+        other=0.0,
+    ).to(tl.float32)
+    old_v = tl.load(
+        undo_v_row + route_offset[:, None] * VALUE_DIM + value_offsets[None, :],
+        mask=restore_mask[:, None],
+        other=0.0,
+    ).to(tl.float32)
+
+    tl.store(
+        state_k_row + best_i64[:, None] * HEAD_DIM + key_offsets[None, :],
+        old_k,
+        mask=restore_mask[:, None],
+    )
+    tl.store(
+        state_v_row + best_i64[:, None] * VALUE_DIM + value_offsets[None, :],
+        old_v,
+        mask=restore_mask[:, None],
+    )
+
+    ln_w = tl.load(ln_weight + key_offsets).to(tl.float32)
+    ln_b = tl.load(ln_bias + key_offsets).to(tl.float32)
+    k_mean = tl.sum(old_k, axis=1) / HEAD_DIM
+    k_centered = old_k - k_mean[:, None]
+    k_var = tl.sum(k_centered * k_centered, axis=1) / HEAD_DIM
+    k_norm = k_centered * tl.rsqrt(k_var[:, None] + LN_EPS)
+    k_norm = (k_norm * ln_w[None, :] + ln_b[None, :]).to(tl.bfloat16)
+
+    vlen = tl.load(state_vlen_row + best_i64, mask=restore_mask, other=0.0).to(
+        tl.float32
+    )
+    v_norm = tl.sqrt(tl.sum(old_v * old_v, axis=1))
+    v_scale = tl.where(v_norm > 1.0e-12, vlen / v_norm, 0.0)
+    v_attn = (old_v * v_scale[:, None]).to(tl.bfloat16)
+    tl.store(
+        state_k_attn_row + best_i64[:, None] * HEAD_DIM + key_offsets[None, :],
+        k_norm,
+        mask=restore_mask[:, None],
+    )
+    tl.store(
+        state_v_attn_row + best_i64[:, None] * VALUE_DIM + value_offsets[None, :],
+        v_attn,
+        mask=restore_mask[:, None],
+    )
+
+    tl.store(
+        state_k_row + append_i64[:, None] * HEAD_DIM + key_offsets[None, :],
+        0.0,
+        mask=append_mask[:, None],
+    )
+    tl.store(
+        state_v_row + append_i64[:, None] * VALUE_DIM + value_offsets[None, :],
+        0.0,
+        mask=append_mask[:, None],
+    )
+    tl.store(
+        state_k_attn_row + append_i64[:, None] * HEAD_DIM + key_offsets[None, :],
+        0.0,
+        mask=append_mask[:, None],
+    )
+    tl.store(
+        state_v_attn_row + append_i64[:, None] * VALUE_DIM + value_offsets[None, :],
+        0.0,
+        mask=append_mask[:, None],
+    )
+    tl.store(state_vlen_row + append_i64, 0.0, mask=append_mask)
+
+@triton.jit
+def _initial_state_grad_kernel(
+    d_state_k,
+    d_state_v,
+    d_state_vlen,
+    d_overflow_k,
+    d_overflow_v,
+    overflow_v,
+    INITIAL_STATE_LEN: tl.constexpr,
+    MAX_STATE_LEN: tl.constexpr,
+    STATE_CHUNK: tl.constexpr,
+    MACRO_BLOCKS: tl.constexpr,
+    MACRO_BLOCK: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+):
+    row = tl.program_id(0).to(tl.int64)
+    chunk = tl.program_id(1).to(tl.int64)
+    state_offsets = chunk * STATE_CHUNK + tl.arange(0, STATE_CHUNK)
+    key_offsets = tl.arange(0, HEAD_DIM)
+    value_offsets = tl.arange(0, VALUE_DIM)
+    valid = state_offsets < INITIAL_STATE_LEN
+    d_state_k_row = d_state_k + row * MAX_STATE_LEN * HEAD_DIM
+    d_state_v_row = d_state_v + row * MAX_STATE_LEN * VALUE_DIM
+    d_state_vlen_row = d_state_vlen + row * MAX_STATE_LEN
+    d_overflow_k_row = d_overflow_k + row * (MACRO_BLOCKS * MACRO_BLOCK) * HEAD_DIM
+    d_overflow_v_row = d_overflow_v + row * (MACRO_BLOCKS * MACRO_BLOCK) * VALUE_DIM
+    overflow_v_row = overflow_v + row * (MACRO_BLOCKS * MACRO_BLOCK) * VALUE_DIM
+    gk = tl.load(
+        d_state_k_row + state_offsets[:, None] * HEAD_DIM + key_offsets[None, :],
+        mask=valid[:, None],
+        other=0.0,
+    )
+    gv = tl.load(
+        d_state_v_row + state_offsets[:, None] * VALUE_DIM + value_offsets[None, :],
+        mask=valid[:, None],
+        other=0.0,
+    ).to(tl.float32)
+    gvlen = tl.load(d_state_vlen_row + state_offsets, mask=valid, other=0.0).to(
+        tl.float32
+    )
+    o_v = tl.load(
+        overflow_v_row + state_offsets[:, None] * VALUE_DIM + value_offsets[None, :],
+        mask=valid[:, None],
+        other=0.0,
+    ).to(tl.float32)
+    norm = tl.sqrt(tl.sum(o_v * o_v, axis=1))
+    safe_norm = tl.maximum(norm, 1.0e-12)
+    vlen_grad = tl.where(
+        (norm > 1.0e-12)[:, None],
+        o_v * (gvlen / safe_norm)[:, None],
+        0.0,
+    )
+    tl.store(
+        d_overflow_k_row + state_offsets[:, None] * HEAD_DIM + key_offsets[None, :],
+        gk,
+        mask=valid[:, None],
+    )
+    tl.store(
+        d_overflow_v_row + state_offsets[:, None] * VALUE_DIM + value_offsets[None, :],
+        gv + vlen_grad,
+        mask=valid[:, None],
+    )
+
+def build_prefill_forward(
+    args: argparse.Namespace,
+    schedule,
+    q_flat: torch.Tensor,
+    overflow_k_flat: torch.Tensor,
+    overflow_v_flat: torch.Tensor,
+    bswa_k_flat: torch.Tensor,
+    bswa_v_flat: torch.Tensor,
+    ln_weight: torch.Tensor,
+    ln_bias: torch.Tensor,
+    state_temperature: torch.Tensor,
+    front_temperature: torch.Tensor,
+    *,
+    initial_k_flat: torch.Tensor | None = None,
+    initial_v_flat: torch.Tensor | None = None,
+    overflow_select_k_flat: torch.Tensor | None = None,
+    overflow_append_k_flat: torch.Tensor | None = None,
+    overflow_append_v_flat: torch.Tensor | None = None,
+    overflow_merge_k_flat: torch.Tensor | None = None,
+    overflow_merge_v_flat: torch.Tensor | None = None,
+) -> dict:
+    device = q_flat.device
+    dtype = overflow_k_flat.dtype
+    kv_rows = args.batch * args.kv_heads
+    q_rows = args.batch * args.q_heads
+    macro_blocks = args.q_len // args.macro_block
+    max_state_len = args.max_state_len or schedule.final_state_len
+    attn_blocks_per_macro = args.macro_block // args.attn_block
+    buffers = allocate_work_buffers(args, schedule, device)
+
+    state_k = torch.zeros(kv_rows, max_state_len, args.dim, device=device, dtype=dtype)
+    state_v = torch.zeros(
+        kv_rows, max_state_len, args.value_dim, device=device, dtype=dtype
+    )
+    state_k_attn = torch.zeros_like(state_k)
+    state_v_attn = torch.zeros_like(state_v)
+    state_vlen = torch.zeros(kv_rows, max_state_len, device=device, dtype=torch.float32)
+    append_pos_by_token = torch.full(
+        (kv_rows, macro_blocks, args.macro_block),
+        -1,
+        device=device,
+        dtype=torch.int32,
+    )
+    best_idx_by_token = torch.full_like(append_pos_by_token, -1)
+    if args.undo_mode != "stash":
+        raise ValueError("--reconstruct-live-state-backward currently requires --undo-mode stash")
+    undo_k_by_token = torch.empty(
+        kv_rows, macro_blocks, args.macro_block, args.dim, device=device, dtype=dtype
+    )
+    undo_v_by_token = torch.empty(
+        kv_rows,
+        macro_blocks,
+        args.macro_block,
+        args.value_dim,
+        device=device,
+        dtype=dtype,
+    )
+    out = torch.empty(
+        q_rows, args.q_len, args.value_dim, device=device, dtype=q_flat.dtype
+    )
+    lse = torch.empty(q_rows, args.q_len, device=device, dtype=torch.float32)
+
+    if initial_k_flat is None:
+        initial_k_flat = overflow_k_flat
+    if initial_v_flat is None:
+        initial_v_flat = overflow_v_flat
+    state_k[:, : args.initial_state_len].copy_(
+        initial_k_flat[:, : args.initial_state_len]
+    )
+    state_v[:, : args.initial_state_len].copy_(
+        initial_v_flat[:, : args.initial_state_len]
+    )
+    initial_chunks = triton.cdiv(args.initial_state_len, args.state_chunk)
+    update_kwargs = triton_launch_kwargs(
+        args.update_num_warps, 1, args.update_waves_per_eu or args.waves_per_eu
+    )
+    attn_kwargs = triton_launch_kwargs(
+        args.attn_num_warps, 1, args.attn_waves_per_eu or args.waves_per_eu
+    )
+    _init_state_normcache_kernel[(kv_rows, initial_chunks)](
+        state_k,
+        state_v,
+        state_k_attn,
+        state_v_attn,
+        state_vlen,
+        ln_weight,
+        ln_bias,
+        INITIAL_STATE_LEN=args.initial_state_len,
+        MAX_STATE_LEN=max_state_len,
+        STATE_CHUNK=args.state_chunk,
+        HEAD_DIM=args.dim,
+        VALUE_DIM=args.value_dim,
+        LN_EPS=args.ln_eps,
+        **update_kwargs,
+    )
+
+    active = schedule.attention_state_len_by_macro.to(device)
+    valid_update = schedule.valid_update_by_macro
+    update_macro_ids = {
+        int(x)
+        for x in torch.nonzero(valid_update, as_tuple=False).flatten().tolist()
+    }
+    scale_log2 = math.log2(math.e) / math.sqrt(float(args.dim))
+    for macro_id in range(macro_blocks):
+        _kvm_attn_live_state_fwd_kernel[(q_rows, attn_blocks_per_macro)](
+            q_flat,
+            state_k_attn,
+            state_v_attn,
+            bswa_k_flat,
+            bswa_v_flat,
+            out,
+            lse,
+            active,
+            state_temperature,
+            front_temperature,
+            macro_id,
+            MAX_STATE_LEN=max_state_len,
+            STATE_CHUNK=args.state_chunk,
+            Q_HEADS=args.q_heads,
+            KV_HEADS=args.kv_heads,
+            MACRO_BLOCKS=macro_blocks,
+            MACRO_BLOCK=args.macro_block,
+            ATTN_BLOCK=args.attn_block,
+            ATTN_BLOCKS_PER_MACRO=attn_blocks_per_macro,
+            HEAD_DIM=args.dim,
+            VALUE_DIM=args.value_dim,
+            SCALE_LOG2=scale_log2,
+            **attn_kwargs,
+        )
+        overflow_macro_id = macro_id - (args.bswa_chunks - 1)
+        if overflow_macro_id not in update_macro_ids:
+            continue
+        run_forward_state_update(
+            args,
+            schedule,
+            overflow_k_flat,
+            overflow_v_flat,
+            ln_weight,
+            ln_bias,
+            buffers,
+            state_k,
+            state_v,
+            state_k_attn,
+            state_v_attn,
+            state_vlen,
+            append_pos_by_token,
+            best_idx_by_token,
+            undo_k_by_token,
+            undo_v_by_token,
+            overflow_macro_id,
+            True,
+            overflow_select_k_flat=overflow_select_k_flat,
+            overflow_append_k_flat=overflow_append_k_flat,
+            overflow_append_v_flat=overflow_append_v_flat,
+            overflow_merge_k_flat=overflow_merge_k_flat,
+            overflow_merge_v_flat=overflow_merge_v_flat,
+        )
+
+    return {
+        "out": out,
+        "lse": lse,
+        "state_k": state_k,
+        "state_v": state_v,
+        "state_k_attn": state_k_attn,
+        "state_v_attn": state_v_attn,
+        "state_vlen": state_vlen,
+        "append_pos_by_token": append_pos_by_token,
+        "best_idx_by_token": best_idx_by_token,
+        "undo_k_by_token": undo_k_by_token,
+        "undo_v_by_token": undo_v_by_token,
+        "buffers": buffers,
+    }
+
+def run_training_backward_reconstruct_live_state(
+    args: argparse.Namespace,
+    schedule,
+    q_flat: torch.Tensor,
+    bswa_k_flat: torch.Tensor,
+    bswa_v_flat: torch.Tensor,
+    overflow_k_flat: torch.Tensor,
+    ln_weight: torch.Tensor,
+    ln_bias: torch.Tensor,
+    dout: torch.Tensor,
+    state_temperature: torch.Tensor,
+    front_temperature: torch.Tensor,
+    *,
+    initial_k_flat: torch.Tensor | None = None,
+    initial_v_flat: torch.Tensor | None = None,
+    overflow_select_k_flat: torch.Tensor | None = None,
+    overflow_append_k_flat: torch.Tensor | None = None,
+    overflow_append_v_flat: torch.Tensor | None = None,
+    overflow_merge_k_flat: torch.Tensor | None = None,
+    overflow_merge_v_flat: torch.Tensor | None = None,
+    saved_forward: dict | None = None,
+):
+    if args.attn_grad_backend != "kv-owned":
+        raise ValueError("--reconstruct-live-state-backward requires --attn-grad-backend kv-owned")
+    if args.update_grad_backend != "triton":
+        raise ValueError("--reconstruct-live-state-backward requires --update-grad-backend triton")
+    if args.undo_mode != "stash":
+        raise ValueError("--reconstruct-live-state-backward requires --undo-mode stash")
+
+    if getattr(args, "skip_temperature_grad", False):
+        raise ValueError("kvm_classic_triton_training_kernels requires temperature gradients")
+    if getattr(args, "skip_temperature_atomic", False):
+        raise ValueError("kvm_classic_triton_training_kernels requires atomic temperature gradients")
+    if args.temperature_grad_backend != "atomic":
+        raise ValueError("kvm_classic_triton_training_kernels only supports atomic temperature gradients")
+    if not args.fuse_restore_refresh:
+        raise ValueError("kvm_classic_triton_training_kernels requires fused restore/refresh")
+    compute_temperature_grad = True
+    store_temperature_grad = True
+    write_temperature_partials = False
+    batch_temperature_grad = False
+    q_rows = args.batch * args.q_heads
+    kv_rows = args.batch * args.kv_heads
+    macro_blocks = args.q_len // args.macro_block
+    attn_blocks_per_macro = args.macro_block // args.attn_block
+    max_state_len = args.max_state_len or schedule.final_state_len
+    state_chunks = triton.cdiv(max_state_len, args.state_chunk)
+    device = q_flat.device
+    scale_log2 = math.log2(math.e) / math.sqrt(float(args.dim))
+    scale = 1.0 / math.sqrt(float(args.dim))
+    attn_kwargs = triton_launch_kwargs(
+        args.attn_num_warps, 1, args.attn_waves_per_eu or args.waves_per_eu
+    )
+    update_kwargs = triton_launch_kwargs(
+        args.update_num_warps, 1, args.update_waves_per_eu or args.waves_per_eu
+    )
+
+    if saved_forward is None:
+        forward = build_prefill_forward(
+            args,
+            schedule,
+            q_flat,
+            overflow_k_flat,
+            bswa_v_flat,
+            bswa_k_flat,
+            bswa_v_flat,
+            ln_weight,
+            ln_bias,
+            state_temperature,
+            front_temperature,
+            initial_k_flat=initial_k_flat,
+            initial_v_flat=initial_v_flat,
+            overflow_select_k_flat=overflow_select_k_flat,
+            overflow_append_k_flat=overflow_append_k_flat,
+            overflow_append_v_flat=overflow_append_v_flat,
+            overflow_merge_k_flat=overflow_merge_k_flat,
+            overflow_merge_v_flat=overflow_merge_v_flat,
+        )
+    else:
+        forward = saved_forward
+    out = forward["out"]
+    lse = forward["lse"]
+    delta = torch.empty_like(lse)
+    dq = torch.empty(q_rows, args.q_len, args.dim, device=device, dtype=torch.float32)
+    d_bswa_k = torch.empty(
+        kv_rows, args.q_len, args.dim, device=device, dtype=torch.float32
+    )
+    d_bswa_v = torch.empty(
+        kv_rows, args.q_len, args.value_dim, device=device, dtype=torch.float32
+    )
+    if batch_temperature_grad:
+        d_state_temperature = torch.empty(
+            args.q_heads, device=device, dtype=torch.float32
+        )
+        d_front_temperature = torch.empty(
+            args.q_heads, device=device, dtype=torch.float32
+        )
+        d_state_temperature_accum = torch.zeros(
+            args.batch * args.q_heads, device=device, dtype=torch.float32
+        )
+        d_front_temperature_accum = torch.zeros(
+            args.batch * args.q_heads, device=device, dtype=torch.float32
+        )
+    else:
+        d_state_temperature = torch.zeros(
+            args.q_heads, device=device, dtype=torch.float32
+        )
+        d_front_temperature = torch.zeros(
+            args.q_heads, device=device, dtype=torch.float32
+        )
+        d_state_temperature_accum = d_state_temperature
+        d_front_temperature_accum = d_front_temperature
+    d_state_k = torch.zeros(
+        kv_rows, max_state_len, args.dim, device=device, dtype=torch.float32
+    )
+    d_state_v = torch.zeros(
+        kv_rows, max_state_len, args.value_dim, device=device, dtype=torch.float32
+    )
+    d_state_vlen = torch.zeros(kv_rows, max_state_len, device=device, dtype=torch.float32)
+    d_overflow_k = torch.zeros(
+        kv_rows, args.q_len, args.dim, device=device, dtype=torch.float32
+    )
+    split_inputs = (
+        initial_k_flat,
+        initial_v_flat,
+        overflow_append_k_flat,
+        overflow_append_v_flat,
+        overflow_merge_k_flat,
+        overflow_merge_v_flat,
+    )
+    if any(x is None for x in split_inputs):
+        raise ValueError("kvm_classic_triton_training_kernels requires split update inputs")
+    d_initial_k = torch.zeros_like(d_overflow_k)
+    d_initial_v = torch.zeros_like(d_bswa_v)
+    d_append_k = torch.zeros_like(d_overflow_k)
+    d_append_v = torch.zeros_like(d_bswa_v)
+    d_merge_k = torch.zeros_like(d_overflow_k)
+    d_merge_v = torch.zeros_like(d_bswa_v)
+    d_ln_weight = torch.zeros_like(ln_weight, dtype=torch.float32)
+    d_ln_bias = torch.zeros_like(ln_weight, dtype=torch.float32)
+    state_temperature_partials = torch.empty(1, device=device, dtype=torch.float32)
+    front_temperature_partials = torch.empty(1, device=device, dtype=torch.float32)
+
+    active = schedule.attention_state_len_by_macro.to(device)
+    before_by_macro = schedule.before_by_macro.to(device)
+    after_by_macro = schedule.after_by_macro.to(device)
+    token_groups_total = args.macro_block // args.update_token_block
+
+    _kvm_attn_bwd_preprocess_kernel[
+        (q_rows, triton.cdiv(args.q_len, args.attn_block))
+    ](
+        out,
+        dout,
+        delta,
+        VALUE_DIM=args.value_dim,
+        BLOCK_M=args.attn_block,
+        **attn_kwargs,
+    )
+    _kvm_attn_snapshot_bswa_dkdv_kernel[
+        (kv_rows, macro_blocks, attn_blocks_per_macro)
+    ](
+        q_flat,
+        bswa_k_flat,
+        bswa_v_flat,
+        dout,
+        lse,
+        delta,
+        d_bswa_k,
+        d_bswa_v,
+        d_front_temperature_accum,
+        front_temperature_partials,
+        front_temperature,
+        Q_HEADS=args.q_heads,
+        KV_HEADS=args.kv_heads,
+        MACRO_BLOCKS=macro_blocks,
+        MACRO_BLOCK=args.macro_block,
+        ATTN_BLOCK=args.attn_block,
+        ATTN_BLOCKS_PER_MACRO=attn_blocks_per_macro,
+        HEAD_DIM=args.dim,
+        VALUE_DIM=args.value_dim,
+        SCALE_LOG2=scale_log2,
+        SCALE=scale,
+        Q_HEAD_LOOP_UNROLL=args.q_head_loop_unroll_factor,
+        COMPUTE_TEMP_GRAD=compute_temperature_grad,
+        STORE_TEMP_GRAD=store_temperature_grad,
+        WRITE_TEMP_PARTIAL=write_temperature_partials,
+        BATCH_TEMP_GRAD=batch_temperature_grad,
+        **attn_kwargs,
+    )
+
+    state_k = forward["state_k"].clone()
+    state_v = forward["state_v"].clone()
+    state_k_attn = forward["state_k_attn"].clone()
+    state_v_attn = forward["state_v_attn"].clone()
+    state_vlen = forward["state_vlen"].clone()
+
+    for macro_id in range(macro_blocks - 1, -1, -1):
+        _kvm_attn_live_state_dq_kernel[(q_rows, attn_blocks_per_macro)](
+            q_flat,
+            state_k_attn,
+            state_v_attn,
+            bswa_k_flat,
+            bswa_v_flat,
+            dout,
+            lse,
+            delta,
+            dq,
+            active,
+            state_temperature,
+            front_temperature,
+            macro_id,
+            MAX_STATE_LEN=max_state_len,
+            STATE_CHUNK=args.state_chunk,
+            Q_HEADS=args.q_heads,
+            KV_HEADS=args.kv_heads,
+            MACRO_BLOCKS=macro_blocks,
+            MACRO_BLOCK=args.macro_block,
+            ATTN_BLOCK=args.attn_block,
+            ATTN_BLOCKS_PER_MACRO=attn_blocks_per_macro,
+            HEAD_DIM=args.dim,
+            VALUE_DIM=args.value_dim,
+            SCALE_LOG2=scale_log2,
+            SCALE=scale,
+            **attn_kwargs,
+        )
+        active_len = int(schedule.attention_state_len_by_macro[macro_id].item())
+        if active_len > 0:
+            _live_state_dkdv_to_raw_grad_kernel[(kv_rows, state_chunks)](
+                q_flat,
+                state_k_attn,
+                state_v_attn,
+                state_k,
+                state_v,
+                state_vlen,
+                dout,
+                lse,
+                delta,
+                d_state_k,
+                d_state_v,
+                d_state_vlen,
+                d_ln_weight,
+                d_ln_bias,
+                d_state_temperature_accum,
+                state_temperature_partials,
+                active,
+                macro_id,
+                ln_weight,
+                state_temperature,
+                MAX_STATE_LEN=max_state_len,
+                STATE_CHUNK=args.state_chunk,
+                Q_HEADS=args.q_heads,
+                KV_HEADS=args.kv_heads,
+                MACRO_BLOCKS=macro_blocks,
+                MACRO_BLOCK=args.macro_block,
+                ATTN_BLOCK=args.attn_block,
+                ATTN_BLOCKS_PER_MACRO=attn_blocks_per_macro,
+                STATE_CHUNKS=state_chunks,
+                HEAD_DIM=args.dim,
+                VALUE_DIM=args.value_dim,
+                LN_EPS=args.ln_eps,
+                SCALE_LOG2=scale_log2,
+                SCALE=scale,
+                Q_HEAD_LOOP_UNROLL=args.q_head_loop_unroll_factor,
+                COMPUTE_TEMP_GRAD=compute_temperature_grad,
+                STORE_TEMP_GRAD=store_temperature_grad,
+                WRITE_TEMP_PARTIAL=write_temperature_partials,
+                BATCH_TEMP_GRAD=batch_temperature_grad,
+                **attn_kwargs,
+            )
+
+        prev_query_macro = macro_id - 1
+        if prev_query_macro < 0:
+            continue
+        overflow_macro_id = prev_query_macro - (args.bswa_chunks - 1)
+        if overflow_macro_id < 0:
+            continue
+        if not bool(schedule.valid_update_by_macro[overflow_macro_id].item()):
+            continue
+        _reverse_route_scatter_grad_split_kernel[(kv_rows, token_groups_total)](
+            d_state_k,
+            d_state_v,
+            d_state_vlen,
+            d_append_k,
+            d_append_v,
+            d_merge_k,
+            d_merge_v,
+            overflow_append_v_flat,
+            forward["append_pos_by_token"],
+            forward["best_idx_by_token"],
+            after_by_macro,
+            overflow_macro_id,
+            MAX_STATE_LEN=max_state_len,
+            MACRO_BLOCKS=macro_blocks,
+            MACRO_BLOCK=args.macro_block,
+            TOKEN_BLOCK=args.update_token_block,
+            HEAD_DIM=args.dim,
+            VALUE_DIM=args.value_dim,
+            **update_kwargs,
+        )
+        _clear_appended_state_grad_kernel[(kv_rows, state_chunks)](
+            d_state_k,
+            d_state_v,
+            d_state_vlen,
+            before_by_macro,
+            after_by_macro,
+            overflow_macro_id,
+            MAX_STATE_LEN=max_state_len,
+            STATE_CHUNK=args.state_chunk,
+            HEAD_DIM=args.dim,
+            VALUE_DIM=args.value_dim,
+            **update_kwargs,
+        )
+        _restore_refresh_from_undo_routes_kernel[(kv_rows, token_groups_total)](
+            state_k,
+            state_v,
+            state_k_attn,
+            state_v_attn,
+            state_vlen,
+            forward["undo_k_by_token"],
+            forward["undo_v_by_token"],
+            forward["append_pos_by_token"],
+            forward["best_idx_by_token"],
+            before_by_macro,
+            after_by_macro,
+            overflow_macro_id,
+            ln_weight,
+            ln_bias,
+            MAX_STATE_LEN=max_state_len,
+            MACRO_BLOCKS=macro_blocks,
+            MACRO_BLOCK=args.macro_block,
+            TOKEN_BLOCK=args.update_token_block,
+            HEAD_DIM=args.dim,
+            VALUE_DIM=args.value_dim,
+            LN_EPS=args.ln_eps,
+            **update_kwargs,
+        )
+
+    initial_chunks = triton.cdiv(args.initial_state_len, args.state_chunk)
+    _initial_state_grad_kernel[(kv_rows, initial_chunks)](
+        d_state_k,
+        d_state_v,
+        d_state_vlen,
+        d_initial_k,
+        d_initial_v,
+        initial_v_flat,
+        INITIAL_STATE_LEN=args.initial_state_len,
+        MAX_STATE_LEN=max_state_len,
+        STATE_CHUNK=args.state_chunk,
+        MACRO_BLOCKS=macro_blocks,
+        MACRO_BLOCK=args.macro_block,
+        HEAD_DIM=args.dim,
+        VALUE_DIM=args.value_dim,
+        **update_kwargs,
+    )
+
+    return {
+        "out": out,
+        "dq": dq,
+        "d_bswa_k": d_bswa_k,
+        "d_bswa_v": d_bswa_v,
+        "d_overflow_k": d_overflow_k,
+        "d_initial_k": d_initial_k,
+        "d_initial_v": d_initial_v,
+        "d_append_k": d_append_k,
+        "d_append_v": d_append_v,
+        "d_merge_k": d_merge_k,
+        "d_merge_v": d_merge_v,
+        "d_ln_weight": d_ln_weight,
+        "d_ln_bias": d_ln_bias,
+        "d_state_temperature": d_state_temperature,
+        "d_front_temperature": d_front_temperature,
+        "forward": forward,
+    }
+
+__all__ = [
+    "MixerPrefillSchedule",
+    "build_mixer_prefill_schedule",
+    "make_schedule",
+    "build_prefill_forward",
+    "run_training_backward_reconstruct_live_state",
+    "allocate_work_buffers",
+    "run_forward_state_update",
+    "triton_launch_kwargs",
+    "_init_state_normcache_kernel",
+    "_kvm_attn_live_state_fwd_kernel",
+    "_run_forward_update",
+    "_forward_apply_fp16_delta_normcache",
+    "_grouped_scan_oldstate_maxsim_kernel",
+    "_reduce_oldstate_maxsim_global_append_kernel",
+    "_token_fp16_delta_update_updated_state_store_bestidx_kernel",
+    "_apply_fp16_delta_normcache_rounded_kernel",
+    "_kvm_attn_bwd_preprocess_kernel",
+    "_kvm_attn_snapshot_bswa_dkdv_kernel",
+    "_kvm_attn_live_state_dq_kernel",
+    "_live_state_dkdv_to_raw_grad_kernel",
+    "_reverse_route_scatter_grad_split_kernel",
+    "_clear_appended_state_grad_kernel",
+    "_restore_refresh_from_undo_routes_kernel",
+    "_initial_state_grad_kernel",
+]
