@@ -1,4 +1,8 @@
+Topic hints: KVM RoPE-zero normalization ablations
+
 ## Lessons
 
 - Standard LayerNorm after zeroing partial-RoPE state-key coordinates repopulates masked channels through mean-centering and affine bias, so preparation, routing, and readout must all preserve or reapply the mask. Because early KVM experiments found LayerNorm better than RMSNorm, first ablate projected LayerNorm \(N_P(x)=P\,\mathrm{LN}(Px)\) consistently at those three boundaries; a state-only RMSNorm change risks a state/BSWA representation or metric mismatch and confounds the leakage repair with normalization geometry. Treat subspace-only LayerNorm and norm-restored projected LayerNorm as secondary ablations.
 - Do not treat split RoPE-window/NoPE-state attention that reuses the same Q/K representations as a credible higher-expressivity alternative: the shared representation must serve conflicting positional and content interactions. Use separate low-rank/LoRA-style adapters from the RoPE representations to NoPE Q/K (optionally V); this parameterized branch has worked well in distilled models.
+
+- In matched 120M/3B-token reference-KVM runs, baseline pre-LN-only RoPE masking reached val loss 3.27936; pre+post masking 3.28171, LayerNorm-BSWA/state RMSNorm 3.28019, learned-scale state-only RMSNorm 3.28008, and post-LN-only masking 3.28155. Exact per-key norm restoration after pre+post masking was unstable (val loss 7.6763 at step 250 and 7.6343 at step 500) even with finite capped scaling, so do not use dynamic projected-key norm restoration; rare low-energy retained projections can still be amplified enough to disrupt optimization.
