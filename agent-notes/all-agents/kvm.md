@@ -1,4 +1,4 @@
-Topic hints: Baseline ln_s_k RoPE-region parameter statistics
+Topic hints: Paper KVM-sqrt baseline differs in merge-gating config
 
 ## Lessons
 
@@ -8,3 +8,5 @@ Topic hints: Baseline ln_s_k RoPE-region parameter statistics
 - In matched 120M/3B-token reference-KVM runs, baseline pre-LN-only RoPE masking reached val loss 3.27936; pre+post masking 3.28171, LayerNorm-BSWA/state RMSNorm 3.28019, learned-scale state-only RMSNorm 3.28008, and post-LN-only masking 3.28155. Exact per-key norm restoration after pre+post masking was unstable (val loss 7.6763 at step 250 and 7.6343 at step 500) even with finite capped scaling, so do not use dynamic projected-key norm restoration; rare low-energy retained projections can still be amplified enough to disrupt optimization.
 
 - The final 120M/3B-token baseline checkpoint did not learn to zero ln_s_k on the 64 RoPE coordinates. Across 12 layers (768 values per region), RoPE gamma had mean 0.7765, RMS 0.8504, population variance 0.1202, and only 1/768 values with |gamma|<0.01, versus non-RoPE mean/RMS/variance 1.1254/1.1409/0.0350. RoPE beta was more strongly suppressed but not zero: RMS 0.07450, variance 0.005550, median |beta| 0.01166, and 43.6% with |beta|<0.01, versus non-RoPE 0.11084/0.012284/0.06934/8.3%. Every layer had lower RoPE gamma mean and beta RMS than its non-RoPE half, indicating partial learned leakage attenuation rather than elimination.
+
+- The published `featherless-ai/kvmpaper_kvmsqrt16_120M` checkpoint sets `kvm_apply_merge_gate_to_appends=0`, while `configs/prolong/120M/kvm_sqrt16_wd.yaml` inherits the current default `1`, so the recent run is not architecture-identical to the paper baseline. Under the same NIAH-S1 harness, the official checkpoint scored 100.0/99.8/99.8/100.0 at 4K/8K/16K/32K versus 99.2/99.8/97.8/83.8 for the gated-appends run.
