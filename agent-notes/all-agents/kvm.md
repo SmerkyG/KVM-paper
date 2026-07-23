@@ -1,4 +1,4 @@
-Topic hints: KVM RoPE-zero normalization ablations
+Topic hints: Baseline ln_s_k RoPE-region parameter statistics
 
 ## Lessons
 
@@ -6,3 +6,5 @@ Topic hints: KVM RoPE-zero normalization ablations
 - Do not treat split RoPE-window/NoPE-state attention that reuses the same Q/K representations as a credible higher-expressivity alternative: the shared representation must serve conflicting positional and content interactions. Use separate low-rank/LoRA-style adapters from the RoPE representations to NoPE Q/K (optionally V); this parameterized branch has worked well in distilled models.
 
 - In matched 120M/3B-token reference-KVM runs, baseline pre-LN-only RoPE masking reached val loss 3.27936; pre+post masking 3.28171, LayerNorm-BSWA/state RMSNorm 3.28019, learned-scale state-only RMSNorm 3.28008, and post-LN-only masking 3.28155. Exact per-key norm restoration after pre+post masking was unstable (val loss 7.6763 at step 250 and 7.6343 at step 500) even with finite capped scaling, so do not use dynamic projected-key norm restoration; rare low-energy retained projections can still be amplified enough to disrupt optimization.
+
+- The final 120M/3B-token baseline checkpoint did not learn to zero ln_s_k on the 64 RoPE coordinates. Across 12 layers (768 values per region), RoPE gamma had mean 0.7765, RMS 0.8504, population variance 0.1202, and only 1/768 values with |gamma|<0.01, versus non-RoPE mean/RMS/variance 1.1254/1.1409/0.0350. RoPE beta was more strongly suppressed but not zero: RMS 0.07450, variance 0.005550, median |beta| 0.01166, and 43.6% with |beta|<0.01, versus non-RoPE 0.11084/0.012284/0.06934/8.3%. Every layer had lower RoPE gamma mean and beta RMS than its non-RoPE half, indicating partial learned leakage attenuation rather than elimination.
