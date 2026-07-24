@@ -1,4 +1,4 @@
-Topic hints: FP32 inference routing does not explain paper KVM NIAH gap
+Topic hints: Reference KVM train/prefill/decode paths are algorithmically equivalent
 
 ## Lessons
 
@@ -12,3 +12,5 @@ Topic hints: FP32 inference routing does not explain paper KVM NIAH gap
 - The published `featherless-ai/kvmpaper_kvmsqrt16_120M` checkpoint sets `kvm_apply_merge_gate_to_appends=0`, while `configs/prolong/120M/kvm_sqrt16_wd.yaml` inherits the current default `1`, so the recent run is not architecture-identical to the paper baseline. Under the same NIAH-S1 harness, the official checkpoint scored 100.0/99.8/99.8/100.0 at 4K/8K/16K/32K versus 99.2/99.8/97.8/83.8 for the gated-appends run.
 
 - On the corrected 120M LayerNorm KVM checkpoint c5e94723, recomputing only append-ranking and merge-target score matmuls in true FP32 changed NIAH-S1 at 4K/8K/16K/32K from 96.2/97.2/93.0/82.8 to 95.6/97.4/93.6/84.2 (500 samples each). This small mixed change does not explain the paper checkpoint's 100.0 at 32K. FP32 routing during training could still alter the discrete routing trajectory, but inference-only FP32 routing is not a sufficient fix.
+
+- Current reference model/kvm_mixer.py uses the same forward_prefix and forward_prefill math for training and initial inference prefill. A two-layer BF16 parity test with chunk_len=32, BSWA=64, sequence length 193, token shift, value residuals, state growth, and a cached decode crossing a chunk boundary produced bit-identical logits for train-mode monolithic prefill, eval-mode cached prefill, and the corresponding single-token cached decode. The visible self.training branch only skips checking an already-final state boundary. The remaining real execution difference is compiled/grad-enabled training (forward_attn_maybe_compiled) versus eager/no-grad inference (forward_attn), which could alter BF16 rounding or hard routing through compiler/kernel differences but is not an algorithmic cache-path mismatch.
