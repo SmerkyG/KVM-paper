@@ -1,4 +1,4 @@
-Topic hints: Reference KVM train/prefill/decode paths are algorithmically equivalent
+Topic hints: KVM hard routing is sensitive to compiled BF16 graph shape
 
 ## Lessons
 
@@ -14,3 +14,5 @@ Topic hints: Reference KVM train/prefill/decode paths are algorithmically equiva
 - On the corrected 120M LayerNorm KVM checkpoint c5e94723, recomputing only append-ranking and merge-target score matmuls in true FP32 changed NIAH-S1 at 4K/8K/16K/32K from 96.2/97.2/93.0/82.8 to 95.6/97.4/93.6/84.2 (500 samples each). This small mixed change does not explain the paper checkpoint's 100.0 at 32K. FP32 routing during training could still alter the discrete routing trajectory, but inference-only FP32 routing is not a sufficient fix.
 
 - Current reference model/kvm_mixer.py uses the same forward_prefix and forward_prefill math for training and initial inference prefill. A two-layer BF16 parity test with chunk_len=32, BSWA=64, sequence length 193, token shift, value residuals, state growth, and a cached decode crossing a chunk boundary produced bit-identical logits for train-mode monolithic prefill, eval-mode cached prefill, and the corresponding single-token cached decode. The visible self.training branch only skips checking an already-final state boundary. The remaining real execution difference is compiled/grad-enabled training (forward_attn_maybe_compiled) versus eager/no-grad inference (forward_attn), which could alter BF16 rounding or hard routing through compiler/kernel differences but is not an algorithmic cache-path mismatch.
+
+- With KVM winner-take-all hard routing, source refactors that are bit-identical in eager forward/backward can change torch.compile BF16 reduction ordering, flip discrete routes, and materially alter long-context retrieval despite unchanged final validation loss.
