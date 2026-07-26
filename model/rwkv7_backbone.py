@@ -281,6 +281,7 @@ class RWKV7BackboneConfigDataclass(BaseModel):
     vocab_size: int = 50304
     num_hidden_layers: int = 12  # was n_layer
     num_attention_heads: int = 6  # putting this here instead of mixer because we need it for rope
+    num_key_value_heads: int | None = None
     d_qk_head: int | None = None
     d_v_head: int | None = None
     d_head: int | None = None
@@ -316,7 +317,7 @@ class MixerConfigDataclass(RWKV7BackboneConfigDataclass):
     kvm_value_residual_mode: str = "rwkv"
     kvm_token_shift_mode: str = "rwkv"
     kvm_apply_merge_gate_to_initial_state: int = 0
-    kvm_apply_merge_gate_to_appends: int = 1
+    kvm_apply_merge_gate_to_appends: int = 0
 
     kvm_use_merge_gate_keys: int = 1
     kvm_use_merge_gate_values: int = 1
