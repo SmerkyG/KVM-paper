@@ -1,22 +1,6 @@
 from .defer import apply_deferred, defer
 from .env import setup_env
 
-try:
-    from .fla_rocm_patches import patch_fla_kda_rocm_autotune
-except ModuleNotFoundError as exc:
-    if exc.name != f"{__name__}.fla_rocm_patches":
-        raise
-    _fla_patch_import_error = exc
-
-    def patch_fla_kda_rocm_autotune(*args, **kwargs):
-        """Fail only when the unavailable optional FLA patch is requested."""
-
-        del args, kwargs
-        raise ModuleNotFoundError(
-            "utils.fla_rocm_patches is not included in this checkout; "
-            "the optional FLA ROCm autotune patch is unavailable"
-        ) from _fla_patch_import_error
-
 from .flex_attention import (
     causal_mask_mod,
     compiled_flex_attention,
@@ -38,7 +22,6 @@ __all__ = (
     "maybe_ckpt",
     "orthogonal_",
     "ortho_init",
-    "patch_fla_kda_rocm_autotune",
     "print0",
     "separately_compiled_flex_attention",
     "set_label",
