@@ -57,9 +57,9 @@ See configuration classes extending pydantic BaseModel in `train.py` and `model/
 
 Example training scripts are provided in `scripts/training_runs.sh` This directory also includes the scripts used to run the evals in the paper. `scripts/benchmark_kvm.py` can be used for running kernel performance benchmarks.
 
-## optimized classic KVM kernels
+## optimized Triton KVM kernels
 
-The eager paper implementation is `model.kvm_mixer.SequenceMixer`. The optimized MHA prefill, backward, and training use `model.kvm_classic_mixer.SequenceMixer` - append `configs/prolong/kvm_classic.yaml` after a KVM model config to select it. For more information, see [`docs/kvm_classic_kernels.md`](docs/kvm_classic_kernels.md) for more details on the kernels.
+The eager paper implementation is `model.kvm_mixer.SequenceMixer`. The optimized MHA prefill, backward, and training use `model.kvm_triton_mixer.SequenceMixer` - append `configs/prolong/kvm_triton.yaml` after a KVM model config to select it. For more information, see [`docs/kvm_triton_kernels.md`](docs/kvm_triton_kernels.md) for more details on the kernels.
 
 
 ## Citation

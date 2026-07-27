@@ -1,4 +1,4 @@
-"""Preallocated cached-decode state for the classic KVM implementation.
+"""Preallocated cached-decode state for the Triton KVM implementation.
 
 This module is shared by fixed and adaptive state schedules.  Schedule policy
 only changes the active state length at recurrent-update boundaries; cache
@@ -13,12 +13,8 @@ from typing import Any
 import torch
 import torch.nn.functional as F
 
-from model.kernels import kvm_classic_triton_training_kernels as update_kernels
-from model.kernels.kvm_classic_triton_decode import (
-    gather_overflow,
-    kvm_decode_attention,
-    write_recent_ring,
-)
+from model.kernels import kvm_triton_training_kernels as update_kernels
+from model.kernels.kvm_triton_decode import write_recent_ring
 
 
 @dataclass(frozen=True)
@@ -36,8 +32,8 @@ class DecodeCacheSnapshot:
     recent_begin: int
 
 
-class ClassicKVMDecodeCache:
-    """Optimized one-token cache used by the classic KVM mixer.
+class TritonKVMDecodeCache:
+    """Optimized one-token cache used by the Triton KVM mixer.
 
     ``state_capacity`` can be a bounded-generation capacity hint. If an
     adaptive schedule later outgrows it, the state and update workspace grow
@@ -45,10 +41,6 @@ class ClassicKVMDecodeCache:
     allocation-free.
     """
 
-    implementation = "model.kvm_classic_decode.ClassicKVMDecodeCache.step"
-    attention_symbol = (
-        "model.kernels.kvm_classic_triton_decode._kvm_decode_attention_kernel"
-    )
     cache_representation = "preallocated double-mapped 512-token recent ring"
 
     def __init__(
@@ -59,7 +51,7 @@ class ClassicKVMDecodeCache:
         state_capacity: int,
     ) -> None:
         if not snapshot.state_k.is_cuda:
-            raise RuntimeError("classic KVM decode requires CUDA/ROCm tensors")
+            raise RuntimeError("Triton KVM decode requires CUDA/ROCm tensors")
         self.mixer = mixer
         self.batch = int(snapshot.state_k.size(0))
         self.kv_heads = int(snapshot.state_k.size(1))
@@ -210,7 +202,7 @@ class ClassicKVMDecodeCache:
             return
         if required > int(self.mixer.max_state_len):
             raise RuntimeError(
-                f"classic KVM decode requires {required} state rows, exceeding "
+                f"Triton KVM decode requires {required} state rows, exceeding "
                 f"the configured maximum {self.mixer.max_state_len}"
             )
 
@@ -320,164 +312,17 @@ class ClassicKVMDecodeCache:
         self.append_pos_by_token.fill_(-1)
         self.best_idx_by_token.fill_(-1)
 
-    def _run_state_update(self) -> None:
-        current_state_len = self.state_len
-        desired_state_len = self.mixer._desired_state_len(
-            (self.mixer.n_bswa_chunks * self.chunk_len)
-            + self.state_coverage_len,
-            self.state_coverage_len + self.chunk_len,
-            current_state_len,
-        )
-        n_append = min(
-            max(desired_state_len - current_state_len, 0), self.chunk_len
-        )
-        state_after = current_state_len + n_append
-        self._reserve_state_capacity(state_after)
-        gather_overflow(
-            self.recent_k,
-            self.recent_v,
-            self.recent_gate,
-            ring_start=self.recent_start,
-            overflow_len=self.chunk_len,
-            zeroed_k=self.overflow_zeroed_k,
-            raw_v=self.overflow_raw_v,
-            gate_out=self.overflow_gate,
-            rope_partial_dim=int(self.mixer.rope_partial_dim),
-        )
-        torch.ops.aten.native_layer_norm.out(
-            self.overflow_zeroed_k,
-            [self.head_dim],
-            self.mixer.ln_s_k.weight,
-            self.mixer.ln_s_k.bias,
-            float(self.mixer.ln_s_k.eps),
-            out0=self.overflow_select_k,
-            out1=self.overflow_ln_mean,
-            out2=self.overflow_ln_rstd,
-        )
-        if self.mixer.config.kvm_use_merge_gate_keys:
-            torch.mul(
-                self.overflow_select_k,
-                self.overflow_gate,
-                out=self.overflow_merge_k,
-            )
-        else:
-            self.overflow_merge_k.copy_(self.overflow_select_k)
-        if self.mixer.config.kvm_use_merge_gate_values:
-            torch.mul(
-                self.overflow_raw_v,
-                self.overflow_gate,
-                out=self.overflow_merge_v,
-            )
-        else:
-            self.overflow_merge_v.copy_(self.overflow_raw_v)
-        if self.mixer.config.kvm_apply_merge_gate_to_appends:
-            self.overflow_append_k.copy_(self.overflow_merge_k)
-            self.overflow_append_v.copy_(self.overflow_merge_v)
-        else:
-            self.overflow_append_k.copy_(self.overflow_select_k)
-            self.overflow_append_v.copy_(self.overflow_raw_v)
-        schedule = self.mixer._make_generation_update_schedule(
-            current_state_len=current_state_len,
-            state_after=state_after,
-            n_append=n_append,
-            overflow_len=self.chunk_len,
-        )
-        self.update_args.initial_state_len = current_state_len
-        self.before_device.fill_(current_state_len)
-        self.after_device.fill_(state_after)
-        self.n_append_device.fill_(n_append)
-        update_kernels.run_forward_state_update(
-            self.update_args,
-            schedule,
-            self.overflow_merge_k,
-            self.overflow_merge_v,
-            self.ln_weight_fp32,
-            self.ln_bias_fp32,
-            self.update_buffers,
-            self.state_k,
-            self.state_v,
-            self.state_k_attn,
-            self.state_v_attn,
-            self.state_vlen,
-            self.append_pos_by_token,
-            self.best_idx_by_token,
-            self.undo_k_by_token,
-            self.undo_v_by_token,
-            0,
-            False,
-            overflow_select_k_flat=self.overflow_select_k,
-            overflow_append_k_flat=self.overflow_append_k,
-            overflow_append_v_flat=self.overflow_append_v,
-            overflow_merge_k_flat=self.overflow_merge_k,
-            overflow_merge_v_flat=self.overflow_merge_v,
-            has_appends=n_append > 0,
-            before_by_macro_device=self.before_device,
-            after_by_macro_device=self.after_device,
-            n_append_by_macro_device=self.n_append_device,
-        )
-        self.state_len = state_after
-        self.update_count += 1
-
-    def _append_direct_state(
+    def append_recent_(
         self,
         new_k: torch.Tensor,
         new_v: torch.Tensor,
         new_gate: torch.Tensor,
+        *,
+        total_len: int,
+        recent_begin: int,
     ) -> None:
-        """Extend the initial direct state while the prompt is below one chunk."""
-        required = self.state_len + 1
-        self._reserve_state_capacity(required)
-        prepared_k = self.mixer._prepare_state_update_k(new_k)
-        stored_v = new_v
-        if self.mixer.config.kvm_apply_merge_gate_to_initial_state:
-            prepared_k = (prepared_k * new_gate).to(prepared_k.dtype)
-            stored_v = (stored_v * new_gate).to(stored_v.dtype)
-
-        flat_k = prepared_k.reshape(self.kv_rows, self.head_dim)
-        flat_v = stored_v.reshape(self.kv_rows, self.value_dim)
-        raw_v = new_v.reshape(self.kv_rows, self.value_dim)
-        vlen = torch.linalg.vector_norm(raw_v.float(), dim=-1)
-        state_position = self.state_len
-        self.state_k[:, state_position].copy_(flat_k)
-        self.state_v[:, state_position].copy_(flat_v)
-        self.state_vlen[:, state_position].copy_(vlen)
-        self.state_k_attn[:, state_position].copy_(
-            self.mixer.ln_s_k(prepared_k).reshape(self.kv_rows, self.head_dim)
-        )
-        normalized_v = (
-            F.normalize(flat_v.float(), dim=-1) * vlen[:, None]
-        ).to(self.dtype)
-        self.state_v_attn[:, state_position].copy_(normalized_v)
-        self.state_len = required
-
-    def step(
-        self,
-        q: torch.Tensor,
-        new_k: torch.Tensor,
-        new_v: torch.Tensor,
-        new_gate: torch.Tensor,
-    ) -> torch.Tensor:
-        """Append and attend for one post-QKV decode token."""
-        if int(q.size(2)) != 1 or int(new_k.size(2)) != 1:
-            raise ValueError("ClassicKVMDecodeCache.step accepts one token")
-        new_total_len = self.total_len + 1
-        new_recent_begin = self.mixer._bswa_begin_for_total_len(new_total_len)
-        direct_state_target = min(new_total_len, self.chunk_len)
-        new_state_coverage = max(direct_state_target, new_recent_begin)
-        if new_state_coverage < self.state_coverage_len:
-            raise AssertionError("KVM decode state coverage cannot shrink")
-        if direct_state_target > self.state_coverage_len:
-            if direct_state_target - self.state_coverage_len != 1:
-                raise AssertionError("decode crossed more than one direct-state token")
-            self._append_direct_state(new_k, new_v, new_gate)
-            self.state_coverage_len = direct_state_target
-        if new_state_coverage > self.state_coverage_len:
-            if new_state_coverage - self.state_coverage_len != self.chunk_len:
-                raise AssertionError("decode crossed more than one state boundary")
-            self._run_state_update()
-            self.state_coverage_len = new_state_coverage
-
-        evicted = new_recent_begin - self.recent_begin
+        """Append one token to the recent ring and update cache bookkeeping."""
+        evicted = int(recent_begin) - self.recent_begin
         if evicted < 0 or evicted > self.recent_len:
             raise AssertionError("invalid recent-window transition")
         if evicted:
@@ -496,24 +341,8 @@ class ClassicKVMDecodeCache:
             write_pos,
         )
         self.recent_len += 1
-        self.total_len = new_total_len
-        self.recent_begin = new_recent_begin
-        active_state_len = self.state_len if new_total_len > self.ring_capacity else 0
-        return kvm_decode_attention(
-            q,
-            self.state_k_attn,
-            self.state_v_attn,
-            self.recent_k,
-            self.recent_v,
-            active_state_len=active_state_len,
-            recent_start=self.recent_start,
-            recent_len=self.recent_len,
-            state_temperature=self.state_temperature,
-            front_temperature=self.front_temperature,
-            q_heads=self.q_heads,
-            kv_heads=self.kv_heads,
-            out=self.out,
-        )
+        self.total_len = int(total_len)
+        self.recent_begin = int(recent_begin)
 
     def logical_recent(self) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Return views of the logical recent window for validation only."""
@@ -567,4 +396,4 @@ class ClassicKVMDecodeCache:
         }
 
 
-__all__ = ["ClassicKVMDecodeCache", "DecodeCacheSnapshot"]
+__all__ = ["TritonKVMDecodeCache", "DecodeCacheSnapshot"]

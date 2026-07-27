@@ -1,8 +1,8 @@
-"""Integrated Triton kernels for classic KVM semantics.
+"""Integrated Triton kernels for KVM semantics.
 
 This module retains the optimized KVM2 prefill, periodic state-update, compact
 saved-forward, and reconstruct-live backward implementation while restoring
-the two classic routing behaviors: one global append ranking per overflow
+the two eager routing behaviors: one global append ranking per overflow
 chunk, and append-before-merge visibility.
 """
 
@@ -259,7 +259,7 @@ def _prepare_kvm_streams_kernel(
     key = tl.load(raw_k + key_offsets, mask=mask, other=0.0).to(tl.float32)
     state_key = tl.where(offsets < ROPE_PARTIAL_DIM, 0.0, key)
     # Keep all LayerNorm arithmetic in FP32, then materialize the public BF16
-    # stream before applying the merge gate, matching classic rounding points.
+    # stream before applying the merge gate, matching eager rounding points.
     mean = tl.sum(state_key, axis=0) / HEAD_DIM
     centered = state_key - mean
     variance = tl.sum(centered * centered, axis=0) / HEAD_DIM
@@ -1301,14 +1301,14 @@ def run_forward_state_update(
     append_policy = getattr(args, "append_policy", "global")
     merge_order = getattr(args, "merge_order", "append_before_merge")
     if append_policy != "global":
-        raise ValueError("kvm_classic_triton_training_kernels only supports global append")
+        raise ValueError("kvm_triton_training_kernels only supports global append")
     if merge_order != "append_before_merge":
         raise ValueError(
-            "kvm_classic_triton_training_kernels only supports append_before_merge"
+            "kvm_triton_training_kernels only supports append_before_merge"
         )
     if not getattr(args, "cache_from_rounded_state", False):
         raise ValueError(
-            "kvm_classic_triton_training_kernels requires cache_from_rounded_state"
+            "kvm_triton_training_kernels requires cache_from_rounded_state"
         )
 
     state_before_host = int(schedule.before_by_macro[overflow_macro_id].item())
@@ -1484,7 +1484,7 @@ def _forward_apply_fp16_delta_normcache(
     if after is None:
         after = schedule.after_by_macro.to(state_k.device)
     if not getattr(args, "cache_from_rounded_state", False):
-        raise ValueError("kvm_classic_triton_training_kernels requires cache_from_rounded_state")
+        raise ValueError("kvm_triton_training_kernels requires cache_from_rounded_state")
     active_state_after = int(schedule.after_by_macro[overflow_macro_id].item())
     apply_state_chunks = triton.cdiv(active_state_after, apply_state_chunk)
     _apply_fp16_delta_normcache_rounded_kernel[(kv_rows, apply_state_chunks)](
@@ -2684,13 +2684,13 @@ def run_training_backward_reconstruct_live_state(
         raise ValueError("--reconstruct-live-state-backward requires --undo-mode stash")
 
     if getattr(args, "skip_temperature_grad", False):
-        raise ValueError("kvm_classic_triton_training_kernels requires temperature gradients")
+        raise ValueError("kvm_triton_training_kernels requires temperature gradients")
     if getattr(args, "skip_temperature_atomic", False):
-        raise ValueError("kvm_classic_triton_training_kernels requires atomic temperature gradients")
+        raise ValueError("kvm_triton_training_kernels requires atomic temperature gradients")
     if args.temperature_grad_backend != "atomic":
-        raise ValueError("kvm_classic_triton_training_kernels only supports atomic temperature gradients")
+        raise ValueError("kvm_triton_training_kernels only supports atomic temperature gradients")
     if not args.fuse_restore_refresh:
-        raise ValueError("kvm_classic_triton_training_kernels requires fused restore/refresh")
+        raise ValueError("kvm_triton_training_kernels requires fused restore/refresh")
     compute_temperature_grad = True
     store_temperature_grad = True
     write_temperature_partials = False
@@ -2793,7 +2793,7 @@ def run_training_backward_reconstruct_live_state(
         overflow_merge_v_flat,
     )
     if any(x is None for x in split_inputs):
-        raise ValueError("kvm_classic_triton_training_kernels requires split update inputs")
+        raise ValueError("kvm_triton_training_kernels requires split update inputs")
     d_initial_k = torch.zeros_like(d_overflow_k)
     d_initial_v = torch.zeros_like(d_bswa_v)
     d_append_k = torch.zeros_like(d_overflow_k)

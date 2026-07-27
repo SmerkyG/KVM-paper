@@ -8,7 +8,7 @@ import torch
 import torch.nn.functional as F
 from torch.autograd import Function
 
-from .kvm_classic_decode import ClassicKVMDecodeCache, DecodeCacheSnapshot
+from .kvm_triton_decode import TritonKVMDecodeCache, DecodeCacheSnapshot
 from .kvm_mixer import SequenceMixer as TorchKVMSequenceMixer
 
 
@@ -19,7 +19,7 @@ def _choose_dividing_block(size: int, candidates: tuple[int, ...]) -> int:
     raise ValueError(f"no supported block size divides {size}")
 
 
-class _KvmClassicTritonTrainingFunction(Function):
+class _KvmTritonTrainingFunction(Function):
     @staticmethod
     def forward(  # type: ignore[override]
         ctx,
@@ -42,12 +42,12 @@ class _KvmClassicTritonTrainingFunction(Function):
         triton_args: argparse.Namespace,
         schedule: Any,
     ) -> torch.Tensor:
-        from model.kernels.kvm_classic_triton_training_kernels import (
+        from model.kernels.kvm_triton_training_kernels import (
             build_prefill_forward,
         )
 
         if not q_flat.is_cuda:
-            raise RuntimeError("kvm_classic_mixer requires CUDA/ROCm tensors")
+            raise RuntimeError("kvm_triton_mixer requires CUDA/ROCm tensors")
 
         forward = build_prefill_forward(
             triton_args,
@@ -104,7 +104,7 @@ class _KvmClassicTritonTrainingFunction(Function):
 
     @staticmethod
     def backward(ctx, dout: torch.Tensor):  # type: ignore[override]
-        from model.kernels.kvm_classic_triton_training_kernels import (
+        from model.kernels.kvm_triton_training_kernels import (
             run_training_backward_reconstruct_live_state,
         )
 
@@ -194,11 +194,11 @@ class _KvmClassicTritonTrainingFunction(Function):
 
 
 class SequenceMixer(TorchKVMSequenceMixer):
-    """Classic KVM backed by the optimized Triton training/prefill kernels.
+    """KVM backed by the optimized Triton training/prefill kernels.
 
     Append selection is ranked globally across each overflow chunk, and
     selected tokens are appended before merge targets are chosen. These are
-    the classic ``kvm_mixer.py`` routing semantics.
+    the eager ``kvm_mixer.py`` routing semantics.
 
     Remaining intentional differences from the dense PyTorch implementation:
     - `kvm_use_vlens=1` is required;
@@ -209,12 +209,12 @@ class SequenceMixer(TorchKVMSequenceMixer):
     - training treats append/merge routing as fixed non-differentiable metadata.
     """
 
-    _CACHE_CLASSIC_DECODE = "kvm_classic_decode_cache"
+    _CACHE_TRITON_DECODE = "kvm_triton_decode_cache"
 
     def __init__(self, config, layer_idx: int):
         super().__init__(config, layer_idx)
         if not config.kvm_use_vlens:
-            raise ValueError("kvm_classic_mixer currently requires kvm_use_vlens=1")
+            raise ValueError("kvm_triton_mixer currently requires kvm_use_vlens=1")
 
         self.triton_sub_block = _choose_dividing_block(
             self.chunk_len, (128, 64, 32, 16)
@@ -333,65 +333,9 @@ class SequenceMixer(TorchKVMSequenceMixer):
         )
 
     def _make_schedule(self, triton_args: argparse.Namespace):
-        from model.kernels.kvm_classic_triton_training_kernels import make_schedule
+        from model.kernels.kvm_triton_training_kernels import make_schedule
 
         return make_schedule(triton_args)
-
-    def _flatten_qkv_for_triton_legacy(
-        self,
-        q: torch.Tensor,
-        k: torch.Tensor,
-        v: torch.Tensor,
-        merge_gate: torch.Tensor,
-        padded_len: int,
-    ) -> dict[str, torch.Tensor]:
-        batch_size, q_heads, q_len, _ = q.shape
-        kv_heads = int(k.size(1))
-        if q_heads != self.num_attention_heads:
-            raise AssertionError("KVM Triton query head count mismatch.")
-        if kv_heads != self.num_key_value_heads:
-            raise AssertionError("KVM Triton key/value head count mismatch.")
-        pad_len = padded_len - q_len
-        if pad_len < 0:
-            raise ValueError("padded_len must be >= q_len")
-        if pad_len:
-            q = F.pad(q, (0, 0, 0, pad_len))
-            k = F.pad(k, (0, 0, 0, pad_len))
-            v = F.pad(v, (0, 0, 0, pad_len))
-            merge_gate = F.pad(merge_gate, (0, 0, 0, pad_len), value=1.0)
-
-        prepared_k = self._prepare_state_update_k(k)
-        key_gate = merge_gate if self.config.kvm_use_merge_gate_keys else 1.0
-        value_gate = merge_gate if self.config.kvm_use_merge_gate_values else 1.0
-        merge_k = (prepared_k * key_gate).to(prepared_k.dtype)
-        merge_v = (v * value_gate).to(v.dtype)
-        append_k = merge_k if self.config.kvm_apply_merge_gate_to_appends else prepared_k
-        append_v = merge_v if self.config.kvm_apply_merge_gate_to_appends else v
-        if self.config.kvm_apply_merge_gate_to_initial_state:
-            initial_k = (prepared_k * merge_gate).to(prepared_k.dtype)
-            initial_v = (v * merge_gate).to(v.dtype)
-        else:
-            initial_k = prepared_k
-            initial_v = v
-
-        def flatten_q(x: torch.Tensor, dim: int) -> torch.Tensor:
-            return x.reshape(batch_size * q_heads, padded_len, dim).contiguous()
-
-        def flatten_kv(x: torch.Tensor, dim: int) -> torch.Tensor:
-            return x.reshape(batch_size * kv_heads, padded_len, dim).contiguous()
-
-        return {
-            "q": flatten_q(q, self.d_qk_head),
-            "bswa_k": flatten_kv(k, self.d_qk_head),
-            "bswa_v": flatten_kv(v, self.d_v_head),
-            "select_k": flatten_kv(prepared_k, self.d_qk_head),
-            "append_k": flatten_kv(append_k, self.d_qk_head),
-            "append_v": flatten_kv(append_v, self.d_v_head),
-            "merge_k": flatten_kv(merge_k, self.d_qk_head),
-            "merge_v": flatten_kv(merge_v, self.d_v_head),
-            "initial_k": flatten_kv(initial_k, self.d_qk_head),
-            "initial_v": flatten_kv(initial_v, self.d_v_head),
-        }
 
     def _flatten_qkv_for_triton(
         self,
@@ -401,22 +345,24 @@ class SequenceMixer(TorchKVMSequenceMixer):
         merge_gate: torch.Tensor,
         padded_len: int,
     ) -> dict[str, torch.Tensor]:
-        """Prepare classic streams, fusing inference-only state-key work."""
+        """Pad, prepare, and flatten the streams consumed by Triton kernels.
+
+        Stream preparation uses regular PyTorch when gradients or general tensor
+        shapes require it. BF16 inference with equal key/value dimensions uses an
+        equivalent fused Triton kernel; the stream selection and layout below are
+        shared by both paths.
+        """
         needs_grad = torch.is_grad_enabled() and any(
             tensor.requires_grad
             for tensor in (k, v, merge_gate, self.ln_s_k.weight, self.ln_s_k.bias)
         )
-        supported = (
-            q.is_cuda
+        use_fused_preparation = (
+            not needs_grad
+            and q.is_cuda
             and k.dtype == torch.bfloat16
             and v.dtype == torch.bfloat16
             and self.d_qk_head == self.d_v_head
         )
-        if needs_grad or not supported:
-            return self._flatten_qkv_for_triton_legacy(
-                q, k, v, merge_gate, padded_len
-            )
-
         batch_size, q_heads, q_len, _ = q.shape
         kv_heads = int(k.size(1))
         if q_heads != self.num_attention_heads:
@@ -432,19 +378,6 @@ class SequenceMixer(TorchKVMSequenceMixer):
             v = F.pad(v, (0, 0, 0, pad_len))
             merge_gate = F.pad(merge_gate, (0, 0, 0, pad_len), value=1.0)
 
-        from model.kernels.kvm_classic_triton_training_kernels import (
-            prepare_kvm_streams,
-        )
-
-        prepared_k, gated_k, gated_v = prepare_kvm_streams(
-            k,
-            v,
-            merge_gate,
-            self.ln_s_k.weight,
-            self.ln_s_k.bias,
-            rope_partial_dim=self.rope_partial_dim,
-            ln_eps=float(self.ln_s_k.eps),
-        )
         q_flat = q.reshape(
             batch_size * q_heads, padded_len, self.d_qk_head
         ).contiguous()
@@ -457,15 +390,37 @@ class SequenceMixer(TorchKVMSequenceMixer):
         gate_flat = merge_gate.reshape(
             batch_size * kv_heads, padded_len, 1
         ).contiguous()
-        prepared_k = prepared_k.reshape(
-            batch_size * kv_heads, padded_len, self.d_qk_head
-        )
-        gated_k = gated_k.reshape(
-            batch_size * kv_heads, padded_len, self.d_qk_head
-        )
-        gated_v = gated_v.reshape(
-            batch_size * kv_heads, padded_len, self.d_v_head
-        )
+
+        if use_fused_preparation:
+            from model.kernels.kvm_triton_training_kernels import (
+                prepare_kvm_streams,
+            )
+
+            prepared_k, gated_k, gated_v = prepare_kvm_streams(
+                k,
+                v,
+                merge_gate,
+                self.ln_s_k.weight,
+                self.ln_s_k.bias,
+                rope_partial_dim=self.rope_partial_dim,
+                ln_eps=float(self.ln_s_k.eps),
+            )
+            prepared_k = prepared_k.reshape(
+                batch_size * kv_heads, padded_len, self.d_qk_head
+            )
+            gated_k = gated_k.reshape(
+                batch_size * kv_heads, padded_len, self.d_qk_head
+            )
+            gated_v = gated_v.reshape(
+                batch_size * kv_heads, padded_len, self.d_v_head
+            )
+        else:
+            prepared_k = self._prepare_state_update_k(k).reshape(
+                batch_size * kv_heads, padded_len, self.d_qk_head
+            ).contiguous()
+            gated_k = (prepared_k * gate_flat).to(prepared_k.dtype)
+            gated_v = (v_flat * gate_flat).to(v_flat.dtype)
+
         merge_k = gated_k if self.config.kvm_use_merge_gate_keys else prepared_k
         merge_v = gated_v if self.config.kvm_use_merge_gate_values else v_flat
         append_k = merge_k if self.config.kvm_apply_merge_gate_to_appends else prepared_k
@@ -525,7 +480,7 @@ class SequenceMixer(TorchKVMSequenceMixer):
         triton_args: argparse.Namespace,
         schedule,
     ) -> dict[str, torch.Tensor]:
-        from model.kernels.kvm_classic_triton_training_kernels import (
+        from model.kernels.kvm_triton_training_kernels import (
             build_prefill_forward,
         )
 
@@ -572,7 +527,7 @@ class SequenceMixer(TorchKVMSequenceMixer):
         batch_size, q_heads, _, _ = q.shape
         flat = self._flatten_qkv_for_triton(q, k, v, merge_gate, triton_args.q_len)
         state_temperature, front_temperature = self._head_temperatures(q.device)
-        out_flat = _KvmClassicTritonTrainingFunction.apply(
+        out_flat = _KvmTritonTrainingFunction.apply(
             flat["q"],
             flat["bswa_k"],
             flat["bswa_v"],
@@ -608,7 +563,7 @@ class SequenceMixer(TorchKVMSequenceMixer):
     ):
         del v_first, position_embeddings, kwargs
         if attention_mask is not None:
-            raise ValueError("kvm_classic_mixer does not support attention_mask")
+            raise ValueError("kvm_triton_mixer does not support attention_mask")
 
         batch_size, _, prefill_len, _ = q.size()
         triton_args = self._make_triton_args(batch_size, int(prefill_len))
@@ -629,7 +584,7 @@ class SequenceMixer(TorchKVMSequenceMixer):
         )
         if past_key_values is not None and needs_grad:
             raise ValueError(
-                "kvm_classic_mixer does not support autograd prefill while updating "
+                "kvm_triton_mixer does not support autograd prefill while updating "
                 "past_key_values"
             )
         if needs_grad:
@@ -682,14 +637,14 @@ class SequenceMixer(TorchKVMSequenceMixer):
             state_capacity = max(
                 final_state_len,
                 min(self.chunk_len, self.max_state_len),
-                ClassicKVMDecodeCache.state_length_after_cycle(
+                TritonKVMDecodeCache.state_length_after_cycle(
                     self,
                     prefill_len,
                     final_state_len,
                     self.n_bswa_chunks * self.chunk_len,
                 ),
             )
-            decode_cache = ClassicKVMDecodeCache(
+            decode_cache = TritonKVMDecodeCache(
                 self,
                 snapshot,
                 state_capacity=state_capacity,
@@ -697,7 +652,7 @@ class SequenceMixer(TorchKVMSequenceMixer):
             past_key_values.update(
                 self.layer_idx,
                 offset=prefill_len,
-                states_dict={self._CACHE_CLASSIC_DECODE: decode_cache},
+                states_dict={self._CACHE_TRITON_DECODE: decode_cache},
             )
 
         return y
@@ -714,42 +669,256 @@ class SequenceMixer(TorchKVMSequenceMixer):
         past_key_values=None,
         **kwargs,
     ):
-        """Decode one token through the integrated optimized classic cache."""
+        """Decode one token through the integrated optimized Triton cache."""
         del v_first, position_embeddings, kwargs
         if attention_mask is not None:
-            raise ValueError("kvm_classic_mixer does not support attention_mask")
+            raise ValueError("kvm_triton_mixer does not support attention_mask")
         if past_key_values is None:
-            raise ValueError("classic KVM cached decode requires past_key_values")
+            raise ValueError("Triton KVM cached decode requires past_key_values")
         if int(q.size(2)) != 1:
             raise AssertionError(
-                "classic KVM cached decode expects a single-token input"
+                "Triton KVM cached decode expects a single-token input"
             )
 
         cache_states = past_key_values.get_states(self.layer_idx)
-        decode_cache = cache_states.get(self._CACHE_CLASSIC_DECODE)
-        if not isinstance(decode_cache, ClassicKVMDecodeCache):
+        decode_cache = cache_states.get(self._CACHE_TRITON_DECODE)
+        if not isinstance(decode_cache, TritonKVMDecodeCache):
             raise RuntimeError(
-                "classic KVM cache is missing its optimized decode state; run a "
-                "classic prefill with this cache before decoding"
+                "Triton KVM cache is missing its optimized decode state; run a "
+                "Triton prefill with this cache before decoding"
             )
         if decode_cache.mixer is not self:
-            raise RuntimeError("classic KVM decode cache belongs to another mixer")
+            raise RuntimeError("Triton KVM decode cache belongs to another mixer")
         past_seq_len = past_key_values.get_seq_length(self.layer_idx)
         if decode_cache.total_len != past_seq_len:
             raise AssertionError(
-                "classic KVM decode cache length disagrees with the layer cache: "
+                "Triton KVM decode cache length disagrees with the layer cache: "
                 f"{decode_cache.total_len} != {past_seq_len}"
             )
 
-        out = decode_cache.step(q, k, v, merge_gate)
+        out = self._decode_one_token(q, k, v, merge_gate, decode_cache)
         past_key_values.update(
             self.layer_idx,
             offset=1,
-            states_dict={self._CACHE_CLASSIC_DECODE: decode_cache},
+            states_dict={self._CACHE_TRITON_DECODE: decode_cache},
         )
         batch_size = int(q.size(0))
         y = out.transpose(1, 2).contiguous().view(batch_size, 1, -1)
         return self.c_proj(y)
+
+    def _decode_one_token(
+        self,
+        q: torch.Tensor,
+        k: torch.Tensor,
+        v: torch.Tensor,
+        merge_gate: torch.Tensor,
+        decode_cache: TritonKVMDecodeCache,
+    ) -> torch.Tensor:
+        """Advance ``decode_cache`` and attend for one post-QKV token."""
+        if int(k.size(2)) != 1:
+            raise ValueError("Triton KVM decode cache update accepts one token")
+        new_total_len = decode_cache.total_len + 1
+        new_recent_begin = self._bswa_begin_for_total_len(new_total_len)
+        direct_state_target = min(new_total_len, decode_cache.chunk_len)
+        new_state_coverage = max(direct_state_target, new_recent_begin)
+        if new_state_coverage < decode_cache.state_coverage_len:
+            raise AssertionError("KVM decode state coverage cannot shrink")
+        if direct_state_target > decode_cache.state_coverage_len:
+            if direct_state_target - decode_cache.state_coverage_len != 1:
+                raise AssertionError("decode crossed more than one direct-state token")
+            self._append_decode_direct_state(
+                decode_cache,
+                k,
+                v,
+                merge_gate,
+            )
+            decode_cache.state_coverage_len = direct_state_target
+        if new_state_coverage > decode_cache.state_coverage_len:
+            if new_state_coverage - decode_cache.state_coverage_len != self.chunk_len:
+                raise AssertionError("decode crossed more than one state boundary")
+            self._run_decode_state_update(decode_cache)
+            decode_cache.state_coverage_len = new_state_coverage
+
+        decode_cache.append_recent_(
+            k,
+            v,
+            merge_gate,
+            total_len=new_total_len,
+            recent_begin=new_recent_begin,
+        )
+        return self._decode_attention(q, decode_cache)
+
+    def _run_decode_state_update(
+        self,
+        decode_cache: TritonKVMDecodeCache,
+    ) -> None:
+        from model.kernels import (
+            kvm_triton_training_kernels as update_kernels,
+        )
+        from model.kernels.kvm_triton_decode import gather_overflow
+
+        current_state_len = decode_cache.state_len
+        desired_state_len = self._desired_state_len(
+            (self.n_bswa_chunks * decode_cache.chunk_len)
+            + decode_cache.state_coverage_len,
+            decode_cache.state_coverage_len + decode_cache.chunk_len,
+            current_state_len,
+        )
+        n_append = min(
+            max(desired_state_len - current_state_len, 0),
+            decode_cache.chunk_len,
+        )
+        state_after = current_state_len + n_append
+        decode_cache._reserve_state_capacity(state_after)
+        gather_overflow(
+            decode_cache.recent_k,
+            decode_cache.recent_v,
+            decode_cache.recent_gate,
+            ring_start=decode_cache.recent_start,
+            overflow_len=decode_cache.chunk_len,
+            zeroed_k=decode_cache.overflow_zeroed_k,
+            raw_v=decode_cache.overflow_raw_v,
+            gate_out=decode_cache.overflow_gate,
+            rope_partial_dim=int(self.rope_partial_dim),
+        )
+        torch.ops.aten.native_layer_norm.out(
+            decode_cache.overflow_zeroed_k,
+            [decode_cache.head_dim],
+            self.ln_s_k.weight,
+            self.ln_s_k.bias,
+            float(self.ln_s_k.eps),
+            out0=decode_cache.overflow_select_k,
+            out1=decode_cache.overflow_ln_mean,
+            out2=decode_cache.overflow_ln_rstd,
+        )
+        if self.config.kvm_use_merge_gate_keys:
+            torch.mul(
+                decode_cache.overflow_select_k,
+                decode_cache.overflow_gate,
+                out=decode_cache.overflow_merge_k,
+            )
+        else:
+            decode_cache.overflow_merge_k.copy_(decode_cache.overflow_select_k)
+        if self.config.kvm_use_merge_gate_values:
+            torch.mul(
+                decode_cache.overflow_raw_v,
+                decode_cache.overflow_gate,
+                out=decode_cache.overflow_merge_v,
+            )
+        else:
+            decode_cache.overflow_merge_v.copy_(decode_cache.overflow_raw_v)
+        if self.config.kvm_apply_merge_gate_to_appends:
+            decode_cache.overflow_append_k.copy_(decode_cache.overflow_merge_k)
+            decode_cache.overflow_append_v.copy_(decode_cache.overflow_merge_v)
+        else:
+            decode_cache.overflow_append_k.copy_(decode_cache.overflow_select_k)
+            decode_cache.overflow_append_v.copy_(decode_cache.overflow_raw_v)
+        schedule = self._make_generation_update_schedule(
+            current_state_len=current_state_len,
+            state_after=state_after,
+            n_append=n_append,
+            overflow_len=decode_cache.chunk_len,
+        )
+        decode_cache.update_args.initial_state_len = current_state_len
+        decode_cache.before_device.fill_(current_state_len)
+        decode_cache.after_device.fill_(state_after)
+        decode_cache.n_append_device.fill_(n_append)
+        update_kernels.run_forward_state_update(
+            decode_cache.update_args,
+            schedule,
+            decode_cache.overflow_merge_k,
+            decode_cache.overflow_merge_v,
+            decode_cache.ln_weight_fp32,
+            decode_cache.ln_bias_fp32,
+            decode_cache.update_buffers,
+            decode_cache.state_k,
+            decode_cache.state_v,
+            decode_cache.state_k_attn,
+            decode_cache.state_v_attn,
+            decode_cache.state_vlen,
+            decode_cache.append_pos_by_token,
+            decode_cache.best_idx_by_token,
+            decode_cache.undo_k_by_token,
+            decode_cache.undo_v_by_token,
+            0,
+            False,
+            overflow_select_k_flat=decode_cache.overflow_select_k,
+            overflow_append_k_flat=decode_cache.overflow_append_k,
+            overflow_append_v_flat=decode_cache.overflow_append_v,
+            overflow_merge_k_flat=decode_cache.overflow_merge_k,
+            overflow_merge_v_flat=decode_cache.overflow_merge_v,
+            has_appends=n_append > 0,
+            before_by_macro_device=decode_cache.before_device,
+            after_by_macro_device=decode_cache.after_device,
+            n_append_by_macro_device=decode_cache.n_append_device,
+        )
+        decode_cache.state_len = state_after
+        decode_cache.update_count += 1
+
+    def _append_decode_direct_state(
+        self,
+        decode_cache: TritonKVMDecodeCache,
+        new_k: torch.Tensor,
+        new_v: torch.Tensor,
+        new_gate: torch.Tensor,
+    ) -> None:
+        """Extend the initial direct state while the prompt is below one chunk."""
+        required = decode_cache.state_len + 1
+        decode_cache._reserve_state_capacity(required)
+        prepared_k = self._prepare_state_update_k(new_k)
+        stored_v = new_v
+        if self.config.kvm_apply_merge_gate_to_initial_state:
+            prepared_k = (prepared_k * new_gate).to(prepared_k.dtype)
+            stored_v = (stored_v * new_gate).to(stored_v.dtype)
+
+        flat_k = prepared_k.reshape(decode_cache.kv_rows, decode_cache.head_dim)
+        flat_v = stored_v.reshape(decode_cache.kv_rows, decode_cache.value_dim)
+        raw_v = new_v.reshape(decode_cache.kv_rows, decode_cache.value_dim)
+        vlen = torch.linalg.vector_norm(raw_v.float(), dim=-1)
+        state_position = decode_cache.state_len
+        decode_cache.state_k[:, state_position].copy_(flat_k)
+        decode_cache.state_v[:, state_position].copy_(flat_v)
+        decode_cache.state_vlen[:, state_position].copy_(vlen)
+        decode_cache.state_k_attn[:, state_position].copy_(
+            self.ln_s_k(prepared_k).reshape(
+                decode_cache.kv_rows,
+                decode_cache.head_dim,
+            )
+        )
+        normalized_v = (
+            F.normalize(flat_v.float(), dim=-1) * vlen[:, None]
+        ).to(decode_cache.dtype)
+        decode_cache.state_v_attn[:, state_position].copy_(normalized_v)
+        decode_cache.state_len = required
+
+    def _decode_attention(
+        self,
+        q: torch.Tensor,
+        decode_cache: TritonKVMDecodeCache,
+    ) -> torch.Tensor:
+        """Attend over the recurrent and recent state owned by ``decode_cache``."""
+        from model.kernels.kvm_triton_decode import kvm_decode_attention
+
+        active_state_len = (
+            decode_cache.state_len
+            if decode_cache.total_len > decode_cache.ring_capacity
+            else 0
+        )
+        return kvm_decode_attention(
+            q,
+            decode_cache.state_k_attn,
+            decode_cache.state_v_attn,
+            decode_cache.recent_k,
+            decode_cache.recent_v,
+            active_state_len=active_state_len,
+            recent_start=decode_cache.recent_start,
+            recent_len=decode_cache.recent_len,
+            state_temperature=decode_cache.state_temperature,
+            front_temperature=decode_cache.front_temperature,
+            q_heads=self.num_attention_heads,
+            kv_heads=self.num_key_value_heads,
+            out=decode_cache.out,
+        )
 
     def _make_generation_update_schedule(
         self,
@@ -758,7 +927,7 @@ class SequenceMixer(TorchKVMSequenceMixer):
         n_append: int,
         overflow_len: int,
     ):
-        from model.kernels.kvm_classic_triton_training_kernels import MixerPrefillSchedule
+        from model.kernels.kvm_triton_training_kernels import MixerPrefillSchedule
 
         if overflow_len != self.chunk_len:
             raise AssertionError(

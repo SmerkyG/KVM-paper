@@ -5,7 +5,7 @@ The historical golden remains the untouched :mod:`model.kvm_mixer` module.
 The derived mixer preserves the golden implementation except that merge-route
 similarities are computed in FP32 before ``argmax``.  The resulting one-hot
 route tensor uses the original key dtype so state-update arithmetic retains
-the golden behavior.  It is scoped to the fixed-state classic KVM system,
+the golden behavior.  It is scoped to the fixed-state KVM system,
 where the initial chunk fills the state before any overflow merge; ranked
 append selection therefore never occurs.  It does not redefine append-ranking
 semantics for growing-state configurations.

@@ -21,11 +21,11 @@ BENCHMARK_SCRIPT = REPO_ROOT / "scripts" / "benchmark_kvm.py"
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from model.kvm_classic_decode import (  # noqa: E402
-    ClassicKVMDecodeCache,
+from model.kvm_triton_decode import (  # noqa: E402
+    TritonKVMDecodeCache,
     DecodeCacheSnapshot,
 )
-from model.kvm_classic_mixer import SequenceMixer  # noqa: E402
+from model.kvm_triton_mixer import SequenceMixer  # noqa: E402
 
 BATCH = 8
 HEADS = 32
@@ -353,10 +353,10 @@ def prepare_decode(
     )
     mixer = build_mixer(schedule, context).eval()
     snapshot = make_snapshot(mixer, context, generator)
-    capacity = ClassicKVMDecodeCache.state_length_after_cycle(
+    capacity = TritonKVMDecodeCache.state_length_after_cycle(
         mixer, context, int(snapshot.state_k.size(2)), CHUNK + 1
     )
-    cache = ClassicKVMDecodeCache(mixer, snapshot, state_capacity=capacity)
+    cache = TritonKVMDecodeCache(mixer, snapshot, state_capacity=capacity)
     q = torch.randn(
         BATCH, HEADS, CHUNK + 1, DIM,
         generator=generator, device="cuda", dtype=DTYPE,
@@ -424,11 +424,12 @@ def prepare_decode(
         with torch.no_grad():
             cache.reset_(snapshot)
             write_output(
-                cache.step(
+                mixer._decode_one_token(
                     q[:, :, :1],
                     new_k[:, :, :1],
                     new_v[:, :, :1],
                     new_gate[:, :, :1],
+                    cache,
                 ),
                 kvm_output,
             )
@@ -437,11 +438,12 @@ def prepare_decode(
         def step() -> Any:
             with torch.no_grad():
                 return write_output(
-                    cache.step(
+                    mixer._decode_one_token(
                         current_q,
                         current_k,
                         current_v,
                         current_gate,
+                        cache,
                     ),
                     kvm_output,
                 )

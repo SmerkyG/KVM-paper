@@ -582,7 +582,6 @@ class SequenceMixer(ValueResidualMixin):
         **kwargs,
     ):
         batch_size, _, q_seq_len, _ = q.size()
-        bswa_len = self.n_bswa_chunks * self.chunk_len
 
         cache_states = (
             past_key_values.get_states(self.layer_idx)
@@ -682,27 +681,17 @@ class SequenceMixer(ValueResidualMixin):
             :, :, full_bswa_rel_begin:full_bswa_rel_end, :
         ]
 
-        # if the new total length still fits in BSWA, we can attend to everything with a single efficient call; otherwise we need to include state in attention
-        if new_total_len <= bswa_len:
-            if self.config.kvm_use_head_temps:
-                front_head_temp = self.front_head_temp.view(1, self.num_attention_heads, 1, 1)
-            else:
-                front_head_temp = 1.0
-            causal_mask = _lower_right_causal_mask(
-                int(q.size(2)), int(new_bswa_k.size(2)), device=q.device
-            )
-            out = self._sdpa_with_repeated_kv(
-                q,
-                new_bswa_k,
-                new_bswa_v,
-                key_temperature=front_head_temp,
-                attn_mask=causal_mask,
-                is_causal=False,
-            )
-        else:
-            out = self._attend_with_state_and_bswa(
-                q, new_bswa_k, new_bswa_v, s_k, s_v, s_vlen
-            )
+        # State becomes active only after its source tokens leave the exact BSWA
+        # window. Before then, an empty state avoids attending to those tokens twice.
+        active_state_len = int(s_k.size(2)) if new_bswa_begin > 0 else 0
+        out = self._attend_with_state_and_bswa(
+            q,
+            new_bswa_k,
+            new_bswa_v,
+            s_k[:, :, :active_state_len],
+            s_v[:, :, :active_state_len],
+            s_vlen[:, :, :active_state_len],
+        )
 
         y = out.transpose(1, 2).contiguous().view(batch_size, q_seq_len, -1)
         y = self.c_proj(y)

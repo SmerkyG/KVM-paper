@@ -3,7 +3,7 @@
 
 The ``worker``/``submit``/``analyze`` commands reproduce the B8/H32/D128
 fixed-context benchmark. The ``decode-series-*`` commands reproduce the full
-one-token-to-32K decode trajectory. Both compare classic KVM with PyTorch Flash
+one-token-to-32K decode trajectory. Both compare Triton KVM with PyTorch Flash
 SDPA.
 """
 

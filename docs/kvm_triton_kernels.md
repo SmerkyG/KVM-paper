@@ -1,8 +1,8 @@
-# Classic KVM kernels
+# Triton KVM kernels
 
 ## Implementation map
 
-Classic KVM maintains a chunked causal sliding window plus a recurrent state
+KVM maintains a chunked causal sliding window plus a recurrent state
 of compressed key/value rows. Overflow tokens are processed with global novelty
 ranking, append-before-merge routing, protected sink rows, and a joint softmax
 over the recurrent state and recent window.
@@ -12,10 +12,10 @@ The entry points are:
 | Surface | Entry point |
 |---|---|
 | Eager semantic reference | `model.kvm_mixer.SequenceMixer` |
-| Optimized classic mixer | `model.kvm_classic_mixer.SequenceMixer` |
-| Triton training kernels | `model.kernels.kvm_classic_triton_training_kernels` |
-| Integrated optimized decode cache | `model.kvm_classic_decode.ClassicKVMDecodeCache` |
-| Triton decode attention/ring kernels | `model.kernels.kvm_classic_triton_decode` |
+| Optimized Triton mixer | `model.kvm_triton_mixer.SequenceMixer` |
+| Triton training kernels | `model.kernels.kvm_triton_training_kernels` |
+| Optimized decode cache state | `model.kvm_triton_decode.TritonKVMDecodeCache` |
+| Triton decode attention/ring kernels | `model.kernels.kvm_triton_decode` |
 | FP32 merge-routing reference | `model.kvm_fp32_routing_reference.SequenceMixer` |
 
 ## Selecting the optimized training path
@@ -28,7 +28,7 @@ bash run.sh \
   -c configs/prolong/base.yaml \
   -c configs/prolong/tokens_3B.yaml \
   -c configs/prolong/120M/kvm_wd.yaml \
-  -c configs/prolong/kvm_classic.yaml
+  -c configs/prolong/kvm_triton.yaml
 ```
 
 Use `configs/prolong/120M/kvm_sqrt16_wd.yaml` for the sqrt16 schedule. The
@@ -36,7 +36,7 @@ default validation corpus is `SmerkyG/dclm-10B`.
 
 ## Reproducing the kernel benchmarks
 
-The benchmark compares the classic KVM Triton kernels with PyTorch Flash SDPA
+The benchmark compares the KVM Triton kernels with PyTorch Flash SDPA
 at the post-QKV operator boundary. Both implementations receive BF16
 preprojected tensors and return `[B,T,H*D]`; projections, RoPE, the output
 projection, and the rest of the transformer layer are excluded.

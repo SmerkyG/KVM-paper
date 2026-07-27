@@ -1,4 +1,4 @@
-"""Triton kernels for allocation-free classic-KVM single-token decode.
+"""Triton kernels for allocation-free KVM single-token decode.
 
 The attention kernel consumes the normalized recurrent state and the recent
 front as separate logical segments.  It deliberately does not materialize a
@@ -429,7 +429,7 @@ def kvm_decode_attention(
     state_capacity = int(state_k.size(1))
     ring_capacity = int(recent_k.size(1)) // 2
     if int(q.size(2)) != 1:
-        raise ValueError("classic KVM decode attention requires q_len=1")
+        raise ValueError("Triton KVM decode attention requires q_len=1")
     if q_heads % kv_heads:
         raise ValueError("query heads must be divisible by KV heads")
     if out is None:

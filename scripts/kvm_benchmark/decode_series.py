@@ -39,7 +39,7 @@ from .common import (
     stream_hardware_cache_eviction,
     write_json_exclusive,
 )
-from model.kvm_classic_decode import ClassicKVMDecodeCache, DecodeCacheSnapshot
+from model.kvm_triton_decode import TritonKVMDecodeCache, DecodeCacheSnapshot
 
 DECODE_SERIES_START = 1
 DECODE_SERIES_END = 32768
@@ -142,7 +142,7 @@ def run_kvm_decode_series(
             snapshot.recent_gate.copy_(sources["gate"][:, :, :1])
 
     refresh_snapshot()
-    required_capacity = ClassicKVMDecodeCache.state_length_after_cycle(
+    required_capacity = TritonKVMDecodeCache.state_length_after_cycle(
         mixer,
         DECODE_SERIES_START,
         int(snapshot.state_k.size(2)),
@@ -153,7 +153,7 @@ def run_kvm_decode_series(
             f"decode series requires state {required_capacity}, configured "
             f"maximum is {mixer.max_state_len}"
         )
-    cache = ClassicKVMDecodeCache(
+    cache = TritonKVMDecodeCache(
         mixer,
         snapshot,
         state_capacity=max(required_capacity, int(snapshot.state_k.size(2))),
@@ -178,7 +178,13 @@ def run_kvm_decode_series(
     def step() -> torch.Tensor:
         with torch.no_grad():
             return copy_single_token_output(
-                cache.step(current_q, current_k, current_v, current_gate),
+                mixer._decode_one_token(
+                    current_q,
+                    current_k,
+                    current_v,
+                    current_gate,
+                    cache,
+                ),
                 output,
             )
 
