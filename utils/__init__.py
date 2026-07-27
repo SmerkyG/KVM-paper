@@ -1,6 +1,5 @@
 from .defer import apply_deferred, defer
 from .env import setup_env
-from .fla_rocm_patches import patch_fla_kda_rocm_autotune
 from .flex_attention import (
     causal_mask_mod,
     compiled_flex_attention,

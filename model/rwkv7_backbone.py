@@ -317,7 +317,7 @@ class MixerConfigDataclass(RWKV7BackboneConfigDataclass):
     kvm_value_residual_mode: str = "rwkv"
     kvm_token_shift_mode: str = "rwkv"
     kvm_apply_merge_gate_to_initial_state: int = 0
-    kvm_apply_merge_gate_to_appends: int = 1
+    kvm_apply_merge_gate_to_appends: int = 0
 
     kvm_use_merge_gate_keys: int = 1
     kvm_use_merge_gate_values: int = 1
