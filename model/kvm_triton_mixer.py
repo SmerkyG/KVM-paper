@@ -196,8 +196,8 @@ class _KvmTritonTrainingFunction(Function):
 class SequenceMixer(TorchKVMSequenceMixer):
     """KVM backed by the optimized Triton training/prefill kernels.
 
-    Training uses exact AOTriton attention values by default and a KVM-aware
-    Triton backward adapted to AOTriton's reduction boundaries. Set
+    Training uses the KVM-specialized, source-derived AOTriton forward by
+    default with the KVM-aware Triton backward. Set
     ``kvm_aotriton_forward_attention=0`` for full-Triton training.
 
     Append selection is ranked globally across each overflow chunk, and

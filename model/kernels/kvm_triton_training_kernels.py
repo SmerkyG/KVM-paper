@@ -2740,14 +2740,354 @@ def _initial_state_grad_kernel(
         mask=valid[:, None],
     )
 
-def _repeat_kv_for_aotriton(
-    tensor: torch.Tensor,
+@triton.jit
+def _load_kvm_aotriton_source_kv(
+    state_k_row,
+    state_v_row,
+    front_k_row,
+    front_v_row,
+    logical_key,
+    head_offsets,
+    value_offsets,
+    state_temperature,
+    front_temperature,
+    state_len,
+    front_start,
+    HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+    MASK_KEY: tl.constexpr,
+    key_len,
+):
+    if MASK_KEY:
+        valid_key = logical_key < key_len
+    from_state = logical_key < state_len
+    state_index = logical_key
+    front_index = front_start + logical_key - state_len
+    if MASK_KEY:
+        state_mask = valid_key & from_state
+        front_mask = valid_key & ~from_state
+    else:
+        state_mask = from_state
+        front_mask = ~from_state
+    state_k_block = tl.load(
+        state_k_row
+        + state_index[:, None] * HEAD_DIM
+        + head_offsets[None, :],
+        mask=state_mask[:, None],
+        other=0.0,
+    )
+    front_k_block = tl.load(
+        front_k_row
+        + front_index[:, None] * HEAD_DIM
+        + head_offsets[None, :],
+        mask=front_mask[:, None],
+        other=0.0,
+    )
+    state_v_block = tl.load(
+        state_v_row
+        + state_index[:, None] * VALUE_DIM
+        + value_offsets[None, :],
+        mask=state_mask[:, None],
+        other=0.0,
+    )
+    front_v_block = tl.load(
+        front_v_row
+        + front_index[:, None] * VALUE_DIM
+        + value_offsets[None, :],
+        mask=front_mask[:, None],
+        other=0.0,
+    )
+    k_block = tl.where(
+        from_state[:, None],
+        (state_k_block * state_temperature).to(tl.bfloat16),
+        (front_k_block * front_temperature).to(tl.bfloat16),
+    )
+    v_block = tl.where(from_state[:, None], state_v_block, front_v_block)
+    return k_block, v_block
+
+
+@triton.jit
+def _kvm_aotriton_source_online_update(
+    acc,
+    l_i,
+    m_i,
+    q_block,
+    k_block,
+    v_block,
+    query_offsets,
+    logical_key,
+    query_len,
+    key_len,
+    SCALE_LOG2: tl.constexpr,
+    MASK_SEQUENCE: tl.constexpr,
+    CAUSAL_BEFORE_DOT: tl.constexpr,
+    BIAS_AFTER_DOT: tl.constexpr,
+):
+    # Preserve AOTriton's operation order. In particular, padded and causal
+    # masks are installed into a zero score tile before the QK dot, whereas an
+    # explicit attention bias is added after the scaled dot.
+    scores = tl.zeros((q_block.shape[0], k_block.shape[0]), tl.float32)
+    if MASK_SEQUENCE or CAUSAL_BEFORE_DOT:
+        score_mask = tl.full(
+            (q_block.shape[0], k_block.shape[0]), True, tl.int1
+        )
+        if MASK_SEQUENCE:
+            score_mask &= query_offsets[:, None] < query_len
+            score_mask &= logical_key[None, :] < key_len
+        if CAUSAL_BEFORE_DOT:
+            causal_limit = query_offsets[:, None] + key_len - query_len
+            score_mask &= logical_key[None, :] <= causal_limit
+        scores = tl.where(score_mask, scores, -float("inf"))
+
+    scores += SCALE_LOG2 * tl.dot(
+        q_block, tl.trans(k_block), out_dtype=tl.float32
+    )
+    if BIAS_AFTER_DOT:
+        causal_limit = query_offsets[:, None] + key_len - query_len
+        visible = logical_key[None, :] <= causal_limit
+        bias = tl.where(visible, 0.0, -float("inf")).to(tl.bfloat16)
+        scores += bias * 1.44269504089
+
+    m_ij = tl.maximum(m_i, tl.max(scores, axis=1))
+    scores -= m_ij[:, None]
+    p = tl.math.exp2(scores)
+    l_ij = tl.sum(p, axis=1)
+    alpha = tl.math.exp2(m_i - m_ij)
+    acc *= alpha[:, None]
+    l_i = l_i * alpha + l_ij
+    m_i = m_ij
+    acc += tl.dot(p.to(v_block.dtype), v_block, out_dtype=tl.float32)
+    return acc, l_i, m_i
+
+
+@triton.jit
+def _kvm_aotriton_source_attention_fwd_kernel(
+    q,
+    state_k,
+    state_v,
+    front_k,
+    front_v,
+    out,
+    lse,
+    state_temperature,
+    front_temperature,
+    q_start,
+    query_len,
+    state_len,
+    front_start,
+    front_len,
+    MAX_STATE_LEN: tl.constexpr,
+    TOTAL_LEN: tl.constexpr,
+    Q_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+    SCALE_LOG2: tl.constexpr,
+    BLOCK_M: tl.constexpr,
+    BLOCK_N: tl.constexpr,
+    IS_INITIAL_CAUSAL: tl.constexpr,
+):
+    """KVM-specialized AOTriton 0.11 attention forward.
+
+    This is the no-dropout, BF16 specialization of AOTriton's ``attn_fwd``
+    and ``_attn_fwd_inner`` at commit d34f3b6c824df77d5c5788a2e7555b2398be4b79.
+    K/V are gathered directly from KVM state and front storage, so recurrent
+    calls retain AOTriton's contiguous logical-key tiling without materializing
+    a concatenated tensor or routing through a PyTorch attention operator.
+    """
+    q_row = tl.program_id(0).to(tl.int64)
+    query_block = tl.program_id(1).to(tl.int64)
+    group_size: tl.constexpr = Q_HEADS // KV_HEADS
+    batch_id = q_row // Q_HEADS
+    q_head = q_row - batch_id * Q_HEADS
+    kv_head = q_head // group_size
+    kv_row = batch_id * KV_HEADS + kv_head
+
+    query_offsets = query_block * BLOCK_M + tl.arange(0, BLOCK_M)
+    key_offsets = tl.arange(0, BLOCK_N)
+    head_offsets = tl.arange(0, HEAD_DIM)
+    value_offsets = tl.arange(0, VALUE_DIM)
+    valid_query = query_offsets < query_len
+    q_indices = q_start + query_offsets
+
+    q_row_ptr = q + q_row * TOTAL_LEN * HEAD_DIM
+    state_k_row = state_k + kv_row * MAX_STATE_LEN * HEAD_DIM
+    state_v_row = state_v + kv_row * MAX_STATE_LEN * VALUE_DIM
+    front_k_row = front_k + kv_row * TOTAL_LEN * HEAD_DIM
+    front_v_row = front_v + kv_row * TOTAL_LEN * VALUE_DIM
+    out_row = out + q_row * TOTAL_LEN * VALUE_DIM
+    lse_row = lse + q_row * TOTAL_LEN
+
+    q_block = tl.load(
+        q_row_ptr + q_indices[:, None] * HEAD_DIM + head_offsets[None, :],
+        mask=valid_query[:, None],
+        other=0.0,
+    )
+    state_temp = tl.load(state_temperature + q_head).to(tl.bfloat16)
+    front_temp = tl.load(front_temperature + q_head).to(tl.bfloat16)
+    key_len = state_len + front_len
+    # Match AOTriton's online-softmax initialization and reduction order.
+    m_i = tl.full((BLOCK_M,), -3.40282e38, tl.float32)
+    l_i = tl.full((BLOCK_M,), 1.0, tl.float32)
+    acc = tl.zeros((BLOCK_M, VALUE_DIM), tl.float32)
+
+    if IS_INITIAL_CAUSAL:
+        # AOTriton excludes wholly masked future tiles. Tiles preceding the
+        # diagonal are unmasked; only tiles intersecting this query block's
+        # causal boundary enter the masked loop below.
+        full_key_blocks = (query_block * BLOCK_M) // BLOCK_N
+        masked_key_blocks = tl.minimum(
+            tl.cdiv(query_block * BLOCK_M + BLOCK_M, BLOCK_N),
+            tl.cdiv(key_len, BLOCK_N),
+        )
+    else:
+        # Non-causal AOTriton (the recurrent call supplies an explicit bias)
+        # puts a possible trailing partial tile in the masked loop.
+        full_key_blocks = key_len // BLOCK_N
+        masked_key_blocks = tl.cdiv(key_len, BLOCK_N)
+
+    for key_block in tl.range(0, full_key_blocks, 1, num_stages=1):
+        logical_key = key_block * BLOCK_N + key_offsets
+        k_block, v_block = _load_kvm_aotriton_source_kv(
+            state_k_row,
+            state_v_row,
+            front_k_row,
+            front_v_row,
+            logical_key,
+            head_offsets,
+            value_offsets,
+            state_temp,
+            front_temp,
+            state_len,
+            front_start,
+            HEAD_DIM,
+            VALUE_DIM,
+            MASK_KEY=False,
+            key_len=key_len,
+        )
+        acc, l_i, m_i = _kvm_aotriton_source_online_update(
+            acc,
+            l_i,
+            m_i,
+            q_block,
+            k_block,
+            v_block,
+            query_offsets,
+            logical_key,
+            query_len,
+            key_len,
+            SCALE_LOG2,
+            MASK_SEQUENCE=False,
+            CAUSAL_BEFORE_DOT=False,
+            BIAS_AFTER_DOT=not IS_INITIAL_CAUSAL,
+        )
+
+    tl.debug_barrier()
+    for key_block in tl.range(
+        full_key_blocks, masked_key_blocks, 1, num_stages=1
+    ):
+        logical_key = key_block * BLOCK_N + key_offsets
+        k_block, v_block = _load_kvm_aotriton_source_kv(
+            state_k_row,
+            state_v_row,
+            front_k_row,
+            front_v_row,
+            logical_key,
+            head_offsets,
+            value_offsets,
+            state_temp,
+            front_temp,
+            state_len,
+            front_start,
+            HEAD_DIM,
+            VALUE_DIM,
+            MASK_KEY=True,
+            key_len=key_len,
+        )
+        acc, l_i, m_i = _kvm_aotriton_source_online_update(
+            acc,
+            l_i,
+            m_i,
+            q_block,
+            k_block,
+            v_block,
+            query_offsets,
+            logical_key,
+            query_len,
+            key_len,
+            SCALE_LOG2,
+            MASK_SEQUENCE=True,
+            CAUSAL_BEFORE_DOT=IS_INITIAL_CAUSAL,
+            BIAS_AFTER_DOT=not IS_INITIAL_CAUSAL,
+        )
+
+    output = (acc * (1.0 / l_i[:, None])).to(tl.bfloat16)
+    # The direct backward consumes base-2 LSE, but the AOT forward writes
+    # natural-log LSE and the original adapter converted it back. Keep those
+    # two source-level roundings instead of cancelling the constants.
+    logsumexp_base2 = (m_i + tl.math.log2(l_i)) * 0.6931471824645996
+    logsumexp_base2 *= 1.4426950408889634
+    tl.store(
+        out_row + q_indices[:, None] * VALUE_DIM + value_offsets[None, :],
+        output,
+        mask=valid_query[:, None],
+    )
+    tl.store(lse_row + q_indices, logsumexp_base2, mask=valid_query)
+
+
+def _run_aotriton_source_attention_forward(
+    args: argparse.Namespace,
     *,
-    q_heads: int,
-    kv_heads: int,
-) -> torch.Tensor:
-    """Expand grouped K/V heads exactly as eager KVM SDPA does."""
-    return tensor.repeat_interleave(q_heads // kv_heads, dim=1)
+    q_flat: torch.Tensor,
+    state_k_attn: torch.Tensor,
+    state_v_attn: torch.Tensor,
+    bswa_k_flat: torch.Tensor,
+    bswa_v_flat: torch.Tensor,
+    state_temperature: torch.Tensor,
+    front_temperature: torch.Tensor,
+    out: torch.Tensor,
+    lse: torch.Tensor,
+    q_start: int,
+    query_len: int,
+    state_len: int,
+    front_start: int,
+    front_len: int,
+    query_block: int,
+    key_block: int,
+    num_warps: int,
+    waves_per_eu: int,
+    is_initial_causal: bool,
+) -> None:
+    q_rows = args.batch * args.q_heads
+    _kvm_aotriton_source_attention_fwd_kernel[
+        (q_rows, triton.cdiv(query_len, query_block))
+    ](
+        q_flat,
+        state_k_attn,
+        state_v_attn,
+        bswa_k_flat,
+        bswa_v_flat,
+        out,
+        lse,
+        state_temperature,
+        front_temperature,
+        q_start,
+        query_len,
+        state_len,
+        front_start,
+        front_len,
+        MAX_STATE_LEN=state_k_attn.shape[1],
+        TOTAL_LEN=args.q_len,
+        Q_HEADS=args.q_heads,
+        KV_HEADS=args.kv_heads,
+        HEAD_DIM=args.dim,
+        VALUE_DIM=args.value_dim,
+        SCALE_LOG2=math.log2(math.e) / math.sqrt(float(args.dim)),
+        BLOCK_M=query_block,
+        BLOCK_N=key_block,
+        IS_INITIAL_CAUSAL=is_initial_causal,
+        **triton_launch_kwargs(num_warps, 1, waves_per_eu),
+    )
 
 
 def _run_aotriton_initial_attention_forward(
@@ -2755,43 +3095,35 @@ def _run_aotriton_initial_attention_forward(
     q_flat: torch.Tensor,
     bswa_k_flat: torch.Tensor,
     bswa_v_flat: torch.Tensor,
+    state_k_attn: torch.Tensor,
+    state_v_attn: torch.Tensor,
     front_temperature: torch.Tensor,
     out: torch.Tensor,
     lse: torch.Tensor,
 ) -> None:
-    """Run the eager two-chunk causal SDPA forward on Triton-prepared inputs."""
+    """Run initial attention with the direct source-derived Triton kernel."""
     front_len = min(args.q_len, args.bswa_chunks * args.macro_block)
-    q = q_flat.reshape(args.batch, args.q_heads, args.q_len, args.dim)[:, :, :front_len]
-    raw_k = bswa_k_flat.reshape(args.batch, args.kv_heads, args.q_len, args.dim)[
-        :, :, :front_len
-    ]
-    raw_v = bswa_v_flat.reshape(args.batch, args.kv_heads, args.q_len, args.value_dim)[
-        :, :, :front_len
-    ]
-    repeated_k = _repeat_kv_for_aotriton(
-        raw_k, q_heads=args.q_heads, kv_heads=args.kv_heads
-    )
-    repeated_v = _repeat_kv_for_aotriton(
-        raw_v, q_heads=args.q_heads, kv_heads=args.kv_heads
-    )
-    effective_k = (
-        repeated_k * front_temperature.to(repeated_k.dtype).view(1, args.q_heads, 1, 1)
-    ).to(repeated_k.dtype)
-    result = torch.ops.aten._scaled_dot_product_flash_attention.default(
-        q,
-        effective_k,
-        repeated_v,
-        0.0,
-        True,
-        False,
-        scale=1.0 / math.sqrt(float(args.dim)),
-    )
-    output, logsumexp = result[:2]
-    out.reshape(args.batch, args.q_heads, args.q_len, args.value_dim)[
-        :, :, :front_len
-    ].copy_(output)
-    lse.reshape(args.batch, args.q_heads, args.q_len)[:, :, :front_len].copy_(
-        logsumexp * math.log2(math.e)
+    _run_aotriton_source_attention_forward(
+        args,
+        q_flat=q_flat,
+        state_k_attn=state_k_attn,
+        state_v_attn=state_v_attn,
+        bswa_k_flat=bswa_k_flat,
+        bswa_v_flat=bswa_v_flat,
+        state_temperature=front_temperature,
+        front_temperature=front_temperature,
+        out=out,
+        lse=lse,
+        q_start=0,
+        query_len=front_len,
+        state_len=0,
+        front_start=0,
+        front_len=front_len,
+        query_block=128,
+        key_block=64,
+        num_warps=4,
+        waves_per_eu=1,
+        is_initial_causal=True,
     )
 
 
@@ -2809,83 +3141,31 @@ def _run_aotriton_recurrent_attention_forward(
     out: torch.Tensor,
     lse: torch.Tensor,
 ) -> None:
-    """Run one exact eager recurrent SDPA forward on Triton's live state."""
+    """Run recurrent attention with the direct source-derived Triton kernel."""
     query_begin = macro_id * args.macro_block
-    query_end = query_begin + args.macro_block
     bswa_begin = (macro_id - (args.bswa_chunks - 1)) * args.macro_block
-    q = q_flat.reshape(args.batch, args.q_heads, args.q_len, args.dim)[
-        :, :, query_begin:query_end
-    ].contiguous()
-    state_k = state_k_attn[:, :active_len].reshape(
-        args.batch, args.kv_heads, active_len, args.dim
+    _run_aotriton_source_attention_forward(
+        args,
+        q_flat=q_flat,
+        state_k_attn=state_k_attn,
+        state_v_attn=state_v_attn,
+        bswa_k_flat=bswa_k_flat,
+        bswa_v_flat=bswa_v_flat,
+        state_temperature=state_temperature,
+        front_temperature=front_temperature,
+        out=out,
+        lse=lse,
+        q_start=query_begin,
+        query_len=args.macro_block,
+        state_len=active_len,
+        front_start=bswa_begin,
+        front_len=args.bswa_chunks * args.macro_block,
+        query_block=64,
+        key_block=64,
+        num_warps=2,
+        waves_per_eu=3,
+        is_initial_causal=False,
     )
-    state_v = state_v_attn[:, :active_len].reshape(
-        args.batch, args.kv_heads, active_len, args.value_dim
-    )
-    front_k = bswa_k_flat.reshape(args.batch, args.kv_heads, args.q_len, args.dim)[
-        :, :, bswa_begin:query_end
-    ]
-    front_v = bswa_v_flat.reshape(
-        args.batch, args.kv_heads, args.q_len, args.value_dim
-    )[:, :, bswa_begin:query_end]
-
-    state_k = _repeat_kv_for_aotriton(
-        state_k, q_heads=args.q_heads, kv_heads=args.kv_heads
-    )
-    state_v = _repeat_kv_for_aotriton(
-        state_v, q_heads=args.q_heads, kv_heads=args.kv_heads
-    )
-    front_k = _repeat_kv_for_aotriton(
-        front_k, q_heads=args.q_heads, kv_heads=args.kv_heads
-    )
-    front_v = _repeat_kv_for_aotriton(
-        front_v, q_heads=args.q_heads, kv_heads=args.kv_heads
-    )
-    effective_state_k = (
-        state_k * state_temperature.to(state_k.dtype).view(1, args.q_heads, 1, 1)
-    ).to(state_k.dtype)
-    effective_front_k = (
-        front_k * front_temperature.to(front_k.dtype).view(1, args.q_heads, 1, 1)
-    ).to(front_k.dtype)
-    key = torch.cat((effective_state_k, effective_front_k), dim=2)
-    value = torch.cat((state_v, front_v), dim=2)
-
-    q_offsets = torch.arange(args.macro_block, device=q.device).unsqueeze(1)
-    kv_offsets = torch.arange(key.size(2), device=q.device).unsqueeze(0)
-    visible = kv_offsets <= q_offsets + key.size(2) - args.macro_block
-    bias = (
-        torch.zeros(
-            1,
-            1,
-            args.macro_block,
-            key.size(2),
-            device=q.device,
-            dtype=q.dtype,
-        )
-        .masked_fill_(
-            ~visible.reshape(1, 1, args.macro_block, key.size(2)),
-            -float("inf"),
-        )
-        .expand(args.batch, args.q_heads, args.macro_block, key.size(2))
-        .contiguous()
-    )
-    result = torch.ops.aten._scaled_dot_product_efficient_attention.default(
-        q,
-        key,
-        value,
-        bias,
-        True,
-        0.0,
-        False,
-        scale=1.0 / math.sqrt(float(args.dim)),
-    )
-    output, logsumexp = result[:2]
-    out.reshape(args.batch, args.q_heads, args.q_len, args.value_dim)[
-        :, :, query_begin:query_end
-    ].copy_(output)
-    lse.reshape(args.batch, args.q_heads, args.q_len)[
-        :, :, query_begin:query_end
-    ].copy_(logsumexp * math.log2(math.e))
 
 
 
@@ -2955,7 +3235,6 @@ def build_prefill_forward(
     use_aotriton_attention = bool(
         getattr(args, "aotriton_forward_attention", False)
     )
-
     if initial_k_flat is None:
         initial_k_flat = overflow_k_flat
     if initial_v_flat is None:
@@ -3016,6 +3295,8 @@ def build_prefill_forward(
             q_flat,
             bswa_k_flat,
             bswa_v_flat,
+            state_k_attn,
+            state_v_attn,
             front_temperature,
             out,
             lse,
