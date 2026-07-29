@@ -323,7 +323,9 @@ class MixerConfigDataclass(RWKV7BackboneConfigDataclass):
     kvm_use_merge_gate_values: int = 1
     kvm_use_head_temps: int = 1
     kvm_use_vlens: int = 1
-
+    # Exact AOTriton attention values are the safe training default. Set to
+    # 0 to use the original full-Triton forward and backward path.
+    kvm_aotriton_forward_attention: int = 1
     ovq_value_residual_mode: str = "rwkv"
     ovq_token_shift_mode: str = "rwkv"
     use_tokenshift_att: int = 0
