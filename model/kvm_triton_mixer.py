@@ -196,6 +196,10 @@ class _KvmTritonTrainingFunction(Function):
 class SequenceMixer(TorchKVMSequenceMixer):
     """KVM backed by the optimized Triton training/prefill kernels.
 
+    Training uses exact AOTriton attention values by default and a KVM-aware
+    Triton backward adapted to AOTriton's reduction boundaries. Set
+    ``kvm_aotriton_forward_attention=0`` for full-Triton training.
+
     Append selection is ranked globally across each overflow chunk, and
     selected tokens are appended before merge targets are chosen. These are
     the eager ``kvm_mixer.py`` routing semantics.
@@ -328,6 +332,9 @@ class SequenceMixer(TorchKVMSequenceMixer):
             fuse_state_dkdv_raw=False,
             append_score_precision="bf16_rounded",
             route_score_precision="fp32",
+            aotriton_forward_attention=bool(
+                self.config.kvm_aotriton_forward_attention
+            ),
             append_policy="global",
             merge_order="append_before_merge",
         )
@@ -494,8 +501,11 @@ class SequenceMixer(TorchKVMSequenceMixer):
             )
         q_flat = flat["q"]
         state_temperature, front_temperature = self._head_temperatures(q_flat.device)
+        # Safe AOT is a training option; inference retains the fast Triton path.
+        inference_args = argparse.Namespace(**vars(triton_args))
+        inference_args.aotriton_forward_attention = False
         return build_prefill_forward(
-            triton_args,
+            inference_args,
             schedule,
             q_flat,
             flat["merge_k"],

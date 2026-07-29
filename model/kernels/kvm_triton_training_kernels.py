@@ -825,6 +825,286 @@ def _kvm_attn_snapshot_bswa_dkdv_kernel(
     tl.store(d_bswa_k_row + kv_idx[:, None] * HEAD_DIM + key_offsets[None, :], dk)
     tl.store(d_bswa_v_row + kv_idx[:, None] * VALUE_DIM + value_offsets[None, :], dv)
 
+@triton.jit
+def _kvm_attn_initial_front_dkdv_aot_kernel(
+    q,
+    bswa_k,
+    bswa_v,
+    dout,
+    lse,
+    delta,
+    d_bswa_k,
+    d_bswa_v,
+    d_front_temperature,
+    front_temperature,
+    Q_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    TOTAL_LEN: tl.constexpr,
+    FRONT_LEN: tl.constexpr,
+    Q_BLOCK: tl.constexpr,
+    KV_BLOCK: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+    SCALE_LOG2: tl.constexpr,
+    SCALE: tl.constexpr,
+    Q_HEAD_LOOP_UNROLL: tl.constexpr,
+):
+    """AOT-style dK/dV for the single initial causal SDPA call.
+
+    AOTriton reduces this call in 32-query tiles, whereas its recurrent calls
+    use 64.  The general front kernel keeps the recurrent path fused; this
+    small kernel restores only the initial call's reduction and BF16 boundary.
+    """
+    kv_row = tl.program_id(0).to(tl.int64)
+    kv_block_id = tl.program_id(1).to(tl.int64)
+    group_size: tl.constexpr = Q_HEADS // KV_HEADS
+    batch_id = kv_row // KV_HEADS
+    kv_head = kv_row - batch_id * KV_HEADS
+
+    q_offsets = tl.arange(0, Q_BLOCK)
+    k_offsets = tl.arange(0, KV_BLOCK)
+    key_dims = tl.arange(0, HEAD_DIM)
+    value_dims = tl.arange(0, VALUE_DIM)
+    kv_idx = kv_block_id * KV_BLOCK + k_offsets
+    bswa_k_row = bswa_k + kv_row * TOTAL_LEN * HEAD_DIM
+    bswa_v_row = bswa_v + kv_row * TOTAL_LEN * VALUE_DIM
+    d_bswa_k_row = d_bswa_k + kv_row * TOTAL_LEN * HEAD_DIM
+    d_bswa_v_row = d_bswa_v + kv_row * TOTAL_LEN * VALUE_DIM
+    k_block = tl.load(bswa_k_row + kv_idx[:, None] * HEAD_DIM + key_dims[None, :])
+    v_block = tl.load(bswa_v_row + kv_idx[:, None] * VALUE_DIM + value_dims[None, :])
+    dk = tl.zeros((KV_BLOCK, HEAD_DIM), tl.float32)
+    dv = tl.zeros((KV_BLOCK, VALUE_DIM), tl.float32)
+
+    for group_i in tl.range(
+        0, group_size, 1, num_stages=1, loop_unroll_factor=Q_HEAD_LOOP_UNROLL
+    ):
+        q_head = kv_head * group_size + group_i
+        q_row = batch_id * Q_HEADS + q_head
+        q_row_ptr = q + q_row * TOTAL_LEN * HEAD_DIM
+        dout_row = dout + q_row * TOTAL_LEN * VALUE_DIM
+        lse_row = lse + q_row * TOTAL_LEN
+        delta_row = delta + q_row * TOTAL_LEN
+        front_temp = tl.load(front_temperature + q_head).to(tl.float32)
+        k_eff = (k_block.to(tl.float32) * front_temp).to(tl.bfloat16)
+        temp_grad = tl.full((), 0.0, tl.float32)
+
+        for q_block_id in tl.range(0, FRONT_LEN // Q_BLOCK, 1, num_stages=1):
+            if (q_block_id + 1) * Q_BLOCK > kv_block_id * KV_BLOCK:
+                q_idx = q_block_id * Q_BLOCK + q_offsets
+                q_block = tl.load(
+                    q_row_ptr + q_idx[:, None] * HEAD_DIM + key_dims[None, :]
+                )
+                do = tl.load(
+                    dout_row + q_idx[:, None] * VALUE_DIM + value_dims[None, :]
+                ).to(tl.float32)
+                do_bf16 = do.to(tl.bfloat16)
+                lse_i = tl.load(lse_row + q_idx)
+                delta_i = tl.load(delta_row + q_idx)
+                scores = (
+                    tl.dot(q_block, tl.trans(k_eff), out_dtype=tl.float32) * SCALE_LOG2
+                )
+                causal = kv_idx[None, :] <= q_idx[:, None]
+                scores = tl.where(causal, scores, -float("inf"))
+                p = tl.where(causal, tl.exp2(scores - lse_i[:, None]), 0.0)
+                dp = tl.dot(do_bf16, tl.trans(v_block), out_dtype=tl.float32)
+                ds = p * (dp - delta_i[:, None])
+                dk_eff = (
+                    tl.dot(tl.trans(ds.to(tl.bfloat16)), q_block, out_dtype=tl.float32)
+                    * SCALE
+                )
+                dk += dk_eff * front_temp
+                temp_grad += tl.sum(
+                    tl.sum(dk_eff * k_block.to(tl.float32), axis=1), axis=0
+                )
+                dv += tl.trans(
+                    tl.dot(
+                        tl.trans(do_bf16),
+                        p.to(tl.bfloat16),
+                        out_dtype=tl.float32,
+                    )
+                )
+        tl.atomic_add(d_front_temperature + q_head, temp_grad, sem="relaxed")
+
+    prior_dk = tl.load(d_bswa_k_row + kv_idx[:, None] * HEAD_DIM + key_dims[None, :])
+    prior_dv = tl.load(d_bswa_v_row + kv_idx[:, None] * VALUE_DIM + value_dims[None, :])
+    tl.store(
+        d_bswa_k_row + kv_idx[:, None] * HEAD_DIM + key_dims[None, :],
+        prior_dk + dk.to(tl.bfloat16),
+    )
+    tl.store(
+        d_bswa_v_row + kv_idx[:, None] * VALUE_DIM + value_dims[None, :],
+        prior_dv + dv.to(tl.bfloat16),
+    )
+
+
+@triton.jit
+def _kvm_attn_recurrent_front_dkdv_aot_kernel(
+    q,
+    bswa_k,
+    bswa_v,
+    dout,
+    lse,
+    delta,
+    d_bswa_k,
+    d_bswa_v,
+    d_front_temperature_partials,
+    front_temperature,
+    Q_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    MACRO_BLOCKS: tl.constexpr,
+    MACRO_BLOCK: tl.constexpr,
+    BSWA_CHUNKS: tl.constexpr,
+    Q_BLOCK: tl.constexpr,
+    KV_BLOCK: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+    SCALE_LOG2: tl.constexpr,
+    SCALE: tl.constexpr,
+    Q_HEAD_LOOP_UNROLL: tl.constexpr,
+    QUERY_DISTANCE: tl.constexpr,
+    ADD_TO_OUTPUT: tl.constexpr,
+    PARTIAL_DISTANCE: tl.constexpr,
+):
+    """One AOT recurrent SDPA-call contribution to the shared front window."""
+    kv_row = tl.program_id(0).to(tl.int64)
+    kv_macro = tl.program_id(1).to(tl.int64)
+    kv_block_id = tl.program_id(2).to(tl.int64)
+    group_size: tl.constexpr = Q_HEADS // KV_HEADS
+    batch_id = kv_row // KV_HEADS
+    kv_head = kv_row - batch_id * KV_HEADS
+    total_len: tl.constexpr = MACRO_BLOCKS * MACRO_BLOCK
+    query_macro = kv_macro + QUERY_DISTANCE
+    valid_call = (query_macro >= BSWA_CHUNKS) & (query_macro < MACRO_BLOCKS)
+
+    q_offsets = tl.arange(0, Q_BLOCK)
+    k_offsets = tl.arange(0, KV_BLOCK)
+    key_dims = tl.arange(0, HEAD_DIM)
+    value_dims = tl.arange(0, VALUE_DIM)
+    kv_idx = kv_macro * MACRO_BLOCK + kv_block_id * KV_BLOCK + k_offsets
+    key_local = kv_block_id * KV_BLOCK + k_offsets
+    bswa_k_row = bswa_k + kv_row * total_len * HEAD_DIM
+    bswa_v_row = bswa_v + kv_row * total_len * VALUE_DIM
+    d_bswa_k_row = d_bswa_k + kv_row * total_len * HEAD_DIM
+    d_bswa_v_row = d_bswa_v + kv_row * total_len * VALUE_DIM
+    k_block = tl.load(bswa_k_row + kv_idx[:, None] * HEAD_DIM + key_dims[None, :])
+    v_block = tl.load(bswa_v_row + kv_idx[:, None] * VALUE_DIM + value_dims[None, :])
+    dk = tl.zeros((KV_BLOCK, HEAD_DIM), tl.float32)
+    dv = tl.zeros((KV_BLOCK, VALUE_DIM), tl.float32)
+
+    for group_i in tl.range(
+        0, group_size, 1, num_stages=1, loop_unroll_factor=Q_HEAD_LOOP_UNROLL
+    ):
+        q_head = kv_head * group_size + group_i
+        q_row = batch_id * Q_HEADS + q_head
+        q_row_ptr = q + q_row * total_len * HEAD_DIM
+        dout_row = dout + q_row * total_len * VALUE_DIM
+        lse_row = lse + q_row * total_len
+        delta_row = delta + q_row * total_len
+        front_temp = tl.load(front_temperature + q_head).to(tl.float32)
+        k_eff = (k_block.to(tl.float32) * front_temp).to(tl.bfloat16)
+        temp_grad = tl.full((), 0.0, tl.float32)
+
+        for q_block_id in tl.range(0, MACRO_BLOCK // Q_BLOCK, 1, num_stages=1):
+            if valid_call:
+                query_local = q_block_id * Q_BLOCK + q_offsets
+                if QUERY_DISTANCE != 0 or (
+                    (q_block_id + 1) * Q_BLOCK > kv_block_id * KV_BLOCK
+                ):
+                    q_idx = query_macro * MACRO_BLOCK + query_local
+                    q_block = tl.load(
+                        q_row_ptr + q_idx[:, None] * HEAD_DIM + key_dims[None, :]
+                    )
+                    do = tl.load(
+                        dout_row + q_idx[:, None] * VALUE_DIM + value_dims[None, :]
+                    ).to(tl.float32)
+                    do_bf16 = do.to(tl.bfloat16)
+                    lse_i = tl.load(lse_row + q_idx)
+                    delta_i = tl.load(delta_row + q_idx)
+                    scores = (
+                        tl.dot(q_block, tl.trans(k_eff), out_dtype=tl.float32)
+                        * SCALE_LOG2
+                    )
+                    if QUERY_DISTANCE == 0:
+                        causal = key_local[None, :] <= query_local[:, None]
+                        scores = tl.where(causal, scores, -float("inf"))
+                    p = tl.exp2(scores - lse_i[:, None])
+                    if QUERY_DISTANCE == 0:
+                        p = tl.where(causal, p, 0.0)
+                    dp = tl.dot(do_bf16, tl.trans(v_block), out_dtype=tl.float32)
+                    ds = p * (dp - delta_i[:, None])
+                    dk_eff = (
+                        tl.dot(
+                            tl.trans(ds.to(tl.bfloat16)),
+                            q_block,
+                            out_dtype=tl.float32,
+                        )
+                        * SCALE
+                    )
+                    dk += dk_eff * front_temp
+                    temp_grad += tl.sum(
+                        tl.sum(dk_eff * k_block.to(tl.float32), axis=1),
+                        axis=0,
+                    )
+                    dv += tl.trans(
+                        tl.dot(
+                            tl.trans(do_bf16),
+                            p.to(tl.bfloat16),
+                            out_dtype=tl.float32,
+                        )
+                    )
+        partial_idx = (
+            ((PARTIAL_DISTANCE * tl.num_programs(0) + kv_row) * MACRO_BLOCKS + kv_macro)
+            * tl.num_programs(2)
+            + kv_block_id
+        ) * group_size + group_i
+        tl.store(d_front_temperature_partials + partial_idx, temp_grad)
+
+    if not valid_call:
+        dk = tl.zeros((KV_BLOCK, HEAD_DIM), tl.float32)
+        dv = tl.zeros((KV_BLOCK, VALUE_DIM), tl.float32)
+    if ADD_TO_OUTPUT:
+        prior_dk = tl.load(
+            d_bswa_k_row + kv_idx[:, None] * HEAD_DIM + key_dims[None, :]
+        )
+        prior_dv = tl.load(
+            d_bswa_v_row + kv_idx[:, None] * VALUE_DIM + value_dims[None, :]
+        )
+        dk = prior_dk + dk.to(tl.bfloat16)
+        dv = prior_dv + dv.to(tl.bfloat16)
+    tl.store(d_bswa_k_row + kv_idx[:, None] * HEAD_DIM + key_dims[None, :], dk)
+    tl.store(d_bswa_v_row + kv_idx[:, None] * VALUE_DIM + value_dims[None, :], dv)
+
+
+@triton.jit
+def _accumulate_recurrent_front_temperature_partials_kernel(
+    partials,
+    d_front_temperature,
+    Q_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    MACRO_BLOCKS: tl.constexpr,
+):
+    """Reproduce the proven fused kernel's next-call-then-current atomics."""
+    kv_row = tl.program_id(0).to(tl.int64)
+    kv_macro = tl.program_id(1).to(tl.int64)
+    kv_block_id = tl.program_id(2).to(tl.int64)
+    group_size: tl.constexpr = Q_HEADS // KV_HEADS
+    batch_id = kv_row // KV_HEADS
+    kv_head = kv_row - batch_id * KV_HEADS
+    for group_i in tl.static_range(0, group_size):
+        q_head = kv_head * group_size + group_i
+        base = (
+            (kv_row * MACRO_BLOCKS + kv_macro) * tl.num_programs(2) + kv_block_id
+        ) * group_size + group_i
+        distance_stride = (
+            tl.num_programs(0) * MACRO_BLOCKS * tl.num_programs(2) * group_size
+        )
+        next_call = tl.load(partials + distance_stride + base)
+        current_call = tl.load(partials + base)
+        # The original fused program issued these two atomics in this order.
+        tl.atomic_add(d_front_temperature + q_head, next_call, sem="relaxed")
+        tl.atomic_add(d_front_temperature + q_head, current_call, sem="relaxed")
+
+
 
 
 # Prefill and reverse reconstruction update kernels.
@@ -1846,6 +2126,7 @@ def _live_state_dkdv_to_raw_grad_kernel(
     STORE_TEMP_GRAD: tl.constexpr,
     WRITE_TEMP_PARTIAL: tl.constexpr,
     BATCH_TEMP_GRAD: tl.constexpr,
+    ROUND_AOT_OUTPUT_GRADS: tl.constexpr,
 ):
     kv_row = tl.program_id(0).to(tl.int64)
     chunk_id = tl.program_id(1).to(tl.int64)
@@ -1918,7 +2199,10 @@ def _live_state_dkdv_to_raw_grad_kernel(
             dk_eff = tl.dot(
                 tl.trans(ds.to(tl.bfloat16)), q_block, out_dtype=tl.float32
             ) * SCALE
-            dk_attn += dk_eff * state_temp
+            if ROUND_AOT_OUTPUT_GRADS:
+                dk_attn += dk_eff
+            else:
+                dk_attn += dk_eff * state_temp
             if COMPUTE_TEMP_GRAD:
                 temp_grad += tl.sum(
                     tl.sum(
@@ -1934,6 +2218,14 @@ def _live_state_dkdv_to_raw_grad_kernel(
                 tl.dot(tl.trans(do_bf16), p_bf16, out_dtype=tl.float32)
             )
             dv_attn += dv_block
+
+        if ROUND_AOT_OUTPUT_GRADS:
+            # AOT materializes BF16 dK/dV before the temperature and state
+            # normalization VJPs. Preserve those rounding boundaries.
+            d_effective_k = dk_attn.to(tl.bfloat16)
+            state_temp_bf16 = state_temp.to(tl.bfloat16)
+            dk_attn = (d_effective_k * state_temp_bf16).to(tl.bfloat16).to(tl.float32)
+            dv_attn = dv_attn.to(tl.bfloat16).to(tl.float32)
 
         if STORE_TEMP_GRAD:
             temp_idx = tl.where(BATCH_TEMP_GRAD, batch_id * Q_HEADS + q_head, q_head)
@@ -2448,6 +2740,155 @@ def _initial_state_grad_kernel(
         mask=valid[:, None],
     )
 
+def _repeat_kv_for_aotriton(
+    tensor: torch.Tensor,
+    *,
+    q_heads: int,
+    kv_heads: int,
+) -> torch.Tensor:
+    """Expand grouped K/V heads exactly as eager KVM SDPA does."""
+    return tensor.repeat_interleave(q_heads // kv_heads, dim=1)
+
+
+def _run_aotriton_initial_attention_forward(
+    args: argparse.Namespace,
+    q_flat: torch.Tensor,
+    bswa_k_flat: torch.Tensor,
+    bswa_v_flat: torch.Tensor,
+    front_temperature: torch.Tensor,
+    out: torch.Tensor,
+    lse: torch.Tensor,
+) -> None:
+    """Run the eager two-chunk causal SDPA forward on Triton-prepared inputs."""
+    front_len = min(args.q_len, args.bswa_chunks * args.macro_block)
+    q = q_flat.reshape(args.batch, args.q_heads, args.q_len, args.dim)[:, :, :front_len]
+    raw_k = bswa_k_flat.reshape(args.batch, args.kv_heads, args.q_len, args.dim)[
+        :, :, :front_len
+    ]
+    raw_v = bswa_v_flat.reshape(args.batch, args.kv_heads, args.q_len, args.value_dim)[
+        :, :, :front_len
+    ]
+    repeated_k = _repeat_kv_for_aotriton(
+        raw_k, q_heads=args.q_heads, kv_heads=args.kv_heads
+    )
+    repeated_v = _repeat_kv_for_aotriton(
+        raw_v, q_heads=args.q_heads, kv_heads=args.kv_heads
+    )
+    effective_k = (
+        repeated_k * front_temperature.to(repeated_k.dtype).view(1, args.q_heads, 1, 1)
+    ).to(repeated_k.dtype)
+    result = torch.ops.aten._scaled_dot_product_flash_attention.default(
+        q,
+        effective_k,
+        repeated_v,
+        0.0,
+        True,
+        False,
+        scale=1.0 / math.sqrt(float(args.dim)),
+    )
+    output, logsumexp = result[:2]
+    out.reshape(args.batch, args.q_heads, args.q_len, args.value_dim)[
+        :, :, :front_len
+    ].copy_(output)
+    lse.reshape(args.batch, args.q_heads, args.q_len)[:, :, :front_len].copy_(
+        logsumexp * math.log2(math.e)
+    )
+
+
+def _run_aotriton_recurrent_attention_forward(
+    args: argparse.Namespace,
+    macro_id: int,
+    active_len: int,
+    q_flat: torch.Tensor,
+    bswa_k_flat: torch.Tensor,
+    bswa_v_flat: torch.Tensor,
+    state_k_attn: torch.Tensor,
+    state_v_attn: torch.Tensor,
+    state_temperature: torch.Tensor,
+    front_temperature: torch.Tensor,
+    out: torch.Tensor,
+    lse: torch.Tensor,
+) -> None:
+    """Run one exact eager recurrent SDPA forward on Triton's live state."""
+    query_begin = macro_id * args.macro_block
+    query_end = query_begin + args.macro_block
+    bswa_begin = (macro_id - (args.bswa_chunks - 1)) * args.macro_block
+    q = q_flat.reshape(args.batch, args.q_heads, args.q_len, args.dim)[
+        :, :, query_begin:query_end
+    ].contiguous()
+    state_k = state_k_attn[:, :active_len].reshape(
+        args.batch, args.kv_heads, active_len, args.dim
+    )
+    state_v = state_v_attn[:, :active_len].reshape(
+        args.batch, args.kv_heads, active_len, args.value_dim
+    )
+    front_k = bswa_k_flat.reshape(args.batch, args.kv_heads, args.q_len, args.dim)[
+        :, :, bswa_begin:query_end
+    ]
+    front_v = bswa_v_flat.reshape(
+        args.batch, args.kv_heads, args.q_len, args.value_dim
+    )[:, :, bswa_begin:query_end]
+
+    state_k = _repeat_kv_for_aotriton(
+        state_k, q_heads=args.q_heads, kv_heads=args.kv_heads
+    )
+    state_v = _repeat_kv_for_aotriton(
+        state_v, q_heads=args.q_heads, kv_heads=args.kv_heads
+    )
+    front_k = _repeat_kv_for_aotriton(
+        front_k, q_heads=args.q_heads, kv_heads=args.kv_heads
+    )
+    front_v = _repeat_kv_for_aotriton(
+        front_v, q_heads=args.q_heads, kv_heads=args.kv_heads
+    )
+    effective_state_k = (
+        state_k * state_temperature.to(state_k.dtype).view(1, args.q_heads, 1, 1)
+    ).to(state_k.dtype)
+    effective_front_k = (
+        front_k * front_temperature.to(front_k.dtype).view(1, args.q_heads, 1, 1)
+    ).to(front_k.dtype)
+    key = torch.cat((effective_state_k, effective_front_k), dim=2)
+    value = torch.cat((state_v, front_v), dim=2)
+
+    q_offsets = torch.arange(args.macro_block, device=q.device).unsqueeze(1)
+    kv_offsets = torch.arange(key.size(2), device=q.device).unsqueeze(0)
+    visible = kv_offsets <= q_offsets + key.size(2) - args.macro_block
+    bias = (
+        torch.zeros(
+            1,
+            1,
+            args.macro_block,
+            key.size(2),
+            device=q.device,
+            dtype=q.dtype,
+        )
+        .masked_fill_(
+            ~visible.reshape(1, 1, args.macro_block, key.size(2)),
+            -float("inf"),
+        )
+        .expand(args.batch, args.q_heads, args.macro_block, key.size(2))
+        .contiguous()
+    )
+    result = torch.ops.aten._scaled_dot_product_efficient_attention.default(
+        q,
+        key,
+        value,
+        bias,
+        True,
+        0.0,
+        False,
+        scale=1.0 / math.sqrt(float(args.dim)),
+    )
+    output, logsumexp = result[:2]
+    out.reshape(args.batch, args.q_heads, args.q_len, args.value_dim)[
+        :, :, query_begin:query_end
+    ].copy_(output)
+    lse.reshape(args.batch, args.q_heads, args.q_len)[
+        :, :, query_begin:query_end
+    ].copy_(logsumexp * math.log2(math.e))
+
+
+
 def build_prefill_forward(
     args: argparse.Namespace,
     schedule,
@@ -2511,6 +2952,9 @@ def build_prefill_forward(
         q_rows, args.q_len, args.value_dim, device=device, dtype=q_flat.dtype
     )
     lse = torch.empty(q_rows, args.q_len, device=device, dtype=torch.float32)
+    use_aotriton_attention = bool(
+        getattr(args, "aotriton_forward_attention", False)
+    )
 
     if initial_k_flat is None:
         initial_k_flat = overflow_k_flat
@@ -2566,6 +3010,16 @@ def build_prefill_forward(
         schedule.n_append_by_macro.to(device) if append_macro_ids else None
     )
     scale_log2 = math.log2(math.e) / math.sqrt(float(args.dim))
+    if use_aotriton_attention:
+        _run_aotriton_initial_attention_forward(
+            args,
+            q_flat,
+            bswa_k_flat,
+            bswa_v_flat,
+            front_temperature,
+            out,
+            lse,
+        )
     capture_state_snapshots = bool(getattr(args, "capture_state_snapshots", False))
     state_k_attn_by_macro: list[torch.Tensor] = []
     state_v_attn_by_macro: list[torch.Tensor] = []
@@ -2573,32 +3027,48 @@ def build_prefill_forward(
         if capture_state_snapshots:
             state_k_attn_by_macro.append(state_k_attn.clone())
             state_v_attn_by_macro.append(state_v_attn.clone())
-        _kvm_attn_live_state_fwd_kernel[(q_rows, attn_blocks_per_macro)](
-            q_flat,
-            state_k_attn,
-            state_v_attn,
-            bswa_k_flat,
-            bswa_v_flat,
-            out,
-            lse,
-            active,
-            state_temperature,
-            front_temperature,
-            macro_id,
-            MAX_STATE_LEN=max_state_len,
-            STATE_CHUNK=attn_state_chunk,
-            Q_HEADS=args.q_heads,
-            KV_HEADS=args.kv_heads,
-            MACRO_BLOCKS=macro_blocks,
-            MACRO_BLOCK=args.macro_block,
-            ATTN_BLOCK=args.attn_block,
-            ATTN_BLOCKS_PER_MACRO=attn_blocks_per_macro,
-            BSWA_CHUNKS=args.bswa_chunks,
-            HEAD_DIM=args.dim,
-            VALUE_DIM=args.value_dim,
-            SCALE_LOG2=scale_log2,
-            **attn_kwargs,
-        )
+        if not use_aotriton_attention:
+            _kvm_attn_live_state_fwd_kernel[(q_rows, attn_blocks_per_macro)](
+                q_flat,
+                state_k_attn,
+                state_v_attn,
+                bswa_k_flat,
+                bswa_v_flat,
+                out,
+                lse,
+                active,
+                state_temperature,
+                front_temperature,
+                macro_id,
+                MAX_STATE_LEN=max_state_len,
+                STATE_CHUNK=attn_state_chunk,
+                Q_HEADS=args.q_heads,
+                KV_HEADS=args.kv_heads,
+                MACRO_BLOCKS=macro_blocks,
+                MACRO_BLOCK=args.macro_block,
+                ATTN_BLOCK=args.attn_block,
+                ATTN_BLOCKS_PER_MACRO=attn_blocks_per_macro,
+                BSWA_CHUNKS=args.bswa_chunks,
+                HEAD_DIM=args.dim,
+                VALUE_DIM=args.value_dim,
+                SCALE_LOG2=scale_log2,
+                **attn_kwargs,
+            )
+        if use_aotriton_attention and macro_id >= args.bswa_chunks:
+            _run_aotriton_recurrent_attention_forward(
+                args,
+                macro_id,
+                int(schedule.attention_state_len_by_macro[macro_id]),
+                q_flat,
+                bswa_k_flat,
+                bswa_v_flat,
+                state_k_attn,
+                state_v_attn,
+                state_temperature,
+                front_temperature,
+                out,
+                lse,
+            )
         overflow_macro_id = macro_id - (args.bswa_chunks - 1)
         if overflow_macro_id not in update_macro_ids:
             continue
@@ -2695,6 +3165,11 @@ def run_training_backward_reconstruct_live_state(
     store_temperature_grad = True
     write_temperature_partials = False
     batch_temperature_grad = False
+    use_aotriton_attention = bool(
+        getattr(args, "aotriton_forward_attention", False)
+    )
+    if use_aotriton_attention and args.q_heads != args.kv_heads:
+        raise ValueError("safe AOT training currently requires q_heads == kv_heads")
     q_rows = args.batch * args.q_heads
     kv_rows = args.batch * args.kv_heads
     macro_blocks = args.q_len // args.macro_block
@@ -2803,7 +3278,19 @@ def run_training_backward_reconstruct_live_state(
     d_ln_weight = torch.zeros_like(ln_weight, dtype=torch.float32)
     d_ln_bias = torch.zeros_like(ln_weight, dtype=torch.float32)
     state_temperature_partials = torch.empty(1, device=device, dtype=torch.float32)
-    front_temperature_partials = torch.empty(1, device=device, dtype=torch.float32)
+    front_temperature_partials = (
+        torch.empty(
+            2
+            * kv_rows
+            * macro_blocks
+            * attn_blocks_per_macro
+            * (args.q_heads // args.kv_heads),
+            device=device,
+            dtype=torch.float32,
+        )
+        if use_aotriton_attention
+        else torch.empty(1, device=device, dtype=torch.float32)
+    )
 
     active = schedule.attention_state_len_by_macro.to(device)
     before_by_macro = schedule.before_by_macro.to(device)
@@ -2821,38 +3308,105 @@ def run_training_backward_reconstruct_live_state(
         BLOCK_M=args.attn_block,
         **attn_kwargs,
     )
-    _kvm_attn_snapshot_bswa_dkdv_kernel[
-        (kv_rows, macro_blocks, attn_blocks_per_macro)
-    ](
-        q_flat,
-        bswa_k_flat,
-        bswa_v_flat,
-        dout,
-        lse,
-        delta,
-        d_bswa_k,
-        d_bswa_v,
-        d_front_temperature_accum,
-        front_temperature_partials,
-        front_temperature,
-        Q_HEADS=args.q_heads,
-        KV_HEADS=args.kv_heads,
-        MACRO_BLOCKS=macro_blocks,
-        MACRO_BLOCK=args.macro_block,
-        ATTN_BLOCK=args.attn_block,
-        ATTN_BLOCKS_PER_MACRO=attn_blocks_per_macro,
-        BSWA_CHUNKS=args.bswa_chunks,
-        HEAD_DIM=args.dim,
-        VALUE_DIM=args.value_dim,
-        SCALE_LOG2=scale_log2,
-        SCALE=scale,
-        Q_HEAD_LOOP_UNROLL=args.q_head_loop_unroll_factor,
-        COMPUTE_TEMP_GRAD=compute_temperature_grad,
-        STORE_TEMP_GRAD=store_temperature_grad,
-        WRITE_TEMP_PARTIAL=write_temperature_partials,
-        BATCH_TEMP_GRAD=batch_temperature_grad,
-        **attn_kv_kwargs,
-    )
+    if use_aotriton_attention:
+        recurrent_grid = (kv_rows, macro_blocks, attn_blocks_per_macro)
+        for query_distance in (0, 1):
+            _kvm_attn_recurrent_front_dkdv_aot_kernel[recurrent_grid](
+                q_flat,
+                bswa_k_flat,
+                bswa_v_flat,
+                dout,
+                lse,
+                delta,
+                d_bswa_k,
+                d_bswa_v,
+                front_temperature_partials,
+                front_temperature,
+                Q_HEADS=args.q_heads,
+                KV_HEADS=args.kv_heads,
+                MACRO_BLOCKS=macro_blocks,
+                MACRO_BLOCK=args.macro_block,
+                BSWA_CHUNKS=args.bswa_chunks,
+                Q_BLOCK=args.attn_block,
+                KV_BLOCK=args.attn_block,
+                HEAD_DIM=args.dim,
+                VALUE_DIM=args.value_dim,
+                SCALE_LOG2=scale_log2,
+                SCALE=scale,
+                Q_HEAD_LOOP_UNROLL=args.q_head_loop_unroll_factor,
+                QUERY_DISTANCE=query_distance,
+                ADD_TO_OUTPUT=(query_distance != 0),
+                PARTIAL_DISTANCE=query_distance,
+                **attn_kv_kwargs,
+            )
+        _accumulate_recurrent_front_temperature_partials_kernel[recurrent_grid](
+            front_temperature_partials,
+            d_front_temperature_accum,
+            Q_HEADS=args.q_heads,
+            KV_HEADS=args.kv_heads,
+            MACRO_BLOCKS=macro_blocks,
+            num_warps=1,
+        )
+        initial_front_len = min(args.q_len, args.bswa_chunks * args.macro_block)
+        _kvm_attn_initial_front_dkdv_aot_kernel[
+            (kv_rows, triton.cdiv(initial_front_len, args.attn_block))
+        ](
+            q_flat,
+            bswa_k_flat,
+            bswa_v_flat,
+            dout,
+            lse,
+            delta,
+            d_bswa_k,
+            d_bswa_v,
+            d_front_temperature_accum,
+            front_temperature,
+            Q_HEADS=args.q_heads,
+            KV_HEADS=args.kv_heads,
+            TOTAL_LEN=args.q_len,
+            FRONT_LEN=initial_front_len,
+            Q_BLOCK=32,
+            KV_BLOCK=args.attn_block,
+            HEAD_DIM=args.dim,
+            VALUE_DIM=args.value_dim,
+            SCALE_LOG2=scale_log2,
+            SCALE=scale,
+            Q_HEAD_LOOP_UNROLL=args.q_head_loop_unroll_factor,
+            **attn_kv_kwargs,
+        )
+    else:
+        _kvm_attn_snapshot_bswa_dkdv_kernel[
+            (kv_rows, macro_blocks, attn_blocks_per_macro)
+        ](
+            q_flat,
+            bswa_k_flat,
+            bswa_v_flat,
+            dout,
+            lse,
+            delta,
+            d_bswa_k,
+            d_bswa_v,
+            d_front_temperature_accum,
+            front_temperature_partials,
+            front_temperature,
+            Q_HEADS=args.q_heads,
+            KV_HEADS=args.kv_heads,
+            MACRO_BLOCKS=macro_blocks,
+            MACRO_BLOCK=args.macro_block,
+            ATTN_BLOCK=args.attn_block,
+            ATTN_BLOCKS_PER_MACRO=attn_blocks_per_macro,
+            BSWA_CHUNKS=args.bswa_chunks,
+            HEAD_DIM=args.dim,
+            VALUE_DIM=args.value_dim,
+            SCALE_LOG2=scale_log2,
+            SCALE=scale,
+            Q_HEAD_LOOP_UNROLL=args.q_head_loop_unroll_factor,
+            COMPUTE_TEMP_GRAD=compute_temperature_grad,
+            STORE_TEMP_GRAD=store_temperature_grad,
+            WRITE_TEMP_PARTIAL=write_temperature_partials,
+            BATCH_TEMP_GRAD=batch_temperature_grad,
+            **attn_kv_kwargs,
+        )
 
     state_k = forward["state_k"].clone()
     state_v = forward["state_v"].clone()
@@ -2861,6 +3415,9 @@ def run_training_backward_reconstruct_live_state(
     state_vlen = forward["state_vlen"].clone()
 
     for macro_id in range(macro_blocks - 1, -1, -1):
+        # Resolve the host scalar before launching dQ so the following dK/dV
+        # launch is not separated from it by a device synchronization.
+        active_len = int(schedule.attention_state_len_by_macro[macro_id].item())
         _kvm_attn_live_state_dq_kernel[(q_rows, attn_blocks_per_macro)](
             q_flat,
             state_k_attn,
@@ -2890,7 +3447,6 @@ def run_training_backward_reconstruct_live_state(
             SCALE=scale,
             **attn_kwargs,
         )
-        active_len = int(schedule.attention_state_len_by_macro[macro_id].item())
         if active_len > 0:
             active_state_chunks = triton.cdiv(active_len, args.state_chunk)
             _live_state_dkdv_to_raw_grad_kernel[(kv_rows, active_state_chunks)](
@@ -2933,6 +3489,7 @@ def run_training_backward_reconstruct_live_state(
                 STORE_TEMP_GRAD=store_temperature_grad,
                 WRITE_TEMP_PARTIAL=write_temperature_partials,
                 BATCH_TEMP_GRAD=batch_temperature_grad,
+                ROUND_AOT_OUTPUT_GRADS=use_aotriton_attention,
                 **attn_kv_kwargs,
             )
 
