@@ -1,0 +1,53 @@
+{
+  "format_version": 1,
+  "source_kernel": "_kvm_aotriton_source_attention_fwd_kernel",
+  "compiler": {
+    "torch": "2.9.1+rocm7.2.0.git7e1940d4",
+    "triton": "3.4.0+rocm7.1.0.gitf9e5bf54"
+  },
+  "target": {
+    "device_name": "AMD Instinct MI325X",
+    "architecture": "gfx942"
+  },
+  "shape": {
+    "batch": 8,
+    "sequence_length": 8192,
+    "query_heads": 6,
+    "kv_heads": 6,
+    "head_dim": 128,
+    "value_dim": 128,
+    "max_state_length": 1425
+  },
+  "binaries": {
+    "initial": {
+      "path": "initial.hsaco",
+      "sha256": "8679abf863cf2ac746f205b111bad6a9089800fe8eecdbdaa936b5e369b1cd36",
+      "bytes": 46816,
+      "shared_bytes": 32768,
+      "block_m": 128,
+      "block_n": 64,
+      "num_warps": 4,
+      "waves_per_eu": 1
+    },
+    "recurrent_aligned": {
+      "path": "recurrent_aligned.hsaco",
+      "sha256": "4a4028acf5edbc18920901fbb92dedd0b8d9c665d05c996f6e4f11c12fc34ac8",
+      "bytes": 63048,
+      "shared_bytes": 16384,
+      "block_m": 64,
+      "block_n": 64,
+      "num_warps": 2,
+      "waves_per_eu": 3
+    },
+    "recurrent_unaligned": {
+      "path": "recurrent_unaligned.hsaco",
+      "sha256": "4a4028acf5edbc18920901fbb92dedd0b8d9c665d05c996f6e4f11c12fc34ac8",
+      "bytes": 63048,
+      "shared_bytes": 16384,
+      "block_m": 64,
+      "block_n": 64,
+      "num_warps": 2,
+      "waves_per_eu": 3
+    }
+  }
+}
