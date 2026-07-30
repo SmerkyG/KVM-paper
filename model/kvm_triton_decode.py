@@ -13,7 +13,6 @@ from typing import Any
 import torch
 import torch.nn.functional as F
 
-from model.kernels import kvm_triton_training_kernels as update_kernels
 from model.kernels.kvm_triton_decode import write_recent_ring
 
 
@@ -180,6 +179,11 @@ class TritonKVMDecodeCache:
         self.reset_(snapshot)
 
     def _allocate_update_buffers(self, current_state_len: int) -> dict[str, Any]:
+        # Keep the training-kernel import lazy so the mixer can select the
+        # architecture-compatible packaged forward before Triton's JITFunction
+        # and compile hook are initialized.
+        from model.kernels import kvm_triton_training_kernels as update_kernels
+
         allocation_state_after = min(
             self.state_capacity,
             int(current_state_len) + self.chunk_len,

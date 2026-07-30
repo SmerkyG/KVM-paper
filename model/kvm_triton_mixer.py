@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import math
+import os
+from pathlib import Path
 from typing import Any
 
 import torch
@@ -10,6 +12,40 @@ from torch.autograd import Function
 
 from .kvm_triton_decode import TritonKVMDecodeCache, DecodeCacheSnapshot
 from .kvm_mixer import SequenceMixer as TorchKVMSequenceMixer
+
+
+_AOTRITON_FORWARD_BINARY_ENV = "KVM_AOTRITON_FORWARD_BINARY_DIR"
+_PACKAGED_AOTRITON_FORWARD_BINARY_DIR = (
+    Path(__file__).resolve().parent
+    / "kernels"
+    / "precompiled"
+    / "kvm_aotriton_forward_mi325x_120m_8k_triton34"
+)
+
+
+def _configure_packaged_aotriton_forward(config, device: torch.device) -> None:
+    """Select packaged gfx942 code objects before the kernel module imports."""
+    if _AOTRITON_FORWARD_BINARY_ENV in os.environ:
+        return
+    enabled = bool(config.kvm_aotriton_forward_attention) and bool(
+        config.kvm_aotriton_precompiled_forward
+    )
+    if not enabled or device.type != "cuda":
+        os.environ[_AOTRITON_FORWARD_BINARY_ENV] = ""
+        return
+    properties = torch.cuda.get_device_properties(device)
+    architecture = str(getattr(properties, "gcnArchName", "")).split(":", 1)[0]
+    if architecture != "gfx942":
+        os.environ[_AOTRITON_FORWARD_BINARY_ENV] = ""
+        return
+    if not _PACKAGED_AOTRITON_FORWARD_BINARY_DIR.is_dir():
+        raise FileNotFoundError(
+            "packaged KVM attention-forward binaries are missing: "
+            f"{_PACKAGED_AOTRITON_FORWARD_BINARY_DIR}"
+        )
+    os.environ[_AOTRITON_FORWARD_BINARY_ENV] = str(
+        _PACKAGED_AOTRITON_FORWARD_BINARY_DIR
+    )
 
 
 def _choose_dividing_block(size: int, candidates: tuple[int, ...]) -> int:
@@ -576,6 +612,7 @@ class SequenceMixer(TorchKVMSequenceMixer):
             raise ValueError("kvm_triton_mixer does not support attention_mask")
 
         batch_size, _, prefill_len, _ = q.size()
+        _configure_packaged_aotriton_forward(self.config, q.device)
         triton_args = self._make_triton_args(batch_size, int(prefill_len))
         schedule = self._make_schedule(triton_args)
 
