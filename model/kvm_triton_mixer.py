@@ -21,6 +21,11 @@ _PACKAGED_AOTRITON_FORWARD_BINARY_DIR = (
     / "precompiled"
     / "kvm_aotriton_forward_mi325x_120m_8k_triton34"
 )
+_PACKAGED_AOTRITON_FORWARD_FILES = (
+    "initial.hsaco",
+    "recurrent_aligned.hsaco",
+    "recurrent_unaligned.hsaco",
+)
 
 
 def _configure_packaged_aotriton_forward(config, device: torch.device) -> None:
@@ -38,10 +43,15 @@ def _configure_packaged_aotriton_forward(config, device: torch.device) -> None:
     if architecture != "gfx942":
         os.environ[_AOTRITON_FORWARD_BINARY_ENV] = ""
         return
-    if not _PACKAGED_AOTRITON_FORWARD_BINARY_DIR.is_dir():
+    missing = [
+        name
+        for name in _PACKAGED_AOTRITON_FORWARD_FILES
+        if not (_PACKAGED_AOTRITON_FORWARD_BINARY_DIR / name).is_file()
+    ]
+    if missing:
         raise FileNotFoundError(
-            "packaged KVM attention-forward binaries are missing: "
-            f"{_PACKAGED_AOTRITON_FORWARD_BINARY_DIR}"
+            "packaged KVM attention-forward binaries are missing from "
+            f"{_PACKAGED_AOTRITON_FORWARD_BINARY_DIR}: {', '.join(missing)}"
         )
     os.environ[_AOTRITON_FORWARD_BINARY_ENV] = str(
         _PACKAGED_AOTRITON_FORWARD_BINARY_DIR

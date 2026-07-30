@@ -20,6 +20,7 @@ import triton.language as tl
 from triton.language.extra.hip import libdevice
 
 
+_AOTRITON_FORWARD_BINARY_ENV = "KVM_AOTRITON_FORWARD_BINARY_DIR"
 
 # Schedule helpers.
 
@@ -3175,7 +3176,7 @@ def _enable_kvm_attention_compile_hook(binary_dir: Path) -> None:
     kernel._do_compile = compile_with_compatible_binary
 
 
-_kvm_attention_binary_dir = os.environ.get("KVM_AOTRITON_FORWARD_BINARY_DIR")
+_kvm_attention_binary_dir = os.environ.get(_AOTRITON_FORWARD_BINARY_ENV)
 if _kvm_attention_binary_dir:
     _enable_kvm_attention_compile_hook(Path(_kvm_attention_binary_dir))
 
@@ -3242,12 +3243,12 @@ def _run_aotriton_source_attention_forward(
         *launch_args, **launch_kwargs
     )
 
-    # This opt-in compatibility experiment keeps the current Triton runtime
-    # and every training/backward kernel, but substitutes attention-forward
-    # code objects compiled from this same source with the Triton version used
-    # by the installed AOTriton build. Loading happens once per specialization;
-    # the second launch below replaces the just-written JIT result.
-    binary_dir = os.environ.get("KVM_AOTRITON_FORWARD_BINARY_DIR")
+    # The packaged production mode keeps the current Triton runtime and every
+    # training/backward kernel, but substitutes attention-forward code objects
+    # compiled from this source with the validated Triton version. Loading
+    # happens once per specialization; the second launch below replaces a JIT
+    # result only when the compile hook was unavailable at module import time.
+    binary_dir = os.environ.get(_AOTRITON_FORWARD_BINARY_ENV)
     binary_compatible = (
         args.batch == 8
         and args.q_len == 8192
