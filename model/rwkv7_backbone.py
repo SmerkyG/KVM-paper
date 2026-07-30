@@ -326,10 +326,9 @@ class MixerConfigDataclass(RWKV7BackboneConfigDataclass):
     # The KVM-specialized, source-derived AOTriton forward is the safe training
     # default. Set to 0 to use the original full-Triton training path.
     kvm_aotriton_forward_attention: int = 1
-    # On gfx942, load the checked-in, shape-guarded Triton 3.4 forward code
-    # objects that produced the validated NIAH checkpoint. Other architectures
-    # and incompatible shapes retain the source-JIT fallback.
-    kvm_aotriton_precompiled_forward: int = 1
+    # The normal path is fully self-contained Triton source. On gfx942, this
+    # opt-in loads the older shape-guarded Triton 3.4 code objects instead.
+    kvm_aotriton_precompiled_forward: int = 0
     ovq_value_residual_mode: str = "rwkv"
     ovq_token_shift_mode: str = "rwkv"
     use_tokenshift_att: int = 0

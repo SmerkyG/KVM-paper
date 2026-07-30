@@ -2860,7 +2860,14 @@ def _kvm_aotriton_source_online_update(
     acc *= alpha[:, None]
     l_i = l_i * alpha + l_ij
     m_i = m_ij
-    acc += tl.dot(p.to(v_block.dtype), v_block, out_dtype=tl.float32)
+    p_bf16 = p.to(v_block.dtype)
+    # This algebraically equivalent source form makes current Triton select the
+    # kWidth=4 MFMA operand packing used by the validated AOTriton 3.4 kernel.
+    acc_t = tl.trans(acc)
+    acc_t += tl.dot(
+        tl.trans(v_block), tl.trans(p_bf16), out_dtype=tl.float32
+    )
+    acc = tl.trans(acc_t)
     return acc, l_i, m_i
 
 

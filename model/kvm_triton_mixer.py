@@ -28,8 +28,10 @@ _PACKAGED_AOTRITON_FORWARD_FILES = (
 )
 
 
-def _configure_packaged_aotriton_forward(config, device: torch.device) -> None:
-    """Select packaged gfx942 code objects before the kernel module imports."""
+def _configure_optional_precompiled_aotriton_forward(
+    config, device: torch.device
+) -> None:
+    """Select optional gfx942 code objects; otherwise retain source JIT."""
     if _AOTRITON_FORWARD_BINARY_ENV in os.environ:
         return
     enabled = bool(config.kvm_aotriton_forward_attention) and bool(
@@ -622,7 +624,7 @@ class SequenceMixer(TorchKVMSequenceMixer):
             raise ValueError("kvm_triton_mixer does not support attention_mask")
 
         batch_size, _, prefill_len, _ = q.size()
-        _configure_packaged_aotriton_forward(self.config, q.device)
+        _configure_optional_precompiled_aotriton_forward(self.config, q.device)
         triton_args = self._make_triton_args(batch_size, int(prefill_len))
         schedule = self._make_schedule(triton_args)
 
