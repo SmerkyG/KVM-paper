@@ -67,9 +67,9 @@ The eager paper implementation is `model.kvm_mixer.SequenceMixer`. The optimized
 If you use this code or find our work valuable, please consider citing Key-Value Means:
 
 ```bibtex
-@misc{goldstein2026keyvaluemeans,
-      title={Key-Value Means}, 
-      author={Daniel Goldstein and Eugene Cheah},
+@misc{goldstein2026keyvaluemeanstransformersexpandable,
+      title={Key-Value Means: Transformers with Expandable Block-Recurrent Compressed Memory}, 
+      author={Daniel Goldstein and Navneel Singhal and Eugene Cheah},
       year={2026},
       eprint={2605.09877},
       archivePrefix={arXiv},

@@ -114,6 +114,7 @@ def build_mixer(schedule: str, context: int) -> SequenceMixer:
         kvm_apply_merge_gate_to_appends=False,
         kvm_apply_merge_gate_to_initial_state=False,
         kvm_use_head_temps=True,
+        kvm_aotriton_forward_attention=True,
     )
     mixer.num_attention_heads = HEADS
     mixer.num_key_value_heads = HEADS
