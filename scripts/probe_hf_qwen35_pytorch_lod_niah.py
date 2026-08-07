@@ -40,7 +40,7 @@ def main() -> None:
     args = parse_args()
     if not torch.cuda.is_available():
         raise RuntimeError("NIAH evaluation requires a CUDA or ROCm GPU")
-    enable_fla_fast_path()
+    enable_fla_fast_path(required=True)
     device = torch.device("cuda")
     tokenizer = AutoTokenizer.from_pretrained(
         args.checkpoint, trust_remote_code=True

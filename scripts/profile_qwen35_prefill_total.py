@@ -11,6 +11,12 @@ from pathlib import Path
 import torch
 from transformers import AutoTokenizer
 
+from model.hf_pytorch_lod_attention import (
+    Qwen3_5FastLODAttention,
+    replace_qwen35_attention_with_lod,
+    reset_hf_lod_caches,
+)
+from model.pytorch_lod_attention import LODConfig
 from model.qwen35_two_level_attention import Qwen3_5TwoLevelAttention
 from scripts.compare_qwen35_lod_loss import select_sequences
 from scripts.probe_qwen35_lod_niah import load_text_model
@@ -20,7 +26,9 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkpoint", default="Qwen/Qwen3.5-0.8B")
     parser.add_argument("--dataset", default="Seerkfang/prolong-64k-512-new")
-    parser.add_argument("--mode", choices=("full", "two_level"), required=True)
+    parser.add_argument(
+        "--mode", choices=("full", "two_level", "pytorch_lod"), required=True
+    )
     parser.add_argument("--sequence-length", type=int, required=True)
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--prefill-microbatch-size", type=int)
@@ -101,6 +109,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def clear_lod_state(model: torch.nn.Module) -> None:
+    reset_hf_lod_caches(model)
     for module in model.modules():
         if isinstance(module, Qwen3_5TwoLevelAttention) and hasattr(
             module, "_lod_state"
@@ -131,6 +140,25 @@ def cache_memory_breakdown(model: torch.nn.Module, past_key_values) -> dict[str,
 
     lod_groups: dict[str, list[torch.Tensor]] = {}
     for module in model.modules():
+        if isinstance(module, Qwen3_5FastLODAttention):
+            cache = module._lod_cache
+            if cache is None:
+                continue
+            for name in (
+                "recent_key",
+                "recent_value",
+                "owner",
+                "leaf_key",
+                "leaf_value",
+            ):
+                value = getattr(cache, name)
+                if isinstance(value, torch.Tensor):
+                    lod_groups.setdefault(f"pytorch_lod.{name}", []).append(value)
+            for name in ("key_sum", "value_sum", "count"):
+                lod_groups.setdefault(f"pytorch_lod.state.{name}", []).append(
+                    getattr(cache.state, name)
+                )
+            continue
         if not isinstance(module, Qwen3_5TwoLevelAttention):
             continue
         cache = getattr(module, "_lod_state", {})
@@ -332,12 +360,78 @@ def main() -> None:
     )
     model = load_text_model(
         args.checkpoint,
-        args.mode,
+        "full" if args.mode == "pytorch_lod" else args.mode,
         args.two_level_topk,
         args.state_growth_factor,
         device,
         "paged",
+        require_fla_fast_path=True,
     )
+    linear_layers = [
+        module
+        for module in model.modules()
+        if module.__class__.__name__ == "Qwen3_5GatedDeltaNet"
+    ]
+    acceleration = {
+        "linear_layer_count": len(linear_layers),
+        "fla_gated_delta_rule": bool(linear_layers)
+        and all(
+            getattr(module.chunk_gated_delta_rule, "__module__", "").startswith(
+                "fla."
+            )
+            for module in linear_layers
+        ),
+        "fla_recurrent_gated_delta_rule": bool(linear_layers)
+        and all(
+            getattr(module.recurrent_gated_delta_rule, "__module__", "").startswith(
+                "fla."
+            )
+            for module in linear_layers
+        ),
+        "fla_fused_rms_norm_gated": bool(linear_layers)
+        and all(
+            module.norm.__class__.__module__.startswith("fla.")
+            for module in linear_layers
+        ),
+        "causal_conv1d_prefill": bool(linear_layers)
+        and all(module.causal_conv1d_fn is not None for module in linear_layers),
+        "causal_conv1d_decode": bool(linear_layers)
+        and all(
+            getattr(module.causal_conv1d_update, "__module__", "").startswith(
+                "causal_conv1d"
+            )
+            for module in linear_layers
+        ),
+    }
+    required_acceleration = (
+        "fla_gated_delta_rule",
+        "fla_recurrent_gated_delta_rule",
+        "fla_fused_rms_norm_gated",
+        "causal_conv1d_prefill",
+        "causal_conv1d_decode",
+    )
+    missing_acceleration = [
+        name for name in required_acceleration if not acceleration[name]
+    ]
+    if missing_acceleration:
+        raise RuntimeError(
+            "Qwen3.5 benchmark is missing required acceleration: "
+            + ", ".join(missing_acceleration)
+        )
+    print("Qwen3.5 acceleration: " + json.dumps(acceleration, sort_keys=True))
+    if args.mode == "pytorch_lod":
+        replace_qwen35_attention_with_lod(
+            model,
+            config=LODConfig(
+                chunk_size=256,
+                local_window=512,
+                state_growth_factor=args.state_growth_factor,
+                state_min_size=256,
+                protected_prefix=1,
+                max_routes=8,
+            ),
+            open_count=args.two_level_topk,
+        )
     dynamic_prefill_top_p = (
         args.dynamic_open_prefill_top_p
         if args.dynamic_open_prefill_top_p is not None
@@ -613,12 +707,15 @@ def main() -> None:
     )
     record = {
         "checkpoint": args.checkpoint,
+        "qwen35_acceleration": acceleration,
         "mode": args.mode,
         "sequence_length": args.sequence_length,
         "batch_size": args.batch_size,
         "prefill_microbatch_size": args.prefill_microbatch_size,
         "two_level_topk": (
-            args.two_level_topk if args.mode == "two_level" else None
+            args.two_level_topk
+            if args.mode in ("two_level", "pytorch_lod")
+            else None
         ),
         "dynamic_open_top_p": (
             args.dynamic_open_top_p if args.mode == "two_level" else None
@@ -685,16 +782,24 @@ def main() -> None:
             args.leaf_num_warps if args.mode == "two_level" else None
         ),
         "state_growth_factor": (
-            args.state_growth_factor if args.mode == "two_level" else None
+            args.state_growth_factor
+            if args.mode in ("two_level", "pytorch_lod")
+            else None
         ),
         "prefill_chunk_length": (
-            effective_prefill_chunk if args.mode == "two_level" else None
+            256
+            if args.mode == "pytorch_lod"
+            else effective_prefill_chunk if args.mode == "two_level" else None
         ),
         "prefill_local_length": (
-            effective_prefill_local if args.mode == "two_level" else None
+            512
+            if args.mode == "pytorch_lod"
+            else effective_prefill_local if args.mode == "two_level" else None
         ),
         "prefill_state_update_length": (
-            (
+            256
+            if args.mode == "pytorch_lod"
+            else (
                 args.prefill_state_update_length
                 or Qwen3_5TwoLevelAttention.prefill_state_update_len
             )

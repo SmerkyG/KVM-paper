@@ -22,7 +22,7 @@ from model.qwen35_two_level_attention import (
 )
 
 
-def enable_fla_fast_path() -> None:
+def enable_fla_fast_path(*, required: bool = False) -> bool:
     """Work around Transformers 5.3 checking the obsolete `fla` dist name."""
     try:
         from fla.modules import FusedRMSNormGated
@@ -30,11 +30,17 @@ def enable_fla_fast_path() -> None:
             chunk_gated_delta_rule,
             fused_recurrent_gated_delta_rule,
         )
-    except ImportError:
-        return
+    except ImportError as error:
+        if required:
+            raise RuntimeError(
+                "Qwen3.5's FLA fast path is required for this run; install the "
+                "project's `rwkv-kernels` extra"
+            ) from error
+        return False
     qwen35_modeling.FusedRMSNormGated = FusedRMSNormGated
     qwen35_modeling.chunk_gated_delta_rule = chunk_gated_delta_rule
     qwen35_modeling.fused_recurrent_gated_delta_rule = fused_recurrent_gated_delta_rule
+    return True
 
 
 def generate_documents(task: str, checkpoint: str, length: int) -> list[dict]:
@@ -64,8 +70,9 @@ def load_text_model(
     state_growth_factor: float,
     device: torch.device,
     leaf_attention_backend: str = "packed",
+    require_fla_fast_path: bool = False,
 ) -> Qwen3_5ForCausalLM:
-    enable_fla_fast_path()
+    enable_fla_fast_path(required=require_fla_fast_path)
     composite_config = AutoConfig.from_pretrained(checkpoint, trust_remote_code=True)
     config = composite_config.text_config
     config._attn_implementation = "sdpa"

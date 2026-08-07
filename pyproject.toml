@@ -61,10 +61,16 @@ rocm72 = [
 rwkv-kernels = [
   "flash-linear-attention==0.4.1",
 ]
+qwen35-fast-path = [
+  "causal-conv1d==1.6.2.post1",
+  "flash-linear-attention==0.4.1",
+  "ninja==1.13.0",
+  "wheel==0.47.0",
+]
 
 [tool.uv]
 package = false
-no-build-isolation-package = ["flash-attn"]
+no-build-isolation-package = ["causal-conv1d", "flash-attn"]
 conflicts = [
   [
     { extra = "cu128" },

@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 
 import torch
-import transformers.models.qwen3_5.modeling_qwen3_5 as qwen35_modeling
 from transformers import AutoConfig, Qwen3_5ForCausalLM
 
 from model.hf_pytorch_lod_attention import (
@@ -15,22 +14,7 @@ from model.hf_pytorch_lod_attention import (
     reset_hf_lod_caches,
 )
 from model.pytorch_lod_attention import LODConfig
-
-
-def enable_fla_fast_path() -> None:
-    try:
-        from fla.modules import FusedRMSNormGated
-        from fla.ops.gated_delta_rule import (
-            chunk_gated_delta_rule,
-            fused_recurrent_gated_delta_rule,
-        )
-    except ImportError:
-        return
-    qwen35_modeling.FusedRMSNormGated = FusedRMSNormGated
-    qwen35_modeling.chunk_gated_delta_rule = chunk_gated_delta_rule
-    qwen35_modeling.fused_recurrent_gated_delta_rule = (
-        fused_recurrent_gated_delta_rule
-    )
+from scripts.probe_qwen35_lod_niah import enable_fla_fast_path
 
 
 def parse_args() -> argparse.Namespace:
@@ -47,7 +31,7 @@ def main() -> None:
     args = parse_args()
     if not torch.cuda.is_available():
         raise RuntimeError("Qwen3.5 verification requires a CUDA or ROCm GPU")
-    enable_fla_fast_path()
+    enable_fla_fast_path(required=True)
     device = torch.device("cuda")
     composite_config = AutoConfig.from_pretrained(
         args.checkpoint, trust_remote_code=True

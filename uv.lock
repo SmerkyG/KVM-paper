@@ -1812,6 +1812,12 @@ flash-attention = [
 mamba-cu128 = [
     { name = "mamba-ssm", extra = ["causal-conv1d"] },
 ]
+qwen35-fast-path = [
+    { name = "causal-conv1d" },
+    { name = "flash-linear-attention" },
+    { name = "ninja" },
+    { name = "wheel" },
+]
 rocm71 = [
     { name = "torch", version = "2.8.0+rocm7.1.0.lw.git7a520360", source = { url = "https://repo.radeon.com/rocm/manylinux/rocm-rel-7.1/torch-2.8.0%2Brocm7.1.0.lw.git7a520360-cp312-cp312-linux_x86_64.whl" } },
     { name = "torchaudio", version = "2.8.0+rocm7.1.0.git6e1c7fe9", source = { url = "https://repo.radeon.com/rocm/manylinux/rocm-rel-7.1/torchaudio-2.8.0%2Brocm7.1.0.git6e1c7fe9-cp312-cp312-linux_x86_64.whl" } },
@@ -1831,9 +1837,11 @@ rwkv-kernels = [
 [package.metadata]
 requires-dist = [
     { name = "accelerate", specifier = ">=1.14.0" },
+    { name = "causal-conv1d", marker = "extra == 'qwen35-fast-path'", specifier = "==1.6.2.post1" },
     { name = "datasets", specifier = "==4.6.1" },
     { name = "einops", specifier = "==0.8.2" },
     { name = "flash-attn", marker = "extra == 'flash-attention'", specifier = "==2.8.3" },
+    { name = "flash-linear-attention", marker = "extra == 'qwen35-fast-path'", specifier = "==0.4.1" },
     { name = "flash-linear-attention", marker = "extra == 'rwkv-kernels'", specifier = "==0.4.1" },
     { name = "fuzzywuzzy", specifier = ">=0.18.0" },
     { name = "jieba", specifier = ">=0.42.1" },
@@ -1841,6 +1849,7 @@ requires-dist = [
     { name = "mamba-ssm", extras = ["causal-conv1d"], marker = "extra == 'mamba-cu128'", specifier = "==2.3.1" },
     { name = "matplotlib", specifier = "==3.10.8" },
     { name = "ninja", marker = "extra == 'flash-attention'", specifier = "==1.13.0" },
+    { name = "ninja", marker = "extra == 'qwen35-fast-path'", specifier = "==1.13.0" },
     { name = "nltk", specifier = ">=3.10.2" },
     { name = "numpy", specifier = "==1.26.4" },
     { name = "packaging", marker = "extra == 'flash-attention'", specifier = "==26.0" },
@@ -1869,10 +1878,11 @@ requires-dist = [
     { name = "triton", marker = "extra == 'rocm71'", url = "https://repo.radeon.com/rocm/manylinux/rocm-rel-7.1/triton-3.4.0%2Brocm7.1.0.gitf9e5bf54-cp312-cp312-linux_x86_64.whl" },
     { name = "triton", marker = "extra == 'rocm72'", url = "https://repo.radeon.com/rocm/manylinux/rocm-rel-7.2/triton-3.5.1%2Brocm7.2.0.gita272dfa8-cp312-cp312-linux_x86_64.whl" },
     { name = "wandb", specifier = "==0.25.0" },
+    { name = "wheel", marker = "extra == 'qwen35-fast-path'", specifier = "==0.47.0" },
     { name = "wonderwords", specifier = ">=3.0.1" },
     { name = "zarr", specifier = "==3.1.5" },
 ]
-provides-extras = ["cu128", "flash-attention", "mamba-cu128", "rocm71", "rocm72", "rwkv-kernels"]
+provides-extras = ["cu128", "flash-attention", "mamba-cu128", "rocm71", "rocm72", "rwkv-kernels", "qwen35-fast-path"]
 
 [[package]]
 name = "sqlitedict"
@@ -2526,6 +2536,18 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/cc/fb/9578eed2c01b2fc6c8b693da110aa9c73a33d7bb556480f5cfc42e48c94e/wandb-0.25.0-py3-none-win32.whl", hash = "sha256:020b42ca4d76e347709d65f59b30d4623a115edc28f462af1c92681cb17eae7c", size = 24604118, upload-time = "2026-02-13T00:17:37.641Z" },
     { url = "https://files.pythonhosted.org/packages/25/97/460f6cb738aaa39b4eb2e6b4c630b2ae4321cdd70a79d5955ea75a878981/wandb-0.25.0-py3-none-win_amd64.whl", hash = "sha256:78307ac0b328f2dc334c8607bec772851215584b62c439eb320c4af4fb077a00", size = 24604122, upload-time = "2026-02-13T00:17:39.991Z" },
     { url = "https://files.pythonhosted.org/packages/27/6c/5847b4dda1dfd52630dac08711d4348c69ed657f0698fc2d949c7f7a6622/wandb-0.25.0-py3-none-win_arm64.whl", hash = "sha256:c6174401fd6fb726295e98d57b4231c100eca96bd17de51bfc64038a57230aaf", size = 21785298, upload-time = "2026-02-13T00:17:42.475Z" },
+]
+
+[[package]]
+name = "wheel"
+version = "0.47.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "packaging" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/39/62/75f18a0f03b4219c456652c7780e4d749b929eb605c098ce3a5b6b6bc081/wheel-0.47.0.tar.gz", hash = "sha256:cc72bd1009ba0cf63922e28f94d9d83b920aa2bb28f798a31d0691b02fa3c9b3", size = 63854, upload-time = "2026-04-22T15:51:27.727Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/87/1b/9e33c09813d65e248f7f773119148a612516a4bea93e9c6f545f78455b7c/wheel-0.47.0-py3-none-any.whl", hash = "sha256:212281cab4dff978f6cedd499cd893e1f620791ca6ff7107cf270781e587eced", size = 32218, upload-time = "2026-04-22T15:51:26.296Z" },
 ]
 
 [[package]]

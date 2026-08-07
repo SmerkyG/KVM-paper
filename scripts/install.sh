@@ -9,12 +9,14 @@ Options:
   --gpu-backend {rocm72|rocm71|cuda}   GPU runtime to install. Default: rocm72
   --python <version>                   Python version for the uv-managed venv. Default: 3.12
   --with-rwkv-kernels                  Install flash-linear-attention for rwkv7 and other FLA mixers
+  --with-qwen35-fast-path              Install FLA and causal-conv1d for optimized Qwen3.5
   --with-flash-attention               Install flash-attn for FlashAttention layers
   -h, --help                           Show this help text
 
 Examples:
   scripts/install.sh
   scripts/install.sh --gpu-backend rocm71 --with-rwkv-kernels
+  scripts/install.sh --gpu-backend rocm72 --with-qwen35-fast-path
   scripts/install.sh --gpu-backend rocm72 --with-flash-attention
   scripts/install.sh --gpu-backend cuda
 EOF
@@ -24,6 +26,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 GPU_BACKEND="rocm72"
 PYTHON_VERSION="3.12"
 WITH_RWKV_KERNELS=0
+WITH_QWEN35_FAST_PATH=0
 WITH_FLASH_ATTENTION=0
 
 while [[ $# -gt 0 ]]; do
@@ -38,6 +41,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --with-rwkv-kernels)
       WITH_RWKV_KERNELS=1
+      shift
+      ;;
+    --with-qwen35-fast-path)
+      WITH_QWEN35_FAST_PATH=1
       shift
       ;;
     --with-flash-attention)
@@ -89,6 +96,10 @@ if [[ "$WITH_RWKV_KERNELS" -eq 1 ]]; then
   SYNC_ARGS+=(--extra rwkv-kernels)
 fi
 
+if [[ "$WITH_QWEN35_FAST_PATH" -eq 1 ]]; then
+  SYNC_ARGS+=(--extra qwen35-fast-path)
+fi
+
 if [[ "$WITH_FLASH_ATTENTION" -eq 1 ]]; then
   SYNC_ARGS+=(--extra flash-attention)
 fi
@@ -105,5 +116,6 @@ cat <<EOF
 Environment ready in $ROOT_DIR/.venv
 
 If you plan to use rwkv7 or other FLA-based mixers, rerun this script with --with-rwkv-kernels.
+If you plan to benchmark Qwen3.5, rerun this script with --with-qwen35-fast-path.
 If you plan to use FlashAttention layers, rerun this script with --with-flash-attention.
 EOF
