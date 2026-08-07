@@ -1,0 +1,108 @@
+{
+  "attention_layers": 6,
+  "batch_size": 8,
+  "configs": [
+    {
+      "block_n": 16,
+      "fused_attention_ms_per_step": 75.19471920002252,
+      "logit_finite": true,
+      "mean_decode_step_ms": 85.68074035644531,
+      "num_warps": 1,
+      "route_ms_per_step": 1.0573115600273013,
+      "two_level_ms_per_step": 76.25203076004982
+    },
+    {
+      "block_n": 16,
+      "fused_attention_ms_per_step": 54.50244555529207,
+      "logit_finite": true,
+      "mean_decode_step_ms": 66.36554718017578,
+      "num_warps": 2,
+      "route_ms_per_step": 1.059513439424336,
+      "two_level_ms_per_step": 55.561958994716406
+    },
+    {
+      "block_n": 16,
+      "fused_attention_ms_per_step": 45.34702801145613,
+      "logit_finite": true,
+      "mean_decode_step_ms": 57.26918029785156,
+      "num_warps": 4,
+      "route_ms_per_step": 1.0690408740192652,
+      "two_level_ms_per_step": 46.4160688854754
+    },
+    {
+      "block_n": 32,
+      "fused_attention_ms_per_step": 196.01046752929688,
+      "logit_finite": true,
+      "mean_decode_step_ms": 205.8815460205078,
+      "num_warps": 1,
+      "route_ms_per_step": 1.0635587498545647,
+      "two_level_ms_per_step": 197.07402627915144
+    },
+    {
+      "block_n": 32,
+      "fused_attention_ms_per_step": 75.63002844713628,
+      "logit_finite": true,
+      "mean_decode_step_ms": 88.26311492919922,
+      "num_warps": 2,
+      "route_ms_per_step": 1.0572435688227415,
+      "two_level_ms_per_step": 76.68727201595902
+    },
+    {
+      "block_n": 32,
+      "fused_attention_ms_per_step": 55.44462182652205,
+      "logit_finite": true,
+      "mean_decode_step_ms": 68.63648986816406,
+      "num_warps": 4,
+      "route_ms_per_step": 1.059056063182652,
+      "two_level_ms_per_step": 56.503677889704704
+    },
+    {
+      "block_n": 64,
+      "fused_attention_ms_per_step": 184.94815109297633,
+      "logit_finite": true,
+      "mean_decode_step_ms": 197.5545654296875,
+      "num_warps": 2,
+      "route_ms_per_step": 1.0601614378392696,
+      "two_level_ms_per_step": 186.0083125308156
+    },
+    {
+      "block_n": 64,
+      "fused_attention_ms_per_step": 71.80220497958362,
+      "logit_finite": true,
+      "mean_decode_step_ms": 85.26798248291016,
+      "num_warps": 4,
+      "route_ms_per_step": 1.061023874208331,
+      "two_level_ms_per_step": 72.86322885379195
+    },
+    {
+      "block_n": 64,
+      "fused_attention_ms_per_step": 56.28323706332594,
+      "logit_finite": true,
+      "mean_decode_step_ms": 68.9925765991211,
+      "num_warps": 8,
+      "route_ms_per_step": 1.057698561809957,
+      "two_level_ms_per_step": 57.3409356251359
+    },
+    {
+      "block_n": 128,
+      "fused_attention_ms_per_step": 185.76361061260104,
+      "logit_finite": true,
+      "mean_decode_step_ms": 198.80421447753906,
+      "num_warps": 4,
+      "route_ms_per_step": 1.0580410659313202,
+      "two_level_ms_per_step": 186.82165167853236
+    },
+    {
+      "block_n": 128,
+      "fused_attention_ms_per_step": 73.54256741795689,
+      "logit_finite": true,
+      "mean_decode_step_ms": 86.66169738769531,
+      "num_warps": 8,
+      "route_ms_per_step": 1.0569964377209544,
+      "two_level_ms_per_step": 74.59956385567784
+    }
+  ],
+  "sequence_length": 16384,
+  "state_growth_factor": 16.0,
+  "steps": 16
+}

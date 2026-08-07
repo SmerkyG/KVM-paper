@@ -1,0 +1,51 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+The fast path is not available because one of the required library is not installed. Falling back to torch implementation. To install follow https://github.com/fla-org/flash-linear-attention#installation and https://github.com/Dao-AILab/causal-conv1d
+Loading weights:   0%|          | 0/320 [00:00<?, ?it/s]Loading weights: 100%|██████████| 320/320 [00:00<00:00, 19590.40it/s]
+Autotune Choices Stats:
+{"num_choices": 25, "num_triton_choices": 25, "best_kernel": "triton_flex_attention_9", "best_kernel_desc": "BLOCKS_ARE_CONTIGUOUS=False, BLOCK_M=64, BLOCK_N=16, FLOAT32_PRECISION=\"'ieee'\", GQA_SHARED_HEADS=4, HAS_FULL_BLOCKS=False, IS_DIVISIBLE=True, OUTPUT_LOGSUMEXP=True, OUTPUT_MAX=False, PRESCALE_QK=False, QK_HEAD_DIM=256, QK_HEAD_DIM_ROUNDED=256, ROWS_GUARANTEED_SAFE=False, SAFE_HEAD_DIM=True, SM_SCALE=0.0625, SPARSE_KV_BLOCK_SIZE=1073741824, SPARSE_Q_BLOCK_SIZE=1073741824, USE_TMA=False, V_HEAD_DIM=256, V_HEAD_DIM_ROUNDED=256, WRITE_DQ=True, kpack=2, matrix_instr_nonkdim=0, waves_per_eu=0, num_stages=1, num_warps=8", "best_time": 0.46875301003456116, "best_triton_pos": 0}
+AUTOTUNE flex_attention(8x8x256x256, 8x2x3584x256, 8x2x3584x256, 8x8x256, 8x8x256, 1x1x1, 1x1x1x1, 0, 0, 8x8x5120)
+strides: [524288, 65536, 256, 1], [1835008, 917504, 256, 1], [1835008, 917504, 256, 1], [2048, 256, 1], [2048, 256, 1], [1, 1, 1], [1, 1, 1, 1], [1], [1], [40960, 5120, 1]
+dtypes: torch.bfloat16, torch.bfloat16, torch.bfloat16, torch.float32, torch.float32, torch.int32, torch.int32, torch.float32, torch.float32, torch.float32
+  triton_flex_attention_9 0.4688 ms 100.0% BLOCKS_ARE_CONTIGUOUS=False, BLOCK_M=64, BLOCK_N=16, FLOAT32_PRECISION="'ieee'", GQA_SHARED_HEADS=4, HAS_FULL_BLOCKS=False, IS_DIVISIBLE=True, OUTPUT_LOGSUMEXP=True, OUTPUT_MAX=False, PRESCALE_QK=False, QK_HEAD_DIM=256, QK_HEAD_DIM_ROUNDED=256, ROWS_GUARANTEED_SAFE=False, SAFE_HEAD_DIM=True, SM_SCALE=0.0625, SPARSE_KV_BLOCK_SIZE=1073741824, SPARSE_Q_BLOCK_SIZE=1073741824, USE_TMA=False, V_HEAD_DIM=256, V_HEAD_DIM_ROUNDED=256, WRITE_DQ=True, kpack=2, matrix_instr_nonkdim=0, waves_per_eu=0, num_stages=1, num_warps=8
+  triton_flex_attention_17 0.4977 ms 94.2% BLOCKS_ARE_CONTIGUOUS=False, BLOCK_M=128, BLOCK_N=16, FLOAT32_PRECISION="'ieee'", GQA_SHARED_HEADS=4, HAS_FULL_BLOCKS=False, IS_DIVISIBLE=True, OUTPUT_LOGSUMEXP=True, OUTPUT_MAX=False, PRESCALE_QK=False, QK_HEAD_DIM=256, QK_HEAD_DIM_ROUNDED=256, ROWS_GUARANTEED_SAFE=False, SAFE_HEAD_DIM=True, SM_SCALE=0.0625, SPARSE_KV_BLOCK_SIZE=1073741824, SPARSE_Q_BLOCK_SIZE=1073741824, USE_TMA=False, V_HEAD_DIM=256, V_HEAD_DIM_ROUNDED=256, WRITE_DQ=True, kpack=2, matrix_instr_nonkdim=0, waves_per_eu=0, num_stages=1, num_warps=8
+  triton_flex_attention_8 0.5008 ms 93.6% BLOCKS_ARE_CONTIGUOUS=False, BLOCK_M=64, BLOCK_N=16, FLOAT32_PRECISION="'ieee'", GQA_SHARED_HEADS=4, HAS_FULL_BLOCKS=False, IS_DIVISIBLE=True, OUTPUT_LOGSUMEXP=True, OUTPUT_MAX=False, PRESCALE_QK=False, QK_HEAD_DIM=256, QK_HEAD_DIM_ROUNDED=256, ROWS_GUARANTEED_SAFE=False, SAFE_HEAD_DIM=True, SM_SCALE=0.0625, SPARSE_KV_BLOCK_SIZE=1073741824, SPARSE_Q_BLOCK_SIZE=1073741824, USE_TMA=False, V_HEAD_DIM=256, V_HEAD_DIM_ROUNDED=256, WRITE_DQ=True, kpack=2, matrix_instr_nonkdim=0, waves_per_eu=0, num_stages=1, num_warps=4
+  triton_flex_attention_14 0.5169 ms 90.7% BLOCKS_ARE_CONTIGUOUS=False, BLOCK_M=64, BLOCK_N=128, FLOAT32_PRECISION="'ieee'", GQA_SHARED_HEADS=4, HAS_FULL_BLOCKS=False, IS_DIVISIBLE=True, OUTPUT_LOGSUMEXP=True, OUTPUT_MAX=False, PRESCALE_QK=False, QK_HEAD_DIM=256, QK_HEAD_DIM_ROUNDED=256, ROWS_GUARANTEED_SAFE=False, SAFE_HEAD_DIM=True, SM_SCALE=0.0625, SPARSE_KV_BLOCK_SIZE=1073741824, SPARSE_Q_BLOCK_SIZE=1073741824, USE_TMA=False, V_HEAD_DIM=256, V_HEAD_DIM_ROUNDED=256, WRITE_DQ=True, kpack=2, matrix_instr_nonkdim=0, waves_per_eu=0, num_stages=1, num_warps=4
+  triton_flex_attention_10 0.5552 ms 84.4% BLOCKS_ARE_CONTIGUOUS=False, BLOCK_M=64, BLOCK_N=32, FLOAT32_PRECISION="'ieee'", GQA_SHARED_HEADS=4, HAS_FULL_BLOCKS=False, IS_DIVISIBLE=True, OUTPUT_LOGSUMEXP=True, OUTPUT_MAX=False, PRESCALE_QK=False, QK_HEAD_DIM=256, QK_HEAD_DIM_ROUNDED=256, ROWS_GUARANTEED_SAFE=False, SAFE_HEAD_DIM=True, SM_SCALE=0.0625, SPARSE_KV_BLOCK_SIZE=1073741824, SPARSE_Q_BLOCK_SIZE=1073741824, USE_TMA=False, V_HEAD_DIM=256, V_HEAD_DIM_ROUNDED=256, WRITE_DQ=True, kpack=2, matrix_instr_nonkdim=0, waves_per_eu=0, num_stages=1, num_warps=4
+  triton_flex_attention_22 0.5735 ms 81.7% BLOCKS_ARE_CONTIGUOUS=False, BLOCK_M=128, BLOCK_N=128, FLOAT32_PRECISION="'ieee'", GQA_SHARED_HEADS=4, HAS_FULL_BLOCKS=False, IS_DIVISIBLE=True, OUTPUT_LOGSUMEXP=True, OUTPUT_MAX=False, PRESCALE_QK=False, QK_HEAD_DIM=256, QK_HEAD_DIM_ROUNDED=256, ROWS_GUARANTEED_SAFE=False, SAFE_HEAD_DIM=True, SM_SCALE=0.0625, SPARSE_KV_BLOCK_SIZE=1073741824, SPARSE_Q_BLOCK_SIZE=1073741824, USE_TMA=False, V_HEAD_DIM=256, V_HEAD_DIM_ROUNDED=256, WRITE_DQ=True, kpack=2, matrix_instr_nonkdim=0, waves_per_eu=0, num_stages=1, num_warps=4
+  triton_flex_attention_12 0.5805 ms 80.7% BLOCKS_ARE_CONTIGUOUS=False, BLOCK_M=64, BLOCK_N=64, FLOAT32_PRECISION="'ieee'", GQA_SHARED_HEADS=4, HAS_FULL_BLOCKS=False, IS_DIVISIBLE=True, OUTPUT_LOGSUMEXP=True, OUTPUT_MAX=False, PRESCALE_QK=False, QK_HEAD_DIM=256, QK_HEAD_DIM_ROUNDED=256, ROWS_GUARANTEED_SAFE=False, SAFE_HEAD_DIM=True, SM_SCALE=0.0625, SPARSE_KV_BLOCK_SIZE=1073741824, SPARSE_Q_BLOCK_SIZE=1073741824, USE_TMA=False, V_HEAD_DIM=256, V_HEAD_DIM_ROUNDED=256, WRITE_DQ=True, kpack=2, matrix_instr_nonkdim=0, waves_per_eu=0, num_stages=1, num_warps=4
+  triton_flex_attention_20 0.5938 ms 78.9% BLOCKS_ARE_CONTIGUOUS=False, BLOCK_M=128, BLOCK_N=64, FLOAT32_PRECISION="'ieee'", GQA_SHARED_HEADS=4, HAS_FULL_BLOCKS=False, IS_DIVISIBLE=True, OUTPUT_LOGSUMEXP=True, OUTPUT_MAX=False, PRESCALE_QK=False, QK_HEAD_DIM=256, QK_HEAD_DIM_ROUNDED=256, ROWS_GUARANTEED_SAFE=False, SAFE_HEAD_DIM=True, SM_SCALE=0.0625, SPARSE_KV_BLOCK_SIZE=1073741824, SPARSE_Q_BLOCK_SIZE=1073741824, USE_TMA=False, V_HEAD_DIM=256, V_HEAD_DIM_ROUNDED=256, WRITE_DQ=True, kpack=2, matrix_instr_nonkdim=0, waves_per_eu=0, num_stages=1, num_warps=4
+  triton_flex_attention_19 0.6374 ms 73.5% BLOCKS_ARE_CONTIGUOUS=False, BLOCK_M=128, BLOCK_N=32, FLOAT32_PRECISION="'ieee'", GQA_SHARED_HEADS=4, HAS_FULL_BLOCKS=False, IS_DIVISIBLE=True, OUTPUT_LOGSUMEXP=True, OUTPUT_MAX=False, PRESCALE_QK=False, QK_HEAD_DIM=256, QK_HEAD_DIM_ROUNDED=256, ROWS_GUARANTEED_SAFE=False, SAFE_HEAD_DIM=True, SM_SCALE=0.0625, SPARSE_KV_BLOCK_SIZE=1073741824, SPARSE_Q_BLOCK_SIZE=1073741824, USE_TMA=False, V_HEAD_DIM=256, V_HEAD_DIM_ROUNDED=256, WRITE_DQ=True, kpack=2, matrix_instr_nonkdim=0, waves_per_eu=0, num_stages=1, num_warps=8
+  triton_flex_attention_18 0.6417 ms 73.0% BLOCKS_ARE_CONTIGUOUS=False, BLOCK_M=128, BLOCK_N=32, FLOAT32_PRECISION="'ieee'", GQA_SHARED_HEADS=4, HAS_FULL_BLOCKS=False, IS_DIVISIBLE=True, OUTPUT_LOGSUMEXP=True, OUTPUT_MAX=False, PRESCALE_QK=False, QK_HEAD_DIM=256, QK_HEAD_DIM_ROUNDED=256, ROWS_GUARANTEED_SAFE=False, SAFE_HEAD_DIM=True, SM_SCALE=0.0625, SPARSE_KV_BLOCK_SIZE=1073741824, SPARSE_Q_BLOCK_SIZE=1073741824, USE_TMA=False, V_HEAD_DIM=256, V_HEAD_DIM_ROUNDED=256, WRITE_DQ=True, kpack=2, matrix_instr_nonkdim=0, waves_per_eu=0, num_stages=1, num_warps=4
+SingleProcess AUTOTUNE benchmarking takes 0.8418 seconds and 0.9598 seconds precompiling for 25 choices
+{
+  "attention_layers": 6,
+  "auto_fused_state_update": true,
+  "batch_size": 8,
+  "coarse_compact_bias": true,
+  "coarse_enable_gqa": true,
+  "direct_fused_state_routing": true,
+  "fused_state_routing": true,
+  "fused_state_update": false,
+  "logit_finite": true,
+  "other_fraction": 0.5099438307197602,
+  "other_ms": 1656.3649778477848,
+  "phase_fraction": {
+    "coarse": 0.14824900155119092,
+    "exact_leaf": 0.1779795823037794,
+    "page_append": 0.003532509998695366,
+    "route": 0.09507469021973586,
+    "state_update": 0.06522038520683827
+  },
+  "phase_ms": {
+    "coarse": 481.53235587477684,
+    "exact_leaf": 578.101212605834,
+    "page_append": 11.474059481173754,
+    "route": 308.81516291201115,
+    "state_update": 211.844433426857
+  },
+  "repeats": 2,
+  "reuse_state_update_similarity": true,
+  "sequence_length": 32768,
+  "state_growth_factor": 16.0,
+  "total_ms": 3248.1322021484375
+}

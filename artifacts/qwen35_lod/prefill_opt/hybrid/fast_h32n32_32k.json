@@ -1,0 +1,28 @@
+{
+  "attention_layers": 6,
+  "batch_size": 8,
+  "block_m": 16,
+  "block_n": 32,
+  "calls": 756,
+  "exact_leaf_total_ms": 758.0665104985237,
+  "hot_threshold": 32,
+  "layout": "hybrid",
+  "logit_finite": true,
+  "num_warps": 2,
+  "phase_fraction": {
+    "cold": 0.26876807558319593,
+    "dispatch": 0.33640659071723483,
+    "hot": 0.3722426572906934,
+    "kernel": 0.6410107317043098,
+    "reduce": 0.02258267811410321
+  },
+  "phase_ms": {
+    "cold": 203.7440771907568,
+    "dispatch": 255.01857033371925,
+    "hot": 282.1846922710538,
+    "kernel": 485.9287685751915,
+    "reduce": 17.119171995669603
+  },
+  "sequence_length": 32768,
+  "use_dot": false
+}

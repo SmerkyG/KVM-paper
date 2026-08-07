@@ -1,0 +1,83 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+'The read operation timed out' thrown while requesting GET https://huggingface.co/datasets/Seerkfang/prolong-64k-512-new/resolve/97295b7d7fe48dc0aa6ba373af3a8b9d945e505b/train_00007.parquet
+Retrying in 1s [Retry 1/5].
+The fast path is not available because one of the required library is not installed. Falling back to torch implementation. To install follow https://github.com/fla-org/flash-linear-attention#installation and https://github.com/Dao-AILab/causal-conv1d
+Loading weights:   0%|          | 0/320 [00:00<?, ?it/s]Loading weights: 100%|██████████| 320/320 [00:00<00:00, 18506.41it/s]
+{
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "clone_decode_routes": null,
+  "decode_elapsed_ms": [
+    1828.333984375,
+    1814.63623046875,
+    1820.2728271484375,
+    1780.61279296875,
+    1718.886962890625
+  ],
+  "decode_route_gqa_grouped": null,
+  "decode_route_group_size": null,
+  "decode_route_num_warps": null,
+  "decode_route_use_dot": null,
+  "decode_steps": 128,
+  "decode_tokens_per_second": 571.2537016266162,
+  "fused_decode_attention": null,
+  "fused_decode_state_route": null,
+  "logit_finite": true,
+  "mean_decode_ms": 1792.5485595703126,
+  "mean_decode_step_ms": 14.004285621643067,
+  "mean_prefill_ms": 488.15379028320314,
+  "mode": "full",
+  "peak_memory_gib": 6.559970855712891,
+  "prefill_elapsed_ms": [
+    696.3797607421875,
+    435.77740478515625,
+    436.0257263183594,
+    436.0454406738281,
+    436.5406188964844
+  ],
+  "prefill_tokens_per_second": 134252.77300823413,
+  "repeats": 5,
+  "sequence_length": 8192,
+  "state_growth_factor": null
+}
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+The fast path is not available because one of the required library is not installed. Falling back to torch implementation. To install follow https://github.com/fla-org/flash-linear-attention#installation and https://github.com/Dao-AILab/causal-conv1d
+Loading weights:   0%|          | 0/320 [00:00<?, ?it/s]Loading weights: 100%|██████████| 320/320 [00:00<00:00, 18107.68it/s]
+{
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "clone_decode_routes": false,
+  "decode_elapsed_ms": [
+    1870.353271484375,
+    1870.21630859375,
+    1879.10400390625,
+    1871.98486328125,
+    1846.109619140625
+  ],
+  "decode_route_gqa_grouped": true,
+  "decode_route_group_size": 16,
+  "decode_route_num_warps": 4,
+  "decode_route_use_dot": false,
+  "decode_steps": 128,
+  "decode_tokens_per_second": 548.3108986632277,
+  "fused_decode_attention": true,
+  "fused_decode_state_route": true,
+  "fused_state_update": false,
+  "logit_finite": true,
+  "mean_decode_ms": 1867.55361328125,
+  "mean_decode_step_ms": 14.590262603759765,
+  "mean_prefill_ms": 693.7232543945313,
+  "mode": "two_level",
+  "peak_memory_gib": 9.13279104232788,
+  "prefill_elapsed_ms": [
+    693.2493896484375,
+    694.6470947265625,
+    693.5711059570312,
+    693.3912353515625,
+    693.7574462890625
+  ],
+  "prefill_tokens_per_second": 94469.94833292507,
+  "repeats": 5,
+  "sequence_length": 8192,
+  "state_growth_factor": 16.0
+}

@@ -1,0 +1,35 @@
+{
+  "attention_layers": 6,
+  "auto_fused_state_update": true,
+  "batch_size": 8,
+  "coarse_compact_bias": true,
+  "coarse_enable_gqa": true,
+  "coarse_route_block_m": 16,
+  "coarse_route_block_n": 32,
+  "coarse_route_num_warps": 8,
+  "direct_fused_state_routing": true,
+  "fused_prefill_route_coarse": true,
+  "fused_state_routing": true,
+  "fused_state_update": false,
+  "logit_finite": true,
+  "other_fraction": 0.38714187165658803,
+  "other_ms": 1656.6199550172314,
+  "phase_fraction": {
+    "exact_leaf": 0.13273823908095897,
+    "page_append": 0.0027252914696690323,
+    "route_coarse": 0.42801400271301354,
+    "state_update": 0.049380595079770426
+  },
+  "phase_ms": {
+    "exact_leaf": 568.00060069561,
+    "page_append": 11.661802978254855,
+    "route_coarse": 1831.5160147547722,
+    "state_update": 211.3046538978815
+  },
+  "repeats": 1,
+  "reuse_route_logits_for_coarse": false,
+  "reuse_state_update_similarity": true,
+  "sequence_length": 32768,
+  "state_growth_factor": 16.0,
+  "total_ms": 4279.10302734375
+}

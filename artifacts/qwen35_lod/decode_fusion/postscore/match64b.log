@@ -1,0 +1,83 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+The fast path is not available because one of the required library is not installed. Falling back to torch implementation. To install follow https://github.com/fla-org/flash-linear-attention#installation and https://github.com/Dao-AILab/causal-conv1d
+Loading weights:   0%|          | 0/320 [00:00<?, ?it/s]Loading weights: 100%|██████████| 320/320 [00:00<00:00, 13916.22it/s]
+{
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "clone_decode_routes": false,
+  "decode_elapsed_ms": [
+    1936.392333984375,
+    1738.8280029296875,
+    1823.424072265625,
+    1840.09228515625,
+    1738.27490234375
+  ],
+  "decode_route_gqa_grouped": true,
+  "decode_route_group_size": 64,
+  "decode_route_num_warps": 2,
+  "decode_route_use_dot": false,
+  "decode_steps": 128,
+  "decode_tokens_per_second": 564.0622957750613,
+  "fused_decode_attention": true,
+  "fused_decode_state_route": true,
+  "fused_state_update": false,
+  "logit_finite": true,
+  "mean_decode_ms": 1815.4023193359376,
+  "mean_decode_step_ms": 14.182830619812012,
+  "mean_prefill_ms": 694.508251953125,
+  "mode": "two_level",
+  "peak_memory_gib": 9.105802059173584,
+  "prefill_elapsed_ms": [
+    689.7913818359375,
+    690.9383544921875,
+    692.0059814453125,
+    709.3115234375,
+    690.4940185546875
+  ],
+  "prefill_tokens_per_second": 94363.16964657647,
+  "repeats": 5,
+  "sequence_length": 8192,
+  "state_growth_factor": 16.0
+}
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+The fast path is not available because one of the required library is not installed. Falling back to torch implementation. To install follow https://github.com/fla-org/flash-linear-attention#installation and https://github.com/Dao-AILab/causal-conv1d
+Loading weights:   0%|          | 0/320 [00:00<?, ?it/s]Loading weights: 100%|██████████| 320/320 [00:00<00:00, 18181.02it/s]
+{
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "clone_decode_routes": null,
+  "coarse_enable_gqa": null,
+  "decode_elapsed_ms": [
+    1720.60986328125,
+    1841.1070556640625,
+    1697.870361328125,
+    1707.5086669921875,
+    1607.2314453125
+  ],
+  "decode_route_gqa_grouped": null,
+  "decode_route_group_size": null,
+  "decode_route_num_warps": null,
+  "decode_route_use_dot": null,
+  "decode_steps": 128,
+  "decode_tokens_per_second": 597.1313860060714,
+  "fused_decode_attention": null,
+  "fused_decode_state_route": null,
+  "fused_state_update": null,
+  "logit_finite": true,
+  "mean_decode_ms": 1714.865478515625,
+  "mean_decode_step_ms": 13.39738655090332,
+  "mean_prefill_ms": 456.46373291015624,
+  "mode": "full",
+  "peak_memory_gib": 6.559970855712891,
+  "prefill_elapsed_ms": [
+    432.437255859375,
+    553.6354370117188,
+    432.0763244628906,
+    432.2015075683594,
+    431.9681396484375
+  ],
+  "prefill_tokens_per_second": 143573.2902199684,
+  "repeats": 5,
+  "sequence_length": 8192,
+  "state_growth_factor": null
+}

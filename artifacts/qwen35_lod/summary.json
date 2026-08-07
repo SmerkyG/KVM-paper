@@ -1,0 +1,132 @@
+{
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "graft": {
+    "full_attention_layers": [3, 7, 11, 15, 19, 23],
+    "linear_attention_layers_changed": 0,
+    "local_window": 512,
+    "default_state_schedule": "floor(16 * sqrt(T)), minimum 256",
+    "topk": 8,
+    "state_key": "arithmetic mean of original post-RMSNorm partial-RoPE keys",
+    "state_value": "arithmetic mean of original values",
+    "state_mass_correction": "log(leaf_count)",
+    "exact_branch": "all exact KV leaves owned by each query head's top-8 state slots"
+  },
+  "niah_results": {
+    "8192": {
+      "samples_per_task": 64,
+      "full": {
+        "niah_single_1": "64/64",
+        "niah_single_2": "64/64",
+        "niah_single_3": "64/64",
+        "overall": "192/192"
+      },
+      "top8_lod_16sqrt": {
+        "niah_single_1": "64/64",
+        "niah_single_2": "64/64",
+        "niah_single_3": "64/64",
+        "overall": "192/192"
+      },
+      "top8_lod_4sqrt": {
+        "niah_single_1": "64/64",
+        "niah_single_2": "63/64",
+        "niah_single_3": "62/64",
+        "overall": "189/192"
+      },
+      "top8_lod_fixed256": {
+        "niah_single_1": "64/64",
+        "niah_single_2": "61/64",
+        "niah_single_3": "63/64",
+        "overall": "188/192"
+      },
+      "identical_full_and_16sqrt_response_strings": "113/192"
+    },
+    "16384": {
+      "samples_per_task": 8,
+      "top8_lod_16sqrt": {
+        "niah_single_1": "8/8",
+        "niah_single_2": "8/8",
+        "niah_single_3": "8/8",
+        "overall": "24/24"
+      }
+    },
+    "32768": {
+      "samples_per_task": 64,
+      "top8_lod_16sqrt": {
+        "niah_single_1": "64/64",
+        "niah_single_2": "64/64",
+        "niah_single_3": "64/64",
+        "overall": "192/192"
+      },
+      "top8_lod_8sqrt": {
+        "niah_single_1": "64/64",
+        "niah_single_2": "64/64",
+        "niah_single_3": "64/64",
+        "overall": "192/192"
+      },
+      "top8_lod_4sqrt": {
+        "niah_single_1": "64/64",
+        "niah_single_2": "60/64",
+        "niah_single_3": "61/64",
+        "overall": "185/192"
+      },
+      "top8_lod_fixed256": {
+        "niah_single_1": "64/64",
+        "niah_single_2": "52/64",
+        "niah_single_3": "55/64",
+        "overall": "171/192"
+      }
+    },
+    "65536": {
+      "samples_per_task": 64,
+      "top8_lod_16sqrt": {
+        "niah_single_1": "64/64",
+        "niah_single_2": "64/64",
+        "niah_single_3": "62/64",
+        "overall": "190/192"
+      },
+      "top8_lod_8sqrt": {
+        "niah_single_1": "64/64",
+        "niah_single_2": "63/64",
+        "niah_single_3": "63/64",
+        "overall": "190/192"
+      }
+    }
+  },
+  "prolong_8192_loss": {
+    "samples": 32,
+    "prediction_tokens_per_sample": 8191,
+    "full_mean_ce": 3.005489021539688,
+    "top8_lod_8sqrt_mean_ce": 3.0158447474241257,
+    "top8_lod_16sqrt_mean_ce": 3.01323052495718,
+    "top8_lod_8sqrt_paired_mean_ce_delta": 0.010355725884437561,
+    "top8_lod_16sqrt_paired_mean_ce_delta": 0.007741503417491913,
+    "full_perplexity": 20.196090004543365,
+    "top8_lod_8sqrt_perplexity_ratio": 1.0104095319870898,
+    "top8_lod_16sqrt_perplexity": 20.353044853714795,
+    "top8_lod_16sqrt_perplexity_ratio": 1.007771546330806,
+    "lod_higher_ce_samples": "32/32"
+  },
+  "top8_lod_8sqrt_leaf_load": {
+    "8192": {
+      "state_slots_per_kv_head": 712,
+      "selected_leaves_per_query_mean": 138.33372497558594,
+      "selected_leaves_per_query_p99": 514.0,
+      "current_repacked_history_fraction_mean": 0.5811392664909363
+    },
+    "32768": {
+      "state_slots_per_kv_head": 1442,
+      "selected_leaves_per_query_mean": 441.4922180175781,
+      "selected_leaves_per_query_p99": 2303.0,
+      "current_repacked_history_fraction_mean": 0.44112738966941833
+    },
+    "65536": {
+      "state_slots_per_kv_head": 2043,
+      "selected_leaves_per_query_mean": 738.563720703125,
+      "selected_leaves_per_query_p99": 4079.0,
+      "current_repacked_history_fraction_mean": 0.3700309693813324,
+      "mean_slot_leaves": 31.82770538330078,
+      "largest_slot_leaves": 1767,
+      "largest_slot_over_mean": 55.52
+    }
+  }
+}

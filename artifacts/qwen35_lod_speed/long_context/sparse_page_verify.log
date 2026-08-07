@@ -1,0 +1,47 @@
+Traceback (most recent call last):
+  File "/home/dan/subusers/agent/kvm-paper-dg/branches/benchmarks/code/.venv/lib/python3.12/site-packages/triton/language/core.py", line 43, in wrapper
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+TypeError: atomic_cas() got an unexpected keyword argument 'mask'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/dan/subusers/agent/kvm-paper-dg/branches/benchmarks/code/scripts/verify_triton_paged_leaf_attention.py", line 821, in <module>
+    main()
+  File "/home/dan/subusers/agent/kvm-paper-dg/branches/benchmarks/code/scripts/verify_triton_paged_leaf_attention.py", line 212, in main
+    verify_page_append(device)
+  File "/home/dan/subusers/agent/kvm-paper-dg/branches/benchmarks/code/scripts/verify_triton_paged_leaf_attention.py", line 63, in verify_page_append
+    append_paged_kv(
+  File "/home/dan/subusers/agent/kvm-paper-dg/branches/benchmarks/code/model/kernels/paged_leaf_attention.py", line 2465, in append_paged_kv
+    _assign_page_ordinals_kernel[(token_rows,)](
+  File "/home/dan/subusers/agent/kvm-paper-dg/branches/benchmarks/code/.venv/lib/python3.12/site-packages/triton/runtime/jit.py", line 419, in <lambda>
+    return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dan/subusers/agent/kvm-paper-dg/branches/benchmarks/code/.venv/lib/python3.12/site-packages/triton/runtime/jit.py", line 733, in run
+    kernel = self._do_compile(key, signature, device, constexprs, options, attrs, warmup)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dan/subusers/agent/kvm-paper-dg/branches/benchmarks/code/.venv/lib/python3.12/site-packages/triton/runtime/jit.py", line 861, in _do_compile
+    kernel = self.compile(src, target=target, options=options.__dict__)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dan/subusers/agent/kvm-paper-dg/branches/benchmarks/code/.venv/lib/python3.12/site-packages/triton/compiler/compiler.py", line 300, in compile
+    module = src.make_ir(target, options, codegen_fns, module_map, context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dan/subusers/agent/kvm-paper-dg/branches/benchmarks/code/.venv/lib/python3.12/site-packages/triton/compiler/compiler.py", line 80, in make_ir
+    return ast_to_ttir(self.fn, self, context=context, options=options, codegen_fns=codegen_fns,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+triton.compiler.errors.CompilationError: at 47:18:
+    tl.store(
+        slot_pages
+        + (kv_row * STATE_CAPACITY + owner) * INLINE_PAGES_PER_SLOT
+        + page_ordinal,
+        page_id,
+        mask=inline,
+    )
+    lookup_key = (owner * 65_536 + page_ordinal).to(tl.int32)
+    index = _page_hash_index(lookup_key, HASH_CAPACITY)
+    active = starts_page & ~inline
+    for _ in tl.static_range(0, HASH_PROBES):
+        old_key = tl.atomic_cas(
+                  ^
+atomic_cas() got an unexpected keyword argument 'mask'

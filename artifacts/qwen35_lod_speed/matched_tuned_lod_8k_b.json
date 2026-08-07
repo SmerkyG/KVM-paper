@@ -1,0 +1,41 @@
+{
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "clone_decode_routes": false,
+  "coarse_compact_bias": true,
+  "coarse_enable_gqa": true,
+  "coarse_route_block_m": 16,
+  "coarse_route_block_n": 32,
+  "coarse_route_num_warps": 8,
+  "decode_elapsed_ms": [
+    934.5708618164062,
+    879.5838623046875,
+    873.7434692382812
+  ],
+  "decode_route_gqa_grouped": false,
+  "decode_route_group_size": 64,
+  "decode_route_num_warps": 2,
+  "decode_route_use_dot": false,
+  "decode_steps": 64,
+  "decode_tokens_per_second": 571.4502148164639,
+  "fused_decode_attention": true,
+  "fused_decode_state_route": true,
+  "fused_prefill_route_coarse": false,
+  "fused_state_update": false,
+  "logit_finite": true,
+  "mean_decode_ms": 895.966064453125,
+  "mean_decode_step_ms": 13.999469757080078,
+  "mean_prefill_ms": 577.4447021484375,
+  "mode": "two_level",
+  "peak_memory_gib": 9.389127254486084,
+  "prefill_elapsed_ms": [
+    577.80419921875,
+    577.483642578125,
+    577.0462646484375
+  ],
+  "prefill_tokens_per_second": 113493.11848592105,
+  "repeats": 3,
+  "reuse_route_logits_for_coarse": true,
+  "sequence_length": 8192,
+  "state_growth_factor": 16.0
+}

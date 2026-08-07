@@ -1,0 +1,41 @@
+{
+  "attention_layers": 6,
+  "batch_size": 8,
+  "clone_decode_routes": false,
+  "configs": [
+    {
+      "block_n": 16,
+      "fused_attention_ms_per_step": 0.0,
+      "kernel_ms_per_step": {},
+      "logit_finite": true,
+      "mean_decode_step_ms": 43.88172912597656,
+      "num_warps": 2,
+      "profile_phases": false,
+      "route_ms_per_step": 0.0,
+      "split_kv": 8,
+      "two_level_ms_per_step": 0.0,
+      "use_dot": false
+    },
+    {
+      "block_n": 32,
+      "fused_attention_ms_per_step": 0.0,
+      "kernel_ms_per_step": {},
+      "logit_finite": true,
+      "mean_decode_step_ms": 56.86367416381836,
+      "num_warps": 2,
+      "profile_phases": false,
+      "route_ms_per_step": 0.0,
+      "split_kv": 8,
+      "two_level_ms_per_step": 0.0,
+      "use_dot": false
+    }
+  ],
+  "decode_route_gqa_grouped": true,
+  "decode_route_group_size": 64,
+  "decode_route_num_warps": 2,
+  "decode_route_use_dot": false,
+  "fused_decode_state_route": true,
+  "sequence_length": 65536,
+  "state_growth_factor": 16.0,
+  "steps": 32
+}

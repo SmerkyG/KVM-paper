@@ -1,0 +1,108 @@
+{
+  "attention_layers": 6,
+  "batch_size": 8,
+  "configs": [
+    {
+      "block_n": 16,
+      "fused_attention_ms_per_step": 80.91518792510033,
+      "logit_finite": true,
+      "mean_decode_step_ms": 91.36650085449219,
+      "num_warps": 1,
+      "route_ms_per_step": 1.3516991809010506,
+      "two_level_ms_per_step": 82.26688710600138
+    },
+    {
+      "block_n": 16,
+      "fused_attention_ms_per_step": 57.25005769729614,
+      "logit_finite": true,
+      "mean_decode_step_ms": 68.17748260498047,
+      "num_warps": 2,
+      "route_ms_per_step": 1.3500768765807152,
+      "two_level_ms_per_step": 58.60013457387686
+    },
+    {
+      "block_n": 16,
+      "fused_attention_ms_per_step": 48.13175878673792,
+      "logit_finite": true,
+      "mean_decode_step_ms": 59.328125,
+      "num_warps": 4,
+      "route_ms_per_step": 1.3520243763923645,
+      "two_level_ms_per_step": 49.48378316313028
+    },
+    {
+      "block_n": 32,
+      "fused_attention_ms_per_step": 202.25195842422545,
+      "logit_finite": true,
+      "mean_decode_step_ms": 212.7010498046875,
+      "num_warps": 1,
+      "route_ms_per_step": 1.357048874720931,
+      "two_level_ms_per_step": 203.60900729894638
+    },
+    {
+      "block_n": 32,
+      "fused_attention_ms_per_step": 77.53385984059423,
+      "logit_finite": true,
+      "mean_decode_step_ms": 89.56610107421875,
+      "num_warps": 2,
+      "route_ms_per_step": 1.3521343106403947,
+      "two_level_ms_per_step": 78.88599415123463
+    },
+    {
+      "block_n": 32,
+      "fused_attention_ms_per_step": 57.503079577349126,
+      "logit_finite": true,
+      "mean_decode_step_ms": 70.51519012451172,
+      "num_warps": 4,
+      "route_ms_per_step": 1.3565637553110719,
+      "two_level_ms_per_step": 58.8596433326602
+    },
+    {
+      "block_n": 64,
+      "fused_attention_ms_per_step": 189.4064513258636,
+      "logit_finite": true,
+      "mean_decode_step_ms": 201.39614868164062,
+      "num_warps": 2,
+      "route_ms_per_step": 1.3631471283733845,
+      "two_level_ms_per_step": 190.76959845423698
+    },
+    {
+      "block_n": 64,
+      "fused_attention_ms_per_step": 74.2750954022631,
+      "logit_finite": true,
+      "mean_decode_step_ms": 87.88273620605469,
+      "num_warps": 4,
+      "route_ms_per_step": 1.3496966818347573,
+      "two_level_ms_per_step": 75.62479208409786
+    },
+    {
+      "block_n": 64,
+      "fused_attention_ms_per_step": 56.63576405495405,
+      "logit_finite": true,
+      "mean_decode_step_ms": 70.13127136230469,
+      "num_warps": 8,
+      "route_ms_per_step": 1.3569771237671375,
+      "two_level_ms_per_step": 57.99274117872119
+    },
+    {
+      "block_n": 128,
+      "fused_attention_ms_per_step": 186.00341367721558,
+      "logit_finite": true,
+      "mean_decode_step_ms": 200.09095764160156,
+      "num_warps": 4,
+      "route_ms_per_step": 1.3545238748192787,
+      "two_level_ms_per_step": 187.35793755203485
+    },
+    {
+      "block_n": 128,
+      "fused_attention_ms_per_step": 83.71715806983411,
+      "logit_finite": true,
+      "mean_decode_step_ms": 98.12371826171875,
+      "num_warps": 8,
+      "route_ms_per_step": 1.3601193111389875,
+      "two_level_ms_per_step": 85.0772773809731
+    }
+  ],
+  "sequence_length": 32768,
+  "state_growth_factor": 16.0,
+  "steps": 16
+}

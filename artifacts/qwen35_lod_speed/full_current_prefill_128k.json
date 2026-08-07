@@ -1,0 +1,53 @@
+{
+  "batch_size": 8,
+  "cache_memory_gib": {
+    "persistent_cache_total": 0
+  },
+  "cache_statistics": {
+    "max_slot_tokens": 0,
+    "max_used_pages_per_batch_head": 0,
+    "overflow_hash_failures": 0
+  },
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "clone_decode_routes": null,
+  "coarse_compact_bias": null,
+  "coarse_enable_gqa": null,
+  "coarse_route_block_m": null,
+  "coarse_route_block_n": null,
+  "coarse_route_num_warps": null,
+  "decode_elapsed_ms": [],
+  "decode_final_reduce_num_warps": null,
+  "decode_fuse_final_reduce": null,
+  "decode_kernel_profile": [],
+  "decode_route_gqa_grouped": null,
+  "decode_route_group_size": null,
+  "decode_route_num_warps": null,
+  "decode_route_reduce_num_warps": null,
+  "decode_route_use_dot": null,
+  "decode_split_kv": null,
+  "decode_steps": 0,
+  "decode_tokens_per_second": null,
+  "decode_use_dot": null,
+  "fused_decode_attention": null,
+  "fused_decode_state_route": null,
+  "fused_state_update": null,
+  "leaf_inline_pages_per_slot": 512,
+  "logit_finite": true,
+  "mean_decode_ms": null,
+  "mean_decode_step_ms": null,
+  "mean_prefill_ms": 25143.286458333332,
+  "mode": "full",
+  "peak_memory_gib": 70.10068130493164,
+  "prefill_elapsed_ms": [
+    24867.91015625,
+    25655.154296875,
+    24906.794921875
+  ],
+  "prefill_microbatch_size": null,
+  "prefill_tokens_per_second": 41704.015174693544,
+  "repeats": 3,
+  "reuse_route_logits_for_coarse": null,
+  "route_gqa_matmul": null,
+  "sequence_length": 131072,
+  "state_growth_factor": null
+}

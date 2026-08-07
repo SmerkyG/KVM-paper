@@ -1,0 +1,22 @@
+{
+  "attention_layers": 6,
+  "batch_size": 8,
+  "clone_decode_routes": false,
+  "configs": [
+    {
+      "block_n": 16,
+      "fused_attention_ms_per_step": 0.0,
+      "logit_finite": true,
+      "mean_decode_step_ms": 24.615800857543945,
+      "num_warps": 4,
+      "profile_phases": false,
+      "route_ms_per_step": 0.0,
+      "split_kv": 1,
+      "two_level_ms_per_step": 0.0,
+      "use_dot": false
+    }
+  ],
+  "sequence_length": 8192,
+  "state_growth_factor": 16.0,
+  "steps": 64
+}

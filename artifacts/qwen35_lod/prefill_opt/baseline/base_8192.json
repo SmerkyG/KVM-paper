@@ -1,0 +1,29 @@
+{
+  "attention_layers": 6,
+  "batch_size": 8,
+  "direct_fused_state_routing": true,
+  "fused_state_routing": true,
+  "fused_state_update": false,
+  "logit_finite": true,
+  "other_fraction": 0.5538371466831641,
+  "other_ms": 385.82263341825455,
+  "phase_fraction": {
+    "coarse": 0.16879795908252043,
+    "exact_leaf": 0.09465394591010234,
+    "page_append": 0.004808312040620758,
+    "route": 0.08620101705029118,
+    "state_update": 0.09170161923330122
+  },
+  "phase_ms": {
+    "coarse": 117.59065544605255,
+    "exact_leaf": 65.9393016397953,
+    "page_append": 3.349640999920666,
+    "route": 60.050691075623035,
+    "state_update": 63.882605984807014
+  },
+  "repeats": 2,
+  "reuse_state_update_similarity": true,
+  "sequence_length": 8192,
+  "state_growth_factor": 16.0,
+  "total_ms": 696.6355285644531
+}

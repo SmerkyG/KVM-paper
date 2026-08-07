@@ -1,0 +1,29 @@
+{
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "clone_decode_routes": false,
+  "decode_elapsed_ms": [
+    951.2257080078125,
+    946.1767578125,
+    949.2293090820312
+  ],
+  "decode_steps": 64,
+  "decode_tokens_per_second": 539.5850680591429,
+  "fused_decode_attention": true,
+  "fused_decode_state_route": false,
+  "logit_finite": true,
+  "mean_decode_ms": 948.8772583007812,
+  "mean_decode_step_ms": 14.826207160949707,
+  "mean_prefill_ms": 683.6294555664062,
+  "mode": "two_level",
+  "peak_memory_gib": 9.093309879302979,
+  "prefill_elapsed_ms": [
+    686.761474609375,
+    682.340087890625,
+    681.7868041992188
+  ],
+  "prefill_tokens_per_second": 95864.79849043599,
+  "repeats": 3,
+  "sequence_length": 8192,
+  "state_growth_factor": 16.0
+}

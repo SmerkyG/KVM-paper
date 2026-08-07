@@ -1,0 +1,125 @@
+{
+  "attention_layers": 6,
+  "batch_size": 8,
+  "clone_decode_routes": false,
+  "config_order_seed": 825,
+  "configs": [
+    {
+      "block_n": 16,
+      "final_reduce_num_warps": 4,
+      "fuse_final_reduce": false,
+      "fused_attention_ms_per_step": 1.2136982067022473,
+      "kernel_ms_per_step": {
+        "final_reduce": 0.07334324983457918,
+        "leaf_local": 0.2550980512460228,
+        "route_groups": 0.38464008968730923,
+        "route_reduce": 0.2490869837347418
+      },
+      "logit_finite": true,
+      "mean_decode_step_ms": 14.563913345336914,
+      "num_warps": 2,
+      "profile_phases": true,
+      "route_group_size": 16,
+      "route_ms_per_step": 0.0,
+      "route_num_warps": 2,
+      "route_reduce_num_warps": 2,
+      "route_use_dot": true,
+      "split_kv": 16,
+      "two_level_ms_per_step": 1.2136982067022473,
+      "use_dot": false
+    },
+    {
+      "block_n": 16,
+      "final_reduce_num_warps": 8,
+      "fuse_final_reduce": false,
+      "fused_attention_ms_per_step": 1.1648584600770846,
+      "kernel_ms_per_step": {
+        "final_reduce": 0.07682171849955921,
+        "leaf_local": 0.222757468749478,
+        "route_groups": 0.38164955501270015,
+        "route_reduce": 0.24227244865323883
+      },
+      "logit_finite": true,
+      "mean_decode_step_ms": 14.179587364196777,
+      "num_warps": 2,
+      "profile_phases": true,
+      "route_group_size": 16,
+      "route_ms_per_step": 0.0,
+      "route_num_warps": 2,
+      "route_reduce_num_warps": 2,
+      "route_use_dot": true,
+      "split_kv": 16,
+      "two_level_ms_per_step": 1.1648584600770846,
+      "use_dot": false
+    },
+    {
+      "block_n": 16,
+      "final_reduce_num_warps": 8,
+      "fuse_final_reduce": false,
+      "fused_attention_ms_per_step": 1.2576132560498081,
+      "kernel_ms_per_step": {
+        "final_reduce": 0.09024075756315142,
+        "leaf_local": 0.317897863300459,
+        "route_groups": 0.3858902306528762,
+        "route_reduce": 0.2101469452609308
+      },
+      "logit_finite": true,
+      "mean_decode_step_ms": 16.239486694335938,
+      "num_warps": 2,
+      "profile_phases": true,
+      "route_group_size": 16,
+      "route_ms_per_step": 0.0,
+      "route_num_warps": 2,
+      "route_reduce_num_warps": 4,
+      "route_use_dot": true,
+      "split_kv": 16,
+      "two_level_ms_per_step": 1.2576132560498081,
+      "use_dot": false
+    },
+    {
+      "block_n": 16,
+      "final_reduce_num_warps": 4,
+      "fuse_final_reduce": false,
+      "fused_attention_ms_per_step": 1.2549491921672598,
+      "kernel_ms_per_step": {
+        "final_reduce": 0.08588691389741143,
+        "leaf_local": 0.31407871870760573,
+        "route_groups": 0.387093617246137,
+        "route_reduce": 0.2096916018781485
+      },
+      "logit_finite": true,
+      "mean_decode_step_ms": 15.378046035766602,
+      "num_warps": 2,
+      "profile_phases": true,
+      "route_group_size": 16,
+      "route_ms_per_step": 0.0,
+      "route_num_warps": 2,
+      "route_reduce_num_warps": 4,
+      "route_use_dot": true,
+      "split_kv": 16,
+      "two_level_ms_per_step": 1.2549491921672598,
+      "use_dot": false
+    }
+  ],
+  "decode_final_reduce_num_warps": [
+    4,
+    8
+  ],
+  "decode_fuse_final_reduce": false,
+  "decode_route_gqa_grouped": true,
+  "decode_route_group_sizes": [
+    16
+  ],
+  "decode_route_num_warps": [
+    2
+  ],
+  "decode_route_reduce_num_warps": [
+    2,
+    4
+  ],
+  "decode_route_use_dot": true,
+  "fused_decode_state_route": true,
+  "sequence_length": 8192,
+  "state_growth_factor": 16.0,
+  "steps": 256
+}

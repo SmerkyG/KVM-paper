@@ -1,0 +1,36 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+The fast path is not available because one of the required library is not installed. Falling back to torch implementation. To install follow https://github.com/fla-org/flash-linear-attention#installation and https://github.com/Dao-AILab/causal-conv1d
+Loading weights:   0%|          | 0/320 [00:00<?, ?it/s]Loading weights: 100%|██████████| 320/320 [00:00<00:00, 17706.12it/s]
+{
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "clone_decode_routes": false,
+  "decode_elapsed_ms": [
+    1985.283935546875,
+    1884.265869140625,
+    1854.9532470703125
+  ],
+  "decode_route_gqa_grouped": true,
+  "decode_route_group_size": 8,
+  "decode_route_num_warps": 4,
+  "decode_route_use_dot": false,
+  "decode_steps": 128,
+  "decode_tokens_per_second": 536.6404685655093,
+  "fused_decode_attention": true,
+  "fused_decode_state_route": true,
+  "logit_finite": true,
+  "mean_decode_ms": 1908.1676839192708,
+  "mean_decode_step_ms": 14.907560030619303,
+  "mean_prefill_ms": 730.4246012369791,
+  "mode": "two_level",
+  "peak_memory_gib": 9.171868801116943,
+  "prefill_elapsed_ms": [
+    691.7293090820312,
+    793.936279296875,
+    705.6082153320312
+  ],
+  "prefill_tokens_per_second": 89723.15539347159,
+  "repeats": 3,
+  "sequence_length": 8192,
+  "state_growth_factor": 16.0
+}
