@@ -417,6 +417,7 @@ def main() -> None:
         raise RuntimeError(
             "Qwen3.5 benchmark is missing required acceleration: "
             + ", ".join(missing_acceleration)
+            + "; install the project's `qwen35-fast-path` extra"
         )
     print("Qwen3.5 acceleration: " + json.dumps(acceleration, sort_keys=True))
     if args.mode == "pytorch_lod":

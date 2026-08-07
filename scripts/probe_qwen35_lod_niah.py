@@ -34,7 +34,7 @@ def enable_fla_fast_path(*, required: bool = False) -> bool:
         if required:
             raise RuntimeError(
                 "Qwen3.5's FLA fast path is required for this run; install the "
-                "project's `rwkv-kernels` extra"
+                "project's `qwen35-fast-path` extra"
             ) from error
         return False
     qwen35_modeling.FusedRMSNormGated = FusedRMSNormGated
