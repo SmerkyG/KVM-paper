@@ -15,6 +15,7 @@ from model.hf_pytorch_lod_attention import (
     reset_hf_lod_caches,
 )
 from model.pytorch_lod_attention import LODConfig
+from model.pytorch_lod_attention_paged import PagedLODConfig
 from scripts.probe_qwen35_lod_niah import enable_fla_fast_path, generate_documents
 
 
@@ -30,6 +31,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--samples", type=int, default=8)
     parser.add_argument("--open-count", type=int, default=8)
     parser.add_argument("--state-growth-factor", type=float, default=16.0)
+    parser.add_argument("--page-size", type=int, default=0)
+    parser.add_argument("--kv-bits", type=int, choices=(0, 4), default=0)
     parser.add_argument("--max-new-tokens", type=int, default=64)
     parser.add_argument("--output", type=Path, required=True)
     return parser.parse_args()
@@ -59,13 +62,21 @@ def main() -> None:
         .to(device)
         .eval()
     )
-    lod_config = LODConfig(
+    if args.kv_bits and not args.page_size:
+        raise ValueError("--kv-bits=4 requires a positive --page-size")
+    config_type = PagedLODConfig if args.page_size else LODConfig
+    lod_config = config_type(
         chunk_size=256,
         local_window=512,
         state_growth_factor=args.state_growth_factor,
         state_min_size=256,
         protected_prefix=1,
         max_routes=8,
+        **(
+            {"page_size": args.page_size, "kv_bits": args.kv_bits}
+            if args.page_size
+            else {}
+        ),
     )
     replaced = replace_qwen35_attention_with_lod(
         model,
@@ -109,6 +120,8 @@ def main() -> None:
                 "replaced_layers": replaced,
                 "open_count": args.open_count,
                 "state_growth_factor": args.state_growth_factor,
+                "page_size": args.page_size or None,
+                "kv_bits": args.kv_bits,
                 "target": target,
                 "response": response,
                 "exact": exact,

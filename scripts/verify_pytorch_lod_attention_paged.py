@@ -7,11 +7,14 @@ import argparse
 
 import torch
 
-from model.pytorch_lod_attention import LODConfig, TwoLevelLODAttention
+from model.pytorch_lod_attention import LODConfig, LODState, TwoLevelLODAttention
 from model.pytorch_lod_attention_paged import (
+    PagedKVCache,
     PagedLODConfig,
     PagedTensor,
     PagedTwoLevelLODAttention,
+    build_region_pages,
+    paged_two_level_lod_attention,
 )
 
 
@@ -99,6 +102,110 @@ def check_int4_storage(device: torch.device) -> None:
     _assert_close(appended.materialize()[..., -1:, :], addition[..., -1:, :])
 
 
+def check_recursive_page_semantics(device: torch.device) -> None:
+    dtype = torch.float32
+    key_x = torch.tensor(
+        [-1.0, 0.0, 0.0, 1.0, 2.0, 2.0, 2.0, 2.0], device=device
+    )
+    key = torch.stack((key_x, torch.zeros_like(key_x)), dim=-1).view(1, 1, 8, 2)
+    value = torch.arange(16, device=device, dtype=dtype).view(1, 1, 8, 2)
+    owner = torch.zeros(1, 1, 8, dtype=torch.long, device=device)
+    state = LODState(
+        key_sum=key.sum(dim=2, keepdim=True),
+        value_sum=value.sum(dim=2, keepdim=True),
+        count=torch.full((1, 1, 1), 8.0, device=device),
+    )
+    query = torch.tensor([[[[1.0, 0.0]]]], device=device)
+    local_key = torch.tensor([[[[-2.0, 0.0]]]], device=device)
+    local_value = torch.tensor([[[[-2.0, 3.0]]]], device=device)
+    config = PagedLODConfig(page_size=4, leaf_dtype=dtype)
+    leaves = PagedKVCache.from_tensors(key, value, config)
+    pages = build_region_pages(owner, state, leaves, page_size=4)
+    assert pages.slot_count.tolist() == [[[2]]]
+
+    result = paged_two_level_lod_attention(
+        query,
+        local_key,
+        local_value,
+        state,
+        owner,
+        leaves,
+        max_routes=1,
+        open_count=1,
+        scale=1.0,
+        query_offset=0,
+        region_pages=pages,
+    )
+    # Page 1 wins. Page 0 is represented by its count-corrected mean, while
+    # the local token remains exact in the outer coarse branch.
+    expected_score = torch.cat(
+        (
+            key_x[4:],
+            key_x[:4].mean().view(1) + torch.tensor(4.0, device=device).log(),
+            torch.tensor([-2.0], device=device),
+        )
+    )
+    expected_value = torch.cat(
+        (value[0, 0, 4:], value[0, 0, :4].mean(0, keepdim=True), local_value[0, 0])
+    )
+    expected_probability = expected_score.softmax(0)
+    expected_output = (expected_probability.unsqueeze(-1) * expected_value).sum(0)
+    _assert_close(result.output[0, 0, 0], expected_output, atol=1e-6, rtol=1e-6)
+    _assert_close(
+        result.logsumexp[0, 0, 0],
+        expected_score.logsumexp(0),
+        atol=1e-6,
+        rtol=1e-6,
+    )
+
+    full_score = torch.cat((key_x, torch.tensor([-2.0], device=device)))
+    full_value = torch.cat((value[0, 0], local_value[0, 0]))
+    full_output = (full_score.softmax(0).unsqueeze(-1) * full_value).sum(0)
+    assert float((result.output[0, 0, 0] - full_output).abs().max()) > 1e-3
+
+    # Exercise selection across more than one bounded 16-page scan block.
+    long_x = torch.arange(20, device=device, dtype=dtype).repeat_interleave(4)
+    long_key = torch.stack((long_x, torch.zeros_like(long_x)), -1).view(1, 1, 80, 2)
+    long_value = torch.arange(160, device=device, dtype=dtype).view(1, 1, 80, 2)
+    long_owner = torch.zeros(1, 1, 80, dtype=torch.long, device=device)
+    long_state = LODState(
+        key_sum=long_key.sum(2, keepdim=True),
+        value_sum=long_value.sum(2, keepdim=True),
+        count=torch.full((1, 1, 1), 80.0, device=device),
+    )
+    long_leaves = PagedKVCache.from_tensors(long_key, long_value, config)
+    long_result = paged_two_level_lod_attention(
+        query,
+        local_key,
+        local_value,
+        long_state,
+        long_owner,
+        long_leaves,
+        max_routes=1,
+        open_count=1,
+        scale=1.0,
+        query_offset=0,
+    )
+    long_score = torch.cat(
+        (
+            long_x[-4:],
+            long_x[:-4].mean().view(1) + torch.tensor(76.0, device=device).log(),
+            torch.tensor([-2.0], device=device),
+        )
+    )
+    long_expected_value = torch.cat(
+        (
+            long_value[0, 0, -4:],
+            long_value[0, 0, :-4].mean(0, keepdim=True),
+            local_value[0, 0],
+        )
+    )
+    long_expected = (long_score.softmax(0).unsqueeze(-1) * long_expected_value).sum(0)
+    _assert_close(
+        long_result.output[0, 0, 0], long_expected, atol=2e-5, rtol=2e-5
+    )
+
+
 def check_module(device: torch.device) -> None:
     torch.manual_seed(30)
     dtype = torch.float32 if device.type == "cpu" else torch.bfloat16
@@ -133,7 +240,7 @@ def check_module(device: torch.device) -> None:
         no_page_output, no_page_cache = no_pages(
             query, key, value, use_cache=True
         )
-    tolerance = 0.0 if device.type == "cpu" else 2e-2
+    tolerance = 1e-5 if device.type == "cpu" else 2e-2
     _assert_close(page_output, flat_output, atol=tolerance, rtol=tolerance)
     _assert_close(no_page_output, flat_output, atol=tolerance, rtol=tolerance)
 
@@ -202,6 +309,7 @@ def main() -> None:
 
     check_page_storage(device)
     check_int4_storage(device)
+    check_recursive_page_semantics(device)
     check_module(device)
     print(f"paged LOD verification passed on {device}")
 

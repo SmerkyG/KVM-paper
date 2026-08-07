@@ -43,6 +43,9 @@ class Qwen3_5FastLODAttention(Qwen3_5Attention):
         self._lod_hf_cache_id = None
         self.lod_engine._posting_key = None
         self.lod_engine._postings = None
+        if isinstance(self.lod_engine, PagedTwoLevelLODAttention):
+            self.lod_engine._region_key = None
+            self.lod_engine._region_pages = None
 
     def _update_qwen_cache_length(
         self,

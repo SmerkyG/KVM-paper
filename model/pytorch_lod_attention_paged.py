@@ -1,12 +1,17 @@
-"""Paged, optionally INT4, pure-PyTorch LOD attention.
+"""Recursive paged, optionally INT4, pure-PyTorch LOD attention.
 
 This is a small storage-focused variant of :mod:`pytorch_lod_attention`.
-Routing, state updates, local attention, and LSE merging are reused unchanged.
-Only the exact leaf archive differs:
+State updates, local attention, and LSE merging are reused unchanged.  With a
+positive page size, each routed state region is split into logical pages.  The
+highest-mass page is attended exactly and the rest of that region is retained
+as one count-corrected residual summary.  Thus a recursive route reads one page
+per region without dropping or double-counting its remaining leaves.
+
+Physical K/V storage is independent of those logical region pages:
 
 * ``page_size=None`` uses the existing flat BF16 archive;
-* a positive ``page_size`` stores completed chronological pages separately
-  from the unfinished BF16 tail; and
+* a positive ``page_size`` recursively opens region pages while storing
+  completed chronological K/V pages separately from the unfinished BF16 tail;
 * ``kv_bits=4`` packs completed pages into two signed nibbles per byte.
 
 INT4 pages use one BF16 mean anchor per page and one BF16 symmetric residual
@@ -32,16 +37,15 @@ from .pytorch_lod_attention import (
     LODConfig,
     LODState,
     TwoLevelLODAttention,
-    two_level_lod_attention,
+    _attention_from_scores,
+    _repeat_kv,
 )
 from .pytorch_lod_attention_fast import (
     _FastLocalMixin,
     _attention_needs_grad,
     _fast_coarse_attention,
     _merge_two_branches,
-    _packed_leaf_attention,
     _posting_lists,
-    _prefer_gathered_leaves,
     _route_state,
     fast_two_level_lod_attention,
 )
@@ -59,6 +63,8 @@ class PagedLODConfig(LODConfig):
         super().__post_init__()
         if self.page_size is not None and self.page_size <= 0:
             raise ValueError("page_size must be positive or None")
+        if self.page_size is not None and self.chunk_size % self.page_size:
+            raise ValueError("page_size must divide chunk_size for causal prefill")
         if self.kv_bits not in (0, 4):
             raise ValueError("kv_bits must be zero or four")
         if self.kv_bits and self.page_size is None:
@@ -283,8 +289,11 @@ class PagedTensor:
             raise ValueError("positions must begin with [batch, query_heads]")
         if int(position.size(1)) != query_heads:
             raise ValueError("position query-head count is inconsistent")
-        if bool((position < 0).any().item()) or bool(
-            (position >= self.length).any().item()
+        # Recursive GPU callers construct positions from the cache itself;
+        # avoid a device synchronization solely for defensive bounds checks.
+        if position.device.type == "cpu" and (
+            bool((position < 0).any().item())
+            or bool((position >= self.length).any().item())
         ):
             raise ValueError("paged gather position is outside the archive")
         key_value_heads = int(self.tail.size(1))
@@ -419,75 +428,279 @@ class PagedLODCache:
         )
 
 
-def _paged_gathered_leaf_attention(
-    query: torch.Tensor,
-    leaves: PagedKVCache,
+@dataclass
+class RegionPages:
+    """Logical, region-owned pages over positions in the physical KV archive."""
+
+    position: torch.Tensor
+    key_sum: torch.Tensor
+    value_sum: torch.Tensor
+    count: torch.Tensor
+    slot_start: torch.Tensor
+    slot_count: torch.Tensor
+
+
+def build_region_pages(
     owner: torch.Tensor,
     state: LODState,
+    leaves: PagedKVCache,
+    page_size: int,
+) -> RegionPages:
+    """Stably partition each state region's postings into logical pages."""
+    batch, key_value_heads, history_length = owner.shape
+    slot_leaf_count = state.count.round().to(torch.long)
+    slot_page_count = torch.div(
+        slot_leaf_count + page_size - 1, page_size, rounding_mode="floor"
+    )
+    slot_page_start = slot_page_count.cumsum(-1) - slot_page_count
+    page_capacity = int(slot_page_count.sum(-1).max().item())
+    position = torch.full(
+        (batch, key_value_heads, page_capacity, page_size),
+        -1,
+        dtype=torch.long,
+        device=owner.device,
+    )
+    key_sum = state.key_sum.new_zeros(
+        batch, key_value_heads, page_capacity, int(state.key_sum.size(-1))
+    )
+    value_sum = state.value_sum.new_zeros(
+        batch, key_value_heads, page_capacity, int(state.value_sum.size(-1))
+    )
+    page_count = torch.zeros(
+        batch,
+        key_value_heads,
+        page_capacity,
+        dtype=torch.long,
+        device=owner.device,
+    )
+    if history_length == 0:
+        return RegionPages(
+            position,
+            key_sum,
+            value_sum,
+            page_count,
+            slot_page_start,
+            slot_page_count,
+        )
+
+    with torch.no_grad():
+        order = owner.argsort(dim=-1, stable=True)
+        sorted_slot = owner.gather(-1, order)
+        slot_leaf_start = slot_leaf_count.cumsum(-1) - slot_leaf_count
+        rank = torch.arange(history_length, device=owner.device)
+        rank = rank.view(1, 1, -1) - slot_leaf_start.gather(-1, sorted_slot)
+        page = slot_page_start.gather(-1, sorted_slot) + torch.div(
+            rank, page_size, rounding_mode="floor"
+        )
+        offset = rank.remainder(page_size)
+        batch_index = torch.arange(batch, device=owner.device).view(-1, 1, 1)
+        head_index = torch.arange(
+            key_value_heads, device=owner.device
+        ).view(1, -1, 1)
+        position[batch_index, head_index, page, offset] = order
+
+    sorted_key = leaves.key.gather(order, key_value_heads).to(key_sum.dtype)
+    sorted_value = leaves.value.gather(order, key_value_heads).to(value_sum.dtype)
+    key_sum.scatter_add_(
+        2, page.unsqueeze(-1).expand_as(sorted_key), sorted_key
+    )
+    value_sum.scatter_add_(
+        2, page.unsqueeze(-1).expand_as(sorted_value), sorted_value
+    )
+    page_count.scatter_add_(2, page, torch.ones_like(page))
+    return RegionPages(
+        position,
+        key_sum,
+        value_sum,
+        page_count,
+        slot_page_start,
+        slot_page_count,
+    )
+
+
+def _empty_recursive_attention(
+    query: torch.Tensor, value_dim: int
+) -> tuple[torch.Tensor, torch.Tensor]:
+    output = query.new_zeros(*query.shape[:-1], value_dim)
+    lse = torch.full(
+        query.shape[:-1], -torch.inf, dtype=torch.float32, device=query.device
+    )
+    return output, lse
+
+
+def _gather_page_vectors(
+    tensor: torch.Tensor,
+    page: torch.Tensor,
+    kv_head: torch.Tensor,
+) -> torch.Tensor:
+    """Gather ``[B,KVH,P,D]`` rows for arbitrary ``[B,QH,...]`` IDs."""
+    batch, query_heads = page.shape[:2]
+    dimension = int(tensor.size(-1))
+    extra_dimensions = page.ndim - 2
+    source = tensor[:, kv_head].view(
+        batch,
+        query_heads,
+        *([1] * extra_dimensions),
+        int(tensor.size(2)),
+        dimension,
+    ).expand(
+        *page.shape, int(tensor.size(2)), dimension
+    )
+    index = page.unsqueeze(-1).unsqueeze(-1).expand(*page.shape, 1, dimension)
+    return source.gather(-2, index).squeeze(-2)
+
+
+def _gather_page_counts(
+    count: torch.Tensor,
+    page: torch.Tensor,
+    kv_head: torch.Tensor,
+) -> torch.Tensor:
+    batch, query_heads = page.shape[:2]
+    source = count[:, kv_head].view(
+        batch,
+        query_heads,
+        *([1] * (page.ndim - 2)),
+        int(count.size(2)),
+    ).expand(*page.shape, int(count.size(2)))
+    return source.gather(-1, page.unsqueeze(-1)).squeeze(-1)
+
+
+def _select_region_pages(
+    query: torch.Tensor,
+    pages: RegionPages,
     top_slots: torch.Tensor,
     open_mask: torch.Tensor,
-    posting_order: torch.Tensor,
-    posting_starts: torch.Tensor,
+    kv_head: torch.Tensor,
+    *,
+    scale: float,
+) -> torch.Tensor:
+    """Find the best page per route with bounded intermediate storage."""
+    query_length = int(query.size(2))
+    starts = pages.slot_start[:, kv_head].unsqueeze(2).expand(
+        -1, -1, query_length, -1
+    ).gather(-1, top_slots)
+    counts = pages.slot_count[:, kv_head].unsqueeze(2).expand(
+        -1, -1, query_length, -1
+    ).gather(-1, top_slots)
+    counts = torch.where(open_mask, counts, torch.zeros_like(counts))
+    route_max_pages = counts.amax(dim=(0, 1, 2)).tolist()
+    selected = []
+    for route in range(int(top_slots.size(-1))):
+        route_count = counts[..., route]
+        route_start = starts[..., route]
+        best_score = torch.full_like(route_count, -torch.inf, dtype=torch.float32)
+        best_page = route_start
+        max_pages = int(route_max_pages[route])
+        for begin in range(0, max_pages, 16):
+            width = min(16, max_pages - begin)
+            offset = begin + torch.arange(width, device=query.device)
+            valid = offset < route_count.unsqueeze(-1)
+            page = (route_start.unsqueeze(-1) + offset).clamp_max(
+                int(pages.count.size(2)) - 1
+            )
+            page_count = _gather_page_counts(
+                pages.count, page, kv_head
+            ).clamp_min(1)
+            key_sum = _gather_page_vectors(pages.key_sum, page, kv_head)
+            score = (
+                query.float().unsqueeze(-2)
+                * (key_sum.float() / page_count.unsqueeze(-1))
+            ).sum(-1) * scale + page_count.float().log()
+            score.masked_fill_(~valid, -torch.inf)
+            block_score, block_offset = score.max(dim=-1)
+            block_page = page.gather(-1, block_offset.unsqueeze(-1)).squeeze(-1)
+            better = block_score > best_score
+            best_score = torch.where(better, block_score, best_score)
+            best_page = torch.where(better, block_page, best_page)
+        selected.append(best_page)
+    return torch.stack(selected, dim=-1)
+
+
+def _recursive_page_attention(
+    query: torch.Tensor,
+    state: LODState,
+    leaves: PagedKVCache,
+    pages: RegionPages,
+    top_slots: torch.Tensor,
+    open_mask: torch.Tensor,
     *,
     scale: float,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """Gather only routed leaves, dequantizing selected INT4 entries."""
+    """Open one page per routed region and summarize its disjoint residual."""
     batch, query_heads, query_length, _ = query.shape
-    key_value_heads = int(owner.size(1))
+    key_value_heads = int(pages.position.size(1))
     groups = query_heads // key_value_heads
     route_count = int(top_slots.size(-1))
     value_dim = leaves.value.dimension
     if route_count == 0:
-        return (
-            query.new_zeros(batch, query_heads, query_length, value_dim),
-            torch.full(
-                (batch, query_heads, query_length),
-                -torch.inf,
-                dtype=torch.float32,
-                device=query.device,
-            ),
-        )
+        return _empty_recursive_attention(query, value_dim)
 
     kv_head = torch.div(
         torch.arange(query_heads, device=query.device),
         groups,
         rounding_mode="floor",
     )
-    counts = state.count[:, kv_head]
-    starts = posting_starts[:, kv_head]
-    order = posting_order[:, kv_head]
-    expanded_counts = counts.unsqueeze(2).expand(-1, -1, query_length, -1)
-    expanded_starts = starts.unsqueeze(2).expand(-1, -1, query_length, -1)
-    selected_counts = expanded_counts.gather(-1, top_slots)
-    selected_starts = expanded_starts.gather(-1, top_slots)
-    selected_counts = torch.where(
-        open_mask, selected_counts, torch.zeros_like(selected_counts)
+    selected_page = _select_region_pages(
+        query, pages, top_slots, open_mask, kv_head, scale=scale
     )
-    max_count = int(selected_counts.max().item())
-    if max_count == 0:
-        return (
-            query.new_zeros(batch, query_heads, query_length, value_dim),
-            torch.full(
-                (batch, query_heads, query_length),
-                -torch.inf,
-                dtype=torch.float32,
-                device=query.device,
-            ),
-        )
-
-    offset = torch.arange(max_count, device=query.device)
-    posting_rank = selected_starts.unsqueeze(-1) + offset
-    valid = offset < selected_counts.unsqueeze(-1)
-    posting_rank = posting_rank.clamp_max(int(owner.size(2)) - 1)
-    position = order.unsqueeze(2).unsqueeze(3).expand(
-        -1, -1, query_length, route_count, -1
-    ).gather(-1, posting_rank)
-    selected_key = leaves.key.gather(position, query_heads)
-    selected_value = leaves.value.gather(position, query_heads).flatten(-3, -2)
-    scores = (
+    selected_count = _gather_page_counts(pages.count, selected_page, kv_head)
+    selected_key_sum = _gather_page_vectors(
+        pages.key_sum, selected_page, kv_head
+    )
+    selected_value_sum = _gather_page_vectors(
+        pages.value_sum, selected_page, kv_head
+    )
+    selected_position = _gather_page_vectors(
+        pages.position, selected_page, kv_head
+    )
+    token_valid = open_mask.unsqueeze(-1) & selected_position.ge(0)
+    safe_position = selected_position.clamp_min(0)
+    selected_key = leaves.key.gather(safe_position, query_heads)
+    selected_value = leaves.value.gather(safe_position, query_heads)
+    token_score = (
         query.float().unsqueeze(-2).unsqueeze(-2) * selected_key.float()
-    ).sum(dim=-1) * scale
-    scores = scores.masked_fill(~valid, -torch.inf).flatten(-2)
+    ).sum(-1) * scale
+    token_score.masked_fill_(~token_valid, -torch.inf)
+
+    state_key = state.key_sum[:, kv_head].unsqueeze(2).expand(
+        -1, -1, query_length, -1, -1
+    ).gather(
+        3,
+        top_slots.unsqueeze(-1).expand(
+            -1, -1, -1, -1, int(state.key_sum.size(-1))
+        ),
+    )
+    state_value = state.value_sum[:, kv_head].unsqueeze(2).expand(
+        -1, -1, query_length, -1, -1
+    ).gather(
+        3,
+        top_slots.unsqueeze(-1).expand(
+            -1, -1, -1, -1, int(state.value_sum.size(-1))
+        ),
+    )
+    state_count = state.count[:, kv_head].unsqueeze(2).expand(
+        -1, -1, query_length, -1
+    ).gather(-1, top_slots)
+    residual_count = state_count - selected_count
+    residual_valid = open_mask & residual_count.gt(0)
+    safe_residual_count = residual_count.clamp_min(1)
+    residual_key = (
+        state_key.float() - selected_key_sum.float()
+    ) / safe_residual_count.unsqueeze(-1)
+    residual_value = (
+        state_value.float() - selected_value_sum.float()
+    ) / safe_residual_count.unsqueeze(-1)
+    residual_score = (
+        query.float().unsqueeze(-2) * residual_key
+    ).sum(-1) * scale + safe_residual_count.float().log()
+    residual_score.masked_fill_(~residual_valid, -torch.inf)
+
+    scores = torch.cat((residual_score.unsqueeze(-1), token_score), dim=-1)
+    scores = scores.flatten(-2)
+    values = torch.cat(
+        (residual_value.to(selected_value.dtype).unsqueeze(-2), selected_value),
+        dim=-2,
+    ).flatten(-3, -2)
     exact_lse = torch.logsumexp(scores, dim=-1)
     finite = torch.isfinite(exact_lse)
     safe_scores = torch.where(
@@ -497,10 +710,62 @@ def _paged_gathered_leaf_attention(
     probability = torch.where(
         finite.unsqueeze(-1), probability, torch.zeros_like(probability)
     )
-    exact_output = torch.matmul(
-        probability.to(selected_value.dtype).unsqueeze(-2), selected_value
+    output = torch.matmul(
+        probability.to(values.dtype).unsqueeze(-2), values
     ).squeeze(-2)
-    return exact_output, exact_lse
+    return output, exact_lse
+
+
+def _reference_coarse_attention(
+    query: torch.Tensor,
+    local_key: torch.Tensor,
+    local_value: torch.Tensor,
+    state: LODState,
+    top_slots: torch.Tensor,
+    open_mask: torch.Tensor,
+    *,
+    scale: float,
+    query_offset: int,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Dense fallback for the coarse/local branch with routed slots removed."""
+    query_heads = int(query.size(1))
+    query_length = int(query.size(2))
+    state_key = _repeat_kv(state.mean_key, query_heads)
+    state_value = _repeat_kv(state.mean_value, query_heads)
+    local_key = _repeat_kv(local_key, query_heads)
+    local_value = _repeat_kv(local_value, query_heads)
+    key = torch.cat((state_key, local_key), dim=2)
+    value = torch.cat((state_value, local_value), dim=2)
+    scores = torch.matmul(
+        query.float(), key.float().transpose(-1, -2)
+    ) * float(scale)
+    state_bias = _repeat_kv(state.count.clamp_min(1).log(), query_heads)
+    state_bias = state_bias.unsqueeze(2).expand(-1, -1, query_length, -1).clone()
+    for route in range(int(top_slots.size(-1))):
+        state_bias.scatter_(
+            -1,
+            top_slots[..., route : route + 1],
+            torch.where(
+                open_mask[..., route : route + 1],
+                torch.full_like(state_bias[..., :1], -torch.inf),
+                state_bias.gather(-1, top_slots[..., route : route + 1]),
+            ),
+        )
+    query_index = torch.arange(query_length, device=query.device).unsqueeze(-1)
+    local_index = torch.arange(int(local_key.size(2)), device=query.device)
+    local_bias = torch.zeros(
+        query_length, int(local_key.size(2)), device=query.device
+    ).masked_fill(local_index > query_index + query_offset, -torch.inf)
+    bias = torch.cat(
+        (
+            state_bias,
+            local_bias.view(1, 1, query_length, -1).expand(
+                int(query.size(0)), query_heads, -1, -1
+            ),
+        ),
+        dim=-1,
+    )
+    return _attention_from_scores(scores + bias, value)
 
 
 def paged_two_level_lod_attention(
@@ -515,9 +780,9 @@ def paged_two_level_lod_attention(
     open_count: int | torch.Tensor = 8,
     scale: float | None = None,
     query_offset: int | None = None,
-    postings: tuple[torch.Tensor, torch.Tensor] | None = None,
+    region_pages: RegionPages | None = None,
 ) -> LODAttentionResult:
-    """Apply the existing two-level algorithm to a paged leaf archive."""
+    """Apply recursive region-to-page LOD to a paged leaf archive."""
     if scale is None:
         scale = 1.0 / math.sqrt(float(query.size(-1)))
     if query_offset is None:
@@ -538,22 +803,6 @@ def paged_two_level_lod_attention(
         and int(query.size(-1)) == leaves.value.dimension
         and not _attention_needs_grad(query, local_key, local_value)
     )
-    if not fast_supported:
-        leaf_key, leaf_value = leaves.materialize()
-        return two_level_lod_attention(
-            query,
-            local_key,
-            local_value,
-            state,
-            owner,
-            leaf_key,
-            leaf_value,
-            max_routes=max_routes,
-            open_count=open_count,
-            scale=scale,
-            query_offset=query_offset,
-        )
-
     top_slots, open_mask = _route_state(
         query,
         state,
@@ -561,44 +810,43 @@ def paged_two_level_lod_attention(
         open_count=open_count,
         scale=scale,
     )
-    coarse_output, coarse_lse = _fast_coarse_attention(
-        query,
-        local_key,
-        local_value,
-        state,
-        top_slots=top_slots,
-        open_mask=open_mask,
-        scale=scale,
-        query_offset=query_offset,
-    )
-    if postings is None:
-        postings = _posting_lists(owner, state)
-    if _prefer_gathered_leaves(query, state, top_slots, open_mask):
-        exact_output, exact_lse = _paged_gathered_leaf_attention(
+    if fast_supported:
+        coarse_output, coarse_lse = _fast_coarse_attention(
             query,
-            leaves,
-            owner,
+            local_key,
+            local_value,
             state,
-            top_slots,
-            open_mask,
-            postings[0],
-            postings[1],
+            top_slots=top_slots,
+            open_mask=open_mask,
             scale=scale,
+            query_offset=query_offset,
         )
     else:
-        leaf_key, leaf_value = leaves.materialize()
-        exact_output, exact_lse = _packed_leaf_attention(
+        coarse_output, coarse_lse = _reference_coarse_attention(
             query,
-            leaf_key,
-            leaf_value,
-            owner,
+            local_key,
+            local_value,
             state,
             top_slots,
             open_mask,
-            postings[0],
-            postings[1],
             scale=scale,
+            query_offset=query_offset,
         )
+    if region_pages is None:
+        # Low-level callers can pass persistent summaries; the module caches
+        # them until either ownership or physical page quantization changes.
+        region_pages = build_region_pages(
+            owner, state, leaves, leaves.key.page_size
+        )
+    exact_output, exact_lse = _recursive_page_attention(
+        query,
+        state,
+        leaves,
+        region_pages,
+        top_slots,
+        open_mask,
+        scale=scale,
+    )
     output = _merge_two_branches(
         coarse_output, coarse_lse, exact_output, exact_lse
     )
@@ -611,7 +859,7 @@ def paged_two_level_lod_attention(
 
 
 class PagedTwoLevelLODAttention(_FastLocalMixin, TwoLevelLODAttention):
-    """Flat or paged two-level LOD with optional completed-page INT4 K/V."""
+    """Flat LOD or recursive paged LOD with optional INT4 physical K/V."""
 
     config: PagedLODConfig
 
@@ -625,6 +873,8 @@ class PagedTwoLevelLODAttention(_FastLocalMixin, TwoLevelLODAttention):
         super().__init__(config, default_open_count=default_open_count)
         self._posting_key: tuple[int, tuple[int, ...], int] | None = None
         self._postings: tuple[torch.Tensor, torch.Tensor] | None = None
+        self._region_key: tuple[int, tuple[int, ...], int, int] | None = None
+        self._region_pages: RegionPages | None = None
 
     @property
     def uses_pages(self) -> bool:
@@ -638,6 +888,24 @@ class PagedTwoLevelLODAttention(_FastLocalMixin, TwoLevelLODAttention):
             self._postings = _posting_lists(owner, state)
             self._posting_key = key
         return self._postings
+
+    def _cached_region_pages(
+        self, owner: torch.Tensor, state: LODState, leaves: PagedKVCache
+    ) -> RegionPages:
+        key = (
+            owner.data_ptr(),
+            tuple(owner.shape),
+            state.slot_count,
+            leaves.key.complete_pages,
+        )
+        if key != self._region_key or self._region_pages is None:
+            if self.config.page_size is None:
+                raise AssertionError("recursive page cache has no page size")
+            self._region_pages = build_region_pages(
+                owner, state, leaves, self.config.page_size
+            )
+            self._region_key = key
+        return self._region_pages
 
     def _attend(self, query, local_key, local_value, state, **kwargs):
         owner = kwargs["owner"]
@@ -683,7 +951,7 @@ class PagedTwoLevelLODAttention(_FastLocalMixin, TwoLevelLODAttention):
             open_count=open_count,
             scale=scale,
             query_offset=int(local_key.size(2)) - int(query.size(2)),
-            postings=self._cached_postings(owner, state),
+            region_pages=self._cached_region_pages(owner, state, leaves),
         ).output
 
     def _prefill(
@@ -706,6 +974,8 @@ class PagedTwoLevelLODAttention(_FastLocalMixin, TwoLevelLODAttention):
                 use_cache=use_cache,
             )
 
+        self._region_key = None
+        self._region_pages = None
         sequence_length = int(query.size(2))
         front_length = min(sequence_length, self.config.local_window)
         outputs = [
@@ -866,5 +1136,7 @@ __all__ = [
     "PagedLODConfig",
     "PagedTensor",
     "PagedTwoLevelLODAttention",
+    "RegionPages",
+    "build_region_pages",
     "paged_two_level_lod_attention",
 ]
