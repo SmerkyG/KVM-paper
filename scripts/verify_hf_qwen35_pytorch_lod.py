@@ -1,0 +1,156 @@
+#!/usr/bin/env python3
+"""End-to-end Qwen3.5 smoke and cache checks for the HF LOD replacement."""
+
+from __future__ import annotations
+
+import argparse
+
+import torch
+import transformers.models.qwen3_5.modeling_qwen3_5 as qwen35_modeling
+from transformers import AutoConfig, Qwen3_5ForCausalLM
+
+from model.hf_pytorch_lod_attention import (
+    Qwen3_5FastLODAttention,
+    replace_qwen35_attention_with_lod,
+    reset_hf_lod_caches,
+)
+from model.pytorch_lod_attention import LODConfig
+
+
+def enable_fla_fast_path() -> None:
+    try:
+        from fla.modules import FusedRMSNormGated
+        from fla.ops.gated_delta_rule import (
+            chunk_gated_delta_rule,
+            fused_recurrent_gated_delta_rule,
+        )
+    except ImportError:
+        return
+    qwen35_modeling.FusedRMSNormGated = FusedRMSNormGated
+    qwen35_modeling.chunk_gated_delta_rule = chunk_gated_delta_rule
+    qwen35_modeling.fused_recurrent_gated_delta_rule = (
+        fused_recurrent_gated_delta_rule
+    )
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--checkpoint", default="Qwen/Qwen3.5-0.8B")
+    parser.add_argument("--exact-length", type=int, default=128)
+    parser.add_argument("--lod-length", type=int, default=1024)
+    parser.add_argument("--decode-tokens", type=int, default=4)
+    return parser.parse_args()
+
+
+@torch.inference_mode()
+def main() -> None:
+    args = parse_args()
+    if not torch.cuda.is_available():
+        raise RuntimeError("Qwen3.5 verification requires a CUDA or ROCm GPU")
+    enable_fla_fast_path()
+    device = torch.device("cuda")
+    composite_config = AutoConfig.from_pretrained(
+        args.checkpoint, trust_remote_code=True
+    )
+    config = composite_config.text_config
+    config._attn_implementation = "sdpa"
+    model = (
+        Qwen3_5ForCausalLM.from_pretrained(
+            args.checkpoint,
+            config=config,
+            dtype=torch.bfloat16,
+        )
+        .to(device)
+        .eval()
+    )
+    generator = torch.Generator(device=device).manual_seed(80)
+    exact_ids = torch.randint(
+        0,
+        config.vocab_size,
+        (1, args.exact_length),
+        generator=generator,
+        device=device,
+    )
+    baseline_logits = model(input_ids=exact_ids, use_cache=False).logits
+    original_state_keys = tuple(model.state_dict())
+
+    lod_config = LODConfig(
+        chunk_size=256,
+        local_window=512,
+        state_growth_factor=16.0,
+        state_min_size=256,
+        protected_prefix=1,
+        max_routes=8,
+    )
+    replaced = replace_qwen35_attention_with_lod(
+        model, config=lod_config, open_count=8
+    )
+    expected = [
+        index
+        for index, layer_type in enumerate(config.layer_types)
+        if layer_type == "full_attention"
+    ]
+    if replaced != expected:
+        raise AssertionError(f"replaced layers {replaced}, expected {expected}")
+    if sum(
+        isinstance(module, Qwen3_5FastLODAttention)
+        for module in model.modules()
+    ) != len(expected):
+        raise AssertionError("unexpected number of installed LOD attention modules")
+    if tuple(model.state_dict()) != original_state_keys:
+        raise AssertionError("attention replacement changed model state-dict keys")
+
+    lod_exact_logits = model(input_ids=exact_ids, use_cache=False).logits
+    torch.testing.assert_close(
+        lod_exact_logits.float(),
+        baseline_logits.float(),
+        atol=3e-2,
+        rtol=3e-2,
+    )
+    print(
+        f"exact local parity passed: length={args.exact_length} "
+        f"layers={replaced}"
+    )
+
+    long_ids = torch.randint(
+        0,
+        config.vocab_size,
+        (1, args.lod_length),
+        generator=generator,
+        device=device,
+    )
+    long_result = model(input_ids=long_ids, labels=long_ids, use_cache=False)
+    if long_result.loss is None or not bool(torch.isfinite(long_result.loss).item()):
+        raise AssertionError("LOD model produced a non-finite long-context loss")
+
+    prefix_length = args.lod_length - args.decode_tokens
+    reset_hf_lod_caches(model)
+    cached = model(input_ids=long_ids[:, :prefix_length], use_cache=True)
+    past_key_values = cached.past_key_values
+    if past_key_values is None or past_key_values.get_seq_length() != prefix_length:
+        raise AssertionError("Qwen cache did not receive the LOD prefill length")
+    for layer_index in expected:
+        metadata = past_key_values.key_cache[layer_index]
+        if metadata is not None and int(metadata.numel()) != 0:
+            raise AssertionError("Qwen retained a duplicate ordinary KV cache")
+    for token_index in range(prefix_length, args.lod_length):
+        cached = model(
+            input_ids=long_ids[:, token_index : token_index + 1],
+            past_key_values=past_key_values,
+            use_cache=True,
+        )
+        past_key_values = cached.past_key_values
+        if past_key_values is None:
+            raise AssertionError("Qwen decode dropped its cache")
+    if past_key_values.get_seq_length() != args.lod_length:
+        raise AssertionError("Qwen cache length did not advance during decode")
+    if not bool(torch.isfinite(cached.logits).all().item()):
+        raise AssertionError("LOD cached decode produced non-finite logits")
+    print(
+        f"long-context and cached decode passed: length={args.lod_length} "
+        f"loss={float(long_result.loss):.6f}"
+    )
+
+
+if __name__ == "__main__":
+    main()

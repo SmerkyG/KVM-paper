@@ -31,7 +31,9 @@ from .pytorch_lod_attention import (
     LODConfig,
     LODState,
     TwoLevelLODAttention,
+    _attention_from_scores,
     _normalize_open_count,
+    _repeat_kv,
     coarse_lod_attention,
     two_level_lod_attention,
 )
@@ -166,6 +168,18 @@ def _fast_coarse_attention(
         int(query.size(0)), query_heads, query_length, local_length
     )
     attention_bias = torch.cat((state_bias, local_bias), dim=-1)
+
+    # Inductor's FlexAttention decoding specialization is brittle for the
+    # many different short tail lengths produced by chunked prefill.  The
+    # score matrix is small in this regime, and a direct PyTorch matmul avoids
+    # both repeated compilation and occasional no-valid-config failures.
+    if query_length < 128:
+        repeated_key = _repeat_kv(coarse_key, query_heads)
+        repeated_value = _repeat_kv(coarse_value, query_heads)
+        scores = torch.matmul(
+            query.float(), repeated_key.float().transpose(-1, -2)
+        ) * float(scale)
+        return _attention_from_scores(scores + attention_bias, repeated_value)
 
     def score_mod(score, batch, head, q_idx, kv_idx):
         return score + attention_bias[batch, head, q_idx, kv_idx]
