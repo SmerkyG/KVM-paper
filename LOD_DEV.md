@@ -10,7 +10,9 @@ LOD attention.
   both coarse-only and exact-leaf LOD attention
 - `model/pytorch_lod_attention_fast.py`: inference-oriented PyTorch backend
   using SDPA, separately compiled FlexAttention, and packed FlashAttention
-- `model/hf_pytorch_lod_attention.py`: thin Hugging Face/Qwen3.5 adapter
+- `model/hf_pytorch_lod_attention.py`: registered model-independent Hugging
+  Face backend and uniformly LOD-owned cache
+- `model/hf_qwen35_lod_attention.py`: Qwen3.5 hybrid-cache compatibility adapter
 - `model/triton_lod_engines.py`: generic kernel-backed post-QKV engines
 - `model/triton_lod_attention.py`: optimized post-QKV LOD runtime
 - `model/kernels/lod_kernels.py`: state update and routing Triton kernels
@@ -81,44 +83,63 @@ PYTHONPATH=. uv run python scripts/benchmark_pytorch_lod_attention_fast.py
 
 ## Hugging Face replacement
 
-`model/hf_pytorch_lod_attention.py` supplies the thin model-specific layer
-around the generic post-RoPE implementation. For Qwen3.5 it preserves the
-loaded projection, normalization, gate, and output-projection weights and
-changes only the attention calculation in each `full_attention` layer:
+`model/hf_pytorch_lod_attention.py` registers a model-independent backend with
+Hugging Face's `AttentionInterface`. The model retains its own projections,
+normalization, positional encoding, output gating, and output projection. The
+same backend has been checked with Llama, Mistral, and Qwen3 decoder models:
 
 ```python
-from transformers import Qwen3_5ForCausalLM
-from model.hf_pytorch_lod_attention import replace_qwen35_attention_with_lod
-from model.pytorch_lod_attention import LODConfig
+from transformers import AutoModelForCausalLM
+from model.hf_pytorch_lod_attention import (
+    install_hf_lod_attention,
+    new_hf_lod_cache,
+)
+from model.pytorch_lod_attention_paged import PagedLODConfig
 
-model = Qwen3_5ForCausalLM.from_pretrained(
-    "Qwen/Qwen3.5-0.8B", dtype="bfloat16"
+model = AutoModelForCausalLM.from_pretrained(
+    "Qwen/Qwen3-0.6B", dtype="bfloat16"
 ).cuda().eval()
-replaced_layers = replace_qwen35_attention_with_lod(
+install_hf_lod_attention(
     model,
-    config=LODConfig(
+    config=PagedLODConfig(
         chunk_size=256,
         local_window=512,
         state_growth_factor=16.0,
         state_min_size=256,
         max_routes=8,
+        page_size=16,
+        kv_bits=0,  # change only this storage policy to 4 for INT4 leaves
     ),
     open_count=8,
 )
+lod_cache = new_hf_lod_cache(model)
+output = model.generate(
+    input_ids,
+    past_key_values=lod_cache,
+    max_new_tokens=128,
+)
 ```
 
-The adapter uses Qwen's hybrid cache only to report sequence length; exact KV,
-LOD state, and the local window live in the LOD cache instead of being copied
-into the ordinary full-attention cache. It currently assumes unpadded causal
-input and single-beam generation. Its `engine_backend` selects either the
-pure-PyTorch engines or the generic kernel-backed engines without changing the
-Qwen shell. The same pattern can support another HF model by copying its
-projection/RoPE/output shell and calling an LOD engine at the post-RoPE
-boundary.
+`HFLODCache` owns the exact leaves, low-LOD state, ownership metadata, and local
+window in both BF16 and INT4 modes. Its HF `keys` and `values` members are empty
+typed sentinels, so the model does not retain a second ordinary KV cache. Cache
+updates stage the new post-RoPE K/V block; the registered attention backend
+then consumes it in the correct causal order. Beam expansion and reordering are
+implemented, while partial cache rollback, padding, and non-causal attention
+are rejected explicitly.
 
-Run the Qwen adapter checks and NIAH smoke evaluation with:
+Qwen3.5 interleaves softmax and recurrent linear-attention layers and therefore
+still uses `model/hf_qwen35_lod_attention.py` as a compatibility adapter. It
+owns its attention K/V in the same way and uses Qwen's hybrid cache only for
+linear state and length bookkeeping.
+
+Run the generic multi-model checks, Qwen3.5 compatibility checks, and NIAH
+smoke evaluation with:
 
 ```bash
+PYTHONPATH=. uv run python scripts/verify_hf_lod_attention.py
+PYTHONPATH=. uv run python scripts/verify_hf_lod_checkpoint.py \
+  --checkpoint Qwen/Qwen3-0.6B --engine-backend kernel
 PYTHONPATH=. uv run python scripts/verify_hf_qwen35_pytorch_lod.py
 PYTHONPATH=. uv run python scripts/probe_hf_qwen35_pytorch_lod_niah.py \
   --task niah_single_3 --length 8192 --samples 8 --output /tmp/niah3.jsonl
