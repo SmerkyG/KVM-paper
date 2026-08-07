@@ -1,4 +1,4 @@
-Topic hints: KVM hard routing is sensitive to compiled BF16 graph shape
+Topic hints: Keep page quantization aligned with causal update boundaries
 
 ## Lessons
 
@@ -16,3 +16,5 @@ Topic hints: KVM hard routing is sensitive to compiled BF16 graph shape
 - Current reference model/kvm_mixer.py uses the same forward_prefix and forward_prefill math for training and initial inference prefill. A two-layer BF16 parity test with chunk_len=32, BSWA=64, sequence length 193, token shift, value residuals, state growth, and a cached decode crossing a chunk boundary produced bit-identical logits for train-mode monolithic prefill, eval-mode cached prefill, and the corresponding single-token cached decode. The visible self.training branch only skips checking an already-final state boundary. The remaining real execution difference is compiled/grad-enabled training (forward_attn_maybe_compiled) versus eager/no-grad inference (forward_attn), which could alter BF16 rounding or hard routing through compiler/kernel differences but is not an algorithmic cache-path mismatch.
 
 - With KVM winner-take-all hard routing, source refactors that are bit-identical in eager forward/backward can change torch.compile BF16 reduction ordering, flip discrete routes, and materially alter long-context retrieval despite unchanged final validation loss.
+
+- For chronological KV-page quantization during prefill, require the page size to divide the state-update chunk size; otherwise a page can span remote coverage and future/local tokens, making reconstructed past K/V depend on future tokens and breaking streaming-causal equivalence.
