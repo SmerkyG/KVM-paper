@@ -1,14 +1,16 @@
-"""Hugging Face attention replacements backed by pure-PyTorch LOD attention.
+"""Hugging Face attention replacements backed by pluggable LOD engines.
 
 The LOD core deliberately starts after QKV projection and positional encoding.
 This file supplies the thin model-specific adapter needed to replace a Hugging
 Face attention module while preserving its projections, normalization, RoPE,
 output gate, and output projection.
 
-Currently Qwen3.5 text full-attention layers are supported.  Its interleaved
-Gated DeltaNet layers are left untouched.  Inputs must be unpadded causal
-sequences; ordinary HF causal masks are accepted but padding entries are not
-interpreted by the LOD core.  Beam-cache reordering is not yet supported.
+The default engine is the clean PyTorch implementation; ``engine_backend`` can
+instead select the inference-only optimized kernel engine.  Currently Qwen3.5
+text full-attention layers are supported.  Its interleaved Gated DeltaNet
+layers are left untouched.  Inputs must be unpadded causal sequences; ordinary
+HF causal masks are accepted but padding entries are not interpreted by the
+LOD core.  Beam-cache reordering is not yet supported.
 """
 
 from __future__ import annotations
@@ -29,23 +31,41 @@ from .pytorch_lod_attention_paged import (
     PagedLODConfig,
     PagedTwoLevelLODAttention,
 )
+from .qwen35_fast_lod_engines import (
+    KernelCoarseLODAttention,
+    KernelLODCache,
+    KernelRecursivePagedLODAttention,
+    KernelTwoLevelLODAttention,
+)
 
 
 class Qwen3_5FastLODAttention(Qwen3_5Attention):
     """Qwen3.5 attention whose post-RoPE attention field uses LOD."""
 
-    lod_engine: FastTwoLevelLODAttention | PagedTwoLevelLODAttention
-    _lod_cache: LODCache | PagedLODCache | None
+    lod_engine: (
+        FastTwoLevelLODAttention
+        | PagedTwoLevelLODAttention
+        | KernelCoarseLODAttention
+        | KernelTwoLevelLODAttention
+        | KernelRecursivePagedLODAttention
+    )
+    _lod_cache: LODCache | PagedLODCache | KernelLODCache | None
     _lod_hf_cache_id: int | None
 
     def reset_lod_cache(self) -> None:
         self._lod_cache = None
         self._lod_hf_cache_id = None
-        self.lod_engine._posting_key = None
-        self.lod_engine._postings = None
-        if isinstance(self.lod_engine, PagedTwoLevelLODAttention):
-            self.lod_engine._region_key = None
-            self.lod_engine._region_pages = None
+        reset_runtime_cache = getattr(self.lod_engine, "reset_runtime_cache", None)
+        if reset_runtime_cache is not None:
+            reset_runtime_cache()
+        for attribute in (
+            "_posting_key",
+            "_postings",
+            "_region_key",
+            "_region_pages",
+        ):
+            if hasattr(self.lod_engine, attribute):
+                setattr(self.lod_engine, attribute, None)
 
     def _update_qwen_cache_length(
         self,
@@ -152,12 +172,21 @@ def replace_qwen35_attention_with_lod(
     config: LODConfig | PagedLODConfig | None = None,
     open_count: int = 8,
     leaf_dtype: torch.dtype | None = None,
+    engine_backend: str = "torch",
 ) -> list[int]:
-    """Replace Qwen3.5 full-attention modules in-place, preserving weights."""
+    """Replace Qwen3.5 full-attention modules in-place, preserving weights.
+
+    ``engine_backend="kernel"`` selects optimized state, routing, coarse,
+    page, and leaf kernels.  An ``open_count`` of zero installs its coarse-only
+    engine; a positive count uses all routed-region leaves unless a positive
+    ``PagedLODConfig.page_size`` requests recursive one-page routing.
+    """
     if config is None:
         config = LODConfig()
     if leaf_dtype is not None:
         config = replace(config, leaf_dtype=leaf_dtype)
+    if engine_backend not in ("torch", "kernel"):
+        raise ValueError("engine_backend must be 'torch' or 'kernel'")
     replaced_layers: list[int] = []
     for layer_index, layer in enumerate(_qwen35_text_layers(model)):
         attention = getattr(layer, "self_attn", None)
@@ -168,15 +197,41 @@ def replace_qwen35_attention_with_lod(
                 f"layer {layer_index} attention has unexpected type "
                 f"{type(attention)!r}"
             )
+        if engine_backend == "kernel":
+            query_heads = attention.q_proj.out_features // (2 * attention.head_dim)
+            key_value_heads = attention.k_proj.out_features // attention.head_dim
+            if open_count == 0:
+                lod_engine = KernelCoarseLODAttention(
+                    config,
+                    query_heads=query_heads,
+                    key_value_heads=key_value_heads,
+                    scale=attention.scaling,
+                )
+            elif isinstance(config, PagedLODConfig) and config.page_size is not None:
+                lod_engine = KernelRecursivePagedLODAttention(
+                    config,
+                    query_heads=query_heads,
+                    key_value_heads=key_value_heads,
+                    scale=attention.scaling,
+                    default_open_count=open_count,
+                )
+            else:
+                lod_engine = KernelTwoLevelLODAttention(
+                    config,
+                    query_heads=query_heads,
+                    key_value_heads=key_value_heads,
+                    scale=attention.scaling,
+                    default_open_count=open_count,
+                )
+        else:
+            engine = (
+                PagedTwoLevelLODAttention
+                if isinstance(config, PagedLODConfig)
+                else FastTwoLevelLODAttention
+            )
+            lod_engine = engine(config, default_open_count=open_count)
         attention.__class__ = Qwen3_5FastLODAttention
-        engine = (
-            PagedTwoLevelLODAttention
-            if isinstance(config, PagedLODConfig)
-            else FastTwoLevelLODAttention
-        )
-        attention.lod_engine = engine(
-            config, default_open_count=open_count
-        )
+        attention.lod_engine = lod_engine
         attention._lod_cache = None
         attention._lod_hf_cache_id = None
         replaced_layers.append(layer_index)

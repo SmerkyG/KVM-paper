@@ -15,6 +15,11 @@ from model.hf_pytorch_lod_attention import (
 )
 from model.pytorch_lod_attention import LODConfig
 from model.pytorch_lod_attention_paged import PagedLODConfig
+from model.qwen35_fast_lod_engines import (
+    KernelCoarseLODAttention,
+    KernelRecursivePagedLODAttention,
+    KernelTwoLevelLODAttention,
+)
 from scripts.probe_qwen35_lod_niah import enable_fla_fast_path
 
 
@@ -24,8 +29,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--exact-length", type=int, default=128)
     parser.add_argument("--lod-length", type=int, default=1024)
     parser.add_argument("--decode-tokens", type=int, default=4)
+    parser.add_argument("--open-count", type=int, default=8)
     parser.add_argument("--page-size", type=int, default=0)
     parser.add_argument("--kv-bits", type=int, choices=(0, 4), default=0)
+    parser.add_argument(
+        "--engine-backend", choices=("torch", "kernel"), default="torch"
+    )
     return parser.parse_args()
 
 
@@ -79,7 +88,10 @@ def main() -> None:
         **paged_options,
     )
     replaced = replace_qwen35_attention_with_lod(
-        model, config=lod_config, open_count=8
+        model,
+        config=lod_config,
+        open_count=args.open_count,
+        engine_backend=args.engine_backend,
     )
     expected = [
         index
@@ -93,6 +105,21 @@ def main() -> None:
         for module in model.modules()
     ) != len(expected):
         raise AssertionError("unexpected number of installed LOD attention modules")
+    if args.engine_backend == "kernel":
+        expected_engine = (
+            KernelCoarseLODAttention
+            if args.open_count == 0
+            else (
+                KernelRecursivePagedLODAttention
+                if args.page_size
+                else KernelTwoLevelLODAttention
+            )
+        )
+        for module in model.modules():
+            if isinstance(module, Qwen3_5FastLODAttention) and not isinstance(
+                module.lod_engine, expected_engine
+            ):
+                raise AssertionError("Qwen adapter installed the wrong LOD engine")
     if tuple(model.state_dict()) != original_state_keys:
         raise AssertionError("attention replacement changed model state-dict keys")
 
@@ -142,9 +169,19 @@ def main() -> None:
         raise AssertionError("Qwen cache length did not advance during decode")
     if not bool(torch.isfinite(cached.logits).all().item()):
         raise AssertionError("LOD cached decode produced non-finite logits")
+    if args.engine_backend == "kernel" and args.open_count == 0:
+        for module in model.modules():
+            if isinstance(module, Qwen3_5FastLODAttention):
+                state = module._lod_cache.state
+                if (
+                    state["owners"].numel()
+                    or state["exact_k"].numel()
+                    or state["exact_v"].numel()
+                ):
+                    raise AssertionError("coarse-only engine retained exact leaves")
     print(
         f"long-context and cached decode passed: length={args.lod_length} "
-        f"loss={float(long_result.loss):.6f}"
+        f"backend={args.engine_backend} loss={float(long_result.loss):.6f}"
     )
 
 

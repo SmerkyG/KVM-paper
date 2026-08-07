@@ -33,6 +33,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--state-growth-factor", type=float, default=16.0)
     parser.add_argument("--page-size", type=int, default=0)
     parser.add_argument("--kv-bits", type=int, choices=(0, 4), default=0)
+    parser.add_argument(
+        "--engine-backend", choices=("torch", "kernel"), default="torch"
+    )
     parser.add_argument("--max-new-tokens", type=int, default=64)
     parser.add_argument("--output", type=Path, required=True)
     return parser.parse_args()
@@ -82,6 +85,7 @@ def main() -> None:
         model,
         config=lod_config,
         open_count=args.open_count,
+        engine_backend=args.engine_backend,
     )
     documents = generate_documents(args.task, args.checkpoint, args.length)
     selected = documents[: args.samples]
@@ -113,6 +117,7 @@ def main() -> None:
             record = {
                 "checkpoint": args.checkpoint,
                 "mode": "hf_pytorch_lod",
+                "engine_backend": args.engine_backend,
                 "task": args.task,
                 "index": int(document["index"]),
                 "length": int(document["max_length"]),
