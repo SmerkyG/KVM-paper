@@ -674,6 +674,23 @@ class _PytorchLODAttention(nn.Module):
             query_offset=query_offset,
         ).output
 
+    def _local(
+        self,
+        query: torch.Tensor,
+        key: torch.Tensor,
+        value: torch.Tensor,
+        *,
+        scale: float,
+        query_offset: int,
+    ) -> torch.Tensor:
+        return _local_attention(
+            query,
+            key,
+            value,
+            scale=scale,
+            query_offset=query_offset,
+        )[0]
+
     def _prefill(
         self,
         query: torch.Tensor,
@@ -686,7 +703,7 @@ class _PytorchLODAttention(nn.Module):
     ) -> tuple[torch.Tensor, LODCache | None]:
         sequence_length = int(query.size(2))
         front_length = min(sequence_length, self.config.local_window)
-        front_output, _ = _local_attention(
+        front_output = self._local(
             query[..., :front_length, :],
             key[..., :front_length, :],
             value[..., :front_length, :],
@@ -807,7 +824,7 @@ class _PytorchLODAttention(nn.Module):
         recent_value = recent_value[..., overflow_length:, :]
 
         if state.slot_count == 0:
-            output, _ = _local_attention(
+            output = self._local(
                 query,
                 recent_key,
                 recent_value,

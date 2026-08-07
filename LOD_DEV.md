@@ -8,6 +8,8 @@ LOD attention.
 
 - `model/pytorch_lod_attention.py`: model-independent PyTorch reference with
   both coarse-only and exact-leaf LOD attention
+- `model/pytorch_lod_attention_fast.py`: inference-oriented PyTorch backend
+  using SDPA, separately compiled FlexAttention, and packed FlashAttention
 - `model/qwen35_two_level_attention.py`: inference-time Qwen3.5 attention graft
 - `model/kernels/qwen35_lod_kernels.py`: state update and routing kernels
 - `model/kernels/paged_leaf_attention.py`: paged, virtual-page, recursive-page,
@@ -53,6 +55,25 @@ dependency. Run its focused CPU checks with:
 
 ```bash
 PYTHONPATH=. uv run python scripts/verify_pytorch_lod_attention.py
+```
+
+For inference, replace the class names with `FastCoarseLODAttention` or
+`FastTwoLevelLODAttention` from `model.pytorch_lod_attention_fast`. Their API
+and cache objects are identical. The fast two-level path uses one fused
+FlexAttention operation for the coarse state plus local field, and asks it for
+that field's LSE. The exact leaves are dispatched together using posting lists
+and produce their own LSE; the two results are then renormalized exactly. SDPA
+is used only while the entire attention field is local, where no cross-branch
+LSE is needed.
+
+The fast exact-leaf implementation selects between two PyTorch paths: direct
+gathering for small routed sets (normally decode), and packed variable-length
+FlashAttention for larger prefill work. Posting lists are cached until the
+owner table changes. Verify and benchmark it with:
+
+```bash
+PYTHONPATH=. uv run python scripts/verify_pytorch_lod_attention_fast.py
+PYTHONPATH=. uv run python scripts/benchmark_pytorch_lod_attention_fast.py
 ```
 
 ## Experiment outputs
