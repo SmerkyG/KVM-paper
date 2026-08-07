@@ -8,7 +8,7 @@ import json
 import torch
 import torch.nn.functional as F
 
-from model.kernels.qwen35_lod_kernels import (
+from model.kernels.lod_kernels import (
     apply_residual_mass_opening,
     merge_state_in_place,
     new_route_buffers,

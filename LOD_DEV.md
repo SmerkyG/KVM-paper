@@ -10,10 +10,13 @@ LOD attention.
   both coarse-only and exact-leaf LOD attention
 - `model/pytorch_lod_attention_fast.py`: inference-oriented PyTorch backend
   using SDPA, separately compiled FlexAttention, and packed FlashAttention
-- `model/qwen35_two_level_attention.py`: inference-time Qwen3.5 attention graft
-- `model/kernels/qwen35_lod_kernels.py`: state update and routing kernels
+- `model/hf_pytorch_lod_attention.py`: thin Hugging Face/Qwen3.5 adapter
+- `model/triton_lod_engines.py`: generic kernel-backed post-QKV engines
+- `model/triton_lod_attention.py`: optimized post-QKV LOD runtime
+- `model/kernels/lod_kernels.py`: state update and routing Triton kernels
 - `model/kernels/paged_leaf_attention.py`: paged, virtual-page, recursive-page,
   and quantized leaf attention kernels
+- `model/qwen35_two_level_attention.py`: legacy Qwen3.5 graft compatibility shim
 - `model/kvm_two_level_mixer.py`: pure-PyTorch training prototype
 - `model/gptalpha_two_level_mixer.py`: GPTAlpha2 inference approximation
 - `model/kvm_split_full_attention_mixer.py`: full-remote baseline
@@ -107,9 +110,11 @@ replaced_layers = replace_qwen35_attention_with_lod(
 The adapter uses Qwen's hybrid cache only to report sequence length; exact KV,
 LOD state, and the local window live in the LOD cache instead of being copied
 into the ordinary full-attention cache. It currently assumes unpadded causal
-input and single-beam generation. The same pattern can support another HF
-model by copying its projection/RoPE/output shell and calling
-`FastTwoLevelLODAttention` at the post-RoPE boundary.
+input and single-beam generation. Its `engine_backend` selects either the
+pure-PyTorch engines or the generic kernel-backed engines without changing the
+Qwen shell. The same pattern can support another HF model by copying its
+projection/RoPE/output shell and calling an LOD engine at the post-RoPE
+boundary.
 
 Run the Qwen adapter checks and NIAH smoke evaluation with:
 

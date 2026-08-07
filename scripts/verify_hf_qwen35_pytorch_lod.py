@@ -15,7 +15,7 @@ from model.hf_pytorch_lod_attention import (
 )
 from model.pytorch_lod_attention import LODConfig
 from model.pytorch_lod_attention_paged import PagedLODConfig
-from model.qwen35_fast_lod_engines import (
+from model.triton_lod_engines import (
     KernelCoarseLODAttention,
     KernelRecursivePagedLODAttention,
     KernelTwoLevelLODAttention,

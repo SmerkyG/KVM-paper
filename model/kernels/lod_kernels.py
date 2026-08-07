@@ -1,4 +1,4 @@
-"""Forward-only Triton kernels for Qwen3.5 LOD state maintenance.
+"""Forward-only Triton kernels for LOD state maintenance.
 
 The kernels mirror the efficient parts of the training KVM implementation:
 merge tokens accumulate into persistent FP32 deltas and each touched BF16
@@ -1713,7 +1713,7 @@ def merge_state_in_place(
     if active_slots > int(state_k.size(2)) or active_slots > capacity:
         raise ValueError("LOD state delta capacity is smaller than the active state")
     # Keep each atomic tile at 1024 lanes, matching the proven KVM update
-    # shape. Qwen's 256-wide heads therefore use four tokens per program.
+    # shape. A 256-wide head therefore uses four tokens per program.
     token_block = 4
     _accumulate_state_deltas_kernel[(rows, triton.cdiv(tokens, token_block))](
         merge_k,
@@ -1738,7 +1738,7 @@ def merge_state_in_place(
         **_launch_kwargs(8),
     )
     # The KVM apply kernel uses an 8x128 tile. Preserve the same 1024-lane
-    # footprint for Qwen's 256-wide state rather than doubling register use.
+    # footprint for a 256-wide state rather than doubling register use.
     state_block = 4
     _apply_state_deltas_kernel[(rows, triton.cdiv(active_slots, state_block))](
         state_k,

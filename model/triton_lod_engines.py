@@ -1,9 +1,8 @@
-"""Fast kernel-backed LOD engines for :mod:`hf_pytorch_lod_attention`.
+"""Fast, model-independent engines backed by the Triton LOD core.
 
 These classes expose the same post-QKV/post-RoPE engine protocol as the clean
-PyTorch LOD implementations while reusing the optimized state-update, routing,
-page-cache, and exact-leaf kernels from ``Qwen3_5TwoLevelAttention``.  They own
-no projections or model weights.
+PyTorch LOD implementations while reusing the model-independent Triton LOD
+core. They own no projections or model weights.
 """
 
 from __future__ import annotations
@@ -16,7 +15,7 @@ from torch import nn
 
 from .pytorch_lod_attention import LODConfig
 from .pytorch_lod_attention_paged import PagedLODConfig
-from .qwen35_two_level_attention import Qwen3_5TwoLevelAttention
+from .triton_lod_attention import TritonLODAttentionCore
 
 
 @dataclass
@@ -30,7 +29,7 @@ class KernelLODCache:
         return int(self.state["total_len"])
 
 
-class _KernelLODEngine(Qwen3_5TwoLevelAttention):
+class _KernelLODEngine(TritonLODAttentionCore):
     """Projection-free adapter around the established optimized LOD core."""
 
     def __init__(

@@ -31,7 +31,7 @@ from .pytorch_lod_attention_paged import (
     PagedLODConfig,
     PagedTwoLevelLODAttention,
 )
-from .qwen35_fast_lod_engines import (
+from .triton_lod_engines import (
     KernelCoarseLODAttention,
     KernelLODCache,
     KernelRecursivePagedLODAttention,
