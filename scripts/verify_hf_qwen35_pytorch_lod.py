@@ -14,6 +14,7 @@ from model.hf_pytorch_lod_attention import (
     reset_hf_lod_caches,
 )
 from model.pytorch_lod_attention import LODConfig
+from model.pytorch_lod_attention_paged import PagedLODConfig
 from scripts.probe_qwen35_lod_niah import enable_fla_fast_path
 
 
@@ -23,6 +24,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--exact-length", type=int, default=128)
     parser.add_argument("--lod-length", type=int, default=1024)
     parser.add_argument("--decode-tokens", type=int, default=4)
+    parser.add_argument("--page-size", type=int, default=0)
+    parser.add_argument("--kv-bits", type=int, choices=(0, 4), default=0)
     return parser.parse_args()
 
 
@@ -58,13 +61,22 @@ def main() -> None:
     baseline_logits = model(input_ids=exact_ids, use_cache=False).logits
     original_state_keys = tuple(model.state_dict())
 
-    lod_config = LODConfig(
+    if args.kv_bits and not args.page_size:
+        raise ValueError("--kv-bits=4 requires a positive --page-size")
+    config_type = PagedLODConfig if args.page_size else LODConfig
+    paged_options = (
+        {"page_size": args.page_size, "kv_bits": args.kv_bits}
+        if args.page_size
+        else {}
+    )
+    lod_config = config_type(
         chunk_size=256,
         local_window=512,
         state_growth_factor=16.0,
         state_min_size=256,
         protected_prefix=1,
         max_routes=8,
+        **paged_options,
     )
     replaced = replace_qwen35_attention_with_lod(
         model, config=lod_config, open_count=8

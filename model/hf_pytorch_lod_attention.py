@@ -24,13 +24,18 @@ from transformers.models.qwen3_5.modeling_qwen3_5 import (
 
 from .pytorch_lod_attention import LODCache, LODConfig
 from .pytorch_lod_attention_fast import FastTwoLevelLODAttention
+from .pytorch_lod_attention_paged import (
+    PagedLODCache,
+    PagedLODConfig,
+    PagedTwoLevelLODAttention,
+)
 
 
 class Qwen3_5FastLODAttention(Qwen3_5Attention):
     """Qwen3.5 attention whose post-RoPE attention field uses LOD."""
 
-    lod_engine: FastTwoLevelLODAttention
-    _lod_cache: LODCache | None
+    lod_engine: FastTwoLevelLODAttention | PagedTwoLevelLODAttention
+    _lod_cache: LODCache | PagedLODCache | None
     _lod_hf_cache_id: int | None
 
     def reset_lod_cache(self) -> None:
@@ -141,7 +146,7 @@ def _qwen35_text_layers(model: nn.Module):
 def replace_qwen35_attention_with_lod(
     model: nn.Module,
     *,
-    config: LODConfig | None = None,
+    config: LODConfig | PagedLODConfig | None = None,
     open_count: int = 8,
     leaf_dtype: torch.dtype | None = None,
 ) -> list[int]:
@@ -161,7 +166,12 @@ def replace_qwen35_attention_with_lod(
                 f"{type(attention)!r}"
             )
         attention.__class__ = Qwen3_5FastLODAttention
-        attention.lod_engine = FastTwoLevelLODAttention(
+        engine = (
+            PagedTwoLevelLODAttention
+            if isinstance(config, PagedLODConfig)
+            else FastTwoLevelLODAttention
+        )
+        attention.lod_engine = engine(
             config, default_open_count=open_count
         )
         attention._lod_cache = None
