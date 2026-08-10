@@ -1,6 +1,6 @@
 # Lod Attention
 
-Topic hints: Select full attention from per-layer patterns
+Topic hints: Keep logical padding contracts complete and verify clean snapshots
 
 ## Lessons
 
@@ -13,3 +13,5 @@ Topic hints: Select full attention from per-layer patterns
 - For the kernel LOD zero-route fallback, compute count-corrected state attention with the existing Triton LSE kernel, run the exact causal local field with aten._scaled_dot_product_flash_attention, and LSE-merge the branches; on Qwen3.5-0.8B this removed FlexAttention while improving 8K batch-8 prefill speed.
 
 - Generic HF LOD installation must use decoder config.layer_types (and module sliding_window as a fallback) to replace only full/global attention; mixed full/SWA models need per-module backend dispatch plus a native sliding-cache/LOD-cache bridge.
+
+- When adding physical prefill padding to generic HF LOD, propagate logical_prefill_len through both the engine wrapper and Triton core, and verify the committed snapshot rather than a dirty development worktree.
