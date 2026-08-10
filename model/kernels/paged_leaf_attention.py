@@ -2405,6 +2405,37 @@ def _online_softmax_update(
 
 
 @triton.jit
+def _pack_route_score_index(scores, indices):
+    """Pack descending FP32 score and ascending slot index into one int64."""
+    score_bits = scores.to(tl.uint32, bitcast=True)
+    negative = (score_bits & 0x80000000) != 0
+    ordered_bits = tl.where(
+        negative,
+        score_bits ^ 0xFFFFFFFF,
+        score_bits ^ 0x80000000,
+    ).to(tl.int64)
+    score_rank = ordered_bits - 2147483648
+    inverse_index = 4294967295 - indices.to(tl.int64)
+    return score_rank * 4294967296 + inverse_index
+
+
+@triton.jit
+def _unpack_route_score_index(packed):
+    inverse_index = packed & 0xFFFFFFFF
+    indices = (4294967295 - inverse_index).to(tl.int64)
+    score_rank = packed >> 32
+    ordered_bits = (score_rank + 2147483648).to(tl.uint32)
+    negative = (ordered_bits & 0x80000000) == 0
+    score_bits = tl.where(
+        negative,
+        ordered_bits ^ 0xFFFFFFFF,
+        ordered_bits ^ 0x80000000,
+    )
+    scores = score_bits.to(tl.float32, bitcast=True)
+    return scores, indices
+
+
+@triton.jit
 def _decode_route_coarse_groups_kernel(
     q,
     state_k,
@@ -2431,6 +2462,7 @@ def _decode_route_coarse_groups_kernel(
     SCALE: tl.constexpr,
     GROUP_N: tl.constexpr,
     MAX_GROUPS: tl.constexpr,
+    PROTECTED_LEN: tl.constexpr,
     USE_DOT: tl.constexpr,
 ):
     """Compute routing candidates and coarse attention from one state read."""
@@ -2483,32 +2515,25 @@ def _decode_route_coarse_groups_kernel(
     scores *= SCALE
     scores += tl.log(count)
     scores = tl.where(valid, scores, -float("inf"))
+    route_scores = tl.where(slot >= PROTECTED_LEN, scores, -float("inf"))
 
     position = tl.arange(0, GROUP_N)
     candidate_base = (query_row * MAX_GROUPS + group) * 8
     if GROUP_N == 8:
         # Every entry is a valid global top-8 candidate.  Preserve them in
         # their natural order and let the global reducer perform the only sort.
-        tl.store(candidate_scores + candidate_base + position, scores)
+        tl.store(candidate_scores + candidate_base + position, route_scores)
         tl.store(
             candidate_indices + candidate_base + position,
             group * GROUP_N + position,
         )
     else:
-        remaining_scores = scores
-        for rank in tl.static_range(0, 8):
-            best_score = tl.max(remaining_scores, axis=0)
-            best_position = tl.min(
-                tl.where(remaining_scores == best_score, position, GROUP_N), axis=0
-            )
-            tl.store(candidate_scores + candidate_base + rank, best_score)
-            tl.store(
-                candidate_indices + candidate_base + rank,
-                group * GROUP_N + best_position,
-            )
-            remaining_scores = tl.where(
-                position == best_position, -float("inf"), remaining_scores
-            )
+        packed = _pack_route_score_index(route_scores, slot)
+        block_top = tl.topk(packed, 8, dim=0)
+        block_scores, block_indices = _unpack_route_score_index(block_top)
+        rank = tl.arange(0, 8)
+        tl.store(candidate_scores + candidate_base + rank, block_scores)
+        tl.store(candidate_indices + candidate_base + rank, block_indices)
 
     maximum = tl.max(scores, axis=0)
     weights = tl.exp(scores - maximum)
@@ -2555,6 +2580,7 @@ def _decode_route_coarse_gqa_groups_kernel(
     SCALE: tl.constexpr,
     GROUP_N: tl.constexpr,
     MAX_GROUPS: tl.constexpr,
+    PROTECTED_LEN: tl.constexpr,
     USE_DOT: tl.constexpr,
 ):
     """Share each state K/V tile across all query heads in one GQA group."""
@@ -2610,35 +2636,25 @@ def _decode_route_coarse_gqa_groups_kernel(
     scores = tl.where(
         query_valid[:, None] & valid[None, :], scores, -float("inf")
     )
+    route_scores = tl.where(
+        slot[None, :] >= PROTECTED_LEN, scores, -float("inf")
+    )
 
     candidate_base = (query_row * MAX_GROUPS + group) * 8
-    remaining_scores = scores
-    position = tl.arange(0, GROUP_N)
-    for rank in tl.static_range(0, 8):
-        best_score = tl.max(remaining_scores, axis=1)
-        best_position = tl.min(
-            tl.where(
-                remaining_scores == best_score[:, None],
-                position[None, :],
-                GROUP_N,
-            ),
-            axis=1,
-        )
-        tl.store(
-            candidate_scores + candidate_base + rank,
-            best_score,
-            mask=query_valid,
-        )
-        tl.store(
-            candidate_indices + candidate_base + rank,
-            group * GROUP_N + best_position,
-            mask=query_valid,
-        )
-        remaining_scores = tl.where(
-            position[None, :] == best_position[:, None],
-            -float("inf"),
-            remaining_scores,
-        )
+    packed = _pack_route_score_index(route_scores, slot[None, :])
+    block_top = tl.topk(packed, 8, dim=1)
+    block_scores, block_indices = _unpack_route_score_index(block_top)
+    rank = tl.arange(0, 8)
+    tl.store(
+        candidate_scores + candidate_base[:, None] + rank[None, :],
+        block_scores,
+        mask=query_valid[:, None],
+    )
+    tl.store(
+        candidate_indices + candidate_base[:, None] + rank[None, :],
+        block_indices,
+        mask=query_valid[:, None],
+    )
 
     maximum = tl.max(scores, axis=1)
     weights = tl.exp(scores - maximum[:, None])
@@ -2689,6 +2705,7 @@ def _decode_route_coarse_scalar_gqa_groups_kernel(
     SCALE: tl.constexpr,
     GROUP_N: tl.constexpr,
     MAX_GROUPS: tl.constexpr,
+    PROTECTED_LEN: tl.constexpr,
     USE_DOT: tl.constexpr,
 ):
     """Reuse one state tile while preserving scalar per-query routing math."""
@@ -2738,34 +2755,22 @@ def _decode_route_coarse_scalar_gqa_groups_kernel(
         )
         scores = scores * SCALE + tl.log(count)
         scores = tl.where(valid, scores, -float("inf"))
+        route_scores = tl.where(slot >= PROTECTED_LEN, scores, -float("inf"))
 
         candidate_base = (query_row * MAX_GROUPS + group) * 8
         if GROUP_N == 8:
-            tl.store(candidate_scores + candidate_base + position, scores)
+            tl.store(candidate_scores + candidate_base + position, route_scores)
             tl.store(
                 candidate_indices + candidate_base + position,
                 group * GROUP_N + position,
             )
         else:
-            remaining_scores = scores
-            for rank in tl.static_range(0, 8):
-                best_score = tl.max(remaining_scores, axis=0)
-                best_position = tl.min(
-                    tl.where(
-                        remaining_scores == best_score, position, GROUP_N
-                    ),
-                    axis=0,
-                )
-                tl.store(candidate_scores + candidate_base + rank, best_score)
-                tl.store(
-                    candidate_indices + candidate_base + rank,
-                    group * GROUP_N + best_position,
-                )
-                remaining_scores = tl.where(
-                    position == best_position,
-                    -float("inf"),
-                    remaining_scores,
-                )
+            packed = _pack_route_score_index(route_scores, slot)
+            block_top = tl.topk(packed, 8, dim=0)
+            block_scores, block_indices = _unpack_route_score_index(block_top)
+            rank = tl.arange(0, 8)
+            tl.store(candidate_scores + candidate_base + rank, block_scores)
+            tl.store(candidate_indices + candidate_base + rank, block_indices)
 
         maximum = tl.max(scores, axis=0)
         weights = tl.exp(scores - maximum)
@@ -2799,35 +2804,36 @@ def _reduce_decode_route_coarse_kernel(
     HEAD_DIM: tl.constexpr,
     ROUTE_COUNT: tl.constexpr,
     MAX_GROUPS: tl.constexpr,
-    CANDIDATE_BLOCK: tl.constexpr,
+    CANDIDATE_TILE: tl.constexpr,
 ):
     query_row = tl.program_id(0).to(tl.int64)
-    candidate = tl.arange(0, CANDIDATE_BLOCK)
-    valid_candidate = candidate < active_groups * 8
-    scores = tl.load(
-        candidate_scores + query_row * MAX_GROUPS * 8 + candidate,
-        mask=valid_candidate,
-        other=-float("inf"),
-    )
-    indices = tl.load(
-        candidate_indices + query_row * MAX_GROUPS * 8 + candidate,
-        mask=valid_candidate,
-        other=-1,
-    )
-    for rank in tl.static_range(0, 8):
-        best_score = tl.max(scores, axis=0)
-        best_position = tl.min(
-            tl.where(scores == best_score, candidate, CANDIDATE_BLOCK), axis=0
+    candidate_offset = tl.arange(0, CANDIDATE_TILE)
+    best_packed = tl.full((8,), -9223372036854775807, tl.int64)
+    for candidate_begin in tl.range(
+        0, active_groups * 8, CANDIDATE_TILE, num_stages=1
+    ):
+        candidate = candidate_begin + candidate_offset
+        valid_candidate = candidate < active_groups * 8
+        scores = tl.load(
+            candidate_scores + query_row * MAX_GROUPS * 8 + candidate,
+            mask=valid_candidate,
+            other=-float("inf"),
         )
-        best_index = tl.max(
-            tl.where(candidate == best_position, indices, -1), axis=0
+        indices = tl.load(
+            candidate_indices + query_row * MAX_GROUPS * 8 + candidate,
+            mask=valid_candidate,
+            other=0,
         )
-        if rank < ROUTE_COUNT:
-            tl.store(top_slots + query_row * ROUTE_COUNT + rank, best_index)
-            tl.store(top_scores + query_row * ROUTE_COUNT + rank, best_score)
-        scores = tl.where(
-            candidate == best_position, -float("inf"), scores
+        packed = _pack_route_score_index(scores, indices)
+        block_top = tl.topk(packed, 8, dim=0)
+        best_packed = tl.topk(
+            tl.interleave(best_packed, block_top), 8, dim=0
         )
+    best_scores, best_indices = _unpack_route_score_index(best_packed)
+    rank = tl.arange(0, 8)
+    if ROUTE_COUNT == 8:
+        tl.store(top_slots + query_row * ROUTE_COUNT + rank, best_indices)
+        tl.store(top_scores + query_row * ROUTE_COUNT + rank, best_scores)
 
     dim = tl.arange(0, HEAD_DIM)
     maximum = tl.full((), -float("inf"), tl.float32)
@@ -3798,6 +3804,8 @@ def _reduce_split_decode_lod_attention_kernel(
 @triton.jit
 def _reduce_routed_split_decode_lod_attention_kernel(
     q,
+    sink_k,
+    sink_v,
     state_k,
     state_v,
     counts,
@@ -3810,6 +3818,12 @@ def _reduce_routed_split_decode_lod_attention_kernel(
     separate_local_out,
     separate_local_lse,
     out,
+    SINK_K_BATCH_STRIDE,
+    SINK_K_HEAD_STRIDE,
+    SINK_K_TOKEN_STRIDE,
+    SINK_V_BATCH_STRIDE,
+    SINK_V_HEAD_STRIDE,
+    SINK_V_TOKEN_STRIDE,
     STATE_BATCH_STRIDE,
     STATE_HEAD_STRIDE,
     STATE_TOKEN_STRIDE,
@@ -3825,6 +3839,8 @@ def _reduce_routed_split_decode_lod_attention_kernel(
     ROUTE_COUNT: tl.constexpr,
     SPLITS: tl.constexpr,
     INCLUDE_SEPARATE_LOCAL: tl.constexpr,
+    INCLUDE_SINK: tl.constexpr,
+    SINK_LEN: tl.constexpr,
     SCALE: tl.constexpr,
     USE_DOT: tl.constexpr,
 ):
@@ -3869,13 +3885,52 @@ def _reduce_routed_split_decode_lod_attention_kernel(
     local_lse = tl.full((), -float("inf"), tl.float32)
     if INCLUDE_SEPARATE_LOCAL:
         local_lse = tl.load(separate_local_lse + query_row)
+    sink_lse = tl.full((), -float("inf"), tl.float32)
+    sink_out = tl.zeros((HEAD_DIM,), tl.float32)
+    if INCLUDE_SINK:
+        query = tl.load(q + query_row * HEAD_DIM + dim).to(tl.float32)
+        sink_maximum = tl.full((), -float("inf"), tl.float32)
+        sink_denominator = tl.zeros((), tl.float32)
+        sink_accumulator = tl.zeros((HEAD_DIM,), tl.float32)
+        for sink_index in tl.static_range(0, SINK_LEN):
+            key = tl.load(
+                sink_k
+                + batch * SINK_K_BATCH_STRIDE
+                + kv_head * SINK_K_HEAD_STRIDE
+                + sink_index * SINK_K_TOKEN_STRIDE
+                + dim
+            ).to(tl.float32)
+            value = tl.load(
+                sink_v
+                + batch * SINK_V_BATCH_STRIDE
+                + kv_head * SINK_V_HEAD_STRIDE
+                + sink_index * SINK_V_TOKEN_STRIDE
+                + dim
+            ).to(tl.float32)
+            score = tl.sum(query * key, axis=0) * SCALE
+            new_maximum = tl.maximum(sink_maximum, score)
+            old_weight = tl.exp(sink_maximum - new_maximum)
+            new_weight = tl.exp(score - new_maximum)
+            sink_denominator = sink_denominator * old_weight + new_weight
+            sink_accumulator = sink_accumulator * old_weight + value * new_weight
+            sink_maximum = new_maximum
+        sink_lse = sink_maximum + tl.log(sink_denominator)
+        sink_out = sink_accumulator / sink_denominator
     maximum = tl.maximum(
         tl.maximum(remainder_lse, local_lse), tl.max(split_lse, axis=0)
     )
+    if INCLUDE_SINK:
+        maximum = tl.maximum(maximum, sink_lse)
     remainder_weight = tl.exp(remainder_lse - maximum)
     local_weight = tl.exp(local_lse - maximum)
     split_weight = tl.exp(split_lse - maximum)
-    denominator = remainder_weight + local_weight + tl.sum(split_weight, axis=0)
+    sink_weight = tl.exp(sink_lse - maximum)
+    denominator = (
+        remainder_weight
+        + local_weight
+        + tl.sum(split_weight, axis=0)
+        + tl.where(INCLUDE_SINK, sink_weight, 0.0)
+    )
     split_values = tl.load(
         partial_out
         + (query_row * SPLITS + split[:, None]) * HEAD_DIM
@@ -3890,6 +3945,8 @@ def _reduce_routed_split_decode_lod_attention_kernel(
             separate_local_out + query_row * HEAD_DIM + dim
         )
         numerator += local_weight * local_value
+    if INCLUDE_SINK:
+        numerator += sink_weight * sink_out
     result = numerator / denominator
     tl.store(out + query_row * HEAD_DIM + dim, result)
 
@@ -4022,6 +4079,8 @@ def fused_decode_paged_lod_attention(
     slot_lengths: torch.Tensor,
     top_slots: torch.Tensor | None,
     *,
+    sink_k: torch.Tensor | None = None,
+    sink_v: torch.Tensor | None = None,
     state_len: int,
     local_len: int | None = None,
     new_k: torch.Tensor | None = None,
@@ -4043,6 +4102,7 @@ def fused_decode_paged_lod_attention(
     fuse_final_reduce: bool = False,
     route_use_dot: bool = False,
     route_gqa_grouped: bool = False,
+    protected_len: int = 0,
     route_top_p: float | None = None,
     route_residual_mass: float | None = None,
     reuse_residual_local_attention: bool = False,
@@ -4067,6 +4127,7 @@ def fused_decode_paged_lod_attention(
     if local_len < 0 or local_len > int(local_k.size(2)):
         raise ValueError("active local length exceeds its allocated cache")
     include_new = new_k is not None or new_v is not None
+    include_sink = sink_k is not None or sink_v is not None
 
     def timing_begin() -> torch.cuda.Event | None:
         if timing_events is None:
@@ -4083,6 +4144,23 @@ def fused_decode_paged_lod_attention(
         timing_events.setdefault(name, []).append((begin, end))
     if include_new and (new_k is None or new_v is None):
         raise ValueError("new decode K and V must be provided together")
+    if include_sink and (sink_k is None or sink_v is None):
+        raise ValueError("separate sink K and V must be provided together")
+    if include_sink:
+        if tuple(sink_k.shape[:2]) != (batch, kv_heads):
+            raise ValueError("separate sink K has the wrong batch/head shape")
+        if tuple(sink_v.shape[:3]) != tuple(sink_k.shape[:3]):
+            raise ValueError("separate sink K/V shapes do not match")
+        if not fuse_state_route or split_kv == 1:
+            raise ValueError(
+                "separate sink fusion requires routed split decode attention"
+            )
+        # The sink is folded into this existing final reduction. The atomic
+        # leaf-kernel reduction cannot see the side cache.
+        fuse_final_reduce = False
+    else:
+        sink_k = state_k[..., :1, :]
+        sink_v = state_v[..., :1, :]
     if include_new:
         if tuple(new_k.shape[:3]) != (batch, kv_heads, 1):
             raise ValueError("new decode K has the wrong shape")
@@ -4101,6 +4179,8 @@ def fused_decode_paged_lod_attention(
         raise ValueError("fused state routing requires split decode attention")
     if route_group_size not in {8, 16, 32, 64}:
         raise ValueError("decode route group size must be 8, 16, 32, or 64")
+    if protected_len < 0 or protected_len + 8 > state_len:
+        raise ValueError("protected state leaves too few decode routing candidates")
     if route_top_p is not None and not 0.0 < route_top_p <= 1.0:
         raise ValueError("decode route top-p must lie in (0, 1]")
     if route_residual_mass is not None and not 0.0 < route_residual_mass <= 1.0:
@@ -4198,12 +4278,12 @@ def fused_decode_paged_lod_attention(
                 SCALE=float(scale),
                 GROUP_N=group_size,
                 MAX_GROUPS=max_groups,
+                PROTECTED_LEN=protected_len,
                 USE_DOT=score_use_dot,
                 num_warps=route_num_warps,
                 waves_per_eu=waves_per_eu,
             )
             timing_end("route_groups", route_groups_begin)
-            candidate_block = triton.next_power_of_2(active_groups * 8)
             route_reduce_begin = timing_begin()
             _reduce_decode_route_coarse_kernel[(batch * query_heads,)](
                 buffers["route_candidate_scores"],
@@ -4218,7 +4298,7 @@ def fused_decode_paged_lod_attention(
                 HEAD_DIM=head_dim,
                 ROUTE_COUNT=8,
                 MAX_GROUPS=max_groups,
-                CANDIDATE_BLOCK=candidate_block,
+                CANDIDATE_TILE=1024,
                 num_warps=route_reduce_num_warps,
                 waves_per_eu=waves_per_eu,
             )
@@ -4378,6 +4458,8 @@ def fused_decode_paged_lod_attention(
                 (batch * query_heads,)
             ](
                 q,
+                sink_k,
+                sink_v,
                 state_k,
                 state_v,
                 counts,
@@ -4398,6 +4480,12 @@ def fused_decode_paged_lod_attention(
                     else partial_lse
                 ),
                 output,
+                sink_k.stride(0),
+                sink_k.stride(1),
+                sink_k.stride(2),
+                sink_v.stride(0),
+                sink_v.stride(1),
+                sink_v.stride(2),
                 state_k.stride(0),
                 state_k.stride(1),
                 state_k.stride(2),
@@ -4413,6 +4501,8 @@ def fused_decode_paged_lod_attention(
                 ROUTE_COUNT=int(top_slots.size(-1)),
                 SPLITS=split_kv,
                 INCLUDE_SEPARATE_LOCAL=reuse_residual_local_attention,
+                INCLUDE_SINK=include_sink,
+                SINK_LEN=int(sink_k.size(2)),
                 SCALE=float(scale),
                 USE_DOT=score_use_dot,
                 num_warps=final_reduce_num_warps,

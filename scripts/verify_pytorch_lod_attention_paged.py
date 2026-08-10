@@ -132,6 +132,7 @@ def check_recursive_page_semantics(device: torch.device) -> None:
         leaves,
         max_routes=1,
         open_count=1,
+        route_protected_prefix=0,
         scale=1.0,
         query_offset=0,
         region_pages=pages,
@@ -183,6 +184,7 @@ def check_recursive_page_semantics(device: torch.device) -> None:
         long_leaves,
         max_routes=1,
         open_count=1,
+        route_protected_prefix=0,
         scale=1.0,
         query_offset=0,
     )
@@ -203,6 +205,55 @@ def check_recursive_page_semantics(device: torch.device) -> None:
     long_expected = (long_score.softmax(0).unsqueeze(-1) * long_expected_value).sum(0)
     _assert_close(
         long_result.output[0, 0, 0], long_expected, atol=2e-5, rtol=2e-5
+    )
+
+
+def check_protected_sink_routing(device: torch.device) -> None:
+    dtype = torch.float32
+    key_x = torch.tensor([10.0, 3.0, 1.0, 0.0], device=device)
+    key = torch.stack((key_x, torch.zeros_like(key_x)), dim=-1).view(1, 1, 4, 2)
+    value_x = torch.tensor([10.0, 2.0, 4.0, -1.0], device=device)
+    value = torch.stack((value_x, torch.zeros_like(value_x)), dim=-1).view(
+        1, 1, 4, 2
+    )
+    owner = torch.tensor([[[0, 1, 1, 2]]], device=device)
+    state = LODState(
+        key_sum=torch.tensor(
+            [[[[10.0, 0.0], [4.0, 0.0], [0.0, 0.0]]]], device=device
+        ),
+        value_sum=torch.tensor(
+            [[[[10.0, 0.0], [6.0, 0.0], [-1.0, 0.0]]]], device=device
+        ),
+        count=torch.tensor([[[1.0, 2.0, 1.0]]], device=device),
+    )
+    query = torch.tensor([[[[1.0, 0.0]]]], device=device)
+    local_key = torch.tensor([[[[-5.0, 0.0]]]], device=device)
+    local_value = torch.tensor([[[[7.0, 0.0]]]], device=device)
+    config = PagedLODConfig(page_size=2, leaf_dtype=dtype)
+    leaves = PagedKVCache.from_tensors(key, value, config)
+    result = paged_two_level_lod_attention(
+        query,
+        local_key,
+        local_value,
+        state,
+        owner,
+        leaves,
+        max_routes=1,
+        open_count=1,
+        scale=1.0,
+        query_offset=0,
+    )
+    if result.top_slots is None or result.top_slots.item() != 1:
+        raise AssertionError("paged routing opened a protected sink slot")
+    scores = torch.tensor([10.0, 3.0, 1.0, 0.0, -5.0], device=device)
+    values = torch.tensor(
+        [[10.0, 0.0], [2.0, 0.0], [4.0, 0.0], [-1.0, 0.0], [7.0, 0.0]],
+        device=device,
+    )
+    expected = (scores.softmax(0).unsqueeze(-1) * values).sum(0)
+    _assert_close(result.output[0, 0, 0], expected, atol=1e-6, rtol=1e-6)
+    _assert_close(
+        result.logsumexp[0, 0, 0], scores.logsumexp(0), atol=1e-6, rtol=1e-6
     )
 
 
@@ -310,6 +361,7 @@ def main() -> None:
     check_page_storage(device)
     check_int4_storage(device)
     check_recursive_page_semantics(device)
+    check_protected_sink_routing(device)
     check_module(device)
     print(f"paged LOD verification passed on {device}")
 

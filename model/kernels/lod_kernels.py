@@ -24,6 +24,895 @@ def _launch_kwargs(num_warps: int) -> dict[str, int]:
 
 
 @triton.jit
+def _merge_attention_branches_with_sink_kernel(
+    q,
+    sink_k,
+    sink_v,
+    primary_out,
+    primary_lse,
+    secondary_out,
+    secondary_lse,
+    tertiary_out,
+    tertiary_lse,
+    output,
+    Q_BATCH_STRIDE,
+    Q_HEAD_STRIDE,
+    Q_TOKEN_STRIDE,
+    SINK_K_BATCH_STRIDE,
+    SINK_K_HEAD_STRIDE,
+    SINK_K_TOKEN_STRIDE,
+    SINK_V_BATCH_STRIDE,
+    SINK_V_HEAD_STRIDE,
+    SINK_V_TOKEN_STRIDE,
+    PRIMARY_BATCH_STRIDE,
+    PRIMARY_HEAD_STRIDE,
+    PRIMARY_TOKEN_STRIDE,
+    PRIMARY_LSE_BATCH_STRIDE,
+    PRIMARY_LSE_HEAD_STRIDE,
+    PRIMARY_LSE_TOKEN_STRIDE,
+    SECONDARY_BATCH_STRIDE,
+    SECONDARY_HEAD_STRIDE,
+    SECONDARY_TOKEN_STRIDE,
+    SECONDARY_LSE_BATCH_STRIDE,
+    SECONDARY_LSE_HEAD_STRIDE,
+    SECONDARY_LSE_TOKEN_STRIDE,
+    TERTIARY_BATCH_STRIDE,
+    TERTIARY_HEAD_STRIDE,
+    TERTIARY_TOKEN_STRIDE,
+    TERTIARY_LSE_BATCH_STRIDE,
+    TERTIARY_LSE_HEAD_STRIDE,
+    TERTIARY_LSE_TOKEN_STRIDE,
+    QUERY_LEN: tl.constexpr,
+    QUERY_HEADS: tl.constexpr,
+    KV_GROUP_SIZE: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    BLOCK_DIM: tl.constexpr,
+    SINK_LEN: tl.constexpr,
+    INCLUDE_SECONDARY: tl.constexpr,
+    INCLUDE_TERTIARY: tl.constexpr,
+    SCALE: tl.constexpr,
+    BLOCK_M: tl.constexpr,
+):
+    """Merge materialized attention branches and an exact side sink once."""
+    batch = tl.program_id(0).to(tl.int64)
+    query_head = tl.program_id(1).to(tl.int64)
+    query = tl.program_id(2).to(tl.int64) * BLOCK_M + tl.arange(0, BLOCK_M)
+    query_valid = query < QUERY_LEN
+    kv_head = query_head // KV_GROUP_SIZE
+    dim = tl.arange(0, BLOCK_DIM)
+    dim_valid = dim < HEAD_DIM
+
+    query_value = tl.load(
+        q
+        + batch * Q_BATCH_STRIDE
+        + query_head * Q_HEAD_STRIDE
+        + query[:, None] * Q_TOKEN_STRIDE
+        + dim[None, :],
+        mask=query_valid[:, None] & dim_valid[None, :],
+        other=0.0,
+    ).to(tl.float32)
+    if SINK_LEN == 1:
+        key = tl.load(
+            sink_k
+            + batch * SINK_K_BATCH_STRIDE
+            + kv_head * SINK_K_HEAD_STRIDE
+            + dim,
+            mask=dim_valid,
+            other=0.0,
+        ).to(tl.float32)
+        sink_output = tl.load(
+            sink_v
+            + batch * SINK_V_BATCH_STRIDE
+            + kv_head * SINK_V_HEAD_STRIDE
+            + dim,
+            mask=dim_valid,
+            other=0.0,
+        ).to(tl.float32)
+        sink_lse = tl.sum(query_value * key[None, :], axis=1) * SCALE
+    else:
+        sink_maximum = tl.full((BLOCK_M,), -float("inf"), tl.float32)
+        sink_denominator = tl.zeros((BLOCK_M,), tl.float32)
+        sink_accumulator = tl.zeros((BLOCK_M, BLOCK_DIM), tl.float32)
+        for sink_index in tl.static_range(0, SINK_LEN):
+            key = tl.load(
+                sink_k
+                + batch * SINK_K_BATCH_STRIDE
+                + kv_head * SINK_K_HEAD_STRIDE
+                + sink_index * SINK_K_TOKEN_STRIDE
+                + dim,
+                mask=dim_valid,
+                other=0.0,
+            ).to(tl.float32)
+            value = tl.load(
+                sink_v
+                + batch * SINK_V_BATCH_STRIDE
+                + kv_head * SINK_V_HEAD_STRIDE
+                + sink_index * SINK_V_TOKEN_STRIDE
+                + dim,
+                mask=dim_valid,
+                other=0.0,
+            ).to(tl.float32)
+            score = tl.sum(query_value * key[None, :], axis=1) * SCALE
+            new_maximum = tl.maximum(sink_maximum, score)
+            old_weight = tl.exp(sink_maximum - new_maximum)
+            new_weight = tl.exp(score - new_maximum)
+            sink_denominator = sink_denominator * old_weight + new_weight
+            sink_accumulator = (
+                sink_accumulator * old_weight[:, None]
+                + value[None, :] * new_weight[:, None]
+            )
+            sink_maximum = new_maximum
+        sink_lse = sink_maximum + tl.log(sink_denominator)
+        sink_output = sink_accumulator / sink_denominator[:, None]
+    sink_lse = tl.where(query_valid, sink_lse, -float("inf"))
+
+    primary_score = tl.load(
+        primary_lse
+        + batch * PRIMARY_LSE_BATCH_STRIDE
+        + query_head * PRIMARY_LSE_HEAD_STRIDE
+        + query * PRIMARY_LSE_TOKEN_STRIDE,
+        mask=query_valid,
+        other=-float("inf"),
+    ).to(tl.float32)
+    maximum = tl.maximum(primary_score, sink_lse)
+    secondary_score = tl.full((BLOCK_M,), -float("inf"), tl.float32)
+    tertiary_score = tl.full((BLOCK_M,), -float("inf"), tl.float32)
+    if INCLUDE_SECONDARY:
+        secondary_score = tl.load(
+            secondary_lse
+            + batch * SECONDARY_LSE_BATCH_STRIDE
+            + query_head * SECONDARY_LSE_HEAD_STRIDE
+            + query * SECONDARY_LSE_TOKEN_STRIDE,
+            mask=query_valid,
+            other=-float("inf"),
+        ).to(tl.float32)
+        maximum = tl.maximum(maximum, secondary_score)
+    if INCLUDE_TERTIARY:
+        tertiary_score = tl.load(
+            tertiary_lse
+            + batch * TERTIARY_LSE_BATCH_STRIDE
+            + query_head * TERTIARY_LSE_HEAD_STRIDE
+            + query * TERTIARY_LSE_TOKEN_STRIDE,
+            mask=query_valid,
+            other=-float("inf"),
+        ).to(tl.float32)
+        maximum = tl.maximum(maximum, tertiary_score)
+
+    primary_weight = tl.exp(primary_score - maximum)
+    sink_weight = tl.exp(sink_lse - maximum)
+    denominator = primary_weight + sink_weight
+    primary_value = tl.load(
+        primary_out
+        + batch * PRIMARY_BATCH_STRIDE
+        + query_head * PRIMARY_HEAD_STRIDE
+        + query[:, None] * PRIMARY_TOKEN_STRIDE
+        + dim[None, :],
+        mask=query_valid[:, None] & dim_valid[None, :],
+        other=0.0,
+    ).to(tl.float32)
+    numerator = primary_weight[:, None] * primary_value
+    if SINK_LEN == 1:
+        numerator += sink_weight[:, None] * sink_output[None, :]
+    else:
+        numerator += sink_weight[:, None] * sink_output
+    if INCLUDE_SECONDARY:
+        secondary_weight = tl.exp(secondary_score - maximum)
+        secondary_value = tl.load(
+            secondary_out
+            + batch * SECONDARY_BATCH_STRIDE
+            + query_head * SECONDARY_HEAD_STRIDE
+            + query[:, None] * SECONDARY_TOKEN_STRIDE
+            + dim[None, :],
+            mask=query_valid[:, None] & dim_valid[None, :],
+            other=0.0,
+        ).to(tl.float32)
+        denominator += secondary_weight
+        numerator += secondary_weight[:, None] * secondary_value
+    if INCLUDE_TERTIARY:
+        tertiary_weight = tl.exp(tertiary_score - maximum)
+        tertiary_value = tl.load(
+            tertiary_out
+            + batch * TERTIARY_BATCH_STRIDE
+            + query_head * TERTIARY_HEAD_STRIDE
+            + query[:, None] * TERTIARY_TOKEN_STRIDE
+            + dim[None, :],
+            mask=query_valid[:, None] & dim_valid[None, :],
+            other=0.0,
+        ).to(tl.float32)
+        denominator += tertiary_weight
+        numerator += tertiary_weight[:, None] * tertiary_value
+    output_offset = (
+        ((batch * QUERY_HEADS + query_head) * QUERY_LEN + query[:, None])
+        * HEAD_DIM
+        + dim[None, :]
+    )
+    tl.store(
+        output + output_offset,
+        numerator / denominator[:, None],
+        mask=query_valid[:, None] & dim_valid[None, :],
+    )
+
+
+@triton.jit
+def _bipartite_reduce_overflow_kernel(
+    overflow_k,
+    overflow_v,
+    reduced_k,
+    reduced_v,
+    reduced_counts,
+    membership,
+    K_ROW_STRIDE,
+    V_ROW_STRIDE,
+    MEMBERSHIP_ROW_STRIDE,
+    OVERFLOW_LEN: tl.constexpr,
+    BLOCK_SIZE: tl.constexpr,
+    HALF_BLOCK: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+    BALANCED: tl.constexpr,
+    SALT: tl.constexpr,
+):
+    """Contract each overflow block by routing one partition to the other."""
+
+    row = tl.program_id(0).to(tl.int64)
+    block = tl.program_id(1).to(tl.int64)
+    block_begin = block * BLOCK_SIZE
+    reduced_begin = block * HALF_BLOCK
+    anchor = tl.arange(0, HALF_BLOCK)
+    source = tl.arange(0, HALF_BLOCK)
+    key_dim = tl.arange(0, HEAD_DIM)
+    value_dim = tl.arange(0, VALUE_DIM)
+    if BALANCED:
+        swap = (anchor + row + block + SALT) & 1
+        anchor_token = 2 * anchor + swap
+        source_token = 2 * source + 1 - swap
+    else:
+        anchor_token = anchor
+        source_token = HALF_BLOCK + source
+
+    anchor_k = tl.load(
+        overflow_k
+        + row * K_ROW_STRIDE
+        + (block_begin + anchor_token)[:, None] * HEAD_DIM
+        + key_dim[None, :]
+    )
+    source_k = tl.load(
+        overflow_k
+        + row * K_ROW_STRIDE
+        + (block_begin + source_token)[:, None] * HEAD_DIM
+        + key_dim[None, :]
+    )
+    similarity = tl.dot(source_k, tl.trans(anchor_k), out_dtype=tl.float32)
+    similarity = similarity.to(tl.bfloat16).to(tl.float32)
+    best_score = tl.max(similarity, axis=1)
+    destination = tl.min(
+        tl.where(
+            similarity == best_score[:, None],
+            anchor[None, :],
+            HALF_BLOCK,
+        ),
+        axis=1,
+    ).to(tl.int32)
+
+    assignment = (anchor[:, None] == destination[None, :]).to(source_k.dtype)
+    reduced_key = anchor_k.to(tl.float32) + tl.dot(
+        assignment, source_k, out_dtype=tl.float32
+    )
+    anchor_v = tl.load(
+        overflow_v
+        + row * V_ROW_STRIDE
+        + (block_begin + anchor_token)[:, None] * VALUE_DIM
+        + value_dim[None, :]
+    )
+    source_v = tl.load(
+        overflow_v
+        + row * V_ROW_STRIDE
+        + (block_begin + source_token)[:, None] * VALUE_DIM
+        + value_dim[None, :]
+    )
+    reduced_value = anchor_v.to(tl.float32) + tl.dot(
+        assignment.to(source_v.dtype), source_v, out_dtype=tl.float32
+    )
+    count = 1.0 + tl.sum(assignment.to(tl.float32), axis=1)
+
+    tl.store(
+        reduced_k
+        + row * (OVERFLOW_LEN // 2) * HEAD_DIM
+        + (reduced_begin + anchor)[:, None] * HEAD_DIM
+        + key_dim[None, :],
+        reduced_key,
+    )
+    tl.store(
+        reduced_v
+        + row * (OVERFLOW_LEN // 2) * VALUE_DIM
+        + (reduced_begin + anchor)[:, None] * VALUE_DIM
+        + value_dim[None, :],
+        reduced_value,
+    )
+    tl.store(
+        reduced_counts + row * (OVERFLOW_LEN // 2) + reduced_begin + anchor,
+        count,
+    )
+    tl.store(
+        membership + row * MEMBERSHIP_ROW_STRIDE + block_begin + anchor_token,
+        reduced_begin + anchor,
+    )
+    tl.store(
+        membership
+        + row * MEMBERSHIP_ROW_STRIDE
+        + block_begin
+        + source_token,
+        reduced_begin + destination,
+    )
+
+
+@triton.jit
+def _balanced_bipartite_route_kernel(
+    key_sum,
+    counts,
+    destination,
+    membership,
+    KEY_ROW_STRIDE: tl.constexpr,
+    COUNT_ROW_STRIDE: tl.constexpr,
+    DEST_ROW_STRIDE: tl.constexpr,
+    MEMBER_ROW_STRIDE: tl.constexpr,
+    TOKEN_LEN: tl.constexpr,
+    ANCHOR_COUNT: tl.constexpr,
+    SOURCE_COUNT: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    BLOCK_M: tl.constexpr,
+    BLOCK_N: tl.constexpr,
+    SALT: tl.constexpr,
+):
+    row = tl.program_id(0).to(tl.int64)
+    source = tl.program_id(1) * BLOCK_M + tl.arange(0, BLOCK_M)
+    source_valid = source < SOURCE_COUNT
+    source_swap = (source + row + SALT) & 1
+    source_token = 2 * source + 1 - source_swap
+    dim = tl.arange(0, HEAD_DIM)
+    source_count = tl.load(
+        counts + row * COUNT_ROW_STRIDE + source_token,
+        mask=source_valid,
+        other=1.0,
+    )
+    source_key = tl.load(
+        key_sum
+        + row * KEY_ROW_STRIDE
+        + source_token[:, None] * HEAD_DIM
+        + dim[None, :],
+        mask=source_valid[:, None],
+        other=0.0,
+    )
+    source_key = (source_key / source_count[:, None]).to(source_key.dtype)
+    best_score = tl.full((BLOCK_M,), float("-inf"), tl.float32)
+    best_anchor = tl.zeros((BLOCK_M,), tl.int32)
+    for anchor_begin in range(0, ANCHOR_COUNT, BLOCK_N):
+        anchor = anchor_begin + tl.arange(0, BLOCK_N)
+        anchor_valid = anchor < ANCHOR_COUNT
+        anchor_swap = tl.where(
+            2 * anchor + 1 < TOKEN_LEN, (anchor + row + SALT) & 1, 0
+        )
+        anchor_token = 2 * anchor + anchor_swap
+        anchor_valid = anchor_valid & (anchor_token < TOKEN_LEN)
+        anchor_count = tl.load(
+            counts + row * COUNT_ROW_STRIDE + anchor_token,
+            mask=anchor_valid,
+            other=1.0,
+        )
+        anchor_key = tl.load(
+            key_sum
+            + row * KEY_ROW_STRIDE
+            + anchor_token[:, None] * HEAD_DIM
+            + dim[None, :],
+            mask=anchor_valid[:, None],
+            other=0.0,
+        )
+        anchor_key = (anchor_key / anchor_count[:, None]).to(anchor_key.dtype)
+        score = tl.dot(source_key, tl.trans(anchor_key), out_dtype=tl.float32)
+        # torch.matmul returns BF16 for the reference routing path.  Match its
+        # rounding before argmax; near-ties become common at realistic block
+        # sizes and otherwise select different owners despite close scores.
+        score = score.to(tl.bfloat16).to(tl.float32)
+        score = tl.where(
+            source_valid[:, None] & anchor_valid[None, :],
+            score,
+            float("-inf"),
+        )
+        tile_score = tl.max(score, axis=1)
+        tile_anchor = anchor_begin + tl.argmax(score, axis=1)
+        improve = tile_score > best_score
+        best_score = tl.where(improve, tile_score, best_score)
+        best_anchor = tl.where(improve, tile_anchor, best_anchor)
+    tl.store(
+        destination + row * DEST_ROW_STRIDE + source,
+        best_anchor,
+        mask=source_valid,
+    )
+    tl.store(
+        membership + row * MEMBER_ROW_STRIDE + source_token,
+        best_anchor,
+        mask=source_valid,
+    )
+
+
+@triton.jit
+def _balanced_bipartite_reduce_feature_kernel(
+    values,
+    destination,
+    output,
+    VALUE_ROW_STRIDE: tl.constexpr,
+    DEST_ROW_STRIDE: tl.constexpr,
+    OUTPUT_ROW_STRIDE: tl.constexpr,
+    TOKEN_LEN: tl.constexpr,
+    ANCHOR_COUNT: tl.constexpr,
+    SOURCE_COUNT: tl.constexpr,
+    FEATURE_DIM: tl.constexpr,
+    BLOCK_A: tl.constexpr,
+    BLOCK_M: tl.constexpr,
+    BLOCK_D: tl.constexpr,
+    SALT: tl.constexpr,
+):
+    row = tl.program_id(0).to(tl.int64)
+    tiles_d = tl.cdiv(FEATURE_DIM, BLOCK_D)
+    tile = tl.program_id(1)
+    anchor_begin = (tile // tiles_d) * BLOCK_A
+    dim_begin = (tile % tiles_d) * BLOCK_D
+    anchor = anchor_begin + tl.arange(0, BLOCK_A)
+    dim = dim_begin + tl.arange(0, BLOCK_D)
+    anchor_valid = anchor < ANCHOR_COUNT
+    dim_valid = dim < FEATURE_DIM
+    anchor_swap = tl.where(
+        2 * anchor + 1 < TOKEN_LEN, (anchor + row + SALT) & 1, 0
+    )
+    anchor_token = 2 * anchor + anchor_swap
+    anchor_valid = anchor_valid & (anchor_token < TOKEN_LEN)
+    accumulator = tl.load(
+        values
+        + row * VALUE_ROW_STRIDE
+        + anchor_token[:, None] * FEATURE_DIM
+        + dim[None, :],
+        mask=anchor_valid[:, None] & dim_valid[None, :],
+        other=0.0,
+    ).to(tl.float32)
+    for source_begin in range(0, SOURCE_COUNT, BLOCK_M):
+        source = source_begin + tl.arange(0, BLOCK_M)
+        source_valid = source < SOURCE_COUNT
+        source_swap = (source + row + SALT) & 1
+        source_token = 2 * source + 1 - source_swap
+        owner = tl.load(
+            destination + row * DEST_ROW_STRIDE + source,
+            mask=source_valid,
+            other=-1,
+        )
+        source_value = tl.load(
+            values
+            + row * VALUE_ROW_STRIDE
+            + source_token[:, None] * FEATURE_DIM
+            + dim[None, :],
+            mask=source_valid[:, None] & dim_valid[None, :],
+            other=0.0,
+        )
+        assignment = (
+            anchor[:, None] == owner[None, :]
+        ) & anchor_valid[:, None] & source_valid[None, :]
+        accumulator += tl.dot(
+            assignment.to(source_value.dtype),
+            source_value,
+            out_dtype=tl.float32,
+        )
+    tl.store(
+        output
+        + row * OUTPUT_ROW_STRIDE
+        + anchor[:, None] * FEATURE_DIM
+        + dim[None, :],
+        accumulator,
+        mask=anchor_valid[:, None] & dim_valid[None, :],
+    )
+
+
+@triton.jit
+def _balanced_bipartite_reduce_count_kernel(
+    counts,
+    destination,
+    output_counts,
+    membership,
+    COUNT_ROW_STRIDE: tl.constexpr,
+    DEST_ROW_STRIDE: tl.constexpr,
+    OUTPUT_ROW_STRIDE: tl.constexpr,
+    MEMBER_ROW_STRIDE: tl.constexpr,
+    TOKEN_LEN: tl.constexpr,
+    ANCHOR_COUNT: tl.constexpr,
+    SOURCE_COUNT: tl.constexpr,
+    BLOCK_A: tl.constexpr,
+    BLOCK_M: tl.constexpr,
+    SALT: tl.constexpr,
+):
+    row = tl.program_id(0).to(tl.int64)
+    anchor = tl.program_id(1) * BLOCK_A + tl.arange(0, BLOCK_A)
+    anchor_valid = anchor < ANCHOR_COUNT
+    anchor_swap = tl.where(
+        2 * anchor + 1 < TOKEN_LEN, (anchor + row + SALT) & 1, 0
+    )
+    anchor_token = 2 * anchor + anchor_swap
+    anchor_valid = anchor_valid & (anchor_token < TOKEN_LEN)
+    accumulator = tl.load(
+        counts + row * COUNT_ROW_STRIDE + anchor_token,
+        mask=anchor_valid,
+        other=0.0,
+    ).to(tl.float32)
+    for source_begin in range(0, SOURCE_COUNT, BLOCK_M):
+        source = source_begin + tl.arange(0, BLOCK_M)
+        source_valid = source < SOURCE_COUNT
+        source_swap = (source + row + SALT) & 1
+        source_token = 2 * source + 1 - source_swap
+        owner = tl.load(
+            destination + row * DEST_ROW_STRIDE + source,
+            mask=source_valid,
+            other=-1,
+        )
+        source_count = tl.load(
+            counts + row * COUNT_ROW_STRIDE + source_token,
+            mask=source_valid,
+            other=0.0,
+        )
+        accumulator += tl.sum(
+            tl.where(
+                (anchor[:, None] == owner[None, :])
+                & anchor_valid[:, None]
+                & source_valid[None, :],
+                source_count[None, :],
+                0.0,
+            ),
+            axis=1,
+        )
+    tl.store(
+        output_counts + row * OUTPUT_ROW_STRIDE + anchor,
+        accumulator,
+        mask=anchor_valid,
+    )
+    tl.store(
+        membership + row * MEMBER_ROW_STRIDE + anchor_token,
+        anchor,
+        mask=anchor_valid,
+    )
+
+
+@triton.jit
+def _balanced_bipartite_route_atomic_kernel(
+    key_sum,
+    value_sum,
+    counts,
+    reduced_k_fp32,
+    reduced_v_fp32,
+    reduced_counts,
+    membership,
+    KEY_ROW_STRIDE: tl.constexpr,
+    VALUE_ROW_STRIDE: tl.constexpr,
+    COUNT_ROW_STRIDE: tl.constexpr,
+    OUTPUT_K_ROW_STRIDE: tl.constexpr,
+    OUTPUT_V_ROW_STRIDE: tl.constexpr,
+    OUTPUT_COUNT_ROW_STRIDE: tl.constexpr,
+    MEMBER_ROW_STRIDE: tl.constexpr,
+    TOKEN_LEN: tl.constexpr,
+    ANCHOR_COUNT: tl.constexpr,
+    SOURCE_COUNT: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+    BLOCK_M: tl.constexpr,
+    BLOCK_N: tl.constexpr,
+    SALT: tl.constexpr,
+):
+    """Route once, then scatter source and paired-anchor sums with low fan-in."""
+
+    row = tl.program_id(0).to(tl.int64)
+    source = tl.program_id(1) * BLOCK_M + tl.arange(0, BLOCK_M)
+    source_valid = source < SOURCE_COUNT
+    source_swap = (source + row + SALT) & 1
+    source_token = 2 * source + 1 - source_swap
+    paired_anchor_token = 2 * source + source_swap
+    key_dim = tl.arange(0, HEAD_DIM)
+    value_dim = tl.arange(0, VALUE_DIM)
+
+    source_count = tl.load(
+        counts + row * COUNT_ROW_STRIDE + source_token,
+        mask=source_valid,
+        other=1.0,
+    )
+    source_key_sum = tl.load(
+        key_sum
+        + row * KEY_ROW_STRIDE
+        + source_token[:, None] * HEAD_DIM
+        + key_dim[None, :],
+        mask=source_valid[:, None],
+        other=0.0,
+    )
+    source_key = (source_key_sum / source_count[:, None]).to(source_key_sum.dtype)
+    best_score = tl.full((BLOCK_M,), float("-inf"), tl.float32)
+    best_anchor = tl.zeros((BLOCK_M,), tl.int32)
+    for anchor_begin in range(0, ANCHOR_COUNT, BLOCK_N):
+        anchor = anchor_begin + tl.arange(0, BLOCK_N)
+        anchor_valid = anchor < ANCHOR_COUNT
+        anchor_swap = (anchor + row + SALT) & 1
+        anchor_token = 2 * anchor + anchor_swap
+        anchor_count = tl.load(
+            counts + row * COUNT_ROW_STRIDE + anchor_token,
+            mask=anchor_valid,
+            other=1.0,
+        )
+        anchor_key_sum = tl.load(
+            key_sum
+            + row * KEY_ROW_STRIDE
+            + anchor_token[:, None] * HEAD_DIM
+            + key_dim[None, :],
+            mask=anchor_valid[:, None],
+            other=0.0,
+        )
+        anchor_key = (anchor_key_sum / anchor_count[:, None]).to(
+            anchor_key_sum.dtype
+        )
+        score = tl.dot(source_key, tl.trans(anchor_key), out_dtype=tl.float32)
+        score = score.to(tl.bfloat16).to(tl.float32)
+        score = tl.where(
+            source_valid[:, None] & anchor_valid[None, :],
+            score,
+            float("-inf"),
+        )
+        tile_score = tl.max(score, axis=1)
+        tile_anchor = anchor_begin + tl.argmax(score, axis=1)
+        improve = tile_score > best_score
+        best_score = tl.where(improve, tile_score, best_score)
+        best_anchor = tl.where(improve, tile_anchor, best_anchor)
+
+    paired_anchor_count = tl.load(
+        counts + row * COUNT_ROW_STRIDE + paired_anchor_token,
+        mask=source_valid,
+        other=0.0,
+    )
+    paired_anchor_key = tl.load(
+        key_sum
+        + row * KEY_ROW_STRIDE
+        + paired_anchor_token[:, None] * HEAD_DIM
+        + key_dim[None, :],
+        mask=source_valid[:, None],
+        other=0.0,
+    )
+    source_value = tl.load(
+        value_sum
+        + row * VALUE_ROW_STRIDE
+        + source_token[:, None] * VALUE_DIM
+        + value_dim[None, :],
+        mask=source_valid[:, None],
+        other=0.0,
+    )
+    paired_anchor_value = tl.load(
+        value_sum
+        + row * VALUE_ROW_STRIDE
+        + paired_anchor_token[:, None] * VALUE_DIM
+        + value_dim[None, :],
+        mask=source_valid[:, None],
+        other=0.0,
+    )
+
+    tl.atomic_add(
+        reduced_k_fp32
+        + row * OUTPUT_K_ROW_STRIDE
+        + source[:, None] * HEAD_DIM
+        + key_dim[None, :],
+        paired_anchor_key.to(tl.float32),
+        mask=source_valid[:, None],
+    )
+    tl.atomic_add(
+        reduced_k_fp32
+        + row * OUTPUT_K_ROW_STRIDE
+        + best_anchor[:, None] * HEAD_DIM
+        + key_dim[None, :],
+        source_key_sum.to(tl.float32),
+        mask=source_valid[:, None],
+    )
+    tl.atomic_add(
+        reduced_v_fp32
+        + row * OUTPUT_V_ROW_STRIDE
+        + source[:, None] * VALUE_DIM
+        + value_dim[None, :],
+        paired_anchor_value.to(tl.float32),
+        mask=source_valid[:, None],
+    )
+    tl.atomic_add(
+        reduced_v_fp32
+        + row * OUTPUT_V_ROW_STRIDE
+        + best_anchor[:, None] * VALUE_DIM
+        + value_dim[None, :],
+        source_value.to(tl.float32),
+        mask=source_valid[:, None],
+    )
+    tl.atomic_add(
+        reduced_counts + row * OUTPUT_COUNT_ROW_STRIDE + source,
+        paired_anchor_count.to(tl.float32),
+        mask=source_valid,
+    )
+    tl.atomic_add(
+        reduced_counts + row * OUTPUT_COUNT_ROW_STRIDE + best_anchor,
+        source_count.to(tl.float32),
+        mask=source_valid,
+    )
+    tl.store(
+        membership + row * MEMBER_ROW_STRIDE + paired_anchor_token,
+        source,
+        mask=source_valid,
+    )
+    tl.store(
+        membership + row * MEMBER_ROW_STRIDE + source_token,
+        best_anchor,
+        mask=source_valid,
+    )
+
+
+@triton.jit
+def _balanced_bipartite_finalize_kernel(
+    reduced_k_fp32,
+    reduced_v_fp32,
+    reduced_k,
+    reduced_v,
+    K_ROW_STRIDE: tl.constexpr,
+    V_ROW_STRIDE: tl.constexpr,
+    ANCHOR_COUNT: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+    BLOCK_A: tl.constexpr,
+    BLOCK_D: tl.constexpr,
+):
+    row = tl.program_id(0).to(tl.int64)
+    anchor = tl.program_id(1) * BLOCK_A + tl.arange(0, BLOCK_A)
+    dim = tl.program_id(2) * BLOCK_D + tl.arange(0, BLOCK_D)
+    anchor_valid = anchor < ANCHOR_COUNT
+    k_mask = anchor_valid[:, None] & (dim[None, :] < HEAD_DIM)
+    v_mask = anchor_valid[:, None] & (dim[None, :] < VALUE_DIM)
+    k_offset = row * K_ROW_STRIDE + anchor[:, None] * HEAD_DIM + dim[None, :]
+    v_offset = row * V_ROW_STRIDE + anchor[:, None] * VALUE_DIM + dim[None, :]
+    tl.store(
+        reduced_k + k_offset,
+        tl.load(reduced_k_fp32 + k_offset, mask=k_mask, other=0.0),
+        mask=k_mask,
+    )
+    tl.store(
+        reduced_v + v_offset,
+        tl.load(reduced_v_fp32 + v_offset, mask=v_mask, other=0.0),
+        mask=v_mask,
+    )
+
+
+@triton.jit
+def _balanced_bipartite_atomic_reduce_kernel(
+    key_sum,
+    value_sum,
+    counts,
+    destination,
+    reduced_k_fp32,
+    reduced_v_fp32,
+    reduced_counts,
+    membership,
+    KEY_ROW_STRIDE: tl.constexpr,
+    VALUE_ROW_STRIDE: tl.constexpr,
+    COUNT_ROW_STRIDE: tl.constexpr,
+    DEST_ROW_STRIDE: tl.constexpr,
+    OUTPUT_K_ROW_STRIDE: tl.constexpr,
+    OUTPUT_V_ROW_STRIDE: tl.constexpr,
+    OUTPUT_COUNT_ROW_STRIDE: tl.constexpr,
+    MEMBER_ROW_STRIDE: tl.constexpr,
+    SOURCE_COUNT: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+    BLOCK_M: tl.constexpr,
+    BLOCK_D: tl.constexpr,
+    SALT: tl.constexpr,
+):
+    row = tl.program_id(0).to(tl.int64)
+    source = tl.program_id(1) * BLOCK_M + tl.arange(0, BLOCK_M)
+    feature_begin = tl.program_id(2) * BLOCK_D
+    source_valid = source < SOURCE_COUNT
+    swap = (source + row + SALT) & 1
+    source_token = 2 * source + 1 - swap
+    anchor_token = 2 * source + swap
+    owner = tl.load(
+        destination + row * DEST_ROW_STRIDE + source,
+        mask=source_valid,
+        other=0,
+    )
+    feature = feature_begin + tl.arange(0, BLOCK_D)
+    key_valid = feature < HEAD_DIM
+    value_valid = feature < VALUE_DIM
+    source_key = tl.load(
+        key_sum
+        + row * KEY_ROW_STRIDE
+        + source_token[:, None] * HEAD_DIM
+        + feature[None, :],
+        mask=source_valid[:, None] & key_valid[None, :],
+        other=0.0,
+    )
+    anchor_key = tl.load(
+        key_sum
+        + row * KEY_ROW_STRIDE
+        + anchor_token[:, None] * HEAD_DIM
+        + feature[None, :],
+        mask=source_valid[:, None] & key_valid[None, :],
+        other=0.0,
+    )
+    source_value = tl.load(
+        value_sum
+        + row * VALUE_ROW_STRIDE
+        + source_token[:, None] * VALUE_DIM
+        + feature[None, :],
+        mask=source_valid[:, None] & value_valid[None, :],
+        other=0.0,
+    )
+    anchor_value = tl.load(
+        value_sum
+        + row * VALUE_ROW_STRIDE
+        + anchor_token[:, None] * VALUE_DIM
+        + feature[None, :],
+        mask=source_valid[:, None] & value_valid[None, :],
+        other=0.0,
+    )
+    source_count = tl.load(
+        counts + row * COUNT_ROW_STRIDE + source_token,
+        mask=source_valid,
+        other=0.0,
+    )
+    anchor_count = tl.load(
+        counts + row * COUNT_ROW_STRIDE + anchor_token,
+        mask=source_valid,
+        other=0.0,
+    )
+    tl.atomic_add(
+        reduced_k_fp32
+        + row * OUTPUT_K_ROW_STRIDE
+        + source[:, None] * HEAD_DIM
+        + feature[None, :],
+        anchor_key.to(tl.float32),
+        mask=source_valid[:, None] & key_valid[None, :],
+    )
+    tl.atomic_add(
+        reduced_k_fp32
+        + row * OUTPUT_K_ROW_STRIDE
+        + owner[:, None] * HEAD_DIM
+        + feature[None, :],
+        source_key.to(tl.float32),
+        mask=source_valid[:, None] & key_valid[None, :],
+    )
+    tl.atomic_add(
+        reduced_v_fp32
+        + row * OUTPUT_V_ROW_STRIDE
+        + source[:, None] * VALUE_DIM
+        + feature[None, :],
+        anchor_value.to(tl.float32),
+        mask=source_valid[:, None] & value_valid[None, :],
+    )
+    tl.atomic_add(
+        reduced_v_fp32
+        + row * OUTPUT_V_ROW_STRIDE
+        + owner[:, None] * VALUE_DIM
+        + feature[None, :],
+        source_value.to(tl.float32),
+        mask=source_valid[:, None] & value_valid[None, :],
+    )
+    tl.atomic_add(
+        reduced_counts + row * OUTPUT_COUNT_ROW_STRIDE + source,
+        anchor_count.to(tl.float32),
+        mask=source_valid & (feature_begin == 0),
+    )
+    tl.atomic_add(
+        reduced_counts + row * OUTPUT_COUNT_ROW_STRIDE + owner,
+        source_count.to(tl.float32),
+        mask=source_valid & (feature_begin == 0),
+    )
+    tl.store(
+        membership + row * MEMBER_ROW_STRIDE + anchor_token,
+        source,
+        mask=source_valid & (feature_begin == 0),
+    )
+
+
+@triton.jit
 def _streaming_state_maxsim_kernel(
     overflow_k,
     state_k,
@@ -328,6 +1217,7 @@ def _route_logits_topk_coarse_attention_kernel(
     counts,
     local_k,
     local_v,
+    residual_local_lse,
     top_slots,
     output,
     lse,
@@ -350,6 +1240,9 @@ def _route_logits_topk_coarse_attention_kernel(
     LOCAL_V_BATCH_STRIDE: tl.constexpr,
     LOCAL_V_HEAD_STRIDE: tl.constexpr,
     LOCAL_V_TOKEN_STRIDE: tl.constexpr,
+    RESIDUAL_LSE_BATCH_STRIDE: tl.constexpr,
+    RESIDUAL_LSE_HEAD_STRIDE: tl.constexpr,
+    RESIDUAL_LSE_TOKEN_STRIDE: tl.constexpr,
     TOP_BATCH_STRIDE: tl.constexpr,
     TOP_HEAD_STRIDE: tl.constexpr,
     TOP_QUERY_STRIDE: tl.constexpr,
@@ -361,6 +1254,11 @@ def _route_logits_topk_coarse_attention_kernel(
     KV_GROUP_SIZE: tl.constexpr,
     HEAD_DIM: tl.constexpr,
     ROUTE_COUNT: tl.constexpr,
+    OPEN_COUNT: tl.constexpr,
+    MAX_LEAF_TOKENS: tl.constexpr,
+    PROTECTED_LEN: tl.constexpr,
+    RESIDUAL_MASS: tl.constexpr,
+    USE_EXTERNAL_LOCAL_LSE: tl.constexpr,
     SCALE: tl.constexpr,
     BLOCK_M: tl.constexpr,
     BLOCK_N: tl.constexpr,
@@ -390,14 +1288,23 @@ def _route_logits_topk_coarse_attention_kernel(
     maximum = tl.where(query_valid, -float("inf"), 0.0).to(tl.float32)
     denominator = tl.where(query_valid, 0.0, 1.0).to(tl.float32)
     accumulator = tl.zeros((KV_GROUP_SIZE * BLOCK_M, HEAD_DIM), tl.float32)
-    top_scores = tl.full(
-        (KV_GROUP_SIZE * BLOCK_M, ROUTE_COUNT),
-        -float("inf"),
-        tl.float32,
-    )
-    top_indices = tl.full(
-        (KV_GROUP_SIZE * BLOCK_M, ROUTE_COUNT), -1, tl.int32
-    )
+    if ROUTE_COUNT == 8:
+        # Sort scores and prefer the lower slot index on exact ties in one
+        # packed scalar, so Triton's bitonic top-k can retain both fields.
+        top_packed = tl.full(
+            (KV_GROUP_SIZE * BLOCK_M, ROUTE_COUNT),
+            -9223372036854775807,
+            tl.int64,
+        )
+    else:
+        top_scores = tl.full(
+            (KV_GROUP_SIZE * BLOCK_M, ROUTE_COUNT),
+            -float("inf"),
+            tl.float32,
+        )
+        top_indices = tl.full(
+            (KV_GROUP_SIZE * BLOCK_M, ROUTE_COUNT), -1, tl.int32
+        )
 
     for state_begin in tl.range(0, state_len, BLOCK_N, num_stages=1):
         slot = state_begin + token_offset
@@ -433,43 +1340,72 @@ def _route_logits_topk_coarse_attention_kernel(
         valid = query_valid[:, None] & state_valid[None, :]
         scores = tl.where(valid, scores, -float("inf"))
 
-        remaining_scores = scores
-        for _ in tl.static_range(0, ROUTE_COUNT):
-            candidate_score = tl.max(remaining_scores, axis=1)
-            candidate_position = tl.min(
-                tl.where(
-                    remaining_scores == candidate_score[:, None],
-                    token_offset[None, :],
-                    BLOCK_N,
-                ),
-                axis=1,
-            )
-            worst_score = tl.min(top_scores, axis=1)
-            worst_rank = tl.min(
-                tl.where(
-                    top_scores == worst_score[:, None],
-                    route_rank[None, :],
-                    ROUTE_COUNT,
-                ),
-                axis=1,
-            )
-            replace = query_valid & (candidate_score > worst_score)
-            replace_at = replace[:, None] & (
-                route_rank[None, :] == worst_rank[:, None]
-            )
-            top_scores = tl.where(
-                replace_at, candidate_score[:, None], top_scores
-            )
-            top_indices = tl.where(
-                replace_at,
-                (state_begin + candidate_position)[:, None],
-                top_indices,
-            )
+        route_valid = slot >= PROTECTED_LEN
+        if MAX_LEAF_TOKENS:
             remaining_scores = tl.where(
-                token_offset[None, :] == candidate_position[:, None],
+                route_valid[None, :] & (count[None, :] <= MAX_LEAF_TOKENS),
+                scores,
                 -float("inf"),
-                remaining_scores,
             )
+        else:
+            remaining_scores = tl.where(
+                route_valid[None, :], scores, -float("inf")
+            )
+        if ROUTE_COUNT == 8:
+            score_bits = remaining_scores.to(tl.uint32, bitcast=True)
+            negative = (score_bits & 0x80000000) != 0
+            ordered_bits = tl.where(
+                negative,
+                score_bits ^ 0xFFFFFFFF,
+                score_bits ^ 0x80000000,
+            ).to(tl.int64)
+            score_rank = ordered_bits - 2147483648
+            global_slot = (state_begin + token_offset).to(tl.int64)
+            inverse_slot = 4294967295 - global_slot
+            packed_scores = (
+                score_rank * 4294967296 + inverse_slot[None, :]
+            )
+            block_top = tl.topk(packed_scores, ROUTE_COUNT, dim=1)
+            top_packed = tl.topk(
+                tl.interleave(top_packed, block_top), ROUTE_COUNT, dim=1
+            )
+        else:
+            for _ in tl.static_range(0, ROUTE_COUNT):
+                candidate_score = tl.max(remaining_scores, axis=1)
+                candidate_position = tl.min(
+                    tl.where(
+                        remaining_scores == candidate_score[:, None],
+                        token_offset[None, :],
+                        BLOCK_N,
+                    ),
+                    axis=1,
+                )
+                worst_score = tl.min(top_scores, axis=1)
+                worst_rank = tl.min(
+                    tl.where(
+                        top_scores == worst_score[:, None],
+                        route_rank[None, :],
+                        ROUTE_COUNT,
+                    ),
+                    axis=1,
+                )
+                replace = query_valid & (candidate_score > worst_score)
+                replace_at = replace[:, None] & (
+                    route_rank[None, :] == worst_rank[:, None]
+                )
+                top_scores = tl.where(
+                    replace_at, candidate_score[:, None], top_scores
+                )
+                top_indices = tl.where(
+                    replace_at,
+                    (state_begin + candidate_position)[:, None],
+                    top_indices,
+                )
+                remaining_scores = tl.where(
+                    token_offset[None, :] == candidate_position[:, None],
+                    -float("inf"),
+                    remaining_scores,
+                )
 
         block_maximum = tl.max(scores, axis=1)
         new_maximum = tl.maximum(maximum, block_maximum)
@@ -483,6 +1419,30 @@ def _route_logits_topk_coarse_attention_kernel(
             out_dtype=tl.float32,
         )
         maximum = new_maximum
+
+    if ROUTE_COUNT == 8:
+        inverse_slot = top_packed & 0xFFFFFFFF
+        top_indices = (4294967295 - inverse_slot).to(tl.int32)
+        selected_valid = query_valid[:, None] & (top_indices < state_len)
+        selected_counts = tl.load(
+            counts
+            + batch * COUNT_BATCH_STRIDE
+            + kv_head * COUNT_HEAD_STRIDE
+            + top_indices * COUNT_TOKEN_STRIDE,
+            mask=selected_valid,
+            other=1.0,
+        ).to(tl.float32)
+        selected_logits = tl.load(
+            route_logits
+            + batch * LOGIT_BATCH_STRIDE
+            + query_head[:, None] * LOGIT_HEAD_STRIDE
+            + query[:, None] * LOGIT_QUERY_STRIDE
+            + top_indices * LOGIT_STATE_STRIDE,
+            mask=selected_valid,
+            other=-float("inf"),
+        ).to(tl.float32)
+        top_scores = selected_logits * SCALE + tl.log(selected_counts)
+        top_indices = tl.where(selected_valid, top_indices, -1)
 
     for local_begin in tl.range(0, local_len, BLOCK_N, num_stages=1):
         token = local_begin + token_offset
@@ -522,6 +1482,85 @@ def _route_logits_topk_coarse_attention_kernel(
         )
         maximum = new_maximum
 
+    if RESIDUAL_MASS > 0.0 or OPEN_COUNT < ROUTE_COUNT:
+        if RESIDUAL_MASS > 0.0:
+            full_lse = maximum + tl.log(denominator)
+            if USE_EXTERNAL_LOCAL_LSE:
+                external_local_lse = tl.load(
+                    residual_local_lse
+                    + batch * RESIDUAL_LSE_BATCH_STRIDE
+                    + query_head * RESIDUAL_LSE_HEAD_STRIDE
+                    + query * RESIDUAL_LSE_TOKEN_STRIDE,
+                    mask=query_valid,
+                    other=-float("inf"),
+                ).to(tl.float32)
+                combined_maximum = tl.maximum(full_lse, external_local_lse)
+                full_lse = combined_maximum + tl.log(
+                    tl.exp(full_lse - combined_maximum)
+                    + tl.exp(external_local_lse - combined_maximum)
+                )
+            remaining_mass = tl.sum(
+                tl.exp(top_scores - full_lse[:, None]), axis=1
+            )
+        remaining_scores = top_scores
+        opened_indices = tl.full(
+            (KV_GROUP_SIZE * BLOCK_M, ROUTE_COUNT), -1, tl.int32
+        )
+        opened_scores = tl.full(
+            (KV_GROUP_SIZE * BLOCK_M, ROUTE_COUNT),
+            -float("inf"),
+            tl.float32,
+        )
+        for route in tl.static_range(0, ROUTE_COUNT):
+            candidate_score = tl.max(remaining_scores, axis=1)
+            candidate_rank = tl.min(
+                tl.where(
+                    remaining_scores == candidate_score[:, None],
+                    route_rank[None, :],
+                    ROUTE_COUNT,
+                ),
+                axis=1,
+            )
+            candidate_index = tl.max(
+                tl.where(
+                    route_rank[None, :] == candidate_rank[:, None],
+                    top_indices,
+                    -1,
+                ),
+                axis=1,
+            )
+            if RESIDUAL_MASS > 0.0:
+                if route == 0:
+                    opened = query_valid
+                else:
+                    opened = (
+                        query_valid
+                        & (route < OPEN_COUNT)
+                        & (remaining_mass > RESIDUAL_MASS)
+                    )
+            else:
+                opened = query_valid & (route < OPEN_COUNT)
+            destination = route_rank[None, :] == route
+            opened_indices = tl.where(
+                destination,
+                tl.where(opened, candidate_index, -1)[:, None],
+                opened_indices,
+            )
+            opened_scores = tl.where(
+                destination,
+                tl.where(opened, candidate_score, -float("inf"))[:, None],
+                opened_scores,
+            )
+            if RESIDUAL_MASS > 0.0:
+                remaining_mass -= tl.exp(candidate_score - full_lse)
+            remaining_scores = tl.where(
+                route_rank[None, :] == candidate_rank[:, None],
+                -float("inf"),
+                remaining_scores,
+            )
+        top_indices = opened_indices
+        top_scores = opened_scores
+
     # The streamed field included every low-resolution state summary. Remove
     # the selected summaries so their exact leaves can replace them without
     # duplicate attention mass.
@@ -542,12 +1581,13 @@ def _route_logits_topk_coarse_attention_kernel(
             ),
             axis=1,
         )
+        selected_valid = query_valid & (selected_slot >= 0)
         selected_count = tl.load(
             counts
             + batch * COUNT_BATCH_STRIDE
             + kv_head * COUNT_HEAD_STRIDE
             + selected_slot * COUNT_TOKEN_STRIDE,
-            mask=query_valid,
+            mask=selected_valid,
             other=1.0,
         ).to(tl.float32)
         selected_values = tl.load(
@@ -556,7 +1596,7 @@ def _route_logits_topk_coarse_attention_kernel(
             + kv_head * STATE_V_HEAD_STRIDE
             + selected_slot[:, None] * STATE_V_TOKEN_STRIDE
             + dim[None, :],
-            mask=query_valid[:, None],
+            mask=selected_valid[:, None],
             other=0.0,
         )
         selected_mean = (
@@ -589,7 +1629,7 @@ def _route_logits_topk_coarse_attention_kernel(
         + query[:, None] * TOP_QUERY_STRIDE
         + route_rank[None, :],
         top_indices,
-        mask=query_valid[:, None],
+        mask=query_valid[:, None] & (route_rank[None, :] < OPEN_COUNT),
     )
 
 
@@ -597,6 +1637,7 @@ def _route_logits_topk_coarse_attention_kernel(
 def _accumulate_state_deltas_kernel(
     merge_k,
     merge_v,
+    merge_counts,
     merge_indices,
     destinations,
     owners,
@@ -650,6 +1691,9 @@ def _accumulate_state_deltas_kernel(
         mask=valid[:, None],
         other=0.0,
     ).to(tl.float32)
+    merge_count = tl.load(
+        merge_counts + row * TOKENS + token, mask=valid, other=0.0
+    ).to(tl.float32)
     tl.atomic_or(
         touched + row * DELTA_SLOT_STRIDE + destination,
         1,
@@ -658,7 +1702,7 @@ def _accumulate_state_deltas_kernel(
     )
     tl.atomic_add(
         delta_counts + row * DELTA_SLOT_STRIDE + destination,
-        1.0,
+        merge_count,
         sem="relaxed",
         mask=valid,
     )
@@ -828,6 +1872,7 @@ def _route_state_group_candidates_kernel(
     SCALE: tl.constexpr,
     KV_GROUP_SIZE: tl.constexpr,
     HEAD_DIM: tl.constexpr,
+    PROTECTED_LEN: tl.constexpr,
     BLOCK_M: tl.constexpr,
     BLOCK_N: tl.constexpr,
 ):
@@ -874,7 +1919,13 @@ def _route_state_group_candidates_kernel(
     scores = tl.dot(q_values, tl.trans(key), out_dtype=tl.float32)
     scores = (scores.to(tl.bfloat16) * SCALE).to(tl.bfloat16).to(tl.float32)
     scores += tl.log(count)[None, :]
-    scores = tl.where(query_valid[:, None] & slot_valid[None, :], scores, -float("inf"))
+    scores = tl.where(
+        query_valid[:, None]
+        & slot_valid[None, :]
+        & (slot[None, :] >= PROTECTED_LEN),
+        scores,
+        -float("inf"),
+    )
 
     partial_base = (
         batch * PARTIAL_BATCH_STRIDE
@@ -938,6 +1989,7 @@ def _route_score_group_candidates_kernel(
     KV_GROUP_SIZE: tl.constexpr,
     BLOCK_M: tl.constexpr,
     BLOCK_N: tl.constexpr,
+    PROTECTED_LEN: tl.constexpr,
     STORE_LSE: tl.constexpr,
 ):
     batch = tl.program_id(0).to(tl.int64)
@@ -989,6 +2041,7 @@ def _route_score_group_candidates_kernel(
             mask=query_valid,
         )
 
+    scores = tl.where(slot[None, :] >= PROTECTED_LEN, scores, -float("inf"))
     partial_base = (
         batch * PARTIAL_BATCH_STRIDE
         + q_head * PARTIAL_HEAD_STRIDE
@@ -1350,6 +2403,299 @@ def new_state_maxsim_buffers(
     }
 
 
+def bipartite_reduce_overflow(
+    overflow_k: torch.Tensor,
+    overflow_v: torch.Tensor,
+    *,
+    block_size: int = 32,
+    balanced: bool = False,
+    salt: int = 0,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Reduce fixed overflow blocks 2:1 and return original-to-rep membership.
+
+    The first half of each block supplies representatives. Every key in the
+    second half routes to its most similar representative. Returned K/V are
+    sums and ``counts`` records their multiplicity, preserving coarse mass.
+    """
+
+    if not overflow_k.is_cuda or not overflow_v.is_cuda:
+        raise ValueError("bipartite overflow reduction requires CUDA tensors")
+    if overflow_k.ndim != 4 or overflow_v.ndim != 4:
+        raise ValueError("bipartite overflow tensors must be rank four")
+    if overflow_k.shape[:3] != overflow_v.shape[:3]:
+        raise ValueError("bipartite overflow K/V shapes differ")
+    if not overflow_k.is_contiguous() or not overflow_v.is_contiguous():
+        raise ValueError("bipartite overflow K/V must be contiguous")
+    if block_size <= 0 or block_size % 2:
+        raise ValueError("bipartite block size must be positive and even")
+    overflow_len = int(overflow_k.size(2))
+    if overflow_len == 0 or overflow_len % block_size:
+        raise ValueError("overflow length must be a nonzero block-size multiple")
+    half_block = block_size // 2
+    batch, kv_heads, _, head_dim = overflow_k.shape
+    value_dim = int(overflow_v.size(-1))
+    reduced_len = overflow_len // 2
+    reduced_k = torch.empty(
+        batch,
+        kv_heads,
+        reduced_len,
+        head_dim,
+        dtype=overflow_k.dtype,
+        device=overflow_k.device,
+    )
+    reduced_v = torch.empty(
+        batch,
+        kv_heads,
+        reduced_len,
+        value_dim,
+        dtype=overflow_v.dtype,
+        device=overflow_v.device,
+    )
+    counts = torch.empty(
+        batch,
+        kv_heads,
+        reduced_len,
+        1,
+        dtype=torch.float32,
+        device=overflow_k.device,
+    )
+    membership = torch.empty(
+        batch,
+        kv_heads,
+        overflow_len,
+        dtype=torch.long,
+        device=overflow_k.device,
+    )
+    rows = batch * kv_heads
+    _bipartite_reduce_overflow_kernel[(rows, overflow_len // block_size)](
+        overflow_k,
+        overflow_v,
+        reduced_k,
+        reduced_v,
+        counts,
+        membership,
+        overflow_k.stride(1),
+        overflow_v.stride(1),
+        membership.stride(1),
+        OVERFLOW_LEN=overflow_len,
+        BLOCK_SIZE=block_size,
+        HALF_BLOCK=half_block,
+        HEAD_DIM=head_dim,
+        VALUE_DIM=value_dim,
+        BALANCED=balanced,
+        SALT=salt,
+        **_launch_kwargs(4),
+    )
+    return reduced_k, reduced_v, counts, membership
+
+
+def balanced_bipartite_reduce_2to1(
+    key_sum: torch.Tensor,
+    value_sum: torch.Tensor,
+    counts: torch.Tensor,
+    *,
+    salt: int = 0,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Contract one or more rows 2:1 using a balanced interleaved partition."""
+
+    if not all(tensor.is_cuda for tensor in (key_sum, value_sum, counts)):
+        raise ValueError("balanced bipartite reduction requires CUDA tensors")
+    if key_sum.ndim != 4 or value_sum.ndim != 4 or counts.ndim != 4:
+        raise ValueError("balanced bipartite inputs must be rank four")
+    if key_sum.shape[:3] != value_sum.shape[:3] or counts.shape[:3] != key_sum.shape[:3]:
+        raise ValueError("balanced bipartite input prefixes differ")
+    if int(counts.size(-1)) != 1:
+        raise ValueError("balanced bipartite counts must have a singleton feature")
+    if not all(tensor.is_contiguous() for tensor in (key_sum, value_sum, counts)):
+        raise ValueError("balanced bipartite inputs must be contiguous")
+    batch, heads, token_len, head_dim = key_sum.shape
+    if token_len < 2:
+        raise ValueError("balanced bipartite reduction needs at least two tokens")
+    value_dim = int(value_sum.size(-1))
+    anchor_count = (token_len + 1) // 2
+    source_count = token_len // 2
+    rows = batch * heads
+    destination = torch.empty(
+        batch,
+        heads,
+        source_count,
+        dtype=torch.int32,
+        device=key_sum.device,
+    )
+    membership = torch.empty(
+        batch,
+        heads,
+        token_len,
+        dtype=torch.long,
+        device=key_sum.device,
+    )
+    reduced_k = torch.empty(
+        batch,
+        heads,
+        anchor_count,
+        head_dim,
+        dtype=key_sum.dtype,
+        device=key_sum.device,
+    )
+    reduced_v = torch.empty(
+        batch,
+        heads,
+        anchor_count,
+        value_dim,
+        dtype=value_sum.dtype,
+        device=value_sum.device,
+    )
+    reduced_counts = torch.empty(
+        batch,
+        heads,
+        anchor_count,
+        1,
+        dtype=torch.float32,
+        device=key_sum.device,
+    )
+    if token_len % 2 == 0:
+        reduced_k_fp32 = torch.zeros_like(reduced_k, dtype=torch.float32)
+        reduced_v_fp32 = torch.zeros_like(reduced_v, dtype=torch.float32)
+        reduced_counts.zero_()
+        _balanced_bipartite_route_kernel[
+            (rows, triton.cdiv(source_count, 16))
+        ](
+            key_sum,
+            counts,
+            destination,
+            membership,
+            key_sum.stride(1),
+            counts.stride(1),
+            destination.stride(1),
+            membership.stride(1),
+            TOKEN_LEN=token_len,
+            ANCHOR_COUNT=anchor_count,
+            SOURCE_COUNT=source_count,
+            HEAD_DIM=head_dim,
+            BLOCK_M=16,
+            BLOCK_N=32,
+            SALT=salt,
+            **_launch_kwargs(4),
+        )
+        _balanced_bipartite_atomic_reduce_kernel[
+            (
+                rows,
+                triton.cdiv(source_count, 4),
+                triton.cdiv(max(head_dim, value_dim), 32),
+            )
+        ](
+            key_sum,
+            value_sum,
+            counts,
+            destination,
+            reduced_k_fp32,
+            reduced_v_fp32,
+            reduced_counts,
+            membership,
+            key_sum.stride(1),
+            value_sum.stride(1),
+            counts.stride(1),
+            destination.stride(1),
+            reduced_k_fp32.stride(1),
+            reduced_v_fp32.stride(1),
+            reduced_counts.stride(1),
+            membership.stride(1),
+            SOURCE_COUNT=source_count,
+            HEAD_DIM=head_dim,
+            VALUE_DIM=value_dim,
+            BLOCK_M=4,
+            BLOCK_D=32,
+            SALT=salt,
+            **_launch_kwargs(4),
+        )
+        _balanced_bipartite_finalize_kernel[
+            (
+                rows,
+                triton.cdiv(anchor_count, 8),
+                triton.cdiv(max(head_dim, value_dim), 32),
+            )
+        ](
+            reduced_k_fp32,
+            reduced_v_fp32,
+            reduced_k,
+            reduced_v,
+            reduced_k_fp32.stride(1),
+            reduced_v_fp32.stride(1),
+            ANCHOR_COUNT=anchor_count,
+            HEAD_DIM=head_dim,
+            VALUE_DIM=value_dim,
+            BLOCK_A=8,
+            BLOCK_D=32,
+            **_launch_kwargs(4),
+        )
+        return reduced_k, reduced_v, reduced_counts, membership
+
+    _balanced_bipartite_route_kernel[
+        (rows, triton.cdiv(source_count, 16))
+    ](
+        key_sum,
+        counts,
+        destination,
+        membership,
+        key_sum.stride(1),
+        counts.stride(1),
+        destination.stride(1),
+        membership.stride(1),
+        TOKEN_LEN=token_len,
+        ANCHOR_COUNT=anchor_count,
+        SOURCE_COUNT=source_count,
+        HEAD_DIM=head_dim,
+        BLOCK_M=16,
+        BLOCK_N=32,
+        SALT=salt,
+        **_launch_kwargs(4),
+    )
+    for values, output, feature_dim in (
+        (key_sum, reduced_k, head_dim),
+        (value_sum, reduced_v, value_dim),
+    ):
+        feature_tiles = triton.cdiv(feature_dim, 32)
+        _balanced_bipartite_reduce_feature_kernel[
+            (rows, triton.cdiv(anchor_count, 8) * feature_tiles)
+        ](
+            values,
+            destination,
+            output,
+            values.stride(1),
+            destination.stride(1),
+            output.stride(1),
+            TOKEN_LEN=token_len,
+            ANCHOR_COUNT=anchor_count,
+            SOURCE_COUNT=source_count,
+            FEATURE_DIM=feature_dim,
+            BLOCK_A=8,
+            BLOCK_M=32,
+            BLOCK_D=32,
+            SALT=salt,
+            **_launch_kwargs(4),
+        )
+    _balanced_bipartite_reduce_count_kernel[
+        (rows, triton.cdiv(anchor_count, 64))
+    ](
+        counts,
+        destination,
+        reduced_counts,
+        membership,
+        counts.stride(1),
+        destination.stride(1),
+        reduced_counts.stride(1),
+        membership.stride(1),
+        TOKEN_LEN=token_len,
+        ANCHOR_COUNT=anchor_count,
+        SOURCE_COUNT=source_count,
+        BLOCK_A=64,
+        BLOCK_M=32,
+        SALT=salt,
+        **_launch_kwargs(4),
+    )
+    return reduced_k, reduced_v, reduced_counts, membership
+
+
 def streaming_state_maxsim(
     overflow_k: torch.Tensor,
     state_k: torch.Tensor,
@@ -1582,6 +2928,10 @@ def route_logits_topk_coarse_attention(
     kv_group_size: int,
     scale: float,
     topk: int = 8,
+    protected_len: int = 0,
+    max_leaf_tokens: int | None = None,
+    residual_local_lse: torch.Tensor | None = None,
+    residual_mass: float | None = None,
     block_m: int = 16,
     block_n: int = 32,
     num_warps: int = 8,
@@ -1599,13 +2949,19 @@ def route_logits_topk_coarse_attention(
         raise ValueError("query heads do not match the requested GQA grouping")
     if tuple(route_logits.shape) != (batch, query_heads, query_len, state_len):
         raise ValueError("routing logits have the wrong shape")
-    if topk != 8:
-        raise ValueError("fused LOD prefill routing currently requires top-8")
+    if not 0 < topk <= 8:
+        raise ValueError("fused LOD prefill routing requires top-k in [1, 8]")
+    if max_leaf_tokens is not None and max_leaf_tokens <= 0:
+        raise ValueError("maximum routed leaf count must be positive")
+    if residual_mass is not None and not 0.0 < residual_mass < 1.0:
+        raise ValueError("residual route mass must lie strictly between zero and one")
     if state_len < topk:
         raise ValueError("active state is smaller than the requested route count")
+    if protected_len < 0 or protected_len + topk > state_len:
+        raise ValueError("protected state leaves too few routing candidates")
     if state_len > int(state_v.size(2)) or state_len > int(counts.size(2)):
         raise ValueError("active state exceeds the supplied storage")
-    if local_len < query_len or int(local_v.size(2)) != local_len:
+    if (local_len and local_len < query_len) or int(local_v.size(2)) != local_len:
         raise ValueError("local attention has an invalid length")
     if int(local_k.size(1)) != kv_heads or int(local_v.size(1)) != kv_heads:
         raise ValueError("local and state KV heads differ")
@@ -1614,6 +2970,7 @@ def route_logits_topk_coarse_attention(
     if block_m <= 0 or block_n <= 0:
         raise ValueError("coarse-attention tile sizes must be positive")
 
+    padded_topk = 1 << (topk - 1).bit_length()
     top_slots = torch.empty(
         batch,
         query_heads,
@@ -1630,6 +2987,20 @@ def route_logits_topk_coarse_attention(
         dtype=torch.float32,
         device=q.device,
     )
+    if residual_local_lse is not None:
+        if residual_mass is None:
+            raise ValueError("a residual local LSE requires a residual-mass threshold")
+        if tuple(residual_local_lse.shape) != (batch, query_heads, query_len):
+            raise ValueError("residual local LSE has the wrong shape")
+        if not residual_local_lse.is_cuda or not residual_local_lse.is_contiguous():
+            raise ValueError("residual local LSE must be contiguous on the GPU")
+        residual_lse = residual_local_lse
+    else:
+        if residual_mass is not None and local_len == 0:
+            raise ValueError(
+                "residual-mass routing requires either local KV or its external LSE"
+            )
+        residual_lse = lse
     grid = (batch, kv_heads, triton.cdiv(query_len, block_m))
     _route_logits_topk_coarse_attention_kernel[grid](
         q,
@@ -1638,6 +3009,7 @@ def route_logits_topk_coarse_attention(
         counts,
         local_k,
         local_v,
+        residual_lse,
         top_slots,
         output,
         lse,
@@ -1660,6 +3032,9 @@ def route_logits_topk_coarse_attention(
         local_v.stride(0),
         local_v.stride(1),
         local_v.stride(2),
+        residual_lse.stride(0),
+        residual_lse.stride(1),
+        residual_lse.stride(2),
         top_slots.stride(0),
         top_slots.stride(1),
         top_slots.stride(2),
@@ -1670,7 +3045,12 @@ def route_logits_topk_coarse_attention(
         QUERY_HEADS=query_heads,
         KV_GROUP_SIZE=kv_group_size,
         HEAD_DIM=head_dim,
-        ROUTE_COUNT=topk,
+        ROUTE_COUNT=padded_topk,
+        OPEN_COUNT=topk,
+        MAX_LEAF_TOKENS=max_leaf_tokens or 0,
+        PROTECTED_LEN=protected_len,
+        RESIDUAL_MASS=residual_mass or 0.0,
+        USE_EXTERNAL_LOCAL_LSE=residual_local_lse is not None,
         SCALE=scale,
         BLOCK_M=block_m,
         BLOCK_N=block_n,
@@ -1685,6 +3065,7 @@ def merge_state_in_place(
     counts: torch.Tensor,
     merge_k: torch.Tensor,
     merge_v: torch.Tensor,
+    merge_counts: torch.Tensor | None,
     merge_indices: torch.Tensor,
     destinations: torch.Tensor,
     owners: torch.Tensor,
@@ -1707,6 +3088,20 @@ def merge_state_in_place(
     ):
         raise ValueError("LOD Triton state update received unsupported strides")
     rows = batch * kv_heads
+    if merge_counts is None:
+        merge_counts = torch.ones(
+            batch,
+            kv_heads,
+            tokens,
+            dtype=torch.float32,
+            device=merge_k.device,
+        )
+    elif tuple(merge_counts.shape) not in {
+        (batch, kv_heads, tokens),
+        (batch, kv_heads, tokens, 1),
+    }:
+        raise ValueError("LOD merge counts have the wrong shape")
+    merge_counts = merge_counts.reshape(batch, kv_heads, tokens).contiguous()
     capacity = int(buffers["touched"].size(2))
     if active_slots is None:
         active_slots = int(state_k.size(2))
@@ -1718,6 +3113,7 @@ def merge_state_in_place(
     _accumulate_state_deltas_kernel[(rows, triton.cdiv(tokens, token_block))](
         merge_k,
         merge_v,
+        merge_counts,
         merge_indices,
         destinations,
         owners,
@@ -1775,6 +3171,7 @@ def route_top8_state_grouped(
     scale: float,
     topk: int,
     state_len: int | None = None,
+    protected_len: int = 0,
     reorder_like_torch: bool = True,
 ) -> torch.Tensor:
     if not 1 <= topk <= 8:
@@ -1786,6 +3183,8 @@ def route_top8_state_grouped(
         state_len = int(state_k.size(2))
     if state_len > int(state_k.size(2)):
         raise ValueError("active LOD state exceeds its allocated capacity")
+    if protected_len < 0 or protected_len + topk > state_len:
+        raise ValueError("protected state leaves too few routing candidates")
     block_m = 16 if query_len > 1 else 1
     block_n = 64
     active_groups = triton.cdiv(state_len, block_n)
@@ -1828,6 +3227,7 @@ def route_top8_state_grouped(
         SCALE=scale,
         KV_GROUP_SIZE=kv_group_size,
         HEAD_DIM=head_dim,
+        PROTECTED_LEN=protected_len,
         BLOCK_M=block_m,
         BLOCK_N=block_n,
         **_launch_kwargs(4),
@@ -1885,6 +3285,7 @@ def route_top8_scores_grouped(
     scale: float,
     topk: int,
     state_len: int | None = None,
+    protected_len: int = 0,
     return_lse: bool = False,
 ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
     """Select top state slots without changing the reference GEMM scores."""
@@ -1897,6 +3298,8 @@ def route_top8_scores_grouped(
         state_len = allocated_state
     if state_len > allocated_state:
         raise ValueError("active LOD state exceeds the routing score width")
+    if protected_len < 0 or protected_len + topk > state_len:
+        raise ValueError("protected state leaves too few routing candidates")
     block_m = 16 if query_len > 1 else 1
     block_n = 64
     active_groups = triton.cdiv(state_len, block_n)
@@ -1941,6 +3344,7 @@ def route_top8_scores_grouped(
         KV_GROUP_SIZE=kv_group_size,
         BLOCK_M=block_m,
         BLOCK_N=block_n,
+        PROTECTED_LEN=protected_len,
         STORE_LSE=return_lse,
         **_launch_kwargs(4),
     )
@@ -2046,8 +3450,131 @@ def apply_residual_mass_opening(
     return top_slots
 
 
+def merge_attention_branches_with_sink(
+    q: torch.Tensor,
+    sink_k: torch.Tensor,
+    sink_v: torch.Tensor,
+    primary_out: torch.Tensor,
+    primary_lse: torch.Tensor,
+    secondary_out: torch.Tensor | None = None,
+    secondary_lse: torch.Tensor | None = None,
+    tertiary_out: torch.Tensor | None = None,
+    tertiary_lse: torch.Tensor | None = None,
+    *,
+    kv_group_size: int,
+    scale: float,
+    block_m: int = 8,
+    num_warps: int = 4,
+) -> torch.Tensor:
+    """Fuse the final LSE reduction with exact side-sink attention."""
+    if not q.is_cuda:
+        raise ValueError("fused sink reduction requires CUDA tensors")
+    batch, query_heads, query_len, head_dim = q.shape
+    if query_heads != int(sink_k.size(1)) * kv_group_size:
+        raise ValueError("query heads do not match the side sink's GQA grouping")
+    if tuple(sink_v.shape[:3]) != tuple(sink_k.shape[:3]):
+        raise ValueError("side sink K/V shapes differ")
+    if int(sink_k.size(0)) != batch:
+        raise ValueError("side sink and query batch sizes differ")
+    if int(sink_k.size(2)) <= 0:
+        raise ValueError("the side sink must contain at least one token")
+    if int(sink_k.size(-1)) != head_dim or int(sink_v.size(-1)) != head_dim:
+        raise ValueError("fused sink reduction requires equal Q/K/V head sizes")
+    expected_output_shape = tuple(q.shape)
+    expected_lse_shape = tuple(q.shape[:-1])
+    branches = (
+        (primary_out, primary_lse, "primary"),
+        (secondary_out, secondary_lse, "secondary"),
+        (tertiary_out, tertiary_lse, "tertiary"),
+    )
+    for branch_out, branch_lse, name in branches:
+        if (branch_out is None) != (branch_lse is None):
+            raise ValueError(f"{name} attention output and LSE must be paired")
+        if branch_out is None:
+            continue
+        if tuple(branch_out.shape) != expected_output_shape:
+            raise ValueError(f"{name} attention output has the wrong shape")
+        if tuple(branch_lse.shape) != expected_lse_shape:
+            raise ValueError(f"{name} attention LSE has the wrong shape")
+        if not branch_out.is_cuda or not branch_lse.is_cuda:
+            raise ValueError("fused sink reduction requires CUDA branch tensors")
+        if int(branch_out.stride(-1)) != 1:
+            raise ValueError("fused sink reduction requires contiguous head features")
+    if secondary_out is None and tertiary_out is not None:
+        raise ValueError("a tertiary attention branch requires a secondary branch")
+    if block_m <= 0 or block_m & (block_m - 1):
+        raise ValueError("fused sink reduction block size must be a power of two")
+    if int(q.stride(-1)) != 1 or int(sink_k.stride(-1)) != 1 or int(
+        sink_v.stride(-1)
+    ) != 1:
+        raise ValueError("fused sink reduction requires contiguous head features")
+
+    # Triton still needs valid typed pointers for compile-time-disabled branches.
+    secondary_out = primary_out if secondary_out is None else secondary_out
+    secondary_lse = primary_lse if secondary_lse is None else secondary_lse
+    tertiary_out = primary_out if tertiary_out is None else tertiary_out
+    tertiary_lse = primary_lse if tertiary_lse is None else tertiary_lse
+    include_secondary = branches[1][0] is not None
+    include_tertiary = branches[2][0] is not None
+    output = torch.empty_like(q)
+    grid = (batch, query_heads, triton.cdiv(query_len, block_m))
+    _merge_attention_branches_with_sink_kernel[grid](
+        q,
+        sink_k,
+        sink_v,
+        primary_out,
+        primary_lse,
+        secondary_out,
+        secondary_lse,
+        tertiary_out,
+        tertiary_lse,
+        output,
+        q.stride(0),
+        q.stride(1),
+        q.stride(2),
+        sink_k.stride(0),
+        sink_k.stride(1),
+        sink_k.stride(2),
+        sink_v.stride(0),
+        sink_v.stride(1),
+        sink_v.stride(2),
+        primary_out.stride(0),
+        primary_out.stride(1),
+        primary_out.stride(2),
+        primary_lse.stride(0),
+        primary_lse.stride(1),
+        primary_lse.stride(2),
+        secondary_out.stride(0),
+        secondary_out.stride(1),
+        secondary_out.stride(2),
+        secondary_lse.stride(0),
+        secondary_lse.stride(1),
+        secondary_lse.stride(2),
+        tertiary_out.stride(0),
+        tertiary_out.stride(1),
+        tertiary_out.stride(2),
+        tertiary_lse.stride(0),
+        tertiary_lse.stride(1),
+        tertiary_lse.stride(2),
+        QUERY_LEN=query_len,
+        QUERY_HEADS=query_heads,
+        KV_GROUP_SIZE=kv_group_size,
+        HEAD_DIM=head_dim,
+        BLOCK_DIM=triton.next_power_of_2(head_dim),
+        SINK_LEN=int(sink_k.size(2)),
+        INCLUDE_SECONDARY=include_secondary,
+        INCLUDE_TERTIARY=include_tertiary,
+        SCALE=scale,
+        BLOCK_M=block_m,
+        **_launch_kwargs(num_warps),
+    )
+    return output
+
+
 __all__ = [
     "apply_residual_mass_opening",
+    "balanced_bipartite_reduce_2to1",
+    "merge_attention_branches_with_sink",
     "merge_state_in_place",
     "new_route_buffers",
     "new_state_delta_buffers",

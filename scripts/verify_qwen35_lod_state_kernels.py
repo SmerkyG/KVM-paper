@@ -61,6 +61,18 @@ def verify_route_logits_coarse_attention() -> dict[str, float]:
         kv_group_size=kv_group_size,
         scale=scale,
     )
+    zero_route_output, zero_route_lse = route_logits_coarse_attention(
+        q.contiguous(),
+        route_logits.contiguous(),
+        state_v.contiguous(),
+        counts.contiguous(),
+        local_k.contiguous(),
+        local_v.contiguous(),
+        top_slots[..., :0].contiguous(),
+        state_len=state_len,
+        kv_group_size=kv_group_size,
+        scale=scale,
+    )
     remote_output, remote_lse = route_logits_coarse_attention(
         q.contiguous(),
         route_logits.contiguous(),
@@ -182,6 +194,11 @@ def verify_route_logits_coarse_attention() -> dict[str, float]:
     repeated_local_v = local_v.float().repeat_interleave(kv_group_size, dim=1)
     values = torch.cat((mean_state_v, repeated_local_v), dim=2)
     expected_output = torch.matmul(weights, values)
+    zero_route_scores = torch.cat((corrected_scores, local_scores), dim=-1)
+    zero_route_expected_lse = torch.logsumexp(zero_route_scores, dim=-1)
+    zero_route_expected_output = torch.matmul(
+        torch.softmax(zero_route_scores, dim=-1), values
+    )
     torch.cuda.synchronize()
     return {
         "output_max_abs": float(
@@ -192,6 +209,15 @@ def verify_route_logits_coarse_attention() -> dict[str, float]:
         ),
         "lse_max_abs": float((actual_lse - expected_lse).abs().max().item()),
         "lse_mean_abs": float((actual_lse - expected_lse).abs().mean().item()),
+        "zero_route_output_max_abs": float(
+            (zero_route_output.float() - zero_route_expected_output)
+            .abs()
+            .max()
+            .item()
+        ),
+        "zero_route_lse_max_abs": float(
+            (zero_route_lse - zero_route_expected_lse).abs().max().item()
+        ),
         "split_output_max_abs": float(
             (actual_output.float() - split_output.float()).abs().max().item()
         ),
@@ -223,6 +249,7 @@ def verify_route_logits_topk_coarse_attention() -> dict[str, float]:
     counts = torch.randint(
         1, 17, (batch, kv_heads, state_len, 1), device="cuda"
     ).float()
+    counts[..., :8, :] = torch.arange(1, 9, device="cuda").view(1, 1, 8, 1)
     local_k = torch.randn(
         batch, kv_heads, local_len, dim, device="cuda", dtype=torch.bfloat16
     )
@@ -233,24 +260,6 @@ def verify_route_logits_topk_coarse_attention() -> dict[str, float]:
     repeated_counts = counts.repeat_interleave(kv_group_size, dim=1).squeeze(-1)
     corrected_scores = route_logits.float() * scale
     corrected_scores += repeated_counts.log().unsqueeze(2)
-    expected_slots = corrected_scores.topk(8, dim=-1, sorted=False).indices
-
-    actual_slots, actual_output, actual_lse = (
-        route_logits_topk_coarse_attention(
-            q.contiguous(),
-            route_logits.contiguous(),
-            state_v.contiguous(),
-            counts.contiguous(),
-            local_k.contiguous(),
-            local_v.contiguous(),
-            state_len=state_len,
-            kv_group_size=kv_group_size,
-            scale=scale,
-        )
-    )
-
-    state_scores = corrected_scores.clone()
-    state_scores.scatter_(-1, expected_slots, float("-inf"))
     grouped_q = q.float().reshape(
         batch, kv_heads, kv_group_size, query_len, dim
     )
@@ -266,36 +275,114 @@ def verify_route_logits_topk_coarse_attention() -> dict[str, float]:
         ),
         float("-inf"),
     )
-    scores = torch.cat((state_scores, local_scores), dim=-1)
-    expected_lse = torch.logsumexp(scores, dim=-1)
-    weights = torch.softmax(scores, dim=-1)
     mean_state_v = (state_v.float() / counts).repeat_interleave(
         kv_group_size, dim=1
     )
     repeated_local_v = local_v.float().repeat_interleave(kv_group_size, dim=1)
     values = torch.cat((mean_state_v, repeated_local_v), dim=2)
-    expected_output = torch.matmul(weights, values)
-    torch.cuda.synchronize()
-    return {
-        "top8_set_exact_fraction": float(
-            (
-                actual_slots.sort(dim=-1).values
-                == expected_slots.sort(dim=-1).values
+
+    def compare(
+        topk: int,
+        max_leaf_tokens: int | None,
+        residual_mass: float | None = None,
+    ) -> dict[str, float]:
+        candidate_scores = corrected_scores
+        if max_leaf_tokens is not None:
+            candidate_scores = candidate_scores.masked_fill(
+                repeated_counts.unsqueeze(2) > max_leaf_tokens,
+                float("-inf"),
             )
-            .all(dim=-1)
-            .float()
-            .mean()
-            .item()
-        ),
-        "output_max_abs": float(
-            (actual_output.float() - expected_output).abs().max().item()
-        ),
-        "output_mean_abs": float(
-            (actual_output.float() - expected_output).abs().mean().item()
-        ),
-        "lse_max_abs": float((actual_lse - expected_lse).abs().max().item()),
-        "lse_mean_abs": float((actual_lse - expected_lse).abs().mean().item()),
+        expected_slots = candidate_scores.topk(
+            topk, dim=-1, sorted=False
+        ).indices
+        if residual_mass is not None:
+            selected_scores = torch.gather(corrected_scores, -1, expected_slots)
+            sorted_scores, order = selected_scores.sort(dim=-1, descending=True)
+            expected_slots = torch.gather(expected_slots, -1, order)
+            full_lse = torch.logsumexp(
+                torch.cat((corrected_scores, local_scores), dim=-1), dim=-1
+            )
+            selected_mass = torch.exp(sorted_scores - full_lse.unsqueeze(-1))
+            cumulative_before = selected_mass.cumsum(dim=-1) - selected_mass
+            remaining_before = selected_mass.sum(dim=-1, keepdim=True) - (
+                cumulative_before
+            )
+            rank = torch.arange(topk, device="cuda")
+            open_routes = (rank == 0) | (remaining_before > residual_mass)
+            expected_slots = torch.where(
+                open_routes, expected_slots, torch.full_like(expected_slots, -1)
+            )
+        actual_slots, actual_output, actual_lse = (
+            route_logits_topk_coarse_attention(
+                q.contiguous(),
+                route_logits.contiguous(),
+                state_v.contiguous(),
+                counts.contiguous(),
+                local_k.contiguous(),
+                local_v.contiguous(),
+                state_len=state_len,
+                kv_group_size=kv_group_size,
+                scale=scale,
+                topk=topk,
+                max_leaf_tokens=max_leaf_tokens,
+                residual_local_lse=(
+                    torch.logsumexp(local_scores, dim=-1).contiguous()
+                    if residual_mass is not None
+                    else None
+                ),
+                residual_mass=residual_mass,
+            )
+        )
+        state_scores = corrected_scores.clone()
+        opened = expected_slots >= 0
+        actual_opened = actual_slots >= 0
+        opened_slots = F.one_hot(
+            expected_slots.clamp_min(0), num_classes=state_len
+        ).bool()
+        opened_slots &= opened.unsqueeze(-1)
+        state_scores.masked_fill_(opened_slots.any(dim=-2), float("-inf"))
+        scores = torch.cat((state_scores, local_scores), dim=-1)
+        expected_lse = torch.logsumexp(scores, dim=-1)
+        weights = torch.softmax(scores, dim=-1)
+        expected_output = torch.matmul(weights, values)
+        return {
+            "route_set_exact_fraction": float(
+                (
+                    actual_slots.sort(dim=-1).values
+                    == expected_slots.sort(dim=-1).values
+                )
+                .all(dim=-1)
+                .float()
+                .mean()
+                .item()
+            ),
+            "output_max_abs": float(
+                (actual_output.float() - expected_output).abs().max().item()
+            ),
+            "output_mean_abs": float(
+                (actual_output.float() - expected_output).abs().mean().item()
+            ),
+            "lse_max_abs": float((actual_lse - expected_lse).abs().max().item()),
+            "lse_mean_abs": float((actual_lse - expected_lse).abs().mean().item()),
+            "mean_opened": float(opened.float().sum(dim=-1).mean().item()),
+            "actual_mean_opened": float(
+                actual_opened.float().sum(dim=-1).mean().item()
+            ),
+            "max_open_count_difference": int(
+                (
+                    actual_opened.sum(dim=-1) - opened.sum(dim=-1)
+                ).abs().max().item()
+            ),
+        }
+
+    result = {
+        "top8": compare(8, None),
+        "top3_cap8": compare(3, 8),
+        "top2_cap8": compare(2, 8),
+        "top8_residual05_cap8": compare(8, 8, 0.05),
     }
+    torch.cuda.synchronize()
+    return result
 
 
 def main() -> None:
@@ -315,6 +402,12 @@ def main() -> None:
         batch, kv_heads, merge_len, dim, device=device, dtype=torch.bfloat16
     )
     merge_v = torch.randn_like(merge_k)
+    merge_counts = (
+        torch.arange(merge_len, device=device).remainder(4).add(1).float()
+        .view(1, 1, merge_len, 1)
+        .expand(batch, kv_heads, -1, -1)
+        .contiguous()
+    )
     merge_indices = (
         torch.argsort(torch.rand(batch, kv_heads, overflow_len, device=device), dim=-1)[
             ..., :merge_len
@@ -333,7 +426,7 @@ def main() -> None:
     assignment_t = assignment.transpose(-1, -2)
     expected_k = state_k + torch.matmul(assignment_t, merge_k)
     expected_v = state_v + torch.matmul(assignment_t, merge_v)
-    expected_counts = counts + assignment_t.float().sum(dim=-1, keepdim=True)
+    expected_counts = counts + torch.matmul(assignment_t.float(), merge_counts)
     expected_owners = owners.clone().scatter(2, merge_indices, destinations)
     destination_counts = assignment_t.float().sum(dim=-1)
     singleton_slots = destination_counts == 1
@@ -361,6 +454,7 @@ def main() -> None:
         actual_counts,
         merge_k,
         merge_v,
+        merge_counts,
         merge_indices.contiguous(),
         destinations.contiguous(),
         owners,
@@ -582,13 +676,21 @@ def main() -> None:
         < 0.999
     ):
         raise AssertionError("fused residual-mass opening differs materially")
-    fused_topk = result["route_logits_topk_coarse_attention"]
-    if fused_topk["top8_set_exact_fraction"] < 0.999:
-        raise AssertionError("fused coarse top-8 routing differs materially")
-    if fused_topk["output_max_abs"] > 0.03:
-        raise AssertionError("fused top-8 coarse output differs materially")
-    if fused_topk["lse_max_abs"] > 0.03:
-        raise AssertionError("fused top-8 coarse LSE differs materially")
+    for label, fused_topk in result[
+        "route_logits_topk_coarse_attention"
+    ].items():
+        adaptive = "residual" in label
+        minimum_route_agreement = 0.97 if adaptive else 0.999
+        maximum_output_error = 0.04 if adaptive else 0.03
+        maximum_lse_error = 0.04 if adaptive else 0.03
+        if fused_topk["route_set_exact_fraction"] < minimum_route_agreement:
+            raise AssertionError(f"fused coarse {label} routing differs materially")
+        if fused_topk["max_open_count_difference"] > (1 if adaptive else 0):
+            raise AssertionError(f"fused coarse {label} opening count differs materially")
+        if fused_topk["output_max_abs"] > maximum_output_error:
+            raise AssertionError(f"fused {label} coarse output differs materially")
+        if fused_topk["lse_max_abs"] > maximum_lse_error:
+            raise AssertionError(f"fused {label} coarse LSE differs materially")
 
 
 if __name__ == "__main__":

@@ -34,7 +34,11 @@ import torch.nn.functional as F
 
 @dataclass(frozen=True)
 class LODConfig:
-    """Chunk, state-growth, and routing settings for LOD attention."""
+    """Chunk, state-growth, and routing settings for LOD attention.
+
+    Protected prefix slots remain exact in the coarse field and are excluded
+    from both state merging and detailed-region routing.
+    """
 
     chunk_size: int = 256
     local_window: int = 512
@@ -332,14 +336,17 @@ def two_level_lod_attention(
     *,
     max_routes: int = 8,
     open_count: int | torch.Tensor = 8,
+    route_protected_prefix: int = 1,
     scale: float | None = None,
     query_offset: int | None = None,
 ) -> LODAttentionResult:
     """Replace opened coarse regions with independently normalized exact leaves.
 
     ``max_routes`` controls how many ranked regions are identified (at most
-    eight). ``open_count`` selects how many of that ordered list are actually
-    opened and may be either a scalar or a per-query tensor broadcastable to
+    eight). ``route_protected_prefix`` leaves exact protected prefix entries in
+    the coarse softmax but prevents them from consuming detailed routes.
+    ``open_count`` selects how many of that ordered list are actually opened
+    and may be either a scalar or a per-query tensor broadcastable to
     ``[batch, query_heads, query_length]``.
     """
     query_heads, key_value_heads = _validate_qkv(query, local_key, local_value)
@@ -358,11 +365,14 @@ def two_level_lod_attention(
         raise ValueError("owner archive contains an invalid state slot")
     if not 0 <= max_routes <= 8:
         raise ValueError("max_routes must be between zero and eight")
+    if route_protected_prefix < 0:
+        raise ValueError("route_protected_prefix cannot be negative")
     if scale is None:
         scale = 1.0 / math.sqrt(float(query.size(-1)))
 
     state_scores, state_value = _state_scores_and_value(query, state, scale)
-    route_count = min(max_routes, state.slot_count)
+    protected = min(route_protected_prefix, state.slot_count)
+    route_count = min(max_routes, state.slot_count - protected)
     open_counts = _normalize_open_count(
         open_count,
         shape=(int(query.size(0)), query_heads, int(query.size(2))),
@@ -371,7 +381,11 @@ def two_level_lod_attention(
     )
     if route_count:
         with torch.no_grad():
-            top_slots = state_scores.detach().topk(
+            route_scores = state_scores.detach()
+            if protected:
+                route_scores = route_scores.clone()
+                route_scores[..., :protected] = -torch.inf
+            top_slots = route_scores.topk(
                 route_count, dim=-1, largest=True, sorted=True
             ).indices
         route_rank = torch.arange(route_count, device=query.device)
@@ -670,6 +684,7 @@ class _PytorchLODAttention(nn.Module):
             leaf_value,
             max_routes=self.config.max_routes,
             open_count=open_count,
+            route_protected_prefix=self.config.protected_prefix,
             scale=scale,
             query_offset=query_offset,
         ).output

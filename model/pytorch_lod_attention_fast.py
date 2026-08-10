@@ -81,6 +81,7 @@ def _route_state(
     *,
     max_routes: int,
     open_count: int | torch.Tensor,
+    route_protected_prefix: int = 1,
     scale: float,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     query_heads = int(query.size(1))
@@ -95,7 +96,10 @@ def _route_state(
         query.float(), mean_key.float().transpose(-1, -2)
     ) * scale
     state_scores = state_scores + count.clamp_min(1).log().float().unsqueeze(2)
-    route_count = min(max_routes, state.slot_count)
+    if route_protected_prefix < 0:
+        raise ValueError("route_protected_prefix cannot be negative")
+    protected = min(route_protected_prefix, state.slot_count)
+    route_count = min(max_routes, state.slot_count - protected)
     open_counts = _normalize_open_count(
         open_count,
         shape=(int(query.size(0)), int(query.size(1)), int(query.size(2))),
@@ -109,7 +113,11 @@ def _route_state(
             torch.empty(empty_shape, dtype=torch.bool, device=query.device),
         )
     with torch.no_grad():
-        top_slots = state_scores.detach().topk(
+        route_scores = state_scores.detach()
+        if protected:
+            route_scores = route_scores.clone()
+            route_scores[..., :protected] = -torch.inf
+        top_slots = route_scores.topk(
             route_count, dim=-1, largest=True, sorted=True
         ).indices
     rank = torch.arange(route_count, device=query.device)
@@ -566,6 +574,7 @@ def fast_two_level_lod_attention(
     *,
     max_routes: int = 8,
     open_count: int | torch.Tensor = 8,
+    route_protected_prefix: int = 1,
     scale: float | None = None,
     query_offset: int | None = None,
     postings: tuple[torch.Tensor, torch.Tensor] | None = None,
@@ -597,6 +606,7 @@ def fast_two_level_lod_attention(
             leaf_value,
             max_routes=max_routes,
             open_count=open_count,
+            route_protected_prefix=route_protected_prefix,
             scale=scale,
             query_offset=query_offset,
         )
@@ -606,6 +616,7 @@ def fast_two_level_lod_attention(
         state,
         max_routes=max_routes,
         open_count=open_count,
+        route_protected_prefix=route_protected_prefix,
         scale=scale,
     )
     coarse_output, coarse_lse = _fast_coarse_attention(
@@ -748,6 +759,7 @@ class FastTwoLevelLODAttention(_FastLocalMixin, TwoLevelLODAttention):
             leaf_value,
             max_routes=self.config.max_routes,
             open_count=kwargs["open_count"],
+            route_protected_prefix=self.config.protected_prefix,
             scale=kwargs["scale"],
             query_offset=query_offset,
             postings=self._cached_postings(owner, state),

@@ -18,8 +18,6 @@ import math
 import torch
 import torch.nn.functional as F
 from torch import nn
-from torch.nn.attention.flex_attention import AuxRequest
-from utils.flex_attention import separately_compiled_flex_attention
 
 from .kernels.paged_leaf_attention import (
     append_paged_kv,
@@ -36,6 +34,8 @@ from .kernels.paged_leaf_attention import (
 )
 from .kernels.lod_kernels import (
     apply_residual_mass_opening,
+    bipartite_reduce_overflow,
+    merge_attention_branches_with_sink,
     merge_state_in_place,
     new_route_buffers,
     new_state_delta_buffers,
@@ -47,7 +47,6 @@ from .kernels.lod_kernels import (
     streaming_state_maxsim,
 )
 from .kvm_mixer import _all_idx, _gather_by_idx, _split_append_merge_idx_by_maxsim
-from .kvm_two_level_mixer import _expert_leaf_attention, _merge_lse_branches
 
 
 def _round_up(value: int, multiple: int) -> int:
@@ -61,6 +60,20 @@ def _pad_sequence(x: torch.Tensor, length: int) -> torch.Tensor:
     return x if missing == 0 else F.pad(x, (0, 0, 0, missing))
 
 
+def _merge_lse_branches(
+    left_output: torch.Tensor,
+    left_lse: torch.Tensor,
+    right_output: torch.Tensor,
+    right_lse: torch.Tensor,
+) -> torch.Tensor:
+    branch_lse = torch.stack((left_lse, right_lse), dim=-1).float()
+    weights = torch.softmax(branch_lse, dim=-1).to(left_output.dtype)
+    return (
+        left_output * weights[..., 0].unsqueeze(-1)
+        + right_output * weights[..., 1].unsqueeze(-1)
+    )
+
+
 class TritonLODAttentionCore(nn.Module):
     """Projection-free mass-corrected top-k LOD attention implementation."""
 
@@ -69,10 +82,20 @@ class TritonLODAttentionCore(nn.Module):
     prefill_chunk_len = 256
     prefill_local_len = 512
     prefill_state_update_len = 256
+    decode_state_update_len = 256
+    decode_cache_headroom = 256
     state_growth_factor = 16.0
     state_min_len = 256
     sink_len = 1
+    # A protected singleton is already exact in the coarse branch, so opening
+    # its one-token leaf would only consume a detailed-region route.
+    exclude_sink_from_routes = True
+    # Keep the exact sink outside the centroid state and leaf archive. Its
+    # attention contribution is merged as a separate exact branch.
+    separate_sink_cache = False
     two_level_topk = 8
+    prefill_two_level_topk: int | None = None
+    prefill_max_leaf_tokens: int | None = None
     leaf_attention_backend = "packed"
     leaf_page_size = 16
     leaf_inline_pages_per_slot = 128
@@ -108,7 +131,7 @@ class TritonLODAttentionCore(nn.Module):
     decode_use_dot = False
     decode_block_n = 16
     decode_num_warps = 2
-    decode_route_group_size = 16
+    decode_route_group_size = 32
     decode_route_num_warps = 2
     decode_route_reduce_num_warps = 4
     decode_final_reduce_num_warps = 4
@@ -137,6 +160,14 @@ class TritonLODAttentionCore(nn.Module):
     fused_prefill_route_coarse = False
     split_prefill_local_attention = False
     fused_prefill_residual_opening = False
+    overflow_bipartite_merge = False
+    overflow_bipartite_block_size = 32
+    overflow_bipartite_positional_halves = False
+    overflow_bipartite_keep_ratio = 0.5
+    state_merge_before_append = False
+    state_append_subblock_size = 0
+    state_union_bipartite = False
+    state_precompact_direct_append = False
 
     def _repeat_kv(self, x: torch.Tensor) -> torch.Tensor:
         return x.repeat_interleave(self.num_key_value_groups, dim=1)
@@ -144,11 +175,18 @@ class TritonLODAttentionCore(nn.Module):
     def _desired_state_len(
         self, ctx_len: int, available_context: int, current_state_len: int
     ) -> int:
+        separated = self.sink_len if self.separate_sink_cache else 0
         target = max(
             math.floor(self.state_growth_factor * math.sqrt(max(ctx_len, 0))),
             self.state_min_len,
         )
-        return max(current_state_len, min(target, available_context))
+        available = max(available_context - separated, 0)
+        return max(current_state_len, min(target, available))
+
+    def _protected_state_len(self, state_len: int) -> int:
+        if self.separate_sink_cache:
+            return 0
+        return min(self.sink_len, state_len)
 
     def _state_capacity(self, total_len: int, current_state_len: int) -> int:
         # One chunk of headroom avoids recompilation during short generation.
@@ -165,6 +203,758 @@ class TritonLODAttentionCore(nn.Module):
     def _mean(x: torch.Tensor, counts: torch.Tensor) -> torch.Tensor:
         return x / counts.to(x.dtype).clamp_min(1)
 
+    def _split_append_merge_indices(
+        self,
+        scores: torch.Tensor,
+        n_append: int,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Split overflow indices globally or with balanced local quotas."""
+
+        overflow_len = int(scores.size(-1))
+        subblock_size = self.state_append_subblock_size
+        if subblock_size <= 0:
+            sorted_idx = torch.argsort(scores.float(), dim=-1, descending=False)
+            return (
+                torch.sort(sorted_idx[..., :n_append], dim=-1).values,
+                torch.sort(sorted_idx[..., n_append:], dim=-1).values,
+            )
+        if overflow_len % subblock_size:
+            raise ValueError(
+                "overflow length must be divisible by the append subblock size"
+            )
+        subblocks = overflow_len // subblock_size
+        base_quota, remainder = divmod(n_append, subblocks)
+        if base_quota + int(remainder > 0) > subblock_size:
+            raise ValueError("append quota exceeds its subblock size")
+        block_scores = scores.float().reshape(*scores.shape[:-1], subblocks, subblock_size)
+        block_order = torch.argsort(block_scores, dim=-1, descending=False)
+        block_offset = (
+            torch.arange(subblocks, device=scores.device, dtype=torch.long)
+            * subblock_size
+        ).view(*([1] * (scores.ndim - 1)), subblocks, 1)
+        block_indices = block_order + block_offset
+        high_quota = base_quota + int(remainder > 0)
+        append_parts = []
+        merge_parts = []
+        if remainder:
+            append_parts.append(
+                block_indices[..., :remainder, :high_quota].flatten(-2)
+            )
+            merge_parts.append(
+                block_indices[..., :remainder, high_quota:].flatten(-2)
+            )
+        if remainder < subblocks:
+            append_parts.append(
+                block_indices[..., remainder:, :base_quota].flatten(-2)
+            )
+            merge_parts.append(
+                block_indices[..., remainder:, base_quota:].flatten(-2)
+            )
+        append_idx = (
+            append_parts[0]
+            if len(append_parts) == 1
+            else torch.cat(append_parts, dim=-1)
+        )
+        merge_idx = (
+            merge_parts[0]
+            if len(merge_parts) == 1
+            else torch.cat(merge_parts, dim=-1)
+        )
+        return (
+            torch.sort(append_idx, dim=-1).values,
+            torch.sort(merge_idx, dim=-1).values,
+        )
+
+    def _union_bipartite_round(
+        self,
+        key_sum: torch.Tensor,
+        value_sum: torch.Tensor,
+        counts: torch.Tensor,
+        target_len: int,
+        round_index: int,
+        *,
+        protected_len: int | None = None,
+        positional_halves: bool = False,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Apply one balanced ToMe-style contraction to a state union."""
+
+        batch, heads, current_len, key_dim = key_sum.shape
+        if protected_len is None:
+            protected_len = self._protected_state_len(current_len)
+        protected = min(protected_len, current_len, target_len)
+        matchable = current_len - protected
+        left_count = (matchable + 1) // 2
+        right_count = matchable // 2
+        merges = current_len - target_len
+        if merges < 0 or merges > left_count or not right_count:
+            raise ValueError("invalid bipartite union contraction target")
+
+        rows = batch * heads
+        if positional_halves:
+            left_slots = torch.arange(
+                protected,
+                protected + left_count,
+                device=key_sum.device,
+                dtype=torch.long,
+            ).view(1, left_count).expand(rows, left_count)
+            right_slots = torch.arange(
+                protected + left_count,
+                current_len,
+                device=key_sum.device,
+                dtype=torch.long,
+            ).view(1, right_count).expand(rows, right_count)
+        else:
+            pair_position = torch.arange(
+                right_count, device=key_sum.device, dtype=torch.long
+            ).view(1, right_count)
+            row = torch.arange(rows, device=key_sum.device, dtype=torch.long).view(
+                rows, 1
+            )
+            salt = int(getattr(self, "layer_idx", 0)) + 131 * round_index
+            hashed = (
+                pair_position * 0x9E3779B1
+                + row * 0x85EBCA77
+                + current_len * 0xC2B2AE3D
+                + salt * 0x27D4EB2F
+            )
+            hashed = (hashed ^ (hashed >> 16)) * 0x45D9F3B
+            swap = (hashed ^ (hashed >> 16)) & 1
+            pair_base = protected + 2 * pair_position
+            paired_left = pair_base + swap
+            right_slots = pair_base + (1 - swap)
+            if left_count > right_count:
+                left_slots = torch.cat(
+                    (
+                        paired_left,
+                        torch.full(
+                            (rows, 1),
+                            protected + 2 * right_count,
+                            dtype=torch.long,
+                            device=key_sum.device,
+                        ),
+                    ),
+                    dim=-1,
+                )
+            else:
+                left_slots = paired_left
+
+        mean_key = self._mean(key_sum, counts).reshape(rows, current_len, key_dim)
+        left_key = torch.gather(
+            mean_key,
+            1,
+            left_slots.unsqueeze(-1).expand(rows, left_count, key_dim),
+        ).to(torch.bfloat16)
+        right_key = torch.gather(
+            mean_key,
+            1,
+            right_slots.unsqueeze(-1).expand(rows, right_count, key_dim),
+        ).to(torch.bfloat16)
+        similarity = torch.matmul(left_key, right_key.transpose(-1, -2))
+        nearest_score, nearest_position = similarity.max(dim=-1)
+        nearest_slot = torch.gather(right_slots, 1, nearest_position)
+
+        if (
+            protected == 0
+            and current_len % 2 == 0
+            and target_len * 2 == current_len
+        ):
+            def exact_half_sum(values: torch.Tensor) -> torch.Tensor:
+                feature_dim = int(values.size(-1))
+                output = torch.zeros(
+                    batch,
+                    heads,
+                    target_len,
+                    feature_dim,
+                    dtype=values.dtype,
+                    device=values.device,
+                )
+                return output.scatter_add_(
+                    2,
+                    assignment.reshape(batch, heads, current_len, 1).expand_as(
+                        values
+                    ),
+                    values,
+                )
+
+            assignment = torch.empty(
+                rows,
+                current_len,
+                dtype=torch.long,
+                device=key_sum.device,
+            )
+            compact = torch.arange(
+                target_len, dtype=torch.long, device=key_sum.device
+            ).view(1, target_len).expand(rows, target_len)
+            assignment.scatter_(1, right_slots, compact)
+            assignment.scatter_(1, left_slots, nearest_position)
+            return (
+                exact_half_sum(key_sum),
+                exact_half_sum(value_sum),
+                exact_half_sum(counts),
+                assignment.reshape(batch, heads, current_len),
+            )
+
+        slot = torch.arange(
+            current_len, device=key_sum.device, dtype=torch.long
+        ).expand(rows, current_len)
+        destination = slot.clone()
+        active = torch.ones_like(slot, dtype=torch.bool)
+        if merges:
+            selected = torch.topk(
+                nearest_score.float(),
+                k=merges,
+                dim=-1,
+                largest=True,
+                sorted=False,
+            ).indices
+            selected_source = torch.gather(left_slots, 1, selected)
+            selected_destination = torch.gather(nearest_slot, 1, selected)
+            destination.scatter_(1, selected_source, selected_destination)
+            active.scatter_(
+                1, selected_source, torch.zeros_like(selected_source, dtype=torch.bool)
+            )
+        compact_slot = torch.cumsum(active.to(torch.long), dim=-1) - 1
+        assignment = torch.gather(compact_slot, 1, destination).reshape(
+            batch, heads, current_len
+        )
+
+        def cluster_sum(values: torch.Tensor) -> torch.Tensor:
+            output = torch.zeros(
+                *values.shape[:2],
+                target_len,
+                int(values.size(-1)),
+                dtype=values.dtype,
+                device=values.device,
+            )
+            return output.scatter_add_(
+                2, assignment.unsqueeze(-1).expand_as(values), values
+            )
+
+        return (
+            cluster_sum(key_sum),
+            cluster_sum(value_sum),
+            cluster_sum(counts),
+            assignment,
+        )
+
+    def _reduce_overflow_balanced(
+        self,
+        overflow_k: torch.Tensor,
+        overflow_v: torch.Tensor,
+        input_counts: torch.Tensor | None = None,
+        *,
+        keep_ratio: float | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Reduce fixed-size overflow blocks while preserving leaf membership."""
+
+        block_size = self.overflow_bipartite_block_size
+        if keep_ratio is None:
+            keep_ratio = self.overflow_bipartite_keep_ratio
+        if block_size <= 0 or block_size % 2:
+            raise ValueError("overflow block size must be positive and even")
+        if not 0.5 <= keep_ratio <= 1.0:
+            raise ValueError("overflow keep ratio must be in [0.5, 1.0]")
+        overflow_len = int(overflow_k.size(2))
+        batch, heads, _, key_dim = overflow_k.shape
+        value_dim = int(overflow_v.size(-1))
+        if (
+            input_counts is None
+            and keep_ratio == 0.5
+            and not self.overflow_bipartite_positional_halves
+            and block_size <= 256
+            and overflow_len % block_size == 0
+        ):
+            return bipartite_reduce_overflow(
+                overflow_k.contiguous(),
+                overflow_v.contiguous(),
+                block_size=block_size,
+                balanced=True,
+                salt=int(getattr(self, "layer_idx", 0)),
+            )
+        full_blocks, tail_len = divmod(overflow_len, block_size)
+        reduced_block = max(block_size // 2, math.ceil(block_size * keep_ratio))
+        reduced_k_parts = []
+        reduced_v_parts = []
+        reduced_count_parts = []
+        membership_parts = []
+        reduced_offset = 0
+        if full_blocks:
+            full_len = full_blocks * block_size
+
+            def blocked(values: torch.Tensor, dim: int) -> torch.Tensor:
+                return (
+                    values[..., :full_len, :]
+                    .reshape(batch, heads, full_blocks, block_size, dim)
+                    .permute(0, 2, 1, 3, 4)
+                    .reshape(batch * full_blocks, heads, block_size, dim)
+                )
+
+            blocked_k = blocked(overflow_k, key_dim)
+            blocked_v = blocked(overflow_v, value_dim)
+            blocked_counts = (
+                torch.ones(
+                    batch * full_blocks,
+                    heads,
+                    block_size,
+                    1,
+                    dtype=torch.float32,
+                    device=overflow_k.device,
+                )
+                if input_counts is None
+                else blocked(input_counts, 1)
+            )
+            if (
+                keep_ratio == 0.5
+                and not self.overflow_bipartite_positional_halves
+                and block_size <= 256
+                and input_counts is None
+            ):
+                blocked_k, blocked_v, blocked_counts, blocked_membership = (
+                    bipartite_reduce_overflow(
+                        blocked_k.contiguous(),
+                        blocked_v.contiguous(),
+                        block_size=block_size,
+                        balanced=True,
+                        salt=int(getattr(self, "layer_idx", 0)),
+                    )
+                )
+            else:
+                blocked_k, blocked_v, blocked_counts, blocked_membership = (
+                    self._union_bipartite_round(
+                        blocked_k,
+                        blocked_v,
+                        blocked_counts,
+                        reduced_block,
+                        0,
+                        protected_len=0,
+                        positional_halves=(
+                            self.overflow_bipartite_positional_halves
+                        ),
+                    )
+                )
+
+            def unblocked(values: torch.Tensor, dim: int) -> torch.Tensor:
+                return (
+                    values.reshape(
+                        batch, full_blocks, heads, reduced_block, dim
+                    )
+                    .permute(0, 2, 1, 3, 4)
+                    .reshape(batch, heads, full_blocks * reduced_block, dim)
+                )
+
+            reduced_k_parts.append(unblocked(blocked_k, key_dim))
+            reduced_v_parts.append(unblocked(blocked_v, value_dim))
+            reduced_count_parts.append(unblocked(blocked_counts, 1))
+            block_offset = (
+                torch.arange(
+                    full_blocks,
+                    device=overflow_k.device,
+                    dtype=blocked_membership.dtype,
+                )
+                * reduced_block
+            ).view(1, full_blocks, 1, 1)
+            membership_parts.append(
+                (
+                    blocked_membership.reshape(
+                        batch, full_blocks, heads, block_size
+                    )
+                    + block_offset
+                )
+                .permute(0, 2, 1, 3)
+                .reshape(batch, heads, full_len)
+            )
+            reduced_offset = full_blocks * reduced_block
+        if tail_len:
+            tail_k = overflow_k[..., -tail_len:, :]
+            tail_v = overflow_v[..., -tail_len:, :]
+            tail_counts = (
+                torch.ones(
+                    batch,
+                    heads,
+                    tail_len,
+                    1,
+                    dtype=torch.float32,
+                    device=overflow_k.device,
+                )
+                if input_counts is None
+                else input_counts[..., -tail_len:, :]
+            )
+            tail_target = max((tail_len + 1) // 2, math.ceil(tail_len * keep_ratio))
+            if (
+                tail_target == (tail_len + 1) // 2
+                and not self.overflow_bipartite_positional_halves
+                and input_counts is None
+                and tail_len % 2 == 0
+                and tail_len <= 256
+            ):
+                tail_k, tail_v, tail_counts, tail_membership = (
+                    bipartite_reduce_overflow(
+                        tail_k.contiguous(),
+                        tail_v.contiguous(),
+                        block_size=tail_len,
+                        balanced=True,
+                        salt=int(getattr(self, "layer_idx", 0)) + full_blocks,
+                    )
+                )
+            elif tail_target < tail_len:
+                tail_k, tail_v, tail_counts, tail_membership = (
+                    self._union_bipartite_round(
+                        tail_k,
+                        tail_v,
+                        tail_counts,
+                        tail_target,
+                        full_blocks,
+                        protected_len=0,
+                        positional_halves=self.overflow_bipartite_positional_halves,
+                    )
+                )
+            else:
+                tail_membership = (
+                    torch.arange(
+                        tail_len, device=overflow_k.device, dtype=torch.long
+                    )
+                    .view(1, 1, tail_len)
+                    .expand(batch, heads, tail_len)
+                )
+            reduced_k_parts.append(tail_k)
+            reduced_v_parts.append(tail_v)
+            reduced_count_parts.append(tail_counts)
+            membership_parts.append(tail_membership + reduced_offset)
+        return (
+            torch.cat(reduced_k_parts, dim=2),
+            torch.cat(reduced_v_parts, dim=2),
+            torch.cat(reduced_count_parts, dim=2),
+            torch.cat(membership_parts, dim=2),
+        )
+
+    def _update_state_union_bipartite(
+        self,
+        state_k: torch.Tensor,
+        state_v: torch.Tensor,
+        counts: torch.Tensor,
+        overflow_k: torch.Tensor,
+        overflow_v: torch.Tensor,
+        *,
+        state_len: int,
+        ctx_len: int,
+        available_context: int,
+        state_capacity: int,
+    ) -> tuple[
+        torch.Tensor,
+        torch.Tensor,
+        torch.Tensor,
+        int,
+        torch.Tensor,
+        torch.Tensor,
+    ]:
+        """Optionally precontract overflow blocks, then contract the state union."""
+
+        if self.leaf_attention_backend == "paged":
+            raise ValueError(
+                "union bipartite state updates currently require packed leaves"
+            )
+        current_state_len = state_len
+        overflow_membership = None
+        if self.overflow_bipartite_merge:
+            block_size = self.overflow_bipartite_block_size
+            overflow_len = int(overflow_k.size(2))
+            if block_size <= 0 or block_size % 2:
+                raise ValueError(
+                    "union overflow block size must be positive and even"
+                )
+            batch, heads, _, key_dim = overflow_k.shape
+            value_dim = int(overflow_v.size(-1))
+            full_blocks, tail_len = divmod(overflow_len, block_size)
+            reduced_k_parts = []
+            reduced_v_parts = []
+            reduced_count_parts = []
+            membership_parts = []
+            reduced_offset = 0
+            if full_blocks:
+                full_len = full_blocks * block_size
+
+                def blocked(values: torch.Tensor, dim: int) -> torch.Tensor:
+                    return (
+                        values[..., :full_len, :]
+                        .reshape(batch, heads, full_blocks, block_size, dim)
+                        .permute(0, 2, 1, 3, 4)
+                        .reshape(batch * full_blocks, heads, block_size, dim)
+                    )
+
+                blocked_k = blocked(overflow_k, key_dim)
+                blocked_v = blocked(overflow_v, value_dim)
+                blocked_counts = torch.ones(
+                    batch * full_blocks,
+                    heads,
+                    block_size,
+                    1,
+                    dtype=torch.float32,
+                    device=overflow_k.device,
+                )
+                (
+                    blocked_k,
+                    blocked_v,
+                    blocked_counts,
+                    blocked_membership,
+                ) = self._union_bipartite_round(
+                    blocked_k,
+                    blocked_v,
+                    blocked_counts,
+                    block_size // 2,
+                    0,
+                    protected_len=0,
+                    positional_halves=self.overflow_bipartite_positional_halves,
+                )
+                reduced_block = block_size // 2
+
+                def unblocked(values: torch.Tensor, dim: int) -> torch.Tensor:
+                    return (
+                        values.reshape(
+                            batch, full_blocks, heads, reduced_block, dim
+                        )
+                        .permute(0, 2, 1, 3, 4)
+                        .reshape(batch, heads, full_blocks * reduced_block, dim)
+                    )
+
+                reduced_k_parts.append(unblocked(blocked_k, key_dim))
+                reduced_v_parts.append(unblocked(blocked_v, value_dim))
+                reduced_count_parts.append(unblocked(blocked_counts, 1))
+                block_offset = (
+                    torch.arange(
+                        full_blocks,
+                        device=overflow_k.device,
+                        dtype=blocked_membership.dtype,
+                    )
+                    * reduced_block
+                ).view(1, full_blocks, 1, 1)
+                membership_parts.append(
+                    (
+                        blocked_membership.reshape(
+                            batch, full_blocks, heads, block_size
+                        )
+                        + block_offset
+                    )
+                    .permute(0, 2, 1, 3)
+                    .reshape(batch, heads, full_len)
+                )
+                reduced_offset = full_blocks * reduced_block
+            if tail_len:
+                tail_k = overflow_k[..., -tail_len:, :]
+                tail_v = overflow_v[..., -tail_len:, :]
+                tail_counts = torch.ones(
+                    batch,
+                    heads,
+                    tail_len,
+                    1,
+                    dtype=torch.float32,
+                    device=overflow_k.device,
+                )
+                if tail_len > 1:
+                    tail_k, tail_v, tail_counts, tail_membership = (
+                        self._union_bipartite_round(
+                            tail_k,
+                            tail_v,
+                            tail_counts,
+                            (tail_len + 1) // 2,
+                            full_blocks,
+                            protected_len=0,
+                            positional_halves=(
+                                self.overflow_bipartite_positional_halves
+                            ),
+                        )
+                    )
+                else:
+                    tail_membership = torch.zeros(
+                        batch,
+                        heads,
+                        1,
+                        dtype=torch.long,
+                        device=overflow_k.device,
+                    )
+                reduced_k_parts.append(tail_k)
+                reduced_v_parts.append(tail_v)
+                reduced_count_parts.append(tail_counts)
+                membership_parts.append(tail_membership + reduced_offset)
+            overflow_k = torch.cat(reduced_k_parts, dim=2)
+            overflow_v = torch.cat(reduced_v_parts, dim=2)
+            overflow_counts = torch.cat(reduced_count_parts, dim=2)
+            overflow_membership = torch.cat(membership_parts, dim=2)
+        else:
+            overflow_counts = torch.ones(
+                *overflow_k.shape[:3],
+                1,
+                dtype=torch.float32,
+                device=overflow_k.device,
+            )
+        target_len = self._desired_state_len(
+            ctx_len, available_context, current_state_len
+        )
+        expanded_k = torch.cat(
+            (state_k[..., :current_state_len, :], overflow_k), dim=2
+        )
+        expanded_v = torch.cat(
+            (state_v[..., :current_state_len, :], overflow_v), dim=2
+        )
+        expanded_counts = torch.cat(
+            (
+                counts[..., :current_state_len, :],
+                overflow_counts,
+            ),
+            dim=2,
+        )
+        expanded_len = int(expanded_k.size(2))
+        target_len = min(target_len, expanded_len)
+        if target_len > state_capacity:
+            raise ValueError("union target exceeds state capacity")
+        union_assignment = (
+            torch.arange(expanded_len, device=overflow_k.device, dtype=torch.long)
+            .view(1, 1, expanded_len)
+            .expand(*overflow_k.shape[:2], expanded_len)
+        )
+        round_index = 0
+        while int(expanded_k.size(2)) > target_len:
+            current_len = int(expanded_k.size(2))
+            protected = min(self._protected_state_len(current_len), target_len)
+            minimum_next = protected + (current_len - protected) // 2
+            next_len = max(target_len, minimum_next)
+            (
+                expanded_k,
+                expanded_v,
+                expanded_counts,
+                round_assignment,
+            ) = self._union_bipartite_round(
+                expanded_k,
+                expanded_v,
+                expanded_counts,
+                next_len,
+                round_index,
+            )
+            union_assignment = torch.gather(
+                round_assignment, 2, union_assignment
+            )
+            round_index += 1
+
+        state_k[..., :target_len, :].copy_(expanded_k)
+        state_v[..., :target_len, :].copy_(expanded_v)
+        counts[..., :target_len, :].copy_(expanded_counts)
+        new_owners = union_assignment[..., current_state_len:]
+        if overflow_membership is not None:
+            new_owners = torch.gather(new_owners, 2, overflow_membership)
+        return (
+            state_k,
+            state_v,
+            counts,
+            target_len,
+            new_owners,
+            union_assignment[..., :current_state_len],
+        )
+
+    def _update_state_precompact_direct_append(
+        self,
+        state_k: torch.Tensor,
+        state_v: torch.Tensor,
+        counts: torch.Tensor,
+        overflow_k: torch.Tensor,
+        overflow_v: torch.Tensor,
+        *,
+        state_len: int,
+        ctx_len: int,
+        available_context: int,
+        state_capacity: int,
+    ) -> tuple[
+        torch.Tensor,
+        torch.Tensor,
+        torch.Tensor,
+        int,
+        torch.Tensor,
+        torch.Tensor | None,
+    ] | None:
+        """Compact old state first, then append all locally reduced overflow."""
+
+        if not self.overflow_bipartite_merge:
+            raise ValueError("state precompaction requires local overflow reduction")
+        if self.leaf_attention_backend == "paged":
+            raise ValueError("state precompaction currently requires packed leaves")
+        overflow_k, overflow_v, overflow_counts, membership = (
+            self._reduce_overflow_balanced(overflow_k, overflow_v)
+        )
+        overflow_len = int(overflow_k.size(2))
+        desired_state_len = self._desired_state_len(
+            ctx_len, available_context, state_len
+        )
+        desired_state_len = min(desired_state_len, state_len + overflow_len)
+        retained_state_len = desired_state_len - overflow_len
+        protected = min(self._protected_state_len(state_len), desired_state_len)
+        if desired_state_len > state_capacity:
+            raise ValueError("precompacted state target exceeds state capacity")
+
+        old_slot_remap = None
+        if retained_state_len < state_len:
+            body_len = state_len - protected
+            target_body_len = retained_state_len - protected
+            block_size = self.overflow_bipartite_block_size
+            full_blocks, tail_len = divmod(body_len, block_size)
+
+            def reduced_body_len(ratio: float) -> int:
+                full_target = max(
+                    block_size // 2, math.ceil(block_size * ratio)
+                )
+                tail_target = (
+                    max((tail_len + 1) // 2, math.ceil(tail_len * ratio))
+                    if tail_len
+                    else 0
+                )
+                return full_blocks * full_target + tail_target
+
+            if target_body_len < reduced_body_len(0.5):
+                return None
+            low, high = 0.5, 1.0
+            for _ in range(32):
+                middle = (low + high) * 0.5
+                if reduced_body_len(middle) <= target_body_len:
+                    low = middle
+                else:
+                    high = middle
+            compact_body_k, compact_body_v, compact_body_counts, body_membership = (
+                self._reduce_overflow_balanced(
+                    state_k[..., protected:state_len, :],
+                    state_v[..., protected:state_len, :],
+                    counts[..., protected:state_len, :],
+                    keep_ratio=low,
+                )
+            )
+            compact_body_len = int(compact_body_k.size(2))
+            retained_state_len = protected + compact_body_len
+            state_k[..., protected:retained_state_len, :].copy_(compact_body_k)
+            state_v[..., protected:retained_state_len, :].copy_(compact_body_v)
+            counts[..., protected:retained_state_len, :].copy_(compact_body_counts)
+            protected_membership = (
+                torch.arange(
+                    protected, device=state_k.device, dtype=torch.long
+                )
+                .view(1, 1, protected)
+                .expand(*state_k.shape[:2], protected)
+            )
+            old_slot_remap = torch.cat(
+                (protected_membership, body_membership + protected), dim=2
+            )
+        elif retained_state_len != state_len:
+            return None
+
+        output_state_len = retained_state_len + overflow_len
+        state_k[..., retained_state_len:output_state_len, :].copy_(overflow_k)
+        state_v[..., retained_state_len:output_state_len, :].copy_(overflow_v)
+        counts[..., retained_state_len:output_state_len, :].copy_(overflow_counts)
+        reduced_owners = membership + retained_state_len
+        return (
+            state_k,
+            state_v,
+            counts,
+            output_state_len,
+            reduced_owners,
+            old_slot_remap,
+        )
+
     def _update_state(
         self,
         state_k: torch.Tensor,
@@ -177,7 +967,55 @@ class TritonLODAttentionCore(nn.Module):
         ctx_len: int,
         available_context: int,
         state_capacity: int,
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, int, torch.Tensor]:
+    ) -> tuple[
+        torch.Tensor,
+        torch.Tensor,
+        torch.Tensor,
+        int,
+        torch.Tensor,
+        torch.Tensor | None,
+    ]:
+        if self.state_union_bipartite:
+            return self._update_state_union_bipartite(
+                state_k,
+                state_v,
+                counts,
+                overflow_k,
+                overflow_v,
+                state_len=state_len,
+                ctx_len=ctx_len,
+                available_context=available_context,
+                state_capacity=state_capacity,
+            )
+        if self.state_precompact_direct_append:
+            precompacted = self._update_state_precompact_direct_append(
+                state_k,
+                state_v,
+                counts,
+                overflow_k,
+                overflow_v,
+                state_len=state_len,
+                ctx_len=ctx_len,
+                available_context=available_context,
+                state_capacity=state_capacity,
+            )
+            if precompacted is not None:
+                return precompacted
+        original_overflow_len = int(overflow_k.size(2))
+        membership = None
+        if self.overflow_bipartite_merge:
+            overflow_k, overflow_v, overflow_counts, membership = (
+                self._reduce_overflow_balanced(overflow_k, overflow_v)
+            )
+            overflow_select_k = self._mean(overflow_k, overflow_counts)
+        else:
+            overflow_select_k = overflow_k
+            overflow_counts = torch.ones(
+                *overflow_k.shape[:3],
+                1,
+                dtype=torch.float32,
+                device=overflow_k.device,
+            )
         overflow_len = int(overflow_k.size(2))
         current_state_len = state_len
         desired_state_len = self._desired_state_len(
@@ -225,7 +1063,7 @@ class TritonLODAttentionCore(nn.Module):
             )
             if needs_maxsim_buffers:
                 maxsim_buffers = new_state_maxsim_buffers(
-                    overflow_k,
+                    overflow_select_k,
                     max(
                         overflow_len,
                         self.chunk_len,
@@ -238,63 +1076,78 @@ class TritonLODAttentionCore(nn.Module):
                 old_route_indices,
                 append_select_scores,
             ) = streaming_state_maxsim(
-                overflow_k,
+                overflow_select_k,
                 state_k,
                 counts,
                 maxsim_buffers,
                 state_len=current_state_len,
-                sink_len=min(self.sink_len, current_state_len),
+                sink_len=self._protected_state_len(current_state_len),
                 block_m=self.state_maxsim_block_m,
                 block_n=self.state_maxsim_block_n,
                 num_warps=self.state_maxsim_num_warps,
             )
-            sorted_idx = torch.argsort(
-                append_select_scores.float(), dim=-1, descending=False
+            append_idx, merge_idx = self._split_append_merge_indices(
+                append_select_scores, n_append
             )
-            append_idx = torch.sort(sorted_idx[..., :n_append], dim=-1).values
-            merge_idx = torch.sort(sorted_idx[..., n_append:], dim=-1).values
         elif self.reuse_state_update_similarity and state_k.is_cuda:
             with torch.no_grad():
                 old_similarity = torch.matmul(
-                    overflow_k,
+                    overflow_select_k,
                     self._mean(
                         state_k.detach()[..., :current_state_len, :],
                         counts[..., :current_state_len, :],
                     ).transpose(-1, -2),
                 )
-                protected_slots = min(self.sink_len, current_state_len)
-                protected_scores = (
-                    old_similarity[..., :protected_slots].float().max(dim=-1).values
-                )
-                old_similarity[..., :protected_slots] = float("-inf")
+                protected_slots = self._protected_state_len(current_state_len)
+                if protected_slots:
+                    protected_scores = (
+                        old_similarity[..., :protected_slots]
+                        .float()
+                        .max(dim=-1)
+                        .values
+                    )
+                    old_similarity[..., :protected_slots] = float("-inf")
+                else:
+                    protected_scores = torch.full_like(
+                        old_similarity[..., 0].float(), float("-inf")
+                    )
                 old_route_scores, old_route_indices = old_similarity.max(dim=-1)
                 append_select_scores = torch.maximum(
                     old_route_scores.float(), protected_scores
                 )
-                sorted_idx = torch.argsort(
-                    append_select_scores, dim=-1, descending=False
+                append_idx, merge_idx = self._split_append_merge_indices(
+                    append_select_scores, n_append
                 )
-                append_idx = torch.sort(sorted_idx[..., :n_append], dim=-1).values
-                merge_idx = torch.sort(sorted_idx[..., n_append:], dim=-1).values
-        elif n_append:
+        elif n_append and self.state_append_subblock_size <= 0:
             append_idx, merge_idx = _split_append_merge_idx_by_maxsim(
-                overflow_k,
+                overflow_select_k,
                 n_append,
                 self._mean(
                     state_k.detach()[..., :current_state_len, :],
                     counts[..., :current_state_len, :],
                 ),
             )
-        else:
+        elif not n_append:
             merge_idx = _all_idx(overflow_k, overflow_len)
             append_idx = merge_idx[..., :0]
+        else:
+            with torch.no_grad():
+                append_select_scores = torch.matmul(
+                    overflow_select_k,
+                    self._mean(
+                        state_k.detach()[..., :current_state_len, :],
+                        counts[..., :current_state_len, :],
+                    ).transpose(-1, -2),
+                ).max(dim=-1).values
+                append_idx, merge_idx = self._split_append_merge_indices(
+                    append_select_scores, n_append
+                )
 
         if n_append:
             append_k = _gather_by_idx(overflow_k, append_idx)
             append_v = _gather_by_idx(overflow_v, append_idx)
-            state_k[..., current_state_len:desired_state_len, :].copy_(append_k)
-            state_v[..., current_state_len:desired_state_len, :].copy_(append_v)
-            counts[..., current_state_len:desired_state_len, :].fill_(1.0)
+            append_select_k = _gather_by_idx(overflow_select_k, append_idx)
+            append_counts = _gather_by_idx(overflow_counts, append_idx)
             append_slots = (
                 torch.arange(
                     current_state_len,
@@ -305,23 +1158,43 @@ class TritonLODAttentionCore(nn.Module):
                 .view(1, 1, n_append)
                 .expand_as(append_idx)
             )
-            owners.scatter_(2, append_idx, append_slots)
+            if not self.state_merge_before_append:
+                state_k[..., current_state_len:desired_state_len, :].copy_(append_k)
+                state_v[..., current_state_len:desired_state_len, :].copy_(append_v)
+                counts[..., current_state_len:desired_state_len, :].copy_(
+                    append_counts
+                )
+                owners.scatter_(2, append_idx, append_slots)
             merge_k = _gather_by_idx(overflow_k, merge_idx)
             merge_v = _gather_by_idx(overflow_v, merge_idx)
+            merge_select_k = _gather_by_idx(overflow_select_k, merge_idx)
+            merge_counts = _gather_by_idx(overflow_counts, merge_idx)
         else:
             merge_k = overflow_k
             merge_v = overflow_v
+            merge_select_k = overflow_select_k
+            merge_counts = overflow_counts
 
         if int(merge_k.size(2)) == 0:
-            return state_k, state_v, counts, desired_state_len, owners
+            if n_append and self.state_merge_before_append:
+                state_k[..., current_state_len:desired_state_len, :].copy_(append_k)
+                state_v[..., current_state_len:desired_state_len, :].copy_(append_v)
+                counts[..., current_state_len:desired_state_len, :].copy_(
+                    append_counts
+                )
+                owners.scatter_(2, append_idx, append_slots)
+            if membership is not None:
+                owners = owners.gather(2, membership)
+            return state_k, state_v, counts, desired_state_len, owners, None
 
         with torch.no_grad():
             if old_route_scores is not None and old_route_indices is not None:
                 merge_old_scores = old_route_scores.gather(2, merge_idx)
                 destination = old_route_indices.gather(2, merge_idx)
-                if n_append:
+                if n_append and not self.state_merge_before_append:
                     appended_logits = torch.matmul(
-                        merge_k, append_k.detach().transpose(-1, -2)
+                        merge_select_k,
+                        append_select_k.detach().transpose(-1, -2),
                     )
                     appended_scores, appended_relative = appended_logits.max(dim=-1)
                     appended_destination = appended_relative + current_state_len
@@ -330,12 +1203,17 @@ class TritonLODAttentionCore(nn.Module):
                         use_appended, appended_destination, destination
                     )
             else:
-                protected_slots = min(self.sink_len, desired_state_len)
+                route_state_len = (
+                    current_state_len
+                    if self.state_merge_before_append
+                    else desired_state_len
+                )
+                protected_slots = self._protected_state_len(route_state_len)
                 route_logits = torch.matmul(
-                    merge_k,
+                    merge_select_k,
                     self._mean(
-                        state_k.detach()[..., :desired_state_len, :],
-                        counts[..., :desired_state_len, :],
+                        state_k.detach()[..., :route_state_len, :],
+                        counts[..., :route_state_len, :],
                     ).transpose(-1, -2),
                 )
                 route_logits[..., :protected_slots] = float("-inf")
@@ -350,28 +1228,45 @@ class TritonLODAttentionCore(nn.Module):
                 counts,
                 merge_k.contiguous(),
                 merge_v.contiguous(),
+                merge_counts.contiguous(),
                 merge_idx.contiguous(),
                 destination.contiguous(),
                 owners,
                 buffers,
-                active_slots=desired_state_len,
+                active_slots=(
+                    current_state_len
+                    if self.state_merge_before_append
+                    else desired_state_len
+                ),
             )
         else:
-            assignment = F.one_hot(destination, num_classes=desired_state_len).to(
+            route_state_len = (
+                current_state_len
+                if self.state_merge_before_append
+                else desired_state_len
+            )
+            assignment = F.one_hot(destination, num_classes=route_state_len).to(
                 merge_k.dtype
             )
             assignment_t = assignment.transpose(-1, -2)
-            state_k[..., :desired_state_len, :].add_(
+            state_k[..., :route_state_len, :].add_(
                 torch.matmul(assignment_t, merge_k)
             )
-            state_v[..., :desired_state_len, :].add_(
+            state_v[..., :route_state_len, :].add_(
                 torch.matmul(assignment_t.to(merge_v.dtype), merge_v)
             )
-            counts[..., :desired_state_len, :].add_(
-                assignment_t.float().sum(dim=-1, keepdim=True)
+            counts[..., :route_state_len, :].add_(
+                torch.matmul(assignment_t.float(), merge_counts.float())
             )
             owners.scatter_(2, merge_idx, destination)
-        return state_k, state_v, counts, desired_state_len, owners
+        if n_append and self.state_merge_before_append:
+            state_k[..., current_state_len:desired_state_len, :].copy_(append_k)
+            state_v[..., current_state_len:desired_state_len, :].copy_(append_v)
+            counts[..., current_state_len:desired_state_len, :].copy_(append_counts)
+            owners.scatter_(2, append_idx, append_slots)
+        if membership is not None:
+            owners = owners.gather(2, membership)
+        return state_k, state_v, counts, desired_state_len, owners, None
 
     def _state_route_logits(
         self,
@@ -457,7 +1352,17 @@ class TritonLODAttentionCore(nn.Module):
         local_v: torch.Tensor | None = None,
         dynamic_local_lse: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        route_count = min(self.two_level_topk, state_len)
+        configured_topk = (
+            self.prefill_two_level_topk
+            if int(q.size(2)) > 1 and self.prefill_two_level_topk is not None
+            else self.two_level_topk
+        )
+        protected_len = (
+            self._protected_state_len(state_len)
+            if self.exclude_sink_from_routes
+            else 0
+        )
+        route_count = min(configured_topk, state_len - protected_len)
         dynamic_target = self._dynamic_open_target(int(q.size(2)))
         dynamic_residual = self._dynamic_open_residual(int(q.size(2)))
         with torch.no_grad():
@@ -466,7 +1371,7 @@ class TritonLODAttentionCore(nn.Module):
                 and self.reuse_route_logits_for_coarse
                 and q.is_cuda
                 and int(q.size(2)) > 1
-                and route_count == 8
+                and 0 < route_count <= 8
                 and dynamic_target is None
                 and not getattr(self, "_lod_collect_stats", False)
             ):
@@ -478,26 +1383,46 @@ class TritonLODAttentionCore(nn.Module):
                     counts,
                     state_len=state_len,
                 )
+                include_local = not self.split_prefill_local_attention
+                coarse_local_k = local_k if include_local else local_k[..., :0, :]
+                coarse_local_v = local_v if include_local else local_v[..., :0, :]
                 routed, coarse_output, coarse_lse = (
                     route_logits_topk_coarse_attention(
                         q,
                         logits.contiguous(),
                         state_v.contiguous(),
                         counts.contiguous(),
-                        local_k.contiguous(),
-                        local_v.contiguous(),
+                        coarse_local_k.contiguous(),
+                        coarse_local_v.contiguous(),
                         state_len=state_len,
                         kv_group_size=self.num_key_value_groups,
                         scale=self.scaling,
                         topk=route_count,
+                        protected_len=protected_len,
+                        max_leaf_tokens=self.prefill_max_leaf_tokens,
+                        residual_local_lse=(
+                            dynamic_local_lse.contiguous()
+                            if dynamic_local_lse is not None
+                            else None
+                        ),
+                        residual_mass=dynamic_residual,
                         block_m=self.coarse_route_block_m,
                         block_n=self.coarse_route_block_n,
                         num_warps=self.coarse_route_num_warps,
                     )
                 )
+                if self.collect_dynamic_open_stats and dynamic_residual is not None:
+                    open_counts = (routed >= 0).sum(dim=-1)
+                    histogram = torch.bincount(
+                        open_counts.reshape(-1), minlength=route_count + 1
+                    )
+                    if not hasattr(self, "_lod_dynamic_prefill_histograms"):
+                        self._lod_dynamic_prefill_histograms = []
+                    self._lod_dynamic_prefill_histograms.append(histogram)
                 self._lod_prefill_fused_coarse = (
                     coarse_output,
                     coarse_lse,
+                    include_local,
                 )
                 return routed
             if (
@@ -554,6 +1479,7 @@ class TritonLODAttentionCore(nn.Module):
                         scale=self.scaling,
                         topk=route_count,
                         state_len=state_len,
+                        protected_len=protected_len,
                         reorder_like_torch=True,
                     )
                 else:
@@ -576,6 +1502,7 @@ class TritonLODAttentionCore(nn.Module):
                         scale=self.scaling,
                         topk=route_count,
                         state_len=state_len,
+                        protected_len=protected_len,
                         return_lse=dynamic_residual is not None,
                     )
                     if dynamic_residual is not None:
@@ -596,6 +1523,7 @@ class TritonLODAttentionCore(nn.Module):
                         counts.detach()[..., :state_len, :]
                     ).squeeze(-1)
                     corrected = logits * self.scaling + query_counts.log().unsqueeze(2)
+                    corrected[..., :protected_len] = float("-inf")
                     reference = corrected.topk(
                         route_count, dim=-1, sorted=False
                     ).indices
@@ -708,6 +1636,7 @@ class TritonLODAttentionCore(nn.Module):
             )
             log_counts = query_counts.log()
             logits = logits + log_counts.unsqueeze(2)
+            logits[..., :protected_len] = float("-inf")
             top_slots = logits.topk(route_count, dim=-1, sorted=False).indices
             if getattr(self, "_lod_collect_stats", False):
                 expanded_counts = query_counts.unsqueeze(2).expand(
@@ -824,7 +1753,7 @@ class TritonLODAttentionCore(nn.Module):
             )
         if self.collect_dynamic_open_stats:
             histogram = torch.bincount(
-                open_counts.reshape(-1), minlength=self.two_level_topk + 1
+                open_counts.reshape(-1), minlength=route_count + 1
             )
             phase = "decode" if int(top_slots.size(2)) == 1 else "prefill"
             attribute = f"_lod_dynamic_{phase}_histograms"
@@ -1523,12 +2452,10 @@ class TritonLODAttentionCore(nn.Module):
         query_len = int(q.size(2))
         fused_prefill = getattr(self, "_lod_prefill_fused_coarse", None)
         if fused_prefill is not None:
-            if not include_local:
-                raise ValueError(
-                    "fused route/coarse attention cannot split the local branch"
-                )
             del self._lod_prefill_fused_coarse
-            coarse_output, coarse_lse = fused_prefill
+            coarse_output, coarse_lse, fused_includes_local = fused_prefill
+            if include_local != fused_includes_local:
+                raise AssertionError("fused prefill local-branch mode drifted")
             if tuple(coarse_output.shape) != tuple(q.shape):
                 raise AssertionError("fused prefill coarse output shape drifted")
             return coarse_output, coarse_lse
@@ -1565,144 +2492,49 @@ class TritonLODAttentionCore(nn.Module):
                 block_n=self.coarse_route_block_n,
                 num_warps=self.coarse_route_num_warps,
             )
-        if not include_local:
-            raise ValueError(
-                "split prefill-local attention requires reusable route logits"
-            )
-        # Prompt lengths differ by a few tokens.  Give FlexAttention only one
-        # prefill shape (256 rows) and one decode shape (1 row), and normalize
-        # slice strides, so those harmless differences do not trigger a new
-        # compilation for every document/layer.
-        kernel_query_len = 1 if query_len == 1 else self.prefill_chunk_len
-        kernel_q = q.contiguous()
-        if query_len < kernel_query_len:
-            kernel_q = F.pad(kernel_q, (0, 0, 0, kernel_query_len - query_len))
-        actual_local_len = int(local_k.size(2))
-        local_capacity = self.local_len if query_len == 1 else self.prefill_local_len
-        if actual_local_len > local_capacity:
-            raise AssertionError("LOD local window exceeded its capacity")
-
-        mean_k = _pad_sequence(self._mean(state_k, counts), state_capacity)
-        mean_v = _pad_sequence(self._mean(state_v, counts), state_capacity)
-        local_k = _pad_sequence(local_k, local_capacity)
-        local_v = _pad_sequence(local_v, local_capacity)
-        if self.coarse_enable_gqa:
-            coarse_k = torch.cat((mean_k, local_k), dim=2)
-            coarse_v = torch.cat((mean_v, local_v), dim=2)
-        else:
-            coarse_k = torch.cat(
-                (self._repeat_kv(mean_k), self._repeat_kv(local_k)), dim=2
-            )
-            coarse_v = torch.cat(
-                (self._repeat_kv(mean_v), self._repeat_kv(local_v)), dim=2
-            )
-
-        padded_counts = _pad_sequence(counts, state_capacity)
-        state_log_counts = torch.where(
-            padded_counts > 0,
-            padded_counts.log(),
-            torch.full_like(padded_counts, float("-inf")),
+        route_logits = self._state_route_logits(
+            q,
+            state_k,
+            counts,
+            state_len=state_len,
         )
-        state_log_counts = self._repeat_kv(state_log_counts).squeeze(-1)
-        kernel_top_slots = top_slots
-        if query_len < kernel_query_len:
-            if int(kernel_top_slots.size(-1)) == 0:
-                kernel_top_slots = torch.empty(
-                    *kernel_top_slots.shape[:2],
-                    kernel_query_len,
-                    0,
-                    dtype=kernel_top_slots.dtype,
-                    device=kernel_top_slots.device,
-                )
-            else:
-                kernel_top_slots = F.pad(
-                    kernel_top_slots, (0, 0, 0, kernel_query_len - query_len)
-                )
-        if self.coarse_compact_bias:
-            route_count = int(kernel_top_slots.size(-1))
-            route_metadata = kernel_top_slots.reshape(
-                int(q.size(0)), int(q.size(1)), -1
-            ).to(state_log_counts.dtype)
-            attention_metadata = torch.cat(
-                (state_log_counts, route_metadata), dim=-1
-            )
-
-            def score_mod(score, batch, head, q_idx, kv_idx):
-                state_index = torch.where(
-                    kv_idx < state_capacity, kv_idx, 0
-                )
-                state_score = score + attention_metadata[
-                    batch, head, state_index
-                ]
-                selected = torch.zeros_like(score, dtype=torch.bool)
-                route_begin = state_capacity + q_idx * route_count
-                for route in range(route_count):
-                    selected |= (
-                        attention_metadata[batch, head, route_begin + route]
-                        == kv_idx
-                    )
-                state_score = torch.where(
-                    selected, -float("inf"), state_score
-                )
-                local_index = kv_idx - state_capacity
-                query_index = torch.where(q_idx < query_len, q_idx, query_len - 1)
-                local_visible = (
-                    (local_index >= 0)
-                    & (local_index < actual_local_len)
-                    & (
-                        local_index
-                        <= query_index + actual_local_len - query_len
-                    )
-                )
-                local_score = torch.where(
-                    local_visible, score, -float("inf")
-                )
-                return torch.where(
-                    kv_idx < state_capacity, state_score, local_score
-                )
-
-        else:
-            local_offset = actual_local_len - query_len
-            state_bias = state_log_counts.unsqueeze(2).expand(
-                -1, -1, kernel_query_len, -1
-            ).clone()
-            state_bias.scatter_(-1, kernel_top_slots, float("-inf"))
-            query_index = torch.arange(
-                kernel_query_len, device=q.device
-            ).unsqueeze(-1)
-            query_index = query_index.clamp_max(query_len - 1)
-            local_index = torch.arange(local_capacity, device=q.device).unsqueeze(0)
-            local_visible = (local_index < actual_local_len) & (
-                local_index <= query_index + local_offset
-            )
-            local_bias = torch.zeros(
-                kernel_query_len,
-                local_capacity,
-                dtype=state_bias.dtype,
-                device=q.device,
-            ).masked_fill(~local_visible, float("-inf"))
-            local_bias = local_bias.view(
-                1, 1, kernel_query_len, local_capacity
-            ).expand(int(q.size(0)), int(q.size(1)), kernel_query_len, local_capacity)
-            attention_bias = torch.cat((state_bias, local_bias), dim=-1)
-
-            def score_mod(score, batch, head, q_idx, kv_idx):
-                return score + attention_bias[batch, head, q_idx, kv_idx]
-
-        output, aux = separately_compiled_flex_attention(
-            kernel_q,
-            coarse_k,
-            coarse_v,
-            score_mod=score_mod,
-            enable_gqa=self.coarse_enable_gqa,
+        coarse_output, coarse_lse = route_logits_coarse_attention(
+            q.contiguous(),
+            route_logits.contiguous(),
+            state_v.contiguous(),
+            counts.contiguous(),
+            local_k[..., :0, :].contiguous(),
+            local_v[..., :0, :].contiguous(),
+            top_slots.contiguous(),
+            state_len=state_len,
+            kv_group_size=self.num_key_value_groups,
             scale=self.scaling,
-            return_aux=AuxRequest(lse=True),
+            block_m=self.coarse_route_block_m,
+            block_n=self.coarse_route_block_n,
+            num_warps=self.coarse_route_num_warps,
         )
-        if aux.lse is None:
-            raise RuntimeError("FlexAttention did not return coarse branch LSE")
-        if state_len > state_capacity:
-            raise AssertionError("LOD state exceeded padded capacity")
-        return output[..., :query_len, :], aux.lse[..., :query_len]
+        if not include_local or int(local_k.size(2)) == 0:
+            return coarse_output, coarse_lse
+        local_output, local_lse, *_ = (
+            torch.ops.aten._scaled_dot_product_flash_attention.default(
+                q.contiguous(),
+                local_k.contiguous(),
+                local_v.contiguous(),
+                0.0,
+                True,
+                False,
+                scale=self.scaling,
+            )
+        )
+        return (
+            _merge_lse_branches(
+                coarse_output,
+                coarse_lse,
+                local_output,
+                local_lse,
+            ),
+            torch.logaddexp(coarse_lse, local_lse),
+        )
 
     def _two_level_attention(
         self,
@@ -1723,15 +2555,24 @@ class TritonLODAttentionCore(nn.Module):
         new_k: torch.Tensor | None = None,
         new_v: torch.Tensor | None = None,
         local_branch: tuple[torch.Tensor, torch.Tensor] | None = None,
+        sink_k: torch.Tensor | None = None,
+        sink_v: torch.Tensor | None = None,
     ) -> torch.Tensor:
         q = q.contiguous()
+        if (sink_k is None) != (sink_v is None):
+            raise ValueError("separate sink K and V must be provided together")
+        configured_topk = (
+            self.prefill_two_level_topk
+            if int(q.size(2)) > 1 and self.prefill_two_level_topk is not None
+            else self.two_level_topk
+        )
         dynamic_target = self._dynamic_open_target(int(q.size(2)))
         dynamic_residual = self._dynamic_open_residual(int(q.size(2)))
         if dynamic_target is not None and dynamic_residual is not None:
             raise ValueError(
                 "decode top-p and full-mass residual opening are mutually exclusive"
             )
-        if self.two_level_topk == 0:
+        if configured_topk == 0:
             if dynamic_target is not None or dynamic_residual is not None:
                 raise ValueError("dynamic LOD opening requires at least one leaf route")
             coarse_local_k = local_k
@@ -1746,7 +2587,7 @@ class TritonLODAttentionCore(nn.Module):
             no_slots = torch.empty(
                 *q.shape[:3], 0, dtype=torch.long, device=q.device
             )
-            coarse_output, _ = self._coarse_attention(
+            coarse_output, coarse_lse = self._coarse_attention(
                 q,
                 coarse_local_k,
                 coarse_local_v,
@@ -1758,6 +2599,16 @@ class TritonLODAttentionCore(nn.Module):
                 state_capacity=state_capacity,
                 include_local=True,
             )
+            if sink_k is not None and sink_v is not None:
+                return merge_attention_branches_with_sink(
+                    q,
+                    sink_k,
+                    sink_v,
+                    coarse_output,
+                    coarse_lse,
+                    kv_group_size=self.num_key_value_groups,
+                    scale=self.scaling,
+                )
             return coarse_output
         dynamic_active = dynamic_target is not None or dynamic_residual is not None
         if dynamic_active:
@@ -1823,6 +2674,7 @@ class TritonLODAttentionCore(nn.Module):
                 page_cache is not None
                 and isinstance(page_cache.get("page_indices"), torch.Tensor)
             )
+            and (sink_k is None or fuse_decode_route)
         ):
             if page_cache is None:
                 raise RuntimeError("paged LOD attention has no leaf page cache")
@@ -1919,6 +2771,13 @@ class TritonLODAttentionCore(nn.Module):
                 fuse_final_reduce=self.decode_fuse_final_reduce,
                 route_use_dot=self.decode_route_use_dot,
                 route_gqa_grouped=self.decode_route_gqa_grouped,
+                protected_len=(
+                    self._protected_state_len(state_len)
+                    if self.exclude_sink_from_routes
+                    else 0
+                ),
+                sink_k=sink_k,
+                sink_v=sink_v,
                 route_top_p=(dynamic_target if fuse_decode_route else None),
                 route_residual_mass=(
                     dynamic_residual if fuse_decode_route else None
@@ -2047,6 +2906,8 @@ class TritonLODAttentionCore(nn.Module):
         elif self.leaf_attention_backend == "packed":
             if owners is None:
                 raise RuntimeError("packed LOD attention has no leaf owners")
+            from .kvm_two_level_mixer import _expert_leaf_attention
+
             exact_output, exact_lse = _expert_leaf_attention(
                 q,
                 exact_k,
@@ -2076,6 +2937,20 @@ class TritonLODAttentionCore(nn.Module):
         )
         if local_branch is not None:
             local_output, local_lse = local_branch
+            if sink_k is not None and sink_v is not None:
+                return merge_attention_branches_with_sink(
+                    q,
+                    sink_k,
+                    sink_v,
+                    coarse_output,
+                    coarse_lse,
+                    exact_output,
+                    exact_lse,
+                    local_output,
+                    local_lse,
+                    kv_group_size=self.num_key_value_groups,
+                    scale=self.scaling,
+                )
             branch_lse = torch.stack(
                 (coarse_lse, exact_lse, local_lse), dim=-1
             ).float()
@@ -2085,7 +2960,22 @@ class TritonLODAttentionCore(nn.Module):
                 + exact_output * weights[..., 1].unsqueeze(-1)
                 + local_output * weights[..., 2].unsqueeze(-1)
             )
-        return _merge_lse_branches(coarse_output, coarse_lse, exact_output, exact_lse)
+        output = _merge_lse_branches(
+            coarse_output, coarse_lse, exact_output, exact_lse
+        )
+        if sink_k is None or sink_v is None:
+            return output
+        return merge_attention_branches_with_sink(
+            q,
+            sink_k,
+            sink_v,
+            coarse_output,
+            coarse_lse,
+            exact_output,
+            exact_lse,
+            kv_group_size=self.num_key_value_groups,
+            scale=self.scaling,
+        )
 
     def _exact_attention(
         self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, *, causal: bool
@@ -2143,9 +3033,29 @@ class TritonLODAttentionCore(nn.Module):
         ]
 
         initial_len = min(prefill_len, self.chunk_len)
-        state_capacity = self._state_capacity(prefill_len, initial_len)
-        state_k = _pad_sequence(k[..., :initial_len, :], state_capacity).clone()
-        state_v = _pad_sequence(v[..., :initial_len, :], state_capacity).clone()
+        separated_sink_len = (
+            min(self.sink_len, initial_len) if self.separate_sink_cache else 0
+        )
+        sink_k = (
+            k[..., :separated_sink_len, :].detach().contiguous()
+            if separated_sink_len
+            else None
+        )
+        sink_v = (
+            v[..., :separated_sink_len, :].detach().contiguous()
+            if separated_sink_len
+            else None
+        )
+        archive_k = k[..., separated_sink_len:, :]
+        archive_v = v[..., separated_sink_len:, :]
+        initial_state_len = initial_len - separated_sink_len
+        state_capacity = self._state_capacity(prefill_len, initial_state_len)
+        state_k = _pad_sequence(
+            archive_k[..., :initial_state_len, :], state_capacity
+        ).clone()
+        state_v = _pad_sequence(
+            archive_v[..., :initial_state_len, :], state_capacity
+        ).clone()
         counts = torch.zeros(
             batch_size,
             self.config.num_key_value_heads,
@@ -2154,25 +3064,27 @@ class TritonLODAttentionCore(nn.Module):
             dtype=torch.float32,
             device=k.device,
         )
-        counts[..., :initial_len, :].fill_(1.0)
-        state_len = initial_len
+        counts[..., :initial_state_len, :].fill_(1.0)
+        state_len = initial_state_len
         owners = (
-            torch.arange(initial_len, dtype=torch.long, device=k.device)
-            .view(1, 1, initial_len)
-            .expand(batch_size, self.config.num_key_value_heads, initial_len)
+            torch.arange(initial_state_len, dtype=torch.long, device=k.device)
+            .view(1, 1, initial_state_len)
+            .expand(batch_size, self.config.num_key_value_heads, initial_state_len)
         )
         state_coverage = initial_len
         page_cache = None
         if self.leaf_attention_backend == "paged":
-            sequence_capacity = _round_up(prefill_len, self.chunk_len) + self.chunk_len
+            sequence_capacity = _round_up(prefill_len, self.chunk_len) + max(
+                self.chunk_len, self.decode_cache_headroom
+            )
             page_cache = self._new_page_cache(
-                k[..., :initial_len, :],
-                v[..., :initial_len, :],
+                archive_k[..., :initial_state_len, :],
+                archive_v[..., :initial_state_len, :],
                 owners,
                 state_capacity=state_capacity,
                 sequence_capacity=sequence_capacity,
-                virtual_k=k if self.virtual_page_storage else None,
-                virtual_v=v if self.virtual_page_storage else None,
+                virtual_k=archive_k if self.virtual_page_storage else None,
+                virtual_v=archive_v if self.virtual_page_storage else None,
             )
             owners = None
 
@@ -2181,6 +3093,16 @@ class TritonLODAttentionCore(nn.Module):
             bswa_begin = max(0, query_begin - exact_lookback)
             if state_coverage != bswa_begin:
                 raise AssertionError("LOD prefill state coverage drifted")
+            local_branch = (
+                self._prefill_local_attention(
+                    q[..., bswa_begin:query_end, :],
+                    k[..., bswa_begin:query_end, :],
+                    v[..., bswa_begin:query_end, :],
+                    query_offset=query_begin - bswa_begin,
+                )
+                if self.split_prefill_local_attention
+                else None
+            )
             outputs.append(
                 self._two_level_attention(
                     q[..., query_begin:query_end, :],
@@ -2190,21 +3112,14 @@ class TritonLODAttentionCore(nn.Module):
                     state_v,
                     counts,
                     owners,
-                    k,
-                    v,
+                    archive_k,
+                    archive_v,
                     state_len=state_len,
                     state_capacity=state_capacity,
                     page_cache=page_cache,
-                    local_branch=(
-                        self._prefill_local_attention(
-                            q[..., bswa_begin:query_end, :],
-                            k[..., bswa_begin:query_end, :],
-                            v[..., bswa_begin:query_end, :],
-                            query_offset=query_begin - bswa_begin,
-                        )
-                        if self.split_prefill_local_attention
-                        else None
-                    ),
+                    local_branch=local_branch,
+                    sink_k=sink_k,
+                    sink_v=sink_v,
                 )
             )
 
@@ -2223,6 +3138,7 @@ class TritonLODAttentionCore(nn.Module):
                     counts,
                     state_len,
                     new_owners,
+                    old_slot_remap,
                 ) = self._update_state(
                     state_k,
                     state_v,
@@ -2235,6 +3151,8 @@ class TritonLODAttentionCore(nn.Module):
                     state_capacity=state_capacity,
                 )
                 if page_cache is not None:
+                    if old_slot_remap is not None:
+                        raise AssertionError("paged state remapping is unsupported")
                     self._append_page_cache(
                         page_cache,
                         k[..., state_coverage:update_end, :],
@@ -2244,6 +3162,8 @@ class TritonLODAttentionCore(nn.Module):
                 else:
                     if owners is None:
                         raise AssertionError("packed LOD owner archive is missing")
+                    if old_slot_remap is not None:
+                        owners = torch.gather(old_slot_remap, 2, owners)
                     owners = torch.cat((owners, new_owners), dim=2)
                 state_coverage = update_end
 
@@ -2261,6 +3181,7 @@ class TritonLODAttentionCore(nn.Module):
                 counts,
                 state_len,
                 new_owners,
+                old_slot_remap,
             ) = self._update_state(
                 state_k,
                 state_v,
@@ -2273,6 +3194,8 @@ class TritonLODAttentionCore(nn.Module):
                 state_capacity=state_capacity,
             )
             if page_cache is not None:
+                if old_slot_remap is not None:
+                    raise AssertionError("paged state remapping is unsupported")
                 self._append_page_cache(
                     page_cache,
                     k[..., state_coverage:update_end, :],
@@ -2282,13 +3205,15 @@ class TritonLODAttentionCore(nn.Module):
             else:
                 if owners is None:
                     raise AssertionError("packed LOD owner archive is missing")
+                if old_slot_remap is not None:
+                    owners = torch.gather(old_slot_remap, 2, owners)
                 owners = torch.cat((owners, new_owners), dim=2)
             state_coverage = update_end
         recent_k = k[..., state_coverage:, :]
         recent_v = v[..., state_coverage:, :]
         recent_len = int(recent_k.size(2))
         if page_cache is not None:
-            recent_capacity = self.local_len + self.chunk_len
+            recent_capacity = self.local_len + self.decode_state_update_len
             buffered_k = k.new_empty(
                 *k.shape[:2], recent_capacity, int(k.size(-1))
             )
@@ -2377,14 +3302,17 @@ class TritonLODAttentionCore(nn.Module):
             "recent_len": recent_len,
             "total_len": prefill_len,
         }
+        if sink_k is not None and sink_v is not None:
+            self._lod_state["sink_k"] = sink_k
+            self._lod_state["sink_v"] = sink_v
         if page_cache is not None:
             self._lod_state["page_cache"] = page_cache
         else:
             if owners is None:
                 raise AssertionError("packed LOD owner archive is missing")
             self._lod_state["owners"] = owners.detach()
-            self._lod_state["exact_k"] = k.detach()
-            self._lod_state["exact_v"] = v.detach()
+            self._lod_state["exact_k"] = archive_k.detach()
+            self._lod_state["exact_v"] = archive_v.detach()
         return torch.cat(outputs, dim=2)
 
     @torch.compiler.disable
@@ -2405,6 +3333,10 @@ class TritonLODAttentionCore(nn.Module):
         state_len = int(cache["state_len"])
         page_cache = cache.get("page_cache")
         owners = cache.get("owners")
+        sink_k = cache.get("sink_k")
+        sink_v = cache.get("sink_v")
+        if (sink_k is None) != (sink_v is None):
+            raise RuntimeError("LOD separate sink cache is incomplete")
         state_coverage = int(cache["coverage"])
         recent_k = cache["recent_k"]
         recent_v = cache["recent_v"]
@@ -2427,7 +3359,18 @@ class TritonLODAttentionCore(nn.Module):
             exact_k = recent_k
             exact_v = recent_v
         new_bswa_begin = self._bswa_begin(total_len)
-        target_coverage = max(min(total_len, self.chunk_len), new_bswa_begin)
+        decode_update_len = int(self.decode_state_update_len)
+        if decode_update_len <= 0:
+            raise ValueError("decode state update length must be positive")
+        exact_floor = self.local_len - self.chunk_len
+        if exact_floor < 0:
+            raise ValueError("LOD local length cannot be shorter than one chunk")
+        target_coverage = max(min(total_len, self.chunk_len), state_coverage)
+        pending_update = total_len - target_coverage - exact_floor
+        if pending_update > decode_update_len:
+            target_coverage += (
+                (pending_update - 1) // decode_update_len
+            ) * decode_update_len
 
         if state_coverage < target_coverage:
             overflow_len = target_coverage - state_coverage
@@ -2443,6 +3386,7 @@ class TritonLODAttentionCore(nn.Module):
                 counts,
                 state_len,
                 new_owners,
+                old_slot_remap,
             ) = self._update_state(
                 state_k,
                 state_v,
@@ -2450,15 +3394,19 @@ class TritonLODAttentionCore(nn.Module):
                 overflow_k,
                 overflow_v,
                 state_len=state_len,
-                ctx_len=self.local_len + state_coverage,
+                ctx_len=exact_floor + target_coverage,
                 available_context=target_coverage,
                 state_capacity=update_state_capacity,
             )
             if page_cache is not None:
+                if old_slot_remap is not None:
+                    raise AssertionError("paged state remapping is unsupported")
                 self._append_page_cache(page_cache, overflow_k, overflow_v, new_owners)
             else:
                 if owners is None:
                     raise AssertionError("packed LOD owner archive is missing")
+                if old_slot_remap is not None:
+                    owners = torch.gather(old_slot_remap, 2, owners)
                 owners = torch.cat((owners, new_owners), dim=2)
             state_coverage = target_coverage
             if page_cache is None:
@@ -2544,6 +3492,8 @@ class TritonLODAttentionCore(nn.Module):
                 local_len=active_local_len,
                 new_k=append_k,
                 new_v=append_v,
+                sink_k=sink_k,
+                sink_v=sink_v,
             )
             if buffered_decode:
                 recent_len += 1

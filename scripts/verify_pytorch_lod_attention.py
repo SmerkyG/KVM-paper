@@ -125,6 +125,7 @@ def verify_low_level_lse_math() -> None:
         leaf_value,
         max_routes=slots,
         open_count=slots,
+        route_protected_prefix=0,
         query_offset=query_offset,
     )
     repeated_leaf_key = repeat_kv(leaf_key, query_heads)
@@ -162,6 +163,7 @@ def verify_low_level_lse_math() -> None:
         leaf_value,
         max_routes=slots,
         open_count=open_count,
+        route_protected_prefix=0,
         query_offset=query_offset,
     )
     if partial.top_slots is None or partial.open_mask is None:
@@ -200,6 +202,57 @@ def verify_low_level_lse_math() -> None:
     torch.testing.assert_close(
         partial.logsumexp, expected_lse, atol=1e-6, rtol=1e-6
     )
+
+
+def verify_protected_sink_routing() -> None:
+    query = torch.tensor([[[[1.0]]]])
+    leaf_key = torch.tensor([[[[10.0], [3.0], [1.0], [0.0]]]])
+    leaf_value = torch.tensor([[[[10.0], [2.0], [4.0], [-1.0]]]])
+    owner = torch.tensor([[[0, 1, 1, 2]]])
+    state = state_from_leaves(leaf_key, leaf_value, owner, slots=3)
+    local_key = torch.tensor([[[[-5.0]]]])
+    local_value = torch.tensor([[[[7.0]]]])
+
+    result = two_level_lod_attention(
+        query,
+        local_key,
+        local_value,
+        state,
+        owner,
+        leaf_key,
+        leaf_value,
+        max_routes=1,
+        open_count=1,
+        scale=1.0,
+        query_offset=0,
+    )
+    if result.top_slots is None or result.top_slots.item() != 1:
+        raise AssertionError("protected sink consumed a detailed route")
+
+    # Slots 0 and 2 are singleton summaries, while routed slot 1 is replaced
+    # by its leaves. The combined field is therefore exactly the original KV.
+    scores = torch.tensor([10.0, 3.0, 1.0, 0.0, -5.0])
+    values = torch.tensor([[10.0], [2.0], [4.0], [-1.0], [7.0]])
+    expected = (scores.softmax(0).unsqueeze(-1) * values).sum(0)
+    torch.testing.assert_close(result.output[0, 0, 0], expected)
+    torch.testing.assert_close(result.logsumexp[0, 0, 0], scores.logsumexp(0))
+
+    unprotected = two_level_lod_attention(
+        query,
+        local_key,
+        local_value,
+        state,
+        owner,
+        leaf_key,
+        leaf_value,
+        max_routes=1,
+        open_count=1,
+        route_protected_prefix=0,
+        scale=1.0,
+        query_offset=0,
+    )
+    if unprotected.top_slots is None or unprotected.top_slots.item() != 0:
+        raise AssertionError("unprotected routing did not select the sink")
 
 
 def verify_dense_exact_limit() -> None:
@@ -318,6 +371,8 @@ def verify_default_leaf_storage() -> None:
 def main() -> None:
     verify_low_level_lse_math()
     print("low-level coarse/top-k/LSE/GQA parity passed")
+    verify_protected_sink_routing()
+    print("protected sink stays coarse and cannot consume a route")
     verify_dense_exact_limit()
     print("all-regions-open dense causal parity passed")
     verify_prefill_decode_equivalence()

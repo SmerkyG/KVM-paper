@@ -19,7 +19,10 @@ from model.hf_pytorch_lod_attention import (
 from model.pytorch_lod_attention import LODConfig
 from model.qwen35_two_level_attention import Qwen3_5TwoLevelAttention
 from scripts.compare_qwen35_lod_loss import select_sequences
-from scripts.probe_qwen35_lod_niah import load_text_model
+from scripts.probe_qwen35_lod_niah import (
+    load_text_model,
+    require_qwen35_acceleration,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -33,6 +36,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--prefill-microbatch-size", type=int)
     parser.add_argument("--two-level-topk", type=int, default=8)
+    parser.add_argument("--separate-sink-cache", action="store_true")
+    parser.add_argument("--prefill-two-level-topk", type=int)
+    parser.add_argument("--prefill-max-leaf-tokens", type=int)
     parser.add_argument("--dynamic-open-top-p", type=float)
     parser.add_argument("--dynamic-open-prefill-top-p", type=float)
     parser.add_argument("--dynamic-open-prefill-residual-mass", type=float)
@@ -41,6 +47,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--reuse-dynamic-local-attention", action="store_true")
     parser.add_argument("--dynamic-open-residual-state-bound", action="store_true")
     parser.add_argument("--recursive-page-lod", action="store_true")
+    parser.add_argument(
+        "--leaf-attention-backend",
+        choices=("packed", "paged"),
+        default="paged",
+    )
     parser.add_argument("--virtual-page-storage", action="store_true")
     parser.add_argument("--recursive-page-block-n", type=int, default=16)
     parser.add_argument("--leaf-num-warps", type=int, default=2)
@@ -61,14 +72,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prefill-chunk-length", type=int)
     parser.add_argument("--prefill-local-length", type=int)
     parser.add_argument("--prefill-state-update-length", type=int)
+    parser.add_argument("--overflow-bipartite-merge", action="store_true")
+    parser.add_argument("--overflow-bipartite-block-size", type=int, default=32)
+    parser.add_argument("--overflow-bipartite-keep-ratio", type=float, default=0.5)
+    parser.add_argument("--merge-before-append", action="store_true")
+    parser.add_argument("--append-subblock-size", type=int, default=0)
+    parser.add_argument("--union-bipartite-state", action="store_true")
+    parser.add_argument("--state-precompact-direct-append", action="store_true")
     parser.add_argument("--leaf-inline-pages-per-slot", type=int)
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--decode-steps", type=int, default=0)
+    parser.add_argument("--decode-warmup-steps", type=int, default=16)
+    parser.add_argument("--decode-state-update-length", type=int, default=256)
+    parser.add_argument("--decode-cache-headroom", type=int, default=256)
     parser.add_argument("--profile-decode-kernels", action="store_true")
     parser.add_argument("--disable-fused-decode", action="store_true")
     parser.add_argument("--disable-fused-decode-state-route", action="store_true")
     parser.add_argument("--no-clone-decode-routes", action="store_true")
-    parser.add_argument("--decode-route-group-size", type=int, default=16)
+    parser.add_argument("--decode-route-group-size", type=int, default=32)
     parser.add_argument("--decode-route-num-warps", type=int, default=2)
     parser.add_argument("--decode-route-reduce-num-warps", type=int, default=4)
     parser.add_argument("--decode-final-reduce-num-warps", type=int, default=4)
@@ -325,8 +346,20 @@ def main() -> None:
         raise ValueError("prefill microbatch size must be in [1, batch size]")
     if args.repeats <= 0:
         raise ValueError("profile repeats must be positive")
+    if args.prefill_two_level_topk is not None and not (
+        0 <= args.prefill_two_level_topk <= 8
+    ):
+        raise ValueError("prefill top-k must be in [0, 8]")
+    if args.prefill_max_leaf_tokens is not None and args.prefill_max_leaf_tokens <= 0:
+        raise ValueError("maximum prefill leaf count must be positive")
     if args.decode_steps < 0:
         raise ValueError("decode steps must be non-negative")
+    if args.decode_warmup_steps < 0:
+        raise ValueError("decode warmup steps must be non-negative")
+    if args.decode_state_update_length <= 0:
+        raise ValueError("decode state update length must be positive")
+    if args.decode_cache_headroom <= 0:
+        raise ValueError("decode cache headroom must be positive")
     if args.prefill_chunk_length is not None and args.prefill_chunk_length <= 0:
         raise ValueError("prefill chunk length must be positive")
     if args.prefill_local_length is not None and args.prefill_local_length <= 0:
@@ -364,61 +397,10 @@ def main() -> None:
         args.two_level_topk,
         args.state_growth_factor,
         device,
-        "paged",
+        args.leaf_attention_backend,
         require_fla_fast_path=True,
     )
-    linear_layers = [
-        module
-        for module in model.modules()
-        if module.__class__.__name__ == "Qwen3_5GatedDeltaNet"
-    ]
-    acceleration = {
-        "linear_layer_count": len(linear_layers),
-        "fla_gated_delta_rule": bool(linear_layers)
-        and all(
-            getattr(module.chunk_gated_delta_rule, "__module__", "").startswith(
-                "fla."
-            )
-            for module in linear_layers
-        ),
-        "fla_recurrent_gated_delta_rule": bool(linear_layers)
-        and all(
-            getattr(module.recurrent_gated_delta_rule, "__module__", "").startswith(
-                "fla."
-            )
-            for module in linear_layers
-        ),
-        "fla_fused_rms_norm_gated": bool(linear_layers)
-        and all(
-            module.norm.__class__.__module__.startswith("fla.")
-            for module in linear_layers
-        ),
-        "causal_conv1d_prefill": bool(linear_layers)
-        and all(module.causal_conv1d_fn is not None for module in linear_layers),
-        "causal_conv1d_decode": bool(linear_layers)
-        and all(
-            getattr(module.causal_conv1d_update, "__module__", "").startswith(
-                "causal_conv1d"
-            )
-            for module in linear_layers
-        ),
-    }
-    required_acceleration = (
-        "fla_gated_delta_rule",
-        "fla_recurrent_gated_delta_rule",
-        "fla_fused_rms_norm_gated",
-        "causal_conv1d_prefill",
-        "causal_conv1d_decode",
-    )
-    missing_acceleration = [
-        name for name in required_acceleration if not acceleration[name]
-    ]
-    if missing_acceleration:
-        raise RuntimeError(
-            "Qwen3.5 benchmark is missing required acceleration: "
-            + ", ".join(missing_acceleration)
-            + "; install the project's `qwen35-fast-path` extra"
-        )
+    acceleration = require_qwen35_acceleration(model)
     print("Qwen3.5 acceleration: " + json.dumps(acceleration, sort_keys=True))
     if args.mode == "pytorch_lod":
         replace_qwen35_attention_with_lod(
@@ -460,6 +442,11 @@ def main() -> None:
     if args.mode == "two_level":
         for module in model.modules():
             if isinstance(module, Qwen3_5TwoLevelAttention):
+                module.prefill_two_level_topk = args.prefill_two_level_topk
+                module.separate_sink_cache = args.separate_sink_cache
+                module.prefill_max_leaf_tokens = args.prefill_max_leaf_tokens
+                module.decode_state_update_len = args.decode_state_update_length
+                module.decode_cache_headroom = args.decode_cache_headroom
                 module.fused_decode_attention = not args.disable_fused_decode
                 module.recursive_page_lod = args.recursive_page_lod
                 module.virtual_page_storage = args.virtual_page_storage
@@ -482,6 +469,19 @@ def main() -> None:
                     module.prefill_state_update_len = (
                         args.prefill_state_update_length
                     )
+                module.overflow_bipartite_merge = args.overflow_bipartite_merge
+                module.overflow_bipartite_block_size = (
+                    args.overflow_bipartite_block_size
+                )
+                module.overflow_bipartite_keep_ratio = (
+                    args.overflow_bipartite_keep_ratio
+                )
+                module.state_merge_before_append = args.merge_before_append
+                module.state_append_subblock_size = args.append_subblock_size
+                module.state_union_bipartite = args.union_bipartite_state
+                module.state_precompact_direct_append = (
+                    args.state_precompact_direct_append
+                )
                 module.dynamic_open_prefill_top_p = dynamic_prefill_top_p
                 module.dynamic_open_prefill_residual_mass = (
                     args.dynamic_open_prefill_residual_mass
@@ -592,7 +592,7 @@ def main() -> None:
         result.past_key_values = merge_qwen_caches(caches)
         return result
 
-    def decode(past_key_values, steps: int):
+    def decode(past_key_values, steps: int, *, position_offset: int = 0):
         next_token = sequence[:, -1:]
         output = None
         for step in range(steps):
@@ -600,7 +600,7 @@ def main() -> None:
                 input_ids=next_token,
                 past_key_values=past_key_values,
                 cache_position=torch.tensor(
-                    [args.sequence_length + step],
+                    [args.sequence_length + position_offset + step],
                     dtype=torch.long,
                     device=device,
                 ),
@@ -623,6 +623,8 @@ def main() -> None:
 
         prefill_elapsed_ms = []
         decode_elapsed_ms = []
+        decode_state_update_tokens_per_layer = []
+        decode_state_update_intervals_per_layer = []
         cache_memory_gib = None
         cache_statistics = None
         finite = True
@@ -639,13 +641,62 @@ def main() -> None:
             finite = finite and bool(torch.isfinite(result.logits).all().item())
             cache = result.past_key_values
             if args.decode_steps:
+                if args.decode_warmup_steps:
+                    decode_warmup, cache = decode(
+                        cache,
+                        args.decode_warmup_steps,
+                    )
+                    del decode_warmup
+                lod_modules = [
+                    module
+                    for module in model.modules()
+                    if isinstance(module, Qwen3_5TwoLevelAttention)
+                ]
+                coverage_before = [
+                    int(module._lod_state["coverage"]) for module in lod_modules
+                ]
                 decode_begin = torch.cuda.Event(enable_timing=True)
                 decode_end = torch.cuda.Event(enable_timing=True)
                 decode_begin.record()
-                decode_result, cache = decode(cache, args.decode_steps)
+                decode_result, cache = decode(
+                    cache,
+                    args.decode_steps,
+                    position_offset=args.decode_warmup_steps,
+                )
                 decode_end.record()
                 torch.cuda.synchronize(device)
                 decode_elapsed_ms.append(float(decode_begin.elapsed_time(decode_end)))
+                coverage_after = [
+                    int(module._lod_state["coverage"]) for module in lod_modules
+                ]
+                state_update_tokens = [
+                    after - before
+                    for before, after in zip(coverage_before, coverage_after)
+                ]
+                if args.mode == "two_level":
+                    if not state_update_tokens or min(state_update_tokens) <= 0:
+                        raise RuntimeError(
+                            "timed decode interval did not include a state update; "
+                            "increase --decode-steps so steady-state update cost "
+                            "is amortized"
+                        )
+                    state_update_intervals = []
+                    for module, update_tokens in zip(
+                        lod_modules, state_update_tokens
+                    ):
+                        if update_tokens % module.decode_state_update_len:
+                            raise AssertionError(
+                                "decode state coverage advanced off schedule"
+                            )
+                        state_update_intervals.append(
+                            update_tokens // module.decode_state_update_len
+                        )
+                    decode_state_update_tokens_per_layer.append(
+                        state_update_tokens
+                    )
+                    decode_state_update_intervals_per_layer.append(
+                        state_update_intervals
+                    )
                 if decode_result is None:
                     raise AssertionError("decode produced no output")
                 finite = finite and bool(
@@ -665,6 +716,12 @@ def main() -> None:
             profile_prefill = prefill()
             profile_cache = profile_prefill.past_key_values
             del profile_prefill
+            if args.decode_warmup_steps:
+                profile_warmup, profile_cache = decode(
+                    profile_cache,
+                    args.decode_warmup_steps,
+                )
+                del profile_warmup
             with torch.profiler.profile(
                 activities=(
                     torch.profiler.ProfilerActivity.CPU,
@@ -672,7 +729,9 @@ def main() -> None:
                 )
             ) as profiler:
                 profile_decode, profile_cache = decode(
-                    profile_cache, args.decode_steps
+                    profile_cache,
+                    args.decode_steps,
+                    position_offset=args.decode_warmup_steps,
                 )
                 torch.cuda.synchronize(device)
             del profile_decode, profile_cache
@@ -718,6 +777,15 @@ def main() -> None:
             if args.mode in ("two_level", "pytorch_lod")
             else None
         ),
+        "separate_sink_cache": (
+            args.separate_sink_cache if args.mode == "two_level" else None
+        ),
+        "prefill_two_level_topk": (
+            args.prefill_two_level_topk if args.mode == "two_level" else None
+        ),
+        "prefill_max_leaf_tokens": (
+            args.prefill_max_leaf_tokens if args.mode == "two_level" else None
+        ),
         "dynamic_open_top_p": (
             args.dynamic_open_top_p if args.mode == "two_level" else None
         ),
@@ -749,6 +817,9 @@ def main() -> None:
         ),
         "recursive_page_lod": (
             args.recursive_page_lod if args.mode == "two_level" else None
+        ),
+        "leaf_attention_backend": (
+            args.leaf_attention_backend if args.mode == "two_level" else None
         ),
         "virtual_page_storage": (
             args.virtual_page_storage if args.mode == "two_level" else None
@@ -807,6 +878,13 @@ def main() -> None:
             if args.mode == "two_level"
             else None
         ),
+        "overflow_bipartite_merge": args.overflow_bipartite_merge,
+        "overflow_bipartite_block_size": args.overflow_bipartite_block_size,
+        "overflow_bipartite_keep_ratio": args.overflow_bipartite_keep_ratio,
+        "merge_before_append": args.merge_before_append,
+        "append_subblock_size": args.append_subblock_size,
+        "union_bipartite_state": args.union_bipartite_state,
+        "state_precompact_direct_append": args.state_precompact_direct_append,
         "leaf_inline_pages_per_slot": (
             args.leaf_inline_pages_per_slot
             if args.leaf_inline_pages_per_slot is not None
@@ -814,6 +892,23 @@ def main() -> None:
         ),
         "repeats": args.repeats,
         "decode_steps": args.decode_steps,
+        "decode_warmup_steps": args.decode_warmup_steps,
+        "decode_state_update_length": (
+            args.decode_state_update_length if args.mode == "two_level" else None
+        ),
+        "decode_cache_headroom": (
+            args.decode_cache_headroom if args.mode == "two_level" else None
+        ),
+        "decode_state_update_tokens_per_layer": (
+            decode_state_update_tokens_per_layer
+            if args.mode == "two_level" and args.decode_steps
+            else None
+        ),
+        "decode_state_update_intervals_per_layer": (
+            decode_state_update_intervals_per_layer
+            if args.mode == "two_level" and args.decode_steps
+            else None
+        ),
         "fused_decode_attention": (
             not args.disable_fused_decode if args.mode == "two_level" else None
         ),

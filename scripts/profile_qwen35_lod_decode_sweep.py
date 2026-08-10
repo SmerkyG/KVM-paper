@@ -15,7 +15,10 @@ from transformers import AutoTokenizer
 
 from model.qwen35_two_level_attention import Qwen3_5TwoLevelAttention
 from scripts.compare_qwen35_lod_loss import select_sequences
-from scripts.probe_qwen35_lod_niah import load_text_model
+from scripts.probe_qwen35_lod_niah import (
+    load_text_model,
+    require_qwen35_acceleration,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -25,8 +28,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--sequence-length", type=int, default=8192)
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--state-growth-factor", type=float, default=8.0)
+    parser.add_argument(
+        "--exclude-sink-from-routes",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument("--separate-sink-cache", action="store_true")
+    parser.add_argument(
+        "--decode-state-update-length", type=int, nargs="+", default=(256,)
+    )
+    parser.add_argument("--decode-cache-headroom", type=int, default=256)
     parser.add_argument("--dynamic-open-decode-residual-mass", type=float)
-    parser.add_argument("--steps", type=int, default=16)
+    parser.add_argument("--steps", type=int, default=512)
     parser.add_argument("--warmup-steps", type=int, default=16)
     parser.add_argument("--config-order-seed", type=int)
     parser.add_argument("--split-kv", type=int, nargs="+", default=(8,))
@@ -38,7 +51,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--no-clone-decode-routes", action="store_true")
     parser.add_argument("--disable-fused-decode-state-route", action="store_true")
     parser.add_argument(
-        "--decode-route-group-size", type=int, nargs="+", default=(16,)
+        "--decode-route-group-size", type=int, nargs="+", default=(32,)
     )
     parser.add_argument(
         "--decode-route-num-warps", type=int, nargs="+", default=(2,)
@@ -60,6 +73,12 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    if args.steps <= 0:
+        raise ValueError("decode sweep steps must be positive")
+    if any(length <= 0 for length in args.decode_state_update_length):
+        raise ValueError("decode state update length must be positive")
+    if args.decode_cache_headroom <= 0:
+        raise ValueError("decode cache headroom must be positive")
     device = torch.device("cuda", 0)
     torch.cuda.set_device(device)
     tokenizer = AutoTokenizer.from_pretrained(args.checkpoint, trust_remote_code=True)
@@ -84,7 +103,10 @@ def main() -> None:
         args.state_growth_factor,
         device,
         "paged",
+        require_fla_fast_path=True,
     )
+    acceleration = require_qwen35_acceleration(model)
+    print("Qwen3.5 acceleration: " + json.dumps(acceleration, sort_keys=True))
     modules = [
         module
         for module in model.modules()
@@ -96,6 +118,9 @@ def main() -> None:
         module.dynamic_open_decode_residual_mass = (
             args.dynamic_open_decode_residual_mass
         )
+        module.exclude_sink_from_routes = args.exclude_sink_from_routes
+        module.separate_sink_cache = args.separate_sink_cache
+        module.decode_cache_headroom = args.decode_cache_headroom
         module.clone_decode_routes = not args.no_clone_decode_routes
         module.fused_decode_state_route = not args.disable_fused_decode_state_route
         module.decode_route_gqa_grouped = args.decode_route_gqa_grouped
@@ -110,6 +135,8 @@ def main() -> None:
             for phase, method_name in (
                 ("route", "_route_top_slots"),
                 ("two_level", "_two_level_attention"),
+                ("state_update", "_update_state"),
+                ("page_append", "_append_page_cache"),
             ):
                 original = getattr(module, method_name)
 
@@ -160,6 +187,7 @@ def main() -> None:
     )
     configs = [
         (
+            decode_state_update_length,
             split_kv,
             block_n,
             num_warps,
@@ -171,6 +199,7 @@ def main() -> None:
             route_use_dot,
             fuse_final_reduce,
         )
+        for decode_state_update_length in args.decode_state_update_length
         for split_kv in args.split_kv
         for block_n, num_warps in tile_configs
         for route_group_size in args.decode_route_group_size
@@ -186,6 +215,7 @@ def main() -> None:
     records = []
     with torch.inference_mode():
         for (
+            decode_state_update_length,
             split_kv,
             block_n,
             num_warps,
@@ -198,6 +228,7 @@ def main() -> None:
             fuse_final_reduce,
         ) in configs:
             for module in modules:
+                module.decode_state_update_len = decode_state_update_length
                 if hasattr(module, "_lod_state"):
                     delattr(module, "_lod_state")
             prefill = model(input_ids=sequence, use_cache=True, logits_to_keep=1)
@@ -227,6 +258,9 @@ def main() -> None:
             del warm
             torch.cuda.synchronize(device)
             phase_events.clear()
+            coverage_before = [
+                int(module._lod_state["coverage"]) for module in modules
+            ]
 
             begin = torch.cuda.Event(enable_timing=True)
             end = torch.cuda.Event(enable_timing=True)
@@ -238,6 +272,25 @@ def main() -> None:
                 position += 1
             end.record()
             torch.cuda.synchronize(device)
+            coverage_after = [
+                int(module._lod_state["coverage"]) for module in modules
+            ]
+            state_update_tokens = [
+                after - before
+                for before, after in zip(coverage_before, coverage_after)
+            ]
+            if min(state_update_tokens) <= 0:
+                raise RuntimeError(
+                    "timed decode interval did not include a state update; "
+                    "increase --steps so steady-state update cost is amortized"
+                )
+            state_update_intervals = []
+            for module, update_tokens in zip(modules, state_update_tokens):
+                if update_tokens % module.decode_state_update_len:
+                    raise AssertionError("decode state coverage advanced off schedule")
+                state_update_intervals.append(
+                    update_tokens // module.decode_state_update_len
+                )
             if output is None:
                 raise ValueError("decode sweep requires at least one step")
             total_ms = float(begin.elapsed_time(end)) / args.steps
@@ -252,6 +305,7 @@ def main() -> None:
             records.append(
                 {
                     "block_n": block_n,
+                    "decode_state_update_length": decode_state_update_length,
                     "num_warps": num_warps,
                     "split_kv": split_kv,
                     "route_group_size": route_group_size,
@@ -262,6 +316,8 @@ def main() -> None:
                     "route_use_dot": route_use_dot,
                     "fuse_final_reduce": fuse_final_reduce,
                     "mean_decode_step_ms": total_ms,
+                    "state_update_tokens_per_layer": state_update_tokens,
+                    "state_update_intervals_per_layer": state_update_intervals,
                     "route_ms_per_step": route_ms,
                     "fused_attention_ms_per_step": two_level_ms - route_ms,
                     "two_level_ms_per_step": two_level_ms,
@@ -287,9 +343,15 @@ def main() -> None:
             args.dynamic_open_decode_residual_mass
         ),
         "state_growth_factor": args.state_growth_factor,
+        "exclude_sink_from_routes": args.exclude_sink_from_routes,
+        "separate_sink_cache": args.separate_sink_cache,
+        "decode_state_update_lengths": args.decode_state_update_length,
+        "decode_cache_headroom": args.decode_cache_headroom,
         "steps": args.steps,
+        "warmup_steps": args.warmup_steps,
         "config_order_seed": args.config_order_seed,
         "attention_layers": len(modules),
+        "qwen35_acceleration": acceleration,
         "clone_decode_routes": not args.no_clone_decode_routes,
         "fused_decode_state_route": not args.disable_fused_decode_state_route,
         "decode_route_group_sizes": args.decode_route_group_size,

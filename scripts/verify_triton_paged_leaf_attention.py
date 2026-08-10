@@ -20,8 +20,67 @@ from model.kernels.paged_leaf_attention import (
     quantize_page_summaries_int8,
     quantize_virtual_paged_kv_int4,
 )
+from model.kernels.lod_kernels import merge_attention_branches_with_sink
 from model.kvm_two_level_mixer import _expert_leaf_attention, _merge_lse_branches
 
+
+def verify_fused_sink_branch_merge(device: torch.device) -> None:
+    batch, query_heads, kv_heads = 2, 8, 2
+    query_len, head_dim, sink_len = 17, 128, 3
+    q = torch.randn(
+        batch, query_heads, query_len, head_dim,
+        device=device, dtype=torch.bfloat16,
+    )
+    sink_k = torch.randn(
+        batch, kv_heads, sink_len, head_dim,
+        device=device, dtype=torch.bfloat16,
+    )
+    sink_v = torch.randn_like(sink_k)
+    outputs = [torch.randn_like(q) for _ in range(2)]
+    lses = [
+        torch.randn(batch, query_heads, query_len, device=device)
+        for _ in range(2)
+    ]
+    # Exercise non-contiguous query slices from split local prefill attention.
+    tertiary_storage = torch.randn(
+        batch, query_heads, query_len + 3, head_dim,
+        device=device, dtype=torch.bfloat16,
+    )
+    tertiary_lse_storage = torch.randn(
+        batch, query_heads, query_len + 3, device=device
+    )
+    tertiary_output = tertiary_storage[..., 3:, :]
+    tertiary_lse = tertiary_lse_storage[..., 3:]
+    scale = head_dim**-0.5
+    repeated_k = sink_k.repeat_interleave(query_heads // kv_heads, dim=1)
+    repeated_v = sink_v.repeat_interleave(query_heads // kv_heads, dim=1)
+    sink_scores = torch.matmul(q.float(), repeated_k.float().transpose(-1, -2))
+    sink_scores.mul_(scale)
+    sink_lse = torch.logsumexp(sink_scores, dim=-1)
+    sink_output = torch.matmul(sink_scores.softmax(dim=-1), repeated_v.float())
+    branch_lse = torch.stack((*lses, tertiary_lse, sink_lse), dim=-1)
+    weights = branch_lse.softmax(dim=-1)
+    expected = (
+        outputs[0].float() * weights[..., 0, None]
+        + outputs[1].float() * weights[..., 1, None]
+        + tertiary_output.float() * weights[..., 2, None]
+        + sink_output * weights[..., 3, None]
+    ).to(q.dtype)
+    actual = merge_attention_branches_with_sink(
+        q,
+        sink_k,
+        sink_v,
+        outputs[0],
+        lses[0],
+        outputs[1],
+        lses[1],
+        tertiary_output,
+        tertiary_lse,
+        kv_group_size=query_heads // kv_heads,
+        scale=scale,
+    )
+    torch.cuda.synchronize(device)
+    torch.testing.assert_close(actual.float(), expected.float(), rtol=2e-2, atol=8e-3)
 
 def verify_page_append(device: torch.device) -> None:
     batch, kv_heads, slots, tokens, head_dim = 1, 4, 64, 256, 256
@@ -970,6 +1029,7 @@ def compare_large_gqa_route(device: torch.device) -> dict[str, float]:
 def main() -> None:
     torch.manual_seed(0)
     device = torch.device("cuda")
+    verify_fused_sink_branch_merge(device)
     verify_direct_page_append(device)
     verify_virtual_page_append(device)
     verify_residual_page_attention(device)
@@ -1344,6 +1404,46 @@ def main() -> None:
             overflow_used,
             slot_lengths,
             None,
+            state_len=slots,
+            kv_group_size=group_size,
+            scale=scale,
+            split_kv=8,
+            fuse_state_route=True,
+        )
+        sink_k = torch.randn_like(state_k[..., :1, :])
+        sink_v = torch.randn_like(state_v[..., :1, :])
+        repeated_sink_k = sink_k.repeat_interleave(group_size, dim=1)
+        repeated_sink_v = sink_v.repeat_interleave(group_size, dim=1)
+        sink_scores = torch.matmul(
+            decode_q.float(), repeated_sink_k.float().transpose(-1, -2)
+        ) * scale
+        sink_lse = torch.logsumexp(sink_scores, dim=-1)
+        sink_out = torch.matmul(
+            torch.softmax(sink_scores, dim=-1).to(decode_q.dtype), repeated_sink_v
+        )
+        expected_separate_sink = _merge_lse_branches(
+            expected_fused_route,
+            torch.logaddexp(routed_coarse_lse, routed_exact_lse),
+            sink_out,
+            sink_lse,
+        )
+        separate_sink_decode = fused_decode_paged_lod_attention(
+            decode_q,
+            state_k,
+            state_v,
+            state_counts,
+            local_k,
+            local_v,
+            page_k,
+            page_v,
+            slot_pages,
+            overflow_page_keys,
+            overflow_page_values,
+            overflow_used,
+            slot_lengths,
+            None,
+            sink_k=sink_k,
+            sink_v=sink_v,
             state_len=slots,
             kv_group_size=group_size,
             scale=scale,
@@ -1802,6 +1902,12 @@ def main() -> None:
             .max()
             .item()
         ),
+        "separate_sink_decode_max_abs": float(
+            (separate_sink_decode.float() - expected_separate_sink.float())
+            .abs()
+            .max()
+            .item()
+        ),
         "fused_route_group8_decode_max_abs": float(
             (fused_route_group8_decode.float() - expected_fused_route.float())
             .abs()
@@ -1909,6 +2015,8 @@ def main() -> None:
         raise AssertionError("fused decode did not append the current KV exactly")
     if result["fused_route_decode_max_abs"] > 0.03:
         raise AssertionError("fused route/coarse decode disagrees with reference")
+    if result["separate_sink_decode_max_abs"] > 0.03:
+        raise AssertionError("fused separate sink disagrees with exact LSE merge")
     if result["fused_route_group8_decode_max_abs"] > 0.03:
         raise AssertionError("group-8 fused route/coarse disagrees with reference")
     if result["fused_route_gqa_decode_max_abs"] > 0.03:

@@ -43,6 +43,61 @@ def enable_fla_fast_path(*, required: bool = False) -> bool:
     return True
 
 
+def require_qwen35_acceleration(model: torch.nn.Module) -> dict[str, bool | int]:
+    """Verify the FLA and causal-convolution callables used by speed runs."""
+    linear_layers = [
+        module
+        for module in model.modules()
+        if module.__class__.__name__ == "Qwen3_5GatedDeltaNet"
+    ]
+    acceleration: dict[str, bool | int] = {
+        "linear_layer_count": len(linear_layers),
+        "fla_gated_delta_rule": bool(linear_layers)
+        and all(
+            getattr(module.chunk_gated_delta_rule, "__module__", "").startswith(
+                "fla."
+            )
+            for module in linear_layers
+        ),
+        "fla_recurrent_gated_delta_rule": bool(linear_layers)
+        and all(
+            getattr(
+                module.recurrent_gated_delta_rule, "__module__", ""
+            ).startswith("fla.")
+            for module in linear_layers
+        ),
+        "fla_fused_rms_norm_gated": bool(linear_layers)
+        and all(
+            module.norm.__class__.__module__.startswith("fla.")
+            for module in linear_layers
+        ),
+        "causal_conv1d_prefill": bool(linear_layers)
+        and all(module.causal_conv1d_fn is not None for module in linear_layers),
+        "causal_conv1d_decode": bool(linear_layers)
+        and all(
+            getattr(module.causal_conv1d_update, "__module__", "").startswith(
+                "causal_conv1d"
+            )
+            for module in linear_layers
+        ),
+    }
+    required = (
+        "fla_gated_delta_rule",
+        "fla_recurrent_gated_delta_rule",
+        "fla_fused_rms_norm_gated",
+        "causal_conv1d_prefill",
+        "causal_conv1d_decode",
+    )
+    missing = [name for name in required if not acceleration[name]]
+    if missing:
+        raise RuntimeError(
+            "Qwen3.5 benchmark is missing required acceleration: "
+            + ", ".join(missing)
+            + "; install the project's `qwen35-fast-path` extra"
+        )
+    return acceleration
+
+
 def generate_documents(task: str, checkpoint: str, length: int) -> list[dict]:
     random.seed(0)
     np.random.seed(1234)
@@ -118,6 +173,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--samples", type=int, default=64)
     parser.add_argument("--indices", type=int, nargs="+")
     parser.add_argument("--two-level-topk", type=int, default=8)
+    parser.add_argument(
+        "--exclude-sink-from-routes",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument("--separate-sink-cache", action="store_true")
+    parser.add_argument("--prefill-two-level-topk", type=int)
+    parser.add_argument("--prefill-max-leaf-tokens", type=int)
     parser.add_argument("--dynamic-open-top-p", type=float)
     parser.add_argument("--dynamic-open-prefill-top-p", type=float)
     parser.add_argument("--dynamic-open-prefill-residual-mass", type=float)
@@ -147,7 +210,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prefill-chunk-length", type=int)
     parser.add_argument("--prefill-local-length", type=int)
     parser.add_argument("--prefill-state-update-length", type=int)
+    parser.add_argument("--overflow-bipartite-merge", action="store_true")
+    parser.add_argument("--overflow-bipartite-block-size", type=int, default=32)
+    parser.add_argument("--overflow-bipartite-positional-halves", action="store_true")
+    parser.add_argument("--overflow-bipartite-keep-ratio", type=float, default=0.5)
+    parser.add_argument("--merge-before-append", action="store_true")
+    parser.add_argument("--append-subblock-size", type=int, default=0)
+    parser.add_argument("--union-bipartite-state", action="store_true")
+    parser.add_argument("--state-precompact-direct-append", action="store_true")
     parser.add_argument("--split-prefill-local-attention", action="store_true")
+    parser.add_argument("--enable-fused-prefill-route-coarse", action="store_true")
     parser.add_argument(
         "--coarse-compact-bias",
         action=argparse.BooleanOptionalAction,
@@ -162,7 +234,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--disable-fused-state-routing", action="store_true")
     parser.add_argument("--no-clone-decode-routes", action="store_true")
     parser.add_argument("--disable-fused-decode-state-route", action="store_true")
-    parser.add_argument("--decode-route-group-size", type=int, default=16)
+    parser.add_argument("--decode-route-group-size", type=int, default=32)
     parser.add_argument("--decode-route-num-warps", type=int, default=2)
     parser.add_argument("--decode-split-kv", type=int)
     parser.add_argument("--decode-use-dot", action="store_true")
@@ -189,6 +261,12 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    if args.prefill_two_level_topk is not None and not (
+        0 <= args.prefill_two_level_topk <= 8
+    ):
+        raise ValueError("prefill top-k must be in [0, 8]")
+    if args.prefill_max_leaf_tokens is not None and args.prefill_max_leaf_tokens <= 0:
+        raise ValueError("maximum prefill leaf count must be positive")
     local_rank = int(os.environ.get("LOCAL_RANK", "0"))
     rank = int(os.environ.get("RANK", "0"))
     world_size = int(os.environ.get("WORLD_SIZE", "1"))
@@ -231,6 +309,10 @@ def main() -> None:
     if args.mode == "two_level":
         for module in model.modules():
             if isinstance(module, Qwen3_5TwoLevelAttention):
+                module.prefill_two_level_topk = args.prefill_two_level_topk
+                module.exclude_sink_from_routes = args.exclude_sink_from_routes
+                module.separate_sink_cache = args.separate_sink_cache
+                module.prefill_max_leaf_tokens = args.prefill_max_leaf_tokens
                 module.recursive_page_lod = args.recursive_page_lod
                 module.recursive_page_block_n = args.recursive_page_block_n
                 module.leaf_num_warps = args.leaf_num_warps
@@ -252,8 +334,27 @@ def main() -> None:
                     module.prefill_state_update_len = (
                         args.prefill_state_update_length
                     )
+                module.overflow_bipartite_merge = args.overflow_bipartite_merge
+                module.overflow_bipartite_block_size = (
+                    args.overflow_bipartite_block_size
+                )
+                module.overflow_bipartite_positional_halves = (
+                    args.overflow_bipartite_positional_halves
+                )
+                module.overflow_bipartite_keep_ratio = (
+                    args.overflow_bipartite_keep_ratio
+                )
+                module.state_merge_before_append = args.merge_before_append
+                module.state_append_subblock_size = args.append_subblock_size
+                module.state_union_bipartite = args.union_bipartite_state
+                module.state_precompact_direct_append = (
+                    args.state_precompact_direct_append
+                )
                 module.split_prefill_local_attention = (
                     args.split_prefill_local_attention
+                )
+                module.fused_prefill_route_coarse = (
+                    args.enable_fused_prefill_route_coarse
                 )
                 module.coarse_compact_bias = args.coarse_compact_bias
                 module.dynamic_open_prefill_top_p = dynamic_prefill_top_p
@@ -353,6 +454,31 @@ def main() -> None:
                     "two_level_topk": (
                         args.two_level_topk if args.mode == "two_level" else None
                     ),
+                    "exclude_sink_from_routes": (
+                        args.exclude_sink_from_routes
+                        if args.mode == "two_level"
+                        else None
+                    ),
+                    "separate_sink_cache": (
+                        args.separate_sink_cache
+                        if args.mode == "two_level"
+                        else None
+                    ),
+                    "prefill_two_level_topk": (
+                        args.prefill_two_level_topk
+                        if args.mode == "two_level"
+                        else None
+                    ),
+                    "prefill_max_leaf_tokens": (
+                        args.prefill_max_leaf_tokens
+                        if args.mode == "two_level"
+                        else None
+                    ),
+                    "fused_prefill_route_coarse": (
+                        args.enable_fused_prefill_route_coarse
+                        if args.mode == "two_level"
+                        else None
+                    ),
                     "dynamic_open_top_p": (
                         args.dynamic_open_top_p
                         if args.mode == "two_level"
@@ -449,6 +575,46 @@ def main() -> None:
                     ),
                     "prefill_state_update_length": (
                         args.prefill_state_update_length
+                        if args.mode == "two_level"
+                        else None
+                    ),
+                    "overflow_bipartite_merge": (
+                        args.overflow_bipartite_merge
+                        if args.mode == "two_level"
+                        else None
+                    ),
+                    "overflow_bipartite_block_size": (
+                        args.overflow_bipartite_block_size
+                        if args.mode == "two_level"
+                        else None
+                    ),
+                    "overflow_bipartite_positional_halves": (
+                        args.overflow_bipartite_positional_halves
+                        if args.mode == "two_level"
+                        else None
+                    ),
+                    "overflow_bipartite_keep_ratio": (
+                        args.overflow_bipartite_keep_ratio
+                        if args.mode == "two_level"
+                        else None
+                    ),
+                    "merge_before_append": (
+                        args.merge_before_append
+                        if args.mode == "two_level"
+                        else None
+                    ),
+                    "append_subblock_size": (
+                        args.append_subblock_size
+                        if args.mode == "two_level"
+                        else None
+                    ),
+                    "union_bipartite_state": (
+                        args.union_bipartite_state
+                        if args.mode == "two_level"
+                        else None
+                    ),
+                    "state_precompact_direct_append": (
+                        args.state_precompact_direct_append
                         if args.mode == "two_level"
                         else None
                     ),

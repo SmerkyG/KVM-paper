@@ -778,6 +778,7 @@ def paged_two_level_lod_attention(
     *,
     max_routes: int = 8,
     open_count: int | torch.Tensor = 8,
+    route_protected_prefix: int = 1,
     scale: float | None = None,
     query_offset: int | None = None,
     region_pages: RegionPages | None = None,
@@ -808,6 +809,7 @@ def paged_two_level_lod_attention(
         state,
         max_routes=max_routes,
         open_count=open_count,
+        route_protected_prefix=route_protected_prefix,
         scale=scale,
     )
     if fast_supported:
@@ -923,6 +925,7 @@ class PagedTwoLevelLODAttention(_FastLocalMixin, TwoLevelLODAttention):
             leaf_value,
             max_routes=self.config.max_routes,
             open_count=kwargs["open_count"],
+            route_protected_prefix=self.config.protected_prefix,
             scale=kwargs["scale"],
             query_offset=int(local_key.size(2)) - int(query.size(2)),
             postings=self._cached_postings(owner, state),
@@ -949,6 +952,7 @@ class PagedTwoLevelLODAttention(_FastLocalMixin, TwoLevelLODAttention):
             leaves,
             max_routes=self.config.max_routes,
             open_count=open_count,
+            route_protected_prefix=self.config.protected_prefix,
             scale=scale,
             query_offset=int(local_key.size(2)) - int(query.size(2)),
             region_pages=self._cached_region_pages(owner, state, leaves),

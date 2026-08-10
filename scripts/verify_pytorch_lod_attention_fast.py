@@ -101,6 +101,8 @@ def verify_low_level(device: torch.device) -> None:
         open_count=open_count,
         query_offset=query_offset,
     )
+    if actual.top_slots is None or bool((actual.top_slots == 0).any().item()):
+        raise AssertionError("fast routing opened a protected sink slot")
     torch.testing.assert_close(
         actual.output.float(), expected.output.float(), atol=3e-2, rtol=3e-2
     )
