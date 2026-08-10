@@ -6,14 +6,17 @@ projection therefore remain model-owned.  ``HFLODCache`` owns every tensor
 used by LOD attention, including exact BF16 or INT4 leaves; Hugging Face's
 cache API is used only for lifecycle and generation bookkeeping.
 
-Only unpadded causal decoder self-attention is supported initially.  Models
-whose attention modules do not use ``AttentionInterface`` and hybrid recurrent
-caches should continue to use a model-specific compatibility adapter.
+Left-padded batches are partitioned only at the attention boundary, preserving
+batching through the rest of the model while keeping padding out of every LOD
+state schedule. Models whose attention modules do not use ``AttentionInterface``
+and hybrid recurrent caches should continue to use a model-specific
+compatibility adapter.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, fields, is_dataclass, replace
+from types import MethodType
 import weakref
 from typing import Any, Callable
 
@@ -182,6 +185,11 @@ class HFLODCacheLayer(CacheLayerMixin):
         self.pending_value: torch.Tensor | None = None
         self.total_length = 0
         self._batch_size = 0
+        self._owner_cache: weakref.ReferenceType[HFLODCache] | None = None
+        self._padding_runtime: Any | None = None
+
+    def _bind_owner(self, cache: HFLODCache) -> None:
+        self._owner_cache = weakref.ref(cache)
 
     @property
     def max_batch_size(self) -> int:
@@ -243,6 +251,7 @@ class HFLODCacheLayer(CacheLayerMixin):
         key: torch.Tensor,
         value: torch.Tensor,
         *,
+        attention_mask: torch.Tensor | None,
         scale: float | None,
     ) -> torch.Tensor:
         if module is not self._module():
@@ -251,27 +260,55 @@ class HFLODCacheLayer(CacheLayerMixin):
             raise RuntimeError("LOD attention did not receive a staged cache update")
         if key is not self.pending_key or value is not self.pending_value:
             raise RuntimeError("the model replaced staged K/V before LOD attention")
-        if self.engine is None:
-            self.engine = _build_engine(
-                self.settings, query, key, scale=scale
-            )
         previous_length = self.total_length
         try:
-            output, next_cache = self.engine(
-                query,
-                key,
-                value,
-                cache=self.lod_cache,
-                use_cache=True,
-                scale=scale,
-            )
-            if next_cache is None:
-                raise RuntimeError("LOD engine did not return its owned cache")
-            expected_length = previous_length + int(key.size(2))
-            if int(next_cache.total_length) != expected_length:
-                raise AssertionError("LOD engine and HF cache lengths diverged")
-            self.lod_cache = next_cache
-            self.total_length = expected_length
+            if previous_length == 0:
+                owner = self._owner_cache() if self._owner_cache is not None else None
+                if owner is None:
+                    raise RuntimeError(
+                        "LOD cache layer is not bound to its outer cache"
+                    )
+                plan = owner._get_padding_plan(
+                    attention_mask,
+                    batch_size=int(query.size(0)),
+                    sequence_length=int(query.size(2)),
+                )
+                if plan.requires_grouping:
+                    from .hf_lod_left_padding import GroupedHFLODRuntime
+
+                    self._padding_runtime = GroupedHFLODRuntime(
+                        plan, device=query.device
+                    )
+
+            if self._padding_runtime is not None:
+                output = self._padding_runtime.consume(
+                    self.settings,
+                    query,
+                    key,
+                    value,
+                    initial_prefill=previous_length == 0,
+                    scale=scale,
+                )
+            else:
+                if self.engine is None:
+                    self.engine = _build_engine(
+                        self.settings, query, key, scale=scale
+                    )
+                output, next_cache = self.engine(
+                    query,
+                    key,
+                    value,
+                    cache=self.lod_cache,
+                    use_cache=True,
+                    scale=scale,
+                )
+                if next_cache is None:
+                    raise RuntimeError("LOD engine did not return its owned cache")
+                expected_length = previous_length + int(key.size(2))
+                if int(next_cache.total_length) != expected_length:
+                    raise AssertionError("LOD engine and HF cache lengths diverged")
+                self.lod_cache = next_cache
+            self.total_length = previous_length + int(key.size(2))
             return output
         finally:
             self.pending_key = None
@@ -300,60 +337,56 @@ class HFLODCacheLayer(CacheLayerMixin):
         _clear_engine_derived_state(self.engine)
         if self.engine is not None and hasattr(self.engine, "reset_runtime_cache"):
             self.engine.reset_runtime_cache()
+        if self._padding_runtime is not None:
+            self._padding_runtime.reset()
+        self._padding_runtime = None
         if self.is_initialized:
             self.keys = self.keys[..., :0, :]
             self.values = self.values[..., :0, :]
 
-    def _batch_transform(
-        self,
-        transform: Callable[[torch.Tensor], torch.Tensor],
-        *,
-        next_batch_size: int,
-    ) -> None:
+    def _batch_select(self, indices: torch.Tensor) -> None:
         if self.pending_key is not None or self.pending_value is not None:
             raise RuntimeError("cannot reorder a staged LOD cache update")
-        if self.lod_cache is not None:
+        indices = indices.to(self.device)
+        if self._padding_runtime is not None:
+            self._padding_runtime.select_batch(
+                indices, batch_size=self._batch_size
+            )
+        elif self.lod_cache is not None:
             self.lod_cache = _map_batch_tensors(
                 self.lod_cache,
                 batch_size=self._batch_size,
-                transform=transform,
+                transform=lambda tensor: tensor.index_select(
+                    0, indices.to(tensor.device)
+                ),
             )
         if self.is_initialized:
-            self.keys = transform(self.keys)
-            self.values = transform(self.values)
-        self._batch_size = next_batch_size
+            self.keys = self.keys.index_select(0, indices)
+            self.values = self.values.index_select(0, indices)
+        self._batch_size = int(indices.numel())
         _clear_engine_derived_state(self.engine)
-        if (
-            self.engine is not None
-            and isinstance(self.lod_cache, KernelLODCache)
-        ):
+        if self.engine is not None and isinstance(self.lod_cache, KernelLODCache):
             self.engine._lod_state = self.lod_cache.state
 
     def reorder_cache(self, beam_idx: torch.LongTensor) -> None:
         if not self.is_initialized:
             return
-        self._batch_transform(
-            lambda tensor: tensor.index_select(0, beam_idx.to(tensor.device)),
-            next_batch_size=int(beam_idx.numel()),
-        )
+        self._batch_select(beam_idx)
 
     def batch_repeat_interleave(self, repeats: int) -> None:
         if repeats <= 0:
             raise ValueError("batch repeats must be positive")
         if not self.is_initialized:
             return
-        self._batch_transform(
-            lambda tensor: tensor.repeat_interleave(repeats, dim=0),
-            next_batch_size=self._batch_size * repeats,
-        )
+        indices = torch.arange(
+            self._batch_size, dtype=torch.long, device=self.device
+        ).repeat_interleave(repeats)
+        self._batch_select(indices)
 
     def batch_select_indices(self, indices: torch.Tensor) -> None:
         if not self.is_initialized:
             return
-        self._batch_transform(
-            lambda tensor: tensor.index_select(0, indices.to(tensor.device)),
-            next_batch_size=int(indices.numel()),
-        )
+        self._batch_select(indices)
 
     def crop(self, max_length: int) -> None:
         if max_length < 0:
@@ -376,6 +409,35 @@ class HFLODCache(Cache):
             raise ValueError("HFLODCache requires at least one attention layer")
         super().__init__(layers=layers)
         self.backend_name = backend_name
+        self._padding_plan: Any | None = None
+        for layer in layers:
+            layer._bind_owner(self)
+
+    def _get_padding_plan(
+        self,
+        attention_mask: torch.Tensor | None,
+        *,
+        batch_size: int,
+        sequence_length: int,
+    ):
+        if self._padding_plan is None:
+            from .hf_lod_left_padding import build_padding_plan
+
+            self._padding_plan = build_padding_plan(
+                attention_mask,
+                batch_size=batch_size,
+                sequence_length=sequence_length,
+            )
+        elif (
+            self._padding_plan.batch_size != batch_size
+            or self._padding_plan.padded_length != sequence_length
+        ):
+            raise RuntimeError("HF LOD layers received inconsistent prompt batches")
+        return self._padding_plan
+
+    def reset(self) -> None:
+        super().reset()
+        self._padding_plan = None
 
     @classmethod
     def for_model(cls, model: nn.Module) -> HFLODCache:
@@ -413,19 +475,6 @@ def hf_lod_attention_mask(*, attention_mask=None, **kwargs):
     return attention_mask
 
 
-def _validate_unpadded_mask(attention_mask: torch.Tensor | None) -> None:
-    if attention_mask is None:
-        return
-    if attention_mask.ndim != 2:
-        raise NotImplementedError(
-            "HF LOD currently supports only an unpadded 2D attention mask"
-        )
-    torch._assert_async(
-        torch.all(attention_mask == 1),
-        "HF LOD currently requires unpadded causal sequences",
-    )
-
-
 def hf_lod_attention_forward(
     module: nn.Module,
     query: torch.Tensor,
@@ -456,29 +505,53 @@ def hf_lod_attention_forward(
         )
     if kwargs.get("softcap") not in (None, 0, 0.0):
         raise NotImplementedError("HF LOD does not yet implement attention soft-capping")
-    _validate_unpadded_mask(attention_mask)
-
     active_layer = getattr(module, "_hf_lod_active_cache_layer", None)
     if active_layer is None:
         if int(query.size(2)) != int(key.size(2)):
             raise RuntimeError(
                 "cached HF LOD inference requires an HFLODCache, not the default HF cache"
             )
-        engine = getattr(module, "_hf_lod_transient_engine", None)
-        if engine is None:
-            engine = _build_engine(settings, query, key, scale=scaling)
-            module._hf_lod_transient_engine = engine
-        output, _ = engine(
+        from .hf_lod_left_padding import (
+            build_padding_plan,
+            grouped_transient_attention,
+        )
+
+        plan = build_padding_plan(
+            attention_mask,
+            batch_size=int(query.size(0)),
+            sequence_length=int(query.size(2)),
+        )
+        if plan.requires_grouping:
+            output = grouped_transient_attention(
+                module,
+                settings,
+                query,
+                key,
+                value,
+                plan,
+                scale=scaling,
+            )
+        else:
+            engine = getattr(module, "_hf_lod_transient_engine", None)
+            if engine is None:
+                engine = _build_engine(settings, query, key, scale=scaling)
+                module._hf_lod_transient_engine = engine
+            output, _ = engine(
+                query,
+                key,
+                value,
+                cache=None,
+                use_cache=False,
+                scale=scaling,
+            )
+    elif isinstance(active_layer, HFLODCacheLayer):
+        output = active_layer.consume(
+            module,
             query,
             key,
             value,
-            cache=None,
-            use_cache=False,
+            attention_mask=attention_mask,
             scale=scaling,
-        )
-    elif isinstance(active_layer, HFLODCacheLayer):
-        output = active_layer.consume(
-            module, query, key, value, scale=scaling
         )
     else:
         raise RuntimeError("attention module contains an invalid active LOD cache")
@@ -489,6 +562,47 @@ def register_hf_lod_attention(backend_name: str = "lod") -> None:
     """Register the LOD attention and compact-mask functions globally."""
     AttentionInterface.register(backend_name, hf_lod_attention_forward)
     AttentionMaskInterface.register(backend_name, hf_lod_attention_mask)
+
+
+def _install_generation_cache_factory(model: nn.Module) -> None:
+    if bool(getattr(model, "_hf_lod_generation_cache_factory_installed", False)):
+        return
+    if not callable(getattr(model, "_prepare_cache_for_generation", None)):
+        return
+    model._hf_lod_generation_cache_factory_installed = True
+
+    def prepare_lod_cache_for_generation(
+        self,
+        generation_config,
+        model_kwargs,
+        generation_mode,
+        batch_size,
+        max_cache_length,
+    ) -> None:
+        del generation_mode, batch_size, max_cache_length
+        supplied_cache = model_kwargs.get("past_key_values")
+        if supplied_cache is not None:
+            if not isinstance(supplied_cache, HFLODCache):
+                raise TypeError(
+                    "a model with HF LOD installed requires HFLODCache for generation"
+                )
+            if generation_config.cache_implementation is not None:
+                raise ValueError(
+                    "HF LOD cache ownership cannot be combined with "
+                    "cache_implementation"
+                )
+            return
+        if generation_config.use_cache is False:
+            return
+        if generation_config.cache_implementation is not None:
+            raise ValueError(
+                "HF LOD cache ownership cannot be combined with cache_implementation"
+            )
+        model_kwargs["past_key_values"] = new_hf_lod_cache(self)
+
+    model._prepare_cache_for_generation = MethodType(
+        prepare_lod_cache_for_generation, model
+    )
 
 
 def _compatible_attention_modules(model: nn.Module):
@@ -514,9 +628,10 @@ def install_hf_lod_attention(
 ) -> list[str]:
     """Install the registered LOD backend on compatible causal HF layers.
 
-    Cached generation must receive ``HFLODCache.for_model(model)`` as
-    ``past_key_values``.  ``submodel_key`` selects only one multimodal
-    backbone through Hugging Face's per-subconfig attention dispatch.
+    ``model.generate`` automatically creates an ``HFLODCache``. Direct cached
+    forward calls must receive ``HFLODCache.for_model(model)`` as
+    ``past_key_values``. ``submodel_key`` selects only one multimodal backbone
+    through Hugging Face's per-subconfig attention dispatch.
     """
     config = LODConfig() if config is None else config
     if leaf_dtype is not None:
@@ -539,6 +654,7 @@ def install_hf_lod_attention(
     if submodel_key is not None:
         implementation = {submodel_key: backend_name}
     model.set_attn_implementation(implementation)
+    _install_generation_cache_factory(model)
     return installed
 
 
