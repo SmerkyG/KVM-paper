@@ -1,6 +1,6 @@
 # Lod Attention
 
-Topic hints: Preserve compact storage and efficient state widths for side caches
+Topic hints: Split no-route coarse and local attention without FlexAttention
 
 ## Lessons
 
@@ -9,3 +9,5 @@ Topic hints: Preserve compact storage and efficient state widths for side caches
 - Hugging Face calls Cache.update before AttentionInterface. A model-independent LOD cache must therefore stage the new post-RoPE K/V block, bind that cache layer to the attention module, and let the registered backend consume it and perform causal compression; finalizing the whole prefill inside Cache.update would expose future state to earlier queries.
 
 - When separating a tiny persistent K/V side cache, materialize its slices with `.contiguous()` so views do not pin full prefill allocations, and keep the mergeable state at its scheduled efficient width rather than subtracting side-cache entries and creating irregular route-GEMM dimensions.
+
+- For the kernel LOD zero-route fallback, compute count-corrected state attention with the existing Triton LSE kernel, run the exact causal local field with aten._scaled_dot_product_flash_attention, and LSE-merge the branches; on Qwen3.5-0.8B this removed FlexAttention while improving 8K batch-8 prefill speed.
