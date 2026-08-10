@@ -82,6 +82,8 @@ class HybridHFLODCache:
         layer = self.lod_layers.get(layer_idx) if layer_idx is not None else None
         if layer is not None:
             return int(layer.get_seq_length())
+        if isinstance(getattr(self.native_cache, "layers", None), list):
+            return int(self.native_cache.get_seq_length(layer_idx or 0))
         # Hybrid models commonly ask a recurrent layer (or layer zero) for the
         # global decoded length.  Native recurrent state has no sequence axis,
         # so use any LOD layer as the authoritative logical length.
@@ -93,6 +95,8 @@ class HybridHFLODCache:
         layer = self.lod_layers.get(layer_idx)
         if layer is not None:
             return layer.get_mask_sizes(cache_position)
+        if isinstance(getattr(self.native_cache, "layers", None), list):
+            return self.native_cache.get_mask_sizes(cache_position, layer_idx)
         return self.get_seq_length() + int(cache_position.shape[0]), 0
 
     def get_max_cache_shape(self, layer_idx: int = 0) -> int:
@@ -187,12 +191,6 @@ def maybe_new_hybrid_hf_lod_cache(model: nn.Module):
 
     text_config = model.config.get_text_config(decoder=True)
     config_module = type(text_config).__module__
-    if not config_module.startswith("transformers.models.qwen3_5."):
-        raise NotImplementedError(
-            "this hybrid decoder needs a native-cache bridge before it can use HF LOD"
-        )
-
-    from transformers.models.qwen3_5.modeling_qwen3_5 import Qwen3_5DynamicCache
     from .hf_pytorch_lod_attention import HFLODCacheLayer
 
     backend_names = {settings.backend_name for _, settings in indexed.values()}
@@ -202,10 +200,31 @@ def maybe_new_hybrid_hf_lod_cache(model: nn.Module):
         layer_idx: HFLODCacheLayer(module, settings)
         for layer_idx, (module, settings) in indexed.items()
     }
+    if config_module.startswith("transformers.models.qwen3_5."):
+        from transformers.models.qwen3_5.modeling_qwen3_5 import (
+            Qwen3_5DynamicCache,
+        )
+
+        native_cache = Qwen3_5DynamicCache(text_config)
+    else:
+        layer_types = getattr(text_config, "layer_types", None)
+        lod_indices = set(indexed)
+        native_types = {
+            layer_type
+            for layer_idx, layer_type in enumerate(layer_types or ())
+            if layer_idx not in lod_indices
+        }
+        if not native_types or not native_types.issubset(
+            {"sliding_attention", "chunked_attention"}
+        ):
+            raise NotImplementedError(
+                "this hybrid decoder needs a native-cache bridge before it can use HF LOD"
+            )
+        from transformers import DynamicCache
+
+        native_cache = DynamicCache(config=text_config)
     return HybridHFLODCache(
-        Qwen3_5DynamicCache(text_config),
-        layers,
-        backend_name=backend_names.pop(),
+        native_cache, layers, backend_name=backend_names.pop()
     )
 
 

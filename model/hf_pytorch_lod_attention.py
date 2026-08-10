@@ -16,6 +16,7 @@ compatibility adapter.
 from __future__ import annotations
 
 from dataclasses import dataclass, fields, is_dataclass, replace
+from copy import copy
 from types import MethodType
 import weakref
 from typing import Any, Callable
@@ -610,13 +611,41 @@ def _install_generation_cache_factory(model: nn.Module) -> None:
     )
 
 
-def _compatible_attention_modules(model: nn.Module):
+def _decoder_config(model: nn.Module):
+    config = model.config
+    get_text_config = getattr(config, "get_text_config", None)
+    return get_text_config(decoder=True) if callable(get_text_config) else config
+
+
+def _causal_attention_modules(model: nn.Module):
     for name, module in model.named_modules():
         if not isinstance(getattr(module, "layer_idx", None), int):
             continue
         if not bool(getattr(module, "is_causal", False)):
             continue
         if "attention" not in type(module).__name__.lower():
+            continue
+        yield name, module
+
+
+def _compatible_attention_modules(model: nn.Module):
+    """Select full/global causal attention, never local or sliding layers."""
+    decoder_config = _decoder_config(model)
+    layer_types = getattr(decoder_config, "layer_types", None)
+    for name, module in _causal_attention_modules(model):
+        layer_idx = module.layer_idx
+        if layer_types is not None:
+            if layer_idx >= len(layer_types):
+                raise ValueError(
+                    f"attention module {name!r} exceeds config.layer_types"
+                )
+            if layer_types[layer_idx] not in ("full_attention", "attention"):
+                continue
+        elif getattr(module, "sliding_window", None) is not None:
+            continue
+        elif getattr(decoder_config, "sliding_window", None) is not None:
+            # Without a per-layer pattern, a configured window denotes an
+            # all-sliding decoder (for example classic Mistral).
             continue
         yield name, module
 
@@ -648,17 +677,27 @@ def install_hf_lod_attention(
         backend_name=backend_name,
     )
     register_hf_lod_attention(backend_name)
+    all_attention = list(_causal_attention_modules(model))
+    compatible = list(_compatible_attention_modules(model))
     installed = []
-    for name, module in _compatible_attention_modules(model):
+    for name, module in compatible:
         module._hf_lod_settings = settings
         module._hf_lod_active_cache_layer = None
         installed.append(name)
     if not installed:
         raise RuntimeError("no compatible causal AttentionInterface modules were found")
-    implementation: str | dict[str, str] = backend_name
-    if submodel_key is not None:
-        implementation = {submodel_key: backend_name}
-    model.set_attn_implementation(implementation)
+    if len(compatible) == len(all_attention):
+        implementation: str | dict[str, str] = backend_name
+        if submodel_key is not None:
+            implementation = {submodel_key: backend_name}
+        model.set_attn_implementation(implementation)
+    else:
+        # Keep the model-level backend and mask construction unchanged for
+        # sliding/local layers. Only full-attention modules receive a shallow
+        # config copy that dispatches their post-QKV call through LOD.
+        for _, module in compatible:
+            module.config = copy(module.config)
+            module.config._attn_implementation = backend_name
     _install_generation_cache_factory(model)
     return installed
 

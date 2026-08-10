@@ -73,31 +73,69 @@ def build_padding_plan(
     if attention_mask is None:
         lengths = [sequence_length] * batch_size
     else:
-        if attention_mask.ndim != 2:
+        if attention_mask.ndim == 4:
+            if (
+                int(attention_mask.size(0)) != batch_size
+                or int(attention_mask.size(-1)) != sequence_length
+            ):
+                raise ValueError(
+                    "the initial HF LOD causal mask must match the prompt batch"
+                )
+            final_query = attention_mask[:, 0, -1, :]
+            allowed = (
+                final_query
+                if final_query.dtype == torch.bool
+                else final_query.eq(0)
+            )
+            logical_lengths = allowed.sum(dim=-1, dtype=torch.long)
+            lengths = [
+                int(length) for length in logical_lengths.detach().cpu().tolist()
+            ]
+            if any(
+                length <= 0 or length > sequence_length for length in lengths
+            ):
+                raise ValueError(
+                    "every HF LOD prompt row must contain at least one token"
+                )
+            positions = torch.arange(sequence_length, device=allowed.device)
+            begins = sequence_length - logical_lengths
+            expected = positions.unsqueeze(0) >= begins.unsqueeze(1)
+            if not bool(torch.all(allowed == expected).item()):
+                raise NotImplementedError(
+                    "HF LOD supports contiguous left padding, not arbitrary causal masks"
+                )
+        elif attention_mask.ndim != 2:
             raise NotImplementedError(
-                "HF LOD varied-length batching requires a 2D padding mask"
+                "HF LOD varied-length batching requires a 2D or 4D mask"
             )
-        if tuple(attention_mask.shape) != (batch_size, sequence_length):
-            raise ValueError(
-                "the initial HF LOD attention mask must match the prompt batch"
-            )
-        binary = attention_mask.eq(0) | attention_mask.eq(1)
-        if not bool(torch.all(binary).item()):
-            raise ValueError(
-                "the HF LOD 2D attention mask must contain only zeros and ones"
-            )
-        allowed = attention_mask.ne(0)
-        logical_lengths = allowed.sum(dim=-1, dtype=torch.long)
-        lengths = [int(length) for length in logical_lengths.detach().cpu().tolist()]
-        if any(length <= 0 or length > sequence_length for length in lengths):
-            raise ValueError("every HF LOD prompt row must contain at least one token")
-        positions = torch.arange(sequence_length, device=allowed.device)
-        begins = sequence_length - logical_lengths
-        expected = positions.unsqueeze(0) >= begins.unsqueeze(1)
-        if not bool(torch.all(allowed == expected).item()):
-            raise NotImplementedError(
-                "HF LOD supports contiguous left padding, not padding within a prompt"
-            )
+        else:
+            if tuple(attention_mask.shape) != (batch_size, sequence_length):
+                raise ValueError(
+                    "the initial HF LOD attention mask must match the prompt batch"
+                )
+            binary = attention_mask.eq(0) | attention_mask.eq(1)
+            if not bool(torch.all(binary).item()):
+                raise ValueError(
+                    "the HF LOD 2D attention mask must contain only zeros and ones"
+                )
+            allowed = attention_mask.ne(0)
+            logical_lengths = allowed.sum(dim=-1, dtype=torch.long)
+            lengths = [
+                int(length) for length in logical_lengths.detach().cpu().tolist()
+            ]
+            if any(
+                length <= 0 or length > sequence_length for length in lengths
+            ):
+                raise ValueError(
+                    "every HF LOD prompt row must contain at least one token"
+                )
+            positions = torch.arange(sequence_length, device=allowed.device)
+            begins = sequence_length - logical_lengths
+            expected = positions.unsqueeze(0) >= begins.unsqueeze(1)
+            if not bool(torch.all(allowed == expected).item()):
+                raise NotImplementedError(
+                    "HF LOD supports contiguous left padding, not padding within a prompt"
+                )
 
     rows_by_length: dict[int, list[int]] = {}
     for row, length in enumerate(lengths):

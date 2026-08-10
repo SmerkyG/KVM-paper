@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import torch
 from transformers import (
+    Gemma3ForCausalLM,
+    Gemma3TextConfig,
     LlamaConfig,
     LlamaForCausalLM,
     MistralConfig,
@@ -376,6 +378,77 @@ def _check_hybrid_cache() -> None:
     print("Qwen3.5 mixed recurrent/LOD cache passed")
 
 
+@torch.no_grad()
+def _check_sliding_layer_selection() -> None:
+    torch.manual_seed(38)
+    config = Gemma3TextConfig(
+        vocab_size=64,
+        hidden_size=32,
+        intermediate_size=64,
+        num_hidden_layers=2,
+        num_attention_heads=4,
+        num_key_value_heads=2,
+        head_dim=8,
+        max_position_embeddings=64,
+        layer_types=["sliding_attention", "full_attention"],
+        sliding_window=8,
+        pad_token_id=0,
+        bos_token_id=1,
+        eos_token_id=2,
+    )
+    model = Gemma3ForCausalLM(config).eval()
+    installed = install_hf_lod_attention(
+        model, config=_lod_config(), open_count=2
+    )
+    if installed != ["model.layers.1.self_attn"]:
+        raise AssertionError("LOD selected a Gemma sliding-attention layer")
+    attention_backends = [
+        layer.self_attn.config._attn_implementation for layer in model.model.layers
+    ]
+    if attention_backends != ["sdpa", "lod"]:
+        raise AssertionError("mixed full/sliding attention dispatch is incorrect")
+    cache = new_hf_lod_cache(model)
+    if not isinstance(cache, HybridHFLODCache):
+        raise AssertionError("mixed full/sliding model did not receive a mixed cache")
+    token = torch.tensor(
+        [[0, 0, 1, 3, 4, 5, 6, 7], [1, 8, 9, 10, 11, 12, 13, 14]]
+    )
+    attention_mask = token.ne(0).long()
+    model(
+        token,
+        attention_mask=attention_mask,
+        past_key_values=cache,
+        use_cache=True,
+    )
+    decoded = model(
+        torch.tensor([[8], [15]]),
+        attention_mask=torch.cat(
+            (attention_mask, torch.ones(2, 1, dtype=torch.long)), dim=1
+        ),
+        past_key_values=cache,
+        use_cache=True,
+    )
+    if not bool(torch.isfinite(decoded.logits).all()):
+        raise AssertionError("mixed full/sliding LOD decode produced non-finite logits")
+    native_initialized = [layer.is_initialized for layer in cache.native_cache.layers]
+    if native_initialized != [True, False]:
+        raise AssertionError("full-attention K/V leaked into the native sliding cache")
+
+    sliding_only = MistralForCausalLM(
+        MistralConfig(**_common_config(), sliding_window=8)
+    ).eval()
+    try:
+        install_hf_lod_attention(
+            sliding_only, config=_lod_config(), open_count=2
+        )
+    except RuntimeError as error:
+        if "no compatible causal" not in str(error):
+            raise
+    else:
+        raise AssertionError("an all-sliding decoder was incorrectly replaced")
+    print("full/sliding attention selection and mixed cache passed")
+
+
 def main() -> None:
     common = _common_config()
     models = (
@@ -390,6 +463,7 @@ def main() -> None:
     _check_beam_reorder()
     _check_automatic_padded_generation()
     _check_hybrid_cache()
+    _check_sliding_layer_selection()
 
 
 if __name__ == "__main__":
