@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 
 import torch
-from transformers import AutoModelForCausalLM
+from transformers import AutoConfig, AutoModelForCausalLM
 
 from model.hf_pytorch_lod_attention import (
     install_hf_lod_attention,
@@ -39,11 +39,24 @@ def main() -> None:
     if args.kv_bits and not args.page_size:
         raise ValueError("--kv-bits=4 requires a positive --page-size")
     device = torch.device("cuda")
+    composite_config = AutoConfig.from_pretrained(
+        args.checkpoint, trust_remote_code=True
+    )
+    config = composite_config.get_text_config(decoder=True)
+    is_qwen35 = type(config).__module__.startswith(
+        "transformers.models.qwen3_5."
+    )
+    if is_qwen35:
+        from scripts.probe_qwen35_lod_niah import enable_fla_fast_path
+
+        enable_fla_fast_path(required=True)
+    config._attn_implementation = "sdpa"
     model = (
         AutoModelForCausalLM.from_pretrained(
             args.checkpoint,
+            config=config,
             dtype=torch.bfloat16,
-            attn_implementation="sdpa",
+            trust_remote_code=True,
         )
         .to(device)
         .eval()
@@ -80,7 +93,12 @@ def main() -> None:
         open_count=args.open_count,
         engine_backend=args.engine_backend,
     )
-    expected_layers = int(model.config.num_hidden_layers)
+    layer_types = getattr(model.config, "layer_types", None)
+    expected_layers = (
+        sum(layer_type == "full_attention" for layer_type in layer_types)
+        if layer_types is not None
+        else int(model.config.num_hidden_layers)
+    )
     if len(installed) != expected_layers:
         raise AssertionError(
             f"installed {len(installed)} LOD layers, expected {expected_layers}"
@@ -116,8 +134,17 @@ def main() -> None:
         )
     if cache.get_seq_length() != args.lod_length:
         raise AssertionError("LOD-owned HF cache length did not advance")
-    if any(layer.keys.numel() or layer.values.numel() for layer in cache.layers):
+    lod_layers = (
+        cache.layers
+        if hasattr(cache, "layers")
+        else cache.lod_layers.values()
+    )
+    if any(layer.keys.numel() or layer.values.numel() for layer in lod_layers):
         raise AssertionError("HF cache retained duplicate ordinary K/V tensors")
+    if is_qwen35 and any(
+        item is not None for item in cache.key_cache + cache.value_cache
+    ):
+        raise AssertionError("hybrid native cache retained duplicate attention K/V")
     if not bool(torch.isfinite(cached.logits).all()):
         raise AssertionError("registered LOD cached decode produced non-finite logits")
     print(

@@ -11,8 +11,11 @@ from transformers import (
     MistralForCausalLM,
     Qwen3Config,
     Qwen3ForCausalLM,
+    Qwen3_5ForCausalLM,
+    Qwen3_5TextConfig,
 )
 
+from model.hf_lod_hybrid_cache import HybridHFLODCache
 from model.hf_pytorch_lod_attention import (
     HFLODCache,
     install_hf_lod_attention,
@@ -302,6 +305,77 @@ def _check_automatic_padded_generation() -> None:
     print("automatic varied-padding generation cache passed")
 
 
+@torch.no_grad()
+def _check_hybrid_cache() -> None:
+    torch.manual_seed(35)
+    config = Qwen3_5TextConfig(
+        vocab_size=64,
+        hidden_size=32,
+        intermediate_size=64,
+        num_hidden_layers=2,
+        num_attention_heads=4,
+        num_key_value_heads=2,
+        head_dim=8,
+        linear_num_key_heads=4,
+        linear_num_value_heads=4,
+        linear_key_head_dim=8,
+        linear_value_head_dim=8,
+        linear_conv_kernel_dim=2,
+        layer_types=["linear_attention", "full_attention"],
+        max_position_embeddings=64,
+        pad_token_id=0,
+        bos_token_id=1,
+        eos_token_id=2,
+    )
+    model = Qwen3_5ForCausalLM(config).eval()
+    installed = install_hf_lod_attention(
+        model, config=_lod_config(), open_count=2
+    )
+    if installed != ["model.layers.1.self_attn"]:
+        raise AssertionError("hybrid installer selected the wrong attention layers")
+    cache = new_hf_lod_cache(model)
+    if not isinstance(cache, HybridHFLODCache):
+        raise AssertionError("hybrid decoder did not receive a mixed LOD cache")
+    token = torch.tensor(
+        [[0, 0, 1, 3, 4, 5, 6, 7], [1, 8, 9, 10, 11, 12, 13, 14]]
+    )
+    attention_mask = token.ne(0).long()
+    prefill = model(
+        token,
+        attention_mask=attention_mask,
+        past_key_values=cache,
+        use_cache=True,
+    )
+    decode_token = torch.tensor([[8], [15]])
+    decode_mask = torch.cat(
+        (attention_mask, torch.ones(2, 1, dtype=torch.long)), dim=1
+    )
+    decoded = model(
+        decode_token,
+        attention_mask=decode_mask,
+        past_key_values=cache,
+        use_cache=True,
+    )
+    if not bool(torch.isfinite(prefill.logits).all()):
+        raise AssertionError("hybrid LOD prefill produced non-finite logits")
+    if not bool(torch.isfinite(decoded.logits).all()):
+        raise AssertionError("hybrid LOD decode produced non-finite logits")
+    if cache.get_seq_length() != 9 or not cache.has_previous_state:
+        raise AssertionError("hybrid recurrent/LOD cache lengths diverged")
+    if any(item is not None for item in cache.key_cache + cache.value_cache):
+        raise AssertionError("hybrid native cache retained duplicate attention K/V")
+    generated = model.generate(
+        token,
+        attention_mask=attention_mask,
+        max_new_tokens=1,
+        do_sample=False,
+        pad_token_id=0,
+    )
+    if generated.shape != (2, 9):
+        raise AssertionError("automatic hybrid LOD generation returned wrong shape")
+    print("Qwen3.5 mixed recurrent/LOD cache passed")
+
+
 def main() -> None:
     common = _common_config()
     models = (
@@ -315,6 +389,7 @@ def main() -> None:
     _check_leaf_storage_modes()
     _check_beam_reorder()
     _check_automatic_padded_generation()
+    _check_hybrid_cache()
 
 
 if __name__ == "__main__":

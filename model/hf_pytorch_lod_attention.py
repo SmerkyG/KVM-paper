@@ -188,7 +188,7 @@ class HFLODCacheLayer(CacheLayerMixin):
         self._owner_cache: weakref.ReferenceType[HFLODCache] | None = None
         self._padding_runtime: Any | None = None
 
-    def _bind_owner(self, cache: HFLODCache) -> None:
+    def _bind_owner(self, cache: Any) -> None:
         self._owner_cache = weakref.ref(cache)
 
     @property
@@ -582,9 +582,14 @@ def _install_generation_cache_factory(model: nn.Module) -> None:
         del generation_mode, batch_size, max_cache_length
         supplied_cache = model_kwargs.get("past_key_values")
         if supplied_cache is not None:
-            if not isinstance(supplied_cache, HFLODCache):
+            from .hf_lod_hybrid_cache import is_hybrid_hf_lod_cache
+
+            if not isinstance(supplied_cache, HFLODCache) and not is_hybrid_hf_lod_cache(
+                supplied_cache
+            ):
                 raise TypeError(
-                    "a model with HF LOD installed requires HFLODCache for generation"
+                    "a model with HF LOD installed requires an LOD-owned cache "
+                    "for generation"
                 )
             if generation_config.cache_implementation is not None:
                 raise ValueError(
@@ -658,8 +663,13 @@ def install_hf_lod_attention(
     return installed
 
 
-def new_hf_lod_cache(model: nn.Module) -> HFLODCache:
+def new_hf_lod_cache(model: nn.Module) -> Any:
     """Construct a fresh model-bound LOD cache for prefill and generation."""
+    from .hf_lod_hybrid_cache import maybe_new_hybrid_hf_lod_cache
+
+    hybrid = maybe_new_hybrid_hf_lod_cache(model)
+    if hybrid is not None:
+        return hybrid
     return HFLODCache.for_model(model)
 
 
