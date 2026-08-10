@@ -75,7 +75,9 @@ def main() -> None:
         engine_backend=args.engine_backend,
     )
 
-    lengths = (17, 24, 24, 32)
+    # Keep enough remote state for the optimized decode kernel's eight routing
+    # candidates while retaining varied, non-chunk-aligned logical lengths.
+    lengths = (33, 40, 40, 48)
     padded_length = max(lengths)
     token = torch.zeros(len(lengths), padded_length, dtype=torch.long, device=device)
     attention_mask = torch.zeros_like(token)
