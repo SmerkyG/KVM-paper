@@ -3009,9 +3009,14 @@ class TritonLODAttentionCore(nn.Module):
 
     @torch.compiler.disable
     def _prefill_attention(
-        self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor
+        self,
+        q: torch.Tensor,
+        k: torch.Tensor,
+        v: torch.Tensor,
+        *,
+        logical_prefill_len: int | None = None,
     ) -> torch.Tensor:
-        batch_size, _, prefill_len, _ = q.shape
+        batch_size, _, attention_len, _ = q.shape
         prefill_chunk_len = self.prefill_chunk_len
         prefill_local_len = self.prefill_local_len
         prefill_state_update_len = self.prefill_state_update_len
@@ -3019,10 +3024,19 @@ class TritonLODAttentionCore(nn.Module):
             raise ValueError("prefill chunk length cannot exceed its local field")
         if prefill_state_update_len <= 0:
             raise ValueError("prefill state update length must be positive")
+        prefill_len = (
+            attention_len
+            if logical_prefill_len is None
+            else int(logical_prefill_len)
+        )
+        if prefill_len <= 0 or prefill_len > attention_len:
+            raise ValueError("logical prefill length must fit the attention field")
+        if attention_len - prefill_len >= prefill_chunk_len:
+            raise ValueError("prefill padding must be confined to the final chunk")
         exact_lookback = prefill_local_len - prefill_chunk_len
         if getattr(self, "_lod_collect_stats", False):
             self._lod_route_stats = []
-        front_len = min(prefill_len, exact_lookback + self.chunk_len)
+        front_len = min(attention_len, exact_lookback + self.chunk_len)
         outputs = [
             self._exact_attention(
                 q[..., :front_len, :],
@@ -3088,8 +3102,8 @@ class TritonLODAttentionCore(nn.Module):
             )
             owners = None
 
-        for query_begin in range(front_len, prefill_len, prefill_chunk_len):
-            query_end = min(prefill_len, query_begin + prefill_chunk_len)
+        for query_begin in range(front_len, attention_len, prefill_chunk_len):
+            query_end = min(attention_len, query_begin + prefill_chunk_len)
             bswa_begin = max(0, query_begin - exact_lookback)
             if state_coverage != bswa_begin:
                 raise AssertionError("LOD prefill state coverage drifted")
@@ -3125,7 +3139,7 @@ class TritonLODAttentionCore(nn.Module):
 
             next_bswa_begin = (
                 max(0, query_begin + prefill_chunk_len - exact_lookback)
-                if query_end < prefill_len
+                if query_end < attention_len
                 else bswa_begin
             )
             while state_coverage < next_bswa_begin:
@@ -3209,8 +3223,10 @@ class TritonLODAttentionCore(nn.Module):
                     owners = torch.gather(old_slot_remap, 2, owners)
                 owners = torch.cat((owners, new_owners), dim=2)
             state_coverage = update_end
-        recent_k = k[..., state_coverage:, :]
-        recent_v = v[..., state_coverage:, :]
+        # Right padding exists only to reuse compiled final-chunk shapes. It
+        # must never become persistent state or enter the decode-local field.
+        recent_k = k[..., state_coverage:prefill_len, :]
+        recent_v = v[..., state_coverage:prefill_len, :]
         recent_len = int(recent_k.size(2))
         if page_cache is not None:
             recent_capacity = self.local_len + self.decode_state_update_len
