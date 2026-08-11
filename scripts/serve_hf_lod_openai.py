@@ -22,6 +22,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--dtype", default="bfloat16")
+    parser.add_argument(
+        "--attention-mode", choices=("lod", "full"), default="lod"
+    )
     parser.add_argument("--open-count", type=int, default=8)
     parser.add_argument("--kv-bits", type=int, choices=(0, 4), default=4)
     parser.add_argument("--chunk-size", type=int, default=256)
@@ -58,6 +61,7 @@ def main() -> None:
         raise ValueError("--chat-template-kwargs must decode to an object")
     app = build_lod_openai_app(
         args.checkpoint,
+        attention_mode=args.attention_mode,
         lod_config=LODServerConfig(
             chunk_size=args.chunk_size,
             local_window=args.local_window,

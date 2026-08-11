@@ -59,19 +59,23 @@ class LODServerConfig:
 
 
 class LODModelManager(ModelManager):
-    """Transformers Serve model manager that installs LOD after loading."""
+    """Transformers Serve model manager that optionally installs LOD."""
 
     def __init__(
         self,
         checkpoint: str,
         *,
         lod_config: LODServerConfig,
+        attention_mode: str = "lod",
         device: str = "cuda",
         dtype: str = "bfloat16",
         trust_remote_code: bool = True,
         require_qwen35_fast_path: bool = True,
     ) -> None:
+        if attention_mode not in ("lod", "full"):
+            raise ValueError("attention_mode must be 'lod' or 'full'")
         self.lod_config = lod_config
+        self.attention_mode = attention_mode
         self._lod_device = device
         self.require_qwen35_fast_path = require_qwen35_fast_path
         self.installed_attention_layers: list[str] = []
@@ -155,13 +159,14 @@ class LODModelManager(ModelManager):
         if isinstance(device, int) or str(device).isdigit():
             device = f"cuda:{device}"
         model = model.to(torch.device(device)).eval()
-        self.installed_attention_layers = install_hf_lod_attention(
-            model,
-            config=self.lod_config.attention_config(),
-            open_count=self.lod_config.open_count,
-            engine_backend=self.lod_config.engine_backend,
-            left_padding_mode=self.lod_config.left_padding_mode,
-        )
+        if self.attention_mode == "lod":
+            self.installed_attention_layers = install_hf_lod_attention(
+                model,
+                config=self.lod_config.attention_config(),
+                open_count=self.lod_config.open_count,
+                engine_backend=self.lod_config.engine_backend,
+                left_padding_mode=self.lod_config.left_padding_mode,
+            )
         if is_qwen35:
             from scripts.probe_qwen35_lod_niah import require_qwen35_acceleration
 
@@ -188,6 +193,7 @@ def build_lod_openai_app(
     checkpoint: str,
     *,
     lod_config: LODServerConfig | None = None,
+    attention_mode: str = "lod",
     device: str = "cuda",
     dtype: str = "bfloat16",
     trust_remote_code: bool = True,
@@ -208,17 +214,23 @@ def build_lod_openai_app(
     model_manager = LODModelManager(
         checkpoint,
         lod_config=lod_config or LODServerConfig(),
+        attention_mode=attention_mode,
         device=device,
         dtype=dtype,
         trust_remote_code=trust_remote_code,
         require_qwen35_fast_path=require_qwen35_fast_path,
     )
-    # Transformers continuous batching owns a conventional paged KV cache and
-    # is therefore incompatible with the LOD-owned cache. Its regular generate
-    # manager still serializes concurrent requests safely on one GPU thread.
-    generation_state = LODSessionGenerationState(
-        session_cache_config or LODSessionCacheConfig()
-    )
+    if attention_mode == "lod":
+        # Transformers continuous batching owns a conventional paged KV cache
+        # and is incompatible with the LOD-owned cache. The LOD manager retains
+        # explicitly named conversation caches on one inference thread.
+        generation_state = LODSessionGenerationState(
+            session_cache_config or LODSessionCacheConfig()
+        )
+    else:
+        from transformers.cli.serving.utils import GenerationState
+
+        generation_state = GenerationState(continuous_batching=False)
     template_kwargs = chat_template_kwargs or {}
     chat_handler = ChatCompletionHandler(
         model_manager=model_manager,
@@ -243,6 +255,8 @@ def build_lod_openai_app(
 
     @app.middleware("http")
     async def lod_session_middleware(request: Request, call_next):
+        if attention_mode != "lod":
+            return await call_next(request)
         session_id = request.headers.get(LOD_SESSION_HEADER)
         if session_id is None:
             return await call_next(request)
@@ -262,6 +276,7 @@ def build_lod_openai_app(
 
     app.state.lod_model_manager = model_manager
     app.state.lod_generation_state = generation_state
+    app.state.attention_mode = attention_mode
     return app
 
 

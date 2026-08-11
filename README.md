@@ -111,6 +111,22 @@ becomes message history. A mismatch safely starts a new cache.
 `--max-sessions` and `--session-ttl-seconds` bound retained GPU state; set
 `--max-sessions 0` to disable cross-request caching.
 
+To serve the same checkpoint with its original full attention instead, use:
+
+```bash
+uv run python -m scripts.serve_hf_lod_openai \
+  --checkpoint Qwen/Qwen3.5-0.8B \
+  --attention-mode full \
+  --host 0.0.0.0 --port 8001
+```
+
+Full mode does not replace attention modules and does not use the LOD session
+cache. Run LOD and full modes on different ports when both are needed. The
+current server uses separate processes because the modes require independently
+compiled model instances and different cache types; a single-process
+multiplexer built on the current Transformers model manager would still load
+two complete copies of the model weights.
+
 ## optimized Triton KVM kernels
 
 The eager paper implementation is `model.kvm_mixer.SequenceMixer`. The optimized MHA prefill, backward, and training use `model.kvm_triton_mixer.SequenceMixer` - append `configs/prolong/kvm_triton.yaml` after a KVM model config to select it. For more information, see [`docs/kvm_triton_kernels.md`](docs/kvm_triton_kernels.md) for more details on the kernels.
