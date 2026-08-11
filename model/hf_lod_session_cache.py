@@ -17,11 +17,16 @@ from transformers.cli.serving.utils import (
     _GenerationCancelled,
     _StreamError,
 )
+from transformers.generation.continuous_batching.cache_manager import BlockManager
 
 from .hf_pytorch_lod_attention import new_hf_lod_cache
 
 
 LOD_SESSION_HEADER = "X-LOD-Session-ID"
+# A NUL cannot arrive in an HTTP header, so automatic identifiers cannot
+# collide with an explicit X-LOD-Session-ID.
+_AUTOMATIC_SESSION_PREFIX = "\x00lod-auto:"
+_AUTOMATIC_HASH_BLOCK_SIZE = 8
 _LOD_SESSION_ID: ContextVar[str | None] = ContextVar(
     "hf_lod_session_id", default=None
 )
@@ -46,6 +51,7 @@ class LODSessionCacheConfig:
 
     max_sessions: int = 8
     ttl_seconds: float = 3600.0
+    automatic_discovery: bool = True
 
     def __post_init__(self) -> None:
         if self.max_sessions < 0:
@@ -92,18 +98,33 @@ class _DeferredEndStreamer(DirectStreamer):
 
 
 class LODSessionGenerateManager(GenerateManager):
-    """Reuse one mutable LOD cache along each explicitly named request stream."""
+    """Reuse one mutable LOD cache along explicit or inferred request streams."""
 
     def __init__(self, config: LODSessionCacheConfig) -> None:
         super().__init__()
         self.config = config
         self._sessions: OrderedDict[str, _SessionEntry] = OrderedDict()
+        # Transformers continuous batching uses this same chained block hash
+        # to locate shareable paged-cache prefixes. LOD cannot share those
+        # physical blocks, but can reuse the index to locate its own mutable
+        # per-conversation caches before doing strict token verification.
+        self._prefix_hasher = BlockManager(
+            num_blocks=0,
+            block_size=_AUTOMATIC_HASH_BLOCK_SIZE,
+            tp_on=False,
+        )
+        self._prefix_index: dict[int, set[str]] = {}
+        self._session_hashes: dict[str, tuple[int, ...]] = {}
+        self._automatic_sessions: set[str] = set()
+        self._next_automatic_session = 0
         self._hits = 0
         self._misses = 0
         self._prefix_mismatches = 0
         self._evictions = 0
         self._reused_tokens = 0
         self._turn_reconciliations = 0
+        self._automatic_hits = 0
+        self._automatic_misses = 0
 
     @property
     def enabled(self) -> bool:
@@ -118,13 +139,33 @@ class LODSessionGenerateManager(GenerateManager):
             "evictions": self._evictions,
             "reused_tokens": self._reused_tokens,
             "turn_reconciliations": self._turn_reconciliations,
+            "automatic_sessions": len(self._automatic_sessions),
+            "automatic_hits": self._automatic_hits,
+            "automatic_misses": self._automatic_misses,
         }
 
     def clear_sessions(self) -> None:
         self._sessions.clear()
+        self._prefix_index.clear()
+        self._session_hashes.clear()
+        self._automatic_sessions.clear()
+
+    def _unindex_session(self, session_id: str) -> None:
+        for prefix_hash in self._session_hashes.pop(session_id, ()):
+            session_ids = self._prefix_index.get(prefix_hash)
+            if session_ids is None:
+                continue
+            session_ids.discard(session_id)
+            if not session_ids:
+                self._prefix_index.pop(prefix_hash, None)
+
+    def _remove_session(self, session_id: str) -> None:
+        self._unindex_session(session_id)
+        self._sessions.pop(session_id, None)
+        self._automatic_sessions.discard(session_id)
 
     def _drop_session(self, session_id: str) -> None:
-        self._sessions.pop(session_id, None)
+        self._remove_session(session_id)
 
     def _evict_expired(self, now: float) -> None:
         if self.config.ttl_seconds == 0:
@@ -136,7 +177,7 @@ class LODSessionGenerateManager(GenerateManager):
                 if now - entry.last_used >= self.config.ttl_seconds
             ]
         for session_id in expired:
-            self._sessions.pop(session_id, None)
+            self._remove_session(session_id)
             self._evictions += 1
 
     def _make_room(self, session_id: str, now: float) -> None:
@@ -144,8 +185,110 @@ class LODSessionGenerateManager(GenerateManager):
         if session_id in self._sessions:
             return
         while len(self._sessions) >= self.config.max_sessions:
-            self._sessions.popitem(last=False)
+            oldest_session_id = next(iter(self._sessions))
+            self._remove_session(oldest_session_id)
             self._evictions += 1
+
+    def _prefix_hashes(self, tokens: torch.Tensor) -> tuple[int, ...]:
+        token_ids = tokens.detach().cpu().tolist()
+        parent_hash = None
+        hashes = []
+        for start in range(
+            0,
+            len(token_ids) - _AUTOMATIC_HASH_BLOCK_SIZE + 1,
+            _AUTOMATIC_HASH_BLOCK_SIZE,
+        ):
+            block = token_ids[start : start + _AUTOMATIC_HASH_BLOCK_SIZE]
+            parent_hash = self._prefix_hasher.compute_hash(
+                parent_hash, block, group_id=0
+            )
+            hashes.append(parent_hash)
+        return tuple(hashes)
+
+    def _index_automatic_session(
+        self, session_id: str, entry: _SessionEntry
+    ) -> None:
+        self._unindex_session(session_id)
+        hashes = self._prefix_hashes(entry.request_tokens)
+        self._session_hashes[session_id] = hashes
+        for prefix_hash in hashes:
+            self._prefix_index.setdefault(prefix_hash, set()).add(session_id)
+
+    def _entry_matches_request(
+        self,
+        entry: _SessionEntry,
+        inputs: dict[str, Any],
+        full_input_ids: torch.Tensor,
+        processor,
+    ) -> bool:
+        cached_length = int(entry.tokens.numel())
+        full_length = int(full_input_ids.size(-1))
+        if (
+            0 < cached_length < full_length
+            and entry.tokens.device == full_input_ids.device
+            and torch.equal(full_input_ids[0, :cached_length], entry.tokens)
+        ):
+            return True
+        return (
+            self._reconcile_chat_turn(
+                entry, inputs, full_input_ids, processor
+            )
+            is not None
+        )
+
+    def _new_automatic_session_id(self) -> str:
+        while True:
+            self._next_automatic_session += 1
+            session_id = (
+                f"{_AUTOMATIC_SESSION_PREFIX}{self._next_automatic_session}"
+            )
+            if session_id not in self._sessions:
+                self._automatic_sessions.add(session_id)
+                return session_id
+
+    def _resolve_automatic_session(
+        self, inputs: dict[str, Any], processor
+    ) -> str:
+        full_input_ids = inputs.get("input_ids")
+        if not isinstance(full_input_ids, torch.Tensor):
+            raise TypeError("LOD session caching requires tensor input_ids")
+        if full_input_ids.ndim != 2 or int(full_input_ids.size(0)) != 1:
+            raise ValueError("LOD session caching requires a single prompt row")
+
+        self._evict_expired(time.monotonic())
+        checked: set[str] = set()
+        prefix_hashes = self._prefix_hashes(full_input_ids[0])
+        for prefix_hash in reversed(prefix_hashes):
+            indexed = self._prefix_index.get(prefix_hash, ())
+            for session_id in reversed(self._sessions):
+                if session_id in checked or session_id not in indexed:
+                    continue
+                checked.add(session_id)
+                entry = self._sessions[session_id]
+                if self._entry_matches_request(
+                    entry, inputs, full_input_ids, processor
+                ):
+                    self._automatic_hits += 1
+                    return session_id
+
+        # Short prompts and chat templates may diverge inside the first hash
+        # block. The cache is deliberately small, so a verified fallback scan
+        # preserves correctness without turning normal lookup into O(history).
+        for session_id in reversed(self._sessions):
+            if (
+                session_id in checked
+                or session_id not in self._automatic_sessions
+            ):
+                continue
+            entry = self._sessions[session_id]
+            if self._entry_matches_request(
+                entry, inputs, full_input_ids, processor
+            ):
+                self._automatic_hits += 1
+                return session_id
+
+        self._automatic_misses += 1
+        return self._new_automatic_session_id()
 
     @staticmethod
     def _slice_prompt_inputs(
@@ -372,7 +515,7 @@ class LODSessionGenerateManager(GenerateManager):
                     self._reused_tokens += cached_length
                     self._turn_reconciliations += 1
                 else:
-                    self._sessions.pop(session_id, None)
+                    self._remove_session(session_id)
                     self._prefix_mismatches += 1
                     entry = None
         if entry is None:
@@ -419,6 +562,8 @@ class LODSessionGenerateManager(GenerateManager):
             last_used=time.monotonic(),
         )
         self._sessions.move_to_end(session_id)
+        if session_id in self._automatic_sessions:
+            self._index_automatic_session(session_id, self._sessions[session_id])
 
     @staticmethod
     def _generation_kwargs(model, processor, inputs, gen_config) -> dict[str, Any]:
@@ -440,15 +585,22 @@ class LODSessionGenerateManager(GenerateManager):
         request_id: str,
     ) -> tuple[str, int, torch.Tensor]:
         session_id = current_lod_session()
-        if not self.enabled or session_id is None:
+        if not self.enabled or (
+            session_id is None and not self.config.automatic_discovery
+        ):
             return await super().generate_non_streaming(
                 model, processor, inputs, gen_config, request_id
             )
         input_length = int(inputs["input_ids"].size(-1))
 
         def run() -> torch.Tensor:
+            resolved_session_id = session_id
+            if resolved_session_id is None:
+                resolved_session_id = self._resolve_automatic_session(
+                    inputs, processor
+                )
             prepared = self._prepare_generation(
-                model, processor, inputs, session_id
+                model, processor, inputs, resolved_session_id
             )
             try:
                 result = model.generate(
@@ -460,10 +612,12 @@ class LODSessionGenerateManager(GenerateManager):
                 generated_ids = sequences[
                     0, prepared.generation_input_length :
                 ]
-                self._publish_session(session_id, prepared, generated_ids)
+                self._publish_session(
+                    resolved_session_id, prepared, generated_ids
+                )
                 return generated_ids
             except Exception:
-                self._drop_session(session_id)
+                self._drop_session(resolved_session_id)
                 raise
 
         generated_ids = await self.async_submit(run)
@@ -480,7 +634,9 @@ class LODSessionGenerateManager(GenerateManager):
         response_parser=None,
     ) -> tuple[asyncio.Queue, DirectStreamer]:
         session_id = current_lod_session()
-        if not self.enabled or session_id is None:
+        if not self.enabled or (
+            session_id is None and not self.config.automatic_discovery
+        ):
             return super().generate_streaming(
                 model,
                 processor,
@@ -500,8 +656,13 @@ class LODSessionGenerateManager(GenerateManager):
         )
 
         def run() -> None:
+            resolved_session_id = session_id
+            if resolved_session_id is None:
+                resolved_session_id = self._resolve_automatic_session(
+                    inputs, processor
+                )
             prepared = self._prepare_generation(
-                model, processor, inputs, session_id
+                model, processor, inputs, resolved_session_id
             )
             generation_inputs = dict(prepared.inputs)
             generation_inputs["streamer"] = streamer
@@ -515,13 +676,15 @@ class LODSessionGenerateManager(GenerateManager):
                 generated_ids = sequences[
                     0, prepared.generation_input_length :
                 ]
-                self._publish_session(session_id, prepared, generated_ids)
+                self._publish_session(
+                    resolved_session_id, prepared, generated_ids
+                )
                 streamer.finish()
             except _GenerationCancelled:
-                self._drop_session(session_id)
+                self._drop_session(resolved_session_id)
                 streamer.finish()
             except Exception as error:
-                self._drop_session(session_id)
+                self._drop_session(resolved_session_id)
                 loop.call_soon_threadsafe(
                     queue.put_nowait, _StreamError(str(error))
                 )

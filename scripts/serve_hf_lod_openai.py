@@ -49,6 +49,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--enable-cors", action="store_true")
     parser.add_argument("--max-sessions", type=int, default=8)
     parser.add_argument("--session-ttl-seconds", type=float, default=3600.0)
+    parser.add_argument(
+        "--no-auto-session-discovery",
+        action="store_true",
+        help="Require X-LOD-Session-ID instead of matching retained token prefixes",
+    )
     parser.add_argument("--allow-slow-qwen35", action="store_true")
     parser.add_argument("--log-level", default="info")
     return parser.parse_args()
@@ -81,6 +86,7 @@ def main() -> None:
         session_cache_config=LODSessionCacheConfig(
             max_sessions=args.max_sessions,
             ttl_seconds=args.session_ttl_seconds,
+            automatic_discovery=not args.no_auto_session_discovery,
         ),
         enable_cors=args.enable_cors,
     )

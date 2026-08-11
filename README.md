@@ -80,7 +80,6 @@ from openai import OpenAI
 client = OpenAI(
     base_url="http://localhost:8000/v1",
     api_key="local",
-    default_headers={"X-LOD-Session-ID": "swebench-instance-1"},
 )
 response = client.chat.completions.create(
     model="Qwen/Qwen3.5-0.8B",
@@ -103,11 +102,15 @@ response = client.chat.completions.create(
 The same server also provides `/v1/models`, `/v1/completions`, `/v1/responses`,
 and `/health`. Continuous batching must remain disabled because it owns a
 different paged KV cache; ordinary requests are serialized safely by the HF
-generation manager. Reuse the same `X-LOD-Session-ID` for successive turns in
-one conversation: the server verifies the prior prompt and generated answer,
-then sends only the new turn through the retained LOD cache. This also handles
-chat templates whose assistant-generation marker is rewritten when the answer
-becomes message history. A mismatch safely starts a new cache.
+generation manager. The header is optional: by default the server uses
+Transformers' chained token-block hashing scheme to find a retained prompt,
+then strictly verifies the prior prompt and generated answer before sending
+only the new turn through the retained LOD cache. This also handles chat
+templates whose assistant-generation marker is rewritten when the answer
+becomes message history. `X-LOD-Session-ID` takes precedence and remains the
+best way to isolate otherwise identical conversations; a mismatch safely
+starts a new cache. Pass `--no-auto-session-discovery` to require explicit
+headers.
 `--max-sessions` and `--session-ttl-seconds` bound retained GPU state; set
 `--max-sessions 0` to disable cross-request caching.
 
