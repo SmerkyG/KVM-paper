@@ -57,6 +57,50 @@ See configuration classes extending pydantic BaseModel in `train.py` and `model/
 
 Example training scripts are provided in `scripts/training_runs.sh` This directory also includes the scripts used to run the evals in the paper. `scripts/benchmark_kvm.py` can be used for running kernel performance benchmarks.
 
+### OpenAI-compatible LOD server
+
+Transformers 5.15's serving stack can expose an HF model with recursive LOD
+attention, streaming, chat templates, and function calling:
+
+```bash
+scripts/install.sh --gpu-backend rocm72 --with-qwen35-fast-path
+uv run python -m scripts.serve_hf_lod_openai \
+  --checkpoint Qwen/Qwen3.5-0.8B \
+  --kv-bits 4 \
+  --host 0.0.0.0 --port 8000
+```
+
+Point an OpenAI client at `http://localhost:8000/v1` and use the checkpoint as
+the model name. The server does not require authentication, so clients that
+require a key can use any non-empty placeholder:
+
+```python
+from openai import OpenAI
+
+client = OpenAI(base_url="http://localhost:8000/v1", api_key="local")
+response = client.chat.completions.create(
+    model="Qwen/Qwen3.5-0.8B",
+    messages=[{"role": "user", "content": "Use get_file to read README.md"}],
+    tools=[{
+        "type": "function",
+        "function": {
+            "name": "get_file",
+            "description": "Read a repository file",
+            "parameters": {
+                "type": "object",
+                "properties": {"path": {"type": "string"}},
+                "required": ["path"],
+            },
+        },
+    }],
+)
+```
+
+The same server also provides `/v1/models`, `/v1/completions`, `/v1/responses`,
+and `/health`. Continuous batching must remain disabled because it owns a
+different paged KV cache; ordinary requests are serialized safely by the HF
+generation manager.
+
 ## optimized Triton KVM kernels
 
 The eager paper implementation is `model.kvm_mixer.SequenceMixer`. The optimized MHA prefill, backward, and training use `model.kvm_triton_mixer.SequenceMixer` - append `configs/prolong/kvm_triton.yaml` after a KVM model config to select it. For more information, see [`docs/kvm_triton_kernels.md`](docs/kvm_triton_kernels.md) for more details on the kernels.

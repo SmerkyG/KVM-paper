@@ -3786,7 +3786,12 @@ class TritonLODAttentionCore(nn.Module):
         exact_floor = self.local_len - self.chunk_len
         if exact_floor < 0:
             raise ValueError("LOD local length cannot be shorter than one chunk")
-        target_coverage = max(min(total_len, self.chunk_len), state_coverage)
+        # Only tokens from prior calls can move into persistent state.  In
+        # particular, a prompt shorter than one chunk has no local tail yet,
+        # so archiving the just-arrived decode token would underflow recent_k.
+        target_coverage = max(
+            min(previous_total_len, self.chunk_len), state_coverage
+        )
         pending_update = total_len - target_coverage - exact_floor
         if pending_update > decode_update_len:
             target_coverage += (
