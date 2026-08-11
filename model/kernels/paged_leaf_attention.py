@@ -1805,9 +1805,11 @@ def _query_major_residual_page_attention_kernel(
     QUANTIZED: tl.constexpr,
     QUANTIZED_SUMMARIES: tl.constexpr,
     INDEXED: tl.constexpr,
+    ROUTE_PARALLEL: tl.constexpr,
 ):
     """Open one page per routed slot and summarize its disjoint residual."""
     query_row = tl.program_id(0).to(tl.int64)
+    active_route = tl.program_id(1).to(tl.int64)
     batch_head = query_row // query_len
     batch = batch_head // QUERY_HEADS
     query_head = batch_head - batch * QUERY_HEADS
@@ -1823,7 +1825,9 @@ def _query_major_residual_page_attention_kernel(
     denominator = tl.zeros((), tl.float32)
     accumulator = tl.zeros((VALUE_DIM,), tl.float32)
 
-    for route in tl.static_range(0, ROUTE_COUNT):
+    route_begin = active_route if ROUTE_PARALLEL else 0
+    route_end = active_route + 1 if ROUTE_PARALLEL else ROUTE_COUNT
+    for route in tl.range(route_begin, route_end, num_stages=1):
         slot = tl.load(top_slots + query_row * ROUTE_COUNT + route).to(tl.int64)
         valid_slot = (slot >= 0) & (slot < STATE_CAPACITY)
         key_count = tl.load(
@@ -2107,19 +2111,36 @@ def _query_major_residual_page_attention_kernel(
         exact_scores = tl.where(valid_token, exact_scores, -float("inf"))
         block_maximum = tl.max(exact_scores, axis=0)
         new_maximum = tl.maximum(maximum, block_maximum)
-        correction = tl.math.exp2(maximum - new_maximum)
+        correction = tl.where(
+            selected_valid,
+            tl.math.exp2(maximum - new_maximum),
+            1.0,
+        )
         probabilities = tl.math.exp2(exact_scores - new_maximum)
         probabilities = tl.where(valid_token, probabilities, 0.0)
         denominator = denominator * correction + tl.sum(probabilities, axis=0)
         accumulator = accumulator * correction + tl.sum(
             probabilities[:, None] * values, axis=0
         )
-        maximum = new_maximum
+        maximum = tl.where(selected_valid, new_maximum, maximum)
 
-    tl.store(out + query_row * VALUE_DIM + value_offset, accumulator / denominator)
+    output_row = (
+        query_row * ROUTE_COUNT + active_route
+        if ROUTE_PARALLEL
+        else query_row
+    )
+    has_mass = denominator > 0.0
     tl.store(
-        lse + query_row,
-        (maximum + tl.math.log2(denominator)) * 0.6931471805599453,
+        out + output_row * VALUE_DIM + value_offset,
+        tl.where(has_mass, accumulator / denominator, 0.0),
+    )
+    tl.store(
+        lse + output_row,
+        tl.where(
+            has_mass,
+            (maximum + tl.math.log2(denominator)) * 0.6931471805599453,
+            -float("inf"),
+        ),
     )
 
 
@@ -2161,6 +2182,9 @@ def query_major_residual_page_attention(
     page_sum_k_scales: torch.Tensor | None = None,
     page_sum_v_scales: torch.Tensor | None = None,
     quant_group_size: int = 32,
+    output_buffer: torch.Tensor | None = None,
+    lse_buffer: torch.Tensor | None = None,
+    route_parallel: bool = False,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Exact top page plus a count-corrected residual for each routed slot."""
     indexed = page_indices is not None
@@ -2251,13 +2275,33 @@ def query_major_residual_page_attention(
         if tuple(page_sum_v.shape) != expected_v_summary:
             raise ValueError("page V summaries do not match the page cache")
     rows = batch * query_heads * query_len
-    output = torch.empty(rows, value_dim, dtype=q.dtype, device=q.device)
-    lse = torch.empty(rows, dtype=torch.float32, device=q.device)
+    route_count = int(top_slots.size(-1))
+    if route_parallel and query_len != 1:
+        raise ValueError("route-parallel residual pages require decode queries")
+    output_shape = (
+        (batch, query_heads, route_count, value_dim)
+        if route_parallel
+        else (batch, query_heads, query_len, value_dim)
+    )
+    lse_shape = output_shape[:-1]
+    if output_buffer is None:
+        output = torch.empty(output_shape, dtype=q.dtype, device=q.device)
+    else:
+        if tuple(output_buffer.shape) != output_shape:
+            raise ValueError("residual-page output buffer has the wrong shape")
+        output = output_buffer
+    if lse_buffer is None:
+        lse = torch.empty(lse_shape, dtype=torch.float32, device=q.device)
+    else:
+        if tuple(lse_buffer.shape) != lse_shape:
+            raise ValueError("residual-page LSE buffer has the wrong shape")
+        lse = lse_buffer
     begin = None
     if timing_events is not None:
         begin = torch.cuda.Event(enable_timing=True)
         begin.record()
-    _query_major_residual_page_attention_kernel[(rows,)](
+    grid = (rows, route_count) if route_parallel else (rows, 1)
+    _query_major_residual_page_attention_kernel[grid](
         q.contiguous(),
         state_k,
         state_v,
@@ -2315,6 +2359,7 @@ def query_major_residual_page_attention(
         QUANTIZED=quantized,
         QUANTIZED_SUMMARIES=quantized_summaries,
         INDEXED=indexed,
+        ROUTE_PARALLEL=route_parallel,
         num_warps=num_warps,
         waves_per_eu=waves_per_eu,
     )
@@ -2326,8 +2371,8 @@ def query_major_residual_page_attention(
         timing_events.setdefault("kernel", []).append((begin, end))
         timing_events.setdefault("total", []).append((begin, end))
     return (
-        output.reshape(batch, query_heads, query_len, value_dim),
-        lse.reshape(batch, query_heads, query_len),
+        output,
+        lse,
     )
 
 
@@ -2935,6 +2980,7 @@ def _mask_decode_routes_residual_mass_kernel(
     SCALE: tl.constexpr,
     INCLUDE_NEW: tl.constexpr,
     COMPUTE_LOCAL_OUTPUT: tl.constexpr,
+    APPLY_ROUTE_MASK: tl.constexpr,
 ):
     """Bound unopened routed mass against the complete state+local field."""
     query_row = tl.program_id(0).to(tl.int64)
@@ -3032,23 +3078,24 @@ def _mask_decode_routes_residual_mass_kernel(
             local_accumulator / local_denominator,
         )
         tl.store(local_lse_out + query_row, local_lse)
-    state_lse = tl.load(coarse_lse + query_row)
-    full_maximum = tl.maximum(state_lse, local_lse)
-    full_lse = full_maximum + tl.log(
-        tl.exp(state_lse - full_maximum) + tl.exp(local_lse - full_maximum)
-    )
+    if APPLY_ROUTE_MASK:
+        state_lse = tl.load(coarse_lse + query_row)
+        full_maximum = tl.maximum(state_lse, local_lse)
+        full_lse = full_maximum + tl.log(
+            tl.exp(state_lse - full_maximum) + tl.exp(local_lse - full_maximum)
+        )
 
-    rank = tl.arange(0, ROUTE_COUNT)
-    scores = tl.load(top_scores + query_row * ROUTE_COUNT + rank)
-    global_mass = tl.exp(scores - full_lse)
-    cumulative_before = tl.cumsum(global_mass, axis=0) - global_mass
-    remaining_before = tl.sum(global_mass, axis=0) - cumulative_before
-    keep = (rank == 0) | (remaining_before > residual_mass)
-    slots = tl.load(top_slots + query_row * ROUTE_COUNT + rank)
-    tl.store(
-        top_slots + query_row * ROUTE_COUNT + rank,
-        tl.where(keep, slots, -1),
-    )
+        rank = tl.arange(0, ROUTE_COUNT)
+        scores = tl.load(top_scores + query_row * ROUTE_COUNT + rank)
+        global_mass = tl.exp(scores - full_lse)
+        cumulative_before = tl.cumsum(global_mass, axis=0) - global_mass
+        remaining_before = tl.sum(global_mass, axis=0) - cumulative_before
+        keep = (rank == 0) | (remaining_before > residual_mass)
+        slots = tl.load(top_slots + query_row * ROUTE_COUNT + rank)
+        tl.store(
+            top_slots + query_row * ROUTE_COUNT + rank,
+            tl.where(keep, slots, -1),
+        )
 
 
 @triton.jit
@@ -4110,6 +4157,8 @@ def fused_decode_paged_lod_attention(
     timing_events: dict[
         str, list[tuple[torch.cuda.Event, torch.cuda.Event]]
     ] | None = None,
+    recursive_page_cache: dict[str, torch.Tensor | int] | None = None,
+    recursive_quant_group_size: int = 32,
 ) -> torch.Tensor:
     """Fuse coarse, exact-leaf, local, and branch-merge decode attention."""
     batch, query_heads, query_len, head_dim = q.shape
@@ -4120,7 +4169,12 @@ def fused_decode_paged_lod_attention(
         raise ValueError("query/KV head grouping is inconsistent")
     if int(state_v.size(-1)) != head_dim:
         raise ValueError("fused LOD decode requires equal QK/V dimensions")
-    if int(page_k.size(3)) != 16:
+    page_shape = (
+        recursive_page_cache.get("page_indices")
+        if recursive_page_cache is not None
+        else page_k
+    )
+    if not isinstance(page_shape, torch.Tensor) or int(page_shape.size(3)) != 16:
         raise ValueError("fused LOD decode requires 16-token leaf pages")
     if local_len is None:
         local_len = int(local_k.size(2))
@@ -4352,6 +4406,7 @@ def fused_decode_paged_lod_attention(
                         SCALE=float(scale),
                         INCLUDE_NEW=include_new,
                         COMPUTE_LOCAL_OUTPUT=reuse_residual_local_attention,
+                        APPLY_ROUTE_MASK=True,
                         num_warps=1,
                         waves_per_eu=waves_per_eu,
                     )
@@ -4367,6 +4422,205 @@ def fused_decode_paged_lod_attention(
                     waves_per_eu=waves_per_eu,
                 )
                 timing_end("route_mask", route_mask_begin)
+        if recursive_page_cache is not None:
+            if not fuse_state_route:
+                raise ValueError(
+                    "fused recursive decode requires fused state routing"
+                )
+            if split_kv != int(top_slots.size(-1)):
+                raise ValueError(
+                    "fused recursive decode requires one split per route"
+                )
+
+            def cache_tensor(name: str) -> torch.Tensor:
+                value = recursive_page_cache.get(name)
+                if not isinstance(value, torch.Tensor):
+                    raise ValueError(
+                        f"fused recursive decode cache is missing {name}"
+                    )
+                return value
+
+            # The residual-mass mask can optionally compute this branch while
+            # it scans the local window.  Fixed-top-k and the other dynamic
+            # modes need the same local scan without changing routed slots.
+            if not (
+                route_residual_mass is not None
+                and reuse_residual_local_attention
+            ):
+                local_begin = timing_begin()
+                _mask_decode_routes_residual_mass_kernel[
+                    (batch * query_heads,)
+                ](
+                    q,
+                    local_k,
+                    local_v,
+                    new_k,
+                    new_v,
+                    top_slots,
+                    buffers["route_top_scores"],
+                    buffers["coarse_lse"],
+                    buffers["route_local_out"],
+                    buffers["route_local_lse"],
+                    1.0,
+                    local_k.stride(0),
+                    local_k.stride(1),
+                    local_k.stride(2),
+                    local_v.stride(0),
+                    local_v.stride(1),
+                    local_v.stride(2),
+                    new_k.stride(0),
+                    new_k.stride(1),
+                    new_v.stride(0),
+                    new_v.stride(1),
+                    local_len,
+                    QUERY_HEADS=query_heads,
+                    KV_GROUP_SIZE=kv_group_size,
+                    HEAD_DIM=head_dim,
+                    ROUTE_COUNT=8,
+                    LOCAL_BLOCK_N=32,
+                    SCALE=float(scale),
+                    INCLUDE_NEW=include_new,
+                    COMPUTE_LOCAL_OUTPUT=True,
+                    APPLY_ROUTE_MASK=False,
+                    num_warps=1,
+                    waves_per_eu=waves_per_eu,
+                )
+                timing_end("recursive_local", local_begin)
+
+            quantized_attention = bool(
+                recursive_page_cache.get("quantization_finalized", False)
+            )
+            quantized_summaries = bool(
+                recursive_page_cache.get(
+                    "summary_quantization_finalized", False
+                )
+            )
+            recursive_begin = timing_begin()
+            recursive_out, recursive_lse = (
+                query_major_indexed_residual_page_attention(
+                    q,
+                    state_k,
+                    state_v,
+                    counts,
+                    cache_tensor("leaf_k"),
+                    cache_tensor("leaf_v"),
+                    cache_tensor("page_indices"),
+                    cache_tensor("page_sum_k"),
+                    cache_tensor("page_sum_v"),
+                    cache_tensor("page_counts"),
+                    slot_pages,
+                    overflow_page_keys,
+                    overflow_page_values,
+                    overflow_used,
+                    slot_lengths,
+                    top_slots,
+                    kv_group_size=kv_group_size,
+                    scale=scale,
+                    hash_probes=hash_probes,
+                    page_block_n=block_n,
+                    num_warps=num_warps,
+                    waves_per_eu=waves_per_eu,
+                    quantized_leaf_k=(
+                        cache_tensor("quantized_leaf_k")
+                        if quantized_attention
+                        else None
+                    ),
+                    quantized_leaf_v=(
+                        cache_tensor("quantized_leaf_v")
+                        if quantized_attention
+                        else None
+                    ),
+                    page_k_scales=(
+                        cache_tensor("page_k_scales")
+                        if quantized_attention
+                        else None
+                    ),
+                    page_v_scales=(
+                        cache_tensor("page_v_scales")
+                        if quantized_attention
+                        else None
+                    ),
+                    page_quantized_counts=(
+                        cache_tensor("page_quantized_counts")
+                        if quantized_attention
+                        else None
+                    ),
+                    quantized_page_sum_k=(
+                        cache_tensor("quantized_page_sum_k")
+                        if quantized_summaries
+                        else None
+                    ),
+                    quantized_page_sum_v=(
+                        cache_tensor("quantized_page_sum_v")
+                        if quantized_summaries
+                        else None
+                    ),
+                    page_sum_k_scales=(
+                        cache_tensor("page_sum_k_scales")
+                        if quantized_summaries
+                        else None
+                    ),
+                    page_sum_v_scales=(
+                        cache_tensor("page_sum_v_scales")
+                        if quantized_summaries
+                        else None
+                    ),
+                    quant_group_size=recursive_quant_group_size,
+                    output_buffer=partial_out,
+                    lse_buffer=partial_lse,
+                    route_parallel=True,
+                )
+            )
+            timing_end("recursive_leaf", recursive_begin)
+            final_reduce_begin = timing_begin()
+            _reduce_routed_split_decode_lod_attention_kernel[
+                (batch * query_heads,)
+            ](
+                q,
+                sink_k,
+                sink_v,
+                state_k,
+                state_v,
+                counts,
+                top_slots,
+                buffers["route_top_scores"],
+                buffers["coarse_out"],
+                buffers["coarse_lse"],
+                recursive_out,
+                recursive_lse,
+                buffers["route_local_out"],
+                buffers["route_local_lse"],
+                output,
+                sink_k.stride(0),
+                sink_k.stride(1),
+                sink_k.stride(2),
+                sink_v.stride(0),
+                sink_v.stride(1),
+                sink_v.stride(2),
+                state_k.stride(0),
+                state_k.stride(1),
+                state_k.stride(2),
+                state_v.stride(0),
+                state_v.stride(1),
+                state_v.stride(2),
+                counts.stride(0),
+                counts.stride(1),
+                counts.stride(2),
+                QUERY_HEADS=query_heads,
+                KV_GROUP_SIZE=kv_group_size,
+                HEAD_DIM=head_dim,
+                ROUTE_COUNT=int(top_slots.size(-1)),
+                SPLITS=split_kv,
+                INCLUDE_SEPARATE_LOCAL=True,
+                INCLUDE_SINK=include_sink,
+                SINK_LEN=int(sink_k.size(2)),
+                SCALE=float(scale),
+                USE_DOT=score_use_dot,
+                num_warps=final_reduce_num_warps,
+                waves_per_eu=waves_per_eu,
+            )
+            timing_end("final_reduce", final_reduce_begin)
+            return output
         fused_completion = (
             buffers["completion"]
             if fuse_state_route and fuse_final_reduce

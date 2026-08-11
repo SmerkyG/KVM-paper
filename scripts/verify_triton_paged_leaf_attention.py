@@ -919,6 +919,79 @@ def verify_residual_page_attention(device: torch.device) -> None:
     )
     torch.testing.assert_close(indexed_lse, expected_lse, rtol=2e-4, atol=2e-4)
 
+    parallel_out, parallel_lse = query_major_indexed_residual_page_attention(
+        q[..., :1, :].contiguous(),
+        state_k,
+        state_v,
+        state_counts,
+        leaf_k,
+        leaf_v,
+        page_indices,
+        page_sum_k,
+        page_sum_v,
+        page_counts,
+        slot_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        slot_lengths,
+        top_slots[..., :1, :].contiguous(),
+        kv_group_size=query_heads // kv_heads,
+        scale=scale,
+        hash_probes=0,
+        page_block_n=16,
+        route_parallel=True,
+    )
+    for route in range(int(top_slots.size(-1))):
+        route_out, route_lse = query_major_indexed_residual_page_attention(
+            q[..., :1, :].contiguous(),
+            state_k,
+            state_v,
+            state_counts,
+            leaf_k,
+            leaf_v,
+            page_indices,
+            page_sum_k,
+            page_sum_v,
+            page_counts,
+            slot_pages,
+            overflow_page_keys,
+            overflow_page_values,
+            overflow_used,
+            slot_lengths,
+            top_slots[..., :1, route : route + 1].contiguous(),
+            kv_group_size=query_heads // kv_heads,
+            scale=scale,
+            hash_probes=0,
+            page_block_n=16,
+        )
+        torch.testing.assert_close(
+            parallel_out[..., route : route + 1, :].float(),
+            route_out.float(),
+            rtol=2e-2,
+            atol=8e-3,
+        )
+        torch.testing.assert_close(
+            parallel_lse[..., route : route + 1],
+            route_lse,
+            rtol=2e-4,
+            atol=2e-4,
+        )
+    parallel_weights = parallel_lse.softmax(dim=-1).to(parallel_out.dtype)
+    parallel_merged = (
+        parallel_out * parallel_weights.unsqueeze(-1)
+    ).sum(dim=-2, keepdim=True)
+    torch.testing.assert_close(
+        parallel_merged.float(), indexed_out[..., :1, :].float(),
+        rtol=2e-2, atol=8e-3,
+    )
+    torch.testing.assert_close(
+        parallel_lse.logsumexp(dim=-1, keepdim=True),
+        indexed_lse[..., :1],
+        rtol=2e-4,
+        atol=2e-4,
+    )
+
 
 def compare_large_gqa_route(device: torch.device) -> dict[str, float]:
     batch, query_heads, kv_heads, state_len, head_dim = 1, 8, 2, 2048, 256

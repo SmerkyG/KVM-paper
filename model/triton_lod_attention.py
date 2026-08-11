@@ -2636,14 +2636,24 @@ class TritonLODAttentionCore(nn.Module):
                 raise ValueError(
                     "dynamic LOD opening is not implemented for recursive page prefill"
                 )
+        indexed_recursive_decode = bool(
+            page_cache is not None
+            and self.recursive_page_lod
+            and isinstance(page_cache.get("page_indices"), torch.Tensor)
+        )
         fuse_decode_route = (
             self.fused_decode_attention
             and self.fused_decode_state_route
             and int(q.size(2)) == 1
             and self.leaf_attention_backend == "paged"
-            and not (
-                page_cache is not None
-                and isinstance(page_cache.get("page_indices"), torch.Tensor)
+            and (
+                indexed_recursive_decode
+                or not (
+                    page_cache is not None
+                    and isinstance(
+                        page_cache.get("page_indices"), torch.Tensor
+                    )
+                )
             )
             and self.two_level_topk <= 8
             and (
@@ -2703,16 +2713,25 @@ class TritonLODAttentionCore(nn.Module):
             self.fused_decode_attention
             and int(q.size(2)) == 1
             and self.leaf_attention_backend == "paged"
-            and not (
-                page_cache is not None
-                and isinstance(page_cache.get("page_indices"), torch.Tensor)
+            and (
+                indexed_recursive_decode
+                or not (
+                    page_cache is not None
+                    and isinstance(
+                        page_cache.get("page_indices"), torch.Tensor
+                    )
+                )
             )
             and (sink_k is None or fuse_decode_route)
         ):
             if page_cache is None:
                 raise RuntimeError("paged LOD attention has no leaf page cache")
-            page_k = page_cache["page_k"]
-            page_v = page_cache["page_v"]
+            page_k = page_cache[
+                "leaf_k" if indexed_recursive_decode else "page_k"
+            ]
+            page_v = page_cache[
+                "leaf_v" if indexed_recursive_decode else "page_v"
+            ]
             slot_pages = page_cache["slot_pages"]
             overflow_page_keys = page_cache["overflow_page_keys"]
             overflow_page_values = page_cache["overflow_page_values"]
@@ -2823,6 +2842,10 @@ class TritonLODAttentionCore(nn.Module):
                     and fuse_decode_route
                 ),
                 timing_events=getattr(self, "_lod_decode_timing_events", None),
+                recursive_page_cache=(
+                    page_cache if indexed_recursive_decode else None
+                ),
+                recursive_quant_group_size=self.leaf_quant_group_size,
             )
         if top_slots is None:
             raise AssertionError("LOD routing did not produce slots")
