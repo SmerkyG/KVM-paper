@@ -198,6 +198,10 @@ class HFLODCacheLayer(CacheLayerMixin):
         self._owner_cache = weakref.ref(cache)
 
     @property
+    def batch_size(self) -> int:
+        return self._batch_size
+
+    @property
     def max_batch_size(self) -> int:
         return self._batch_size
 
@@ -344,8 +348,11 @@ class HFLODCacheLayer(CacheLayerMixin):
     def get_seq_length(self) -> int:
         return self.total_length
 
-    def get_max_cache_shape(self) -> int:
+    def get_max_length(self) -> int:
         return -1
+
+    def get_max_cache_shape(self) -> int:
+        return self.get_max_length()
 
     def reset(self) -> None:
         module = self._module()

@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import functools
+import inspect
 import json
 import os
 import random
@@ -23,7 +25,7 @@ from model.qwen35_two_level_attention import (
 
 
 def enable_fla_fast_path(*, required: bool = False) -> bool:
-    """Work around Transformers 5.3 checking the obsolete `fla` dist name."""
+    """Install FLA callables at the Qwen3.5 hook points used by Transformers."""
     try:
         from fla.modules import FusedRMSNormGated
         from fla.ops.gated_delta_rule import (
@@ -37,48 +39,73 @@ def enable_fla_fast_path(*, required: bool = False) -> bool:
                 "project's `qwen35-fast-path` extra"
             ) from error
         return False
-    qwen35_modeling.FusedRMSNormGated = FusedRMSNormGated
-    qwen35_modeling.chunk_gated_delta_rule = chunk_gated_delta_rule
-    qwen35_modeling.fused_recurrent_gated_delta_rule = fused_recurrent_gated_delta_rule
+
+    def compatible(function):
+        parameters = frozenset(inspect.signature(function).parameters)
+
+        @functools.wraps(function)
+        def wrapped(*args, **kwargs):
+            return function(
+                *args,
+                **{
+                    name: value
+                    for name, value in kwargs.items()
+                    if name in parameters
+                },
+            )
+
+        return wrapped
+
+    chunk_gated_delta_rule = compatible(chunk_gated_delta_rule)
+    fused_recurrent_gated_delta_rule = compatible(
+        fused_recurrent_gated_delta_rule
+    )
+    qwen35_modeling.Qwen3_5RMSNormGated = FusedRMSNormGated
+    qwen35_modeling.torch_chunk_gated_delta_rule = chunk_gated_delta_rule
+    qwen35_modeling.torch_recurrent_gated_delta_rule = (
+        fused_recurrent_gated_delta_rule
+    )
     return True
 
 
 def require_qwen35_acceleration(model: torch.nn.Module) -> dict[str, bool | int]:
     """Verify the FLA and causal-convolution callables used by speed runs."""
+    def uses_module(function, prefix: str) -> bool:
+        if getattr(function, "__module__", "").startswith(prefix):
+            return True
+        return any(
+            getattr(cell.cell_contents, "__module__", "").startswith(prefix)
+            for cell in (getattr(function, "__closure__", None) or ())
+        )
+
     linear_layers = [
         module
         for module in model.modules()
         if module.__class__.__name__ == "Qwen3_5GatedDeltaNet"
     ]
+    has_linear_layers = bool(linear_layers)
     acceleration: dict[str, bool | int] = {
         "linear_layer_count": len(linear_layers),
-        "fla_gated_delta_rule": bool(linear_layers)
-        and all(
-            getattr(module.chunk_gated_delta_rule, "__module__", "").startswith(
-                "fla."
-            )
-            for module in linear_layers
+        "fla_gated_delta_rule": has_linear_layers
+        and uses_module(
+            qwen35_modeling.torch_chunk_gated_delta_rule, "fla."
         ),
-        "fla_recurrent_gated_delta_rule": bool(linear_layers)
-        and all(
-            getattr(
-                module.recurrent_gated_delta_rule, "__module__", ""
-            ).startswith("fla.")
-            for module in linear_layers
+        "fla_recurrent_gated_delta_rule": has_linear_layers
+        and uses_module(
+            qwen35_modeling.torch_recurrent_gated_delta_rule, "fla."
         ),
-        "fla_fused_rms_norm_gated": bool(linear_layers)
+        "fla_fused_rms_norm_gated": has_linear_layers
         and all(
             module.norm.__class__.__module__.startswith("fla.")
             for module in linear_layers
         ),
-        "causal_conv1d_prefill": bool(linear_layers)
-        and all(module.causal_conv1d_fn is not None for module in linear_layers),
-        "causal_conv1d_decode": bool(linear_layers)
-        and all(
-            getattr(module.causal_conv1d_update, "__module__", "").startswith(
-                "causal_conv1d"
-            )
-            for module in linear_layers
+        "causal_conv1d_prefill": has_linear_layers
+        and uses_module(
+            qwen35_modeling.causal_conv1d_fn, "causal_conv1d"
+        ),
+        "causal_conv1d_decode": has_linear_layers
+        and uses_module(
+            qwen35_modeling.causal_conv1d_update, "causal_conv1d"
         ),
     }
     required = (

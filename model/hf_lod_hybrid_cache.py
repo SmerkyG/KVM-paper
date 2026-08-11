@@ -112,12 +112,19 @@ class HybridHFLODCache:
             return self.native_cache.get_mask_sizes(length, layer_idx)
         return self.get_seq_length() + length, 0
 
-    def get_max_cache_shape(self, layer_idx: int = 0) -> int:
+    def get_max_length(self, layer_idx: int | None = None) -> int:
+        if layer_idx is None:
+            return max(
+                layer.get_max_length() for layer in self.lod_layers.values()
+            )
         layer = self.lod_layers.get(layer_idx)
         if layer is not None:
-            return int(layer.get_max_cache_shape())
-        native = getattr(self.native_cache, "get_max_cache_shape", None)
+            return int(layer.get_max_length())
+        native = getattr(self.native_cache, "get_max_length", None)
         return int(native(layer_idx)) if callable(native) else -1
+
+    def get_max_cache_shape(self, layer_idx: int = 0) -> int:
+        return self.get_max_length(layer_idx)
 
     def reorder_cache(self, beam_idx: torch.LongTensor) -> None:
         native = getattr(self.native_cache, "reorder_cache", None)

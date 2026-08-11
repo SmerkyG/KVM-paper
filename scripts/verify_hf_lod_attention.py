@@ -284,7 +284,7 @@ def _check_beam_reorder() -> None:
         num_beams=2,
         do_sample=False,
     )
-    if output.shape != (1, 13) or cache.max_batch_size != 2:
+    if output.shape != (1, 13) or cache.batch_size != 2:
         raise AssertionError("beam generation did not reorder the LOD cache")
     print("beam expansion and cache reordering passed")
 
@@ -318,6 +318,13 @@ def _check_automatic_padded_generation() -> None:
 @torch.no_grad()
 def _check_hybrid_cache() -> None:
     torch.manual_seed(35)
+    # The optional causal-conv package is GPU-only, but Transformers resolves it
+    # eagerly when installed.  Keep this CPU protocol test on its torch fallback.
+    from transformers.models.qwen3_5 import modeling_qwen3_5
+
+    for name in ("causal_conv1d_fn", "causal_conv1d_update"):
+        function = getattr(modeling_qwen3_5, name)
+        setattr(modeling_qwen3_5, name, getattr(function, "__wrapped__", function))
     config = Qwen3_5TextConfig(
         vocab_size=64,
         hidden_size=32,

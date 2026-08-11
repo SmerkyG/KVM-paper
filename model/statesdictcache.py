@@ -92,9 +92,12 @@ class StatesDictLayer(CacheLayerMixin):
         # Return a tuple (kv_length, kv_offset) corresponding to the length and offset that will be returned for the given layer at layer_idx. The masks are then prepared according to the given lengths (kv_length, kv_offset) and patterns for each layer.
         return 0, 0
 
-    def get_max_cache_shape(self) -> int:
+    def get_max_length(self) -> int:
         # Returns maximum sequence length of the cache object. Dynamic caches do not have a maximum length.
         return -1
+
+    def get_max_cache_shape(self) -> int:
+        return self.get_max_length()
 
     def offload(self):
         def to_cpu(x):
