@@ -331,8 +331,15 @@ class HFLODCacheLayer(CacheLayerMixin):
             self.pending_value = None
             module._hf_lod_active_cache_layer = None
 
-    def get_mask_sizes(self, cache_position: torch.Tensor) -> tuple[int, int]:
-        return self.total_length + int(cache_position.shape[0]), 0
+    def get_mask_sizes(
+        self, query_length: int | torch.Tensor
+    ) -> tuple[int, int]:
+        length = (
+            int(query_length.shape[0])
+            if isinstance(query_length, torch.Tensor)
+            else int(query_length)
+        )
+        return self.total_length + length, 0
 
     def get_seq_length(self) -> int:
         return self.total_length

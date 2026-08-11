@@ -370,9 +370,18 @@ def _check_hybrid_cache() -> None:
         raise AssertionError("hybrid LOD prefill produced non-finite logits")
     if not bool(torch.isfinite(decoded.logits).all()):
         raise AssertionError("hybrid LOD decode produced non-finite logits")
-    if cache.get_seq_length() != 9 or not cache.has_previous_state:
+    has_previous_state = cache.has_previous_state
+    if callable(has_previous_state):
+        has_previous_state = has_previous_state()
+    if cache.get_seq_length() != 9 or not has_previous_state:
         raise AssertionError("hybrid recurrent/LOD cache lengths diverged")
-    if any(item is not None for item in cache.key_cache + cache.value_cache):
+    native_attention_values = []
+    for layer_idx, layer in enumerate(cache.native_cache.layers):
+        if layer_idx in cache.lod_layers:
+            native_attention_values.extend(
+                (getattr(layer, "keys", None), getattr(layer, "values", None))
+            )
+    if any(item is not None for item in native_attention_values):
         raise AssertionError("hybrid native cache retained duplicate attention K/V")
     generated = model.generate(
         token,

@@ -88,7 +88,7 @@ class StatesDictLayer(CacheLayerMixin):
         # Returns the sequence length of the cache for the given layer.
         return self._seen_tokens
 
-    def get_mask_sizes(self, cache_position: torch.Tensor) -> tuple[int, int]:
+    def get_mask_sizes(self, query_length: int | torch.Tensor) -> tuple[int, int]:
         # Return a tuple (kv_length, kv_offset) corresponding to the length and offset that will be returned for the given layer at layer_idx. The masks are then prepared according to the given lengths (kv_length, kv_offset) and patterns for each layer.
         return 0, 0
 

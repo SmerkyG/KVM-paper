@@ -82,22 +82,35 @@ class HybridHFLODCache:
         layer = self.lod_layers.get(layer_idx) if layer_idx is not None else None
         if layer is not None:
             return int(layer.get_seq_length())
-        if isinstance(getattr(self.native_cache, "layers", None), list):
-            return int(self.native_cache.get_seq_length(layer_idx or 0))
+        native_layers = getattr(self.native_cache, "layers", None)
+        if isinstance(native_layers, list) and layer_idx is not None:
+            native_layer = (
+                native_layers[layer_idx]
+                if 0 <= layer_idx < len(native_layers)
+                else None
+            )
+            native_length = getattr(native_layer, "get_seq_length", None)
+            if callable(native_length):
+                return int(native_length())
         # Hybrid models commonly ask a recurrent layer (or layer zero) for the
         # global decoded length.  Native recurrent state has no sequence axis,
         # so use any LOD layer as the authoritative logical length.
         return int(next(iter(self.lod_layers.values())).get_seq_length())
 
     def get_mask_sizes(
-        self, cache_position: torch.Tensor, layer_idx: int
+        self, query_length: int | torch.Tensor, layer_idx: int
     ) -> tuple[int, int]:
+        length = (
+            int(query_length.shape[0])
+            if isinstance(query_length, torch.Tensor)
+            else int(query_length)
+        )
         layer = self.lod_layers.get(layer_idx)
         if layer is not None:
-            return layer.get_mask_sizes(cache_position)
+            return layer.get_mask_sizes(length)
         if isinstance(getattr(self.native_cache, "layers", None), list):
-            return self.native_cache.get_mask_sizes(cache_position, layer_idx)
-        return self.get_seq_length() + int(cache_position.shape[0]), 0
+            return self.native_cache.get_mask_sizes(length, layer_idx)
+        return self.get_seq_length() + length, 0
 
     def get_max_cache_shape(self, layer_idx: int = 0) -> int:
         layer = self.lod_layers.get(layer_idx)
@@ -201,11 +214,9 @@ def maybe_new_hybrid_hf_lod_cache(model: nn.Module):
         for layer_idx, (module, settings) in indexed.items()
     }
     if config_module.startswith("transformers.models.qwen3_5."):
-        from transformers.models.qwen3_5.modeling_qwen3_5 import (
-            Qwen3_5DynamicCache,
-        )
+        from transformers import DynamicCache
 
-        native_cache = Qwen3_5DynamicCache(text_config)
+        native_cache = DynamicCache(config=text_config)
     else:
         layer_types = getattr(text_config, "layer_types", None)
         lod_indices = set(indexed)
