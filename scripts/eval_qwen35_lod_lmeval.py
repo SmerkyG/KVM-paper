@@ -77,8 +77,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--two-level-topk", type=int, default=8)
     parser.add_argument("--state-growth-factor", type=float, default=16.0)
     parser.add_argument("--recursive-page-lod", action="store_true")
-    parser.add_argument("--recursive-page-block-n", type=int, default=16)
-    parser.add_argument("--leaf-num-warps", type=int, default=2)
+    parser.add_argument("--recursive-page-block-n", type=int, default=4)
+    parser.add_argument("--leaf-num-warps", type=int, default=1)
     parser.add_argument("--leaf-key-quant-bits", type=int, choices=(0, 4), default=0)
     parser.add_argument("--leaf-value-quant-bits", type=int, choices=(0, 4), default=0)
     parser.add_argument("--leaf-quant-group-size", type=int, default=32)
@@ -96,7 +96,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prefill-chunk-length", type=int)
     parser.add_argument("--prefill-local-length", type=int)
     parser.add_argument("--prefill-state-update-length", type=int)
-    parser.add_argument("--split-prefill-local-attention", action="store_true")
+    parser.add_argument(
+        "--split-prefill-local-attention",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
     parser.add_argument("--limit", type=int)
     parser.add_argument("--sample-start", type=int)
     parser.add_argument("--sample-count", type=int)

@@ -25,12 +25,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--sequence-length", type=int, default=32768)
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--two-level-topk", type=int, default=8)
-    parser.add_argument("--prefill-two-level-topk", type=int)
+    parser.add_argument("--prefill-two-level-topk", type=int, default=3)
     parser.add_argument("--prefill-max-leaf-tokens", type=int)
     parser.add_argument("--recursive-page-lod", action="store_true")
     parser.add_argument("--virtual-page-storage", action="store_true")
-    parser.add_argument("--recursive-page-block-n", type=int, default=16)
-    parser.add_argument("--leaf-num-warps", type=int, default=2)
+    parser.add_argument("--recursive-page-block-n", type=int, default=4)
+    parser.add_argument("--leaf-num-warps", type=int, default=1)
     parser.add_argument("--page-summary-quant-bits", type=int, choices=(0, 8), default=8)
     parser.add_argument("--state-growth-factor", type=float, default=8.0)
     parser.add_argument("--prefill-chunk-length", type=int)
@@ -41,10 +41,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--merge-before-append", action="store_true")
     parser.add_argument("--append-subblock-size", type=int, default=0)
     parser.add_argument("--union-bipartite-state", action="store_true")
-    parser.add_argument("--split-prefill-local-attention", action="store_true")
+    parser.add_argument(
+        "--split-prefill-local-attention",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
     parser.add_argument("--dynamic-open-prefill-residual-mass", type=float)
     parser.add_argument("--fused-prefill-residual-opening", action="store_true")
-    parser.add_argument("--enable-fused-prefill-route-coarse", action="store_true")
+    parser.add_argument(
+        "--fused-prefill-route-coarse",
+        "--enable-fused-prefill-route-coarse",
+        dest="enable_fused_prefill_route_coarse",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
     parser.add_argument("--disable-fused-state-update", action="store_true")
     parser.add_argument("--enable-fused-state-update", action="store_true")
     parser.add_argument("--disable-fused-state-routing", action="store_true")
@@ -57,7 +67,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--disable-coarse-gqa", action="store_true")
     parser.add_argument("--disable-compact-coarse-bias", action="store_true")
     parser.add_argument("--reuse-route-logits", action="store_true")
-    parser.add_argument("--coarse-route-block-m", type=int, default=4)
+    parser.add_argument("--coarse-route-block-m", type=int, default=16)
     parser.add_argument("--coarse-route-block-n", type=int, default=32)
     parser.add_argument("--coarse-route-num-warps", type=int, default=4)
     parser.add_argument("--route-gqa-matmul", action="store_true")

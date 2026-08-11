@@ -36,6 +36,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--decode-tokens", type=int, default=32)
     parser.add_argument("--prolong", action="store_true")
     parser.add_argument("--recursive-pages", action="store_true")
+    parser.add_argument("--speed-only", action="store_true")
     parser.add_argument("--output", type=Path, required=True)
     return parser.parse_args()
 
@@ -64,6 +65,7 @@ def run_once(
         attention_mask=attention_mask,
         past_key_values=cache,
         use_cache=True,
+        **({} if collect_quality else {"logits_to_keep": 1}),
     )
     torch.cuda.synchronize()
     prefill_seconds = time.perf_counter() - begin
@@ -75,10 +77,9 @@ def run_once(
         ).view_as(token[:, 1:])
         valid_prediction = attention_mask[:, :-1].bool()
         prefill_ce = token_losses[valid_prediction].mean().item()
-        prefill_last_logits = output.logits[:, -1].float().cpu()
     else:
         prefill_ce = None
-        prefill_last_logits = None
+    prefill_last_logits = output.logits[:, -1].float().cpu()
 
     decode_mask = attention_mask
     next_token = output.logits[:, -1:].argmax(dim=-1)
@@ -205,7 +206,7 @@ def main() -> None:
             token,
             attention_mask,
             decode_tokens=args.decode_tokens,
-            collect_quality=True,
+            collect_quality=not args.speed_only,
         )
         final_logits[mode] = result.pop("final_logits")
         prefill_logits[mode] = result.pop("prefill_last_logits")
@@ -222,6 +223,7 @@ def main() -> None:
         "decode_tokens": args.decode_tokens,
         "prolong": args.prolong,
         "recursive_pages": args.recursive_pages,
+        "speed_only": args.speed_only,
         "acceleration": acceleration,
         "measurements": measurements,
         "aligned_vs_exact": {

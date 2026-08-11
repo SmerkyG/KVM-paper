@@ -19,6 +19,19 @@ from .triton_lod_attention import TritonLODAttentionCore
 class Qwen3_5TwoLevelAttention(TritonLODAttentionCore, Qwen3_5Attention):
     """Compatibility wrapper retaining the original direct Qwen graft."""
 
+    # Prefill uses large exact-local regions, then catches the recurrent state
+    # up in smaller batches.  Decode keeps the core's 256/512 geometry.
+    prefill_chunk_len = 4096
+    prefill_local_len = 4864
+    prefill_state_update_len = 1280
+    prefill_two_level_topk = 3
+    split_prefill_local_attention = True
+    leaf_num_warps = 1
+    recursive_page_block_n = 4
+    coarse_route_block_m = 16
+    coarse_route_num_warps = 4
+    fused_prefill_route_coarse = True
+
     def __init__(self, config, layer_idx: int) -> None:
         Qwen3_5Attention.__init__(self, config, layer_idx)
 
@@ -63,25 +76,33 @@ class Qwen3_5TwoLevelAttention(TritonLODAttentionCore, Qwen3_5Attention):
                 else int(self._lod_state["total_len"]) + query_len
             )
         )
+        cache_layers = getattr(past_key_values, "layers", ())
+        first_attention_layer = next(
+            (
+                layer_idx
+                for layer_idx, layer in enumerate(cache_layers)
+                if hasattr(layer, "keys")
+            ),
+            None,
+        )
         if (
-            past_key_values is not None
-            and self.layer_idx == past_key_values.transformer_layers[0]
+            first_attention_layer is not None
+            and self.layer_idx == first_attention_layer
         ):
-            metadata_shape = (int(key_states.size(0)), 0, total_len, 0)
-            metadata_key = past_key_values.key_cache[self.layer_idx]
-            metadata_value = past_key_values.value_cache[self.layer_idx]
-            if metadata_key is None:
-                past_key_values.key_cache[self.layer_idx] = key_states.new_empty(
-                    metadata_shape
-                )
-                past_key_values.value_cache[self.layer_idx] = value_states.new_empty(
-                    metadata_shape
-                )
-            else:
-                metadata_key.resize_(metadata_shape)
-                if metadata_value is None:
-                    raise AssertionError("Qwen3.5 LOD metadata V cache is missing")
-                metadata_value.resize_(metadata_shape)
+            # Transformers 5.15 obtains the global hybrid-cache length from the
+            # first ordinary attention layer.  Expanded scalar markers preserve
+            # that logical length without retaining Qwen's duplicate full KV.
+            metadata_shape = (int(key_states.size(0)), 1, total_len, 1)
+            cache_layer = cache_layers[self.layer_idx]
+            cache_layer.keys = key_states.new_empty((1, 1, 1, 1)).expand(
+                metadata_shape
+            )
+            cache_layer.values = value_states.new_empty((1, 1, 1, 1)).expand(
+                metadata_shape
+            )
+            cache_layer.dtype = key_states.dtype
+            cache_layer.device = key_states.device
+            cache_layer.is_initialized = True
         if is_prefill:
             attention_output = self._prefill_attention(
                 query_states, key_states, value_states

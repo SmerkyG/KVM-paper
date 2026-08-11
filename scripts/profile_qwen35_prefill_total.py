@@ -37,7 +37,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prefill-microbatch-size", type=int)
     parser.add_argument("--two-level-topk", type=int, default=8)
     parser.add_argument("--separate-sink-cache", action="store_true")
-    parser.add_argument("--prefill-two-level-topk", type=int)
+    parser.add_argument("--prefill-two-level-topk", type=int, default=3)
     parser.add_argument("--prefill-max-leaf-tokens", type=int)
     parser.add_argument("--dynamic-open-top-p", type=float)
     parser.add_argument("--dynamic-open-prefill-top-p", type=float)
@@ -53,8 +53,8 @@ def parse_args() -> argparse.Namespace:
         default="paged",
     )
     parser.add_argument("--virtual-page-storage", action="store_true")
-    parser.add_argument("--recursive-page-block-n", type=int, default=16)
-    parser.add_argument("--leaf-num-warps", type=int, default=2)
+    parser.add_argument("--recursive-page-block-n", type=int, default=4)
+    parser.add_argument("--leaf-num-warps", type=int, default=1)
     parser.add_argument("--leaf-key-quant-bits", type=int, choices=(0, 4), default=0)
     parser.add_argument("--leaf-value-quant-bits", type=int, choices=(0, 4), default=0)
     parser.add_argument("--leaf-quant-group-size", type=int, default=32)
@@ -86,6 +86,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--decode-state-update-length", type=int, default=256)
     parser.add_argument("--decode-cache-headroom", type=int, default=256)
     parser.add_argument("--profile-decode-kernels", action="store_true")
+    parser.add_argument("--profile-prefill-kernels", action="store_true")
     parser.add_argument("--disable-fused-decode", action="store_true")
     parser.add_argument("--disable-fused-decode-state-route", action="store_true")
     parser.add_argument("--no-clone-decode-routes", action="store_true")
@@ -107,6 +108,11 @@ def parse_args() -> argparse.Namespace:
         default=None,
     )
     parser.add_argument("--enable-fused-state-update", action="store_true")
+    parser.add_argument(
+        "--fused-state-routing",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+    )
     parser.add_argument("--fused-state-maxsim", action="store_true")
     parser.add_argument("--state-maxsim-block-m", type=int, default=16)
     parser.add_argument("--state-maxsim-block-n", type=int, default=32)
@@ -118,10 +124,20 @@ def parse_args() -> argparse.Namespace:
         action=argparse.BooleanOptionalAction,
         default=None,
     )
-    parser.add_argument("--enable-fused-prefill-route-coarse", action="store_true")
-    parser.add_argument("--split-prefill-local-attention", action="store_true")
+    parser.add_argument(
+        "--fused-prefill-route-coarse",
+        "--enable-fused-prefill-route-coarse",
+        dest="enable_fused_prefill_route_coarse",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument(
+        "--split-prefill-local-attention",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
     parser.add_argument("--fused-prefill-residual-opening", action="store_true")
-    parser.add_argument("--coarse-route-block-m", type=int, default=4)
+    parser.add_argument("--coarse-route-block-m", type=int, default=16)
     parser.add_argument("--coarse-route-block-n", type=int, default=32)
     parser.add_argument("--coarse-route-num-warps", type=int, default=4)
     parser.add_argument("--route-gqa-matmul", action="store_true")
@@ -526,6 +542,8 @@ def main() -> None:
                     module.decode_route_gqa_grouped = args.decode_route_gqa_grouped
                 if args.enable_fused_state_update:
                     module.fused_state_update = True
+                if args.fused_state_routing is not None:
+                    module.fused_state_routing = args.fused_state_routing
                 module.coarse_enable_gqa = not args.disable_coarse_gqa
                 module.coarse_compact_bias = not args.disable_compact_coarse_bias
                 if args.reuse_route_logits is not None:
@@ -707,6 +725,39 @@ def main() -> None:
                 cache_memory_gib = cache_memory_breakdown(model, cache)
                 cache_statistics = lod_cache_statistics(model)
             del result, cache
+
+        prefill_kernel_profile = []
+        if args.profile_prefill_kernels:
+            clear_lod_state(model)
+            with torch.profiler.profile(
+                activities=(
+                    torch.profiler.ProfilerActivity.CPU,
+                    torch.profiler.ProfilerActivity.CUDA,
+                )
+            ) as profiler:
+                profile_prefill = prefill()
+                torch.cuda.synchronize(device)
+            del profile_prefill
+            for event in profiler.key_averages():
+                device_us = float(
+                    getattr(
+                        event,
+                        "self_device_time_total",
+                        getattr(event, "self_cuda_time_total", 0.0),
+                    )
+                )
+                if device_us > 0.0:
+                    prefill_kernel_profile.append(
+                        {
+                            "name": event.key,
+                            "calls": int(event.count),
+                            "self_device_time_us": device_us,
+                        }
+                    )
+            prefill_kernel_profile.sort(
+                key=lambda entry: entry["self_device_time_us"], reverse=True
+            )
+            prefill_kernel_profile = prefill_kernel_profile[:40]
 
         kernel_profile = []
         if args.profile_decode_kernels:
@@ -1044,6 +1095,7 @@ def main() -> None:
             else None
         ),
         "decode_kernel_profile": kernel_profile,
+        "prefill_kernel_profile": prefill_kernel_profile,
         "cache_memory_gib": cache_memory_gib,
         "cache_statistics": cache_statistics,
         "peak_memory_gib": torch.cuda.max_memory_allocated(device) / (1024**3),

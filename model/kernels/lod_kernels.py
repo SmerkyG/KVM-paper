@@ -24,6 +24,128 @@ def _launch_kwargs(num_warps: int) -> dict[str, int]:
 
 
 @triton.jit
+def _merge_attention_branches_kernel(
+    primary_out,
+    primary_lse,
+    secondary_out,
+    secondary_lse,
+    tertiary_out,
+    tertiary_lse,
+    output,
+    PRIMARY_BATCH_STRIDE,
+    PRIMARY_HEAD_STRIDE,
+    PRIMARY_TOKEN_STRIDE,
+    PRIMARY_LSE_BATCH_STRIDE,
+    PRIMARY_LSE_HEAD_STRIDE,
+    PRIMARY_LSE_TOKEN_STRIDE,
+    SECONDARY_BATCH_STRIDE,
+    SECONDARY_HEAD_STRIDE,
+    SECONDARY_TOKEN_STRIDE,
+    SECONDARY_LSE_BATCH_STRIDE,
+    SECONDARY_LSE_HEAD_STRIDE,
+    SECONDARY_LSE_TOKEN_STRIDE,
+    TERTIARY_BATCH_STRIDE,
+    TERTIARY_HEAD_STRIDE,
+    TERTIARY_TOKEN_STRIDE,
+    TERTIARY_LSE_BATCH_STRIDE,
+    TERTIARY_LSE_HEAD_STRIDE,
+    TERTIARY_LSE_TOKEN_STRIDE,
+    OUTPUT_BATCH_STRIDE,
+    OUTPUT_HEAD_STRIDE,
+    OUTPUT_TOKEN_STRIDE,
+    QUERY_LEN: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    BLOCK_DIM: tl.constexpr,
+    INCLUDE_TERTIARY: tl.constexpr,
+    BLOCK_M: tl.constexpr,
+):
+    """Merge two or three already-normalized attention branches once."""
+    batch = tl.program_id(0).to(tl.int64)
+    head = tl.program_id(1).to(tl.int64)
+    query = tl.program_id(2).to(tl.int64) * BLOCK_M + tl.arange(0, BLOCK_M)
+    query_valid = query < QUERY_LEN
+    dim = tl.arange(0, BLOCK_DIM)
+    dim_valid = dim < HEAD_DIM
+
+    primary_score = tl.load(
+        primary_lse
+        + batch * PRIMARY_LSE_BATCH_STRIDE
+        + head * PRIMARY_LSE_HEAD_STRIDE
+        + query * PRIMARY_LSE_TOKEN_STRIDE,
+        mask=query_valid,
+        other=-float("inf"),
+    ).to(tl.float32)
+    secondary_score = tl.load(
+        secondary_lse
+        + batch * SECONDARY_LSE_BATCH_STRIDE
+        + head * SECONDARY_LSE_HEAD_STRIDE
+        + query * SECONDARY_LSE_TOKEN_STRIDE,
+        mask=query_valid,
+        other=-float("inf"),
+    ).to(tl.float32)
+    maximum = tl.maximum(primary_score, secondary_score)
+    tertiary_score = tl.full((BLOCK_M,), -float("inf"), tl.float32)
+    if INCLUDE_TERTIARY:
+        tertiary_score = tl.load(
+            tertiary_lse
+            + batch * TERTIARY_LSE_BATCH_STRIDE
+            + head * TERTIARY_LSE_HEAD_STRIDE
+            + query * TERTIARY_LSE_TOKEN_STRIDE,
+            mask=query_valid,
+            other=-float("inf"),
+        ).to(tl.float32)
+        maximum = tl.maximum(maximum, tertiary_score)
+
+    primary_weight = tl.exp(primary_score - maximum)
+    secondary_weight = tl.exp(secondary_score - maximum)
+    denominator = primary_weight + secondary_weight
+    primary_value = tl.load(
+        primary_out
+        + batch * PRIMARY_BATCH_STRIDE
+        + head * PRIMARY_HEAD_STRIDE
+        + query[:, None] * PRIMARY_TOKEN_STRIDE
+        + dim[None, :],
+        mask=query_valid[:, None] & dim_valid[None, :],
+        other=0.0,
+    ).to(tl.float32)
+    secondary_value = tl.load(
+        secondary_out
+        + batch * SECONDARY_BATCH_STRIDE
+        + head * SECONDARY_HEAD_STRIDE
+        + query[:, None] * SECONDARY_TOKEN_STRIDE
+        + dim[None, :],
+        mask=query_valid[:, None] & dim_valid[None, :],
+        other=0.0,
+    ).to(tl.float32)
+    numerator = (
+        primary_weight[:, None] * primary_value
+        + secondary_weight[:, None] * secondary_value
+    )
+    if INCLUDE_TERTIARY:
+        tertiary_weight = tl.exp(tertiary_score - maximum)
+        tertiary_value = tl.load(
+            tertiary_out
+            + batch * TERTIARY_BATCH_STRIDE
+            + head * TERTIARY_HEAD_STRIDE
+            + query[:, None] * TERTIARY_TOKEN_STRIDE
+            + dim[None, :],
+            mask=query_valid[:, None] & dim_valid[None, :],
+            other=0.0,
+        ).to(tl.float32)
+        denominator += tertiary_weight
+        numerator += tertiary_weight[:, None] * tertiary_value
+    tl.store(
+        output
+        + batch * OUTPUT_BATCH_STRIDE
+        + head * OUTPUT_HEAD_STRIDE
+        + query[:, None] * OUTPUT_TOKEN_STRIDE
+        + dim[None, :],
+        numerator / denominator[:, None],
+        mask=query_valid[:, None] & dim_valid[None, :],
+    )
+
+
+@triton.jit
 def _merge_attention_branches_with_sink_kernel(
     q,
     sink_k,
@@ -1370,7 +1492,7 @@ def _route_logits_topk_coarse_attention_kernel(
                 tl.interleave(top_packed, block_top), ROUTE_COUNT, dim=1
             )
         else:
-            for _ in tl.static_range(0, ROUTE_COUNT):
+            for _ in tl.static_range(0, OPEN_COUNT):
                 candidate_score = tl.max(remaining_scores, axis=1)
                 candidate_position = tl.min(
                     tl.where(
@@ -1511,7 +1633,7 @@ def _route_logits_topk_coarse_attention_kernel(
             -float("inf"),
             tl.float32,
         )
-        for route in tl.static_range(0, ROUTE_COUNT):
+        for route in tl.static_range(0, OPEN_COUNT):
             candidate_score = tl.max(remaining_scores, axis=1)
             candidate_rank = tl.min(
                 tl.where(
@@ -1564,7 +1686,7 @@ def _route_logits_topk_coarse_attention_kernel(
     # The streamed field included every low-resolution state summary. Remove
     # the selected summaries so their exact leaves can replace them without
     # duplicate attention mass.
-    for route in tl.static_range(0, ROUTE_COUNT):
+    for route in tl.static_range(0, OPEN_COUNT):
         selected_slot = tl.max(
             tl.where(
                 route_rank[None, :] == route,
@@ -1873,6 +1995,7 @@ def _route_state_group_candidates_kernel(
     KV_GROUP_SIZE: tl.constexpr,
     HEAD_DIM: tl.constexpr,
     PROTECTED_LEN: tl.constexpr,
+    TOPK: tl.constexpr,
     BLOCK_M: tl.constexpr,
     BLOCK_N: tl.constexpr,
 ):
@@ -1933,7 +2056,7 @@ def _route_state_group_candidates_kernel(
         + query * PARTIAL_QUERY_STRIDE
         + state_group * PARTIAL_GROUP_STRIDE
     )
-    for rank in tl.static_range(0, 8):
+    for rank in tl.static_range(0, TOPK):
         best_score = tl.max(scores, axis=1)
         best_position = tl.min(
             tl.where(
@@ -1990,6 +2113,7 @@ def _route_score_group_candidates_kernel(
     BLOCK_M: tl.constexpr,
     BLOCK_N: tl.constexpr,
     PROTECTED_LEN: tl.constexpr,
+    TOPK: tl.constexpr,
     STORE_LSE: tl.constexpr,
 ):
     batch = tl.program_id(0).to(tl.int64)
@@ -2048,7 +2172,7 @@ def _route_score_group_candidates_kernel(
         + query * PARTIAL_QUERY_STRIDE
         + state_group * PARTIAL_GROUP_STRIDE
     )
-    for rank in tl.static_range(0, 8):
+    for rank in tl.static_range(0, TOPK):
         best_score = tl.max(scores, axis=1)
         best_position = tl.min(
             tl.where(
@@ -2086,6 +2210,7 @@ def _reduce_route_group_candidates_kernel(
     PARTIAL_BATCH_STRIDE: tl.constexpr,
     PARTIAL_HEAD_STRIDE: tl.constexpr,
     PARTIAL_QUERY_STRIDE: tl.constexpr,
+    PARTIAL_GROUP_STRIDE: tl.constexpr,
     PARTIAL_LSE_BATCH_STRIDE: tl.constexpr,
     PARTIAL_LSE_HEAD_STRIDE: tl.constexpr,
     PARTIAL_LSE_QUERY_STRIDE: tl.constexpr,
@@ -2099,6 +2224,7 @@ def _reduce_route_group_candidates_kernel(
     query_len,
     active_groups,
     TOPK: tl.constexpr,
+    GROUP_CANDIDATES: tl.constexpr,
     MAX_GROUPS: tl.constexpr,
     BLOCK_M: tl.constexpr,
     CANDIDATE_BLOCK: tl.constexpr,
@@ -2110,12 +2236,15 @@ def _reduce_route_group_candidates_kernel(
     query = query_block * BLOCK_M + tl.arange(0, BLOCK_M)
     candidate = tl.arange(0, CANDIDATE_BLOCK)
     query_valid = query < query_len
-    candidate_valid = candidate < active_groups * 8
+    candidate_valid = candidate < active_groups * GROUP_CANDIDATES
+    candidate_group = candidate // GROUP_CANDIDATES
+    candidate_rank = candidate - candidate_group * GROUP_CANDIDATES
     partial_offset = (
         batch * PARTIAL_BATCH_STRIDE
         + q_head * PARTIAL_HEAD_STRIDE
         + query[:, None] * PARTIAL_QUERY_STRIDE
-        + candidate[None, :]
+        + candidate_group[None, :] * PARTIAL_GROUP_STRIDE
+        + candidate_rank[None, :]
     )
     scores = tl.load(
         partial_scores + partial_offset,
@@ -2133,7 +2262,7 @@ def _reduce_route_group_candidates_kernel(
         + q_head * OUTPUT_HEAD_STRIDE
         + query * OUTPUT_TOKEN_STRIDE
     )
-    for rank in tl.static_range(0, 8):
+    for rank in tl.static_range(0, TOPK):
         best_score = tl.max(scores, axis=1)
         best_position = tl.min(
             tl.where(
@@ -2151,8 +2280,7 @@ def _reduce_route_group_candidates_kernel(
             ),
             axis=1,
         )
-        if rank < TOPK:
-            tl.store(output_base + rank, best_index, mask=query_valid)
+        tl.store(output_base + rank, best_index, mask=query_valid)
         scores = tl.where(
             candidate[None, :] == best_position[:, None],
             -float("inf"),
@@ -3228,11 +3356,12 @@ def route_top8_state_grouped(
         KV_GROUP_SIZE=kv_group_size,
         HEAD_DIM=head_dim,
         PROTECTED_LEN=protected_len,
+        TOPK=topk,
         BLOCK_M=block_m,
         BLOCK_N=block_n,
         **_launch_kwargs(4),
     )
-    candidate_block = triton.next_power_of_2(max_groups * 8)
+    candidate_block = triton.next_power_of_2(max_groups * topk)
     lse_group_block = triton.next_power_of_2(max_groups)
     _reduce_route_group_candidates_kernel[
         (batch, q_heads, triton.cdiv(query_len, block_m))
@@ -3245,6 +3374,7 @@ def route_top8_state_grouped(
         PARTIAL_BATCH_STRIDE=partial_scores.stride(0),
         PARTIAL_HEAD_STRIDE=partial_scores.stride(1),
         PARTIAL_QUERY_STRIDE=partial_scores.stride(2),
+        PARTIAL_GROUP_STRIDE=partial_scores.stride(3),
         PARTIAL_LSE_BATCH_STRIDE=partial_lse.stride(0),
         PARTIAL_LSE_HEAD_STRIDE=partial_lse.stride(1),
         PARTIAL_LSE_QUERY_STRIDE=partial_lse.stride(2),
@@ -3258,6 +3388,7 @@ def route_top8_state_grouped(
         query_len=query_len,
         active_groups=active_groups,
         TOPK=topk,
+        GROUP_CANDIDATES=topk,
         MAX_GROUPS=lse_group_block,
         BLOCK_M=block_m,
         CANDIDATE_BLOCK=candidate_block,
@@ -3345,10 +3476,11 @@ def route_top8_scores_grouped(
         BLOCK_M=block_m,
         BLOCK_N=block_n,
         PROTECTED_LEN=protected_len,
+        TOPK=topk,
         STORE_LSE=return_lse,
         **_launch_kwargs(4),
     )
-    candidate_block = triton.next_power_of_2(max_groups * 8)
+    candidate_block = triton.next_power_of_2(max_groups * topk)
     lse_group_block = triton.next_power_of_2(max_groups)
     _reduce_route_group_candidates_kernel[
         (batch, q_heads, triton.cdiv(query_len, block_m))
@@ -3361,6 +3493,7 @@ def route_top8_scores_grouped(
         PARTIAL_BATCH_STRIDE=partial_scores.stride(0),
         PARTIAL_HEAD_STRIDE=partial_scores.stride(1),
         PARTIAL_QUERY_STRIDE=partial_scores.stride(2),
+        PARTIAL_GROUP_STRIDE=partial_scores.stride(3),
         PARTIAL_LSE_BATCH_STRIDE=partial_lse.stride(0),
         PARTIAL_LSE_HEAD_STRIDE=partial_lse.stride(1),
         PARTIAL_LSE_QUERY_STRIDE=partial_lse.stride(2),
@@ -3374,6 +3507,7 @@ def route_top8_scores_grouped(
         query_len=query_len,
         active_groups=active_groups,
         TOPK=topk,
+        GROUP_CANDIDATES=topk,
         MAX_GROUPS=lse_group_block,
         BLOCK_M=block_m,
         CANDIDATE_BLOCK=candidate_block,
@@ -3448,6 +3582,92 @@ def apply_residual_mass_opening(
         **_launch_kwargs(4),
     )
     return top_slots
+
+
+def merge_attention_branches(
+    primary_out: torch.Tensor,
+    primary_lse: torch.Tensor,
+    secondary_out: torch.Tensor,
+    secondary_lse: torch.Tensor,
+    tertiary_out: torch.Tensor | None = None,
+    tertiary_lse: torch.Tensor | None = None,
+    *,
+    block_m: int = 8,
+    num_warps: int = 4,
+) -> torch.Tensor:
+    """Fuse the final LSE reduction of two or three materialized branches."""
+    expected_output_shape = tuple(primary_out.shape)
+    expected_lse_shape = tuple(primary_lse.shape)
+    if (
+        len(expected_output_shape) != 4
+        or expected_output_shape[:-1] != expected_lse_shape
+    ):
+        raise ValueError("primary attention output and LSE shapes differ")
+    branches = (
+        (primary_out, primary_lse, "primary"),
+        (secondary_out, secondary_lse, "secondary"),
+        (tertiary_out, tertiary_lse, "tertiary"),
+    )
+    for branch_out, branch_lse, name in branches:
+        if (branch_out is None) != (branch_lse is None):
+            raise ValueError(f"{name} attention output and LSE must be paired")
+        if branch_out is None:
+            continue
+        if tuple(branch_out.shape) != expected_output_shape:
+            raise ValueError(f"{name} attention output has the wrong shape")
+        if tuple(branch_lse.shape) != expected_lse_shape:
+            raise ValueError(f"{name} attention LSE has the wrong shape")
+        if not branch_out.is_cuda or not branch_lse.is_cuda:
+            raise ValueError("fused branch reduction requires CUDA tensors")
+        if int(branch_out.stride(-1)) != 1:
+            raise ValueError("fused branch outputs require contiguous head features")
+    if block_m <= 0 or block_m & (block_m - 1):
+        raise ValueError("fused branch reduction block size must be a power of two")
+
+    include_tertiary = tertiary_out is not None
+    tertiary_out = primary_out if tertiary_out is None else tertiary_out
+    tertiary_lse = primary_lse if tertiary_lse is None else tertiary_lse
+    output = torch.empty_like(primary_out)
+    batch, heads, query_len, head_dim = expected_output_shape
+    _merge_attention_branches_kernel[
+        (batch, heads, triton.cdiv(query_len, block_m))
+    ](
+        primary_out,
+        primary_lse,
+        secondary_out,
+        secondary_lse,
+        tertiary_out,
+        tertiary_lse,
+        output,
+        primary_out.stride(0),
+        primary_out.stride(1),
+        primary_out.stride(2),
+        primary_lse.stride(0),
+        primary_lse.stride(1),
+        primary_lse.stride(2),
+        secondary_out.stride(0),
+        secondary_out.stride(1),
+        secondary_out.stride(2),
+        secondary_lse.stride(0),
+        secondary_lse.stride(1),
+        secondary_lse.stride(2),
+        tertiary_out.stride(0),
+        tertiary_out.stride(1),
+        tertiary_out.stride(2),
+        tertiary_lse.stride(0),
+        tertiary_lse.stride(1),
+        tertiary_lse.stride(2),
+        output.stride(0),
+        output.stride(1),
+        output.stride(2),
+        QUERY_LEN=query_len,
+        HEAD_DIM=head_dim,
+        BLOCK_DIM=triton.next_power_of_2(head_dim),
+        INCLUDE_TERTIARY=include_tertiary,
+        BLOCK_M=block_m,
+        **_launch_kwargs(num_warps),
+    )
+    return output
 
 
 def merge_attention_branches_with_sink(
@@ -3574,6 +3794,7 @@ def merge_attention_branches_with_sink(
 __all__ = [
     "apply_residual_mass_opening",
     "balanced_bipartite_reduce_2to1",
+    "merge_attention_branches",
     "merge_attention_branches_with_sink",
     "merge_state_in_place",
     "new_route_buffers",

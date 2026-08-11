@@ -518,62 +518,77 @@ def main() -> None:
         log_counts = (
             route_counts.repeat_interleave(q_heads // kv_heads, dim=1).squeeze(-1).log()
         )
-        expected_route = (
-            (logits + log_counts.unsqueeze(2)).topk(8, dim=-1, sorted=False).indices
-        )
-        route_buffers = new_route_buffers(q, state_capacity=512, include_lse=True)
-        actual_route = route_top8_state_grouped(
-            q,
-            F.pad(route_state_k, (0, 0, 0, 512 - state_len)),
-            F.pad(route_counts, (0, 0, 0, 512 - state_len)),
-            route_buffers,
-            kv_group_size=q_heads // kv_heads,
-            scale=dim**-0.5,
-            topk=8,
-            state_len=state_len,
-        ).clone()
-        score_route, score_lse = route_top8_scores_grouped(
-            torch.matmul(q, mean_k.transpose(-1, -2)),
-            route_counts,
-            route_buffers,
-            kv_group_size=q_heads // kv_heads,
-            scale=dim**-0.5,
-            topk=8,
-            state_len=state_len,
-            return_lse=True,
-        )
         expected_lse = torch.logsumexp(logits + log_counts.unsqueeze(2), dim=-1)
-        expected_sorted = expected_route.sort(dim=-1).values
-        actual_sorted = actual_route.sort(dim=-1).values
-        route_results[str(query_len)] = {
-            "top8_set_exact_fraction": float(
-                (expected_sorted == actual_sorted).all(dim=-1).float().mean().item()
-            ),
-            "slot_recall": float(
-                (actual_route.unsqueeze(-1) == expected_route.unsqueeze(-2))
-                .any(dim=-1)
-                .float()
-                .mean()
-                .item()
-            ),
-            "score_top8_set_exact_fraction": float(
-                (expected_sorted == score_route.sort(dim=-1).values)
-                .all(dim=-1)
-                .float()
-                .mean()
-                .item()
-            ),
-            "score_top8_order_exact_fraction": float(
-                (expected_route == score_route).all(dim=-1).float().mean().item()
-            ),
-            "score_lse_max_abs": float(
-                (expected_lse - score_lse).abs().max().item()
-            ),
-            "example_reference": [
-                int(value) for value in expected_route[0, 0, 0].tolist()
-            ],
-            "example_grouped": [int(value) for value in score_route[0, 0, 0].tolist()],
-        }
+        for topk in (3, 8):
+            expected_route = (
+                (logits + log_counts.unsqueeze(2))
+                .topk(topk, dim=-1, sorted=False)
+                .indices
+            )
+            route_buffers = new_route_buffers(
+                q, state_capacity=512, include_lse=True
+            )
+            actual_route = route_top8_state_grouped(
+                q,
+                F.pad(route_state_k, (0, 0, 0, 512 - state_len)),
+                F.pad(route_counts, (0, 0, 0, 512 - state_len)),
+                route_buffers,
+                kv_group_size=q_heads // kv_heads,
+                scale=dim**-0.5,
+                topk=topk,
+                state_len=state_len,
+            ).clone()
+            score_route, score_lse = route_top8_scores_grouped(
+                torch.matmul(q, mean_k.transpose(-1, -2)),
+                route_counts,
+                route_buffers,
+                kv_group_size=q_heads // kv_heads,
+                scale=dim**-0.5,
+                topk=topk,
+                state_len=state_len,
+                return_lse=True,
+            )
+            expected_sorted = expected_route.sort(dim=-1).values
+            actual_sorted = actual_route.sort(dim=-1).values
+            route_results[f"{query_len}_top{topk}"] = {
+                "route_set_exact_fraction": float(
+                    (expected_sorted == actual_sorted)
+                    .all(dim=-1)
+                    .float()
+                    .mean()
+                    .item()
+                ),
+                "slot_recall": float(
+                    (actual_route.unsqueeze(-1) == expected_route.unsqueeze(-2))
+                    .any(dim=-1)
+                    .float()
+                    .mean()
+                    .item()
+                ),
+                "score_route_set_exact_fraction": float(
+                    (expected_sorted == score_route.sort(dim=-1).values)
+                    .all(dim=-1)
+                    .float()
+                    .mean()
+                    .item()
+                ),
+                "score_route_order_exact_fraction": float(
+                    (expected_route == score_route)
+                    .all(dim=-1)
+                    .float()
+                    .mean()
+                    .item()
+                ),
+                "score_lse_max_abs": float(
+                    (expected_lse - score_lse).abs().max().item()
+                ),
+                "example_reference": [
+                    int(value) for value in expected_route[0, 0, 0].tolist()
+                ],
+                "example_grouped": [
+                    int(value) for value in score_route[0, 0, 0].tolist()
+                ],
+            }
 
     k_error = (actual_k - fp32_expected_k).abs().float()
     flat_worst_k = int(k_error.argmax().item())

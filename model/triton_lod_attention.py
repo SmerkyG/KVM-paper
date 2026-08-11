@@ -35,6 +35,7 @@ from .kernels.paged_leaf_attention import (
 from .kernels.lod_kernels import (
     apply_residual_mass_opening,
     bipartite_reduce_overflow,
+    merge_attention_branches,
     merge_attention_branches_with_sink,
     merge_state_in_place,
     new_route_buffers,
@@ -2995,16 +2996,15 @@ class TritonLODAttentionCore(nn.Module):
                     kv_group_size=self.num_key_value_groups,
                     scale=self.scaling,
                 )
-            branch_lse = torch.stack(
-                (coarse_lse, exact_lse, local_lse), dim=-1
-            ).float()
-            weights = torch.softmax(branch_lse, dim=-1).to(coarse_output.dtype)
-            return (
-                coarse_output * weights[..., 0].unsqueeze(-1)
-                + exact_output * weights[..., 1].unsqueeze(-1)
-                + local_output * weights[..., 2].unsqueeze(-1)
+            return merge_attention_branches(
+                coarse_output,
+                coarse_lse,
+                exact_output,
+                exact_lse,
+                local_output,
+                local_lse,
             )
-        output = _merge_lse_branches(
+        output = merge_attention_branches(
             coarse_output, coarse_lse, exact_output, exact_lse
         )
         if sink_k is None or sink_v is None:

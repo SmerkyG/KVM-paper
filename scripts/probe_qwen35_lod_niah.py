@@ -206,7 +206,7 @@ def parse_args() -> argparse.Namespace:
         default=True,
     )
     parser.add_argument("--separate-sink-cache", action="store_true")
-    parser.add_argument("--prefill-two-level-topk", type=int)
+    parser.add_argument("--prefill-two-level-topk", type=int, default=3)
     parser.add_argument("--prefill-max-leaf-tokens", type=int)
     parser.add_argument("--dynamic-open-top-p", type=float)
     parser.add_argument("--dynamic-open-prefill-top-p", type=float)
@@ -217,8 +217,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--reuse-dynamic-local-attention", action="store_true")
     parser.add_argument("--dynamic-open-residual-state-bound", action="store_true")
     parser.add_argument("--recursive-page-lod", action="store_true")
-    parser.add_argument("--recursive-page-block-n", type=int, default=16)
-    parser.add_argument("--leaf-num-warps", type=int, default=2)
+    parser.add_argument("--recursive-page-block-n", type=int, default=4)
+    parser.add_argument("--leaf-num-warps", type=int, default=1)
     parser.add_argument("--leaf-key-quant-bits", type=int, choices=(0, 4, 8), default=0)
     parser.add_argument("--leaf-value-quant-bits", type=int, choices=(0, 4, 8), default=0)
     parser.add_argument("--leaf-quant-group-size", type=int, default=32)
@@ -245,8 +245,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--append-subblock-size", type=int, default=0)
     parser.add_argument("--union-bipartite-state", action="store_true")
     parser.add_argument("--state-precompact-direct-append", action="store_true")
-    parser.add_argument("--split-prefill-local-attention", action="store_true")
-    parser.add_argument("--enable-fused-prefill-route-coarse", action="store_true")
+    parser.add_argument(
+        "--split-prefill-local-attention",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument(
+        "--fused-prefill-route-coarse",
+        "--enable-fused-prefill-route-coarse",
+        dest="enable_fused_prefill_route_coarse",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
     parser.add_argument(
         "--coarse-compact-bias",
         action=argparse.BooleanOptionalAction,

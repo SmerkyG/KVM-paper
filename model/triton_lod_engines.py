@@ -258,6 +258,21 @@ class KernelRecursivePagedLODAttention(_KernelLODEngine):
         self.leaf_page_size = config.page_size
         self.virtual_page_storage = True
         self.recursive_page_lod = True
+        # Amortize prefill routing and state maintenance without changing the
+        # smaller decode-local field.  The extra exact lookback preserves three
+        # decode chunks before each large causal prefill region.
+        self.prefill_chunk_len = 16 * config.chunk_size
+        self.prefill_local_len = (
+            self.prefill_chunk_len + config.local_window + config.chunk_size
+        )
+        self.prefill_state_update_len = 5 * config.chunk_size
+        self.prefill_two_level_topk = min(3, default_open_count)
+        self.split_prefill_local_attention = True
+        self.leaf_num_warps = 1
+        self.recursive_page_block_n = 4
+        self.coarse_route_block_m = 16
+        self.coarse_route_num_warps = 4
+        self.fused_prefill_route_coarse = True
         self.leaf_key_quant_bits = config.kv_bits
         self.leaf_value_quant_bits = config.kv_bits
         self.leaf_quant_group_size = config.quant_group_size
