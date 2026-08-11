@@ -24,6 +24,7 @@ class HFLODPaddingGroup:
 
     prompt_length: int
     rows: tuple[int, ...]
+    valid_starts: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -39,6 +40,7 @@ class HFLODPaddingPlan:
         return not (
             len(self.groups) == 1
             and self.groups[0].prompt_length == self.padded_length
+            and not self.groups[0].valid_starts
         )
 
 
@@ -46,8 +48,54 @@ class HFLODPaddingPlan:
 class _GroupRuntime:
     prompt_length: int
     indices: torch.Tensor
+    valid_starts: torch.Tensor | None = None
     engine: nn.Module | None = None
     lod_cache: Any | None = None
+
+
+def chunk_align_padding_plan(
+    plan: HFLODPaddingPlan,
+    *,
+    chunk_size: int,
+    minimum_length: int = 0,
+) -> HFLODPaddingPlan:
+    """Right-align rows in chunk-sized buckets with padding in chunk zero."""
+    if chunk_size <= 0:
+        raise ValueError("chunk size must be positive")
+    if minimum_length < 0:
+        raise ValueError("minimum length cannot be negative")
+    rows_by_length: dict[int, list[tuple[int, int]]] = {}
+    for group in plan.groups:
+        for row in group.rows:
+            original_start = plan.padded_length - group.prompt_length
+            aligned_start = (original_start // chunk_size) * chunk_size
+            physical_length = plan.padded_length - aligned_start
+            valid_start = original_start - aligned_start
+            if physical_length < minimum_length:
+                physical_length = group.prompt_length
+                valid_start = 0
+            rows_by_length.setdefault(physical_length, []).append(
+                (row, valid_start)
+            )
+    groups = tuple(
+        HFLODPaddingGroup(
+            prompt_length,
+            tuple(
+                row
+                for row, _ in sorted(rows_by_length[prompt_length])
+            ),
+            (
+                tuple(
+                    start
+                    for _, start in sorted(rows_by_length[prompt_length])
+                )
+                if any(start for _, start in rows_by_length[prompt_length])
+                else ()
+            ),
+        )
+        for prompt_length in sorted(rows_by_length)
+    )
+    return HFLODPaddingPlan(plan.batch_size, plan.padded_length, groups)
 
 
 def build_padding_plan(
@@ -181,10 +229,13 @@ def _run_engine(
     use_cache: bool,
     scale: float | None,
     logical_prefill_len: int | None = None,
+    prefill_valid_starts: torch.Tensor | None = None,
 ):
     kwargs = {"cache": cache, "use_cache": use_cache, "scale": scale}
     if logical_prefill_len is not None:
         kwargs["logical_prefill_len"] = logical_prefill_len
+    if prefill_valid_starts is not None:
+        kwargs["prefill_valid_starts"] = prefill_valid_starts
     return engine(query, key, value, **kwargs)
 
 
@@ -196,6 +247,13 @@ class GroupedHFLODRuntime:
             _GroupRuntime(
                 group.prompt_length,
                 torch.tensor(group.rows, dtype=torch.long, device=device),
+                (
+                    torch.tensor(
+                        group.valid_starts, dtype=torch.long, device=device
+                    )
+                    if group.valid_starts
+                    else None
+                ),
             )
             for group in plan.groups
         ]
@@ -248,6 +306,9 @@ class GroupedHFLODRuntime:
                 use_cache=True,
                 scale=scale,
                 logical_prefill_len=logical_prefill_len,
+                prefill_valid_starts=(
+                    runtime.valid_starts if initial_prefill else None
+                ),
             )
             if next_cache is None:
                 raise RuntimeError("grouped LOD engine did not return its owned cache")
@@ -310,6 +371,10 @@ class GroupedHFLODRuntime:
                     ),
                 )
             runtime.indices = next_rows
+            if runtime.valid_starts is not None:
+                runtime.valid_starts = runtime.valid_starts.index_select(
+                    0, local_selection.to(runtime.valid_starts.device)
+                )
             self._attach_kernel_cache(runtime.engine, runtime.lod_cache)
             next_runtimes.append(runtime)
         self.runtimes = next_runtimes
@@ -330,6 +395,12 @@ def grouped_transient_attention(
         engine = _build_engine(settings, query, key, scale=scale)
         module._hf_lod_transient_engine = engine
     output = torch.zeros_like(query)
+    if settings.left_padding_mode == "chunk_aligned":
+        plan = chunk_align_padding_plan(
+            plan,
+            chunk_size=settings.config.chunk_size,
+            minimum_length=settings.config.local_window,
+        )
     for group in plan.groups:
         indices = torch.tensor(group.rows, dtype=torch.long, device=query.device)
         begin = plan.padded_length - group.prompt_length
@@ -351,6 +422,15 @@ def grouped_transient_attention(
             use_cache=False,
             scale=scale,
             logical_prefill_len=logical_prefill_len,
+            prefill_valid_starts=(
+                torch.tensor(
+                    group.valid_starts,
+                    dtype=torch.long,
+                    device=query.device,
+                )
+                if group.valid_starts
+                else None
+            ),
         )
         full_group_output = torch.zeros(
             (int(indices.numel()), *query.shape[1:]),
@@ -368,5 +448,6 @@ __all__ = [
     "GroupedHFLODRuntime",
     "HFLODPaddingPlan",
     "build_padding_plan",
+    "chunk_align_padding_plan",
     "grouped_transient_attention",
 ]

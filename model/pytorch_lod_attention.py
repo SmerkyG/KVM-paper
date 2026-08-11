@@ -67,7 +67,13 @@ class LODConfig:
 
 @dataclass
 class LODState:
-    """Low-LOD state. Keys and values are sums; counts recover their means."""
+    """Low-LOD state. Keys and values are sums; counts recover their means.
+
+    Chunk-aligned left padding uses a negative count only on an inert owner
+    slot. Its magnitude records the number of padding leaves for fixed-shape
+    posting lists, while attention and state updates mask all nonpositive
+    counts.
+    """
 
     key_sum: torch.Tensor
     value_sum: torch.Tensor
@@ -220,6 +226,47 @@ def _local_attention(
     return _attention_from_scores(scores, value)
 
 
+def _masked_causal_attention(
+    query: torch.Tensor,
+    key: torch.Tensor,
+    value: torch.Tensor,
+    *,
+    scale: float,
+    valid_starts: torch.Tensor,
+) -> torch.Tensor:
+    """Causal exact attention with one contiguous left-pad prefix per row."""
+    batch, _, query_length, _ = query.shape
+    key_length = int(key.size(2))
+    valid_starts = valid_starts.to(device=query.device, dtype=torch.long)
+    if tuple(valid_starts.shape) != (batch,):
+        raise ValueError("prefill valid starts must have one entry per row")
+    if bool(
+        (valid_starts.lt(0) | valid_starts.ge(key_length)).any().item()
+    ):
+        raise ValueError("every prefill row must contain at least one valid token")
+    query_position = torch.arange(query_length, device=query.device)
+    key_position = torch.arange(key_length, device=query.device)
+    visible = key_position.view(1, 1, 1, key_length) >= valid_starts.view(
+        -1, 1, 1, 1
+    )
+    visible = visible & (
+        key_position.view(1, 1, 1, key_length)
+        <= query_position.view(1, 1, query_length, 1)
+    )
+    output = F.scaled_dot_product_attention(
+        query,
+        key,
+        value,
+        attn_mask=visible,
+        enable_gqa=int(query.size(1)) != int(key.size(1)),
+        scale=scale,
+    )
+    query_valid = query_position.view(1, 1, query_length, 1) >= valid_starts.view(
+        -1, 1, 1, 1
+    )
+    return torch.where(query_valid, output, torch.zeros_like(output))
+
+
 def _state_scores_and_value(
     query: torch.Tensor, state: LODState, scale: float
 ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -237,6 +284,7 @@ def _state_scores_and_value(
     count = _repeat_kv(state.count, query_heads)
     scores = _scaled_scores(query, mean_key, scale)
     scores = scores + count.clamp_min(1).log().float().unsqueeze(2)
+    scores.masked_fill_(count.le(0.5).unsqueeze(2), -torch.inf)
     return scores, mean_value
 
 
@@ -390,6 +438,10 @@ def two_level_lod_attention(
             ).indices
         route_rank = torch.arange(route_count, device=query.device)
         open_mask = route_rank.view(1, 1, 1, route_count) < open_counts.unsqueeze(-1)
+        selected_count = _repeat_kv(state.count, query_heads).unsqueeze(2).expand(
+            -1, -1, int(query.size(2)), -1
+        ).gather(-1, top_slots)
+        open_mask = open_mask & selected_count.gt(0.5)
         excluded = torch.zeros_like(state_scores, dtype=torch.bool)
         for route_index in range(route_count):
             excluded.scatter_(
@@ -489,7 +541,7 @@ class _PytorchLODAttention(nn.Module):
                 * math.sqrt(max(context_length, 0))
             ),
             self.config.state_min_size,
-        )
+        ) + int(getattr(self, "_lod_padding_state_reserve", 0))
         return max(current_size, min(target, available_context))
 
     def _bswa_begin(self, total_length: int) -> int:
@@ -501,9 +553,45 @@ class _PytorchLODAttention(nn.Module):
         return max(0, rounded_end - self.config.local_window)
 
     def _initialize_state(
-        self, key: torch.Tensor, value: torch.Tensor
+        self,
+        key: torch.Tensor,
+        value: torch.Tensor,
+        valid_starts: torch.Tensor | None = None,
     ) -> tuple[LODState, torch.Tensor]:
         length = int(key.size(2))
+        if valid_starts is not None:
+            valid_starts = valid_starts.to(device=key.device, dtype=torch.long)
+            if tuple(valid_starts.shape) != (int(key.size(0)),):
+                raise ValueError("prefill valid starts must have one entry per row")
+            if bool(
+                (valid_starts.lt(0) | valid_starts.ge(length)).any().item()
+            ):
+                raise ValueError(
+                    "chunk-aligned padding must fit entirely in the first state block"
+                )
+            position = torch.arange(length, device=key.device)
+            valid_count = length - valid_starts
+            valid = position.unsqueeze(0) < valid_count.unsqueeze(1)
+            source = (valid_starts.unsqueeze(1) + position).clamp_max(length - 1)
+            key = _gather_sequence(
+                key,
+                source[:, None, :].expand(-1, int(key.size(1)), -1),
+            ).masked_fill(~valid[:, None, :, None], 0)
+            value = _gather_sequence(
+                value,
+                source[:, None, :].expand(-1, int(value.size(1)), -1),
+            ).masked_fill(~valid[:, None, :, None], 0)
+            count = valid[:, None, :].expand(-1, int(key.size(1)), -1).float()
+            dummy_slot = valid_count.clamp_max(length - 1)
+            dummy = F.one_hot(dummy_slot, num_classes=length).to(count.dtype)
+            count = count - dummy[:, None, :] * valid_starts[:, None, None]
+            physical = position.unsqueeze(0).expand(int(key.size(0)), -1)
+            owner = torch.where(
+                physical >= valid_starts.unsqueeze(1),
+                physical - valid_starts.unsqueeze(1),
+                valid_count.unsqueeze(1),
+            )[:, None, :].expand(-1, int(key.size(1)), -1)
+            return LODState(key_sum=key, value_sum=value, count=count), owner
         count = torch.ones(
             *key.shape[:2], length, dtype=torch.float32, device=key.device
         )
@@ -539,6 +627,7 @@ class _PytorchLODAttention(nn.Module):
             similarity = torch.matmul(
                 overflow_key.detach(), state.mean_key.detach().transpose(-1, -2)
             )
+            similarity.masked_fill_(state.count.le(0.5).unsqueeze(-2), -torch.inf)
             max_similarity = similarity.max(dim=-1).values
             order = max_similarity.argsort(dim=-1, descending=False)
             append_index = torch.sort(order[..., :append_count], dim=-1).values
@@ -582,6 +671,7 @@ class _PytorchLODAttention(nn.Module):
             route_score = torch.matmul(
                 merge_key.detach(), state.mean_key.detach().transpose(-1, -2)
             )
+            route_score.masked_fill_(state.count.le(0.5).unsqueeze(-2), -torch.inf)
             route_score[..., :protected] = -torch.inf
             destination = route_score.argmax(dim=-1)
         assignment = F.one_hot(destination, num_classes=state.slot_count)
@@ -609,6 +699,7 @@ class _PytorchLODAttention(nn.Module):
         target: int,
         context_length: int,
         coverage_offset: int = 0,
+        initial_valid_starts: torch.Tensor | None = None,
     ) -> tuple[LODState, torch.Tensor | None, int]:
         if target < coverage or target > int(key.size(2)):
             raise ValueError("invalid LOD compression target")
@@ -617,7 +708,9 @@ class _PytorchLODAttention(nn.Module):
             block_key = key[..., coverage:block_end, :]
             block_value = value[..., coverage:block_end, :]
             if state.slot_count == 0:
-                state, block_owner = self._initialize_state(block_key, block_value)
+                state, block_owner = self._initialize_state(
+                    block_key, block_value, initial_valid_starts
+                )
             else:
                 state, block_owner = self._update_state(
                     state,
@@ -715,15 +808,47 @@ class _PytorchLODAttention(nn.Module):
         open_count: int | torch.Tensor,
         scale: float,
         use_cache: bool,
+        prefill_valid_starts: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, LODCache | None]:
         sequence_length = int(query.size(2))
+        if prefill_valid_starts is not None:
+            prefill_valid_starts = prefill_valid_starts.to(
+                device=query.device, dtype=torch.long
+            )
+            if bool(
+                (
+                    prefill_valid_starts.lt(0)
+                    | prefill_valid_starts.ge(self.config.chunk_size)
+                ).any().item()
+            ):
+                raise ValueError(
+                    "chunk-aligned padding must fit entirely in the first chunk"
+                )
+            self._lod_padding_state_reserve = int(
+                prefill_valid_starts.max().item()
+            )
+        else:
+            self._lod_padding_state_reserve = 0
         front_length = min(sequence_length, self.config.local_window)
-        front_output = self._local(
-            query[..., :front_length, :],
-            key[..., :front_length, :],
-            value[..., :front_length, :],
-            scale=scale,
-            query_offset=0,
+        front_query = query[..., :front_length, :]
+        front_key = key[..., :front_length, :]
+        front_value = value[..., :front_length, :]
+        front_output = (
+            self._local(
+                front_query,
+                front_key,
+                front_value,
+                scale=scale,
+                query_offset=0,
+            )
+            if prefill_valid_starts is None
+            else _masked_causal_attention(
+                front_query,
+                front_key,
+                front_value,
+                scale=scale,
+                valid_starts=prefill_valid_starts,
+            )
         )
         outputs = [front_output]
         state = self._empty_state(key, value)
@@ -752,6 +877,7 @@ class _PytorchLODAttention(nn.Module):
                 coverage=coverage,
                 target=local_begin,
                 context_length=query_begin,
+                initial_valid_starts=prefill_valid_starts,
             )
             outputs.append(
                 self._attend(
@@ -779,6 +905,7 @@ class _PytorchLODAttention(nn.Module):
                 coverage=coverage,
                 target=decode_coverage,
                 context_length=sequence_length,
+                initial_valid_starts=prefill_valid_starts,
             )
             cache = LODCache(
                 state=state,
@@ -880,6 +1007,7 @@ class _PytorchLODAttention(nn.Module):
         use_cache: bool = False,
         open_count: int | torch.Tensor | None = None,
         scale: float | None = None,
+        prefill_valid_starts: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, LODCache | None]:
         """Apply causal LOD attention directly to post-RoPE Q/K/V tensors."""
         _validate_qkv(query, key, value)
@@ -897,7 +1025,11 @@ class _PytorchLODAttention(nn.Module):
                 open_count=open_count,
                 scale=scale,
                 use_cache=use_cache,
+                prefill_valid_starts=prefill_valid_starts,
             )
+
+        if prefill_valid_starts is not None:
+            raise ValueError("prefill padding metadata is valid only for initial prefill")
 
         outputs = []
         next_cache = cache

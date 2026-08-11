@@ -90,6 +90,7 @@ class _KernelLODEngine(TritonLODAttentionCore):
         use_cache: bool = False,
         scale: float | None = None,
         logical_prefill_len: int | None = None,
+        prefill_valid_starts: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, KernelLODCache | None]:
         """Run optimized causal prefill or incremental cached decode."""
         self._validate_geometry(query, key, value)
@@ -102,11 +103,16 @@ class _KernelLODEngine(TritonLODAttentionCore):
                 key,
                 value,
                 logical_prefill_len=logical_prefill_len,
+                prefill_valid_starts=prefill_valid_starts,
             )
         else:
-            if logical_prefill_len is not None:
+            if (
+                logical_prefill_len is not None
+                or prefill_valid_starts is not None
+            ):
                 raise ValueError(
-                    "logical_prefill_len is valid only for initial prefill"
+                    "prefill length and padding metadata are valid only for "
+                    "initial prefill"
                 )
             self._lod_state = cache.state
             outputs = []
@@ -197,12 +203,14 @@ class KernelCoarseLODAttention(_KernelLODEngine):
         value: torch.Tensor,
         *,
         logical_prefill_len: int | None = None,
+        prefill_valid_starts: torch.Tensor | None = None,
     ) -> torch.Tensor:
         output = super()._prefill_attention(
             query,
             key,
             value,
             logical_prefill_len=logical_prefill_len,
+            prefill_valid_starts=prefill_valid_starts,
         )
         # The common prefill path records these tensors for exact leaf opening.
         # Low-LOD attention never reads them, so retain typed empty sentinels.

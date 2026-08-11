@@ -182,7 +182,15 @@ def _check_varied_left_padding(model) -> None:
 
     if cache.get_seq_length() != padded_length + 1:
         raise AssertionError("padded HF cache lost its physical generation length")
-    expected_group_lengths = sorted({length + 1 for length in lengths})
+    chunk_size = _lod_config().chunk_size
+    expected_group_lengths = sorted(
+        {
+            padded_length
+            - ((padded_length - length) // chunk_size) * chunk_size
+            + 1
+            for length in lengths
+        }
+    )
     for layer in cache.layers:
         padding_runtime = layer._padding_runtime
         if padding_runtime is None:

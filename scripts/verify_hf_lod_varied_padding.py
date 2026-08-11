@@ -20,6 +20,7 @@ from model.hf_pytorch_lod_attention import (
     new_hf_lod_cache,
 )
 from model.pytorch_lod_attention import LODConfig
+from model.pytorch_lod_attention_paged import PagedLODConfig
 
 
 def parse_args() -> argparse.Namespace:
@@ -30,6 +31,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--engine-backend", choices=("torch", "kernel"), default="kernel"
     )
+    parser.add_argument(
+        "--left-padding-mode",
+        choices=("exact", "chunk_aligned"),
+        default="chunk_aligned",
+    )
+    parser.add_argument(
+        "--lod-mode",
+        choices=("coarse", "two_level", "recursive"),
+        default="two_level",
+    )
+    parser.add_argument("--kv-bits", type=int, choices=(0, 4), default=0)
     return parser.parse_args()
 
 
@@ -61,23 +73,40 @@ def main() -> None:
     model = build_model(args.model_family).to(
         device=device, dtype=torch.bfloat16
     ).eval()
+    chunk_size = 16 if (
+        args.engine_backend == "kernel" and args.lod_mode == "recursive"
+    ) else 8
+    config_kwargs = dict(
+        chunk_size=chunk_size,
+        local_window=2 * chunk_size,
+        state_growth_factor=2.0,
+        state_min_size=8,
+        protected_prefix=1,
+        max_routes=2,
+    )
+    if args.kv_bits and args.lod_mode != "recursive":
+        raise ValueError("KV quantization requires recursive mode")
+    config = (
+        PagedLODConfig(
+            **config_kwargs,
+            page_size=(16 if args.engine_backend == "kernel" else 2),
+            kv_bits=args.kv_bits,
+            quant_group_size=8,
+        )
+        if args.lod_mode == "recursive"
+        else LODConfig(**config_kwargs)
+    )
     install_hf_lod_attention(
         model,
-        config=LODConfig(
-            chunk_size=8,
-            local_window=16,
-            state_growth_factor=2.0,
-            state_min_size=8,
-            protected_prefix=1,
-            max_routes=2,
-        ),
-        open_count=2,
+        config=config,
+        open_count=0 if args.lod_mode == "coarse" else 2,
         engine_backend=args.engine_backend,
+        left_padding_mode=args.left_padding_mode,
     )
 
     # Keep enough remote state for the optimized decode kernel's eight routing
     # candidates while retaining varied, non-chunk-aligned logical lengths.
-    lengths = (33, 40, 40, 48)
+    lengths = (33, 39, 39, 47)
     padded_length = max(lengths)
     token = torch.zeros(len(lengths), padded_length, dtype=torch.long, device=device)
     attention_mask = torch.zeros_like(token)
@@ -133,7 +162,18 @@ def main() -> None:
             rtol=5e-2,
         )
 
-    expected_group_lengths = sorted({length + 1 for length in lengths})
+    expected_group_lengths = sorted(
+        {
+            (
+                padded_length
+                - ((padded_length - length) // chunk_size) * chunk_size
+                + 1
+                if args.left_padding_mode == "chunk_aligned"
+                else length + 1
+            )
+            for length in lengths
+        }
+    )
     for layer in cache.layers:
         padding_runtime = layer._padding_runtime
         if padding_runtime is None:
@@ -154,7 +194,9 @@ def main() -> None:
     if generated.shape != (len(lengths), padded_length + 1):
         raise AssertionError("automatic varied-padding generation returned wrong shape")
     print(
-        f"{args.model_family} {args.engine_backend} varied-padding smoke passed: "
+        f"{args.model_family} {args.engine_backend} "
+        f"{args.lod_mode} int{args.kv_bits or 16} "
+        f"{args.left_padding_mode} varied-padding smoke passed: "
         f"batch={len(lengths)} physical={padded_length + 1} "
         f"logical={expected_group_lengths}"
     )

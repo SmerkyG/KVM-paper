@@ -176,6 +176,9 @@ class TritonLODAttentionCore(nn.Module):
         self, ctx_len: int, available_context: int, current_state_len: int
     ) -> int:
         separated = self.sink_len if self.separate_sink_cache else 0
+        # Masked left-padding slots deliberately consume part of the shared
+        # schedule. Reserving replacements here can round state capacity up
+        # for every row in the batch and make recursive decode much slower.
         target = max(
             math.floor(self.state_growth_factor * math.sqrt(max(ctx_len, 0))),
             self.state_min_len,
@@ -1098,6 +1101,12 @@ class TritonLODAttentionCore(nn.Module):
                         counts[..., :current_state_len, :],
                     ).transpose(-1, -2),
                 )
+                old_similarity.masked_fill_(
+                    counts[..., :current_state_len, 0]
+                    .le(0.5)
+                    .unsqueeze(-2),
+                    float("-inf"),
+                )
                 protected_slots = self._protected_state_len(current_state_len)
                 if protected_slots:
                     protected_scores = (
@@ -1215,6 +1224,12 @@ class TritonLODAttentionCore(nn.Module):
                         state_k.detach()[..., :route_state_len, :],
                         counts[..., :route_state_len, :],
                     ).transpose(-1, -2),
+                )
+                route_logits.masked_fill_(
+                    counts[..., :route_state_len, 0]
+                    .le(0.5)
+                    .unsqueeze(-2),
+                    float("-inf"),
                 )
                 route_logits[..., :protected_slots] = float("-inf")
                 destination = route_logits.argmax(dim=-1)
@@ -2666,6 +2681,23 @@ class TritonLODAttentionCore(nn.Module):
                 local_v=local_v,
                 dynamic_local_lse=dynamic_local_lse,
             )
+            if getattr(self, "_lod_padding_state_reserve", 0):
+                query_counts = self._repeat_kv(
+                    counts[..., :state_len, :]
+                ).squeeze(-1)
+                safe_slots = top_slots.clamp_min(0)
+                selected_counts = torch.gather(
+                    query_counts.unsqueeze(2).expand(
+                        -1, -1, int(q.size(2)), -1
+                    ),
+                    -1,
+                    safe_slots,
+                )
+                top_slots = torch.where(
+                    top_slots.ge(0) & selected_counts.gt(0.5),
+                    top_slots,
+                    torch.full_like(top_slots, -1),
+                )
         if (
             self.fused_decode_attention
             and int(q.size(2)) == 1
@@ -2923,6 +2955,18 @@ class TritonLODAttentionCore(nn.Module):
             raise ValueError(
                 f"unknown LOD leaf backend {self.leaf_attention_backend!r}"
             )
+        if top_slots is not None:
+            has_exact = top_slots.ge(0).any(dim=-1)
+            exact_output = torch.where(
+                has_exact.unsqueeze(-1),
+                exact_output,
+                torch.zeros_like(exact_output),
+            )
+            exact_lse = torch.where(
+                has_exact,
+                exact_lse,
+                torch.full_like(exact_lse, float("-inf")),
+            )
         coarse_output, coarse_lse = self._coarse_attention(
             q,
             local_k,
@@ -2978,8 +3022,39 @@ class TritonLODAttentionCore(nn.Module):
         )
 
     def _exact_attention(
-        self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, *, causal: bool
+        self,
+        q: torch.Tensor,
+        k: torch.Tensor,
+        v: torch.Tensor,
+        *,
+        causal: bool,
+        valid_starts: torch.Tensor | None = None,
     ) -> torch.Tensor:
+        if valid_starts is not None:
+            query_len = int(q.size(2))
+            key_len = int(k.size(2))
+            query_position = torch.arange(query_len, device=q.device)
+            key_position = torch.arange(key_len, device=q.device)
+            attention_mask = key_position.view(1, 1, 1, key_len) >= (
+                valid_starts.view(-1, 1, 1, 1)
+            )
+            if causal:
+                attention_mask = attention_mask & (
+                    key_position.view(1, 1, 1, key_len)
+                    <= query_position.view(1, 1, query_len, 1)
+                )
+            output = F.scaled_dot_product_attention(
+                q,
+                self._repeat_kv(k),
+                self._repeat_kv(v),
+                attn_mask=attention_mask,
+                is_causal=False,
+                scale=self.scaling,
+            )
+            query_valid = query_position.view(1, 1, query_len, 1) >= (
+                valid_starts.view(-1, 1, 1, 1)
+            )
+            return torch.where(query_valid, output, torch.zeros_like(output))
         return F.scaled_dot_product_attention(
             q,
             self._repeat_kv(k),
@@ -3015,6 +3090,7 @@ class TritonLODAttentionCore(nn.Module):
         v: torch.Tensor,
         *,
         logical_prefill_len: int | None = None,
+        prefill_valid_starts: torch.Tensor | None = None,
     ) -> torch.Tensor:
         batch_size, _, attention_len, _ = q.shape
         prefill_chunk_len = self.prefill_chunk_len
@@ -3033,6 +3109,30 @@ class TritonLODAttentionCore(nn.Module):
             raise ValueError("logical prefill length must fit the attention field")
         if attention_len - prefill_len >= prefill_chunk_len:
             raise ValueError("prefill padding must be confined to the final chunk")
+        if prefill_valid_starts is not None:
+            prefill_valid_starts = prefill_valid_starts.to(
+                device=q.device, dtype=torch.long
+            )
+            if tuple(prefill_valid_starts.shape) != (batch_size,):
+                raise ValueError("prefill valid starts must have one entry per row")
+            if bool(
+                (
+                    prefill_valid_starts.lt(0)
+                    | prefill_valid_starts.ge(self.chunk_len)
+                ).any().item()
+            ):
+                raise ValueError(
+                    "chunk-aligned padding must fit entirely in the first chunk"
+                )
+            if self.separate_sink_cache:
+                raise NotImplementedError(
+                    "chunk-aligned padding does not yet support a separate sink cache"
+                )
+            self._lod_padding_state_reserve = int(
+                prefill_valid_starts.max().item()
+            )
+        else:
+            self._lod_padding_state_reserve = 0
         exact_lookback = prefill_local_len - prefill_chunk_len
         if getattr(self, "_lod_collect_stats", False):
             self._lod_route_stats = []
@@ -3043,6 +3143,7 @@ class TritonLODAttentionCore(nn.Module):
                 k[..., :front_len, :],
                 v[..., :front_len, :],
                 causal=True,
+                valid_starts=prefill_valid_starts,
             )
         ]
 
@@ -3064,12 +3165,57 @@ class TritonLODAttentionCore(nn.Module):
         archive_v = v[..., separated_sink_len:, :]
         initial_state_len = initial_len - separated_sink_len
         state_capacity = self._state_capacity(prefill_len, initial_state_len)
-        state_k = _pad_sequence(
-            archive_k[..., :initial_state_len, :], state_capacity
-        ).clone()
-        state_v = _pad_sequence(
-            archive_v[..., :initial_state_len, :], state_capacity
-        ).clone()
+        if prefill_valid_starts is None:
+            initial_state_k = archive_k[..., :initial_state_len, :]
+            initial_state_v = archive_v[..., :initial_state_len, :]
+            initial_valid = None
+            owners = (
+                torch.arange(
+                    initial_state_len, dtype=torch.long, device=k.device
+                )
+                .view(1, 1, initial_state_len)
+                .expand(
+                    batch_size,
+                    self.config.num_key_value_heads,
+                    initial_state_len,
+                )
+            )
+        else:
+            slot = torch.arange(initial_state_len, device=k.device)
+            valid_count = initial_state_len - prefill_valid_starts
+            initial_valid = slot.unsqueeze(0) < valid_count.unsqueeze(1)
+            source = prefill_valid_starts.unsqueeze(1) + slot.unsqueeze(0)
+            source = source.clamp_max(initial_state_len - 1)
+            gather_key_index = source[:, None, :, None].expand(
+                -1,
+                self.config.num_key_value_heads,
+                -1,
+                int(k.size(-1)),
+            )
+            gather_value_index = source[:, None, :, None].expand(
+                -1,
+                self.config.num_key_value_heads,
+                -1,
+                int(v.size(-1)),
+            )
+            initial_state_k = torch.gather(
+                k[..., :initial_state_len, :], 2, gather_key_index
+            ).masked_fill(~initial_valid[:, None, :, None], 0)
+            initial_state_v = torch.gather(
+                v[..., :initial_state_len, :], 2, gather_value_index
+            ).masked_fill(~initial_valid[:, None, :, None], 0)
+            physical = slot.unsqueeze(0).expand(batch_size, -1)
+            compact_owner = physical - prefill_valid_starts.unsqueeze(1)
+            dummy_owner = valid_count.unsqueeze(1)
+            owners = torch.where(
+                physical >= prefill_valid_starts.unsqueeze(1),
+                compact_owner,
+                dummy_owner,
+            )[:, None, :].expand(
+                -1, self.config.num_key_value_heads, -1
+            )
+        state_k = _pad_sequence(initial_state_k, state_capacity).clone()
+        state_v = _pad_sequence(initial_state_v, state_capacity).clone()
         counts = torch.zeros(
             batch_size,
             self.config.num_key_value_heads,
@@ -3078,13 +3224,16 @@ class TritonLODAttentionCore(nn.Module):
             dtype=torch.float32,
             device=k.device,
         )
-        counts[..., :initial_state_len, :].fill_(1.0)
+        if initial_valid is None:
+            counts[..., :initial_state_len, :].fill_(1.0)
+        else:
+            counts[..., :initial_state_len, :].fill_(
+                torch.finfo(torch.float32).tiny
+            )
+            counts[..., :initial_state_len, :].masked_fill_(
+                initial_valid[:, None, :, None], 1.0
+            )
         state_len = initial_state_len
-        owners = (
-            torch.arange(initial_state_len, dtype=torch.long, device=k.device)
-            .view(1, 1, initial_state_len)
-            .expand(batch_size, self.config.num_key_value_heads, initial_state_len)
-        )
         state_coverage = initial_len
         page_cache = None
         if self.leaf_attention_backend == "paged":

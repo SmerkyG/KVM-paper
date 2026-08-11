@@ -51,10 +51,15 @@ class HFLODSettings:
     open_count: int
     engine_backend: str
     backend_name: str
+    left_padding_mode: str = "chunk_aligned"
 
     def __post_init__(self) -> None:
         if self.engine_backend not in ("torch", "kernel"):
             raise ValueError("engine_backend must be 'torch' or 'kernel'")
+        if self.left_padding_mode not in ("exact", "chunk_aligned"):
+            raise ValueError(
+                "left_padding_mode must be 'exact' or 'chunk_aligned'"
+            )
         if not 0 <= self.open_count <= self.config.max_routes:
             raise ValueError("open_count must be between zero and max_routes")
 
@@ -275,7 +280,17 @@ class HFLODCacheLayer(CacheLayerMixin):
                     sequence_length=int(query.size(2)),
                 )
                 if plan.requires_grouping:
-                    from .hf_lod_left_padding import GroupedHFLODRuntime
+                    from .hf_lod_left_padding import (
+                        GroupedHFLODRuntime,
+                        chunk_align_padding_plan,
+                    )
+
+                    if self.settings.left_padding_mode == "chunk_aligned":
+                        plan = chunk_align_padding_plan(
+                            plan,
+                            chunk_size=self.settings.config.chunk_size,
+                            minimum_length=self.settings.config.local_window,
+                        )
 
                     self._padding_runtime = GroupedHFLODRuntime(
                         plan, device=query.device
@@ -659,6 +674,7 @@ def install_hf_lod_attention(
     engine_backend: str = "torch",
     backend_name: str = "lod",
     submodel_key: str | None = None,
+    left_padding_mode: str = "chunk_aligned",
 ) -> list[str]:
     """Install the registered LOD backend on compatible causal HF layers.
 
@@ -675,6 +691,7 @@ def install_hf_lod_attention(
         open_count=open_count,
         engine_backend=engine_backend,
         backend_name=backend_name,
+        left_padding_mode=left_padding_mode,
     )
     register_hf_lod_attention(backend_name)
     all_attention = list(_causal_attention_modules(model))

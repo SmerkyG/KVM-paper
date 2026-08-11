@@ -1,0 +1,50 @@
+{
+  "acceleration": {
+    "causal_conv1d_decode": true,
+    "causal_conv1d_prefill": true,
+    "fla_fused_rms_norm_gated": true,
+    "fla_gated_delta_rule": true,
+    "fla_recurrent_gated_delta_rule": true,
+    "linear_layer_count": 18
+  },
+  "aligned_vs_exact": {
+    "max_absolute_logit_delta": 14.6875,
+    "mean_absolute_logit_delta": 0.28380945324897766,
+    "prefill_last_max_absolute_logit_delta": 0.998046875,
+    "prefill_last_mean_absolute_logit_delta": 0.06378377974033356,
+    "prefill_last_top1_agreement": 1.0,
+    "top1_agreement": 0.875
+  },
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "decode_tokens": 8,
+  "lengths": [
+    4096,
+    4060,
+    4024,
+    3987,
+    3951,
+    3914,
+    3878,
+    3841
+  ],
+  "measurements": {
+    "chunk_aligned": {
+      "decode_ms_per_token": 15.02685563173145,
+      "prefill_ce": 3.3557467460632324,
+      "prefill_seconds": 0.2804795550182462
+    },
+    "exact": {
+      "decode_ms_per_token": 43.394449166953564,
+      "prefill_ce": 3.355121612548828,
+      "prefill_seconds": 0.8084483230486512
+    },
+    "exact_repeat": {
+      "decode_ms_per_token": 34.26374134141952,
+      "prefill_ce": 3.3550074100494385,
+      "prefill_seconds": 0.7102525699883699
+    }
+  },
+  "prolong": true,
+  "recursive_pages": true
+}

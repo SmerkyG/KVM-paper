@@ -96,6 +96,7 @@ def _route_state(
         query.float(), mean_key.float().transpose(-1, -2)
     ) * scale
     state_scores = state_scores + count.clamp_min(1).log().float().unsqueeze(2)
+    state_scores.masked_fill_(count.le(0.5).unsqueeze(2), -torch.inf)
     if route_protected_prefix < 0:
         raise ValueError("route_protected_prefix cannot be negative")
     protected = min(route_protected_prefix, state.slot_count)
@@ -122,6 +123,10 @@ def _route_state(
         ).indices
     rank = torch.arange(route_count, device=query.device)
     open_mask = rank.view(1, 1, 1, route_count) < open_counts.unsqueeze(-1)
+    selected_count = count.unsqueeze(2).expand(
+        -1, -1, int(query.size(2)), -1
+    ).gather(-1, top_slots)
+    open_mask = open_mask & selected_count.gt(0.5)
     return top_slots, open_mask
 
 
@@ -148,12 +153,16 @@ def _fast_coarse_attention(
     groups = query_heads // key_value_heads
     route_count = 0 if top_slots is None else int(top_slots.size(-1))
 
+    active = state.count.gt(0.5)
     log_count = state.count.clamp_min(1).log().float()
     if groups != 1:
         log_count = log_count.repeat_interleave(groups, dim=1)
     state_bias = log_count.unsqueeze(2).expand(
         -1, -1, query_length, -1
     ).clone()
+    state_bias.masked_fill_(
+        ~_repeat_kv(active, query_heads).unsqueeze(2), -torch.inf
+    )
     if route_count:
         excluded = torch.zeros_like(state_bias, dtype=torch.bool)
         for route_index in range(route_count):
@@ -210,7 +219,7 @@ def _posting_lists(
     owner: torch.Tensor, state: LODState
 ) -> tuple[torch.Tensor, torch.Tensor]:
     with torch.no_grad():
-        counts = state.count.round().to(torch.long)
+        counts = state.count.abs().round().to(torch.long)
         starts = counts.cumsum(-1) - counts
         order = owner.argsort(dim=-1, stable=False)
     return order, starts
@@ -288,7 +297,7 @@ def _packed_leaf_attention(
         )
         expert_slot = unique_expert % state_size
 
-        counts = state.count.round().to(torch.long).flatten(0, 1)
+        counts = state.count.abs().round().to(torch.long).flatten(0, 1)
         starts = posting_starts.flatten(0, 1)
         order = posting_order.flatten(0, 1)
         key_lengths = counts[expert_leaf_row, expert_slot]
@@ -399,7 +408,7 @@ def _gathered_leaf_attention(
         groups,
         rounding_mode="floor",
     )
-    counts = state.count[:, kv_head]
+    counts = state.count[:, kv_head].abs()
     starts = posting_starts[:, kv_head]
     order = posting_order[:, kv_head]
     expanded_counts = counts.unsqueeze(2).expand(-1, -1, query_length, -1)

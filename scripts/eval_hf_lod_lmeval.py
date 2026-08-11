@@ -7,6 +7,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import time
 
 import torch
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
@@ -17,6 +18,7 @@ from lm_eval.utils import make_table
 
 from model.hf_pytorch_lod_attention import install_hf_lod_attention
 from model.pytorch_lod_attention import LODConfig
+from model.pytorch_lod_attention_paged import PagedLODConfig
 from scripts.eval_qwen35_lod_lmeval import patch_hotpotqa_download
 
 
@@ -34,6 +36,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--protected-prefix", type=int, default=1)
     parser.add_argument(
         "--engine-backend", choices=("torch", "kernel"), default="kernel"
+    )
+    parser.add_argument("--recursive-pages", action="store_true")
+    parser.add_argument("--kv-bits", type=int, choices=(0, 4), default=0)
+    parser.add_argument(
+        "--left-padding-mode",
+        choices=("exact", "chunk_aligned"),
+        default="chunk_aligned",
     )
     parser.add_argument("--limit", type=int)
     parser.add_argument("--output", type=Path, required=True)
@@ -80,7 +89,8 @@ def main() -> None:
         raise ValueError("RULER length must be positive")
     if not 0 <= args.open_count <= 8:
         raise ValueError("open count must be in [0, 8]")
-
+    if args.kv_bits and not args.recursive_pages:
+        raise ValueError("KV quantization requires --recursive-pages")
     local_rank = int(os.environ.get("LOCAL_RANK", "0"))
     device = torch.device("cuda", local_rank)
     torch.cuda.set_device(device)
@@ -88,19 +98,25 @@ def main() -> None:
         args.checkpoint, trust_remote_code=True
     )
     model, acceleration = load_model(args.checkpoint, device)
-    config = LODConfig(
-        chunk_size=args.chunk_size,
-        local_window=args.local_window,
-        state_growth_factor=args.state_growth_factor,
-        state_min_size=args.state_min_size,
-        protected_prefix=args.protected_prefix,
-        max_routes=8,
+    config_kwargs = {
+        "chunk_size": args.chunk_size,
+        "local_window": args.local_window,
+        "state_growth_factor": args.state_growth_factor,
+        "state_min_size": args.state_min_size,
+        "protected_prefix": args.protected_prefix,
+        "max_routes": 8,
+    }
+    config = (
+        PagedLODConfig(**config_kwargs, page_size=16, kv_bits=args.kv_bits)
+        if args.recursive_pages
+        else LODConfig(**config_kwargs)
     )
     installed = install_hf_lod_attention(
         model,
         config=config,
         open_count=args.open_count,
         engine_backend=args.engine_backend,
+        left_padding_mode=args.left_padding_mode,
     )
     if local_rank == 0:
         print(f"installed HF LOD on {len(installed)} attention layers")
@@ -134,6 +150,7 @@ def main() -> None:
     }
     if args.ruler_length is not None:
         metadata["max_seq_lengths"] = [args.ruler_length]
+    evaluation_start = time.perf_counter()
     results = evaluator.simple_evaluate(
         model=lm,
         tasks=args.tasks,
@@ -144,6 +161,7 @@ def main() -> None:
         metadata=metadata,
         confirm_run_unsafe_code=True,
     )
+    evaluation_seconds = time.perf_counter() - evaluation_start
     if results is None:
         return
 
@@ -159,7 +177,11 @@ def main() -> None:
         "state_min_size": args.state_min_size,
         "protected_prefix": args.protected_prefix,
         "engine_backend": args.engine_backend,
+        "recursive_pages": args.recursive_pages,
+        "kv_bits": args.kv_bits,
+        "left_padding_mode": args.left_padding_mode,
         "attention_layers": installed,
+        "evaluation_seconds": evaluation_seconds,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(

@@ -38,6 +38,7 @@ from .pytorch_lod_attention import (
     LODState,
     TwoLevelLODAttention,
     _attention_from_scores,
+    _masked_causal_attention,
     _repeat_kv,
 )
 from .pytorch_lod_attention_fast import (
@@ -448,7 +449,7 @@ def build_region_pages(
 ) -> RegionPages:
     """Stably partition each state region's postings into logical pages."""
     batch, key_value_heads, history_length = owner.shape
-    slot_leaf_count = state.count.round().to(torch.long)
+    slot_leaf_count = state.count.abs().round().to(torch.long)
     slot_page_count = torch.div(
         slot_leaf_count + page_size - 1, page_size, rounding_mode="floor"
     )
@@ -741,6 +742,8 @@ def _reference_coarse_attention(
     ) * float(scale)
     state_bias = _repeat_kv(state.count.clamp_min(1).log(), query_heads)
     state_bias = state_bias.unsqueeze(2).expand(-1, -1, query_length, -1).clone()
+    active = _repeat_kv(state.count.gt(0.5), query_heads)
+    state_bias.masked_fill_(~active.unsqueeze(2), -torch.inf)
     for route in range(int(top_slots.size(-1))):
         state_bias.scatter_(
             -1,
@@ -967,6 +970,7 @@ class PagedTwoLevelLODAttention(_FastLocalMixin, TwoLevelLODAttention):
         open_count: int | torch.Tensor,
         scale: float,
         use_cache: bool,
+        prefill_valid_starts: torch.Tensor | None = None,
     ):
         if not self.uses_pages:
             return super()._prefill(
@@ -976,19 +980,49 @@ class PagedTwoLevelLODAttention(_FastLocalMixin, TwoLevelLODAttention):
                 open_count=open_count,
                 scale=scale,
                 use_cache=use_cache,
+                prefill_valid_starts=prefill_valid_starts,
             )
 
         self._region_key = None
         self._region_pages = None
         sequence_length = int(query.size(2))
+        if prefill_valid_starts is not None:
+            prefill_valid_starts = prefill_valid_starts.to(
+                device=query.device, dtype=torch.long
+            )
+            if bool(
+                (
+                    prefill_valid_starts.lt(0)
+                    | prefill_valid_starts.ge(self.config.chunk_size)
+                ).any().item()
+            ):
+                raise ValueError(
+                    "chunk-aligned padding must fit entirely in the first chunk"
+                )
+            self._lod_padding_state_reserve = int(
+                prefill_valid_starts.max().item()
+            )
+        else:
+            self._lod_padding_state_reserve = 0
         front_length = min(sequence_length, self.config.local_window)
+        front_query = query[..., :front_length, :]
+        front_key = key[..., :front_length, :]
+        front_value = value[..., :front_length, :]
         outputs = [
             self._local(
-                query[..., :front_length, :],
-                key[..., :front_length, :],
-                value[..., :front_length, :],
+                front_query,
+                front_key,
+                front_value,
                 scale=scale,
                 query_offset=0,
+            )
+            if prefill_valid_starts is None
+            else _masked_causal_attention(
+                front_query,
+                front_key,
+                front_value,
+                scale=scale,
+                valid_starts=prefill_valid_starts,
             )
         ]
         state = self._empty_state(key, value)
@@ -1012,6 +1046,7 @@ class PagedTwoLevelLODAttention(_FastLocalMixin, TwoLevelLODAttention):
                 coverage=coverage,
                 target=local_begin,
                 context_length=query_begin,
+                initial_valid_starts=prefill_valid_starts,
             )
             if next_owner is None:
                 raise AssertionError("paged state update dropped leaf ownership")
@@ -1041,6 +1076,7 @@ class PagedTwoLevelLODAttention(_FastLocalMixin, TwoLevelLODAttention):
                 coverage=coverage,
                 target=decode_coverage,
                 context_length=sequence_length,
+                initial_valid_starts=prefill_valid_starts,
             )
             if next_owner is None:
                 raise AssertionError("paged cache has no ownership archive")
