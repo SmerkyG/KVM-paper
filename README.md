@@ -77,7 +77,11 @@ require a key can use any non-empty placeholder:
 ```python
 from openai import OpenAI
 
-client = OpenAI(base_url="http://localhost:8000/v1", api_key="local")
+client = OpenAI(
+    base_url="http://localhost:8000/v1",
+    api_key="local",
+    default_headers={"X-LOD-Session-ID": "swebench-instance-1"},
+)
 response = client.chat.completions.create(
     model="Qwen/Qwen3.5-0.8B",
     messages=[{"role": "user", "content": "Use get_file to read README.md"}],
@@ -99,7 +103,13 @@ response = client.chat.completions.create(
 The same server also provides `/v1/models`, `/v1/completions`, `/v1/responses`,
 and `/health`. Continuous batching must remain disabled because it owns a
 different paged KV cache; ordinary requests are serialized safely by the HF
-generation manager.
+generation manager. Reuse the same `X-LOD-Session-ID` for successive turns in
+one conversation: the server verifies the prior prompt and generated answer,
+then sends only the new turn through the retained LOD cache. This also handles
+chat templates whose assistant-generation marker is rewritten when the answer
+becomes message history. A mismatch safely starts a new cache.
+`--max-sessions` and `--session-ttl-seconds` bound retained GPU state; set
+`--max-sessions 0` to disable cross-request caching.
 
 ## optimized Triton KVM kernels
 

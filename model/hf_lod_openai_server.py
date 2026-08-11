@@ -12,6 +12,13 @@ from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 from transformers.cli.serving.model_manager import ModelManager
 
 from .hf_pytorch_lod_attention import install_hf_lod_attention
+from .hf_lod_session_cache import (
+    LOD_SESSION_HEADER,
+    LODSessionCacheConfig,
+    LODSessionGenerationState,
+    bind_lod_session,
+    reset_lod_session,
+)
 from .pytorch_lod_attention_paged import PagedLODConfig
 
 
@@ -186,6 +193,7 @@ def build_lod_openai_app(
     trust_remote_code: bool = True,
     require_qwen35_fast_path: bool = True,
     chat_template_kwargs: dict[str, Any] | None = None,
+    session_cache_config: LODSessionCacheConfig | None = None,
     enable_cors: bool = False,
 ):
     """Build the standard Transformers Serve app around an LOD model."""
@@ -194,7 +202,8 @@ def build_lod_openai_app(
     from transformers.cli.serving.response import ResponseHandler
     from transformers.cli.serving.server import build_server
     from transformers.cli.serving.transcription import TranscriptionHandler
-    from transformers.cli.serving.utils import GenerationState
+    from fastapi import Request
+    from fastapi.responses import JSONResponse
 
     model_manager = LODModelManager(
         checkpoint,
@@ -207,7 +216,9 @@ def build_lod_openai_app(
     # Transformers continuous batching owns a conventional paged KV cache and
     # is therefore incompatible with the LOD-owned cache. Its regular generate
     # manager still serializes concurrent requests safely on one GPU thread.
-    generation_state = GenerationState(continuous_batching=False)
+    generation_state = LODSessionGenerationState(
+        session_cache_config or LODSessionCacheConfig()
+    )
     template_kwargs = chat_template_kwargs or {}
     chat_handler = ChatCompletionHandler(
         model_manager=model_manager,
@@ -229,6 +240,26 @@ def build_lod_openai_app(
         generation_state=generation_state,
         enable_cors=enable_cors,
     )
+
+    @app.middleware("http")
+    async def lod_session_middleware(request: Request, call_next):
+        session_id = request.headers.get(LOD_SESSION_HEADER)
+        if session_id is None:
+            return await call_next(request)
+        session_id = session_id.strip()
+        if not session_id or len(session_id) > 256:
+            return JSONResponse(
+                {"error": f"{LOD_SESSION_HEADER} must contain 1-256 characters"},
+                status_code=400,
+            )
+        token = bind_lod_session(session_id)
+        try:
+            response = await call_next(request)
+            response.headers[LOD_SESSION_HEADER] = session_id
+            return response
+        finally:
+            reset_lod_session(token)
+
     app.state.lod_model_manager = model_manager
     app.state.lod_generation_state = generation_state
     return app
@@ -237,5 +268,6 @@ def build_lod_openai_app(
 __all__ = [
     "LODModelManager",
     "LODServerConfig",
+    "LODSessionCacheConfig",
     "build_lod_openai_app",
 ]

@@ -8,7 +8,11 @@ import json
 
 import uvicorn
 
-from model.hf_lod_openai_server import LODServerConfig, build_lod_openai_app
+from model.hf_lod_openai_server import (
+    LODServerConfig,
+    LODSessionCacheConfig,
+    build_lod_openai_app,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -40,6 +44,8 @@ def parse_args() -> argparse.Namespace:
         help="JSON object forwarded to apply_chat_template",
     )
     parser.add_argument("--enable-cors", action="store_true")
+    parser.add_argument("--max-sessions", type=int, default=8)
+    parser.add_argument("--session-ttl-seconds", type=float, default=3600.0)
     parser.add_argument("--allow-slow-qwen35", action="store_true")
     parser.add_argument("--log-level", default="info")
     return parser.parse_args()
@@ -68,6 +74,10 @@ def main() -> None:
         dtype=args.dtype,
         require_qwen35_fast_path=not args.allow_slow_qwen35,
         chat_template_kwargs=template_kwargs,
+        session_cache_config=LODSessionCacheConfig(
+            max_sessions=args.max_sessions,
+            ttl_seconds=args.session_ttl_seconds,
+        ),
         enable_cors=args.enable_cors,
     )
     uvicorn.run(
