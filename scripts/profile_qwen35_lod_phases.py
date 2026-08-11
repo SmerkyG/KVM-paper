@@ -32,7 +32,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--recursive-page-block-n", type=int, default=4)
     parser.add_argument("--leaf-num-warps", type=int, default=1)
     parser.add_argument("--page-summary-quant-bits", type=int, choices=(0, 8), default=8)
-    parser.add_argument("--state-growth-factor", type=float, default=8.0)
+    parser.add_argument("--state-growth-factor", type=float, default=16.0)
     parser.add_argument("--prefill-chunk-length", type=int)
     parser.add_argument("--prefill-local-length", type=int)
     parser.add_argument("--prefill-state-update-length", type=int)

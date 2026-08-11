@@ -68,7 +68,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--page-summary-scale-mode", choices=("max", "l2"), default="l2"
     )
-    parser.add_argument("--state-growth-factor", type=float, default=8.0)
+    parser.add_argument("--state-growth-factor", type=float, default=16.0)
     parser.add_argument("--prefill-chunk-length", type=int)
     parser.add_argument("--prefill-local-length", type=int)
     parser.add_argument("--prefill-state-update-length", type=int)
