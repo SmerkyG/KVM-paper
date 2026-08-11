@@ -115,18 +115,25 @@ class _KernelLODEngine(TritonLODAttentionCore):
                     "initial prefill"
                 )
             self._lod_state = cache.state
-            outputs = []
-            for token in range(int(query.size(2))):
-                total_length = int(self._lod_state["total_len"]) + 1
-                outputs.append(
-                    self._decode_attention(
-                        query[..., token : token + 1, :],
-                        key[..., token : token + 1, :],
-                        value[..., token : token + 1, :],
-                        total_len=total_length,
+            if (
+                int(query.size(2)) > 1
+                and self.split_prefill_local_attention
+                and isinstance(self._lod_state.get("page_cache"), dict)
+            ):
+                output = self._cached_prefill_attention(query, key, value)
+            else:
+                outputs = []
+                for token in range(int(query.size(2))):
+                    total_length = int(self._lod_state["total_len"]) + 1
+                    outputs.append(
+                        self._decode_attention(
+                            query[..., token : token + 1, :],
+                            key[..., token : token + 1, :],
+                            value[..., token : token + 1, :],
+                            total_len=total_length,
+                        )
                     )
-                )
-            output = torch.cat(outputs, dim=2)
+                output = torch.cat(outputs, dim=2)
         next_cache = KernelLODCache(self._lod_state) if use_cache else None
         if not use_cache:
             self.reset_runtime_cache()

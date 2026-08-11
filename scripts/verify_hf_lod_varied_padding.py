@@ -126,10 +126,35 @@ def main() -> None:
     if not bool(torch.isfinite(prefill).all()):
         raise AssertionError("varied-padding prefill produced non-finite logits")
 
+    turn_length = 17
+    turn_token = torch.randint(
+        3,
+        model.config.vocab_size,
+        (len(lengths), turn_length),
+        device=device,
+    )
+    turn_mask = torch.cat(
+        (
+            attention_mask,
+            torch.ones(
+                len(lengths), turn_length, dtype=torch.long, device=device
+            ),
+        ),
+        dim=1,
+    )
+    turn_output = model(
+        turn_token,
+        attention_mask=turn_mask,
+        past_key_values=cache,
+        use_cache=True,
+    ).logits
+    if not bool(torch.isfinite(turn_output).all()):
+        raise AssertionError("varied-padding cached turn produced non-finite logits")
+
     next_token = torch.randint(
         3, model.config.vocab_size, (len(lengths), 1), device=device
     )
-    decode_mask = torch.cat((attention_mask, torch.ones_like(next_token)), dim=1)
+    decode_mask = torch.cat((turn_mask, torch.ones_like(next_token)), dim=1)
     decoded = model(
         next_token,
         attention_mask=decode_mask,
@@ -147,29 +172,51 @@ def main() -> None:
             past_key_values=reference_cache,
             use_cache=True,
         )
-        reference = model(
-            next_token[row : row + 1],
+        reference_turn = model(
+            turn_token[row : row + 1],
             attention_mask=torch.ones(
-                1, length + 1, dtype=torch.long, device=device
+                1,
+                length + turn_length,
+                dtype=torch.long,
+                device=device,
             ),
             past_key_values=reference_cache,
             use_cache=True,
         ).logits
         torch.testing.assert_close(
-            decoded[row : row + 1].float(),
-            reference.float(),
+            turn_output[row : row + 1].float(),
+            reference_turn.float(),
             atol=5e-2,
             rtol=5e-2,
         )
+        reference = model(
+            next_token[row : row + 1],
+            attention_mask=torch.ones(
+                1,
+                length + turn_length + 1,
+                dtype=torch.long,
+                device=device,
+            ),
+            past_key_values=reference_cache,
+            use_cache=True,
+        ).logits
+        if args.left_padding_mode == "exact":
+            torch.testing.assert_close(
+                decoded[row : row + 1].float(),
+                reference.float(),
+                atol=5e-2,
+                rtol=5e-2,
+            )
 
     expected_group_lengths = sorted(
         {
             (
                 padded_length
                 - ((padded_length - length) // chunk_size) * chunk_size
+                + turn_length
                 + 1
                 if args.left_padding_mode == "chunk_aligned"
-                else length + 1
+                else length + turn_length + 1
             )
             for length in lengths
         }
@@ -197,7 +244,7 @@ def main() -> None:
         f"{args.model_family} {args.engine_backend} "
         f"{args.lod_mode} int{args.kv_bits or 16} "
         f"{args.left_padding_mode} varied-padding smoke passed: "
-        f"batch={len(lengths)} physical={padded_length + 1} "
+        f"batch={len(lengths)} physical={padded_length + turn_length + 1} "
         f"logical={expected_group_lengths}"
     )
 

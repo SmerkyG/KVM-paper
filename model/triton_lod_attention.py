@@ -1863,20 +1863,33 @@ class TritonLODAttentionCore(nn.Module):
                 raise ValueError("virtual pages require the original prompt K/V")
             if virtual_k.shape[:3] != virtual_v.shape[:3]:
                 raise ValueError("virtual prompt K/V shapes do not match")
+            if virtual_quantized:
+                flat_leaf_k = virtual_k.detach()
+                flat_leaf_v = virtual_v.detach()
+                flat_leaf_capacity = sequence_capacity
+            else:
+                flat_leaf_k = virtual_k.new_empty(
+                    batch, kv_heads, sequence_capacity, head_dim
+                )
+                flat_leaf_v = virtual_v.new_empty(
+                    batch,
+                    kv_heads,
+                    sequence_capacity,
+                    int(virtual_v.size(-1)),
+                )
+                flat_leaf_k[..., : virtual_k.size(2), :].copy_(virtual_k)
+                flat_leaf_v[..., : virtual_v.size(2), :].copy_(virtual_v)
+                flat_leaf_capacity = sequence_capacity
             cache.update(
-                leaf_k=virtual_k.detach(),
-                leaf_v=virtual_v.detach(),
+                leaf_k=flat_leaf_k,
+                leaf_v=flat_leaf_v,
                 page_indices=torch.full(
                     (batch, kv_heads, page_capacity, page_size),
                     -1,
                     dtype=torch.int32,
                     device=k.device,
                 ),
-                leaf_capacity=(
-                    sequence_capacity
-                    if virtual_quantized
-                    else int(virtual_k.size(2))
-                ),
+                leaf_capacity=flat_leaf_capacity,
                 quantization_finalized=False,
             )
             if virtual_quantized:
@@ -2207,19 +2220,26 @@ class TritonLODAttentionCore(nn.Module):
             if isinstance(cache.get("page_indices"), torch.Tensor):
                 quantized_leaf_k = cache.get("quantized_leaf_k")
                 quantized_leaf_v = cache.get("quantized_leaf_v")
-                if not isinstance(quantized_leaf_k, torch.Tensor) or not isinstance(
+                if isinstance(quantized_leaf_k, torch.Tensor) and isinstance(
                     quantized_leaf_v, torch.Tensor
                 ):
-                    raise RuntimeError(
-                        "unquantized virtual page backing K/V cannot grow during decode"
+                    missing = leaf_capacity - int(quantized_leaf_k.size(2))
+                    cache["quantized_leaf_k"] = F.pad(
+                        quantized_leaf_k, (0, 0, 0, missing)
                     )
-                missing = leaf_capacity - int(quantized_leaf_k.size(2))
-                cache["quantized_leaf_k"] = F.pad(
-                    quantized_leaf_k, (0, 0, 0, missing)
-                )
-                cache["quantized_leaf_v"] = F.pad(
-                    quantized_leaf_v, (0, 0, 0, missing)
-                )
+                    cache["quantized_leaf_v"] = F.pad(
+                        quantized_leaf_v, (0, 0, 0, missing)
+                    )
+                else:
+                    leaf_k = cache.get("leaf_k")
+                    leaf_v = cache.get("leaf_v")
+                    if not isinstance(leaf_k, torch.Tensor) or not isinstance(
+                        leaf_v, torch.Tensor
+                    ):
+                        raise RuntimeError("virtual page backing K/V are missing")
+                    missing = leaf_capacity - int(leaf_k.size(2))
+                    cache["leaf_k"] = F.pad(leaf_k, (0, 0, 0, missing))
+                    cache["leaf_v"] = F.pad(leaf_v, (0, 0, 0, missing))
             cache["leaf_capacity"] = leaf_capacity
             slot_lengths = cache["slot_lengths"]
             if not isinstance(slot_lengths, torch.Tensor):
@@ -2326,6 +2346,8 @@ class TritonLODAttentionCore(nn.Module):
                     ),
                 )
             else:
+                leaf_k[..., leaf_offset:leaf_count, :].copy_(k)
+                leaf_v[..., leaf_offset:leaf_count, :].copy_(v)
                 append_virtual_paged_kv(
                     leaf_k,
                     leaf_v,
@@ -3501,6 +3523,217 @@ class TritonLODAttentionCore(nn.Module):
             self._lod_state["owners"] = owners.detach()
             self._lod_state["exact_k"] = archive_k.detach()
             self._lod_state["exact_v"] = archive_v.detach()
+        return torch.cat(outputs, dim=2)
+
+    @torch.compiler.disable
+    def _cached_prefill_attention(
+        self,
+        q: torch.Tensor,
+        new_k: torch.Tensor,
+        new_v: torch.Tensor,
+    ) -> torch.Tensor:
+        """Append a causal multi-token turn without replaying decode kernels."""
+        if not hasattr(self, "_lod_state"):
+            raise RuntimeError("cached LOD prefill did not receive a prior state")
+        if int(q.size(2)) <= 1:
+            raise ValueError("cached LOD prefill requires multiple query tokens")
+        cache = self._lod_state
+        page_cache = cache.get("page_cache")
+        if not isinstance(page_cache, dict):
+            raise NotImplementedError(
+                "fast cached prefill currently requires the paged LOD backend"
+            )
+        if not self.split_prefill_local_attention:
+            raise NotImplementedError(
+                "fast cached prefill requires split local attention"
+            )
+
+        state_k = cache["state_k"]
+        state_v = cache["state_v"]
+        counts = cache["counts"]
+        if not all(
+            isinstance(tensor, torch.Tensor)
+            for tensor in (state_k, state_v, counts)
+        ):
+            raise TypeError("cached LOD state tensors are missing")
+        state_len = int(cache["state_len"])
+        state_coverage = int(cache["coverage"])
+        initial_coverage = state_coverage
+        previous_total_len = int(cache["total_len"])
+        turn_len = int(q.size(2))
+        total_len = previous_total_len + turn_len
+        recent_k = cache["recent_k"]
+        recent_v = cache["recent_v"]
+        if not isinstance(recent_k, torch.Tensor) or not isinstance(
+            recent_v, torch.Tensor
+        ):
+            raise TypeError("cached LOD recent tensors are missing")
+        recent_len = int(cache.get("recent_len", recent_k.size(2)))
+        if previous_total_len - initial_coverage != recent_len:
+            raise AssertionError("cached LOD recent coverage drifted")
+        working_k = torch.cat(
+            (recent_k[..., :recent_len, :], new_k), dim=2
+        ).contiguous()
+        working_v = torch.cat(
+            (recent_v[..., :recent_len, :], new_v), dim=2
+        ).contiguous()
+
+        state_capacity = max(
+            int(cache["state_capacity"]),
+            self._state_capacity(total_len, state_len),
+        )
+        if int(state_k.size(2)) < state_capacity:
+            state_k = _pad_sequence(state_k, state_capacity).clone()
+            state_v = _pad_sequence(state_v, state_capacity).clone()
+            counts = _pad_sequence(counts, state_capacity).clone()
+            self._grow_slot_page_table(
+                page_cache, required_slots=state_capacity
+            )
+
+        sink_k = cache.get("sink_k")
+        sink_v = cache.get("sink_v")
+        if (sink_k is None) != (sink_v is None):
+            raise RuntimeError("LOD separate sink cache is incomplete")
+        owners = cache.get("owners")
+        exact_k = cache.get("exact_k", recent_k)
+        exact_v = cache.get("exact_v", recent_v)
+        prefill_chunk_len = int(self.prefill_chunk_len)
+        prefill_state_update_len = int(self.prefill_state_update_len)
+        exact_lookback = int(self.prefill_local_len) - prefill_chunk_len
+        if prefill_chunk_len <= 0 or prefill_state_update_len <= 0:
+            raise ValueError("cached prefill lengths must be positive")
+        if exact_lookback < 0:
+            raise ValueError("prefill local length cannot be shorter than its chunk")
+
+        def update_to(target_coverage: int, *, context_length_for) -> None:
+            nonlocal state_k, state_v, counts, state_len, state_coverage, owners
+            while state_coverage < target_coverage:
+                update_end = min(
+                    target_coverage,
+                    state_coverage + prefill_state_update_len,
+                )
+                source_begin = state_coverage - initial_coverage
+                source_end = update_end - initial_coverage
+                overflow_k = working_k[..., source_begin:source_end, :]
+                overflow_v = working_v[..., source_begin:source_end, :]
+                (
+                    state_k,
+                    state_v,
+                    counts,
+                    state_len,
+                    new_owners,
+                    old_slot_remap,
+                ) = self._update_state(
+                    state_k,
+                    state_v,
+                    counts,
+                    overflow_k,
+                    overflow_v,
+                    state_len=state_len,
+                    ctx_len=context_length_for(update_end),
+                    available_context=update_end,
+                    state_capacity=state_capacity,
+                )
+                if old_slot_remap is not None:
+                    raise AssertionError("paged state remapping is unsupported")
+                self._append_page_cache(
+                    page_cache, overflow_k, overflow_v, new_owners
+                )
+                state_coverage = update_end
+
+        outputs = []
+        for query_begin in range(0, turn_len, prefill_chunk_len):
+            query_end = min(turn_len, query_begin + prefill_chunk_len)
+            absolute_query_begin = previous_total_len + query_begin
+            desired_coverage = max(
+                state_coverage,
+                absolute_query_begin - exact_lookback,
+            )
+            update_to(
+                desired_coverage,
+                context_length_for=lambda update_end: (
+                    absolute_query_begin + update_end - desired_coverage
+                ),
+            )
+            local_begin = state_coverage - initial_coverage
+            local_end = previous_total_len + query_end - initial_coverage
+            local_k = working_k[..., local_begin:local_end, :]
+            local_v = working_v[..., local_begin:local_end, :]
+            query_prefix_len = absolute_query_begin - state_coverage
+            local_query = torch.cat(
+                (
+                    q.new_zeros(
+                        *q.shape[:2], query_prefix_len, int(q.size(-1))
+                    ),
+                    q[..., query_begin:query_end, :],
+                ),
+                dim=2,
+            )
+            local_branch = self._prefill_local_attention(
+                local_query,
+                local_k,
+                local_v,
+                query_offset=query_prefix_len,
+            )
+            outputs.append(
+                self._two_level_attention(
+                    q[..., query_begin:query_end, :],
+                    local_k,
+                    local_v,
+                    state_k,
+                    state_v,
+                    counts,
+                    owners,
+                    exact_k,
+                    exact_v,
+                    state_len=state_len,
+                    state_capacity=state_capacity,
+                    page_cache=page_cache,
+                    local_branch=local_branch,
+                    sink_k=sink_k,
+                    sink_v=sink_v,
+                )
+            )
+
+        decode_coverage = max(
+            state_coverage,
+            self._bswa_begin(total_len + 1),
+        )
+        update_to(
+            decode_coverage,
+            context_length_for=lambda update_end: min(
+                total_len, update_end + self.local_len
+            ),
+        )
+        tail_begin = state_coverage - initial_coverage
+        tail_k = working_k[..., tail_begin:, :]
+        tail_v = working_v[..., tail_begin:, :]
+        tail_len = int(tail_k.size(2))
+        if tail_len > int(recent_k.size(2)):
+            recent_capacity = max(
+                tail_len,
+                self.local_len + self.decode_state_update_len,
+            )
+            recent_k = new_k.new_empty(
+                *new_k.shape[:2], recent_capacity, int(new_k.size(-1))
+            )
+            recent_v = new_v.new_empty(
+                *new_v.shape[:2], recent_capacity, int(new_v.size(-1))
+            )
+        recent_k[..., :tail_len, :].copy_(tail_k)
+        recent_v[..., :tail_len, :].copy_(tail_v)
+        cache.update(
+            state_k=state_k.detach(),
+            state_v=state_v.detach(),
+            counts=counts.detach(),
+            state_len=state_len,
+            coverage=state_coverage,
+            state_capacity=state_capacity,
+            recent_k=recent_k.detach(),
+            recent_v=recent_v.detach(),
+            recent_len=tail_len,
+            total_len=total_len,
+        )
         return torch.cat(outputs, dim=2)
 
     @torch.compiler.disable

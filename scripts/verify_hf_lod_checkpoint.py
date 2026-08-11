@@ -21,6 +21,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--checkpoint", default="Qwen/Qwen3-0.6B")
     parser.add_argument("--exact-length", type=int, default=128)
     parser.add_argument("--lod-length", type=int, default=1024)
+    parser.add_argument("--turn-tokens", type=int, default=32)
     parser.add_argument("--decode-tokens", type=int, default=4)
     parser.add_argument("--open-count", type=int, default=8)
     parser.add_argument("--page-size", type=int, default=0)
@@ -121,12 +122,35 @@ def main() -> None:
     if long_result.loss is None or not bool(torch.isfinite(long_result.loss)):
         raise AssertionError("registered LOD backend produced non-finite loss")
 
-    prefix_length = args.lod_length - args.decode_tokens
+    prefix_length = args.lod_length - args.turn_tokens - args.decode_tokens
+    if prefix_length <= 0 or args.turn_tokens <= 1:
+        raise ValueError("LOD length must leave room for a multi-token cached turn")
     cache = new_hf_lod_cache(model)
     cached = model(
         long_ids[:, :prefix_length], past_key_values=cache, use_cache=True
     )
-    for position in range(prefix_length, args.lod_length):
+    first_turn_end = prefix_length + args.turn_tokens // 2
+    cached = model(
+        long_ids[:, prefix_length:first_turn_end],
+        past_key_values=cache,
+        use_cache=True,
+    )
+    if int(cached.logits.size(1)) != first_turn_end - prefix_length:
+        raise AssertionError("cached turn did not return one output per token")
+    # A real conversation normally decodes an assistant response before the
+    # next user turn. Exercise cached prefill again after that state change.
+    cached = model(
+        long_ids[:, first_turn_end : first_turn_end + 1],
+        past_key_values=cache,
+        use_cache=True,
+    )
+    second_turn_end = prefix_length + args.turn_tokens + 1
+    cached = model(
+        long_ids[:, first_turn_end + 1 : second_turn_end],
+        past_key_values=cache,
+        use_cache=True,
+    )
+    for position in range(second_turn_end, args.lod_length):
         cached = model(
             long_ids[:, position : position + 1],
             past_key_values=cache,
@@ -135,16 +159,24 @@ def main() -> None:
     if cache.get_seq_length() != args.lod_length:
         raise AssertionError("LOD-owned HF cache length did not advance")
     lod_layers = (
-        cache.layers
-        if hasattr(cache, "layers")
-        else cache.lod_layers.values()
+        cache.lod_layers.values()
+        if hasattr(cache, "lod_layers")
+        else cache.layers
     )
     if any(layer.keys.numel() or layer.values.numel() for layer in lod_layers):
         raise AssertionError("HF cache retained duplicate ordinary K/V tensors")
-    if is_qwen35 and any(
-        item is not None for item in cache.key_cache + cache.value_cache
-    ):
-        raise AssertionError("hybrid native cache retained duplicate attention K/V")
+    if is_qwen35 and hasattr(cache, "lod_layers"):
+        native_layers = getattr(cache.native_cache, "layers", ())
+        for layer_index in cache.lod_layers:
+            native_layer = native_layers[layer_index]
+            if any(
+                isinstance(getattr(native_layer, name, None), torch.Tensor)
+                and getattr(native_layer, name).numel()
+                for name in ("keys", "values")
+            ):
+                raise AssertionError(
+                    "hybrid native cache retained duplicate attention K/V"
+                )
     if not bool(torch.isfinite(cached.logits).all()):
         raise AssertionError("registered LOD cached decode produced non-finite logits")
     print(
