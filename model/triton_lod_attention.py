@@ -5014,11 +5014,16 @@ class TritonLODAttentionCore(nn.Module):
         state_k = cache["state_k"]
         state_v = cache["state_v"]
         counts = cache["counts"]
+        key_norm_sums = cache.get("key_norm_sums")
         if not all(
             isinstance(tensor, torch.Tensor)
             for tensor in (state_k, state_v, counts)
         ):
             raise TypeError("cached LOD state tensors are missing")
+        if key_norm_sums is not None and not isinstance(
+            key_norm_sums, torch.Tensor
+        ):
+            raise TypeError("LOD key-norm sum cache is invalid")
         state_len = int(cache["state_len"])
         state_coverage = int(cache["coverage"])
         initial_coverage = state_coverage
@@ -5049,6 +5054,10 @@ class TritonLODAttentionCore(nn.Module):
             state_k = _pad_sequence(state_k, state_capacity).clone()
             state_v = _pad_sequence(state_v, state_capacity).clone()
             counts = _pad_sequence(counts, state_capacity).clone()
+            if key_norm_sums is not None:
+                key_norm_sums = _pad_sequence(
+                    key_norm_sums, state_capacity
+                ).clone()
             self._grow_slot_page_table(
                 page_cache, required_slots=state_capacity
             )
@@ -5067,6 +5076,8 @@ class TritonLODAttentionCore(nn.Module):
             raise ValueError("cached prefill lengths must be positive")
         if exact_lookback < 0:
             raise ValueError("prefill local length cannot be shorter than its chunk")
+
+        clustering_query_scale = self._state_clustering_query_scale(q)
 
         def update_to(target_coverage: int, *, context_length_for) -> None:
             nonlocal state_k, state_v, counts, state_len, state_coverage, owners
@@ -5090,12 +5101,14 @@ class TritonLODAttentionCore(nn.Module):
                     state_k,
                     state_v,
                     counts,
+                    key_norm_sums,
                     overflow_k,
                     overflow_v,
                     state_len=state_len,
                     ctx_len=context_length_for(update_end),
                     available_context=update_end,
                     state_capacity=state_capacity,
+                    clustering_query_scale=clustering_query_scale,
                 )
                 if old_slot_remap is not None:
                     raise AssertionError("paged state remapping is unsupported")
@@ -5197,6 +5210,8 @@ class TritonLODAttentionCore(nn.Module):
             recent_len=tail_len,
             total_len=total_len,
         )
+        if key_norm_sums is not None:
+            cache["key_norm_sums"] = key_norm_sums.detach()
         return torch.cat(outputs, dim=2)
 
     @torch.compiler.disable
