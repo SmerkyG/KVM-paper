@@ -44,8 +44,14 @@ class LODConfig:
     local_window: int = 512
     state_growth_factor: float = 16.0
     state_min_size: int = 256
-    state_size_offset: int = 0
     protected_prefix: int = 1
+    max_routes: int = 8
+    leaf_dtype: torch.dtype = torch.bfloat16
+
+    # Keep all extension fields after the original positional constructor
+    # surface so older callers using positional LODConfig arguments retain
+    # their meaning. New code should continue to pass these options by name.
+    state_size_offset: int = 0
     state_clustering_policy: str = "manual"
     state_clustering_normalization: str = "none"
     state_clustering_radial_bias: float = 0.0
@@ -72,8 +78,6 @@ class LODConfig:
     routing_leaf_mass_review_top_p: float | None = None
     routing_leaf_mass_top_p: float | None = None
     routing_leaf_mass_min_routes: int = 1
-    max_routes: int = 8
-    leaf_dtype: torch.dtype = torch.bfloat16
 
     def __post_init__(self) -> None:
         if self.chunk_size <= 0:

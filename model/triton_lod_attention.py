@@ -153,9 +153,9 @@ class TritonLODAttentionCore(nn.Module):
     auto_fused_state_update = True
     reuse_state_update_similarity = True
     fused_state_maxsim = False
-    state_maxsim_block_m = 64
-    state_maxsim_block_n = 64
-    state_maxsim_num_warps = 8
+    state_maxsim_block_m = 16
+    state_maxsim_block_n = 32
+    state_maxsim_num_warps = 4
     fused_state_routing = True
     direct_fused_state_routing = True
     route_gqa_matmul = False

@@ -538,6 +538,22 @@ def verify_default_leaf_storage() -> None:
         raise AssertionError("default exact leaves were not stored in BF16")
 
 
+def verify_legacy_positional_config() -> None:
+    config = LODConfig(128, 512, 8.0, 192, 3, 6, torch.float16)
+    expected = (128, 512, 8.0, 192, 3, 6, torch.float16)
+    actual = (
+        config.chunk_size,
+        config.local_window,
+        config.state_growth_factor,
+        config.state_min_size,
+        config.protected_prefix,
+        config.max_routes,
+        config.leaf_dtype,
+    )
+    if actual != expected or config.state_size_offset != 0:
+        raise AssertionError("legacy positional LODConfig arguments changed meaning")
+
+
 def main() -> None:
     verify_low_level_lse_math()
     print("low-level coarse/top-k/LSE/GQA parity passed")
@@ -551,6 +567,8 @@ def main() -> None:
     print("prefill/decode cache parity and no-leaf cache checks passed")
     verify_default_leaf_storage()
     print("default BF16 leaf storage check passed")
+    verify_legacy_positional_config()
+    print("legacy positional LODConfig compatibility passed")
 
 
 if __name__ == "__main__":
