@@ -1,0 +1,62 @@
+{
+  "experiment": "top8_top16_decoder_consensus_acceptance",
+  "status": "diagnostic_supported_but_quality_heuristic_rejected",
+  "task": "niah_single_3",
+  "context_length": 8192,
+  "examples": 64,
+  "seed": 1234,
+  "primary_decoder_open_count": 8,
+  "probe_decoder_open_count": 16,
+  "state_size_changed": false,
+  "runs": {
+    "top8_no_probe": {
+      "cluster_run": "dan-agent-4599-dg-top8-fixed-off-64",
+      "artifact": "top8_fixed_off_64.json",
+      "score": 0.78125,
+      "correct": 50,
+      "evaluation_seconds": 129.0873081088066
+    },
+    "top8_top16_observe": {
+      "cluster_run": "dan-agent-4595-dg-consensus-observe-64",
+      "artifact": "observe_64.json",
+      "score": 0.6875,
+      "correct": 44,
+      "evaluation_seconds": 247.79226785618812
+    },
+    "top8_top16_apply": {
+      "cluster_run": "dan-agent-4596-dg-consensus-apply-64",
+      "artifact": "apply_64.json",
+      "score": 0.75,
+      "correct": 48,
+      "evaluation_seconds": 253.96543887723237
+    }
+  },
+  "observe_diagnostic": {
+    "active_positions": 399616,
+    "top1_disagreements": 15161,
+    "top1_disagreement_rate": 0.03793892136450993,
+    "original_accepted": 179532,
+    "original_accepted_top1_disagreements": 1445,
+    "original_accepted_top1_disagreement_rate": 0.008048704409241806,
+    "mean_top8_entropy_on_original_accepted": 0.0011059273844580466,
+    "mean_top16_entropy_on_original_accepted": 0.19274092996329367,
+    "accepted_entropy_ratio_top16_over_top8": 174.27991446088052
+  },
+  "apply_diagnostic": {
+    "steps": 691,
+    "positions": 431104,
+    "original_accepted": 173138,
+    "final_accepted": 172987,
+    "replacements": 12472,
+    "replacement_fraction_of_final_accepted": 0.0720979033106534,
+    "veto_shortfall": 151,
+    "veto_shortfall_fraction_of_original_accepted": 0.0008721366771015028
+  },
+  "interpretation": [
+    "The wider sparse view exposes severe overconfidence in the top-8 view, supporting the confidence-mismatch hypothesis.",
+    "The apply rule mostly changes entropy ranking; hard top-1 vetoes account for very little acceptance-count shortfall.",
+    "Apply recovers four examples relative to the extra-forward observe trajectory, but remains two examples below the ordinary top-8 run.",
+    "Observe and no-probe differ despite the same seed, so separate-run trajectory/numerical variation prevents treating 44-to-48 as a clean paired effect.",
+    "The extra top-16 decoder pass nearly doubles wall time while preserving fixed state size and subquadratic asymptotics."
+  ]
+}

@@ -1,0 +1,265 @@
+{
+  "experiment": "Cross-family causal-LM LOD diagnostic",
+  "revision": "corrected_chat_template_evaluation",
+  "niah_evaluation": {
+    "task": "niah_single_3",
+    "context_length": 8192,
+    "samples": 64,
+    "max_generation_tokens": 64,
+    "apply_chat_template": true,
+    "disable_thinking": true,
+    "note": "Only NIAH-3 at 8K was run, not the complete RULER suite. Earlier no-template NIAH artifacts are superseded and must not be used for cross-family conclusions."
+  },
+  "lod_configuration": {
+    "chunk_size": 256,
+    "engine_backend": "kernel",
+    "kv_bits": 0,
+    "left_padding_mode": "chunk_aligned",
+    "local_window": 512,
+    "open_count": 8,
+    "page_size": 16,
+    "protected_prefix": 1,
+    "recursive_pages": true,
+    "state_growth_factor": 16.0,
+    "state_min_size": 256
+  },
+  "models": {
+    "gemma3": {
+      "checkpoint": "unsloth/gemma-3-1b-it",
+      "tied_embeddings": true,
+      "attention_layout": "22 sliding + 4 global",
+      "lod_attention_layers": 4,
+      "niah_single_3_8k": {
+        "full_correct": 61,
+        "lod_correct": 47,
+        "both_correct": 47,
+        "full_only_correct": 14,
+        "lod_only_correct": 0,
+        "both_incorrect": 3,
+        "full_artifact": "gemma3/chat_full_64.json",
+        "lod_artifact": "gemma3/chat_lod_64.json"
+      },
+      "prolong_8x8k": {
+        "prediction_tokens": 65528,
+        "full_loss": 3.626335710287094,
+        "lod_loss": 3.636853873729706,
+        "loss_delta": 0.010518163442611694,
+        "full_perplexity": 37.57487880759614,
+        "lod_perplexity": 37.97218331825246,
+        "perplexity_ratio": 1.0105736737752564,
+        "full_artifact": "gemma3/prolong_full_8x8k.json",
+        "lod_artifact": "gemma3/prolong_lod_8x8k.json"
+      }
+    },
+    "gemma4": {
+      "checkpoint": "google/gemma-4-26B-A4B-it",
+      "tied_embeddings": true,
+      "attention_layout": "25 sliding + 5 global; MoE; 512-dimensional global heads",
+      "lod_attention_layers": 5,
+      "niah_single_3_8k": {
+        "full_correct": 64,
+        "lod_correct": 64,
+        "both_correct": 64,
+        "full_only_correct": 0,
+        "lod_only_correct": 0,
+        "both_incorrect": 0,
+        "full_artifact": "gemma4/chat_full_64.json",
+        "lod_artifact": "gemma4/chat_lod_64.json"
+      },
+      "prolong_8x8k": {
+        "prediction_tokens": 65528,
+        "full_loss": 6.83649754524231,
+        "lod_loss": 6.920396566390991,
+        "loss_delta": 0.08389902114868164,
+        "full_perplexity": 931.2218539049304,
+        "lod_perplexity": 1012.7215262334024,
+        "perplexity_ratio": 1.0875190718374104,
+        "full_artifact": "gemma4/prolong_full_8x8k.json",
+        "lod_artifact": "gemma4/prolong_lod_8x8k.json",
+        "note": "Absolute perplexity on unformatted raw text is unusually high; prefer the paired loss delta."
+      }
+    },
+    "qwen3": {
+      "checkpoint": "Qwen/Qwen3-1.7B",
+      "tied_embeddings": true,
+      "attention_layout": "28 dense global-attention layers",
+      "lod_attention_layers": 28,
+      "niah_single_3_8k": {
+        "full_correct": 64,
+        "lod_correct": 60,
+        "both_correct": 60,
+        "full_only_correct": 4,
+        "lod_only_correct": 0,
+        "both_incorrect": 0,
+        "full_artifact": "qwen3/chat_full_64.json",
+        "lod_artifact": "qwen3/chat_lod_64.json"
+      },
+      "two_level_lod_niah_single_3_8k": {
+        "description": "Flat two-level LOD opens all exact pages in each routed region; coarse state size and open-count are unchanged.",
+        "correct": 60,
+        "both_correct_with_full": 60,
+        "full_only_correct": 4,
+        "two_level_only_correct": 0,
+        "both_incorrect": 0,
+        "both_correct_with_recursive": 58,
+        "recursive_only_correct": 2,
+        "two_level_only_correct_vs_recursive": 2,
+        "artifact": "qwen3/two_level_lod_64.json"
+      },
+      "no_chat_template_niah_single_3_8k": {
+        "description": "Matched native/recursive-LOD ablation with apply_chat_template disabled; all other evaluation and LOD settings match the primary Qwen3 pair.",
+        "full_correct": 62,
+        "lod_correct": 62,
+        "both_correct": 60,
+        "full_only_correct": 2,
+        "lod_only_correct": 2,
+        "both_incorrect": 0,
+        "full_artifact": "qwen3/no_chat_full_64.json",
+        "lod_artifact": "qwen3/no_chat_lod_64.json"
+      },
+      "prolong_8x8k": {
+        "prediction_tokens": 65528,
+        "full_loss": 3.1227241456508636,
+        "lod_loss": 3.1292125284671783,
+        "loss_delta": 0.006488382816314697,
+        "full_perplexity": 22.708155785189224,
+        "lod_perplexity": 22.855974025055435,
+        "perplexity_ratio": 1.0065094779719022,
+        "full_artifact": "qwen3/prolong_full_8x8k.json",
+        "lod_artifact": "qwen3/prolong_lod_8x8k.json"
+      }
+    },
+    "smollm3": {
+      "checkpoint": "HuggingFaceTB/SmolLM3-3B",
+      "tied_embeddings": true,
+      "attention_layout": "36 dense global-attention layers",
+      "lod_attention_layers": 36,
+      "niah_single_3_8k": {
+        "full_correct": 61,
+        "lod_correct": 43,
+        "both_correct": 42,
+        "full_only_correct": 19,
+        "lod_only_correct": 1,
+        "both_incorrect": 2,
+        "full_artifact": "smollm3/chat_full_64.json",
+        "lod_artifact": "smollm3/chat_lod_64.json"
+      },
+      "two_level_lod_niah_single_3_8k": {
+        "description": "Flat two-level LOD opens all exact pages in each routed region; coarse state size and open-count are unchanged.",
+        "correct": 50,
+        "both_correct_with_full": 47,
+        "full_only_correct": 14,
+        "two_level_only_correct": 3,
+        "both_incorrect": 0,
+        "both_correct_with_recursive": 34,
+        "recursive_only_correct": 9,
+        "two_level_only_correct_vs_recursive": 16,
+        "artifact": "smollm3/two_level_lod_64.json"
+      },
+      "rope_nope_layer_ablation_niah_single_3_8k": {
+        "nope_only": {
+          "lod_layer_indices": [3, 7, 11, 15, 19, 23, 27, 31, 35],
+          "lod_layers": 9,
+          "correct": 48,
+          "both_correct_with_full": 48,
+          "full_only_correct": 13,
+          "lod_only_correct": 0,
+          "both_incorrect": 3,
+          "artifact": "smollm3/nope_lod_64.json"
+        },
+        "depth_matched_rope_only": {
+          "lod_layer_indices": [2, 6, 10, 14, 18, 22, 26, 30, 34],
+          "lod_layers": 9,
+          "correct": 64,
+          "both_correct_with_full": 61,
+          "full_only_correct": 0,
+          "lod_only_correct": 3,
+          "both_incorrect": 0,
+          "artifact": "smollm3/rope9_matched_lod_64.json"
+        },
+        "all_rope_only": {
+          "lod_layer_indices": [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14, 16, 17, 18, 20, 21, 22, 24, 25, 26, 28, 29, 30, 32, 33, 34],
+          "lod_layers": 27,
+          "correct": 8,
+          "both_correct_with_full": 8,
+          "full_only_correct": 53,
+          "lod_only_correct": 0,
+          "both_incorrect": 3,
+          "artifact": "smollm3/rope_lod_64.json"
+        },
+        "paired_nope_vs_depth_matched_rope": {
+          "both_correct": 48,
+          "nope_only_correct": 0,
+          "depth_matched_rope_only_correct": 16,
+          "both_incorrect": 0
+        },
+        "interpretation": "The nine NoPE layers are much more LOD-sensitive than nine nearby RoPE layers, while the 27-layer RoPE result also demonstrates severe accumulation across many dense layers. The subset effects are nonlinear and should not be added as an independent causal decomposition."
+      },
+      "padding_and_batch_size_ablation_niah_single_3_8k": {
+        "batch_size_1": {
+          "full_correct": 64,
+          "lod_correct": 44,
+          "both_correct": 44,
+          "full_only_correct": 20,
+          "lod_only_correct": 0,
+          "both_incorrect": 0,
+          "full_artifact": "smollm3/chat_full_bs1_64.json",
+          "lod_artifact": "smollm3/chat_lod_bs1_64.json"
+        },
+        "batch_size_8_chunk_aligned": {
+          "full_correct": 61,
+          "lod_correct": 43,
+          "full_artifact": "smollm3/chat_full_64.json",
+          "lod_artifact": "smollm3/chat_lod_64.json"
+        },
+        "batch_size_8_exact_padding_lod": {
+          "lod_correct": 39,
+          "artifact": "smollm3/chat_lod_bs8_exact_64.json"
+        },
+        "prompt_token_lengths": {
+          "minimum": 7463,
+          "maximum": 7483,
+          "maximum_within_batch_left_padding": 18
+        },
+        "interpretation": "Batch size 1 removes cross-example left padding but improves LOD by only one example and full attention by three. Physically stripping padding at batch size 8 scores below chunk-aligned padding. Left-padding handling does not explain the SmolLM3 LOD regression."
+      },
+      "prolong_8x8k": {
+        "prediction_tokens": 65528,
+        "full_loss": 2.6297255158424377,
+        "lod_loss": 2.63620987534523,
+        "loss_delta": 0.006484359502792358,
+        "full_perplexity": 13.869962294673975,
+        "lod_perplexity": 13.960192342358656,
+        "perplexity_ratio": 1.0065054284768553,
+        "full_artifact": "smollm3/prolong_full_8x8k.json",
+        "lod_artifact": "smollm3/prolong_lod_8x8k.json"
+      }
+    }
+  },
+  "incomplete_controls": {
+    "qwen25": {
+      "checkpoint": "Qwen/Qwen2.5-1.5B-Instruct",
+      "native_chat_niah_correct": 59,
+      "samples": 64,
+      "lod_result_available": false,
+      "reason": "The current fused route kernel does not support Qwen2.5's non-power-of-two GQA ratio of 12 query heads to 2 KV heads. No LOD score is reported."
+    }
+  },
+  "superseded_results": {
+    "reason": "The earlier generic-HF NIAH runs omitted lm-eval's chat template and mixed a base/hybrid Qwen control with instruction-tuned checkpoints.",
+    "affected_artifact_pattern": "*/full_64.json and */lod_64.json without the chat_ prefix",
+    "prolong_affected": false
+  },
+  "conclusions": [
+    "Chat formatting completely eliminates the apparent Gemma4 NIAH regression: corrected full and LOD both score 64/64.",
+    "Dense instruction-tuned Qwen3 remains strong when all 28 attention layers use LOD, scoring 60/64 versus 64/64 full attention.",
+    "Without chat templating, Qwen3 full attention and recursive LOD both score 62/64; their paired outcomes are not identical, with two full-only and two LOD-only examples.",
+    "Gemma3 and SmolLM3 still show material paired retrieval regressions after the formatting correction, scoring 47/64 and 43/64 under recursive LOD versus 61/64 full attention.",
+    "Flat two-level LOD leaves Qwen3 unchanged at 60/64 and improves SmolLM3 from 43/64 to 50/64, but SmolLM3 remains below its 61/64 full-attention score.",
+    "On SmolLM3, replacing only the nine NoPE layers scores 48/64 while replacing nine depth-matched RoPE layers scores 64/64; all 16 discordant examples favor the RoPE subset, supporting special NoPE-layer sensitivity.",
+    "Replacing all 27 RoPE layers scores only 8/64, showing that error accumulation across many dense layers is independently severe; the nonlinearity relative to the 43/64 all-36-layer result means subset drops are not additive.",
+    "SmolLM3 padding controls rule out batch padding as the regression source: batch-size-1 full/LOD score 64/44, versus 61/43 at batch size 8, and exact physical padding removal at batch size 8 scores 39 under LOD.",
+    "The corrected evidence supports model-family sensitivity, but the strongest earlier claim about Gemma4 and the original base/hybrid Qwen comparison was an evaluation artifact.",
+    "ProLong remains a weak predictor of exact retrieval: Qwen3 and SmolLM3 both have about a 0.65% perplexity increase, while their NIAH drops are 4 and 18 net examples."
+  ]
+}

@@ -3,6 +3,10 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
+from dataclasses import replace
+from types import SimpleNamespace
+
 import torch
 from transformers import (
     Gemma3ForCausalLM,
@@ -11,20 +15,28 @@ from transformers import (
     LlamaForCausalLM,
     MistralConfig,
     MistralForCausalLM,
+    Phi3Config,
+    Phi3ForCausalLM,
+    Qwen2Config,
+    Qwen2ForCausalLM,
     Qwen3Config,
     Qwen3ForCausalLM,
     Qwen3_5ForCausalLM,
     Qwen3_5TextConfig,
+    SmolLM3Config,
+    SmolLM3ForCausalLM,
 )
 
 from model.hf_lod_hybrid_cache import HybridHFLODCache
 from model.hf_pytorch_lod_attention import (
     HFLODCache,
+    _resolved_rope_route_geometry,
     install_hf_lod_attention,
     new_hf_lod_cache,
 )
 from model.pytorch_lod_attention import LODConfig
 from model.pytorch_lod_attention_paged import PagedLODCache, PagedLODConfig
+from model.triton_lod_engines import KernelRecursivePagedLODAttention
 
 
 def _lod_config() -> LODConfig:
@@ -49,6 +61,524 @@ def _common_config() -> dict[str, int]:
         "head_dim": 8,
         "max_position_embeddings": 64,
     }
+
+
+def _check_qk_norm_aware_routing() -> None:
+    common = _common_config()
+    bounded_tokens = {
+        **common,
+        "pad_token_id": 0,
+        "bos_token_id": 1,
+        "eos_token_id": 2,
+    }
+    requested = LODConfig(
+        chunk_size=4,
+        local_window=8,
+        state_growth_factor=2.0,
+        state_min_size=4,
+        max_routes=2,
+        routing_normalization="qk_norm_aware",
+    )
+    unnormalized = (
+        LlamaForCausalLM(LlamaConfig(**common)).eval(),
+        Qwen2ForCausalLM(Qwen2Config(**common)).eval(),
+        SmolLM3ForCausalLM(SmolLM3Config(**bounded_tokens)).eval(),
+        Phi3ForCausalLM(Phi3Config(**bounded_tokens)).eval(),
+    )
+    qwen = Qwen3ForCausalLM(Qwen3Config(**common)).eval()
+    for model in unnormalized:
+        install_hf_lod_attention(model, config=requested, open_count=2)
+    install_hf_lod_attention(qwen, config=requested, open_count=2)
+    unnormalized_modes = [
+        model.model.layers[0].self_attn._hf_lod_settings.config.routing_normalization
+        for model in unnormalized
+    ]
+    qwen_mode = (
+        qwen.model.layers[0]
+        .self_attn._hf_lod_settings.config.routing_normalization
+    )
+    if unnormalized_modes != ["query"] * len(unnormalized) or qwen_mode != "none":
+        raise AssertionError(
+            "Q/K-norm-aware routing did not resolve from module architecture"
+        )
+    print("Q/K-norm-aware routing architecture dispatch passed")
+
+
+def _check_state_clustering_radial_metric() -> None:
+    config = PagedLODConfig(
+        chunk_size=16,
+        local_window=32,
+        state_min_size=16,
+        state_clustering_normalization="cosine",
+        state_clustering_radial_bias=1.0,
+    )
+    engine = KernelRecursivePagedLODAttention(
+        config,
+        query_heads=1,
+        key_value_heads=1,
+        scale=1.0,
+        default_open_count=1,
+    )
+    leaf = torch.tensor([[[[2.0, 0.0], [1.0, 1.0]]]])
+    centroid = torch.tensor([[[[1.0, 0.0], [2.0, 2.0]]]])
+    routed_leaf = engine._state_clustering_key(leaf)
+    routed_centroid = engine._state_clustering_key(centroid, role="centroid")
+    actual = engine._state_clustering_similarity(
+        routed_leaf, routed_centroid
+    ) / leaf.size(-1)
+    cosine = torch.tensor([[[[1.0, 2**-0.5], [2**-0.5, 1.0]]]])
+    leaf_rms = leaf.square().mean(-1).sqrt()
+    centroid_rms = centroid.square().mean(-1).sqrt()
+    expected = cosine - (
+        leaf_rms.unsqueeze(-1).log() - centroid_rms.unsqueeze(-2).log()
+    ).abs()
+    torch.testing.assert_close(actual, expected, atol=8e-3, rtol=8e-3)
+    if routed_leaf.size(-1) != leaf.size(-1) + 1:
+        raise AssertionError("radial coordinate was not transiently appended")
+    engine.state_clustering_radial_scope = "append"
+    torch.testing.assert_close(
+        engine._state_clustering_similarity(
+            routed_leaf, routed_centroid, purpose="assignment"
+        )
+        / leaf.size(-1),
+        cosine,
+        atol=8e-3,
+        rtol=8e-3,
+    )
+    torch.testing.assert_close(
+        engine._state_clustering_similarity(
+            routed_leaf, routed_centroid, purpose="append"
+        )
+        / leaf.size(-1),
+        expected,
+        atol=8e-3,
+        rtol=8e-3,
+    )
+    try:
+        LODConfig(state_clustering_radial_bias=1.0)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("radial bias without spherical routing was accepted")
+    mean_leaf_config = PagedLODConfig(
+        chunk_size=16,
+        local_window=32,
+        state_growth_factor=0,
+        state_min_size=2,
+        protected_prefix=0,
+        state_clustering_centroid_rescale="mean_leaf_norm",
+    )
+    mean_leaf_engine = KernelRecursivePagedLODAttention(
+        mean_leaf_config,
+        query_heads=1,
+        key_value_heads=1,
+        scale=1.0,
+        default_open_count=1,
+    )
+    state_key = torch.zeros(1, 1, 6, 2)
+    state_value = torch.zeros_like(state_key)
+    state_key[..., :2, :].copy_(torch.tensor([[[[2.0, 0.0], [0.0, 1.0]]]]))
+    state_value[..., :2, :].copy_(state_key[..., :2, :])
+    counts = torch.zeros(1, 1, 6, 1)
+    counts[..., :2, :].fill_(1)
+    key_norm_sums = torch.zeros_like(counts)
+    key_norm_sums[..., :2, :].copy_(
+        state_key[..., :2, :].square().mean(-1, keepdim=True).sqrt()
+    )
+    mean_key = state_key[..., :2, :] / counts[..., :2, :]
+    target_rms = key_norm_sums[..., :2, :] / counts[..., :2, :]
+    rescaled_centroid = mean_leaf_engine._state_clustering_key(
+        mean_key, role="centroid", radial_rms=target_rms
+    )
+    torch.testing.assert_close(
+        rescaled_centroid.square().mean(-1, keepdim=True).sqrt(), target_rms
+    )
+    torch.testing.assert_close(
+        torch.nn.functional.normalize(rescaled_centroid.float(), dim=-1),
+        torch.nn.functional.normalize(mean_key.float(), dim=-1),
+    )
+    coherence_config = replace(
+        mean_leaf_config, state_clustering_centroid_rescale="coherence"
+    )
+    coherence_engine = KernelRecursivePagedLODAttention(
+        coherence_config,
+        query_heads=1,
+        key_value_heads=1,
+        scale=1.0,
+        default_open_count=1,
+    )
+    coherence_centroid = coherence_engine._state_clustering_key(
+        mean_key, role="centroid", radial_rms=target_rms
+    )
+    expected_coherence = (
+        mean_key.square().mean(-1, keepdim=True).sqrt() / target_rms
+    )
+    torch.testing.assert_close(
+        coherence_centroid.square().mean(-1, keepdim=True).sqrt(),
+        expected_coherence,
+    )
+    torch.testing.assert_close(
+        torch.nn.functional.normalize(coherence_centroid.float(), dim=-1),
+        torch.nn.functional.normalize(mean_key.float(), dim=-1),
+    )
+    scoped_coherence_engine = KernelRecursivePagedLODAttention(
+        replace(
+            coherence_config,
+            state_clustering_centroid_rescale_scope="assignment",
+        ),
+        query_heads=1,
+        key_value_heads=1,
+        scale=1.0,
+        default_open_count=1,
+    )
+    assignment_centroid = scoped_coherence_engine._state_clustering_key(
+        mean_key,
+        role="centroid",
+        radial_rms=target_rms,
+        purpose="assignment",
+    )
+    append_centroid = scoped_coherence_engine._state_clustering_key(
+        mean_key,
+        role="centroid",
+        radial_rms=target_rms,
+        purpose="append",
+    )
+    torch.testing.assert_close(assignment_centroid, coherence_centroid)
+    torch.testing.assert_close(
+        append_centroid.square().mean(-1, keepdim=True).sqrt(),
+        torch.ones_like(target_rms),
+    )
+    spherical_coherence_engine = KernelRecursivePagedLODAttention(
+        replace(
+            coherence_config,
+            state_clustering_centroid_rescale="spherical_coherence",
+            state_clustering_centroid_rescale_scope="assignment",
+        ),
+        query_heads=1,
+        key_value_heads=1,
+        scale=1.0,
+        default_open_count=1,
+    )
+    unequal_leaf = torch.tensor([[[[3.0, 4.0], [0.0, 2.0]]]])
+    spherical_leaf = spherical_coherence_engine._state_clustering_key(
+        unequal_leaf, role="leaf"
+    )
+    torch.testing.assert_close(
+        spherical_leaf.square().mean(-1, keepdim=True).sqrt(),
+        torch.ones_like(spherical_leaf[..., :1]),
+    )
+    spherical_assignment_centroid = (
+        spherical_coherence_engine._state_clustering_key(
+            mean_key,
+            role="centroid",
+            radial_rms=target_rms,
+            purpose="assignment",
+        )
+    )
+    spherical_append_centroid = spherical_coherence_engine._state_clustering_key(
+        mean_key,
+        role="centroid",
+        radial_rms=target_rms,
+        purpose="append",
+    )
+    torch.testing.assert_close(
+        spherical_assignment_centroid, coherence_centroid
+    )
+    torch.testing.assert_close(
+        spherical_append_centroid.square().mean(-1, keepdim=True).sqrt(),
+        torch.ones_like(target_rms),
+    )
+    partial_mean = torch.tensor([[[[2.0, 0.0, 3.0, 4.0]]]])
+    partial_constituents = torch.tensor(
+        [[[[2.0, 0.0, 3.0, 4.0], [0.0, 2.0, 3.0, 4.0]]]]
+    )
+    rope_coherence_engine = KernelRecursivePagedLODAttention(
+        replace(
+            mean_leaf_config,
+            state_clustering_centroid_rescale="rope_coherence",
+            state_clustering_rope_dim=2,
+        ),
+        query_heads=1,
+        key_value_heads=1,
+        scale=1.0,
+        default_open_count=1,
+    )
+    constituent_rope_rms = (
+        rope_coherence_engine._state_clustering_constituent_rms(
+            partial_constituents
+        ).mean(dim=-2, keepdim=True)
+    )
+    partial_centroid = rope_coherence_engine._state_clustering_key(
+        partial_mean,
+        role="centroid",
+        radial_rms=constituent_rope_rms,
+    )
+    expected_rope_coherence = (
+        partial_mean[..., :2].square().mean(-1, keepdim=True).sqrt()
+        / constituent_rope_rms
+    )
+    torch.testing.assert_close(
+        partial_centroid.square().mean(-1, keepdim=True).sqrt(),
+        expected_rope_coherence,
+    )
+    torch.testing.assert_close(
+        torch.nn.functional.normalize(partial_centroid.float(), dim=-1),
+        torch.nn.functional.normalize(partial_mean.float(), dim=-1),
+    )
+    overflow_key = torch.tensor(
+        [[[[1.0, 0.0], [0.0, 2.0], [1.0, 1.0], [-1.0, 0.0]]]]
+    )
+    direction_l2_engine = KernelRecursivePagedLODAttention(
+        replace(
+            mean_leaf_config,
+            state_clustering_centroid_rescale="direction_l2",
+        ),
+        query_heads=1,
+        key_value_heads=1,
+        scale=1.0,
+        default_open_count=1,
+    )
+    routed_leaf = direction_l2_engine._state_clustering_key(overflow_key)
+    routed_mean = direction_l2_engine._state_clustering_key(
+        mean_key, role="centroid", radial_rms=target_rms
+    )
+    actual_l2_score = direction_l2_engine._state_clustering_similarity(
+        routed_leaf, routed_mean
+    )
+    direction_dim = int(routed_leaf.size(-1))
+    expected_l2_score = torch.matmul(
+        routed_leaf.float(), routed_mean.float().transpose(-1, -2)
+    ) - (
+        0.5
+        * direction_dim
+        * routed_mean.float().square().mean(-1).unsqueeze(-2)
+    )
+    torch.testing.assert_close(actual_l2_score, expected_l2_score)
+    torch.testing.assert_close(
+        routed_leaf.float().square().mean(-1),
+        torch.ones_like(routed_leaf[..., 0]),
+    )
+    original_norm_sums = key_norm_sums.clone()
+    _, _, _, _, owners, _ = mean_leaf_engine._update_state(
+        state_key,
+        state_value,
+        counts,
+        key_norm_sums,
+        overflow_key,
+        overflow_key,
+        state_len=2,
+        ctx_len=6,
+        available_context=6,
+        state_capacity=6,
+    )
+    overflow_norms = overflow_key.square().mean(-1, keepdim=True).sqrt()
+    expected_norm_sums = original_norm_sums[..., :2, :].clone()
+    expected_norm_sums.scatter_add_(
+        2, owners.unsqueeze(-1), overflow_norms
+    )
+    torch.testing.assert_close(
+        key_norm_sums[..., :2, :], expected_norm_sums
+    )
+    print("angular-plus-log-radial state clustering metric passed")
+
+
+def _check_rope_frequency_routing() -> None:
+    partial_config = SimpleNamespace(
+        model_type="qwen3_5_text",
+        rope_parameters={
+            "rope_theta": 10_000_000.0,
+            "partial_rotary_factor": 0.25,
+        },
+    )
+    partial_module = SimpleNamespace(layer_idx=3, head_dim=256, layer_type=None)
+    rope_dim, fast_pairs = _resolved_rope_route_geometry(
+        partial_config, partial_module, 512
+    )
+    if (rope_dim, fast_pairs) != (64, 9):
+        raise AssertionError("partial-RoPE wavelength cutoff is incorrect")
+
+    smol_config = SimpleNamespace(
+        model_type="smollm3",
+        no_rope_layers=[1, 1, 1, 0],
+        rope_theta=5_000_000.0,
+        rope_parameters=None,
+    )
+    no_rope_module = SimpleNamespace(layer_idx=3, head_dim=128, layer_type=None)
+    if _resolved_rope_route_geometry(smol_config, no_rope_module, 512) != (0, 0):
+        raise AssertionError("NoPE layer received a rotary route filter")
+
+    llama = LlamaForCausalLM(LlamaConfig(**_common_config())).eval()
+    install_hf_lod_attention(
+        llama,
+        config=LODConfig(
+            chunk_size=4,
+            local_window=8,
+            state_growth_factor=2.0,
+            state_min_size=4,
+            max_routes=2,
+            routing_leaf_mass_candidates=16,
+            routing_leaf_mass_objective="fast_rope_jensen",
+        ),
+        open_count=2,
+    )
+    routed = llama.model.layers[0].self_attn._hf_lod_settings.config
+    if (
+        routed.routing_rope_dim != 8
+        or routed.routing_rope_fast_pairs != 0
+        or routed.routing_rope_jensen_pairs != 1
+    ):
+        raise AssertionError(
+            "fast-band Jensen geometry changed the ordinary routing mask"
+        )
+    print("RoPE wavelength routing geometry passed")
+
+
+def _check_rope_aware_state_clustering() -> None:
+    common = {
+        **_common_config(),
+        "num_hidden_layers": 4,
+        "pad_token_id": 0,
+        "bos_token_id": 1,
+        "eos_token_id": 2,
+    }
+    smol = SmolLM3ForCausalLM(SmolLM3Config(**common)).eval()
+    install_hf_lod_attention(
+        smol,
+        config=replace(_lod_config(), state_clustering_policy="rope_aware"),
+        open_count=2,
+        engine_backend="kernel",
+    )
+    resolved = [
+        layer.self_attn._hf_lod_settings.config
+        for layer in smol.model.layers
+    ]
+    for layer_config in resolved:
+        if (
+            layer_config.state_clustering_policy != "manual"
+            or layer_config.state_clustering_normalization != "cosine"
+            or layer_config.state_clustering_centroid_rescale != "none"
+        ):
+            raise AssertionError(
+                "RNoPE model did not resolve to consistent spherical clustering"
+            )
+
+    inverse = SmolLM3ForCausalLM(SmolLM3Config(**common)).eval()
+    install_hf_lod_attention(
+        inverse,
+        config=replace(
+            _lod_config(), state_clustering_policy="rnope_rope_spherical"
+        ),
+        open_count=2,
+        engine_backend="kernel",
+    )
+    inverse_resolved = [
+        layer.self_attn._hf_lod_settings.config
+        for layer in inverse.model.layers
+    ]
+    for layer_config in inverse_resolved[:3]:
+        if (
+            layer_config.state_clustering_normalization != "cosine"
+            or layer_config.state_clustering_centroid_rescale != "none"
+        ):
+            raise AssertionError("inverse RNoPE RoPE layer was not spherical")
+    inverse_nope = inverse_resolved[3]
+    if (
+        inverse_nope.state_clustering_normalization != "none"
+        or inverse_nope.state_clustering_centroid_rescale != "coherence"
+        or inverse_nope.state_clustering_centroid_rescale_scope != "assignment"
+    ):
+        raise AssertionError("inverse RNoPE NoPE layer lost coherence routing")
+
+    llama = LlamaForCausalLM(LlamaConfig(**_common_config())).eval()
+    install_hf_lod_attention(
+        llama,
+        config=replace(_lod_config(), state_clustering_policy="rope_aware"),
+        open_count=2,
+        engine_backend="kernel",
+    )
+    rope_config = llama.model.layers[0].self_attn._hf_lod_settings.config
+    if (
+        rope_config.state_clustering_policy != "manual"
+        or rope_config.state_clustering_normalization != "none"
+        or rope_config.state_clustering_centroid_rescale != "coherence"
+        or rope_config.state_clustering_centroid_rescale_scope != "assignment"
+    ):
+        raise AssertionError("RoPE model did not retain centroid coherence")
+
+    qwen_config = Qwen3_5TextConfig(
+        vocab_size=64,
+        hidden_size=32,
+        intermediate_size=64,
+        num_hidden_layers=2,
+        num_attention_heads=4,
+        num_key_value_heads=2,
+        head_dim=8,
+        linear_num_key_heads=4,
+        linear_num_value_heads=4,
+        linear_key_head_dim=8,
+        linear_value_head_dim=8,
+        linear_conv_kernel_dim=2,
+        layer_types=["linear_attention", "full_attention"],
+        max_position_embeddings=64,
+        pad_token_id=0,
+        bos_token_id=1,
+        eos_token_id=2,
+    )
+    qwen = Qwen3_5ForCausalLM(qwen_config).eval()
+    install_hf_lod_attention(
+        qwen,
+        config=replace(_lod_config(), state_clustering_policy="rope_aware"),
+        open_count=2,
+        engine_backend="kernel",
+    )
+    partial_config = qwen.model.layers[1].self_attn._hf_lod_settings.config
+    if (
+        partial_config.state_clustering_centroid_rescale != "coherence"
+        or partial_config.state_clustering_rope_dim != 2
+    ):
+        raise AssertionError("partial-RoPE model lost whole-key coherence")
+    print("RoPE-aware state-clustering policy dispatch passed")
+
+
+def _check_qk_norm_aware_state_clustering() -> None:
+    common = {
+        **_common_config(),
+        "num_hidden_layers": 4,
+        "pad_token_id": 0,
+        "bos_token_id": 1,
+        "eos_token_id": 2,
+    }
+    smol = SmolLM3ForCausalLM(SmolLM3Config(**common)).eval()
+    qwen = Qwen3ForCausalLM(Qwen3Config(**common)).eval()
+    requested = replace(
+        _lod_config(), state_clustering_policy="qk_norm_aware"
+    )
+    install_hf_lod_attention(
+        smol, config=requested, open_count=2, engine_backend="kernel"
+    )
+    install_hf_lod_attention(
+        qwen, config=requested, open_count=2, engine_backend="kernel"
+    )
+    smol_configs = [
+        layer.self_attn._hf_lod_settings.config for layer in smol.model.layers
+    ]
+    qwen_configs = [
+        layer.self_attn._hf_lod_settings.config for layer in qwen.model.layers
+    ]
+    if any(
+        config.state_clustering_normalization != "cosine"
+        or config.state_clustering_centroid_rescale != "none"
+        for config in smol_configs
+    ):
+        raise AssertionError("non-K-normalized layers were not spherical")
+    if any(
+        config.state_clustering_normalization != "none"
+        or config.state_clustering_centroid_rescale != "coherence"
+        or config.state_clustering_centroid_rescale_scope != "assignment"
+        for config in qwen_configs
+    ):
+        raise AssertionError("K-normalized layers lost coherence routing")
+    print("Q/K-norm-aware state-clustering policy dispatch passed")
 
 
 @torch.no_grad()
@@ -403,6 +933,63 @@ def _check_hybrid_cache() -> None:
 
 
 @torch.no_grad()
+def _check_partial_dense_cache() -> None:
+    """A dense native/LOD split must remain exact inside the local window."""
+    torch.manual_seed(39)
+    config = Qwen3Config(
+        vocab_size=64,
+        hidden_size=32,
+        intermediate_size=64,
+        num_hidden_layers=3,
+        num_attention_heads=4,
+        num_key_value_heads=2,
+        head_dim=8,
+        max_position_embeddings=64,
+        pad_token_id=0,
+        bos_token_id=1,
+        eos_token_id=2,
+    )
+    native = Qwen3ForCausalLM(config).eval()
+    partial = deepcopy(native)
+    installed = install_hf_lod_attention(
+        partial,
+        config=_lod_config(),
+        open_count=2,
+        layer_indices={1},
+    )
+    if installed != ["model.layers.1.self_attn"]:
+        raise AssertionError("partial dense installer selected the wrong layer")
+    cache = new_hf_lod_cache(partial)
+    if not isinstance(cache, HybridHFLODCache):
+        raise AssertionError("partial dense decoder did not receive a mixed cache")
+
+    token = torch.tensor([[1, 3, 4, 5, 6, 7, 8]])
+    reference = native(token, use_cache=False).logits
+    attention_mask = torch.ones(1, 5, dtype=torch.long)
+    prefill = partial(
+        token[:, :5],
+        attention_mask=attention_mask,
+        past_key_values=cache,
+        use_cache=True,
+    )
+    cached_outputs = [prefill.logits]
+    for position in range(5, token.size(1)):
+        attention_mask = torch.ones(1, position + 1, dtype=torch.long)
+        decoded = partial(
+            token[:, position : position + 1],
+            attention_mask=attention_mask,
+            past_key_values=cache,
+            use_cache=True,
+        )
+        cached_outputs.append(decoded.logits)
+    cached = torch.cat(cached_outputs, dim=1)
+    torch.testing.assert_close(cached, reference, atol=1e-5, rtol=1e-5)
+    if cache.get_seq_length() != token.size(1):
+        raise AssertionError("partial dense cache length did not advance")
+    print("partial dense native/LOD cache parity passed")
+
+
+@torch.no_grad()
 def _check_sliding_layer_selection() -> None:
     torch.manual_seed(38)
     config = Gemma3TextConfig(
@@ -474,6 +1061,11 @@ def _check_sliding_layer_selection() -> None:
 
 
 def main() -> None:
+    _check_qk_norm_aware_routing()
+    _check_state_clustering_radial_metric()
+    _check_rope_frequency_routing()
+    _check_rope_aware_state_clustering()
+    _check_qk_norm_aware_state_clustering()
     common = _common_config()
     models = (
         LlamaForCausalLM(LlamaConfig(**common)).eval(),
@@ -487,6 +1079,7 @@ def main() -> None:
     _check_beam_reorder()
     _check_automatic_padded_generation()
     _check_hybrid_cache()
+    _check_partial_dense_cache()
     _check_sliding_layer_selection()
 
 

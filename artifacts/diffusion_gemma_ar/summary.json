@@ -1,0 +1,79 @@
+{
+  "experiment": "diffusion_gemma_causal_encoder_ar_niah",
+  "status": "ar_supported_and_lod_encoder_regression_confirmed",
+  "task": "niah_single_3",
+  "context_length": 8192,
+  "seed": 1234,
+  "checkpoint": "google/diffusiongemma-26B-A4B-it",
+  "decoding": "greedy_causal_encoder",
+  "matched_max_generated_tokens": 64,
+  "matched_batch_size": 16,
+  "state_size_changed": false,
+  "matched_runs": {
+    "native_ar": {
+      "cluster_run": "dan-agent-4623-dg-ar-native-cap64-64",
+      "artifact": "native_cap64_64.json",
+      "examples": 64,
+      "score": 0.796875,
+      "correct": 51,
+      "evaluation_seconds": 68.77185791078955,
+      "forward_passes": 256,
+      "generated_tokens": 3781
+    },
+    "lod_ar_optimized_prefill": {
+      "cluster_run": "dan-agent-4622-dg-ar-lod-cap64-64",
+      "artifact": "lod_cap64_64.json",
+      "examples": 64,
+      "score": 0.59375,
+      "correct": 38,
+      "evaluation_seconds": 74.36281781457365,
+      "forward_passes": 256,
+      "generated_tokens": 3859,
+      "encoder_open_count": 8,
+      "optimized_prefill_open_count": 3
+    }
+  },
+  "prefill_policy_probe": {
+    "examples": 16,
+    "optimized": {
+      "cluster_run": "dan-agent-4621-dg-ar-lod-cap64-16",
+      "artifact": "lod_cap64_16.json",
+      "score": 0.8125,
+      "correct": 13,
+      "evaluation_seconds": 71.6082929065451
+    },
+    "legacy": {
+      "cluster_run": "dan-agent-4624-dg-ar-lod-legacy-cap64-16",
+      "artifact": "lod_legacy_cap64_16.json",
+      "score": 0.75,
+      "correct": 12,
+      "evaluation_seconds": 75.3528039753437
+    },
+    "optimized_only_correct_examples": [5, 8, 10],
+    "legacy_only_correct_examples": [4, 14]
+  },
+  "batch_and_length_sensitivity_control": {
+    "cluster_run": "dan-agent-4618-dg-ar-native-64",
+    "artifact": "native_64.json",
+    "examples": 64,
+    "batch_size": 4,
+    "max_generated_tokens": 128,
+    "score": 0.75,
+    "correct": 48,
+    "evaluation_seconds": 183.60000860039145
+  },
+  "historical_diffusion_reference": {
+    "native_diffusion_correct": 59,
+    "corrected_lod_top8_diffusion_correct": 50,
+    "examples": 64,
+    "note": "These diffusion runs use their native generation budget and are context rather than a matched decoding comparison."
+  },
+  "interpretation": [
+    "DiffusionGemma's causal encoder and tied language-model head support coherent autoregressive generation even though Transformers exposes only the block-diffusion generator.",
+    "Native AR reaches 51/64, below the historical 59/64 native-diffusion score but clearly far above a nonfunctional auxiliary objective.",
+    "On matched AR settings, LOD loses 13 examples relative to native attention, despite having no diffusion acceptance, canvas decoder, or decoder routing in the generation path.",
+    "The AR result localizes the additional LOD failure to approximate attention in the causal encoder path, including prompt prefill and incremental AR decoding.",
+    "Legacy top-8 prefill does not recover the matched 16-example subset, so the optimized top-3 prefill budget alone does not explain the regression.",
+    "Native AR changes from 48/64 to 51/64 across batch and generation-budget settings, so only the matched 51-versus-38 comparison should be treated as the clean LOD effect."
+  ]
+}

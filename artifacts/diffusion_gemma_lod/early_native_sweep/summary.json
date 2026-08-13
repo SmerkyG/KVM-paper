@@ -1,0 +1,81 @@
+{
+  "task": "niah_single_3",
+  "context_length": 8192,
+  "limit": 64,
+  "batch_size": 4,
+  "seed": 1234,
+  "state_growth_factor": 16.0,
+  "local_window": 768,
+  "recursive_pages": true,
+  "engine_backend": "kernel",
+  "merged_lod_dev_commit": "954269b",
+  "definition": "Native attention is used only by the decoder for the first k denoising calls of each canvas. Encoder prefill remains LOD.",
+  "results": {
+    "k0": {
+      "correct": 47,
+      "total": 64,
+      "score": 0.734375,
+      "evaluation_seconds": 149.0041370522231,
+      "cluster_run": "dan-agent-4505-dg-fast-prefill-k0-64",
+      "artifact": "k0_64.json"
+    },
+    "k1": {
+      "correct": 49,
+      "total": 64,
+      "score": 0.765625,
+      "evaluation_seconds": 152.9766790890135,
+      "native_step_calls": 16,
+      "lod_step_calls": 620,
+      "cluster_run": "dan-agent-4498-dg-early-native-k1-64",
+      "artifact": "k1_64.json"
+    },
+    "k2": {
+      "correct": 52,
+      "total": 64,
+      "score": 0.8125,
+      "evaluation_seconds": 139.74742299108766,
+      "native_step_calls": 32,
+      "lod_step_calls": 541,
+      "cluster_run": "dan-agent-4499-dg-early-native-k2-64",
+      "artifact": "k2_64.json"
+    },
+    "k4": {
+      "correct": 53,
+      "total": 64,
+      "score": 0.828125,
+      "evaluation_seconds": 143.8515749159269,
+      "native_step_calls": 64,
+      "lod_step_calls": 572,
+      "cluster_run": "dan-agent-4500-dg-early-native-k4-64",
+      "artifact": "k4_64.json"
+    }
+  },
+  "paired_comparisons": {
+    "k1_minus_k0": {
+      "delta": 0.03125,
+      "bootstrap_95_percent_ci": [-0.09375, 0.15625],
+      "fixed_doc_ids": [0, 26, 36, 37, 39, 50, 56, 58, 60],
+      "broken_doc_ids": [12, 13, 20, 41, 42, 52, 62]
+    },
+    "k2_minus_k0": {
+      "delta": 0.078125,
+      "bootstrap_95_percent_ci": [-0.03125, 0.1875],
+      "fixed_doc_ids": [26, 32, 36, 37, 39, 53, 56, 58, 60],
+      "broken_doc_ids": [2, 12, 20, 49]
+    },
+    "k4_minus_k0": {
+      "delta": 0.09375,
+      "bootstrap_95_percent_ci": [0.0, 0.1875],
+      "fixed_doc_ids": [0, 32, 35, 36, 39, 53, 56, 60],
+      "broken_doc_ids": [8, 41]
+    }
+  },
+  "prefill_control": {
+    "previous_recursive_lod_correct": 57,
+    "merged_fast_prefill_k0_correct": 47,
+    "delta": -0.15625,
+    "bootstrap_95_percent_ci": [-0.265625, -0.046875],
+    "interpretation": "The fresh optimized-prefill run is 10/64 below the previous recursive-LOD artifact, so early-native results must be compared with the fresh k0 control rather than the old LOD run. DiffusionGemma trajectory sensitivity means a same-build legacy-policy A/B is still required to attribute the entire difference causally to prefill."
+  },
+  "interpretation": "Early native decoder attention improves the matched merged-code baseline monotonically through k=4, supporting a high-noise routing/bootstrap failure. It does not recover native full-attention quality. The observed optimized-prefill drop is larger than the early-native gain, but needs a same-build legacy-policy control because DiffusionGemma generation is numerically trajectory-sensitive."
+}

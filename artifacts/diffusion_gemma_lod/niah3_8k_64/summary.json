@@ -1,0 +1,42 @@
+{
+  "checkpoint": "google/diffusiongemma-26B-A4B-it",
+  "task": "niah_single_3",
+  "sequence_length": 8192,
+  "samples": 64,
+  "batch_size": 4,
+  "seed": 1234,
+  "full": {
+    "accuracy": 0.921875,
+    "correct": 59,
+    "evaluation_seconds": 116.62979473313317,
+    "mean_tokens_per_forward": 3.2913551926612854,
+    "cluster_run": "dan-agent-4368-dg-niah3-8k-full-64"
+  },
+  "lod": {
+    "accuracy": 0.890625,
+    "correct": 57,
+    "evaluation_seconds": 141.94622063287534,
+    "mean_tokens_per_forward": 2.87126874178648,
+    "cluster_run": "dan-agent-4369-dg-niah3-8k-lod-64",
+    "config": {
+      "global_attention_layers": [5, 11, 17, 23, 29],
+      "chunk_size": 256,
+      "local_window": 768,
+      "exact_prefix_lookback": 512,
+      "state_growth_factor": 16.0,
+      "open_count": 8,
+      "recursive_pages": true,
+      "engine_backend": "kernel"
+    }
+  },
+  "paired_comparison": {
+    "accuracy_delta": -0.03125,
+    "paired_bootstrap_95_percent_ci": [-0.09375, 0.03125],
+    "both_correct": 56,
+    "full_only_correct": 3,
+    "lod_only_correct": 1,
+    "both_incorrect": 4,
+    "lod_to_full_evaluation_time_ratio": 1.217066539109239,
+    "lod_to_full_tokens_per_forward_ratio": 0.8723667224335223
+  }
+}

@@ -44,7 +44,34 @@ class LODConfig:
     local_window: int = 512
     state_growth_factor: float = 16.0
     state_min_size: int = 256
+    state_size_offset: int = 0
     protected_prefix: int = 1
+    state_clustering_policy: str = "manual"
+    state_clustering_normalization: str = "none"
+    state_clustering_radial_bias: float = 0.0
+    state_clustering_radial_scope: str = "all"
+    state_clustering_centroid_rescale: str = "none"
+    state_clustering_centroid_rescale_scope: str = "all"
+    state_clustering_query_metric: str = "none"
+    state_clustering_rope_filter: str = "none"
+    state_clustering_rope_dim: int = 0
+    state_clustering_rope_fast_pairs: int = 0
+    coherence_single_matmul: bool = True
+    routing_normalization: str = "none"
+    routing_rope_filter: str = "none"
+    routing_rope_cutoff_factor: float = 1.0
+    routing_rope_dim: int = 0
+    routing_rope_fast_pairs: int = 0
+    routing_rope_jensen_pairs: int = 0
+    routing_rope_jensen: bool = False
+    routing_count_bias: float = 1.0
+    routing_variance_bias: float = 0.0
+    routing_page_mass_candidates: int = 0
+    routing_leaf_mass_candidates: int = 0
+    routing_leaf_mass_objective: str = "exact"
+    routing_leaf_mass_review_top_p: float | None = None
+    routing_leaf_mass_top_p: float | None = None
+    routing_leaf_mass_min_routes: int = 1
     max_routes: int = 8
     leaf_dtype: torch.dtype = torch.bfloat16
 
@@ -59,10 +86,258 @@ class LODConfig:
             raise ValueError("state_growth_factor cannot be negative")
         if self.state_min_size < 0:
             raise ValueError("state_min_size cannot be negative")
+        if self.state_size_offset < 0:
+            raise ValueError("state_size_offset cannot be negative")
         if self.protected_prefix < 0:
             raise ValueError("protected_prefix cannot be negative")
-        if not 0 <= self.max_routes <= 8:
-            raise ValueError("max_routes must be between zero and eight")
+        if self.state_clustering_policy not in {
+            "manual",
+            "qk_norm_aware",
+            "rope_aware",
+            "rnope_nope_spherical",
+            "rnope_rope_spherical",
+        }:
+            raise ValueError(
+                "state_clustering_policy must be manual, qk_norm_aware, "
+                "rope_aware, rnope_nope_spherical, or "
+                "rnope_rope_spherical"
+            )
+        if self.state_clustering_policy != "manual" and (
+            self.state_clustering_normalization != "none"
+            or self.state_clustering_radial_bias
+            or self.state_clustering_centroid_rescale != "none"
+            or self.state_clustering_query_metric != "none"
+            or self.state_clustering_rope_filter != "none"
+        ):
+            raise ValueError(
+                "automatic state clustering requires the manual geometry "
+                "controls to remain disabled"
+            )
+        if self.state_clustering_normalization not in {
+            "none",
+            "leaf_cosine",
+            "centroid_cosine",
+            "cosine",
+            "l2",
+        }:
+            raise ValueError(
+                "state_clustering_normalization must be none, leaf_cosine, "
+                "centroid_cosine, cosine, or l2"
+            )
+        if self.state_clustering_radial_bias < 0:
+            raise ValueError("state_clustering_radial_bias cannot be negative")
+        if (
+            self.state_clustering_radial_bias
+            and self.state_clustering_normalization != "cosine"
+        ):
+            raise ValueError(
+                "state_clustering_radial_bias requires cosine state clustering"
+            )
+        if self.state_clustering_radial_scope not in {
+            "all",
+            "append",
+            "assignment",
+        }:
+            raise ValueError(
+                "state_clustering_radial_scope must be all, append, or assignment"
+            )
+        if self.state_clustering_centroid_rescale not in {
+            "none",
+            "mean_leaf_norm",
+            "coherence",
+            "spherical_coherence",
+            "rope_coherence",
+            "direction_l2",
+        }:
+            raise ValueError(
+                "state_clustering_centroid_rescale must be none, "
+                "mean_leaf_norm, coherence, spherical_coherence, "
+                "rope_coherence, or direction_l2"
+            )
+        if self.state_clustering_centroid_rescale_scope not in {
+            "all",
+            "append",
+            "assignment",
+        }:
+            raise ValueError(
+                "state_clustering_centroid_rescale_scope must be all, append, "
+                "or assignment"
+            )
+        if (
+            self.state_clustering_centroid_rescale != "none"
+            and self.state_clustering_normalization != "none"
+        ):
+            raise ValueError(
+                "centroid rescaling requires raw leaf clustering"
+            )
+        if (
+            self.state_clustering_centroid_rescale != "none"
+            and (
+                self.state_clustering_radial_bias
+                or self.state_clustering_query_metric != "none"
+                or self.state_clustering_rope_filter != "none"
+            )
+        ):
+            raise ValueError(
+                "centroid rescaling requires unmodified key geometry"
+            )
+        if (
+            self.state_clustering_centroid_rescale == "direction_l2"
+            and self.state_clustering_centroid_rescale_scope != "all"
+        ):
+            raise ValueError("direction_l2 clustering requires all-purpose scope")
+        if self.state_clustering_query_metric not in {
+            "none",
+            "diagonal",
+            "full",
+        }:
+            raise ValueError(
+                "state_clustering_query_metric must be none, diagonal, or full"
+            )
+        if (
+            self.state_clustering_query_metric == "full"
+            and self.state_clustering_rope_fast_pairs
+        ):
+            raise ValueError(
+                "full query-metric clustering cannot be combined with a RoPE filter"
+            )
+        if self.state_clustering_rope_filter not in {"none", "local_window"}:
+            raise ValueError(
+                "state_clustering_rope_filter must be none or local_window"
+            )
+        if self.state_clustering_rope_dim < 0 or self.state_clustering_rope_dim % 2:
+            raise ValueError(
+                "state_clustering_rope_dim must be a nonnegative even integer"
+            )
+        if not 0 <= self.state_clustering_rope_fast_pairs <= (
+            self.state_clustering_rope_dim // 2
+        ):
+            raise ValueError(
+                "state_clustering_rope_fast_pairs exceeds the rotary geometry"
+            )
+        if self.routing_normalization not in {
+            "none",
+            "query",
+            "key",
+            "both",
+            "qk_norm_aware",
+        }:
+            raise ValueError(
+                "routing_normalization must be none, query, key, both, or "
+                "qk_norm_aware"
+            )
+        if self.routing_rope_filter not in {"none", "local_window"}:
+            raise ValueError("routing_rope_filter must be none or local_window")
+        if (
+            not math.isfinite(self.routing_rope_cutoff_factor)
+            or self.routing_rope_cutoff_factor <= 0
+        ):
+            raise ValueError("routing_rope_cutoff_factor must be finite and positive")
+        if self.routing_rope_dim < 0 or self.routing_rope_dim % 2:
+            raise ValueError("routing_rope_dim must be a nonnegative even integer")
+        if not 0 <= self.routing_rope_fast_pairs <= self.routing_rope_dim // 2:
+            raise ValueError("routing_rope_fast_pairs exceeds the rotary geometry")
+        if not 0 <= self.routing_rope_jensen_pairs <= self.routing_rope_dim // 2:
+            raise ValueError(
+                "routing_rope_jensen_pairs exceeds the rotary geometry"
+            )
+        if not math.isfinite(self.routing_count_bias) or self.routing_count_bias < 0:
+            raise ValueError("routing_count_bias must be finite and nonnegative")
+        if (
+            not math.isfinite(self.routing_variance_bias)
+            or self.routing_variance_bias < 0
+        ):
+            raise ValueError("routing_variance_bias must be finite and nonnegative")
+        if self.routing_variance_bias and self.routing_normalization != "none":
+            raise ValueError(
+                "routing_variance_bias currently requires unnormalized routing"
+            )
+        if self.routing_variance_bias and self.routing_rope_fast_pairs:
+            raise ValueError(
+                "routing_variance_bias is not calibrated for filtered RoPE routing"
+            )
+        if self.routing_rope_jensen and self.routing_variance_bias:
+            raise ValueError("RoPE-pair and scalar variance corrections conflict")
+        if self.routing_rope_jensen and self.routing_rope_fast_pairs:
+            raise ValueError("RoPE-pair correction cannot be combined with filtering")
+        if self.routing_page_mass_candidates not in {0, 16, 32, 64, 128}:
+            raise ValueError(
+                "routing_page_mass_candidates must be 0, 16, 32, 64, or 128"
+            )
+        if self.routing_leaf_mass_candidates not in {0, 16, 32, 64, 128}:
+            raise ValueError(
+                "routing_leaf_mass_candidates must be 0, 16, 32, 64, or 128"
+            )
+        if self.routing_page_mass_candidates and self.routing_leaf_mass_candidates:
+            raise ValueError("page-mass and leaf-mass routing are mutually exclusive")
+        if (
+            self.routing_leaf_mass_candidates > 32
+            and self.routing_leaf_mass_objective == "output"
+        ):
+            raise ValueError(
+                "output-error leaf routing supports at most 32 candidates"
+            )
+        if self.routing_leaf_mass_objective not in {
+            "exact",
+            "additional",
+            "deficit",
+            "output",
+            "rope_jensen",
+            "fast_rope_jensen",
+            "slow_rope_jensen",
+        }:
+            raise ValueError(
+                "routing_leaf_mass_objective must be exact, additional, deficit, "
+                "output, rope_jensen, fast_rope_jensen, or slow_rope_jensen"
+            )
+        if self.routing_leaf_mass_review_top_p is not None:
+            if not 0.0 < self.routing_leaf_mass_review_top_p <= 1.0:
+                raise ValueError(
+                    "routing_leaf_mass_review_top_p must lie in (0, 1]"
+                )
+            if not self.routing_leaf_mass_candidates:
+                raise ValueError(
+                    "routing_leaf_mass_review_top_p requires leaf-mass candidates"
+                )
+            if self.max_routes == 0:
+                raise ValueError(
+                    "routing_leaf_mass_review_top_p requires at least one route"
+                )
+        if self.routing_leaf_mass_top_p is not None:
+            if not 0.0 < self.routing_leaf_mass_top_p <= 1.0:
+                raise ValueError("routing_leaf_mass_top_p must lie in (0, 1]")
+            if not self.routing_leaf_mass_candidates:
+                raise ValueError(
+                    "routing_leaf_mass_top_p requires leaf-mass candidates"
+                )
+            if self.max_routes == 0:
+                raise ValueError(
+                    "routing_leaf_mass_top_p requires at least one route"
+                )
+            if not 1 <= self.routing_leaf_mass_min_routes <= self.max_routes:
+                raise ValueError(
+                    "routing_leaf_mass_min_routes must be between one and max_routes"
+                )
+            if self.routing_leaf_mass_objective not in {
+                "exact",
+                "rope_jensen",
+                "fast_rope_jensen",
+                "slow_rope_jensen",
+            }:
+                raise ValueError(
+                    "routing_leaf_mass_top_p requires an attention-mass objective"
+                )
+        elif self.routing_leaf_mass_min_routes != 1:
+            raise ValueError(
+                "routing_leaf_mass_min_routes requires routing_leaf_mass_top_p"
+            )
+        if not 0 <= self.max_routes <= 128:
+            raise ValueError("max_routes must be between zero and 128")
+        if (
+            self.routing_leaf_mass_candidates
+            and self.max_routes > self.routing_leaf_mass_candidates
+        ):
+            raise ValueError("max_routes cannot exceed leaf-mass candidates")
 
 
 @dataclass
@@ -199,6 +474,140 @@ def _scaled_scores(
     return torch.matmul(
         query.float(), key.float().transpose(-1, -2)
     ) * float(scale)
+
+
+def _routing_rms_normalize(tensor: torch.Tensor) -> torch.Tensor:
+    """Remove vector-norm temperature while preserving the usual sqrt(d) scale."""
+    inverse_rms = torch.rsqrt(
+        tensor.detach().float().square().mean(dim=-1, keepdim=True).clamp_min(1e-12)
+    )
+    return tensor.detach().float() * inverse_rms
+
+
+def _routing_query_key(
+    query: torch.Tensor,
+    key: torch.Tensor,
+    normalization: str,
+    rope_dim: int = 0,
+    rope_fast_pairs: int = 0,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    # Query-only ranking is exactly equivalent to leaving q unchanged and
+    # multiplying log(slot_count) by RMS(q). It removes the pretrained
+    # attention temperature from lossy-centroid visibility selection without
+    # changing the closed or opened attention calculation.
+    if normalization == "qk_norm_aware":
+        raise ValueError(
+            "qk_norm_aware routing must be resolved from the attention module "
+            "by the Hugging Face installer"
+        )
+    if normalization not in {"none", "query", "key", "both"}:
+        raise ValueError("routing normalization must be none, query, key, or both")
+    original_query_rms = None
+    if rope_fast_pairs:
+        if rope_dim > int(query.size(-1)) or rope_dim > int(key.size(-1)):
+            raise ValueError("routing RoPE dimension exceeds the attention head")
+        if normalization not in {"query", "both"}:
+            original_query_rms = (
+                query.detach().float().square().mean(-1, keepdim=True).sqrt()
+            )
+        half = rope_dim // 2
+        query = query.detach().clone()
+        key = key.detach().clone()
+        query[..., :rope_fast_pairs] = 0
+        query[..., half : half + rope_fast_pairs] = 0
+        key[..., :rope_fast_pairs] = 0
+        key[..., half : half + rope_fast_pairs] = 0
+    if normalization in {"query", "both"}:
+        query = _routing_rms_normalize(query)
+    elif original_query_rms is not None:
+        # Removing dimensions must not also retune the centroid-score
+        # temperature relative to log(slot_count). Preserve the query's
+        # pre-mask RMS while changing only its routing direction.
+        query = _routing_rms_normalize(query) * original_query_rms
+    if normalization in {"key", "both"}:
+        key = _routing_rms_normalize(key)
+    return query, key
+
+
+def _routing_state_scores(
+    query: torch.Tensor,
+    state: LODState,
+    scale: float,
+    normalization: str,
+    count_bias: float = 1.0,
+    reference_key: torch.Tensor | None = None,
+    variance_bias: float = 0.0,
+    rope_dim: int = 0,
+    rope_fast_pairs: int = 0,
+    rope_jensen: bool = False,
+) -> torch.Tensor:
+    query_heads = int(query.size(1))
+    mean_key = _repeat_kv(state.mean_key, query_heads)
+    count = _repeat_kv(state.count, query_heads)
+    route_query, route_key = _routing_query_key(
+        query,
+        mean_key,
+        normalization,
+        rope_dim,
+        rope_fast_pairs,
+    )
+    scores = _scaled_scores(route_query, route_key, scale)
+    scores = scores + (
+        count.clamp_min(1).log().float().unsqueeze(2) * float(count_bias)
+    )
+    if variance_bias:
+        if reference_key is None or int(reference_key.size(2)) == 0:
+            raise ValueError("routing variance correction requires reference keys")
+        # A second-order approximation to the omitted within-slot log-mass:
+        #   log mean_i exp(scale q.(k_i - mean_k)) ~= variance(score) / 2.
+        # Estimate the constituent-key second moment from the exact local
+        # field.  The centroid norm deficit then estimates the trace of the
+        # within-slot covariance without adding anything to persistent state.
+        reference_sq = reference_key.detach().float().square().sum(-1).mean(-1)
+        mean_sq = state.mean_key.detach().float().square().sum(-1)
+        variance_trace = (reference_sq.unsqueeze(-1) - mean_sq).clamp_min(0)
+        variance_trace = variance_trace.masked_fill(state.count.le(1), 0)
+        variance_trace = _repeat_kv(variance_trace, query_heads)
+        query_sq = route_query.detach().float().square().sum(-1)
+        correction = (
+            0.5
+            * float(variance_bias)
+            * float(scale) ** 2
+            * query_sq.unsqueeze(-1)
+            * variance_trace.unsqueeze(2)
+            / float(query.size(-1))
+        )
+        scores = scores + correction
+    if rope_jensen and rope_dim:
+        if normalization in {"key", "both"}:
+            raise ValueError("RoPE Jensen routing does not support key normalization")
+        if reference_key is None or int(reference_key.size(2)) == 0:
+            raise ValueError("RoPE Jensen routing requires reference keys")
+        half = rope_dim // 2
+        query_pairs = (
+            route_query[..., :half].detach().float().square()
+            + route_query[..., half:rope_dim].detach().float().square()
+        )
+        reference_pairs = (
+            reference_key[..., :half].detach().float().square()
+            + reference_key[..., half:rope_dim].detach().float().square()
+        ).mean(-2)
+        mean_pairs = (
+            state.mean_key[..., :half].detach().float().square()
+            + state.mean_key[..., half:rope_dim].detach().float().square()
+        )
+        pair_variance = (reference_pairs.unsqueeze(-2) - mean_pairs).clamp_min(0)
+        pair_variance.masked_fill_(state.count.unsqueeze(-1).le(1), 0)
+        pair_variance = _repeat_kv(pair_variance, query_heads)
+        # Within each rotary plane, use an isotropic covariance whose trace is
+        # the observed pair-energy deficit. The second-order Jensen term is
+        # 0.5 Var(score), hence the 0.25 factor below.
+        correction = 0.25 * float(scale) ** 2 * torch.matmul(
+            query_pairs, pair_variance.transpose(-1, -2)
+        )
+        scores = scores + correction
+    scores.masked_fill_(count.le(0.5).unsqueeze(2), -torch.inf)
+    return scores
 
 
 def _local_attention(
@@ -385,13 +794,19 @@ def two_level_lod_attention(
     max_routes: int = 8,
     open_count: int | torch.Tensor = 8,
     route_protected_prefix: int = 1,
+    routing_normalization: str = "none",
+    routing_rope_dim: int = 0,
+    routing_rope_fast_pairs: int = 0,
+    routing_count_bias: float = 1.0,
+    routing_variance_bias: float = 0.0,
+    routing_rope_jensen: bool = False,
     scale: float | None = None,
     query_offset: int | None = None,
 ) -> LODAttentionResult:
     """Replace opened coarse regions with independently normalized exact leaves.
 
     ``max_routes`` controls how many ranked regions are identified (at most
-    eight). ``route_protected_prefix`` leaves exact protected prefix entries in
+    128). ``route_protected_prefix`` leaves exact protected prefix entries in
     the coarse softmax but prevents them from consuming detailed routes.
     ``open_count`` selects how many of that ordered list are actually opened
     and may be either a scalar or a per-query tensor broadcastable to
@@ -411,8 +826,8 @@ def two_level_lod_attention(
         or bool((owner >= state.slot_count).any().item())
     ):
         raise ValueError("owner archive contains an invalid state slot")
-    if not 0 <= max_routes <= 8:
-        raise ValueError("max_routes must be between zero and eight")
+    if not 0 <= max_routes <= 128:
+        raise ValueError("max_routes must be between zero and 128")
     if route_protected_prefix < 0:
         raise ValueError("route_protected_prefix cannot be negative")
     if scale is None:
@@ -429,7 +844,28 @@ def two_level_lod_attention(
     )
     if route_count:
         with torch.no_grad():
-            route_scores = state_scores.detach()
+            route_scores = (
+                state_scores.detach()
+                if (
+                    routing_normalization == "none"
+                    and routing_rope_fast_pairs == 0
+                    and routing_count_bias == 1.0
+                    and routing_variance_bias == 0.0
+                    and not routing_rope_jensen
+                )
+                else _routing_state_scores(
+                    query,
+                    state,
+                    scale,
+                    routing_normalization,
+                    routing_count_bias,
+                    local_key,
+                    routing_variance_bias,
+                    routing_rope_dim,
+                    routing_rope_fast_pairs,
+                    routing_rope_jensen,
+                )
+            )
             if protected:
                 route_scores = route_scores.clone()
                 route_scores[..., :protected] = -torch.inf
@@ -541,7 +977,9 @@ class _PytorchLODAttention(nn.Module):
                 * math.sqrt(max(context_length, 0))
             ),
             self.config.state_min_size,
-        ) + int(getattr(self, "_lod_padding_state_reserve", 0))
+        ) + self.config.state_size_offset + int(
+            getattr(self, "_lod_padding_state_reserve", 0)
+        )
         return max(current_size, min(target, available_context))
 
     def _bswa_begin(self, total_length: int) -> int:
@@ -778,6 +1216,12 @@ class _PytorchLODAttention(nn.Module):
             max_routes=self.config.max_routes,
             open_count=open_count,
             route_protected_prefix=self.config.protected_prefix,
+            routing_normalization=self.config.routing_normalization,
+            routing_rope_dim=self.config.routing_rope_dim,
+            routing_rope_fast_pairs=self.config.routing_rope_fast_pairs,
+            routing_count_bias=self.config.routing_count_bias,
+            routing_variance_bias=self.config.routing_variance_bias,
+            routing_rope_jensen=self.config.routing_rope_jensen,
             scale=scale,
             query_offset=query_offset,
         ).output

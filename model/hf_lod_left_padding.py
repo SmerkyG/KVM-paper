@@ -273,6 +273,7 @@ class GroupedHFLODRuntime:
         *,
         initial_prefill: bool,
         scale: float | None,
+        stats_owner: nn.Module | None = None,
     ) -> torch.Tensor:
         output = torch.zeros_like(query)
         sequence_length = int(query.size(2))
@@ -292,7 +293,11 @@ class GroupedHFLODRuntime:
                 ) = _pad_kernel_prefill(settings, group_query, group_key, group_value)
             if runtime.engine is None:
                 runtime.engine = _build_engine(
-                    settings, group_query, group_key, scale=scale
+                    settings,
+                    group_query,
+                    group_key,
+                    scale=scale,
+                    stats_owner=stats_owner,
                 )
             previous_length = (
                 0 if runtime.lod_cache is None else int(runtime.lod_cache.total_length)
@@ -392,7 +397,9 @@ def grouped_transient_attention(
 ) -> torch.Tensor:
     engine = getattr(module, "_hf_lod_transient_engine", None)
     if engine is None:
-        engine = _build_engine(settings, query, key, scale=scale)
+        engine = _build_engine(
+            settings, query, key, scale=scale, stats_owner=module
+        )
         module._hf_lod_transient_engine = engine
     output = torch.zeros_like(query)
     if settings.left_padding_mode == "chunk_aligned":

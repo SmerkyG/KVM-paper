@@ -1,0 +1,71 @@
+{
+  "canvas_length": 256,
+  "checkpoint": "google/diffusiongemma-26B-A4B-it",
+  "dataset": "Seerkfang/prolong-64k-512-new",
+  "difference": {
+    "loss": 0.0662200833544313,
+    "pseudo_perplexity_ratio": 1.0684618419577778
+  },
+  "elapsed_seconds_rank0": 2.5464977538213134,
+  "metric": "corrupted-token denoising cross entropy",
+  "modes": {
+    "full": {
+      "0.25": {
+        "loss": 2.8229670805089615,
+        "pseudo_perplexity": 16.82670285992521,
+        "tokens": 68
+      },
+      "0.5": {
+        "loss": 5.214311079545454,
+        "pseudo_perplexity": 183.8850951293228,
+        "tokens": 132
+      },
+      "0.75": {
+        "loss": 6.369314829508464,
+        "pseudo_perplexity": 583.6577867657679,
+        "tokens": 192
+      },
+      "1.0": {
+        "loss": 7.490513324737549,
+        "pseudo_perplexity": 1790.971205745683,
+        "tokens": 256
+      },
+      "overall": {
+        "loss": 6.204831299958406,
+        "pseudo_perplexity": 495.1354195282171,
+        "tokens": 648
+      }
+    },
+    "lod": {
+      "0.25": {
+        "loss": 2.845765057732077,
+        "pseudo_perplexity": 17.21472388982375,
+        "tokens": 68
+      },
+      "0.5": {
+        "loss": 5.186061049952651,
+        "pseudo_perplexity": 178.76302569723796,
+        "tokens": 132
+      },
+      "0.75": {
+        "loss": 6.42344856262207,
+        "pseudo_perplexity": 616.1241975571836,
+        "tokens": 192
+      },
+      "1.0": {
+        "loss": 7.626043319702148,
+        "pseudo_perplexity": 2050.9191134976804,
+        "tokens": 256
+      },
+      "overall": {
+        "loss": 6.271051383312837,
+        "pseudo_perplexity": 529.0333023676559,
+        "tokens": 648
+      }
+    }
+  },
+  "peak_vram_bytes_rank0": 53076399616,
+  "prefix_length": 1792,
+  "samples": 1,
+  "sequence_length": 2048
+}

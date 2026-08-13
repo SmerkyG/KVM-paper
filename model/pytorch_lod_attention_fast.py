@@ -34,6 +34,7 @@ from .pytorch_lod_attention import (
     _attention_from_scores,
     _normalize_open_count,
     _repeat_kv,
+    _routing_state_scores,
     coarse_lod_attention,
     two_level_lod_attention,
 )
@@ -78,25 +79,36 @@ def _fast_local_attention(
 def _route_state(
     query: torch.Tensor,
     state: LODState,
+    reference_key: torch.Tensor,
     *,
     max_routes: int,
     open_count: int | torch.Tensor,
     route_protected_prefix: int = 1,
+    routing_normalization: str = "none",
+    routing_rope_dim: int = 0,
+    routing_rope_fast_pairs: int = 0,
+    routing_count_bias: float = 1.0,
+    routing_variance_bias: float = 0.0,
+    routing_rope_jensen: bool = False,
     scale: float,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    query_heads = int(query.size(1))
-    key_value_heads = int(state.key_sum.size(1))
-    groups = query_heads // key_value_heads
-    mean_key = state.mean_key
     count = state.count
-    if groups != 1:
-        mean_key = mean_key.repeat_interleave(groups, dim=1)
+    query_heads = int(query.size(1))
+    if query_heads != int(count.size(1)):
+        groups = query_heads // int(count.size(1))
         count = count.repeat_interleave(groups, dim=1)
-    state_scores = torch.matmul(
-        query.float(), mean_key.float().transpose(-1, -2)
-    ) * scale
-    state_scores = state_scores + count.clamp_min(1).log().float().unsqueeze(2)
-    state_scores.masked_fill_(count.le(0.5).unsqueeze(2), -torch.inf)
+    state_scores = _routing_state_scores(
+        query,
+        state,
+        scale,
+        routing_normalization,
+        routing_count_bias,
+        reference_key,
+        routing_variance_bias,
+        routing_rope_dim,
+        routing_rope_fast_pairs,
+        routing_rope_jensen,
+    )
     if route_protected_prefix < 0:
         raise ValueError("route_protected_prefix cannot be negative")
     protected = min(route_protected_prefix, state.slot_count)
@@ -584,6 +596,12 @@ def fast_two_level_lod_attention(
     max_routes: int = 8,
     open_count: int | torch.Tensor = 8,
     route_protected_prefix: int = 1,
+    routing_normalization: str = "none",
+    routing_rope_dim: int = 0,
+    routing_rope_fast_pairs: int = 0,
+    routing_count_bias: float = 1.0,
+    routing_variance_bias: float = 0.0,
+    routing_rope_jensen: bool = False,
     scale: float | None = None,
     query_offset: int | None = None,
     postings: tuple[torch.Tensor, torch.Tensor] | None = None,
@@ -616,6 +634,12 @@ def fast_two_level_lod_attention(
             max_routes=max_routes,
             open_count=open_count,
             route_protected_prefix=route_protected_prefix,
+            routing_normalization=routing_normalization,
+            routing_rope_dim=routing_rope_dim,
+            routing_rope_fast_pairs=routing_rope_fast_pairs,
+            routing_count_bias=routing_count_bias,
+            routing_variance_bias=routing_variance_bias,
+            routing_rope_jensen=routing_rope_jensen,
             scale=scale,
             query_offset=query_offset,
         )
@@ -623,9 +647,16 @@ def fast_two_level_lod_attention(
     top_slots, open_mask = _route_state(
         query,
         state,
+        local_key,
         max_routes=max_routes,
         open_count=open_count,
         route_protected_prefix=route_protected_prefix,
+        routing_normalization=routing_normalization,
+        routing_rope_dim=routing_rope_dim,
+        routing_rope_fast_pairs=routing_rope_fast_pairs,
+        routing_count_bias=routing_count_bias,
+        routing_variance_bias=routing_variance_bias,
+        routing_rope_jensen=routing_rope_jensen,
         scale=scale,
     )
     coarse_output, coarse_lse = _fast_coarse_attention(
@@ -769,6 +800,12 @@ class FastTwoLevelLODAttention(_FastLocalMixin, TwoLevelLODAttention):
             max_routes=self.config.max_routes,
             open_count=kwargs["open_count"],
             route_protected_prefix=self.config.protected_prefix,
+            routing_normalization=self.config.routing_normalization,
+            routing_rope_dim=self.config.routing_rope_dim,
+            routing_rope_fast_pairs=self.config.routing_rope_fast_pairs,
+            routing_count_bias=self.config.routing_count_bias,
+            routing_variance_bias=self.config.routing_variance_bias,
+            routing_rope_jensen=self.config.routing_rope_jensen,
             scale=kwargs["scale"],
             query_offset=query_offset,
             postings=self._cached_postings(owner, state),

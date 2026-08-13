@@ -1,0 +1,73 @@
+{
+  "task": "niah_single_3",
+  "context_length": 8192,
+  "limit": 64,
+  "batch_size": 4,
+  "seed": 1234,
+  "state_growth_factor": 16.0,
+  "trajectory_controller": "lod_encoder_lod_decoder",
+  "cluster_run": "dan-agent-4550-dg-phase-coupled-64",
+  "artifact": "coupled_64.json",
+  "reference_score": {
+    "correct": 53,
+    "total": 64,
+    "score": 0.828125,
+    "wrong_doc_ids": [0, 20, 25, 26, 34, 37, 38, 52, 55, 58, 60]
+  },
+  "coverage": {
+    "denoising_steps": 541,
+    "active_positions": 308992,
+    "reference_accepted_positions": 145986
+  },
+  "all_active_positions": {
+    "lod_lod_vs_native_native_top1_disagreements": 9266,
+    "lod_lod_vs_native_native_top1_disagreement_rate": 0.0299878314001657,
+    "lod_native_vs_native_native_top1_disagreements": 6207,
+    "native_lod_vs_native_native_top1_disagreements": 5405,
+    "repair_categories": {
+      "encoder_only": 2357,
+      "decoder_only": 1542,
+      "either_single": 2798,
+      "both_needed": 2569
+    }
+  },
+  "reference_accepted_positions": {
+    "lod_lod_vs_native_native_top1_disagreements": 57,
+    "top1_disagreement_rate": 0.00039044839916156345,
+    "repair_categories": {
+      "encoder_only": 6,
+      "decoder_only": 9,
+      "either_single": 5,
+      "both_needed": 37
+    },
+    "low_lod_entropy_below_0_001_disagreements": 42,
+    "low_entropy_repair_categories": {
+      "encoder_only": 4,
+      "decoder_only": 5,
+      "either_single": 0,
+      "both_needed": 33
+    },
+    "mean_entropy": {
+      "lod_lod": 0.0012089203810271459,
+      "lod_native": 0.006314037874823406,
+      "native_lod": 0.006489920083412924,
+      "native_native": 0.0038123949926355777
+    }
+  },
+  "acceptance_masks": {
+    "lod_lod_vs_native_native_disagreements": 40118,
+    "lod_lod_vs_native_native_disagreement_rate": 0.12983507663628832,
+    "lod_lod_vs_native_native_jaccard": 0.768250062099602,
+    "lod_native_vs_native_native_disagreements": 33803,
+    "lod_native_vs_native_native_jaccard": 0.8017733262181356,
+    "native_lod_vs_native_native_disagreements": 21630,
+    "native_lod_vs_native_native_jaccard": 0.8742024973392345,
+    "interpretation": "Switching only the encoder aligns entropy-based acceptance more than switching only the decoder, but neither single switch matches native/native."
+  },
+  "failure_localization": {
+    "failed_docs_with_reference_accepted_top1_disagreement": [25, 38, 60],
+    "failed_docs_without_reference_accepted_top1_disagreement": [0, 20, 26, 34, 37, 52, 55, 58],
+    "interpretation": "Direct confidently accepted top-1 errors explain only 3 of 11 failed trajectories. Acceptance-mask changes at positions whose top-1 currently agrees can still alter renoising, self-conditioning, and later steps."
+  },
+  "conclusion": "The coupled comparison supports the hypothesis that entropy is unreliable under sparse attention. The largest stable signal is not immediate accepted top-1 error but a 13% change in which positions are considered safe to accept. Most low-entropy accepted top-1 disagreements require both native encoder and native decoder attention, confirming a coupled phase interaction."
+}

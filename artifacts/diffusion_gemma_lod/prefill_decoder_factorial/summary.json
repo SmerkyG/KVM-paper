@@ -1,0 +1,23 @@
+{
+  "task": "niah_single_3",
+  "context_length": 8192,
+  "limit": 64,
+  "batch_size": 4,
+  "seed": 1234,
+  "state_growth_factor": 16.0,
+  "node": "dev-shared-research-4.dev-training.svc.cluster.local",
+  "results": {
+    "legacy_lod": {"correct": 54, "score": 0.84375, "cluster_run": "dan-agent-4511-dg-factorial-legacy_lod-64"},
+    "optimized_lod": {"correct": 55, "score": 0.859375, "cluster_run": "dan-agent-4512-dg-factorial-optimized_lod-64"},
+    "legacy_native": {"correct": 54, "score": 0.84375, "cluster_run": "dan-agent-4513-dg-factorial-legacy_native-64"},
+    "optimized_native": {"correct": 52, "score": 0.8125, "cluster_run": "dan-agent-4514-dg-factorial-optimized_native-64"}
+  },
+  "paired_comparisons": {
+    "optimized_minus_legacy_with_lod_decoder": {"delta": 0.015625, "bootstrap_95_percent_ci": [-0.078125, 0.109375]},
+    "optimized_minus_legacy_with_native_decoder": {"delta": -0.03125, "bootstrap_95_percent_ci": [-0.125, 0.0625]},
+    "native_minus_lod_decoder_with_legacy_prefill": {"delta": 0.0, "bootstrap_95_percent_ci": [-0.109375, 0.109375]},
+    "native_minus_lod_decoder_with_optimized_prefill": {"delta": -0.046875, "bootstrap_95_percent_ci": [-0.15625, 0.0625]},
+    "interaction": {"delta": -0.046875, "bootstrap_95_percent_ci": [-0.203125, 0.109375]}
+  },
+  "interpretation": "There is no evidence in the same-build factorial that the optimized recursive prefill policy regresses NIAH-3 relative to the legacy policy. Both prefill variants remain LOD approximations, so this factorial does not isolate encoder approximation from decoder approximation."
+}

@@ -17,9 +17,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, fields, is_dataclass, replace
 from copy import copy
+import math
 from types import MethodType
 import weakref
-from typing import Any, Callable
+from typing import Any, Callable, Collection
 
 import torch
 from torch import nn
@@ -62,6 +63,35 @@ class HFLODSettings:
             )
         if not 0 <= self.open_count <= self.config.max_routes:
             raise ValueError("open_count must be between zero and max_routes")
+        if self.engine_backend != "kernel" and (
+            self.config.state_clustering_normalization != "none"
+            or self.config.state_clustering_radial_bias != 0
+            or self.config.state_clustering_centroid_rescale != "none"
+            or self.config.state_clustering_query_metric != "none"
+            or self.config.state_clustering_rope_filter != "none"
+        ):
+            raise ValueError(
+                "custom state clustering currently requires the kernel backend"
+            )
+        if (
+            (
+                self.config.routing_leaf_mass_review_top_p is not None
+                or self.config.routing_leaf_mass_top_p is not None
+            )
+            and self.engine_backend != "kernel"
+        ):
+            raise ValueError(
+                "dynamic leaf-mass routing requires the kernel backend"
+            )
+
+
+def _has_attention_norm(module: nn.Module, name: str) -> bool:
+    """Return whether an attention module explicitly normalizes Q or K."""
+    if isinstance(getattr(module, f"{name}_norm", None), nn.Module):
+        return True
+    # Some implementations expose one joint normalization module instead of
+    # separate q_norm/k_norm attributes (for example, Llama 4 RoPE layers).
+    return isinstance(getattr(module, "qk_norm", None), nn.Module)
 
 
 def _build_engine(
@@ -70,8 +100,14 @@ def _build_engine(
     key: torch.Tensor,
     *,
     scale: float | None,
+    stats_owner: nn.Module | None = None,
 ) -> nn.Module:
     config = settings.config
+    if config.routing_normalization == "qk_norm_aware":
+        raise RuntimeError(
+            "qk_norm_aware routing must be resolved for each attention module "
+            "by install_hf_lod_attention"
+        )
     if settings.engine_backend == "torch":
         if settings.open_count == 0:
             return FastCoarseLODAttention(config)
@@ -94,18 +130,42 @@ def _build_engine(
         "scale": effective_scale,
     }
     if settings.open_count == 0:
-        return KernelCoarseLODAttention(config, **geometry)
-    if isinstance(config, PagedLODConfig):
-        return KernelRecursivePagedLODAttention(
+        engine = KernelCoarseLODAttention(config, **geometry)
+    elif isinstance(config, PagedLODConfig):
+        engine = KernelRecursivePagedLODAttention(
             config,
             default_open_count=settings.open_count,
             **geometry,
         )
-    return KernelTwoLevelLODAttention(
-        config,
-        default_open_count=settings.open_count,
-        **geometry,
-    )
+    else:
+        engine = KernelTwoLevelLODAttention(
+            config,
+            default_open_count=settings.open_count,
+            **geometry,
+        )
+
+    # Bound fused-routing scratch space for wide-head or high-GQA models.
+    # Gemma 4 global layers use 16 query heads, 2 KV heads, and 512-wide
+    # heads; the default 16-row tile would otherwise request 128 KiB of
+    # shared memory on accelerators with a 64 KiB limit. This changes only
+    # kernel tiling, not the state, route count, pages, or attention result.
+    if hasattr(engine, "coarse_route_block_m"):
+        groups = int(query.size(1)) // int(key.size(1))
+        row_bytes = groups * int(query.size(-1)) * int(query.element_size())
+        safe_block_m = max(1, 32 * 1024 // max(row_bytes, 1))
+        engine.coarse_route_block_m = min(
+            int(engine.coarse_route_block_m), safe_block_m
+        )
+        if int(engine.coarse_route_block_m) < 8:
+            engine.coarse_route_num_warps = min(
+                int(engine.coarse_route_num_warps), 4
+            )
+    if int(query.size(-1)) >= 512:
+        engine.direct_fused_state_routing = False
+        engine.route_gqa_matmul = True
+    if stats_owner is not None:
+        engine._lod_dynamic_stats_owner = weakref.ref(stats_owner)
+    return engine
 
 
 def _map_batch_tensors(
@@ -308,11 +368,16 @@ class HFLODCacheLayer(CacheLayerMixin):
                     value,
                     initial_prefill=previous_length == 0,
                     scale=scale,
+                    stats_owner=module,
                 )
             else:
                 if self.engine is None:
                     self.engine = _build_engine(
-                        self.settings, query, key, scale=scale
+                        self.settings,
+                        query,
+                        key,
+                        scale=scale,
+                        stats_owner=module,
                     )
                 output, next_cache = self.engine(
                     query,
@@ -564,7 +629,13 @@ def hf_lod_attention_forward(
         else:
             engine = getattr(module, "_hf_lod_transient_engine", None)
             if engine is None:
-                engine = _build_engine(settings, query, key, scale=scaling)
+                engine = _build_engine(
+                    settings,
+                    query,
+                    key,
+                    scale=scaling,
+                    stats_owner=module,
+                )
                 module._hf_lod_transient_engine = engine
             output, _ = engine(
                 query,
@@ -646,6 +717,57 @@ def _decoder_config(model: nn.Module):
     return get_text_config(decoder=True) if callable(get_text_config) else config
 
 
+def _resolved_rope_route_geometry(
+    decoder_config: Any,
+    module: nn.Module,
+    local_window: int,
+) -> tuple[int, int]:
+    """Return rotary dimension and pairs too local for centroid routing.
+
+    Hugging Face stores RoPE frequencies duplicated across the two halves of
+    the rotary subspace. A pair is excluded when its full wavelength fits
+    inside the exact local-attention window, where LOD routing is unnecessary.
+    """
+    layer_idx = int(module.layer_idx)
+    if getattr(decoder_config, "model_type", None) == "smollm3":
+        rope_layers = getattr(decoder_config, "no_rope_layers", None)
+        if rope_layers is not None and not bool(rope_layers[layer_idx]):
+            return 0, 0
+    parameters = getattr(decoder_config, "rope_parameters", None)
+    layer_type = getattr(module, "layer_type", None)
+    if (
+        isinstance(parameters, dict)
+        and layer_type in parameters
+        and isinstance(parameters[layer_type], dict)
+    ):
+        parameters = parameters[layer_type]
+    parameters = parameters if isinstance(parameters, dict) else {}
+    head_dim = int(getattr(module, "head_dim"))
+    partial = float(
+        parameters.get(
+            "partial_rotary_factor",
+            getattr(decoder_config, "partial_rotary_factor", 1.0),
+        )
+    )
+    rope_dim = int(head_dim * partial)
+    rope_dim -= rope_dim % 2
+    if rope_dim == 0:
+        return 0, 0
+    theta = float(
+        parameters.get(
+            "rope_theta", getattr(decoder_config, "rope_theta", 10000.0)
+        )
+    )
+    if theta <= 1.0:
+        raise ValueError("RoPE theta must exceed one for wavelength routing")
+    fast_pairs = 0
+    for pair in range(rope_dim // 2):
+        wavelength = 2.0 * math.pi * theta ** (2.0 * pair / rope_dim)
+        if wavelength <= float(local_window):
+            fast_pairs += 1
+    return rope_dim, fast_pairs
+
+
 def _causal_attention_modules(model: nn.Module):
     for name, module in model.named_modules():
         if not isinstance(getattr(module, "layer_idx", None), int):
@@ -689,30 +811,135 @@ def install_hf_lod_attention(
     backend_name: str = "lod",
     submodel_key: str | None = None,
     left_padding_mode: str = "chunk_aligned",
+    layer_indices: Collection[int] | None = None,
 ) -> list[str]:
     """Install the registered LOD backend on compatible causal HF layers.
 
     ``model.generate`` automatically creates an ``HFLODCache``. Direct cached
     forward calls must receive ``HFLODCache.for_model(model)`` as
     ``past_key_values``. ``submodel_key`` selects only one multimodal backbone
-    through Hugging Face's per-subconfig attention dispatch.
+    through Hugging Face's per-subconfig attention dispatch. ``layer_indices``
+    optionally restricts LOD to a subset of otherwise compatible layers.
     """
     config = LODConfig() if config is None else config
     if leaf_dtype is not None:
         config = replace(config, leaf_dtype=leaf_dtype)
-    settings = HFLODSettings(
-        config=config,
-        open_count=open_count,
-        engine_backend=engine_backend,
-        backend_name=backend_name,
-        left_padding_mode=left_padding_mode,
-    )
     register_hf_lod_attention(backend_name)
     all_attention = list(_causal_attention_modules(model))
     compatible = list(_compatible_attention_modules(model))
+    if layer_indices is not None:
+        requested = {int(index) for index in layer_indices}
+        if not requested or any(index < 0 for index in requested):
+            raise ValueError("LOD layer indices must be a non-empty nonnegative set")
+        available = {int(module.layer_idx) for _, module in compatible}
+        missing = requested - available
+        if missing:
+            raise ValueError(
+                f"requested LOD layers are not compatible: {sorted(missing)}"
+            )
+        compatible = [
+            (name, module)
+            for name, module in compatible
+            if int(module.layer_idx) in requested
+        ]
+    decoder_config = _decoder_config(model)
+    no_rope_layers = getattr(decoder_config, "no_rope_layers", None)
+    model_has_nope_layers = bool(
+        no_rope_layers is not None
+        and any(not bool(enabled) for enabled in no_rope_layers)
+    )
     installed = []
     for name, module in compatible:
-        module._hf_lod_settings = settings
+        module_config = config
+        if config.routing_normalization == "qk_norm_aware":
+            # Q/K-normalized architectures explicitly normalize and then
+            # relearn the head geometry through the norm's gain, so preserve it.
+            # Without a query norm, remove activation-dependent query magnitude
+            # only from the lossy-centroid visibility search.
+            has_query_norm = _has_attention_norm(module, "q")
+            normalization = "none" if has_query_norm else "query"
+            module_config = replace(
+                config, routing_normalization=normalization
+            )
+        if config.state_clustering_policy != "manual":
+            policy = config.state_clustering_policy
+            if policy.startswith("rnope_") and not model_has_nope_layers:
+                raise ValueError(
+                    f"{policy} requires a decoder with both RoPE and NoPE layers"
+                )
+            if policy == "qk_norm_aware":
+                # This policy is intentionally independent of positional
+                # encoding and of the decoder's recurrent/attention layout.
+                rope_dim = 0
+                use_spherical = not _has_attention_norm(module, "k")
+            else:
+                rope_dim, _ = _resolved_rope_route_geometry(
+                    decoder_config, module, config.local_window
+                )
+                use_spherical = (
+                    (policy == "rope_aware" and model_has_nope_layers)
+                    or (policy == "rope_aware" and rope_dim == 0)
+                    or (policy == "rnope_nope_spherical" and rope_dim == 0)
+                    or (policy == "rnope_rope_spherical" and rope_dim > 0)
+                )
+            if use_spherical:
+                module_config = replace(
+                    module_config,
+                    state_clustering_policy="manual",
+                    state_clustering_normalization="cosine",
+                    state_clustering_centroid_rescale="none",
+                    state_clustering_rope_dim=rope_dim,
+                )
+            else:
+                module_config = replace(
+                    module_config,
+                    state_clustering_policy="manual",
+                    state_clustering_normalization="none",
+                    state_clustering_centroid_rescale="coherence",
+                    state_clustering_centroid_rescale_scope="assignment",
+                    state_clustering_rope_dim=rope_dim,
+                )
+        if (
+            config.routing_rope_filter == "local_window"
+            or config.routing_rope_jensen
+            or config.state_clustering_rope_filter == "local_window"
+            or config.state_clustering_centroid_rescale == "rope_coherence"
+            or config.routing_leaf_mass_objective
+            in {"rope_jensen", "fast_rope_jensen", "slow_rope_jensen"}
+        ):
+            rope_dim, resolved_fast_pairs = _resolved_rope_route_geometry(
+                decoder_config,
+                module,
+                config.local_window * config.routing_rope_cutoff_factor,
+            )
+            module_config = replace(
+                module_config,
+                state_clustering_rope_dim=rope_dim,
+                state_clustering_rope_fast_pairs=(
+                    resolved_fast_pairs
+                    if config.state_clustering_rope_filter == "local_window"
+                    else 0
+                ),
+                routing_rope_dim=rope_dim,
+                routing_rope_fast_pairs=(
+                    resolved_fast_pairs
+                    if config.routing_rope_filter == "local_window"
+                    else 0
+                ),
+                routing_rope_jensen_pairs=(
+                    resolved_fast_pairs
+                    if config.routing_leaf_mass_objective
+                    in {"fast_rope_jensen", "slow_rope_jensen"}
+                    else 0
+                ),
+            )
+        module._hf_lod_settings = HFLODSettings(
+            config=module_config,
+            open_count=open_count,
+            engine_backend=engine_backend,
+            backend_name=backend_name,
+            left_padding_mode=left_padding_mode,
+        )
         module._hf_lod_active_cache_layer = None
         installed.append(name)
     if not installed:
@@ -743,6 +970,46 @@ def new_hf_lod_cache(model: nn.Module) -> Any:
     return HFLODCache.for_model(model)
 
 
+def pop_hf_lod_dynamic_open_statistics(model: nn.Module) -> dict[str, dict]:
+    """Collect and clear route-row counts by dynamically opened page count."""
+    result: dict[str, dict] = {}
+    statistics = (
+        ("prefill", "prefill", "mean_opened"),
+        ("decode", "decode", "mean_opened"),
+        ("review_prefill", "review_prefill", "mean_reviewed"),
+        ("review_decode", "review_decode", "mean_reviewed"),
+    )
+    for result_name, attribute_name, mean_name in statistics:
+        attribute = f"_lod_dynamic_{attribute_name}_histogram"
+        parts = []
+        for module in model.modules():
+            histogram = getattr(module, attribute, None)
+            if isinstance(histogram, torch.Tensor):
+                parts.append(histogram)
+                delattr(module, attribute)
+        if not parts:
+            continue
+        width = max(int(part.numel()) for part in parts)
+        histogram = torch.zeros(
+            width, dtype=torch.long, device=parts[0].device
+        )
+        for part in parts:
+            histogram[: int(part.numel())] += part.to(histogram.device)
+        rows = int(histogram.sum().item())
+        opened = int(
+            (
+                torch.arange(width, device=histogram.device, dtype=torch.long)
+                * histogram
+            ).sum().item()
+        )
+        result[result_name] = {
+            "histogram": histogram.cpu().tolist(),
+            "route_rows": rows,
+            mean_name: opened / rows if rows else 0.0,
+        }
+    return result
+
+
 _LEGACY_QWEN_EXPORTS = {
     "Qwen3_5FastLODAttention",
     "replace_qwen35_attention_with_lod",
@@ -766,6 +1033,7 @@ __all__ = [
     "hf_lod_attention_mask",
     "install_hf_lod_attention",
     "new_hf_lod_cache",
+    "pop_hf_lod_dynamic_open_statistics",
     "register_hf_lod_attention",
     *_LEGACY_QWEN_EXPORTS,
 ]

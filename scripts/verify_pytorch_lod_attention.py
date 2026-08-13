@@ -13,6 +13,7 @@ from model.pytorch_lod_attention import (
     LODConfig,
     LODState,
     TwoLevelLODAttention,
+    _routing_query_key,
     coarse_lod_attention,
     two_level_lod_attention,
 )
@@ -255,6 +256,175 @@ def verify_protected_sink_routing() -> None:
         raise AssertionError("unprotected routing did not select the sink")
 
 
+def verify_routing_normalization_is_route_only() -> None:
+    # Query-direction routing is not a fitted count coefficient. Verify the
+    # exact rank identity used by the implementation for arbitrary queries:
+    #   beta (q / rms(q)) k + log(n)
+    # is the first expression below multiplied by a positive per-query RMS.
+    torch.manual_seed(29)
+    random_query = torch.randn(2, 3, 5, 16)
+    random_mean_key = torch.randn(2, 3, 11, 16)
+    random_count = torch.randint(1, 257, (2, 3, 11)).float()
+    beta = 16**-0.5
+    query_rms = random_query.square().mean(-1, keepdim=True).sqrt()
+    directional_score = (
+        torch.matmul(
+            random_query / query_rms,
+            random_mean_key.transpose(-1, -2),
+        )
+        * beta
+        + random_count.log().unsqueeze(2)
+    )
+    adaptive_count_score = (
+        torch.matmul(random_query, random_mean_key.transpose(-1, -2)) * beta
+        + query_rms * random_count.log().unsqueeze(2)
+    )
+    torch.testing.assert_close(
+        directional_score * query_rms,
+        adaptive_count_score,
+        rtol=1e-5,
+        atol=1e-5,
+    )
+    if not torch.equal(
+        directional_score.topk(8, dim=-1).indices.sort(-1).values,
+        adaptive_count_score.topk(8, dim=-1).indices.sort(-1).values,
+    ):
+        raise AssertionError("query-direction/adaptive-count route sets differ")
+
+    rope_query = torch.arange(8.0).view(1, 1, 1, 8)
+    rope_key = torch.arange(16.0).view(1, 1, 2, 8)
+    filtered_query, filtered_key = _routing_query_key(
+        rope_query, rope_key, "none", rope_dim=6, rope_fast_pairs=2
+    )
+    ignored = torch.tensor([0, 1, 3, 4])
+    retained = torch.tensor([2, 5, 6, 7])
+    if bool(filtered_query.index_select(-1, ignored).ne(0).any()):
+        raise AssertionError("fast RoPE query pairs were not removed")
+    if bool(filtered_key.index_select(-1, ignored).ne(0).any()):
+        raise AssertionError("fast RoPE key pairs were not removed")
+    torch.testing.assert_close(
+        filtered_query.square().mean(-1).sqrt(),
+        rope_query.square().mean(-1).sqrt(),
+    )
+    retained_scale = (
+        rope_query.square().mean(-1, keepdim=True).sqrt()
+        / rope_query.index_fill(-1, ignored, 0).square().mean(-1, keepdim=True).sqrt()
+    )
+    torch.testing.assert_close(
+        filtered_query.index_select(-1, retained),
+        rope_query.index_select(-1, retained) * retained_scale,
+    )
+
+    query = torch.tensor([[[[2.0, 0.0]], [[1.0, 0.0]]]])
+    leaf_key = torch.tensor(
+        [[[[1.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0]]]]
+    )
+    leaf_value = torch.arange(5.0).view(1, 1, 5, 1)
+    owner = torch.tensor([[[0, 1, 1, 1, 1]]])
+    state = state_from_leaves(leaf_key, leaf_value, owner, slots=2)
+    local_key = torch.tensor([[[[-10.0, 0.0]]]])
+    local_value = torch.zeros(1, 1, 1, 1)
+
+    baseline = two_level_lod_attention(
+        query,
+        local_key,
+        local_value,
+        state,
+        owner,
+        leaf_key,
+        leaf_value,
+        max_routes=1,
+        open_count=1,
+        route_protected_prefix=0,
+        scale=1.0,
+        query_offset=0,
+    )
+    normalized = two_level_lod_attention(
+        query,
+        local_key,
+        local_value,
+        state,
+        owner,
+        leaf_key,
+        leaf_value,
+        max_routes=1,
+        open_count=1,
+        route_protected_prefix=0,
+        routing_normalization="query",
+        scale=1.0,
+        query_offset=0,
+    )
+    no_count_prior = two_level_lod_attention(
+        query,
+        local_key,
+        local_value,
+        state,
+        owner,
+        leaf_key,
+        leaf_value,
+        max_routes=1,
+        open_count=1,
+        route_protected_prefix=0,
+        routing_count_bias=0.0,
+        scale=1.0,
+        query_offset=0,
+    )
+    variance_corrected = two_level_lod_attention(
+        query,
+        local_key,
+        local_value,
+        state,
+        owner,
+        leaf_key,
+        leaf_value,
+        max_routes=1,
+        open_count=1,
+        route_protected_prefix=0,
+        routing_variance_bias=1.0,
+        scale=1.0,
+        query_offset=0,
+    )
+    rope_jensen = two_level_lod_attention(
+        query,
+        local_key,
+        local_value,
+        state,
+        owner,
+        leaf_key,
+        leaf_value,
+        max_routes=1,
+        open_count=1,
+        route_protected_prefix=0,
+        routing_normalization="query",
+        routing_rope_dim=2,
+        routing_rope_jensen=True,
+        scale=1.0,
+        query_offset=0,
+    )
+    if baseline.top_slots is None or baseline.top_slots.flatten().tolist() != [0, 1]:
+        raise AssertionError("query norm did not act as routing temperature control")
+    if normalized.top_slots is None or normalized.top_slots.flatten().tolist() != [0, 0]:
+        raise AssertionError("query RMS normalization did not equalize route ranking")
+    if no_count_prior.top_slots is None or no_count_prior.top_slots.flatten().tolist() != [0, 0]:
+        raise AssertionError("routing count-bias control did not change route ranking")
+    if (
+        variance_corrected.top_slots is None
+        or variance_corrected.top_slots.flatten().tolist() != [1, 1]
+    ):
+        raise AssertionError("routing variance correction did not favor the diffuse slot")
+    if rope_jensen.top_slots is None or rope_jensen.top_slots.flatten().tolist() != [1, 1]:
+        raise AssertionError("RoPE-pair Jensen correction did not favor the diffuse slot")
+    # Every slot consists of identical keys, so replacing either centroid with
+    # its exact leaves is lossless. Equal outputs verify that normalization was
+    # not leaked into the coarse or exact attention scores.
+    torch.testing.assert_close(normalized.output, baseline.output)
+    torch.testing.assert_close(normalized.logsumexp, baseline.logsumexp)
+    torch.testing.assert_close(no_count_prior.output, baseline.output)
+    torch.testing.assert_close(no_count_prior.logsumexp, baseline.logsumexp)
+    torch.testing.assert_close(rope_jensen.output, baseline.output)
+    torch.testing.assert_close(rope_jensen.logsumexp, baseline.logsumexp)
+
+
 def verify_dense_exact_limit() -> None:
     torch.manual_seed(20)
     config = LODConfig(
@@ -373,6 +543,8 @@ def main() -> None:
     print("low-level coarse/top-k/LSE/GQA parity passed")
     verify_protected_sink_routing()
     print("protected sink stays coarse and cannot consume a route")
+    verify_routing_normalization_is_route_only()
+    print("routing RMS/count controls change routes but not attention logits")
     verify_dense_exact_limit()
     print("all-regions-open dense causal parity passed")
     verify_prefill_decode_equivalence()

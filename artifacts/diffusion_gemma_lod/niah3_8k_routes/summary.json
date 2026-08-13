@@ -1,0 +1,64 @@
+{
+  "task": "niah_single_3",
+  "length": 8192,
+  "samples": 64,
+  "seed": 1234,
+  "fixed_lod": {
+    "state_growth_factor": 16.0,
+    "state_min_size": 256,
+    "chunk_size": 256,
+    "local_window": 768,
+    "recursive_pages": true,
+    "page_size": 16
+  },
+  "results": {
+    "native_full": {
+      "correct": 59,
+      "accuracy": 0.921875,
+      "wrong_doc_ids": [34, 35, 38, 50, 55]
+    },
+    "per_query_top8": {
+      "correct": 57,
+      "accuracy": 0.890625,
+      "wrong_doc_ids": [2, 20, 34, 38, 50, 55, 58]
+    },
+    "per_query_top16": {
+      "correct": 53,
+      "accuracy": 0.828125,
+      "evaluation_seconds": 172.28813499002717,
+      "mean_tokens_per_forward": 3.0460274666547775,
+      "wrong_doc_ids": [2, 13, 34, 37, 38, 42, 44, 50, 55, 56, 58]
+    },
+    "per_query_top32": {
+      "correct": 57,
+      "accuracy": 0.890625,
+      "evaluation_seconds": 240.4649941911921,
+      "mean_tokens_per_forward": 2.741217315196991,
+      "wrong_doc_ids": [3, 12, 26, 34, 36, 38, 55]
+    },
+    "canvas_max_top32": {
+      "correct": 52,
+      "accuracy": 0.8125,
+      "evaluation_seconds": 240.32203553058207,
+      "mean_tokens_per_forward": 2.904181554913521,
+      "wrong_doc_ids": [3, 13, 16, 32, 34, 36, 38, 48, 50, 53, 55, 58]
+    },
+    "canvas_cumulative_max_top32": {
+      "correct": 53,
+      "accuracy": 0.828125,
+      "evaluation_seconds": 240.28297111578286,
+      "mean_tokens_per_forward": 3.025529630482197,
+      "wrong_doc_ids": [14, 25, 32, 34, 35, 36, 38, 50, 55, 57, 58]
+    }
+  },
+  "paired_top8_vs_top32": {
+    "top8_only_correct_doc_ids": [3, 12, 26, 36],
+    "top32_only_correct_doc_ids": [2, 20, 50, 58]
+  },
+  "cluster_runs": {
+    "per_query_top16": "dan-agent-4420-dg-niah3-8k-route16-64",
+    "per_query_top32": "dan-agent-4408-dg-niah3-8k-route32-64",
+    "canvas_max_top32": "dan-agent-4409-dg-niah3-8k-canvas32-64",
+    "canvas_cumulative_max_top32": "dan-agent-4410-dg-niah3-8k-cumulative32-64"
+  }
+}

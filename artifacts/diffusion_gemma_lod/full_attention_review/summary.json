@@ -1,0 +1,80 @@
+{
+  "experiment": "high_confidence_top8_native_decoder_review",
+  "status": "review_policy_rejected",
+  "task": "niah_single_3",
+  "context_length": 8192,
+  "examples": 64,
+  "seed": 1234,
+  "primary_decoder_open_count": 8,
+  "lod_entropy_threshold": 0.001,
+  "state_size_changed": false,
+  "asymptotic_decoder_attention": "linear_in_prefix_length_per_denoising_step",
+  "runs": {
+    "top8_no_review": {
+      "cluster_run": "dan-agent-4599-dg-top8-fixed-off-64",
+      "artifact": "../consensus_acceptance/top8_fixed_off_64.json",
+      "score": 0.78125,
+      "correct": 50,
+      "evaluation_seconds": 129.0873081088066
+    },
+    "top8_native_review_observe": {
+      "cluster_run": "dan-agent-4607-dg-full-review-observe-64",
+      "artifact": "observe_64.json",
+      "score": 0.78125,
+      "correct": 50,
+      "evaluation_seconds": 241.07691945508122
+    },
+    "top8_native_acceptance_apply": {
+      "cluster_run": "dan-agent-4606-dg-full-review-apply-64",
+      "artifact": "apply_64.json",
+      "score": 0.734375,
+      "correct": 47,
+      "evaluation_seconds": 229.57362472824752
+    },
+    "top8_native_sample_top1_apply": {
+      "cluster_run": "dan-agent-4608-dg-full-review-top1-64",
+      "artifact": "apply_sample_top1_64.json",
+      "score": 0.75,
+      "correct": 48,
+      "evaluation_seconds": 210.70874867402017
+    }
+  },
+  "observe_diagnostic": {
+    "steps": 675,
+    "full_attention_passes": 596,
+    "positions": 389632,
+    "original_accepted": 159757,
+    "reviewed": 121729,
+    "review_rate_of_original_accepted": 0.7619634820383457,
+    "reviewed_sample_disagreements": 33,
+    "reviewed_sample_disagreement_rate": 0.0002710939874639568,
+    "reviewed_top1_disagreements": 30,
+    "reviewed_top1_disagreement_rate": 0.00024644907951268803,
+    "reviewed_native_rejections": 4750,
+    "mean_primary_entropy_reviewed": 0.0001740128893570548,
+    "mean_native_entropy_reviewed": 0.0015079240946472047
+  },
+  "sample_top1_apply_diagnostic": {
+    "steps": 569,
+    "full_attention_passes": 511,
+    "positions": 344064,
+    "original_accepted": 167096,
+    "reviewed": 136282,
+    "review_rate_of_original_accepted": 0.8155910374874323,
+    "reviewed_sample_disagreements": 15,
+    "reviewed_sample_disagreement_rate": 0.00011006589278114498,
+    "reviewed_top1_disagreements": 13,
+    "reviewed_top1_disagreement_rate": 0.00009539044041032565,
+    "vetoes": 15,
+    "final_accepted": 167081,
+    "mean_primary_entropy_reviewed": 0.00013931262825704038,
+    "mean_native_entropy_reviewed": 0.0006626096848541191
+  },
+  "interpretation": [
+    "Decoder-only native attention almost never reverses a sample already accepted by top-8 LOD at entropy at most 0.001.",
+    "Vetoing the 15 native-top-1 disagreements did not improve NIAH-3: the score fell from 50/64 in both controls to 48/64.",
+    "Requiring membership in the native entropy-bound acceptance set vetoed thousands of positions and performed worse at 47/64, showing that native global entropy ranking is not a useful per-token correctness oracle.",
+    "The native review sees the same LOD-computed encoder cache, so it cannot repair encoder-side sparse-attention damage; this is consistent with the earlier coupled-phase diagnostic in which most low-entropy repairs required both native encoder and decoder attention.",
+    "The experiment adds no LOD state. Its unoptimized implementation uses a full extra decoder forward, but decoder attention remains linear in prefix length because the diffusion canvas length is fixed at 256."
+  ]
+}

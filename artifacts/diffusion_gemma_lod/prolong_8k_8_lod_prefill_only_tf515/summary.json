@@ -1,0 +1,42 @@
+{
+  "canvas_length": 256,
+  "checkpoint": "google/diffusiongemma-26B-A4B-it",
+  "dataset": "Seerkfang/prolong-64k-512-new",
+  "elapsed_seconds_rank0": 12.445795548846945,
+  "local_window": 768,
+  "lod_engine": "recursive",
+  "metric": "corrupted-token denoising cross entropy",
+  "modes": {
+    "lod-prefill": {
+      "0.25": {
+        "loss": 2.5288800073538713,
+        "pseudo_perplexity": 12.539454172629105,
+        "tokens": 494
+      },
+      "0.5": {
+        "loss": 4.800924947860703,
+        "pseudo_perplexity": 121.62286031331661,
+        "tokens": 1047
+      },
+      "0.75": {
+        "loss": 6.266688323875203,
+        "pseudo_perplexity": 526.7301267247091,
+        "tokens": 1535
+      },
+      "1.0": {
+        "loss": 7.6804041266441345,
+        "pseudo_perplexity": 2165.4947291565754,
+        "tokens": 2048
+      },
+      "overall": {
+        "loss": 6.171871462247969,
+        "pseudo_perplexity": 479.0818512494999,
+        "tokens": 5124
+      }
+    }
+  },
+  "peak_vram_bytes_rank0": 56743357952,
+  "prefix_length": 7936,
+  "samples": 8,
+  "sequence_length": 8192
+}

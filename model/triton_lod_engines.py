@@ -46,6 +46,11 @@ class _KernelLODEngine(TritonLODAttentionCore):
             raise ValueError("query heads must be divisible by KV heads")
         if not 0 <= default_open_count <= config.max_routes:
             raise ValueError("open count must be between zero and max_routes")
+        if config.state_clustering_policy != "manual":
+            raise ValueError(
+                "architecture-aware state clustering must be resolved by the "
+                "Hugging Face installer before constructing a kernel engine"
+            )
         self.config = SimpleNamespace(
             num_attention_heads=query_heads,
             num_key_value_heads=key_value_heads,
@@ -59,7 +64,44 @@ class _KernelLODEngine(TritonLODAttentionCore):
         self.prefill_state_update_len = config.chunk_size
         self.state_growth_factor = config.state_growth_factor
         self.state_min_len = config.state_min_size
+        self.state_size_offset = config.state_size_offset
         self.sink_len = config.protected_prefix
+        self.state_clustering_normalization = (
+            config.state_clustering_normalization
+        )
+        self.state_clustering_radial_bias = config.state_clustering_radial_bias
+        self.state_clustering_radial_scope = config.state_clustering_radial_scope
+        self.state_clustering_centroid_rescale = (
+            config.state_clustering_centroid_rescale
+        )
+        self.state_clustering_centroid_rescale_scope = (
+            config.state_clustering_centroid_rescale_scope
+        )
+        self.state_clustering_query_metric = config.state_clustering_query_metric
+        self.state_clustering_rope_dim = config.state_clustering_rope_dim
+        self.state_clustering_rope_fast_pairs = (
+            config.state_clustering_rope_fast_pairs
+        )
+        self.coherence_single_matmul = config.coherence_single_matmul
+        self.routing_normalization = config.routing_normalization
+        self.routing_rope_dim = config.routing_rope_dim
+        self.routing_rope_fast_pairs = config.routing_rope_fast_pairs
+        self.routing_rope_jensen_pairs = config.routing_rope_jensen_pairs
+        self.routing_rope_jensen = config.routing_rope_jensen
+        self.routing_count_bias = config.routing_count_bias
+        self.routing_variance_bias = config.routing_variance_bias
+        self.routing_page_mass_candidates = config.routing_page_mass_candidates
+        self.routing_leaf_mass_candidates = config.routing_leaf_mass_candidates
+        self.routing_leaf_mass_objective = config.routing_leaf_mass_objective
+        self.routing_leaf_mass_review_top_p = (
+            config.routing_leaf_mass_review_top_p
+        )
+        self.routing_leaf_mass_top_p = config.routing_leaf_mass_top_p
+        self.routing_leaf_mass_min_routes = config.routing_leaf_mass_min_routes
+        self.collect_dynamic_open_stats = (
+            config.routing_leaf_mass_review_top_p is not None
+            or config.routing_leaf_mass_top_p is not None
+        )
         self.two_level_topk = default_open_count
 
     def reset_runtime_cache(self) -> None:

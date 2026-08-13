@@ -1,0 +1,79 @@
+{
+  "constituent_rms": {
+    "max_abs": 2.384185791015625e-07,
+    "torch_ms": 0.03730390142091001,
+    "triton_ms": 0.007335247029165785
+  },
+  "geometry": {
+    "batch_size": 8,
+    "block_m": 32,
+    "block_n": 32,
+    "coherence_single_matmul": true,
+    "head_dim": 256,
+    "kv_heads": 2,
+    "num_warps": 4,
+    "overflow_length": 1280,
+    "prepare_block_s": null,
+    "prepare_num_warps": 4,
+    "state_length": 4096
+  },
+  "key_norm_update": {
+    "fused_ms": 0.10768325865540303,
+    "legacy_dense_ms": 0.5976346443730889,
+    "raw_ms": 0.10727408035307327,
+    "speedup": 5.549930897667002
+  },
+  "results": {
+    "coherence": {
+      "append_top16_in_approx_top24_fraction": 1.0,
+      "append_top16_in_approx_top32_fraction": 1.0,
+      "append_top16_in_approx_top64_fraction": 1.0,
+      "append_top16_set_exact_fraction": 1.0,
+      "cached_dense_ms": 0.38238444646728353,
+      "cached_streaming_ms": 0.358465903411301,
+      "dense_ms": 0.6497775197029114,
+      "dense_score_matrix_mib": 320.0,
+      "incremental_ms": 0.37274502067114296,
+      "route_index_exact_fraction": 0.9825683832168579,
+      "route_score_max_abs": 0.5,
+      "select_score_max_abs": 0.0,
+      "sparse_refresh_ms": 0.014279117259841934,
+      "speedup": 1.76462289387721,
+      "streaming_ms": 0.3682245775896217
+    },
+    "raw": {
+      "append_top16_in_approx_top24_fraction": 1.0,
+      "append_top16_in_approx_top32_fraction": 1.0,
+      "append_top16_in_approx_top64_fraction": 1.0,
+      "append_top16_set_exact_fraction": 1.0,
+      "cached_dense_ms": 0.2771179672373768,
+      "cached_streaming_ms": 2.839726848657741,
+      "dense_ms": 0.2771179672373768,
+      "dense_score_matrix_mib": 160.0,
+      "incremental_ms": 2.839726848657741,
+      "route_index_exact_fraction": 1.0,
+      "route_score_max_abs": 0.0,
+      "select_score_max_abs": 0.0,
+      "sparse_refresh_ms": 0.0,
+      "speedup": 0.09758739563926325,
+      "streaming_ms": 2.839690161030195
+    },
+    "spherical": {
+      "append_top16_in_approx_top24_fraction": 1.0,
+      "append_top16_in_approx_top32_fraction": 1.0,
+      "append_top16_in_approx_top64_fraction": 1.0,
+      "append_top16_set_exact_fraction": 1.0,
+      "cached_dense_ms": 0.2588139662016688,
+      "cached_streaming_ms": 0.5499134245746864,
+      "dense_ms": 0.5397258883722328,
+      "dense_score_matrix_mib": 160.0,
+      "incremental_ms": 0.5641969522274597,
+      "route_index_exact_fraction": 1.0,
+      "route_score_max_abs": 0.0,
+      "select_score_max_abs": 0.0,
+      "sparse_refresh_ms": 0.014283527652773303,
+      "speedup": 0.935146286612793,
+      "streaming_ms": 0.5771566396602844
+    }
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "task": "niah_single_3",
+  "length": 8192,
+  "samples": 64,
+  "seed": 1234,
+  "lod": {
+    "state_growth_factor": 16.0,
+    "state_min_size": 256,
+    "open_count": 8,
+    "chunk_size": 256,
+    "local_window": 768,
+    "recursive_pages": true
+  },
+  "coupling": {
+    "trajectory": "LOD sampling and acceptance",
+    "comparison": "native decoder pass on the identical canvas, self-conditioning, encoder cache, and step",
+    "native_pass_affects_acceptance": false,
+    "finished_batch_items_excluded": true
+  },
+  "result": {
+    "accuracy": 0.8125,
+    "correct": 52,
+    "wrong_doc_ids": [3, 13, 16, 25, 34, 38, 44, 50, 52, 55, 58, 61],
+    "active_positions": 314880,
+    "accepted": 145240,
+    "accepted_top1_disagreements": 102,
+    "accepted_top1_disagreement_rate": 0.0007022858716606995,
+    "accepted_mean_lod_entropy": 0.0010354125049940911,
+    "accepted_mean_native_entropy": 0.006013344234423478
+  },
+  "scored_first_128_positions": {
+    "accepted": 57974,
+    "accepted_top1_disagreements": 27,
+    "accepted_top1_disagreement_rate": 0.00046572601511022185,
+    "lod_entropy_below_0_001_disagreements": 18,
+    "low_entropy_unique_locations": 18,
+    "low_entropy_trajectories": 8,
+    "low_entropy_native_entropy_mean": 0.8780097961425781,
+    "low_entropy_native_entropy_min": 0.22269439697265625,
+    "low_entropy_native_entropy_max": 2.9825973510742188,
+    "sampled_token_equaled_lod_top1": 27,
+    "mapped_doc_ids_with_low_entropy_disagreement": [8, 43, 57, 51, 25, 22, 3, 16],
+    "mapped_wrong_doc_ids": [25, 3, 16]
+  },
+  "first_64_positions": {
+    "accepted": 20246,
+    "accepted_top1_disagreements": 9,
+    "lod_entropy_below_0_001_disagreements": 2,
+    "trajectories_with_disagreement": 4,
+    "mapped_wrong_doc_ids": [25]
+  },
+  "interpretation": {
+    "confident_sparse_attention_errors_exist": true,
+    "explains_all_lod_failures": false,
+    "notes": "Three of twelve failures in this diagnostic trajectory had a low-entropy accepted LOD/native disagreement in the scored prefix. Five other sequences had such disagreements but still returned the correct UUID, consistent with later regression or recovery."
+  },
+  "cluster_run": "dan-agent-4488-dg-accept-native-pos64",
+  "artifact": "top8_position_64.json"
+}

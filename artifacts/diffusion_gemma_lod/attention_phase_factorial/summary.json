@@ -1,0 +1,70 @@
+{
+  "task": "niah_single_3",
+  "context_length": 8192,
+  "limit": 64,
+  "batch_size": 4,
+  "seed": 1234,
+  "state_growth_factor": 16.0,
+  "prefill_policy": "optimized",
+  "node": "dev-shared-research-4.dev-training.svc.cluster.local",
+  "definition": "Encoder attention output and decoder attention are independently switched between LOD and native. The fixed-size LOD sidecar is built in every cell; early_native_steps=48 makes every realized decoder call native.",
+  "results": {
+    "lod_encoder_lod_decoder": {
+      "correct": 55,
+      "score": 0.859375,
+      "cluster_run": "dan-agent-4512-dg-factorial-optimized_lod-64",
+      "artifact": "../prefill_decoder_factorial/optimized_lod_64.json"
+    },
+    "lod_encoder_native_decoder": {
+      "correct": 52,
+      "score": 0.8125,
+      "native_decoder_calls": 537,
+      "lod_decoder_calls": 0,
+      "cluster_run": "dan-agent-4514-dg-factorial-optimized_native-64",
+      "artifact": "../prefill_decoder_factorial/optimized_native_64.json"
+    },
+    "native_encoder_lod_decoder": {
+      "correct": 56,
+      "score": 0.875,
+      "cluster_run": "dan-agent-4519-dg-phase-native_encoder_lod_decoder-64",
+      "artifact": "native_encoder_lod_decoder_64.json"
+    },
+    "native_encoder_native_decoder": {
+      "correct": 59,
+      "score": 0.921875,
+      "native_decoder_calls": 454,
+      "lod_decoder_calls": 0,
+      "cluster_run": "dan-agent-4520-dg-phase-native_encoder_native_decoder-64",
+      "artifact": "native_encoder_native_decoder_64.json"
+    }
+  },
+  "paired_comparisons": {
+    "native_minus_lod_encoder_with_lod_decoder": {
+      "delta": 0.015625,
+      "bootstrap_95_percent_ci": [-0.09375, 0.125]
+    },
+    "native_minus_lod_encoder_with_native_decoder": {
+      "delta": 0.109375,
+      "bootstrap_95_percent_ci": [0.03125, 0.203125]
+    },
+    "native_minus_lod_decoder_with_lod_encoder": {
+      "delta": -0.046875,
+      "bootstrap_95_percent_ci": [-0.15625, 0.0625]
+    },
+    "native_minus_lod_decoder_with_native_encoder": {
+      "delta": 0.046875,
+      "bootstrap_95_percent_ci": [-0.03125, 0.125]
+    },
+    "encoder_decoder_interaction": {
+      "delta": 0.09375,
+      "bootstrap_95_percent_ci": [-0.046875, 0.234375]
+    }
+  },
+  "native_control_validation": {
+    "original_full_correct": 59,
+    "native_native_correct": 59,
+    "correctness_matches": 64,
+    "decoded_response_matches": 64
+  },
+  "interpretation": "Neither native encoder attention alone nor native decoder attention alone recovers the full baseline. Native attention in both phases exactly reproduces all 64 original full-attention responses. The significant +7/64 encoder effect conditional on a native decoder and the opposite decoder effects under LOD versus native encoder indicate a coupled encoder-decoder approximation/trajectory interaction rather than a single isolated phase failure."
+}

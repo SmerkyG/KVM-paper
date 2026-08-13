@@ -29,18 +29,24 @@ from .kernels.paged_leaf_attention import (
     query_major_paged_leaf_attention,
     query_major_indexed_residual_page_attention,
     query_major_residual_page_attention,
+    refine_route_candidates_by_leaf_mass,
+    refine_route_candidates_by_page_mass,
+    refine_route_candidates_by_virtual_leaf_mass,
+    refine_route_candidates_by_virtual_leaf_output,
     quantize_page_summaries_int8,
     quantize_virtual_paged_kv_int4,
 )
 from .kernels.lod_kernels import (
     apply_residual_mass_opening,
     bipartite_reduce_overflow,
+    constituent_rms,
     merge_attention_branches,
     merge_attention_branches_with_sink,
     merge_state_in_place,
     new_route_buffers,
     new_state_delta_buffers,
     new_state_maxsim_buffers,
+    prepare_state_clustering_keys,
     route_logits_coarse_attention,
     route_logits_topk_coarse_attention,
     route_top8_scores_grouped,
@@ -87,6 +93,7 @@ class TritonLODAttentionCore(nn.Module):
     decode_cache_headroom = 256
     state_growth_factor = 16.0
     state_min_len = 256
+    state_size_offset = 0
     sink_len = 1
     # A protected singleton is already exact in the coarse branch, so opening
     # its one-token leaf would only consume a detailed-region route.
@@ -146,12 +153,34 @@ class TritonLODAttentionCore(nn.Module):
     auto_fused_state_update = True
     reuse_state_update_similarity = True
     fused_state_maxsim = False
-    state_maxsim_block_m = 16
-    state_maxsim_block_n = 32
-    state_maxsim_num_warps = 4
+    state_maxsim_block_m = 64
+    state_maxsim_block_n = 64
+    state_maxsim_num_warps = 8
     fused_state_routing = True
     direct_fused_state_routing = True
     route_gqa_matmul = False
+    state_clustering_normalization = "none"
+    state_clustering_radial_bias = 0.0
+    state_clustering_radial_scope = "all"
+    state_clustering_centroid_rescale = "none"
+    state_clustering_centroid_rescale_scope = "all"
+    state_clustering_query_metric = "none"
+    state_clustering_rope_dim = 0
+    state_clustering_rope_fast_pairs = 0
+    coherence_single_matmul = True
+    routing_normalization = "none"
+    routing_rope_dim = 0
+    routing_rope_fast_pairs = 0
+    routing_rope_jensen_pairs = 0
+    routing_rope_jensen = False
+    routing_count_bias = 1.0
+    routing_variance_bias = 0.0
+    routing_page_mass_candidates = 0
+    routing_leaf_mass_candidates = 0
+    routing_leaf_mass_objective = "exact"
+    routing_leaf_mass_review_top_p: float | None = None
+    routing_leaf_mass_top_p: float | None = None
+    routing_leaf_mass_min_routes = 1
     coarse_enable_gqa = True
     coarse_compact_bias = True
     reuse_route_logits_for_coarse = True
@@ -183,7 +212,7 @@ class TritonLODAttentionCore(nn.Module):
         target = max(
             math.floor(self.state_growth_factor * math.sqrt(max(ctx_len, 0))),
             self.state_min_len,
-        )
+        ) + self.state_size_offset
         available = max(available_context - separated, 0)
         return max(current_state_len, min(target, available))
 
@@ -268,6 +297,336 @@ class TritonLODAttentionCore(nn.Module):
             torch.sort(append_idx, dim=-1).values,
             torch.sort(merge_idx, dim=-1).values,
         )
+
+    def _state_clustering_query_scale(
+        self,
+        query: torch.Tensor,
+        *,
+        valid_starts: torch.Tensor | None = None,
+    ) -> torch.Tensor | None:
+        """Return a square-root transform for each KV head's query metric.
+
+        For keys sharing one KV head, the expected squared attention-logit
+        error is ``(k - mean).T E[q q.T] (k - mean)``.  The diagonal square
+        root maps keys into that metric without storing any additional
+        centroid data. The diagonal mode is cheap; the full mode retains
+        cross-channel covariance. A scalar normalization per KV head keeps
+        either mode purely directional, since globally rescaling a head cannot
+        change its assignments.
+        """
+        if self.state_clustering_query_metric == "none":
+            return None
+        if self.state_clustering_query_metric not in {"diagonal", "full"}:
+            raise ValueError(
+                "state clustering query metric must be none, diagonal, or full"
+            )
+        batch_size, query_heads, query_len, head_dim = query.shape
+        key_value_heads = int(self.config.num_key_value_heads)
+        groups = int(self.num_key_value_groups)
+        if query_heads != key_value_heads * groups:
+            raise ValueError("query heads do not match the configured GQA geometry")
+        grouped = query.detach().float().reshape(
+            batch_size, key_value_heads, groups, query_len, head_dim
+        )
+        valid = None
+        if valid_starts is not None:
+            if tuple(valid_starts.shape) != (batch_size,):
+                raise ValueError("valid query starts must have one entry per row")
+            position = torch.arange(query_len, device=query.device)
+            valid = position.unsqueeze(0) >= valid_starts.unsqueeze(1)
+        if self.state_clustering_query_metric == "diagonal":
+            if valid is None:
+                mean_square = grouped.square().mean(dim=(2, 3), keepdim=False)
+            else:
+                denominator = valid.sum(dim=1).clamp_min(1).view(
+                    batch_size, 1, 1
+                )
+                mean_square = (
+                    grouped.square() * valid[:, None, None, :, None]
+                ).sum(dim=(2, 3)) / (denominator * groups)
+            scale = mean_square.clamp_min(1e-12).sqrt()
+            scale = scale * torch.rsqrt(
+                scale.square().mean(dim=-1, keepdim=True).clamp_min(1e-12)
+            )
+            return scale.unsqueeze(2)
+
+        if valid is None:
+            covariance = torch.einsum(
+                "bkgtd,bkgte->bkde", grouped, grouped
+            ) / float(groups * query_len)
+        else:
+            masked = grouped * valid[:, None, None, :, None]
+            denominator = (
+                valid.sum(dim=1).clamp_min(1).float() * groups
+            ).view(batch_size, 1, 1, 1)
+            covariance = torch.einsum(
+                "bkgtd,bkgte->bkde", masked, masked
+            ) / denominator
+        mean_variance = covariance.diagonal(dim1=-2, dim2=-1).mean(
+            dim=-1, keepdim=True
+        )
+        covariance = covariance / mean_variance.clamp_min(1e-12).unsqueeze(-1)
+        identity = torch.eye(
+            head_dim, dtype=covariance.dtype, device=covariance.device
+        )
+        return torch.linalg.cholesky(covariance + 1e-4 * identity)
+
+    def _state_clustering_key(
+        self,
+        key: torch.Tensor,
+        query_scale: torch.Tensor | None = None,
+        *,
+        role: str = "leaf",
+        radial_rms: torch.Tensor | None = None,
+        purpose: str = "assignment",
+    ) -> torch.Tensor:
+        """Map stored keys into the transient geometry used for clustering.
+
+        The attention state continues to hold exact sums in the model's full
+        post-RoPE key space.  This mapping only affects leaf-to-centroid
+        assignment, so it can make clusters more unimodal without increasing
+        persistent state or changing closed-centroid attention arithmetic.
+        """
+        clustering_key = key.detach()
+        if role not in {"leaf", "centroid"}:
+            raise ValueError("state clustering role must be leaf or centroid")
+        if purpose not in {"append", "assignment"}:
+            raise ValueError("state clustering purpose must be append or assignment")
+        if query_scale is not None:
+            if int(query_scale.size(-2)) == int(key.size(-1)):
+                clustering_key = torch.matmul(
+                    clustering_key.float(), query_scale.float()
+                )
+            else:
+                clustering_key = clustering_key * query_scale
+        fast_pairs = int(self.state_clustering_rope_fast_pairs)
+        if fast_pairs:
+            rope_dim = int(self.state_clustering_rope_dim)
+            if rope_dim > int(clustering_key.size(-1)):
+                raise ValueError(
+                    "state-clustering RoPE dimension exceeds the attention head"
+                )
+            half = rope_dim // 2
+            clustering_key = clustering_key.clone()
+            clustering_key[..., :fast_pairs] = 0
+            clustering_key[..., half : half + fast_pairs] = 0
+        centroid_rescale = self.state_clustering_centroid_rescale
+        if centroid_rescale == "direction_l2" and role == "leaf":
+            leaf_rms = (
+                clustering_key.float()
+                .square()
+                .mean(dim=-1, keepdim=True)
+                .sqrt()
+                .clamp_min(1e-12)
+            )
+            clustering_key = clustering_key.float() / leaf_rms
+        if centroid_rescale != "none" and role == "centroid":
+            if radial_rms is None:
+                raise ValueError(
+                    "centroid rescaling is missing its mean constituent RMS"
+                )
+            if centroid_rescale == "mean_leaf_norm":
+                centroid_rms = (
+                    clustering_key.float()
+                    .square()
+                    .mean(dim=-1, keepdim=True)
+                    .clamp_min(1e-12)
+                    .sqrt()
+                )
+                clustering_key = (
+                    clustering_key.float()
+                    / centroid_rms
+                    * radial_rms.float().clamp_min(1e-12)
+                )
+            elif centroid_rescale in {
+                "coherence",
+                "spherical_coherence",
+                "rope_coherence",
+                "direction_l2",
+            }:
+                # RMS(mean key) / mean(RMS(key)) is the directional
+                # resultant length.  This removes genuine per-slot radial
+                # scale without discarding centroid representativeness.
+                use_coherence = (
+                    centroid_rescale == "direction_l2"
+                    or self.state_clustering_centroid_rescale_scope == "all"
+                    or self.state_clustering_centroid_rescale_scope == purpose
+                )
+                centroid_rms = (
+                    clustering_key.float()
+                    .square()
+                    .mean(dim=-1, keepdim=True)
+                    .sqrt()
+                    .clamp_min(1e-12)
+                )
+                if centroid_rescale == "rope_coherence" and use_coherence:
+                    rope_dim = int(self.state_clustering_rope_dim)
+                    if not 0 < rope_dim < int(clustering_key.size(-1)):
+                        raise ValueError(
+                            "rope_coherence requires a nonempty partial-RoPE band"
+                        )
+                    rope_centroid_rms = (
+                        clustering_key[..., :rope_dim]
+                        .float()
+                        .square()
+                        .mean(dim=-1, keepdim=True)
+                        .sqrt()
+                    )
+                    coherence = rope_centroid_rms / radial_rms.float().clamp_min(
+                        1e-12
+                    )
+                    clustering_key = (
+                        clustering_key.float() / centroid_rms * coherence
+                    )
+                else:
+                    denominator = radial_rms.float() if use_coherence else centroid_rms
+                    clustering_key = clustering_key.float() / denominator.clamp_min(
+                        1e-12
+                    )
+            else:
+                raise ValueError(
+                    f"unsupported centroid rescaling mode: {centroid_rescale}"
+                )
+        normalize = self.state_clustering_normalization in {
+            "cosine",
+            f"{role}_cosine",
+        } or (
+            centroid_rescale == "spherical_coherence" and role == "leaf"
+        )
+        if normalize:
+            rms = (
+                clustering_key.float()
+                .square()
+                .mean(dim=-1, keepdim=True)
+                .clamp_min(1e-12)
+                .sqrt()
+            )
+            inverse_rms = rms.reciprocal()
+            clustering_key = clustering_key.float() * inverse_rms
+            if self.state_clustering_radial_bias:
+                # The extra coordinate is transient: stored state remains the
+                # exact raw key sum.  log(RMS) makes radial separation
+                # dimensionless and symmetric under reciprocal norm changes.
+                if radial_rms is None:
+                    route_rms = rms
+                else:
+                    if tuple(radial_rms.shape) != tuple(rms.shape):
+                        raise ValueError(
+                            "state-clustering radial RMS has the wrong shape"
+                        )
+                    route_rms = radial_rms.float().clamp_min(1e-12)
+                clustering_key = torch.cat(
+                    (clustering_key, route_rms.log()), dim=-1
+                )
+        elif self.state_clustering_normalization not in {
+            "none",
+            "leaf_cosine",
+            "centroid_cosine",
+            "l2",
+        }:
+            raise ValueError(
+                "state clustering normalization must be none, leaf_cosine, "
+                "centroid_cosine, cosine, or l2"
+            )
+        return clustering_key.to(key.dtype)
+
+    def _state_clustering_similarity(
+        self,
+        leaf_key: torch.Tensor,
+        centroid_key: torch.Tensor,
+        *,
+        purpose: str = "assignment",
+    ) -> torch.Tensor:
+        if purpose not in {"append", "assignment"}:
+            raise ValueError("state clustering purpose must be append or assignment")
+        radial_scope = self.state_clustering_radial_scope
+        use_radial = bool(self.state_clustering_radial_bias) and (
+            radial_scope == "all" or radial_scope == purpose
+        )
+        if use_radial:
+            direction_dim = int(leaf_key.size(-1)) - 1
+            similarity = torch.matmul(
+                leaf_key[..., :direction_dim],
+                centroid_key[..., :direction_dim].transpose(-1, -2),
+            )
+            log_norm_distance = (
+                leaf_key[..., direction_dim].float().unsqueeze(-1)
+                - centroid_key[..., direction_dim].float().unsqueeze(-2)
+            ).abs()
+            # RMS-normalized vectors have squared norm direction_dim, so this
+            # is direction_dim * (cosine - bias * abs(log(norm ratio))).
+            similarity = similarity.float() - (
+                float(self.state_clustering_radial_bias)
+                * direction_dim
+                * log_norm_distance
+            )
+        elif self.state_clustering_radial_bias:
+            direction_dim = int(leaf_key.size(-1)) - 1
+            similarity = torch.matmul(
+                leaf_key[..., :direction_dim],
+                centroid_key[..., :direction_dim].transpose(-1, -2),
+            )
+        else:
+            similarity = torch.matmul(leaf_key, centroid_key.transpose(-1, -2))
+        if self.state_clustering_centroid_rescale == "direction_l2":
+            direction_dim = int(centroid_key.size(-1))
+            centroid_squared_radius = (
+                centroid_key.float().square().mean(dim=-1).unsqueeze(-2)
+            )
+            # With RMS-normalized leaves and m=sum(k)/sum(RMS(k)), this is
+            # d * (u dot m - ||m||^2/2), hence exactly nearest-centroid
+            # assignment in normalized-key space up to a leaf-only constant.
+            similarity = similarity.float() - (
+                0.5 * direction_dim * centroid_squared_radius
+            )
+        if self.state_clustering_normalization == "l2":
+            # Negative squared distance is the exact assignment objective for
+            # centroids that remain arithmetic means. With a query-metric
+            # transform this is Mahalanobis distance in expected logit space.
+            similarity = (
+                2 * similarity
+                - leaf_key.float().square().sum(-1, keepdim=True)
+                - centroid_key.float().square().sum(-1).unsqueeze(-2)
+            )
+        return similarity
+
+    def _state_clustering_constituent_rms(
+        self, key: torch.Tensor
+    ) -> torch.Tensor:
+        """Return the one scalar accumulated per clustering constituent."""
+        radial_key = key.detach()
+        if self.state_clustering_centroid_rescale == "rope_coherence":
+            rope_dim = int(self.state_clustering_rope_dim)
+            if not 0 < rope_dim < int(key.size(-1)):
+                raise ValueError(
+                    "rope_coherence requires a nonempty partial-RoPE band"
+                )
+            radial_key = radial_key[..., :rope_dim]
+        if radial_key.is_cuda and radial_key.ndim == 4 and radial_key.stride(-1) == 1:
+            return constituent_rms(radial_key)
+        return radial_key.float().square().mean(dim=-1, keepdim=True).sqrt()
+
+    def _streaming_state_geometry(self) -> str | None:
+        """Return a geometry supported by the fused centroid-scan kernel."""
+        if (
+            self.state_clustering_radial_bias
+            or self.state_clustering_query_metric != "none"
+            or self.state_clustering_rope_fast_pairs
+        ):
+            return None
+        normalization = self.state_clustering_normalization
+        rescale = self.state_clustering_centroid_rescale
+        if normalization == "cosine" and rescale == "none":
+            return "spherical"
+        if (
+            normalization == "none"
+            and rescale in {"coherence", "spherical_coherence"}
+            and self.state_clustering_centroid_rescale_scope == "assignment"
+        ):
+            return rescale
+        if normalization == "none" and rescale == "none":
+            return "raw"
+        return None
 
     def _union_bipartite_round(
         self,
@@ -964,6 +1323,7 @@ class TritonLODAttentionCore(nn.Module):
         state_k: torch.Tensor,
         state_v: torch.Tensor,
         counts: torch.Tensor,
+        key_norm_sums: torch.Tensor | None,
         overflow_k: torch.Tensor,
         overflow_v: torch.Tensor,
         *,
@@ -971,6 +1331,7 @@ class TritonLODAttentionCore(nn.Module):
         ctx_len: int,
         available_context: int,
         state_capacity: int,
+        clustering_query_scale: torch.Tensor | None = None,
     ) -> tuple[
         torch.Tensor,
         torch.Tensor,
@@ -979,6 +1340,20 @@ class TritonLODAttentionCore(nn.Module):
         torch.Tensor,
         torch.Tensor | None,
     ]:
+        use_constituent_norms = self.state_clustering_centroid_rescale != "none"
+        if use_constituent_norms:
+            if key_norm_sums is None:
+                raise ValueError("centroid rescaling is missing key-norm sums")
+            if self.state_union_bipartite or self.state_precompact_direct_append:
+                raise NotImplementedError(
+                    "centroid rescaling does not support state precompaction"
+                )
+            if self.overflow_bipartite_merge:
+                raise NotImplementedError(
+                    "centroid rescaling does not support overflow precompaction"
+                )
+        elif key_norm_sums is not None:
+            raise ValueError("unexpected key-norm sums for centroid radial routing")
         if self.state_union_bipartite:
             return self._update_state_union_bipartite(
                 state_k,
@@ -1006,6 +1381,11 @@ class TritonLODAttentionCore(nn.Module):
             if precompacted is not None:
                 return precompacted
         original_overflow_len = int(overflow_k.size(2))
+        overflow_key_norm_sums = (
+            self._state_clustering_constituent_rms(overflow_k)
+            if use_constituent_norms
+            else None
+        )
         membership = None
         if self.overflow_bipartite_merge:
             overflow_k, overflow_v, overflow_counts, membership = (
@@ -1029,6 +1409,55 @@ class TritonLODAttentionCore(nn.Module):
         owners = torch.full(
             overflow_k.shape[:-1], -1, dtype=torch.long, device=overflow_k.device
         )
+        overflow_route_k = self._state_clustering_key(
+            overflow_select_k,
+            clustering_query_scale,
+        )
+        streaming_geometry = self._streaming_state_geometry()
+        # Geometry preparation is amortized by the batch dimension.  Keep the
+        # dense BLAS path for batch one unless the fused scan was requested
+        # explicitly; the kernel path wins for the batched serving workload.
+        use_streaming_state_scan = bool(
+            self.reuse_state_update_similarity
+            and state_k.is_cuda
+            and streaming_geometry is not None
+            and (
+                self.fused_state_maxsim
+                or (
+                    streaming_geometry != "raw"
+                    and int(state_k.size(0)) > 1
+                )
+            )
+        )
+        current_state_route_k = None
+        current_state_append_route_k = None
+        if not use_streaming_state_scan:
+            current_state_mean_k = self._mean(
+                state_k.detach()[..., :current_state_len, :],
+                counts[..., :current_state_len, :],
+            )
+            current_state_mean_rms = (
+                self._mean(
+                    key_norm_sums[..., :current_state_len, :],
+                    counts[..., :current_state_len, :],
+                )
+                if key_norm_sums is not None
+                else None
+            )
+            current_state_route_k = self._state_clustering_key(
+                current_state_mean_k,
+                clustering_query_scale,
+                role="centroid",
+                radial_rms=current_state_mean_rms,
+                purpose="assignment",
+            )
+            current_state_append_route_k = self._state_clustering_key(
+                current_state_mean_k,
+                clustering_query_scale,
+                role="centroid",
+                radial_rms=current_state_mean_rms,
+                purpose="append",
+            )
         use_fused_state_update = self.fused_state_update or (
             self.auto_fused_state_update and int(state_k.size(0)) > 1
         )
@@ -1052,11 +1481,7 @@ class TritonLODAttentionCore(nn.Module):
                 buffers = new_state_delta_buffers(state_k, state_v, state_capacity)
                 self._lod_state_update_buffers = buffers
 
-        if (
-            self.reuse_state_update_similarity
-            and self.fused_state_maxsim
-            and state_k.is_cuda
-        ):
+        if use_streaming_state_scan:
             maxsim_buffers = getattr(self, "_lod_state_maxsim_buffers", None)
             needs_maxsim_buffers = (
                 maxsim_buffers is None
@@ -1075,39 +1500,71 @@ class TritonLODAttentionCore(nn.Module):
                     ),
                 )
                 self._lod_state_maxsim_buffers = maxsim_buffers
+            prepared_identity = (
+                int(state_k.data_ptr()),
+                int(counts.data_ptr()),
+                (
+                    int(key_norm_sums.data_ptr())
+                    if key_norm_sums is not None
+                    else 0
+                ),
+                current_state_len,
+                streaming_geometry,
+            )
+            prepare_state_geometry = (
+                maxsim_buffers.get("_prepared_identity")
+                != prepared_identity
+                or ctx_len <= int(
+                    maxsim_buffers.get("_prepared_context_len", -1)
+                )
+            )
             (
                 old_route_scores,
                 old_route_indices,
                 append_select_scores,
             ) = streaming_state_maxsim(
-                overflow_select_k,
+                overflow_route_k,
                 state_k,
                 counts,
                 maxsim_buffers,
                 state_len=current_state_len,
                 sink_len=self._protected_state_len(current_state_len),
+                key_norm_sums=key_norm_sums,
+                geometry=streaming_geometry,
                 block_m=self.state_maxsim_block_m,
                 block_n=self.state_maxsim_block_n,
                 num_warps=self.state_maxsim_num_warps,
+                prepare_state_geometry=prepare_state_geometry,
+                # Prepared spherical/coherence geometry is fastest as a dense
+                # MFMA scan at batch 8. ``fused_state_maxsim`` remains useful
+                # for raw geometry, but its long state-axis loop is slower for
+                # these prepared views.
+                materialize_prepared_scores=(streaming_geometry != "raw"),
+                coherence_single_matmul=(
+                    self.coherence_single_matmul
+                    and streaming_geometry
+                    in {"coherence", "spherical_coherence"}
+                ),
             )
             append_idx, merge_idx = self._split_append_merge_indices(
                 append_select_scores, n_append
             )
         elif self.reuse_state_update_similarity and state_k.is_cuda:
             with torch.no_grad():
-                old_similarity = torch.matmul(
-                    overflow_select_k,
-                    self._mean(
-                        state_k.detach()[..., :current_state_len, :],
-                        counts[..., :current_state_len, :],
-                    ).transpose(-1, -2),
+                if (
+                    current_state_route_k is None
+                    or current_state_append_route_k is None
+                ):
+                    raise AssertionError("LOD state route geometry is missing")
+                old_similarity = self._state_clustering_similarity(
+                    overflow_route_k,
+                    current_state_route_k,
+                    purpose="assignment",
                 )
-                old_similarity.masked_fill_(
-                    counts[..., :current_state_len, 0]
-                    .le(0.5)
-                    .unsqueeze(-2),
-                    float("-inf"),
+                invalid_state = (
+                    counts[..., :current_state_len, 0].le(0.5).unsqueeze(-2)
                 )
+                old_similarity.masked_fill_(invalid_state, float("-inf"))
                 protected_slots = self._protected_state_len(current_state_len)
                 if protected_slots:
                     protected_scores = (
@@ -1122,42 +1579,155 @@ class TritonLODAttentionCore(nn.Module):
                         old_similarity[..., 0].float(), float("-inf")
                     )
                 old_route_scores, old_route_indices = old_similarity.max(dim=-1)
+                radial_scope = self.state_clustering_radial_scope
+                append_uses_radial = bool(self.state_clustering_radial_bias) and (
+                    radial_scope in {"all", "append"}
+                )
+                assignment_uses_radial = bool(
+                    self.state_clustering_radial_bias
+                ) and radial_scope in {"all", "assignment"}
+                centroid_scope = self.state_clustering_centroid_rescale_scope
+                use_scoped_coherence = (
+                    self.state_clustering_centroid_rescale
+                    in {"coherence", "spherical_coherence", "rope_coherence"}
+                )
+                append_uses_coherence = use_scoped_coherence and centroid_scope in {
+                    "all",
+                    "append",
+                }
+                assignment_uses_coherence = (
+                    use_scoped_coherence
+                    and centroid_scope in {"all", "assignment"}
+                )
+                if (
+                    append_uses_radial == assignment_uses_radial
+                    and append_uses_coherence == assignment_uses_coherence
+                ):
+                    append_route_scores = old_route_scores.float()
+                    append_protected_scores = protected_scores
+                else:
+                    append_similarity = self._state_clustering_similarity(
+                        overflow_route_k,
+                        current_state_append_route_k,
+                        purpose="append",
+                    )
+                    append_similarity.masked_fill_(invalid_state, float("-inf"))
+                    if protected_slots:
+                        append_protected_scores = (
+                            append_similarity[..., :protected_slots]
+                            .float()
+                            .max(dim=-1)
+                            .values
+                        )
+                        append_similarity[..., :protected_slots] = float("-inf")
+                    else:
+                        append_protected_scores = torch.full_like(
+                            append_similarity[..., 0].float(), float("-inf")
+                        )
+                    append_route_scores = append_similarity.max(dim=-1).values
                 append_select_scores = torch.maximum(
-                    old_route_scores.float(), protected_scores
+                    append_route_scores.float(), append_protected_scores
                 )
                 append_idx, merge_idx = self._split_append_merge_indices(
                     append_select_scores, n_append
                 )
-        elif n_append and self.state_append_subblock_size <= 0:
+        elif (
+            n_append
+            and self.state_append_subblock_size <= 0
+            and self.state_clustering_normalization != "l2"
+            and not self.state_clustering_radial_bias
+        ):
             append_idx, merge_idx = _split_append_merge_idx_by_maxsim(
-                overflow_select_k,
+                overflow_route_k,
                 n_append,
-                self._mean(
-                    state_k.detach()[..., :current_state_len, :],
-                    counts[..., :current_state_len, :],
-                ),
+                current_state_append_route_k,
+            )
+        elif n_append and self.state_append_subblock_size <= 0:
+            append_select_scores = self._state_clustering_similarity(
+                overflow_route_k,
+                current_state_append_route_k,
+                purpose="append",
+            ).max(dim=-1).values
+            append_idx, merge_idx = self._split_append_merge_indices(
+                append_select_scores, n_append
             )
         elif not n_append:
             merge_idx = _all_idx(overflow_k, overflow_len)
             append_idx = merge_idx[..., :0]
         else:
             with torch.no_grad():
-                append_select_scores = torch.matmul(
-                    overflow_select_k,
-                    self._mean(
-                        state_k.detach()[..., :current_state_len, :],
-                        counts[..., :current_state_len, :],
-                    ).transpose(-1, -2),
+                append_select_scores = self._state_clustering_similarity(
+                    overflow_route_k,
+                    current_state_append_route_k,
+                    purpose="append",
                 ).max(dim=-1).values
                 append_idx, merge_idx = self._split_append_merge_indices(
                     append_select_scores, n_append
                 )
 
+        def refresh_prepared_geometry(
+            changed_slots: torch.Tensor,
+            active_state_len: int,
+        ) -> None:
+            if (
+                not use_streaming_state_scan
+                or streaming_geometry == "raw"
+                or maxsim_buffers is None
+            ):
+                return
+            prepare_state_clustering_keys(
+                state_k,
+                counts,
+                maxsim_buffers,
+                state_len=active_state_len,
+                key_norm_sums=key_norm_sums,
+                geometry=streaming_geometry,
+                slot_indices=changed_slots,
+                prepare_coherence_route=not (
+                    self.coherence_single_matmul
+                    and streaming_geometry
+                    in {"coherence", "spherical_coherence"}
+                ),
+                prepare_coherence_append=True,
+                prepare_coherence_scale=(
+                    self.coherence_single_matmul
+                    and streaming_geometry
+                    in {"coherence", "spherical_coherence"}
+                ),
+            )
+            maxsim_buffers["_prepared_identity"] = (
+                int(state_k.data_ptr()),
+                int(counts.data_ptr()),
+                (
+                    int(key_norm_sums.data_ptr())
+                    if key_norm_sums is not None
+                    else 0
+                ),
+                active_state_len,
+                streaming_geometry,
+            )
+            maxsim_buffers["_prepared_context_len"] = ctx_len
+
         if n_append:
             append_k = _gather_by_idx(overflow_k, append_idx)
             append_v = _gather_by_idx(overflow_v, append_idx)
-            append_select_k = _gather_by_idx(overflow_select_k, append_idx)
             append_counts = _gather_by_idx(overflow_counts, append_idx)
+            append_key_norm_sums = (
+                _gather_by_idx(overflow_key_norm_sums, append_idx)
+                if overflow_key_norm_sums is not None
+                else None
+            )
+            append_select_k = self._state_clustering_key(
+                self._mean(append_k, append_counts),
+                clustering_query_scale,
+                role="centroid",
+                radial_rms=(
+                    self._mean(append_key_norm_sums, append_counts)
+                    if append_key_norm_sums is not None
+                    else None
+                ),
+                purpose="assignment",
+            )
             append_slots = (
                 torch.arange(
                     current_state_len,
@@ -1174,16 +1744,26 @@ class TritonLODAttentionCore(nn.Module):
                 counts[..., current_state_len:desired_state_len, :].copy_(
                     append_counts
                 )
+                if key_norm_sums is not None:
+                    key_norm_sums[
+                        ..., current_state_len:desired_state_len, :
+                    ].copy_(append_key_norm_sums)
                 owners.scatter_(2, append_idx, append_slots)
             merge_k = _gather_by_idx(overflow_k, merge_idx)
             merge_v = _gather_by_idx(overflow_v, merge_idx)
-            merge_select_k = _gather_by_idx(overflow_select_k, merge_idx)
+            merge_select_k = _gather_by_idx(overflow_route_k, merge_idx)
             merge_counts = _gather_by_idx(overflow_counts, merge_idx)
+            merge_key_norm_sums = (
+                _gather_by_idx(overflow_key_norm_sums, merge_idx)
+                if overflow_key_norm_sums is not None
+                else None
+            )
         else:
             merge_k = overflow_k
             merge_v = overflow_v
-            merge_select_k = overflow_select_k
+            merge_select_k = overflow_route_k
             merge_counts = overflow_counts
+            merge_key_norm_sums = overflow_key_norm_sums
 
         if int(merge_k.size(2)) == 0:
             if n_append and self.state_merge_before_append:
@@ -1192,7 +1772,19 @@ class TritonLODAttentionCore(nn.Module):
                 counts[..., current_state_len:desired_state_len, :].copy_(
                     append_counts
                 )
+                if key_norm_sums is not None:
+                    key_norm_sums[
+                        ..., current_state_len:desired_state_len, :
+                    ].copy_(append_key_norm_sums)
                 owners.scatter_(2, append_idx, append_slots)
+            refresh_prepared_geometry(
+                (
+                    append_slots
+                    if n_append
+                    else owners[..., :0]
+                ),
+                desired_state_len,
+            )
             if membership is not None:
                 owners = owners.gather(2, membership)
             return state_k, state_v, counts, desired_state_len, owners, None
@@ -1202,9 +1794,10 @@ class TritonLODAttentionCore(nn.Module):
                 merge_old_scores = old_route_scores.gather(2, merge_idx)
                 destination = old_route_indices.gather(2, merge_idx)
                 if n_append and not self.state_merge_before_append:
-                    appended_logits = torch.matmul(
+                    appended_logits = self._state_clustering_similarity(
                         merge_select_k,
-                        append_select_k.detach().transpose(-1, -2),
+                        append_select_k.detach(),
+                        purpose="assignment",
                     )
                     appended_scores, appended_relative = appended_logits.max(dim=-1)
                     appended_destination = appended_relative + current_state_len
@@ -1219,12 +1812,26 @@ class TritonLODAttentionCore(nn.Module):
                     else desired_state_len
                 )
                 protected_slots = self._protected_state_len(route_state_len)
-                route_logits = torch.matmul(
+                route_logits = self._state_clustering_similarity(
                     merge_select_k,
-                    self._mean(
-                        state_k.detach()[..., :route_state_len, :],
-                        counts[..., :route_state_len, :],
-                    ).transpose(-1, -2),
+                    self._state_clustering_key(
+                        self._mean(
+                            state_k.detach()[..., :route_state_len, :],
+                            counts[..., :route_state_len, :],
+                        ),
+                        clustering_query_scale,
+                        role="centroid",
+                        radial_rms=(
+                            self._mean(
+                                key_norm_sums[..., :route_state_len, :],
+                                counts[..., :route_state_len, :],
+                            )
+                            if key_norm_sums is not None
+                            else None
+                        ),
+                        purpose="assignment",
+                    ),
+                    purpose="assignment",
                 )
                 route_logits.masked_fill_(
                     counts[..., :route_state_len, 0]
@@ -1235,6 +1842,18 @@ class TritonLODAttentionCore(nn.Module):
                 route_logits[..., :protected_slots] = float("-inf")
                 destination = route_logits.argmax(dim=-1)
 
+        route_state_len = (
+            current_state_len
+            if self.state_merge_before_append
+            else desired_state_len
+        )
+        assignment_t = (
+            F.one_hot(destination, num_classes=route_state_len)
+            .float()
+            .transpose(-1, -2)
+            if not (use_fused_state_update and state_k.is_cuda)
+            else None
+        )
         if use_fused_state_update and state_k.is_cuda:
             if buffers is None:
                 raise AssertionError("LOD state-update buffers are missing")
@@ -1254,19 +1873,14 @@ class TritonLODAttentionCore(nn.Module):
                     if self.state_merge_before_append
                     else desired_state_len
                 ),
+                key_norm_sums=key_norm_sums,
+                merge_key_norm_sums=merge_key_norm_sums,
             )
         else:
-            route_state_len = (
-                current_state_len
-                if self.state_merge_before_append
-                else desired_state_len
-            )
-            assignment = F.one_hot(destination, num_classes=route_state_len).to(
-                merge_k.dtype
-            )
-            assignment_t = assignment.transpose(-1, -2)
+            if assignment_t is None:
+                raise AssertionError("LOD dense state assignment is missing")
             state_k[..., :route_state_len, :].add_(
-                torch.matmul(assignment_t, merge_k)
+                torch.matmul(assignment_t.to(merge_k.dtype), merge_k)
             )
             state_v[..., :route_state_len, :].add_(
                 torch.matmul(assignment_t.to(merge_v.dtype), merge_v)
@@ -1275,11 +1889,30 @@ class TritonLODAttentionCore(nn.Module):
                 torch.matmul(assignment_t.float(), merge_counts.float())
             )
             owners.scatter_(2, merge_idx, destination)
+        if key_norm_sums is not None:
+            if not (use_fused_state_update and state_k.is_cuda):
+                if assignment_t is None or merge_key_norm_sums is None:
+                    raise AssertionError("LOD key-norm assignment is missing")
+                key_norm_sums[..., :route_state_len, :].add_(
+                    torch.matmul(
+                        assignment_t.float(), merge_key_norm_sums.float()
+                    )
+                )
         if n_append and self.state_merge_before_append:
             state_k[..., current_state_len:desired_state_len, :].copy_(append_k)
             state_v[..., current_state_len:desired_state_len, :].copy_(append_v)
             counts[..., current_state_len:desired_state_len, :].copy_(append_counts)
+            if key_norm_sums is not None:
+                key_norm_sums[
+                    ..., current_state_len:desired_state_len, :
+                ].copy_(append_key_norm_sums)
             owners.scatter_(2, append_idx, append_slots)
+        changed_slots = (
+            torch.cat((destination, append_slots), dim=-1)
+            if n_append
+            else destination
+        )
+        refresh_prepared_geometry(changed_slots, desired_state_len)
         if membership is not None:
             owners = owners.gather(2, membership)
         return state_k, state_v, counts, desired_state_len, owners, None
@@ -1313,6 +1946,315 @@ class TritonLODAttentionCore(nn.Module):
         return torch.matmul(
             q.detach(), self._repeat_kv(mean_k).transpose(-1, -2)
         )
+
+    @staticmethod
+    def _routing_rms_normalize(tensor: torch.Tensor) -> torch.Tensor:
+        inverse_rms = torch.rsqrt(
+            tensor.detach()
+            .float()
+            .square()
+            .mean(dim=-1, keepdim=True)
+            .clamp_min(1e-12)
+        )
+        # Keep route logits in the same dtype as the normal fused path.  The
+        # normalization statistics themselves are computed in FP32.
+        return (tensor.detach().float() * inverse_rms).to(tensor.dtype)
+
+    def _state_routing_logits(
+        self,
+        q: torch.Tensor,
+        state_k: torch.Tensor,
+        counts: torch.Tensor,
+        *,
+        state_len: int,
+    ) -> torch.Tensor:
+        normalization = self.routing_normalization
+        if normalization == "qk_norm_aware":
+            raise ValueError(
+                "qk_norm_aware routing must be resolved from the attention "
+                "module by the Hugging Face installer"
+            )
+        rope_fast_pairs = int(self.routing_rope_fast_pairs)
+        if normalization == "none" and rope_fast_pairs == 0:
+            return self._state_route_logits(
+                q, state_k, counts, state_len=state_len
+            )
+        if normalization not in {"none", "query", "key", "both"}:
+            raise ValueError(
+                "routing normalization must be none, query, key, or both"
+            )
+        route_q = q.detach()
+        # For query-only normalization, ranking
+        #   scale * (q / rms(q)) @ mean_k + log(count)
+        # is exactly equivalent to ranking
+        #   scale * q @ mean_k + rms(q) * log(count).
+        # This makes routing invariant to the query's attention temperature
+        # and replaces a model-wide count-bias sweep with a per-query value.
+        mean_k = self._mean(
+            state_k.detach()[..., :state_len, :],
+            counts[..., :state_len, :],
+        )
+        original_query_rms = None
+        if rope_fast_pairs:
+            rope_dim = int(self.routing_rope_dim)
+            if rope_dim > int(q.size(-1)) or rope_fast_pairs > rope_dim // 2:
+                raise ValueError("routing RoPE filter exceeds the head geometry")
+            if normalization not in {"query", "both"}:
+                original_query_rms = (
+                    route_q.detach().float().square().mean(-1, keepdim=True).sqrt()
+                )
+            half = rope_dim // 2
+            route_q = route_q.clone()
+            mean_k = mean_k.clone()
+            route_q[..., :rope_fast_pairs] = 0
+            route_q[..., half : half + rope_fast_pairs] = 0
+            mean_k[..., :rope_fast_pairs] = 0
+            mean_k[..., half : half + rope_fast_pairs] = 0
+        if normalization in {"query", "both"}:
+            route_q = self._routing_rms_normalize(route_q)
+        elif original_query_rms is not None:
+            route_q = (
+                self._routing_rms_normalize(route_q) * original_query_rms
+            ).to(route_q.dtype)
+        if normalization in {"key", "both"}:
+            mean_k = self._routing_rms_normalize(mean_k)
+        if self.route_gqa_matmul:
+            batch, query_heads, query_len, head_dim = route_q.shape
+            kv_heads = int(mean_k.size(1))
+            grouped_q = route_q.reshape(
+                batch,
+                kv_heads,
+                self.num_key_value_groups,
+                query_len,
+                head_dim,
+            )
+            grouped_k_t = mean_k.transpose(-1, -2).unsqueeze(2)
+            return torch.matmul(grouped_q, grouped_k_t).reshape(
+                batch, query_heads, query_len, state_len
+            )
+        return torch.matmul(
+            route_q, self._repeat_kv(mean_k).transpose(-1, -2)
+        )
+
+    def _apply_routing_variance_correction(
+        self,
+        logits: torch.Tensor,
+        q: torch.Tensor,
+        state_k: torch.Tensor,
+        counts: torch.Tensor,
+        reference_k: torch.Tensor | None,
+        *,
+        state_len: int,
+        reference_len: int | None = None,
+        new_k: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        """Approximate omitted within-slot log-mass without growing state."""
+        coefficient = float(self.routing_variance_bias)
+        if coefficient == 0.0:
+            return logits
+        if self.routing_normalization != "none":
+            raise ValueError(
+                "routing variance correction requires unnormalized routing"
+            )
+        state_count = counts.detach()[..., :state_len, :]
+        mean_k = self._mean(
+            state_k.detach()[..., :state_len, :],
+            state_count,
+        )
+        mean_sq = mean_k.float().square().sum(-1)
+        valid_reference_len = 0
+        if reference_k is not None:
+            valid_reference_len = int(reference_k.size(2))
+            if reference_len is not None:
+                valid_reference_len = min(reference_len, valid_reference_len)
+        reference_sum = mean_sq.new_zeros(mean_sq.shape[:2])
+        if valid_reference_len:
+            reference = reference_k.detach()[..., :valid_reference_len, :]
+            reference_sum = reference.float().square().sum(dim=-1).sum(dim=-1)
+        reference_count = valid_reference_len
+        if new_k is not None:
+            reference_sum = reference_sum + new_k.detach().float().square().sum(-1).sum(-1)
+            reference_count += int(new_k.size(2))
+        if reference_count:
+            reference_sq = reference_sum / float(reference_count)
+        else:
+            singleton = state_count.squeeze(-1).eq(1)
+            singleton_count = singleton.sum(-1)
+            singleton_mean = (
+                mean_sq.masked_fill(~singleton, 0).sum(-1)
+                / singleton_count.clamp_min(1)
+            )
+            # A max-norm centroid is the least-cancelled available proxy when
+            # the state has no singleton and there is no exact local field.
+            reference_sq = torch.where(
+                singleton_count.gt(0), singleton_mean, mean_sq.max(-1).values
+            )
+        variance_trace = (reference_sq.unsqueeze(-1) - mean_sq).clamp_min(0)
+        variance_trace.masked_fill_(state_count.squeeze(-1).le(1), 0)
+        variance_trace = self._repeat_kv(variance_trace)
+        query_sq = q.detach().float().square().sum(-1)
+        # route kernels apply `scaling` after these raw dot-product logits, so
+        # divide the desired 0.5 * scaling^2 correction by one scaling here.
+        raw_correction = (
+            0.5
+            * coefficient
+            * float(self.scaling)
+            * query_sq.unsqueeze(-1)
+            * variance_trace.unsqueeze(2)
+            / float(q.size(-1))
+        )
+        return logits + raw_correction.to(logits.dtype)
+
+    def _apply_routing_rope_jensen_correction(
+        self,
+        logits: torch.Tensor,
+        q: torch.Tensor,
+        state_k: torch.Tensor,
+        counts: torch.Tensor,
+        reference_k: torch.Tensor | None,
+        *,
+        state_len: int,
+        reference_len: int | None = None,
+        new_k: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        """Add a per-RoPE-plane second-order omitted-mass estimate."""
+        if not self.routing_rope_jensen:
+            return logits
+        if self.routing_normalization in {"key", "both"}:
+            raise ValueError("RoPE Jensen routing does not support key normalization")
+        rope_dim = int(self.routing_rope_dim)
+        if rope_dim == 0:
+            return logits
+        half = rope_dim // 2
+        route_q = q.detach()
+        if self.routing_normalization == "query":
+            route_q = self._routing_rms_normalize(route_q)
+        elif self.routing_normalization != "none":
+            raise ValueError("unsupported normalization for RoPE Jensen routing")
+        query_pairs = (
+            route_q[..., :half].float().square()
+            + route_q[..., half:rope_dim].float().square()
+        )
+
+        state_count = counts.detach()[..., :state_len, :]
+        mean_k = self._mean(
+            state_k.detach()[..., :state_len, :], state_count
+        ).float()
+        mean_pairs = (
+            mean_k[..., :half].square() + mean_k[..., half:rope_dim].square()
+        )
+        reference_sum = mean_pairs.new_zeros(*mean_pairs.shape[:2], half)
+        valid_reference_len = 0
+        if reference_k is not None:
+            valid_reference_len = int(reference_k.size(2))
+            if reference_len is not None:
+                valid_reference_len = min(valid_reference_len, reference_len)
+        if valid_reference_len:
+            reference = reference_k.detach()[..., :valid_reference_len, :].float()
+            reference_sum = reference_sum + (
+                reference[..., :half].square()
+                + reference[..., half:rope_dim].square()
+            ).sum(-2)
+        reference_count = valid_reference_len
+        if new_k is not None:
+            new_reference = new_k.detach().float()
+            reference_sum = reference_sum + (
+                new_reference[..., :half].square()
+                + new_reference[..., half:rope_dim].square()
+            ).sum(-2)
+            reference_count += int(new_reference.size(2))
+        if reference_count:
+            reference_pairs = reference_sum / float(reference_count)
+        else:
+            singleton = state_count.squeeze(-1).eq(1)
+            singleton_count = singleton.sum(-1)
+            singleton_pairs = (
+                mean_pairs.masked_fill(~singleton.unsqueeze(-1), 0).sum(-2)
+                / singleton_count.clamp_min(1).unsqueeze(-1)
+            )
+            reference_pairs = torch.where(
+                singleton_count.gt(0).unsqueeze(-1),
+                singleton_pairs,
+                mean_pairs.max(-2).values,
+            )
+        pair_variance = (reference_pairs.unsqueeze(-2) - mean_pairs).clamp_min(0)
+        pair_variance.masked_fill_(state_count.le(1), 0)
+        pair_variance = self._repeat_kv(pair_variance)
+        # The attention path multiplies these raw logits by `scaling` later.
+        # Within each rotary plane, covariance trace is the pair-energy
+        # deficit, so 0.5 Var(score) becomes 0.25 * scaling here.
+        raw_correction = 0.25 * float(self.scaling) * torch.matmul(
+            query_pairs, pair_variance.transpose(-1, -2)
+        )
+        return logits + raw_correction.to(logits.dtype)
+
+    def _closed_state_local_attention(
+        self,
+        q: torch.Tensor,
+        state_k: torch.Tensor,
+        state_v: torch.Tensor,
+        counts: torch.Tensor,
+        local_k: torch.Tensor | None,
+        local_v: torch.Tensor | None,
+        *,
+        state_len: int,
+        local_len: int | None,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Return the all-closed approximation used by output-error routing."""
+        query_counts = self._repeat_kv(
+            counts.detach()[..., :state_len, :]
+        ).squeeze(-1)
+        state_logits = self._state_route_logits(
+            q, state_k, counts, state_len=state_len
+        )
+        state_scores = (
+            state_logits.float() * self.scaling
+            + query_counts.clamp_min(1).log().unsqueeze(2)
+        )
+        state_scores.masked_fill_(
+            query_counts.le(0).unsqueeze(2), float("-inf")
+        )
+        mean_v = self._repeat_kv(
+            self._mean(
+                state_v.detach()[..., :state_len, :],
+                counts.detach()[..., :state_len, :],
+            )
+        ).float()
+        active_local_len = 0
+        if local_k is not None and local_v is not None:
+            active_local_len = int(local_k.size(2))
+            if local_len is not None:
+                active_local_len = min(active_local_len, int(local_len))
+        if active_local_len:
+            repeated_local_k = self._repeat_kv(
+                local_k.detach()[..., :active_local_len, :]
+            )
+            repeated_local_v = self._repeat_kv(
+                local_v.detach()[..., :active_local_len, :]
+            ).float()
+            local_scores = torch.matmul(
+                q.detach(), repeated_local_k.transpose(-1, -2)
+            ).float() * self.scaling
+            if int(q.size(2)) > 1:
+                query_position = torch.arange(
+                    int(q.size(2)), device=q.device
+                ).unsqueeze(-1)
+                key_position = torch.arange(
+                    active_local_len, device=q.device
+                ).unsqueeze(0)
+                query_offset = active_local_len - int(q.size(2))
+                local_scores.masked_fill_(
+                    key_position > query_offset + query_position,
+                    float("-inf"),
+                )
+            scores = torch.cat((state_scores, local_scores), dim=-1)
+            values = torch.cat((mean_v, repeated_local_v), dim=2)
+        else:
+            scores = state_scores
+            values = mean_v
+        lse = torch.logsumexp(scores, dim=-1)
+        output = torch.matmul(scores.softmax(dim=-1), values)
+        return output, lse, state_scores
 
     def _dynamic_open_target(self, query_len: int) -> float | None:
         return (
@@ -1366,6 +2308,9 @@ class TritonLODAttentionCore(nn.Module):
         state_capacity: int,
         local_k: torch.Tensor | None = None,
         local_v: torch.Tensor | None = None,
+        local_len: int | None = None,
+        new_k: torch.Tensor | None = None,
+        page_cache: dict[str, torch.Tensor | int] | None = None,
         dynamic_local_lse: torch.Tensor | None = None,
     ) -> torch.Tensor:
         configured_topk = (
@@ -1381,10 +2326,407 @@ class TritonLODAttentionCore(nn.Module):
         route_count = min(configured_topk, state_len - protected_len)
         dynamic_target = self._dynamic_open_target(int(q.size(2)))
         dynamic_residual = self._dynamic_open_residual(int(q.size(2)))
+        if (
+            self.routing_normalization != "none"
+            or self.routing_rope_fast_pairs != 0
+            or self.routing_rope_jensen
+            or self.routing_count_bias != 1.0
+            or self.routing_variance_bias != 0.0
+            or self.routing_page_mass_candidates != 0
+            or self.routing_leaf_mass_candidates != 0
+        ) and (
+            dynamic_target is not None or dynamic_residual is not None
+        ):
+            raise ValueError(
+                "routing normalization is not calibrated for dynamic opening"
+            )
         with torch.no_grad():
+            page_mass_candidates = int(self.routing_page_mass_candidates)
+            leaf_mass_candidates = int(self.routing_leaf_mass_candidates)
+            if (
+                (page_mass_candidates or leaf_mass_candidates)
+                and page_cache is not None
+                and state_len - protected_len > route_count
+            ):
+                if not self.recursive_page_lod:
+                    raise ValueError(
+                        "page-mass routing requires recursive page LOD"
+                    )
+                if page_mass_candidates and bool(
+                    page_cache.get("summary_quantization_finalized", False)
+                ):
+                    raise ValueError(
+                        "page-mass routing does not yet support quantized summaries"
+                    )
+                candidate_count = min(
+                    max(page_mass_candidates, leaf_mass_candidates),
+                    state_len - protected_len,
+                )
+                logits = self._state_routing_logits(
+                    q,
+                    state_k,
+                    counts,
+                    state_len=state_len,
+                )
+                logits = self._apply_routing_variance_correction(
+                    logits,
+                    q,
+                    state_k,
+                    counts,
+                    local_k,
+                    state_len=state_len,
+                    reference_len=local_len,
+                    new_k=new_k,
+                )
+                logits = self._apply_routing_rope_jensen_correction(
+                    logits,
+                    q,
+                    state_k,
+                    counts,
+                    local_k,
+                    state_len=state_len,
+                    reference_len=local_len,
+                    new_k=new_k,
+                )
+                query_counts = self._repeat_kv(
+                    counts.detach()[..., :state_len, :]
+                ).squeeze(-1)
+                candidate_scores = (
+                    logits.float() * self.scaling
+                    + self.routing_count_bias
+                    * query_counts.clamp_min(1).log().unsqueeze(2)
+                )
+                candidate_scores.masked_fill_(
+                    query_counts.le(0).unsqueeze(2), float("-inf")
+                )
+                candidate_scores[..., :protected_len] = float("-inf")
+                candidate_base_scores, candidates = candidate_scores.topk(
+                    candidate_count,
+                    dim=-1,
+                    sorted=self.routing_leaf_mass_review_top_p is not None,
+                )
+                if self.routing_leaf_mass_review_top_p is not None:
+                    # Adapt the transient centroid-review width, not the final
+                    # exact-attention route count. Blurry coarse routing has a
+                    # diffuse mass distribution and therefore causes more
+                    # centroids to be inspected by the finer page hierarchy.
+                    complete_coarse_lse = torch.logsumexp(
+                        candidate_scores, dim=-1
+                    )
+                    reviewed_fraction = torch.exp(
+                        candidate_base_scores
+                        - complete_coarse_lse.unsqueeze(-1)
+                    ).cumsum(dim=-1)
+                    review_counts = (
+                        reviewed_fraction
+                        < float(self.routing_leaf_mass_review_top_p)
+                    ).sum(dim=-1) + 1
+                    review_counts.clamp_(
+                        min=route_count,
+                        max=candidate_count,
+                    )
+                    candidate_rank = torch.arange(
+                        candidate_count, device=candidates.device
+                    )
+                    review_mask = candidate_rank < review_counts.unsqueeze(-1)
+                    candidates = torch.where(
+                        review_mask,
+                        candidates,
+                        torch.full_like(candidates, -1),
+                    )
+                    candidate_base_scores = candidate_base_scores.masked_fill(
+                        ~review_mask, float("-inf")
+                    )
+                    self._record_dynamic_open_counts(
+                        review_counts,
+                        route_count=candidate_count,
+                        statistic="review",
+                    )
+                virtual_leaf_mass = bool(
+                    leaf_mass_candidates and self.virtual_page_storage
+                )
+                if virtual_leaf_mass:
+                    page_names = (
+                        ("leaf_k", "leaf_v")
+                        if self.routing_leaf_mass_objective == "output"
+                        else ("leaf_k",)
+                    ) + (
+                        "page_indices",
+                        "page_counts",
+                        "slot_pages",
+                        "overflow_page_keys",
+                        "overflow_page_values",
+                        "overflow_used",
+                        "slot_lengths",
+                    )
+                else:
+                    page_names = (
+                        "page_k" if leaf_mass_candidates else "page_sum_k",
+                        "page_counts",
+                        "slot_pages",
+                        "overflow_page_keys",
+                        "overflow_page_values",
+                        "overflow_used",
+                        "slot_lengths",
+                    )
+                page_tensors = tuple(page_cache.get(name) for name in page_names)
+                if not all(isinstance(value, torch.Tensor) for value in page_tensors):
+                    raise RuntimeError("page-mass routing cache is incomplete")
+                refinement_kwargs = {
+                    "kv_group_size": self.num_key_value_groups,
+                    "scale": self.scaling,
+                    "hash_probes": (
+                        self.leaf_hash_probes
+                        if bool(page_cache.get("overflow_active", False))
+                        else 0
+                    ),
+                    "page_size": int(page_cache["page_size"]),
+                }
+                if (
+                    leaf_mass_candidates
+                    and self.routing_leaf_mass_objective == "output"
+                ):
+                    if not virtual_leaf_mass:
+                        raise ValueError(
+                            "output-error routing requires virtual page storage"
+                        )
+                    closed_output, closed_lse, closed_state_scores = (
+                        self._closed_state_local_attention(
+                            q,
+                            state_k,
+                            state_v,
+                            counts,
+                            local_k,
+                            local_v,
+                            state_len=state_len,
+                            local_len=local_len,
+                        )
+                    )
+                    candidate_coarse_scores = torch.gather(
+                        closed_state_scores, -1, candidates.clamp_min(0)
+                    )
+                    mass_scores = refine_route_candidates_by_virtual_leaf_output(
+                        q,
+                        closed_output,
+                        closed_lse,
+                        candidate_coarse_scores,
+                        state_v.detach(),
+                        counts.detach()[..., 0],
+                        *page_tensors,
+                        candidates,
+                        **refinement_kwargs,
+                    )
+                elif leaf_mass_candidates:
+                    refine_leaf_mass = (
+                        refine_route_candidates_by_virtual_leaf_mass
+                        if virtual_leaf_mass
+                        else refine_route_candidates_by_leaf_mass
+                    )
+                    if self.routing_leaf_mass_objective in {
+                        "rope_jensen",
+                        "fast_rope_jensen",
+                        "slow_rope_jensen",
+                    }:
+                        rope_dim = int(self.routing_rope_dim)
+                        rope_pairs = rope_dim // 2
+                        cutoff_pairs = int(self.routing_rope_jensen_pairs)
+                        if self.routing_leaf_mass_objective == "fast_rope_jensen":
+                            jensen_pair_start = 0
+                            jensen_pairs = cutoff_pairs
+                        elif self.routing_leaf_mass_objective == "slow_rope_jensen":
+                            jensen_pair_start = cutoff_pairs
+                            jensen_pairs = rope_pairs - cutoff_pairs
+                        else:
+                            jensen_pair_start = 0
+                            jensen_pairs = rope_pairs
+                        if rope_dim == 0 or jensen_pairs == 0:
+                            mass_scores = candidate_base_scores
+                        else:
+                            if self.routing_normalization in {"key", "both"}:
+                                raise ValueError(
+                                    "RoPE Jensen routing does not support key "
+                                    "normalization"
+                                )
+                            route_q = q.detach()
+                            if self.routing_normalization == "query":
+                                route_q = self._routing_rms_normalize(route_q)
+                            elif self.routing_normalization != "none":
+                                raise ValueError(
+                                    "unsupported normalization for RoPE Jensen "
+                                    "routing"
+                                )
+                            rope_half = rope_dim // 2
+                            jensen_dim = 2 * jensen_pairs
+                            # The paged mass kernel vectorizes over a
+                            # power-of-two head width. Zero padding this
+                            # transient band-only view preserves its dot
+                            # products while allowing architecture-derived
+                            # cutoffs such as Gemma's 82 dimensions.
+                            kernel_dim = 1 << (jensen_dim - 1).bit_length()
+
+                            def select_jensen_pairs(tensor: torch.Tensor) -> torch.Tensor:
+                                selected = torch.cat(
+                                    (
+                                        tensor[
+                                            ...,
+                                            jensen_pair_start
+                                            : jensen_pair_start + jensen_pairs,
+                                        ],
+                                        tensor[
+                                            ...,
+                                            rope_half + jensen_pair_start
+                                            : rope_half
+                                            + jensen_pair_start
+                                            + jensen_pairs,
+                                        ],
+                                    ),
+                                    dim=-1,
+                                )
+                                return F.pad(
+                                    selected, (0, kernel_dim - jensen_dim)
+                                ).contiguous()
+
+                            jensen_query = select_jensen_pairs(route_q)
+                            jensen_page_tensors = (
+                                select_jensen_pairs(page_tensors[0]),
+                                *page_tensors[1:],
+                            )
+                            exact_jensen_mass = refine_leaf_mass(
+                                jensen_query,
+                                *jensen_page_tensors,
+                                candidates,
+                                **refinement_kwargs,
+                            )
+                            state_count = counts.detach()[..., :state_len, :]
+                            mean_k = self._mean(
+                                state_k.detach()[..., :state_len, :],
+                                state_count,
+                            )
+                            jensen_logits = torch.matmul(
+                                jensen_query,
+                                self._repeat_kv(
+                                    select_jensen_pairs(mean_k)
+                                ).transpose(-1, -2),
+                            )
+                            jensen_scores = (
+                                jensen_logits.float() * self.scaling
+                                + query_counts.clamp_min(1).log().unsqueeze(2)
+                            )
+                            candidate_jensen_scores = torch.gather(
+                                jensen_scores, -1, candidates.clamp_min(0)
+                            )
+                            jensen_gap = (
+                                exact_jensen_mass - candidate_jensen_scores
+                            ).clamp_min(0)
+                            mass_scores = candidate_base_scores + jensen_gap
+                    else:
+                        mass_scores = refine_leaf_mass(
+                            q, *page_tensors, candidates, **refinement_kwargs
+                        )
+                else:
+                    mass_scores = refine_route_candidates_by_page_mass(
+                        q,
+                        *page_tensors,
+                        candidates,
+                        page_block_n=self.recursive_page_block_n,
+                        **refinement_kwargs,
+                    )
+                if leaf_mass_candidates and self.routing_leaf_mass_objective not in {
+                    "exact",
+                    "output",
+                    "rope_jensen",
+                    "fast_rope_jensen",
+                    "slow_rope_jensen",
+                }:
+                    exact_coarse_logits = self._state_route_logits(
+                        q,
+                        state_k,
+                        counts,
+                        state_len=state_len,
+                    )
+                    exact_coarse_scores = (
+                        exact_coarse_logits.float() * self.scaling
+                        + query_counts.clamp_min(1).log().unsqueeze(2)
+                    )
+                    candidate_coarse_scores = torch.gather(
+                        exact_coarse_scores, -1, candidates.clamp_min(0)
+                    )
+                    log_mass_deficit = (
+                        mass_scores - candidate_coarse_scores
+                    ).clamp_min(0.0)
+                    if self.routing_leaf_mass_objective == "deficit":
+                        mass_scores = log_mass_deficit
+                    elif self.routing_leaf_mass_objective == "additional":
+                        # log(Z_exact - Z_centroid), evaluated stably.  This
+                        # ranks the mass that the closed centroid omits rather
+                        # than the slot's total popularity.
+                        mass_scores = mass_scores + torch.log(
+                            -torch.expm1(-log_mass_deficit)
+                        )
+                    else:
+                        raise ValueError(
+                            "leaf-mass objective must be exact, additional, deficit, "
+                            "output, rope_jensen, fast_rope_jensen, or "
+                            "slow_rope_jensen"
+                        )
+                selected_scores, selected_candidates = mass_scores.topk(
+                    route_count,
+                    dim=-1,
+                    sorted=self.routing_leaf_mass_top_p is not None,
+                )
+                routed = torch.gather(candidates, -1, selected_candidates)
+                if self.routing_leaf_mass_top_p is not None:
+                    # Correct the complete remote-field partition estimate by
+                    # replacing each reviewed centroid's coarse mass with its
+                    # page-refined mass. This leaves unreviewed centroids in
+                    # the denominator instead of normalizing top-p over only
+                    # the shortlisted routes.
+                    coarse_max = candidate_scores.amax(dim=-1)
+                    refined_max = mass_scores.amax(dim=-1)
+                    anchor = torch.maximum(coarse_max, refined_max)
+                    coarse_mass = torch.exp(
+                        candidate_scores - anchor.unsqueeze(-1)
+                    ).sum(dim=-1)
+                    reviewed_coarse_mass = torch.exp(
+                        candidate_base_scores - anchor.unsqueeze(-1)
+                    ).sum(dim=-1)
+                    reviewed_refined_mass = torch.exp(
+                        mass_scores - anchor.unsqueeze(-1)
+                    ).sum(dim=-1)
+                    corrected_total_mass = (
+                        coarse_mass
+                        - reviewed_coarse_mass
+                        + reviewed_refined_mass
+                    ).clamp_min(torch.finfo(torch.float32).tiny)
+                    corrected_total_lse = anchor + corrected_total_mass.log()
+                    cumulative_fraction = torch.exp(
+                        selected_scores - corrected_total_lse.unsqueeze(-1)
+                    ).cumsum(dim=-1)
+                    open_counts = (
+                        cumulative_fraction < float(self.routing_leaf_mass_top_p)
+                    ).sum(dim=-1) + 1
+                    open_counts.clamp_(
+                        min=min(int(self.routing_leaf_mass_min_routes), route_count),
+                        max=route_count,
+                    )
+                    rank = torch.arange(route_count, device=routed.device)
+                    routed = torch.where(
+                        rank < open_counts.unsqueeze(-1),
+                        routed,
+                        torch.full_like(routed, -1),
+                    )
+                    self._record_dynamic_open_counts(
+                        open_counts, route_count=route_count
+                    )
+                return routed if int(q.size(2)) == 1 else routed.clone()
             if (
                 self.fused_prefill_route_coarse
                 and self.reuse_route_logits_for_coarse
+                and self.routing_normalization == "none"
+                and self.routing_rope_fast_pairs == 0
+                and not self.routing_rope_jensen
+                and self.routing_count_bias == 1.0
+                and self.routing_variance_bias == 0.0
                 and q.is_cuda
                 and int(q.size(2)) > 1
                 and 0 < route_count <= 8
@@ -1413,6 +2755,7 @@ class TritonLODAttentionCore(nn.Module):
                         state_len=state_len,
                         kv_group_size=self.num_key_value_groups,
                         scale=self.scaling,
+                        route_count_bias=self.routing_count_bias,
                         topk=route_count,
                         protected_len=protected_len,
                         max_leaf_tokens=self.prefill_max_leaf_tokens,
@@ -1478,6 +2821,10 @@ class TritonLODAttentionCore(nn.Module):
                 logits = None
                 if (
                     self.direct_fused_state_routing
+                    and self.routing_normalization == "none"
+                    and self.routing_rope_fast_pairs == 0
+                    and not self.routing_rope_jensen
+                    and self.routing_variance_bias == 0.0
                     and int(q.size(0)) == 1
                     and dynamic_target is None
                     and dynamic_residual is None
@@ -1493,20 +2840,46 @@ class TritonLODAttentionCore(nn.Module):
                         buffers,
                         kv_group_size=self.num_key_value_groups,
                         scale=self.scaling,
+                        count_bias=self.routing_count_bias,
                         topk=route_count,
                         state_len=state_len,
                         protected_len=protected_len,
                         reorder_like_torch=True,
                     )
                 else:
-                    logits = self._state_route_logits(
+                    logits = self._state_routing_logits(
                         q,
                         state_k,
                         counts,
                         state_len=state_len,
                     )
+                    logits = self._apply_routing_variance_correction(
+                        logits,
+                        q,
+                        state_k,
+                        counts,
+                        local_k,
+                        state_len=state_len,
+                        reference_len=local_len,
+                        new_k=new_k,
+                    )
+                    logits = self._apply_routing_rope_jensen_correction(
+                        logits,
+                        q,
+                        state_k,
+                        counts,
+                        local_k,
+                        state_len=state_len,
+                        reference_len=local_len,
+                        new_k=new_k,
+                    )
                     if (
-                        self.reuse_route_logits_for_coarse
+                        self.routing_normalization == "none"
+                        and self.routing_rope_fast_pairs == 0
+                        and not self.routing_rope_jensen
+                        and self.routing_count_bias == 1.0
+                        and self.routing_variance_bias == 0.0
+                        and self.reuse_route_logits_for_coarse
                         and int(q.size(2)) > 1
                     ):
                         self._lod_prefill_route_logits = logits
@@ -1516,6 +2889,7 @@ class TritonLODAttentionCore(nn.Module):
                         buffers,
                         kv_group_size=self.num_key_value_groups,
                         scale=self.scaling,
+                        count_bias=self.routing_count_bias,
                         topk=route_count,
                         state_len=state_len,
                         protected_len=protected_len,
@@ -1538,7 +2912,11 @@ class TritonLODAttentionCore(nn.Module):
                     query_counts = self._repeat_kv(
                         counts.detach()[..., :state_len, :]
                     ).squeeze(-1)
-                    corrected = logits * self.scaling + query_counts.log().unsqueeze(2)
+                    corrected = (
+                        logits * self.scaling
+                        + self.routing_count_bias
+                        * query_counts.log().unsqueeze(2)
+                    )
                     corrected[..., :protected_len] = float("-inf")
                     reference = corrected.topk(
                         route_count, dim=-1, sorted=False
@@ -1634,14 +3012,39 @@ class TritonLODAttentionCore(nn.Module):
                 if int(q.size(2)) == 1 and not self.clone_decode_routes:
                     return routed
                 return routed.clone()
-            logits = self._state_route_logits(
+            logits = self._state_routing_logits(
                 q,
                 state_k,
                 counts,
                 state_len=state_len,
             )
+            logits = self._apply_routing_variance_correction(
+                logits,
+                q,
+                state_k,
+                counts,
+                local_k,
+                state_len=state_len,
+                reference_len=local_len,
+                new_k=new_k,
+            )
+            logits = self._apply_routing_rope_jensen_correction(
+                logits,
+                q,
+                state_k,
+                counts,
+                local_k,
+                state_len=state_len,
+                reference_len=local_len,
+                new_k=new_k,
+            )
             if (
-                self.reuse_route_logits_for_coarse
+                self.routing_normalization == "none"
+                and self.routing_rope_fast_pairs == 0
+                and not self.routing_rope_jensen
+                and self.routing_count_bias == 1.0
+                and self.routing_variance_bias == 0.0
+                and self.reuse_route_logits_for_coarse
                 and int(q.size(2)) > 1
                 and route_count <= 8
             ):
@@ -1651,7 +3054,7 @@ class TritonLODAttentionCore(nn.Module):
                 -1
             )
             log_counts = query_counts.log()
-            logits = logits + log_counts.unsqueeze(2)
+            logits = logits + self.routing_count_bias * log_counts.unsqueeze(2)
             logits[..., :protected_len] = float("-inf")
             top_slots = logits.topk(route_count, dim=-1, sorted=False).indices
             if getattr(self, "_lod_collect_stats", False):
@@ -1777,6 +3180,36 @@ class TritonLODAttentionCore(nn.Module):
                 setattr(self, attribute, [])
             getattr(self, attribute).append(histogram)
         return opened_slots
+
+    def _record_dynamic_open_counts(
+        self,
+        open_counts: torch.Tensor,
+        *,
+        route_count: int,
+        statistic: str = "open",
+    ) -> None:
+        """Accumulate dynamic route counts on the engine and its HF owner."""
+        if not self.collect_dynamic_open_stats:
+            return
+        histogram = torch.bincount(
+            open_counts.reshape(-1), minlength=route_count + 1
+        )
+        phase = "decode" if int(open_counts.size(2)) == 1 else "prefill"
+        if statistic not in {"open", "review"}:
+            raise ValueError("dynamic route statistic must be open or review")
+        statistic_prefix = "" if statistic == "open" else f"{statistic}_"
+        attribute = f"_lod_dynamic_{statistic_prefix}{phase}_histogram"
+        current = getattr(self, attribute, None)
+        setattr(self, attribute, histogram if current is None else current + histogram)
+        owner_reference = getattr(self, "_lod_dynamic_stats_owner", None)
+        owner = owner_reference() if callable(owner_reference) else None
+        if owner is not None:
+            owner_current = getattr(owner, attribute, None)
+            setattr(
+                owner,
+                attribute,
+                histogram if owner_current is None else owner_current + histogram,
+            )
 
     def _new_page_cache(
         self,
@@ -2666,6 +4099,13 @@ class TritonLODAttentionCore(nn.Module):
         fuse_decode_route = (
             self.fused_decode_attention
             and self.fused_decode_state_route
+            and self.routing_normalization == "none"
+            and self.routing_rope_fast_pairs == 0
+            and not self.routing_rope_jensen
+            and self.routing_count_bias == 1.0
+            and self.routing_variance_bias == 0.0
+            and self.routing_page_mass_candidates == 0
+            and self.routing_leaf_mass_candidates == 0
             and int(q.size(2)) == 1
             and self.leaf_attention_backend == "paged"
             and (
@@ -2712,6 +4152,9 @@ class TritonLODAttentionCore(nn.Module):
                 state_capacity=state_capacity,
                 local_k=local_k,
                 local_v=local_v,
+                local_len=local_len,
+                new_k=new_k,
+                page_cache=page_cache,
                 dynamic_local_lse=dynamic_local_lse,
             )
             if getattr(self, "_lod_padding_state_reserve", 0):
@@ -3178,6 +4621,9 @@ class TritonLODAttentionCore(nn.Module):
             )
         else:
             self._lod_padding_state_reserve = 0
+        clustering_query_scale = self._state_clustering_query_scale(
+            q[..., :prefill_len, :], valid_starts=prefill_valid_starts
+        )
         exact_lookback = prefill_local_len - prefill_chunk_len
         if getattr(self, "_lod_collect_stats", False):
             self._lod_route_stats = []
@@ -3278,6 +4724,17 @@ class TritonLODAttentionCore(nn.Module):
             counts[..., :initial_state_len, :].masked_fill_(
                 initial_valid[:, None, :, None], 1.0
             )
+        key_norm_sums = None
+        if self.state_clustering_centroid_rescale != "none":
+            key_norm_sums = torch.zeros_like(counts)
+            initial_key_rms = self._state_clustering_constituent_rms(
+                initial_state_k
+            )
+            key_norm_sums[..., :initial_state_len, :].copy_(initial_key_rms)
+            if initial_valid is not None:
+                key_norm_sums[..., :initial_state_len, :].masked_fill_(
+                    ~initial_valid[:, None, :, None], 0
+                )
         state_len = initial_state_len
         state_coverage = initial_len
         page_cache = None
@@ -3351,12 +4808,14 @@ class TritonLODAttentionCore(nn.Module):
                     state_k,
                     state_v,
                     counts,
+                    key_norm_sums,
                     k[..., state_coverage:update_end, :],
                     v[..., state_coverage:update_end, :],
                     state_len=state_len,
                     ctx_len=query_begin + update_end - bswa_begin,
                     available_context=update_end,
                     state_capacity=state_capacity,
+                    clustering_query_scale=clustering_query_scale,
                 )
                 if page_cache is not None:
                     if old_slot_remap is not None:
@@ -3394,12 +4853,14 @@ class TritonLODAttentionCore(nn.Module):
                 state_k,
                 state_v,
                 counts,
+                key_norm_sums,
                 k[..., state_coverage:update_end, :],
                 v[..., state_coverage:update_end, :],
                 state_len=state_len,
                 ctx_len=min(prefill_len, update_end + self.local_len),
                 available_context=update_end,
                 state_capacity=state_capacity,
+                clustering_query_scale=clustering_query_scale,
             )
             if page_cache is not None:
                 if old_slot_remap is not None:
@@ -3512,6 +4973,8 @@ class TritonLODAttentionCore(nn.Module):
             "recent_len": recent_len,
             "total_len": prefill_len,
         }
+        if key_norm_sums is not None:
+            self._lod_state["key_norm_sums"] = key_norm_sums.detach()
         if sink_k is not None and sink_v is not None:
             self._lod_state["sink_k"] = sink_k
             self._lod_state["sink_v"] = sink_v
@@ -3751,6 +5214,11 @@ class TritonLODAttentionCore(nn.Module):
         state_k = cache["state_k"]
         state_v = cache["state_v"]
         counts = cache["counts"]
+        key_norm_sums = cache.get("key_norm_sums")
+        if key_norm_sums is not None and not isinstance(
+            key_norm_sums, torch.Tensor
+        ):
+            raise TypeError("LOD key-norm sum cache is invalid")
         state_len = int(cache["state_len"])
         page_cache = cache.get("page_cache")
         owners = cache.get("owners")
@@ -3806,6 +5274,19 @@ class TritonLODAttentionCore(nn.Module):
                 int(cache["state_capacity"]),
                 self._state_capacity(total_len, state_len),
             )
+            if int(state_k.size(2)) < update_state_capacity:
+                state_k = _pad_sequence(state_k, update_state_capacity).clone()
+                state_v = _pad_sequence(state_v, update_state_capacity).clone()
+                counts = _pad_sequence(counts, update_state_capacity).clone()
+                if key_norm_sums is not None:
+                    key_norm_sums = _pad_sequence(
+                        key_norm_sums, update_state_capacity
+                    ).clone()
+                if page_cache is not None:
+                    self._grow_slot_page_table(
+                        page_cache, required_slots=update_state_capacity
+                    )
+            clustering_query_scale = self._state_clustering_query_scale(q)
             (
                 state_k,
                 state_v,
@@ -3817,12 +5298,14 @@ class TritonLODAttentionCore(nn.Module):
                 state_k,
                 state_v,
                 counts,
+                key_norm_sums,
                 overflow_k,
                 overflow_v,
                 state_len=state_len,
                 ctx_len=exact_floor + target_coverage,
                 available_context=target_coverage,
                 state_capacity=update_state_capacity,
+                clustering_query_scale=clustering_query_scale,
             )
             if page_cache is not None:
                 if old_slot_remap is not None:
@@ -3940,6 +5423,8 @@ class TritonLODAttentionCore(nn.Module):
             recent_len=recent_len,
             total_len=total_len,
         )
+        if key_norm_sums is not None:
+            cache["key_norm_sums"] = key_norm_sums.detach()
         if owners is not None:
             cache["owners"] = owners.detach()
             cache["exact_k"] = exact_k.detach()

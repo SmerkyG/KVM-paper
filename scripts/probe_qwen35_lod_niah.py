@@ -234,6 +234,16 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--virtual-page-storage", action="store_true")
     parser.add_argument("--state-growth-factor", type=float, default=16.0)
+    parser.add_argument(
+        "--state-clustering-geometry",
+        choices=("raw", "coherence"),
+        default="raw",
+    )
+    parser.add_argument(
+        "--exact-coherence-matmul",
+        action="store_true",
+        help="Use the slower two-GEMM BF16 reference for coherence routing.",
+    )
     parser.add_argument("--prefill-chunk-length", type=int)
     parser.add_argument("--prefill-local-length", type=int)
     parser.add_argument("--prefill-state-update-length", type=int)
@@ -363,6 +373,18 @@ def main() -> None:
                 module.page_summary_quant_bits = args.page_summary_quant_bits
                 module.page_summary_scale_mode = args.page_summary_scale_mode
                 module.virtual_page_storage = args.virtual_page_storage
+                module.state_clustering_normalization = "none"
+                module.state_clustering_centroid_rescale = (
+                    "coherence"
+                    if args.state_clustering_geometry == "coherence"
+                    else "none"
+                )
+                module.state_clustering_centroid_rescale_scope = (
+                    "assignment"
+                    if args.state_clustering_geometry == "coherence"
+                    else "all"
+                )
+                module.coherence_single_matmul = not args.exact_coherence_matmul
                 if args.prefill_chunk_length is not None:
                     module.prefill_chunk_len = args.prefill_chunk_length
                 if args.prefill_local_length is not None:

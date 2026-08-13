@@ -672,9 +672,12 @@ def verify_direct_page_append(device: torch.device) -> None:
             )
 
 
-def verify_residual_page_attention(device: torch.device) -> None:
-    batch, query_heads, kv_heads = 1, 4, 1
-    slots, tokens, query_len, head_dim = 4, 256, 8, 256
+def verify_residual_page_attention(
+    device: torch.device, kv_group_size: int = 4, head_dim: int = 256
+) -> None:
+    batch, kv_heads = 1, 1
+    query_heads = kv_heads * kv_group_size
+    slots, tokens, query_len = 4, 256, 8
     page_size, inline_pages_per_slot, page_capacity = 16, 16, 64
     page_k = torch.zeros(
         batch,
@@ -841,6 +844,53 @@ def verify_residual_page_attention(device: torch.device) -> None:
             actual_lse, expected_lse, rtol=2e-4, atol=2e-4
         )
 
+    prefix_slots = top_slots.clone()
+    prefix_slots[..., 1:] = -1
+    prefix_out, prefix_lse = query_major_residual_page_attention(
+        q,
+        state_k,
+        state_v,
+        state_counts,
+        page_k,
+        page_v,
+        page_sum_k,
+        page_sum_v,
+        page_counts,
+        slot_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        slot_lengths,
+        prefix_slots,
+        kv_group_size=query_heads // kv_heads,
+        scale=scale,
+        hash_probes=0,
+        page_block_n=16,
+    )
+    one_route_out, one_route_lse = query_major_residual_page_attention(
+        q,
+        state_k,
+        state_v,
+        state_counts,
+        page_k,
+        page_v,
+        page_sum_k,
+        page_sum_v,
+        page_counts,
+        slot_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        slot_lengths,
+        top_slots[..., :1],
+        kv_group_size=query_heads // kv_heads,
+        scale=scale,
+        hash_probes=0,
+        page_block_n=16,
+    )
+    torch.testing.assert_close(prefix_out, one_route_out)
+    torch.testing.assert_close(prefix_lse, one_route_lse)
+
     (
         quantized_page_sum_k,
         quantized_page_sum_v,
@@ -918,6 +968,67 @@ def verify_residual_page_attention(device: torch.device) -> None:
         indexed_out.float(), expected_out, rtol=2e-2, atol=8e-3
     )
     torch.testing.assert_close(indexed_lse, expected_lse, rtol=2e-4, atol=2e-4)
+    indexed_quantized_out, indexed_quantized_lse = (
+        query_major_indexed_residual_page_attention(
+            q,
+            state_k,
+            state_v,
+            state_counts,
+            leaf_k,
+            leaf_v,
+            page_indices,
+            page_sum_k[..., :1, :],
+            page_sum_v[..., :1, :],
+            page_counts,
+            slot_pages,
+            overflow_page_keys,
+            overflow_page_values,
+            overflow_used,
+            slot_lengths,
+            top_slots,
+            kv_group_size=query_heads // kv_heads,
+            scale=scale,
+            hash_probes=0,
+            page_block_n=16,
+            quantized_page_sum_k=quantized_page_sum_k,
+            quantized_page_sum_v=quantized_page_sum_v,
+            page_sum_k_scales=page_sum_k_scales,
+            page_sum_v_scales=page_sum_v_scales,
+        )
+    )
+    torch.testing.assert_close(
+        indexed_quantized_out.float(), expected_out, rtol=3e-2, atol=1.5e-2
+    )
+    torch.testing.assert_close(
+        indexed_quantized_lse, expected_lse, rtol=2e-3, atol=3e-3
+    )
+    invalid_slots = torch.full_like(top_slots, -1)
+    invalid_out, invalid_lse = query_major_indexed_residual_page_attention(
+        q,
+        state_k,
+        state_v,
+        state_counts,
+        leaf_k,
+        leaf_v,
+        page_indices,
+        page_sum_k,
+        page_sum_v,
+        page_counts,
+        slot_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        slot_lengths,
+        invalid_slots,
+        kv_group_size=query_heads // kv_heads,
+        scale=scale,
+        hash_probes=0,
+        page_block_n=16,
+    )
+    if bool(invalid_out.ne(0).any().item()):
+        raise AssertionError("invalid recursive routes produced nonzero output")
+    if bool((invalid_lse != -torch.inf).any().item()):
+        raise AssertionError("invalid recursive routes produced finite mass")
 
     parallel_out, parallel_lse = query_major_indexed_residual_page_attention(
         q[..., :1, :].contiguous(),

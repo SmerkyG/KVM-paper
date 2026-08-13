@@ -77,6 +77,630 @@ def _lookup_page_id(
 
 
 @triton.jit
+def _candidate_page_mass_kernel(
+    q,
+    page_sum_k,
+    page_counts,
+    slot_pages,
+    overflow_page_keys,
+    overflow_page_values,
+    overflow_used,
+    slot_lengths,
+    candidates,
+    output_scores,
+    query_len,
+    QUERY_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    KV_GROUP_SIZE: tl.constexpr,
+    PAGE_CAPACITY: tl.constexpr,
+    STATE_CAPACITY: tl.constexpr,
+    INLINE_PAGES_PER_SLOT: tl.constexpr,
+    HASH_CAPACITY: tl.constexpr,
+    HASH_PROBES: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    PAGE_SIZE: tl.constexpr,
+    CANDIDATE_COUNT: tl.constexpr,
+    SCALE: tl.constexpr,
+    PAGE_BLOCK_N: tl.constexpr,
+):
+    """Estimate candidate-slot log-mass from its existing page centroids."""
+    query_row = tl.program_id(0).to(tl.int64)
+    candidate_rank = tl.program_id(1).to(tl.int64)
+    batch_head = query_row // query_len
+    batch = batch_head // QUERY_HEADS
+    query_head = batch_head - batch * QUERY_HEADS
+    kv_head = query_head // KV_GROUP_SIZE
+    kv_row = batch * KV_HEADS + kv_head
+    slot = tl.load(
+        candidates + query_row * CANDIDATE_COUNT + candidate_rank
+    ).to(tl.int64)
+    valid_slot = (slot >= 0) & (slot < STATE_CAPACITY)
+    slot = tl.where(valid_slot, slot, 0)
+    key_count = tl.load(
+        slot_lengths + kv_row * STATE_CAPACITY + slot,
+        mask=valid_slot,
+        other=0,
+    ).to(tl.int32)
+    slot_page_count = (key_count + PAGE_SIZE - 1) // PAGE_SIZE
+    dim = tl.arange(0, HEAD_DIM)
+    page_offset = tl.arange(0, PAGE_BLOCK_N)
+    query = tl.load(q + query_row * HEAD_DIM + dim)
+    maximum = tl.full((), -float("inf"), tl.float32)
+    denominator = tl.zeros((), tl.float32)
+    if HASH_PROBES == 0:
+        page_table = (
+            slot_pages
+            + (kv_row * STATE_CAPACITY + slot) * INLINE_PAGES_PER_SLOT
+        )
+
+    for page_begin in tl.range(0, slot_page_count, PAGE_BLOCK_N, num_stages=1):
+        page_ordinal = page_begin + page_offset
+        valid_page = valid_slot & (page_ordinal < slot_page_count)
+        if HASH_PROBES == 0:
+            page_id = tl.load(
+                page_table + page_ordinal,
+                mask=valid_page,
+                other=0,
+            ).to(tl.int64)
+        else:
+            page_id = _lookup_page_id(
+                slot_pages,
+                overflow_page_keys,
+                overflow_page_values,
+                overflow_used,
+                kv_row,
+                slot,
+                page_ordinal,
+                valid_page,
+                STATE_CAPACITY,
+                INLINE_PAGES_PER_SLOT,
+                PAGE_CAPACITY,
+                HASH_CAPACITY,
+                HASH_PROBES,
+            ).to(tl.int64)
+        valid_page &= (page_id >= 0) & (page_id < PAGE_CAPACITY)
+        page_id = tl.where(valid_page, page_id, 0)
+        count = tl.load(
+            page_counts + kv_row * PAGE_CAPACITY + page_id,
+            mask=valid_page,
+            other=1,
+        ).to(tl.float32)
+        key_sum = tl.load(
+            page_sum_k
+            + (kv_row * PAGE_CAPACITY + page_id[:, None]) * HEAD_DIM
+            + dim[None, :],
+            mask=valid_page[:, None],
+            other=0.0,
+        ).to(tl.float32)
+        score = (
+            SCALE
+            * tl.sum(
+                (key_sum / count[:, None]) * query[None, :].to(tl.float32),
+                axis=1,
+            )
+            + tl.log(count)
+        )
+        score = tl.where(valid_page, score, -float("inf"))
+        block_maximum = tl.max(score, axis=0)
+        new_maximum = tl.maximum(maximum, block_maximum)
+        correction = tl.exp(maximum - new_maximum)
+        probability = tl.where(valid_page, tl.exp(score - new_maximum), 0.0)
+        denominator = denominator * correction + tl.sum(probability, axis=0)
+        maximum = new_maximum
+
+    mass_score = tl.where(
+        valid_slot & (denominator > 0.0),
+        maximum + tl.log(denominator),
+        -float("inf"),
+    )
+    tl.store(
+        output_scores + query_row * CANDIDATE_COUNT + candidate_rank,
+        mass_score,
+    )
+
+
+@triton.jit
+def _candidate_leaf_mass_kernel(
+    q,
+    page_k,
+    leaf_k,
+    page_indices,
+    page_counts,
+    slot_pages,
+    overflow_page_keys,
+    overflow_page_values,
+    overflow_used,
+    slot_lengths,
+    candidates,
+    output_scores,
+    query_len,
+    QUERY_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    KV_GROUP_SIZE: tl.constexpr,
+    PAGE_CAPACITY: tl.constexpr,
+    LEAF_CAPACITY: tl.constexpr,
+    STATE_CAPACITY: tl.constexpr,
+    INLINE_PAGES_PER_SLOT: tl.constexpr,
+    HASH_CAPACITY: tl.constexpr,
+    HASH_PROBES: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    PAGE_SIZE: tl.constexpr,
+    CANDIDATE_COUNT: tl.constexpr,
+    SCALE: tl.constexpr,
+    VIRTUAL: tl.constexpr,
+):
+    """Compute exact token-level log-mass for a candidate state slot."""
+    query_row = tl.program_id(0).to(tl.int64)
+    candidate_rank = tl.program_id(1).to(tl.int64)
+    batch_head = query_row // query_len
+    batch = batch_head // QUERY_HEADS
+    query_head = batch_head - batch * QUERY_HEADS
+    kv_head = query_head // KV_GROUP_SIZE
+    kv_row = batch * KV_HEADS + kv_head
+    slot = tl.load(
+        candidates + query_row * CANDIDATE_COUNT + candidate_rank
+    ).to(tl.int64)
+    valid_slot = (slot >= 0) & (slot < STATE_CAPACITY)
+    slot = tl.where(valid_slot, slot, 0)
+    key_count = tl.load(
+        slot_lengths + kv_row * STATE_CAPACITY + slot,
+        mask=valid_slot,
+        other=0,
+    ).to(tl.int32)
+    slot_page_count = (key_count + PAGE_SIZE - 1) // PAGE_SIZE
+    dim = tl.arange(0, HEAD_DIM)
+    token_offset = tl.arange(0, PAGE_SIZE)
+    query = tl.load(q + query_row * HEAD_DIM + dim).to(tl.float32)
+    maximum = tl.full((), -float("inf"), tl.float32)
+    denominator = tl.zeros((), tl.float32)
+    if HASH_PROBES == 0:
+        page_table = (
+            slot_pages
+            + (kv_row * STATE_CAPACITY + slot) * INLINE_PAGES_PER_SLOT
+        )
+
+    for page_ordinal in tl.range(0, slot_page_count, num_stages=1):
+        valid_page = valid_slot & (page_ordinal < slot_page_count)
+        if HASH_PROBES == 0:
+            page_id = tl.load(
+                page_table + page_ordinal,
+                mask=valid_page,
+                other=0,
+            ).to(tl.int64)
+        else:
+            page_id = _lookup_page_id(
+                slot_pages,
+                overflow_page_keys,
+                overflow_page_values,
+                overflow_used,
+                kv_row,
+                slot,
+                page_ordinal,
+                valid_page,
+                STATE_CAPACITY,
+                INLINE_PAGES_PER_SLOT,
+                PAGE_CAPACITY,
+                HASH_CAPACITY,
+                HASH_PROBES,
+            ).to(tl.int64)
+        valid_page &= (page_id >= 0) & (page_id < PAGE_CAPACITY)
+        page_id = tl.where(valid_page, page_id, 0)
+        page_count = tl.load(
+            page_counts + kv_row * PAGE_CAPACITY + page_id,
+            mask=valid_page,
+            other=0,
+        ).to(tl.int32)
+        valid_token = valid_page & (token_offset < page_count)
+        if VIRTUAL:
+            leaf_index = tl.load(
+                page_indices
+                + (kv_row * PAGE_CAPACITY + page_id) * PAGE_SIZE
+                + token_offset,
+                mask=valid_token,
+                other=0,
+            ).to(tl.int64)
+            valid_token &= (leaf_index >= 0) & (leaf_index < LEAF_CAPACITY)
+            leaf_index = tl.where(valid_token, leaf_index, 0)
+            key = tl.load(
+                leaf_k
+                + (kv_row * LEAF_CAPACITY + leaf_index[:, None]) * HEAD_DIM
+                + dim[None, :],
+                mask=valid_token[:, None],
+                other=0.0,
+            ).to(tl.float32)
+        else:
+            key = tl.load(
+                page_k
+                + (
+                    (kv_row * PAGE_CAPACITY + page_id) * PAGE_SIZE
+                    + token_offset[:, None]
+                )
+                * HEAD_DIM
+                + dim[None, :],
+                mask=valid_token[:, None],
+                other=0.0,
+            ).to(tl.float32)
+        score = SCALE * tl.sum(key * query[None, :], axis=1)
+        score = tl.where(valid_token, score, -float("inf"))
+        block_maximum = tl.max(score, axis=0)
+        new_maximum = tl.maximum(maximum, block_maximum)
+        correction = tl.exp(maximum - new_maximum)
+        probability = tl.where(valid_token, tl.exp(score - new_maximum), 0.0)
+        denominator = denominator * correction + tl.sum(probability, axis=0)
+        maximum = new_maximum
+
+    mass_score = tl.where(
+        valid_slot & (denominator > 0.0),
+        maximum + tl.log(denominator),
+        -float("inf"),
+    )
+    tl.store(
+        output_scores + query_row * CANDIDATE_COUNT + candidate_rank,
+        mass_score,
+    )
+
+
+@triton.jit
+def _candidate_virtual_leaf_target_output_kernel(
+    q,
+    baseline_output,
+    baseline_lse,
+    candidate_coarse_lse,
+    state_sum_v,
+    state_counts,
+    leaf_k,
+    leaf_v,
+    page_indices,
+    page_counts,
+    slot_pages,
+    overflow_page_keys,
+    overflow_page_values,
+    overflow_used,
+    slot_lengths,
+    candidates,
+    target_output,
+    query_len,
+    QUERY_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    KV_GROUP_SIZE: tl.constexpr,
+    PAGE_CAPACITY: tl.constexpr,
+    LEAF_CAPACITY: tl.constexpr,
+    STATE_CAPACITY: tl.constexpr,
+    INLINE_PAGES_PER_SLOT: tl.constexpr,
+    HASH_CAPACITY: tl.constexpr,
+    HASH_PROBES: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+    PAGE_SIZE: tl.constexpr,
+    CANDIDATE_COUNT: tl.constexpr,
+    SCALE: tl.constexpr,
+):
+    """Use all candidates as a local exact-output target for route utility."""
+    query_row = tl.program_id(0).to(tl.int64)
+    batch_head = query_row // query_len
+    batch = batch_head // QUERY_HEADS
+    query_head = batch_head - batch * QUERY_HEADS
+    kv_head = query_head // KV_GROUP_SIZE
+    kv_row = batch * KV_HEADS + kv_head
+    key_dim = tl.arange(0, HEAD_DIM)
+    value_dim = tl.arange(0, VALUE_DIM)
+    token_offset = tl.arange(0, PAGE_SIZE)
+    query = tl.load(q + query_row * HEAD_DIM + key_dim).to(tl.float32)
+    closed_lse = tl.load(baseline_lse + query_row).to(tl.float32)
+    numerator_adjustment = tl.zeros((VALUE_DIM,), tl.float32)
+    denominator_adjustment = tl.zeros((), tl.float32)
+
+    for candidate_rank in tl.static_range(0, CANDIDATE_COUNT):
+        slot = tl.load(
+            candidates + query_row * CANDIDATE_COUNT + candidate_rank
+        ).to(tl.int64)
+        valid_slot = (slot >= 0) & (slot < STATE_CAPACITY)
+        slot = tl.where(valid_slot, slot, 0)
+        key_count = tl.load(
+            slot_lengths + kv_row * STATE_CAPACITY + slot,
+            mask=valid_slot,
+            other=0,
+        ).to(tl.int32)
+        slot_page_count = (key_count + PAGE_SIZE - 1) // PAGE_SIZE
+        maximum = tl.full((), -float("inf"), tl.float32)
+        denominator = tl.zeros((), tl.float32)
+        accumulator = tl.zeros((VALUE_DIM,), tl.float32)
+        if HASH_PROBES == 0:
+            page_table = (
+                slot_pages
+                + (kv_row * STATE_CAPACITY + slot) * INLINE_PAGES_PER_SLOT
+            )
+
+        for page_ordinal in tl.range(0, slot_page_count, num_stages=1):
+            valid_page = valid_slot & (page_ordinal < slot_page_count)
+            if HASH_PROBES == 0:
+                page_id = tl.load(
+                    page_table + page_ordinal,
+                    mask=valid_page,
+                    other=0,
+                ).to(tl.int64)
+            else:
+                page_id = _lookup_page_id(
+                    slot_pages,
+                    overflow_page_keys,
+                    overflow_page_values,
+                    overflow_used,
+                    kv_row,
+                    slot,
+                    page_ordinal,
+                    valid_page,
+                    STATE_CAPACITY,
+                    INLINE_PAGES_PER_SLOT,
+                    PAGE_CAPACITY,
+                    HASH_CAPACITY,
+                    HASH_PROBES,
+                ).to(tl.int64)
+            valid_page &= (page_id >= 0) & (page_id < PAGE_CAPACITY)
+            page_id = tl.where(valid_page, page_id, 0)
+            page_count = tl.load(
+                page_counts + kv_row * PAGE_CAPACITY + page_id,
+                mask=valid_page,
+                other=0,
+            ).to(tl.int32)
+            valid_token = valid_page & (token_offset < page_count)
+            leaf_index = tl.load(
+                page_indices
+                + (kv_row * PAGE_CAPACITY + page_id) * PAGE_SIZE
+                + token_offset,
+                mask=valid_token,
+                other=0,
+            ).to(tl.int64)
+            valid_token &= (leaf_index >= 0) & (leaf_index < LEAF_CAPACITY)
+            leaf_index = tl.where(valid_token, leaf_index, 0)
+            key = tl.load(
+                leaf_k
+                + (kv_row * LEAF_CAPACITY + leaf_index[:, None]) * HEAD_DIM
+                + key_dim[None, :],
+                mask=valid_token[:, None],
+                other=0.0,
+            ).to(tl.float32)
+            value = tl.load(
+                leaf_v
+                + (kv_row * LEAF_CAPACITY + leaf_index[:, None]) * VALUE_DIM
+                + value_dim[None, :],
+                mask=valid_token[:, None],
+                other=0.0,
+            ).to(tl.float32)
+            score = SCALE * tl.sum(key * query[None, :], axis=1)
+            score = tl.where(valid_token, score, -float("inf"))
+            block_maximum = tl.max(score, axis=0)
+            new_maximum = tl.maximum(maximum, block_maximum)
+            correction = tl.exp(maximum - new_maximum)
+            probability = tl.where(valid_token, tl.exp(score - new_maximum), 0.0)
+            denominator = denominator * correction + tl.sum(probability, axis=0)
+            accumulator = accumulator * correction + tl.sum(
+                probability[:, None] * value, axis=0
+            )
+            maximum = new_maximum
+
+        exact_lse = maximum + tl.log(denominator)
+        exact_value = accumulator / denominator
+        coarse_lse = tl.load(
+            candidate_coarse_lse
+            + query_row * CANDIDATE_COUNT
+            + candidate_rank
+        ).to(tl.float32)
+        coarse_relative_mass = tl.exp(coarse_lse - closed_lse)
+        exact_relative_mass = tl.exp(exact_lse - closed_lse)
+        state_count = tl.load(
+            state_counts + kv_row * STATE_CAPACITY + slot,
+            mask=valid_slot,
+            other=1.0,
+        ).to(tl.float32)
+        coarse_value = tl.load(
+            state_sum_v
+            + (kv_row * STATE_CAPACITY + slot) * VALUE_DIM
+            + value_dim,
+            mask=valid_slot,
+            other=0.0,
+        ).to(tl.float32) / state_count
+        denominator_adjustment += exact_relative_mass - coarse_relative_mass
+        numerator_adjustment += (
+            exact_relative_mass * exact_value
+            - coarse_relative_mass * coarse_value
+        )
+
+    closed_output = tl.load(
+        baseline_output + query_row * VALUE_DIM + value_dim
+    ).to(tl.float32)
+    candidate_target = (closed_output + numerator_adjustment) / (
+        1.0 + denominator_adjustment
+    )
+    tl.store(target_output + query_row * VALUE_DIM + value_dim, candidate_target)
+
+
+@triton.jit
+def _candidate_virtual_leaf_output_utility_kernel(
+    q,
+    baseline_output,
+    target_output,
+    baseline_lse,
+    candidate_coarse_lse,
+    state_sum_v,
+    state_counts,
+    leaf_k,
+    leaf_v,
+    page_indices,
+    page_counts,
+    slot_pages,
+    overflow_page_keys,
+    overflow_page_values,
+    overflow_used,
+    slot_lengths,
+    candidates,
+    output_utility,
+    query_len,
+    QUERY_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    KV_GROUP_SIZE: tl.constexpr,
+    PAGE_CAPACITY: tl.constexpr,
+    LEAF_CAPACITY: tl.constexpr,
+    STATE_CAPACITY: tl.constexpr,
+    INLINE_PAGES_PER_SLOT: tl.constexpr,
+    HASH_CAPACITY: tl.constexpr,
+    HASH_PROBES: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+    PAGE_SIZE: tl.constexpr,
+    CANDIDATE_COUNT: tl.constexpr,
+    SCALE: tl.constexpr,
+):
+    """Rank a slot by its exact change to the approximate attention output."""
+    query_row = tl.program_id(0).to(tl.int64)
+    candidate_rank = tl.program_id(1).to(tl.int64)
+    batch_head = query_row // query_len
+    batch = batch_head // QUERY_HEADS
+    query_head = batch_head - batch * QUERY_HEADS
+    kv_head = query_head // KV_GROUP_SIZE
+    kv_row = batch * KV_HEADS + kv_head
+    slot = tl.load(
+        candidates + query_row * CANDIDATE_COUNT + candidate_rank
+    ).to(tl.int64)
+    valid_slot = (slot >= 0) & (slot < STATE_CAPACITY)
+    slot = tl.where(valid_slot, slot, 0)
+    key_count = tl.load(
+        slot_lengths + kv_row * STATE_CAPACITY + slot,
+        mask=valid_slot,
+        other=0,
+    ).to(tl.int32)
+    slot_page_count = (key_count + PAGE_SIZE - 1) // PAGE_SIZE
+    key_dim = tl.arange(0, HEAD_DIM)
+    value_dim = tl.arange(0, VALUE_DIM)
+    token_offset = tl.arange(0, PAGE_SIZE)
+    query = tl.load(q + query_row * HEAD_DIM + key_dim).to(tl.float32)
+    maximum = tl.full((), -float("inf"), tl.float32)
+    denominator = tl.zeros((), tl.float32)
+    accumulator = tl.zeros((VALUE_DIM,), tl.float32)
+    if HASH_PROBES == 0:
+        page_table = (
+            slot_pages
+            + (kv_row * STATE_CAPACITY + slot) * INLINE_PAGES_PER_SLOT
+        )
+
+    for page_ordinal in tl.range(0, slot_page_count, num_stages=1):
+        valid_page = valid_slot & (page_ordinal < slot_page_count)
+        if HASH_PROBES == 0:
+            page_id = tl.load(
+                page_table + page_ordinal,
+                mask=valid_page,
+                other=0,
+            ).to(tl.int64)
+        else:
+            page_id = _lookup_page_id(
+                slot_pages,
+                overflow_page_keys,
+                overflow_page_values,
+                overflow_used,
+                kv_row,
+                slot,
+                page_ordinal,
+                valid_page,
+                STATE_CAPACITY,
+                INLINE_PAGES_PER_SLOT,
+                PAGE_CAPACITY,
+                HASH_CAPACITY,
+                HASH_PROBES,
+            ).to(tl.int64)
+        valid_page &= (page_id >= 0) & (page_id < PAGE_CAPACITY)
+        page_id = tl.where(valid_page, page_id, 0)
+        page_count = tl.load(
+            page_counts + kv_row * PAGE_CAPACITY + page_id,
+            mask=valid_page,
+            other=0,
+        ).to(tl.int32)
+        valid_token = valid_page & (token_offset < page_count)
+        leaf_index = tl.load(
+            page_indices
+            + (kv_row * PAGE_CAPACITY + page_id) * PAGE_SIZE
+            + token_offset,
+            mask=valid_token,
+            other=0,
+        ).to(tl.int64)
+        valid_token &= (leaf_index >= 0) & (leaf_index < LEAF_CAPACITY)
+        leaf_index = tl.where(valid_token, leaf_index, 0)
+        key = tl.load(
+            leaf_k
+            + (kv_row * LEAF_CAPACITY + leaf_index[:, None]) * HEAD_DIM
+            + key_dim[None, :],
+            mask=valid_token[:, None],
+            other=0.0,
+        ).to(tl.float32)
+        value = tl.load(
+            leaf_v
+            + (kv_row * LEAF_CAPACITY + leaf_index[:, None]) * VALUE_DIM
+            + value_dim[None, :],
+            mask=valid_token[:, None],
+            other=0.0,
+        ).to(tl.float32)
+        score = SCALE * tl.sum(key * query[None, :], axis=1)
+        score = tl.where(valid_token, score, -float("inf"))
+        block_maximum = tl.max(score, axis=0)
+        new_maximum = tl.maximum(maximum, block_maximum)
+        correction = tl.exp(maximum - new_maximum)
+        probability = tl.where(valid_token, tl.exp(score - new_maximum), 0.0)
+        denominator = denominator * correction + tl.sum(probability, axis=0)
+        accumulator = accumulator * correction + tl.sum(
+            probability[:, None] * value, axis=0
+        )
+        maximum = new_maximum
+
+    exact_lse = maximum + tl.log(denominator)
+    exact_value = accumulator / denominator
+    closed_lse = tl.load(baseline_lse + query_row).to(tl.float32)
+    coarse_lse = tl.load(
+        candidate_coarse_lse
+        + query_row * CANDIDATE_COUNT
+        + candidate_rank
+    ).to(tl.float32)
+    coarse_relative_mass = tl.exp(coarse_lse - closed_lse)
+    exact_relative_mass = tl.exp(exact_lse - closed_lse)
+    new_denominator = 1.0 - coarse_relative_mass + exact_relative_mass
+    closed_output = tl.load(
+        baseline_output + query_row * VALUE_DIM + value_dim
+    ).to(tl.float32)
+    state_count = tl.load(
+        state_counts + (kv_row * STATE_CAPACITY + slot),
+        mask=valid_slot,
+        other=1.0,
+    ).to(tl.float32)
+    coarse_value = tl.load(
+        state_sum_v
+        + (kv_row * STATE_CAPACITY + slot) * VALUE_DIM
+        + value_dim,
+        mask=valid_slot,
+        other=0.0,
+    ).to(tl.float32) / state_count
+    opened_output = (
+        closed_output
+        - coarse_relative_mass * coarse_value
+        + exact_relative_mass * exact_value
+    ) / new_denominator
+    candidate_target = tl.load(
+        target_output + query_row * VALUE_DIM + value_dim
+    ).to(tl.float32)
+    baseline_error = candidate_target - closed_output
+    opened_error = candidate_target - opened_output
+    utility = tl.sum(
+        baseline_error * baseline_error - opened_error * opened_error,
+        axis=0,
+    )
+    utility = tl.where(
+        valid_slot & (denominator > 0.0) & (new_denominator > 0.0),
+        utility,
+        -float("inf"),
+    )
+    tl.store(
+        output_utility + query_row * CANDIDATE_COUNT + candidate_rank,
+        utility,
+    )
+
+
+@triton.jit
 def _assign_page_ordinals_kernel(
     owners,
     slot_lengths,
@@ -1828,8 +2452,11 @@ def _query_major_residual_page_attention_kernel(
     route_begin = active_route if ROUTE_PARALLEL else 0
     route_end = active_route + 1 if ROUTE_PARALLEL else ROUTE_COUNT
     for route in tl.range(route_begin, route_end, num_stages=1):
-        slot = tl.load(top_slots + query_row * ROUTE_COUNT + route).to(tl.int64)
-        valid_slot = (slot >= 0) & (slot < STATE_CAPACITY)
+        routed_slot = tl.load(
+            top_slots + query_row * ROUTE_COUNT + route
+        ).to(tl.int64)
+        valid_slot = (routed_slot >= 0) & (routed_slot < STATE_CAPACITY)
+        slot = tl.where(valid_slot, routed_slot, 0)
         key_count = tl.load(
             slot_lengths + kv_row * STATE_CAPACITY + slot,
             mask=valid_slot,
@@ -1868,6 +2495,7 @@ def _query_major_residual_page_attention_kernel(
                     HASH_PROBES,
                 ).to(tl.int64)
             valid_page &= (page_id >= 0) & (page_id < PAGE_CAPACITY)
+            page_id = tl.where(valid_page, page_id, 0)
             count = tl.load(
                 page_counts + kv_row * PAGE_CAPACITY + page_id,
                 mask=valid_page,
@@ -2011,6 +2639,7 @@ def _query_major_residual_page_attention_kernel(
                 other=0,
             ).to(tl.int64)
             valid_token &= (leaf_index >= 0) & (leaf_index < LEAF_CAPACITY)
+            leaf_index = tl.where(valid_token, leaf_index, 0)
             if QUANTIZED:
                 quantized_count = tl.load(
                     page_quantized_counts
@@ -2142,6 +2771,414 @@ def _query_major_residual_page_attention_kernel(
             -float("inf"),
         ),
     )
+
+
+def refine_route_candidates_by_page_mass(
+    q: torch.Tensor,
+    page_sum_k: torch.Tensor,
+    page_counts: torch.Tensor,
+    slot_pages: torch.Tensor,
+    overflow_page_keys: torch.Tensor,
+    overflow_page_values: torch.Tensor,
+    overflow_used: torch.Tensor,
+    slot_lengths: torch.Tensor,
+    candidates: torch.Tensor,
+    *,
+    kv_group_size: int,
+    scale: float,
+    hash_probes: int = 8,
+    page_size: int = 16,
+    page_block_n: int = 16,
+) -> torch.Tensor:
+    """Return query-dependent page-centroid log-mass for candidate slots."""
+    tensors = (
+        q,
+        page_sum_k,
+        page_counts,
+        slot_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        slot_lengths,
+        candidates,
+    )
+    if not all(tensor.is_cuda for tensor in tensors):
+        raise ValueError("page-mass route refinement requires CUDA tensors")
+    batch, query_heads, query_len, head_dim = q.shape
+    kv_heads = int(page_sum_k.size(1))
+    candidate_count = int(candidates.size(-1))
+    if query_heads != kv_heads * kv_group_size:
+        raise ValueError("query/KV head grouping is inconsistent")
+    if tuple(candidates.shape[:3]) != (batch, query_heads, query_len):
+        raise ValueError("route candidates have the wrong query shape")
+    if not 8 <= candidate_count <= 128:
+        raise ValueError("page-mass refinement requires 8 to 128 candidates")
+    if int(page_sum_k.size(-1)) != head_dim:
+        raise ValueError("page-summary key dimension differs from the query")
+    if tuple(page_counts.shape) != tuple(page_sum_k.shape[:3]):
+        raise ValueError("page counts differ from page-summary storage")
+    if page_size != 16:
+        raise ValueError("page-mass refinement currently requires 16-token pages")
+    if page_block_n <= 0 or page_block_n & (page_block_n - 1):
+        raise ValueError("page-mass block size must be a power of two")
+    rows = batch * query_heads * query_len
+    scores = torch.empty(
+        batch,
+        query_heads,
+        query_len,
+        candidate_count,
+        dtype=torch.float32,
+        device=q.device,
+    )
+    _candidate_page_mass_kernel[(rows, candidate_count)](
+        q.contiguous(),
+        page_sum_k,
+        page_counts,
+        slot_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        slot_lengths,
+        candidates.contiguous(),
+        scores,
+        query_len,
+        QUERY_HEADS=query_heads,
+        KV_HEADS=kv_heads,
+        KV_GROUP_SIZE=kv_group_size,
+        PAGE_CAPACITY=int(page_sum_k.size(2)),
+        STATE_CAPACITY=int(slot_pages.size(2)),
+        INLINE_PAGES_PER_SLOT=int(slot_pages.size(3)),
+        HASH_CAPACITY=int(overflow_page_keys.size(2)),
+        HASH_PROBES=hash_probes,
+        HEAD_DIM=head_dim,
+        PAGE_SIZE=page_size,
+        CANDIDATE_COUNT=candidate_count,
+        SCALE=float(scale),
+        PAGE_BLOCK_N=page_block_n,
+        num_warps=2,
+    )
+    return scores
+
+
+def refine_route_candidates_by_leaf_mass(
+    q: torch.Tensor,
+    page_k: torch.Tensor,
+    page_counts: torch.Tensor,
+    slot_pages: torch.Tensor,
+    overflow_page_keys: torch.Tensor,
+    overflow_page_values: torch.Tensor,
+    overflow_used: torch.Tensor,
+    slot_lengths: torch.Tensor,
+    candidates: torch.Tensor,
+    *,
+    kv_group_size: int,
+    scale: float,
+    hash_probes: int = 8,
+    page_size: int = 16,
+) -> torch.Tensor:
+    """Return exact token-level log-mass for candidate state slots."""
+    tensors = (
+        q,
+        page_k,
+        page_counts,
+        slot_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        slot_lengths,
+        candidates,
+    )
+    if not all(tensor.is_cuda for tensor in tensors):
+        raise ValueError("leaf-mass route refinement requires CUDA tensors")
+    batch, query_heads, query_len, head_dim = q.shape
+    kv_heads = int(page_k.size(1))
+    candidate_count = int(candidates.size(-1))
+    if query_heads != kv_heads * kv_group_size:
+        raise ValueError("query/KV head grouping is inconsistent")
+    if tuple(candidates.shape[:3]) != (batch, query_heads, query_len):
+        raise ValueError("route candidates have the wrong query shape")
+    if not 8 <= candidate_count <= 128:
+        raise ValueError("leaf-mass refinement requires 8 to 128 candidates")
+    if tuple(page_k.shape[-2:]) != (page_size, head_dim):
+        raise ValueError("leaf-page geometry differs from the query")
+    if tuple(page_counts.shape) != tuple(page_k.shape[:3]):
+        raise ValueError("page counts differ from leaf-page storage")
+    if page_size != 16:
+        raise ValueError("leaf-mass refinement currently requires 16-token pages")
+    rows = batch * query_heads * query_len
+    scores = torch.empty(
+        batch,
+        query_heads,
+        query_len,
+        candidate_count,
+        dtype=torch.float32,
+        device=q.device,
+    )
+    _candidate_leaf_mass_kernel[(rows, candidate_count)](
+        q.contiguous(),
+        page_k,
+        page_k,
+        page_counts,
+        page_counts,
+        slot_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        slot_lengths,
+        candidates.contiguous(),
+        scores,
+        query_len,
+        QUERY_HEADS=query_heads,
+        KV_HEADS=kv_heads,
+        KV_GROUP_SIZE=kv_group_size,
+        PAGE_CAPACITY=int(page_k.size(2)),
+        LEAF_CAPACITY=1,
+        STATE_CAPACITY=int(slot_pages.size(2)),
+        INLINE_PAGES_PER_SLOT=int(slot_pages.size(3)),
+        HASH_CAPACITY=int(overflow_page_keys.size(2)),
+        HASH_PROBES=hash_probes,
+        HEAD_DIM=head_dim,
+        PAGE_SIZE=page_size,
+        CANDIDATE_COUNT=candidate_count,
+        SCALE=float(scale),
+        VIRTUAL=False,
+        num_warps=4,
+    )
+    return scores
+
+
+def refine_route_candidates_by_virtual_leaf_mass(
+    q: torch.Tensor,
+    leaf_k: torch.Tensor,
+    page_indices: torch.Tensor,
+    page_counts: torch.Tensor,
+    slot_pages: torch.Tensor,
+    overflow_page_keys: torch.Tensor,
+    overflow_page_values: torch.Tensor,
+    overflow_used: torch.Tensor,
+    slot_lengths: torch.Tensor,
+    candidates: torch.Tensor,
+    *,
+    kv_group_size: int,
+    scale: float,
+    hash_probes: int = 8,
+    page_size: int = 16,
+) -> torch.Tensor:
+    """Return exact candidate log-mass from virtual prompt-leaf pages."""
+    tensors = (
+        q,
+        leaf_k,
+        page_indices.contiguous(),
+        page_counts,
+        slot_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        slot_lengths,
+        candidates,
+    )
+    if not all(tensor.is_cuda for tensor in tensors):
+        raise ValueError("virtual leaf-mass refinement requires CUDA tensors")
+    batch, query_heads, query_len, head_dim = q.shape
+    kv_heads = int(leaf_k.size(1))
+    candidate_count = int(candidates.size(-1))
+    page_capacity = int(page_indices.size(2))
+    if query_heads != kv_heads * kv_group_size:
+        raise ValueError("query/KV head grouping is inconsistent")
+    if tuple(candidates.shape[:3]) != (batch, query_heads, query_len):
+        raise ValueError("route candidates have the wrong query shape")
+    if not 8 <= candidate_count <= 128:
+        raise ValueError("leaf-mass refinement requires 8 to 128 candidates")
+    if int(leaf_k.size(-1)) != head_dim:
+        raise ValueError("virtual leaf dimension differs from the query")
+    if tuple(page_indices.shape[-1:]) != (page_size,):
+        raise ValueError("virtual page geometry differs from the page size")
+    if tuple(page_counts.shape) != tuple(page_indices.shape[:3]):
+        raise ValueError("page counts differ from virtual page storage")
+    if page_size != 16:
+        raise ValueError("leaf-mass refinement currently requires 16-token pages")
+    rows = batch * query_heads * query_len
+    scores = torch.empty(
+        batch,
+        query_heads,
+        query_len,
+        candidate_count,
+        dtype=torch.float32,
+        device=q.device,
+    )
+    _candidate_leaf_mass_kernel[(rows, candidate_count)](
+        q.contiguous(),
+        leaf_k,
+        leaf_k,
+        page_indices.contiguous(),
+        page_counts,
+        slot_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        slot_lengths,
+        candidates.contiguous(),
+        scores,
+        query_len,
+        QUERY_HEADS=query_heads,
+        KV_HEADS=kv_heads,
+        KV_GROUP_SIZE=kv_group_size,
+        PAGE_CAPACITY=page_capacity,
+        LEAF_CAPACITY=int(leaf_k.size(2)),
+        STATE_CAPACITY=int(slot_pages.size(2)),
+        INLINE_PAGES_PER_SLOT=int(slot_pages.size(3)),
+        HASH_CAPACITY=int(overflow_page_keys.size(2)),
+        HASH_PROBES=hash_probes,
+        HEAD_DIM=head_dim,
+        PAGE_SIZE=page_size,
+        CANDIDATE_COUNT=candidate_count,
+        SCALE=float(scale),
+        VIRTUAL=True,
+        num_warps=4,
+    )
+    return scores
+
+
+def refine_route_candidates_by_virtual_leaf_output(
+    q: torch.Tensor,
+    baseline_output: torch.Tensor,
+    baseline_lse: torch.Tensor,
+    candidate_coarse_lse: torch.Tensor,
+    state_sum_v: torch.Tensor,
+    state_counts: torch.Tensor,
+    leaf_k: torch.Tensor,
+    leaf_v: torch.Tensor,
+    page_indices: torch.Tensor,
+    page_counts: torch.Tensor,
+    slot_pages: torch.Tensor,
+    overflow_page_keys: torch.Tensor,
+    overflow_page_values: torch.Tensor,
+    overflow_used: torch.Tensor,
+    slot_lengths: torch.Tensor,
+    candidates: torch.Tensor,
+    *,
+    kv_group_size: int,
+    scale: float,
+    hash_probes: int = 8,
+    page_size: int = 16,
+) -> torch.Tensor:
+    """Return error reduction toward the all-candidate exact-output target."""
+    tensors = (
+        q,
+        baseline_output,
+        baseline_lse,
+        candidate_coarse_lse,
+        state_sum_v,
+        state_counts,
+        leaf_k,
+        leaf_v,
+        page_indices,
+        page_counts,
+        slot_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        slot_lengths,
+        candidates,
+    )
+    if not all(tensor.is_cuda for tensor in tensors):
+        raise ValueError("virtual leaf-output refinement requires CUDA tensors")
+    batch, query_heads, query_len, head_dim = q.shape
+    kv_heads = int(leaf_k.size(1))
+    value_dim = int(leaf_v.size(-1))
+    candidate_count = int(candidates.size(-1))
+    page_capacity = int(page_indices.size(2))
+    expected_query_shape = (batch, query_heads, query_len)
+    if query_heads != kv_heads * kv_group_size:
+        raise ValueError("query/KV head grouping is inconsistent")
+    if tuple(candidates.shape[:3]) != expected_query_shape:
+        raise ValueError("route candidates have the wrong query shape")
+    if tuple(baseline_output.shape) != (*expected_query_shape, value_dim):
+        raise ValueError("baseline output has the wrong shape")
+    if tuple(baseline_lse.shape) != expected_query_shape:
+        raise ValueError("baseline LSE has the wrong shape")
+    if tuple(candidate_coarse_lse.shape) != tuple(candidates.shape):
+        raise ValueError("candidate coarse scores have the wrong shape")
+    if not 8 <= candidate_count <= 32:
+        raise ValueError("leaf-output refinement requires 8 to 32 candidates")
+    if int(leaf_k.size(-1)) != head_dim or leaf_k.shape[:3] != leaf_v.shape[:3]:
+        raise ValueError("virtual leaf K/V geometry is inconsistent")
+    if tuple(page_indices.shape[-1:]) != (page_size,):
+        raise ValueError("virtual page geometry differs from the page size")
+    if tuple(page_counts.shape) != tuple(page_indices.shape[:3]):
+        raise ValueError("page counts differ from virtual page storage")
+    if tuple(state_counts.shape) != tuple(state_sum_v.shape[:3]):
+        raise ValueError("state value sums and counts are inconsistent")
+    if page_size != 16:
+        raise ValueError("leaf-output refinement currently requires 16-token pages")
+    rows = batch * query_heads * query_len
+    target_output = torch.empty_like(baseline_output, dtype=torch.float32)
+    common_kernel_args = (
+        q.contiguous(),
+        baseline_output.contiguous(),
+        baseline_lse.contiguous(),
+        candidate_coarse_lse.contiguous(),
+        state_sum_v,
+        state_counts,
+        leaf_k,
+        leaf_v,
+        page_indices.contiguous(),
+        page_counts,
+        slot_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        slot_lengths,
+        candidates.contiguous(),
+    )
+    common_meta = {
+        "QUERY_HEADS": query_heads,
+        "KV_HEADS": kv_heads,
+        "KV_GROUP_SIZE": kv_group_size,
+        "PAGE_CAPACITY": page_capacity,
+        "LEAF_CAPACITY": int(leaf_k.size(2)),
+        "STATE_CAPACITY": int(slot_pages.size(2)),
+        "INLINE_PAGES_PER_SLOT": int(slot_pages.size(3)),
+        "HASH_CAPACITY": int(overflow_page_keys.size(2)),
+        "HASH_PROBES": hash_probes,
+        "HEAD_DIM": head_dim,
+        "VALUE_DIM": value_dim,
+        "PAGE_SIZE": page_size,
+        "CANDIDATE_COUNT": candidate_count,
+        "SCALE": float(scale),
+    }
+    _candidate_virtual_leaf_target_output_kernel[(rows,)](
+        *common_kernel_args,
+        target_output,
+        query_len,
+        **common_meta,
+        num_warps=4,
+    )
+    utility = torch.empty_like(candidate_coarse_lse, dtype=torch.float32)
+    _candidate_virtual_leaf_output_utility_kernel[(rows, candidate_count)](
+        q.contiguous(),
+        baseline_output.contiguous(),
+        target_output,
+        baseline_lse.contiguous(),
+        candidate_coarse_lse.contiguous(),
+        state_sum_v,
+        state_counts,
+        leaf_k,
+        leaf_v,
+        page_indices.contiguous(),
+        page_counts,
+        slot_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        slot_lengths,
+        candidates.contiguous(),
+        utility,
+        query_len,
+        **common_meta,
+        num_warps=4,
+    )
+    return utility
 
 
 def query_major_residual_page_attention(
@@ -5657,6 +6694,10 @@ __all__ = [
     "append_virtual_paged_kv",
     "paged_leaf_attention",
     "query_major_paged_leaf_attention",
+    "refine_route_candidates_by_leaf_mass",
+    "refine_route_candidates_by_page_mass",
+    "refine_route_candidates_by_virtual_leaf_mass",
+    "refine_route_candidates_by_virtual_leaf_output",
     "query_major_indexed_residual_page_attention",
     "query_major_residual_page_attention",
     "quantize_page_summaries_int8",

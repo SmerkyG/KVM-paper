@@ -233,7 +233,12 @@ def maybe_new_hybrid_hf_lod_cache(model: nn.Module):
             if layer_idx not in lod_indices
         }
         if not native_types or not native_types.issubset(
-            {"sliding_attention", "chunked_attention"}
+            {
+                "attention",
+                "full_attention",
+                "sliding_attention",
+                "chunked_attention",
+            }
         ):
             raise NotImplementedError(
                 "this hybrid decoder needs a native-cache bridge before it can use HF LOD"
