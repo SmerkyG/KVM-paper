@@ -44,6 +44,7 @@ class VLLMLayerLODPool:
         device: torch.device,
         has_query_norm: bool = False,
         has_key_norm: bool = False,
+        retain_prefix_rollback: bool = False,
     ) -> None:
         if dtype not in (torch.float16, torch.bfloat16):
             raise ValueError("vLLM LOD conversion requires a native FP16/BF16 KV cache")
@@ -76,7 +77,7 @@ class VLLMLayerLODPool:
             else "query"
         )
         local_window = settings.local_window
-        if settings.cache_ownership == "lod":
+        if settings.cache_ownership == "lod" and retain_prefix_rollback:
             # A completed cache may be reused at vLLM's preceding physical
             # block boundary. Keep at least one staging chunk exact so that
             # rolling a retained LOD cache back to that boundary only adjusts
@@ -894,7 +895,11 @@ class VLLMLayerLODPool:
                 else None
             )
             result, cache = self.engine(
-                q, k, v, use_cache=True, output_buffer=output_view
+                q,
+                k,
+                v,
+                use_cache=True,
+                output_buffer=output_view,
             )
             if cache is None:
                 raise AssertionError("direct LOD prefill did not return a cache")

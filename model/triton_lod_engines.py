@@ -377,9 +377,12 @@ class KernelRecursivePagedLODAttention(_KernelLODEngine):
         self.prefill_two_level_topk = min(3, default_open_count)
         self.split_prefill_local_attention = True
         self.leaf_num_warps = 1
-        self.recursive_page_block_n = 4
-        self.coarse_route_block_m = 16
-        self.coarse_route_num_warps = 4
+        self.prefill_route_block_m = 128
+        self.prefill_route_num_warps = 8
+        self.recursive_page_block_n = 2
+        self.coarse_route_block_m = 32
+        self.coarse_route_block_n = 64
+        self.coarse_route_num_warps = 8
         # Reusing route logits in a separate coarse reduction is faster than
         # the larger fused kernel on the target ROCm geometry.
         self.fused_prefill_route_coarse = False

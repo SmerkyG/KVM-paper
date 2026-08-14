@@ -49,7 +49,7 @@ class VLLMLODSettings:
     cache_ownership: str = "lod"
     native_staging_chunk: int = 1024
     native_cache_headroom: float = 1.5
-    prefill_local_backend: str = "torch"
+    prefill_local_backend: str = "aiter"
 
     @classmethod
     def from_environment(cls) -> VLLMLODSettings:
@@ -84,7 +84,7 @@ class VLLMLODSettings:
             ),
             prefill_local_backend=_choice(
                 "VLLM_LOD_PREFILL_LOCAL_BACKEND",
-                "torch",
+                "aiter",
                 ("torch", "aiter"),
             ),
         )

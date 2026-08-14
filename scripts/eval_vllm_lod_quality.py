@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import math
 import os
@@ -29,6 +30,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--long-prefill-token-threshold", type=int, default=0)
     parser.add_argument("--gpu-memory-utilization", type=float, default=0.8)
     parser.add_argument("--enforce-eager", action="store_true")
+    parser.add_argument("--lod-prefill-route-block-m", type=int)
+    parser.add_argument("--lod-prefill-route-num-warps", type=int)
+    parser.add_argument("--lod-recursive-page-block-n", type=int)
     parser.add_argument("--output", type=Path, required=True)
     return parser.parse_args()
 
@@ -163,6 +167,29 @@ def inspect_lod_model(model) -> dict[str, object]:
     }
 
 
+def configure_lod_model(
+    model,
+    *,
+    route_block_m: int | None,
+    route_num_warps: int | None,
+    page_block_n: int | None,
+) -> int:
+    """Apply evaluation-only kernel ablations to installed LOD engines."""
+    configured = 0
+    for module in model.modules():
+        pool = getattr(module, "_vllm_lod_pool", None)
+        if pool is None:
+            continue
+        if route_block_m is not None:
+            pool.engine.prefill_route_block_m = route_block_m
+        if route_num_warps is not None:
+            pool.engine.prefill_route_num_warps = route_num_warps
+        if page_block_n is not None:
+            pool.engine.recursive_page_block_n = page_block_n
+        configured += 1
+    return configured
+
+
 def evaluate_prolong(args: argparse.Namespace, tokenizer, llm) -> dict:
     from vllm import SamplingParams
 
@@ -276,6 +303,25 @@ def main() -> None:
         raise ValueError("batch size exceeds VLLM_LOD_POOL_SIZE")
     tokenizer = AutoTokenizer.from_pretrained(args.checkpoint, trust_remote_code=True)
     llm = make_llm(args)
+    tuning_requested = any(
+        value is not None
+        for value in (
+            args.lod_prefill_route_block_m,
+            args.lod_prefill_route_num_warps,
+            args.lod_recursive_page_block_n,
+        )
+    )
+    if args.mode == "lod" and tuning_requested:
+        configured = llm.apply_model(
+            functools.partial(
+                configure_lod_model,
+                route_block_m=args.lod_prefill_route_block_m,
+                route_num_warps=args.lod_prefill_route_num_warps,
+                page_block_n=args.lod_recursive_page_block_n,
+            )
+        )
+        if not configured or not all(value > 0 for value in configured):
+            raise RuntimeError("LOD evaluation tuning found no installed layers")
     lod_diagnostics_before = None
     if args.mode == "lod":
         diagnostics = llm.apply_model(inspect_lod_model)
@@ -322,6 +368,9 @@ def main() -> None:
         max_num_batched_tokens=args.max_num_batched_tokens,
         long_prefill_token_threshold=args.long_prefill_token_threshold,
         enforce_eager=args.enforce_eager,
+        lod_prefill_route_block_m=args.lod_prefill_route_block_m,
+        lod_prefill_route_num_warps=args.lod_prefill_route_num_warps,
+        lod_recursive_page_block_n=args.lod_recursive_page_block_n,
         lod_diagnostics_before=lod_diagnostics_before,
         lod_diagnostics_after=lod_diagnostics_after,
     )
