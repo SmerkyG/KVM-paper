@@ -1,0 +1,40 @@
+{
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "decode_interval_tokens": 299,
+  "decode_timings_seconds": [
+    1.8362653963267803,
+    1.9185672355815768,
+    1.7910031490027905
+  ],
+  "decode_tokens": 300,
+  "enforce_eager": false,
+  "length": 8192,
+  "lod_diagnostics": {
+    "catch_up_batches": 49,
+    "catch_up_rows": 192,
+    "decode_calls": 48,
+    "direct_prefills": 30,
+    "installs": 192,
+    "layers": 6
+  },
+  "marginal_decode_ms_per_batch_step": 6.141355840557794,
+  "marginal_decode_ms_per_token": 0.7676694800697242,
+  "marginal_decode_tokens_per_second": 1302.6439450337066,
+  "max_num_batched_tokens": 65536,
+  "mode": "lod",
+  "prefill_plus_decode_seconds": 2.475995530374348,
+  "prefill_prompt_tokens_per_second": 108819.90875310854,
+  "prefill_seconds": 0.6022427398711443,
+  "prefill_timings_seconds": [
+    0.6022427398711443,
+    0.5936294132843614,
+    0.66349330637604
+  ],
+  "repeats": 3,
+  "total_timings_seconds": [
+    2.4439310245215893,
+    2.5207394855096936,
+    2.475995530374348
+  ]
+}

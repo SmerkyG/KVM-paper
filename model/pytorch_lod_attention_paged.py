@@ -7,18 +7,15 @@ highest-mass page is attended exactly and the rest of that region is retained
 as one count-corrected residual summary.  Thus a recursive route reads one page
 per region without dropping or double-counting its remaining leaves.
 
-Physical K/V storage is independent of those logical region pages:
+The readable PyTorch reference stores physical K/V independently of those
+logical region pages:
 
 * ``page_size=None`` uses the existing flat BF16 archive;
 * a positive ``page_size`` recursively opens region pages while storing
   completed chronological K/V pages separately from the unfinished BF16 tail;
-* ``kv_bits=4`` packs completed pages into two signed nibbles per byte.
-
-INT4 pages use one BF16 mean anchor per page and one BF16 symmetric residual
-scale per channel group.  The unfinished page stays BF16, so cached decode does
-not requantize the whole archive for every token.  Small routed leaf sets are
-gathered and dequantized directly.  Large prefill sets fall back to the existing
-packed variable-length attention after materializing the archive once.
+* ``kv_bits=4`` is intentionally rejected here because the former reference
+  implementation quantized consecutive positions before region ownership was
+  known. Use ``KernelRecursivePagedLODAttention`` for region-owned INT4 pages.
 
 As with the fast flat implementation, this module is intended for inference.
 Inputs and outputs use the same post-QKV/post-RoPE head-separated layout as
@@ -136,6 +133,11 @@ class PagedTensor:
         group_size: int,
         dtype: torch.dtype,
     ) -> PagedTensor:
+        if bits == 4:
+            raise NotImplementedError(
+                "pure-PyTorch INT4 cannot quantize chronological pages; use "
+                "KernelRecursivePagedLODAttention for region-owned INT4"
+            )
         tensor = tensor.to(dtype)
         length = int(tensor.size(2))
         complete = length // page_size * page_size
@@ -882,6 +884,11 @@ class PagedTwoLevelLODAttention(_FastLocalMixin, TwoLevelLODAttention):
         default_open_count: int = 8,
     ) -> None:
         config = PagedLODConfig() if config is None else config
+        if config.kv_bits == 4:
+            raise NotImplementedError(
+                "pure-PyTorch INT4 cannot quantize chronological pages; use "
+                "KernelRecursivePagedLODAttention for region-owned INT4"
+            )
         super().__init__(config, default_open_count=default_open_count)
         self._posting_key: tuple[int, tuple[int, ...], int] | None = None
         self._postings: tuple[torch.Tensor, torch.Tensor] | None = None

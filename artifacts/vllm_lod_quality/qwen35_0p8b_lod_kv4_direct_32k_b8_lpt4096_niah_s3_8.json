@@ -1,0 +1,140 @@
+{
+  "accuracy": 1.0,
+  "attention_exercised": "direct_lod_prefill_and_decode",
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "correct": 8,
+  "elapsed_seconds": 56.62095117755234,
+  "enforce_eager": false,
+  "eval": "niah_s3",
+  "length": 32768,
+  "lod_diagnostics_after": {
+    "batched_cached_prefill_rows": 162,
+    "batched_cached_prefills": 66,
+    "catch_up_batches": 18,
+    "catch_up_rows": 18,
+    "custom_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "decode_calls": 48,
+    "direct_prefill_calls": 102,
+    "install_count": 48,
+    "native_append_calls": 0,
+    "pooled_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "routing_geometries": [
+      [
+        "none",
+        "coherence",
+        "none"
+      ]
+    ]
+  },
+  "lod_diagnostics_before": {
+    "batched_cached_prefill_rows": 0,
+    "batched_cached_prefills": 0,
+    "catch_up_batches": 0,
+    "catch_up_rows": 0,
+    "custom_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "decode_calls": 48,
+    "direct_prefill_calls": 0,
+    "install_count": 0,
+    "native_append_calls": 0,
+    "pooled_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "routing_geometries": [
+      [
+        "none",
+        "coherence",
+        "none"
+      ]
+    ]
+  },
+  "long_prefill_token_threshold": 4096,
+  "max_num_batched_tokens": 16384,
+  "mode": "lod",
+  "requested_samples": 8,
+  "samples": [
+    {
+      "exact": true,
+      "index": 0,
+      "input_tokens": 32512,
+      "response": ": 04a3e176-2871-468c-a7f2-0af9cbacc159.",
+      "target": "04a3e176-2871-468c-a7f2-0af9cbacc159"
+    },
+    {
+      "exact": true,
+      "index": 1,
+      "input_tokens": 32509,
+      "response": ": e20cc7a8-23da-4f37-82c5-538ffe7044e7.",
+      "target": "e20cc7a8-23da-4f37-82c5-538ffe7044e7"
+    },
+    {
+      "exact": true,
+      "index": 2,
+      "input_tokens": 32515,
+      "response": ": 4218e573-b8f4-4657-98d8-3675770ba616.",
+      "target": "4218e573-b8f4-4657-98d8-3675770ba616"
+    },
+    {
+      "exact": true,
+      "index": 3,
+      "input_tokens": 32513,
+      "response": ": 3a8d30e5-cd2f-4db0-a4ff-649484f0c437.",
+      "target": "3a8d30e5-cd2f-4db0-a4ff-649484f0c437"
+    },
+    {
+      "exact": true,
+      "index": 4,
+      "input_tokens": 32507,
+      "response": ": 91abd31a-a8c5-479e-89f4-8eaad57afab9.",
+      "target": "91abd31a-a8c5-479e-89f4-8eaad57afab9"
+    },
+    {
+      "exact": true,
+      "index": 5,
+      "input_tokens": 32519,
+      "response": ": 33dd4a2b-40b7-47ba-bf73-a915a212045e.",
+      "target": "33dd4a2b-40b7-47ba-bf73-a915a212045e"
+    },
+    {
+      "exact": true,
+      "index": 6,
+      "input_tokens": 32511,
+      "response": ": 615620f3-0fa7-4438-af3f-49f4f025ff13.",
+      "target": "615620f3-0fa7-4438-af3f-49f4f025ff13"
+    },
+    {
+      "exact": true,
+      "index": 7,
+      "input_tokens": 32509,
+      "response": ": f9f06012-53b8-467d-abc6-e45ca4c6563e.\nThe special magic uuid for expensive-distinction mentioned in the provided text is: f9f06012-53b8-",
+      "target": "f9f06012-53b8-467d-abc6-e45ca4c6563e"
+    }
+  ],
+  "total": 8
+}

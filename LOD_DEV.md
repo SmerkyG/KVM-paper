@@ -30,6 +30,20 @@ LOD attention.
 The corresponding `scripts/` entry points cover ProLong loss, NIAH, RULER and
 lm-eval evaluation, profiling, kernel verification, and full-remote comparison.
 
+The serving design for converting an already cached full-attention BF16 prefix
+into LOD state is recorded in
+[`docs/lod_full_cache_conversion.md`](docs/lod_full_cache_conversion.md). In
+particular, INT4 pages are semantic region-owned pages, never arbitrary
+consecutive physical-cache blocks.
+
+The first vLLM integration is an editable out-of-tree plugin under
+`integrations/vllm_lod`. It registers `--attention-backend CUSTOM`, preserves
+native prefill and prefix caching, converts native BF16 K/V into semantic LOD
+pages outside graph replay, and uses fixed-pool recursive decode with stable
+request indirection. Pool and graph-scratch memory is reserved before vLLM
+sizes its native cache, and captured padding uses distinct resettable rows.
+Its README lists launch settings and current limitations.
+
 ## Model-independent PyTorch API
 
 `CoarseLODAttention` keeps only the low-LOD state and exact local window;
@@ -115,6 +129,7 @@ install_hf_lod_attention(
         kv_bits=0,  # change only this storage policy to 4 for INT4 leaves
     ),
     open_count=8,
+    engine_backend="kernel",  # required for region-owned INT4 pages
 )
 lod_cache = new_hf_lod_cache(model)
 output = model.generate(
@@ -131,6 +146,12 @@ updates stage the new post-RoPE K/V block; the registered attention backend
 then consumes it in the correct causal order. Beam expansion and reordering are
 implemented, while partial cache rollback, padding, and non-causal attention
 are rejected explicitly.
+
+The pure-PyTorch paged reference intentionally rejects `kv_bits=4`: its older
+physical-page implementation grouped consecutive positions before ownership
+was known. The kernel recursive engine is the supported INT4 implementation;
+it computes anchors and residual scales only after leaves have been assigned
+to semantic state-region pages.
 
 Qwen3.5 interleaves softmax and recurrent linear-attention layers and therefore
 still uses `model/hf_qwen35_lod_attention.py` as a compatibility adapter. It

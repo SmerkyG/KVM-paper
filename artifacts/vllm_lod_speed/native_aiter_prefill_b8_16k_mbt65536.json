@@ -1,0 +1,33 @@
+{
+  "attention_backend": "ROCM_AITER_UNIFIED_ATTN",
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "decode_interval_tokens": 1,
+  "decode_timings_seconds": [
+    0.0024265479296445847,
+    0.0023310999386012554,
+    0.002037833910435438
+  ],
+  "decode_tokens": 2,
+  "enforce_eager": false,
+  "length": 16384,
+  "marginal_decode_ms_per_batch_step": 2.3310999386012554,
+  "marginal_decode_ms_per_token": 0.2913874923251569,
+  "marginal_decode_tokens_per_second": 3431.856295616519,
+  "max_num_batched_tokens": 65536,
+  "mode": "full",
+  "prefill_plus_decode_seconds": 1.025055669946596,
+  "prefill_prompt_tokens_per_second": 128405.71502836948,
+  "prefill_seconds": 1.0207645350601524,
+  "prefill_timings_seconds": [
+    1.0207645350601524,
+    1.0263222220819443,
+    0.9881173111498356
+  ],
+  "repeats": 3,
+  "total_timings_seconds": [
+    1.025055669946596,
+    1.0304783191531897,
+    0.9925348130054772
+  ]
+}

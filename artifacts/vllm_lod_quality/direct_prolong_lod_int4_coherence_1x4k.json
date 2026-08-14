@@ -1,0 +1,64 @@
+{
+  "attention_exercised": "direct_lod_prefill",
+  "batch_size": 1,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "elapsed_seconds": 4.374412024393678,
+  "enforce_eager": true,
+  "eval": "prolong",
+  "length": 4096,
+  "lod_diagnostics_after": {
+    "custom_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "decode_calls": 0,
+    "direct_prefill_calls": 6,
+    "install_count": 6,
+    "pooled_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ]
+  },
+  "lod_diagnostics_before": {
+    "custom_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "decode_calls": 0,
+    "direct_prefill_calls": 0,
+    "install_count": 0,
+    "pooled_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ]
+  },
+  "loss": 3.374279576419301,
+  "mode": "lod",
+  "perplexity": 29.203237500098783,
+  "prediction_tokens": 4095,
+  "requested_samples": 1,
+  "samples": [
+    {
+      "loss": 3.374279576419301,
+      "perplexity": 29.203237500098783,
+      "sample": 0,
+      "tokens": 4096
+    }
+  ]
+}

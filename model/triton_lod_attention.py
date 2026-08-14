@@ -3237,6 +3237,10 @@ class TritonLODAttentionCore(nn.Module):
             else torch.int32
         )
         cache: dict[str, torch.Tensor | int] = {
+            # These pages are allocated from per-region postings below.  This
+            # is a semantic contract, not a description of the physical flat
+            # leaf backing used by virtual-page storage.
+            "region_owned_pages": True,
             "slot_pages": torch.full(
                 (
                     batch,
@@ -4580,7 +4584,70 @@ class TritonLODAttentionCore(nn.Module):
         logical_prefill_len: int | None = None,
         prefill_valid_starts: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        batch_size, _, attention_len, _ = q.shape
+        output = self._run_prefill(
+            q,
+            k,
+            v,
+            logical_prefill_len=logical_prefill_len,
+            prefill_valid_starts=prefill_valid_starts,
+            build_cache_only=False,
+        )
+        if output is None:
+            raise AssertionError("attention prefill did not produce an output")
+        return output
+
+    @torch.compiler.disable
+    def _build_cache_from_bf16(
+        self,
+        k: torch.Tensor,
+        v: torch.Tensor,
+        *,
+        clustering_query: torch.Tensor | None = None,
+        logical_prefill_len: int | None = None,
+        prefill_valid_starts: torch.Tensor | None = None,
+    ) -> dict[str, object]:
+        """Construct LOD state from an existing post-RoPE BF16 K/V prefix.
+
+        This replays only state updates and semantic region-page construction.
+        It deliberately skips query attention and output materialization.  A
+        clustering query is needed only by the optional query-metric clustering
+        modes; ordinary key-only spherical/coherence routing needs K/V alone.
+        """
+        self._run_prefill(
+            clustering_query,
+            k,
+            v,
+            logical_prefill_len=logical_prefill_len,
+            prefill_valid_starts=prefill_valid_starts,
+            build_cache_only=True,
+        )
+        state = getattr(self, "_lod_state", None)
+        if not isinstance(state, dict):
+            raise AssertionError("LOD cache conversion did not produce state")
+        return state
+
+    def _run_prefill(
+        self,
+        q: torch.Tensor | None,
+        k: torch.Tensor,
+        v: torch.Tensor,
+        *,
+        logical_prefill_len: int | None,
+        prefill_valid_starts: torch.Tensor | None,
+        build_cache_only: bool,
+    ) -> torch.Tensor | None:
+        if k.ndim != 4 or v.ndim != 4 or k.shape[:3] != v.shape[:3]:
+            raise ValueError("prefill K/V must be matching rank-four tensors")
+        batch_size, _, attention_len, _ = k.shape
+        if q is not None and (
+            q.ndim != 4
+            or int(q.size(0)) != batch_size
+            or int(q.size(2)) != attention_len
+            or int(q.size(-1)) != int(k.size(-1))
+        ):
+            raise ValueError("prefill query geometry does not match cached K/V")
+        if not build_cache_only and q is None:
+            raise ValueError("attention prefill requires query states")
         prefill_chunk_len = self.prefill_chunk_len
         prefill_local_len = self.prefill_local_len
         prefill_state_update_len = self.prefill_state_update_len
@@ -4599,7 +4666,7 @@ class TritonLODAttentionCore(nn.Module):
             raise ValueError("prefill padding must be confined to the final chunk")
         if prefill_valid_starts is not None:
             prefill_valid_starts = prefill_valid_starts.to(
-                device=q.device, dtype=torch.long
+                device=k.device, dtype=torch.long
             )
             if tuple(prefill_valid_starts.shape) != (batch_size,):
                 raise ValueError("prefill valid starts must have one entry per row")
@@ -4621,22 +4688,35 @@ class TritonLODAttentionCore(nn.Module):
             )
         else:
             self._lod_padding_state_reserve = 0
-        clustering_query_scale = self._state_clustering_query_scale(
-            q[..., :prefill_len, :], valid_starts=prefill_valid_starts
+        if self.state_clustering_query_metric != "none" and q is None:
+            raise ValueError(
+                "full-cache conversion cannot reconstruct query-metric "
+                "clustering unless prefill queries are supplied"
+            )
+        clustering_query_scale = (
+            self._state_clustering_query_scale(
+                q[..., :prefill_len, :], valid_starts=prefill_valid_starts
+            )
+            if q is not None
+            else None
         )
         exact_lookback = prefill_local_len - prefill_chunk_len
         if getattr(self, "_lod_collect_stats", False):
             self._lod_route_stats = []
         front_len = min(attention_len, exact_lookback + self.chunk_len)
-        outputs = [
-            self._exact_attention(
-                q[..., :front_len, :],
-                k[..., :front_len, :],
-                v[..., :front_len, :],
-                causal=True,
-                valid_starts=prefill_valid_starts,
+        outputs = []
+        if not build_cache_only:
+            if q is None:
+                raise AssertionError("attention prefill query is missing")
+            outputs.append(
+                self._exact_attention(
+                    q[..., :front_len, :],
+                    k[..., :front_len, :],
+                    v[..., :front_len, :],
+                    causal=True,
+                    valid_starts=prefill_valid_starts,
+                )
             )
-        ]
 
         initial_len = min(prefill_len, self.chunk_len)
         separated_sink_len = (
@@ -4758,35 +4838,38 @@ class TritonLODAttentionCore(nn.Module):
             bswa_begin = max(0, query_begin - exact_lookback)
             if state_coverage != bswa_begin:
                 raise AssertionError("LOD prefill state coverage drifted")
-            local_branch = (
-                self._prefill_local_attention(
-                    q[..., bswa_begin:query_end, :],
-                    k[..., bswa_begin:query_end, :],
-                    v[..., bswa_begin:query_end, :],
-                    query_offset=query_begin - bswa_begin,
+            if not build_cache_only:
+                if q is None:
+                    raise AssertionError("attention prefill query is missing")
+                local_branch = (
+                    self._prefill_local_attention(
+                        q[..., bswa_begin:query_end, :],
+                        k[..., bswa_begin:query_end, :],
+                        v[..., bswa_begin:query_end, :],
+                        query_offset=query_begin - bswa_begin,
+                    )
+                    if self.split_prefill_local_attention
+                    else None
                 )
-                if self.split_prefill_local_attention
-                else None
-            )
-            outputs.append(
-                self._two_level_attention(
-                    q[..., query_begin:query_end, :],
-                    k[..., bswa_begin:query_end, :],
-                    v[..., bswa_begin:query_end, :],
-                    state_k,
-                    state_v,
-                    counts,
-                    owners,
-                    archive_k,
-                    archive_v,
-                    state_len=state_len,
-                    state_capacity=state_capacity,
-                    page_cache=page_cache,
-                    local_branch=local_branch,
-                    sink_k=sink_k,
-                    sink_v=sink_v,
+                outputs.append(
+                    self._two_level_attention(
+                        q[..., query_begin:query_end, :],
+                        k[..., bswa_begin:query_end, :],
+                        v[..., bswa_begin:query_end, :],
+                        state_k,
+                        state_v,
+                        counts,
+                        owners,
+                        archive_k,
+                        archive_v,
+                        state_len=state_len,
+                        state_capacity=state_capacity,
+                        page_cache=page_cache,
+                        local_branch=local_branch,
+                        sink_k=sink_k,
+                        sink_v=sink_v,
+                    )
                 )
-            )
 
             next_bswa_begin = (
                 max(0, query_begin + prefill_chunk_len - exact_lookback)
@@ -4986,6 +5069,8 @@ class TritonLODAttentionCore(nn.Module):
             self._lod_state["owners"] = owners.detach()
             self._lod_state["exact_k"] = archive_k.detach()
             self._lod_state["exact_v"] = archive_v.detach()
+        if build_cache_only:
+            return None
         return torch.cat(outputs, dim=2)
 
     @torch.compiler.disable

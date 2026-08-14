@@ -767,6 +767,60 @@ def _assign_page_ordinals_kernel(
 
 
 @triton.jit
+def _rehash_overflow_pages_kernel(
+    source_keys,
+    source_values,
+    destination_keys,
+    destination_values,
+    destination_used,
+    destination_flag,
+    source_slot,
+    destination_slot,
+    SOURCE_BATCH_STRIDE: tl.constexpr,
+    SOURCE_HEAD_STRIDE: tl.constexpr,
+    DESTINATION_BATCH_STRIDE: tl.constexpr,
+    DESTINATION_HEAD_STRIDE: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    SOURCE_CAPACITY: tl.constexpr,
+    DESTINATION_CAPACITY: tl.constexpr,
+    HASH_PROBES: tl.constexpr,
+):
+    entry = tl.program_id(0).to(tl.int64)
+    head = entry // SOURCE_CAPACITY
+    source_bucket = entry - head * SOURCE_CAPACITY
+    source_offset = (
+        source_slot * SOURCE_BATCH_STRIDE
+        + head * SOURCE_HEAD_STRIDE
+        + source_bucket
+    )
+    key = tl.load(source_keys + source_offset).to(tl.int32)
+    value = tl.load(source_values + source_offset).to(tl.int32)
+    active = (head < KV_HEADS) & (key >= 0)
+    index = _page_hash_index(key, DESTINATION_CAPACITY)
+    destination_base = (
+        destination_slot * DESTINATION_BATCH_STRIDE
+        + head * DESTINATION_HEAD_STRIDE
+    )
+    tl.atomic_xchg(destination_used, 1, mask=active, sem="relaxed")
+    for _ in tl.static_range(0, HASH_PROBES):
+        old_key = tl.atomic_cas(
+            destination_keys + destination_base + index,
+            tl.where(active, -1, -2),
+            key,
+            sem="relaxed",
+        )
+        claimed = active & ((old_key == -1) | (old_key == key))
+        tl.store(
+            destination_values + destination_base + index,
+            value,
+            mask=claimed,
+        )
+        active &= ~claimed
+        index = (index + 1) & (DESTINATION_CAPACITY - 1)
+    tl.atomic_xchg(destination_flag, 1, mask=active, sem="relaxed")
+
+
+@triton.jit
 def _write_paged_kv_kernel(
     k,
     v,
@@ -2378,6 +2432,7 @@ def _query_major_residual_page_attention_kernel(
     state_k,
     state_v,
     state_counts,
+    cache_indices,
     page_k,
     page_v,
     page_indices,
@@ -2436,9 +2491,10 @@ def _query_major_residual_page_attention_kernel(
     active_route = tl.program_id(1).to(tl.int64)
     batch_head = query_row // query_len
     batch = batch_head // QUERY_HEADS
+    cache_batch = tl.load(cache_indices + batch).to(tl.int64)
     query_head = batch_head - batch * QUERY_HEADS
     kv_head = query_head // KV_GROUP_SIZE
-    kv_row = batch * KV_HEADS + kv_head
+    kv_row = cache_batch * KV_HEADS + kv_head
 
     head_offset = tl.arange(0, HEAD_DIM)
     value_offset = tl.arange(0, VALUE_DIM)
@@ -2697,7 +2753,7 @@ def _query_major_residual_page_attention_kernel(
                 quantized_values = tl.zeros((VALUE_DIM,), tl.float32)
             keys = tl.load(
                 leaf_k
-                + batch * LEAF_K_BATCH_STRIDE
+                + cache_batch * LEAF_K_BATCH_STRIDE
                 + kv_head * LEAF_K_HEAD_STRIDE
                 + leaf_index[:, None] * LEAF_K_TOKEN_STRIDE
                 + head_offset[None, :],
@@ -2706,7 +2762,7 @@ def _query_major_residual_page_attention_kernel(
             )
             values = tl.load(
                 leaf_v
-                + batch * LEAF_V_BATCH_STRIDE
+                + cache_batch * LEAF_V_BATCH_STRIDE
                 + kv_head * LEAF_V_HEAD_STRIDE
                 + leaf_index[:, None] * LEAF_V_TOKEN_STRIDE
                 + value_offset[None, :],
@@ -3198,6 +3254,7 @@ def query_major_residual_page_attention(
     slot_lengths: torch.Tensor,
     top_slots: torch.Tensor,
     *,
+    cache_indices: torch.Tensor | None = None,
     kv_group_size: int,
     scale: float,
     hash_probes: int = 8,
@@ -3279,6 +3336,15 @@ def query_major_residual_page_attention(
     if not all(tensor.is_cuda for tensor in tensors):
         raise ValueError("residual-page attention requires CUDA tensors")
     batch, query_heads, query_len, head_dim = q.shape
+    cache_batch_size = int(storage_k.size(0))
+    if cache_indices is None:
+        if cache_batch_size != batch:
+            raise ValueError(
+                "cache indices are required when cache and query batches differ"
+            )
+        cache_indices = torch.arange(batch, dtype=torch.long, device=q.device)
+    elif tuple(cache_indices.shape) != (batch,):
+        raise ValueError("cache indices must contain one stable slot per query row")
     kv_heads = int(storage_k.size(1))
     value_dim = int(storage_v.size(-1))
     if query_heads != kv_heads * kv_group_size:
@@ -3289,8 +3355,18 @@ def query_major_residual_page_attention(
         raise ValueError("INT4 group size must divide K/V dimensions")
     if int(page_shape[3]) != 16:
         raise ValueError("residual-page attention requires 16-token pages")
-    expected_k_summary = (batch, kv_heads, int(page_shape[2]), head_dim)
-    expected_v_summary = (batch, kv_heads, int(page_shape[2]), value_dim)
+    expected_k_summary = (
+        cache_batch_size,
+        kv_heads,
+        int(page_shape[2]),
+        head_dim,
+    )
+    expected_v_summary = (
+        cache_batch_size,
+        kv_heads,
+        int(page_shape[2]),
+        value_dim,
+    )
     if quantized_summaries:
         if tuple(quantized_page_sum_k.shape) != expected_k_summary:
             raise ValueError("quantized page K summaries do not match the cache")
@@ -3343,6 +3419,7 @@ def query_major_residual_page_attention(
         state_k,
         state_v,
         state_counts,
+        cache_indices.contiguous(),
         storage_k,
         storage_v,
         page_indices if indexed else slot_pages,
@@ -3523,6 +3600,7 @@ def _decode_route_coarse_groups_kernel(
     state_k,
     state_v,
     counts,
+    cache_indices,
     candidate_scores,
     candidate_indices,
     group_out,
@@ -3551,6 +3629,7 @@ def _decode_route_coarse_groups_kernel(
     query_row = tl.program_id(0).to(tl.int64)
     group = tl.program_id(1).to(tl.int64)
     batch = query_row // QUERY_HEADS
+    cache_batch = tl.load(cache_indices + batch).to(tl.int64)
     query_head = query_row - batch * QUERY_HEADS
     kv_head = query_head // KV_GROUP_SIZE
     slot = group * GROUP_N + tl.arange(0, GROUP_N)
@@ -3559,15 +3638,17 @@ def _decode_route_coarse_groups_kernel(
     query = tl.load(q + query_row * HEAD_DIM + dim)
     count = tl.load(
         counts
-        + batch * COUNT_BATCH_STRIDE
+        + cache_batch * COUNT_BATCH_STRIDE
         + kv_head * COUNT_HEAD_STRIDE
         + slot * COUNT_TOKEN_STRIDE,
         mask=valid,
         other=1.0,
     ).to(tl.float32)
+    valid &= count > 0.0
+    count = tl.where(valid, count, 1.0)
     keys = tl.load(
         state_k
-        + batch * STATE_BATCH_STRIDE
+        + cache_batch * STATE_BATCH_STRIDE
         + kv_head * STATE_HEAD_STRIDE
         + slot[:, None] * STATE_TOKEN_STRIDE
         + dim[None, :],
@@ -3576,7 +3657,7 @@ def _decode_route_coarse_groups_kernel(
     )
     values = tl.load(
         state_v
-        + batch * STATE_V_BATCH_STRIDE
+        + cache_batch * STATE_V_BATCH_STRIDE
         + kv_head * STATE_V_HEAD_STRIDE
         + slot[:, None] * STATE_V_TOKEN_STRIDE
         + dim[None, :],
@@ -3630,9 +3711,12 @@ def _decode_route_coarse_groups_kernel(
     group_row = query_row * MAX_GROUPS + group
     tl.store(
         group_out + group_row * HEAD_DIM + dim,
-        weighted_values / denominator,
+        tl.where(denominator > 0.0, weighted_values / denominator, 0.0),
     )
-    tl.store(group_lse + group_row, maximum + tl.log(denominator))
+    tl.store(
+        group_lse + group_row,
+        tl.where(denominator > 0.0, maximum + tl.log(denominator), -float("inf")),
+    )
 
 
 @triton.jit
@@ -3641,6 +3725,7 @@ def _decode_route_coarse_gqa_groups_kernel(
     state_k,
     state_v,
     counts,
+    cache_indices,
     candidate_scores,
     candidate_indices,
     group_out,
@@ -3669,6 +3754,7 @@ def _decode_route_coarse_gqa_groups_kernel(
     batch_kv = tl.program_id(0).to(tl.int64)
     group = tl.program_id(1).to(tl.int64)
     batch = batch_kv // KV_HEADS
+    cache_batch = tl.load(cache_indices + batch).to(tl.int64)
     kv_head = batch_kv - batch * KV_HEADS
     # Pad the four GQA rows to a native MFMA M tile. Short-M value matmuls use
     # a different reduction order on MI325X and perturb decode enough to hurt
@@ -3687,15 +3773,17 @@ def _decode_route_coarse_gqa_groups_kernel(
     )
     count = tl.load(
         counts
-        + batch * COUNT_BATCH_STRIDE
+        + cache_batch * COUNT_BATCH_STRIDE
         + kv_head * COUNT_HEAD_STRIDE
         + slot * COUNT_TOKEN_STRIDE,
         mask=valid,
         other=1.0,
     ).to(tl.float32)
+    valid &= count > 0.0
+    count = tl.where(valid, count, 1.0)
     keys = tl.load(
         state_k
-        + batch * STATE_BATCH_STRIDE
+        + cache_batch * STATE_BATCH_STRIDE
         + kv_head * STATE_HEAD_STRIDE
         + slot[:, None] * STATE_TOKEN_STRIDE
         + dim[None, :],
@@ -3704,7 +3792,7 @@ def _decode_route_coarse_gqa_groups_kernel(
     )
     values = tl.load(
         state_v
-        + batch * STATE_V_BATCH_STRIDE
+        + cache_batch * STATE_V_BATCH_STRIDE
         + kv_head * STATE_V_HEAD_STRIDE
         + slot[:, None] * STATE_V_TOKEN_STRIDE
         + dim[None, :],
@@ -3750,12 +3838,20 @@ def _decode_route_coarse_gqa_groups_kernel(
         group_out
         + group_row[:, None] * HEAD_DIM
         + dim[None, :],
-        weighted_values / denominator[:, None],
+        tl.where(
+            denominator[:, None] > 0.0,
+            weighted_values / denominator[:, None],
+            0.0,
+        ),
         mask=query_valid[:, None],
     )
     tl.store(
         group_lse + group_row,
-        maximum + tl.log(denominator),
+        tl.where(
+            denominator > 0.0,
+            maximum + tl.log(denominator),
+            -float("inf"),
+        ),
         mask=query_valid,
     )
 
@@ -3766,6 +3862,7 @@ def _decode_route_coarse_scalar_gqa_groups_kernel(
     state_k,
     state_v,
     counts,
+    cache_indices,
     candidate_scores,
     candidate_indices,
     group_out,
@@ -3794,21 +3891,24 @@ def _decode_route_coarse_scalar_gqa_groups_kernel(
     batch_kv = tl.program_id(0).to(tl.int64)
     group = tl.program_id(1).to(tl.int64)
     batch = batch_kv // KV_HEADS
+    cache_batch = tl.load(cache_indices + batch).to(tl.int64)
     kv_head = batch_kv - batch * KV_HEADS
     slot = group * GROUP_N + tl.arange(0, GROUP_N)
     valid = slot < state_len
     dim = tl.arange(0, HEAD_DIM)
     count = tl.load(
         counts
-        + batch * COUNT_BATCH_STRIDE
+        + cache_batch * COUNT_BATCH_STRIDE
         + kv_head * COUNT_HEAD_STRIDE
         + slot * COUNT_TOKEN_STRIDE,
         mask=valid,
         other=1.0,
     ).to(tl.float32)
+    valid &= count > 0.0
+    count = tl.where(valid, count, 1.0)
     keys = tl.load(
         state_k
-        + batch * STATE_BATCH_STRIDE
+        + cache_batch * STATE_BATCH_STRIDE
         + kv_head * STATE_HEAD_STRIDE
         + slot[:, None] * STATE_TOKEN_STRIDE
         + dim[None, :],
@@ -3817,7 +3917,7 @@ def _decode_route_coarse_scalar_gqa_groups_kernel(
     )
     values = tl.load(
         state_v
-        + batch * STATE_V_BATCH_STRIDE
+        + cache_batch * STATE_V_BATCH_STRIDE
         + kv_head * STATE_V_HEAD_STRIDE
         + slot[:, None] * STATE_V_TOKEN_STRIDE
         + dim[None, :],
@@ -3867,9 +3967,16 @@ def _decode_route_coarse_scalar_gqa_groups_kernel(
         group_row = query_row * MAX_GROUPS + group
         tl.store(
             group_out + group_row * HEAD_DIM + dim,
-            weighted_values / denominator,
+            tl.where(denominator > 0.0, weighted_values / denominator, 0.0),
         )
-        tl.store(group_lse + group_row, maximum + tl.log(denominator))
+        tl.store(
+            group_lse + group_row,
+            tl.where(
+                denominator > 0.0,
+                maximum + tl.log(denominator),
+                -float("inf"),
+            ),
+        )
 
 
 @triton.jit
@@ -3990,6 +4097,8 @@ def _mask_decode_routes_residual_mass_kernel(
     q,
     local_k,
     local_v,
+    cache_indices,
+    local_lens,
     new_k,
     new_v,
     top_slots,
@@ -4022,6 +4131,8 @@ def _mask_decode_routes_residual_mass_kernel(
     """Bound unopened routed mass against the complete state+local field."""
     query_row = tl.program_id(0).to(tl.int64)
     batch = query_row // QUERY_HEADS
+    cache_batch = tl.load(cache_indices + batch).to(tl.int64)
+    active_local_len = tl.load(local_lens + cache_batch).to(tl.int32)
     query_head = query_row - batch * QUERY_HEADS
     kv_head = query_head // KV_GROUP_SIZE
     dim = tl.arange(0, HEAD_DIM)
@@ -4032,10 +4143,10 @@ def _mask_decode_routes_residual_mass_kernel(
     local_accumulator = tl.zeros((HEAD_DIM,), tl.float32)
     for begin in tl.range(0, local_len, LOCAL_BLOCK_N):
         position = begin + tl.arange(0, LOCAL_BLOCK_N)
-        valid = position < local_len
+        valid = position < active_local_len
         keys = tl.load(
             local_k
-            + batch * LOCAL_K_BATCH_STRIDE
+            + cache_batch * LOCAL_K_BATCH_STRIDE
             + kv_head * LOCAL_K_HEAD_STRIDE
             + position[:, None] * LOCAL_K_TOKEN_STRIDE
             + dim[None, :],
@@ -4045,7 +4156,7 @@ def _mask_decode_routes_residual_mass_kernel(
         if COMPUTE_LOCAL_OUTPUT:
             values = tl.load(
                 local_v
-                + batch * LOCAL_V_BATCH_STRIDE
+                + cache_batch * LOCAL_V_BATCH_STRIDE
                 + kv_head * LOCAL_V_HEAD_STRIDE
                 + position[:, None] * LOCAL_V_TOKEN_STRIDE
                 + dim[None, :],
@@ -4094,17 +4205,17 @@ def _mask_decode_routes_residual_mass_kernel(
             if query_head % KV_GROUP_SIZE == 0:
                 tl.store(
                     local_k
-                    + batch * LOCAL_K_BATCH_STRIDE
+                    + cache_batch * LOCAL_K_BATCH_STRIDE
                     + kv_head * LOCAL_K_HEAD_STRIDE
-                    + local_len * LOCAL_K_TOKEN_STRIDE
+                    + active_local_len * LOCAL_K_TOKEN_STRIDE
                     + dim,
                     current_key,
                 )
                 tl.store(
                     local_v
-                    + batch * LOCAL_V_BATCH_STRIDE
+                    + cache_batch * LOCAL_V_BATCH_STRIDE
                     + kv_head * LOCAL_V_HEAD_STRIDE
-                    + local_len * LOCAL_V_TOKEN_STRIDE
+                    + active_local_len * LOCAL_V_TOKEN_STRIDE
                     + dim,
                     current_value,
                 )
@@ -4893,6 +5004,7 @@ def _reduce_routed_split_decode_lod_attention_kernel(
     state_k,
     state_v,
     counts,
+    cache_indices,
     top_slots,
     top_scores,
     coarse_out,
@@ -4931,6 +5043,7 @@ def _reduce_routed_split_decode_lod_attention_kernel(
     """Remove routed summaries, then merge coarse and exact/local branches."""
     query_row = tl.program_id(0).to(tl.int64)
     batch = query_row // QUERY_HEADS
+    cache_batch = tl.load(cache_indices + batch).to(tl.int64)
     query_head = query_row - batch * QUERY_HEADS
     kv_head = query_head // KV_GROUP_SIZE
     dim = tl.arange(0, HEAD_DIM)
@@ -4944,13 +5057,13 @@ def _reduce_routed_split_decode_lod_attention_kernel(
         slot = tl.where(valid_slot, slot, 0)
         count = tl.load(
             counts
-            + batch * COUNT_BATCH_STRIDE
+            + cache_batch * COUNT_BATCH_STRIDE
             + kv_head * COUNT_HEAD_STRIDE
             + slot * COUNT_TOKEN_STRIDE
         ).to(tl.float32)
         value = tl.load(
             state_v
-            + batch * STATE_V_BATCH_STRIDE
+            + cache_batch * STATE_V_BATCH_STRIDE
             + kv_head * STATE_V_HEAD_STRIDE
             + slot * STATE_V_TOKEN_STRIDE
             + dim
@@ -4979,14 +5092,14 @@ def _reduce_routed_split_decode_lod_attention_kernel(
         for sink_index in tl.static_range(0, SINK_LEN):
             key = tl.load(
                 sink_k
-                + batch * SINK_K_BATCH_STRIDE
+                + cache_batch * SINK_K_BATCH_STRIDE
                 + kv_head * SINK_K_HEAD_STRIDE
                 + sink_index * SINK_K_TOKEN_STRIDE
                 + dim
             ).to(tl.float32)
             value = tl.load(
                 sink_v
-                + batch * SINK_V_BATCH_STRIDE
+                + cache_batch * SINK_V_BATCH_STRIDE
                 + kv_head * SINK_V_HEAD_STRIDE
                 + sink_index * SINK_V_TOKEN_STRIDE
                 + dim
@@ -5035,6 +5148,49 @@ def _reduce_routed_split_decode_lod_attention_kernel(
     tl.store(out + query_row * HEAD_DIM + dim, result)
 
 
+@triton.jit
+def _advance_decode_cache_lengths_kernel(
+    cache_indices,
+    local_lens,
+    num_rows,
+    increment: tl.constexpr,
+):
+    row = tl.program_id(0)
+    if row < num_rows:
+        cache_row = tl.load(cache_indices + row).to(tl.int64)
+        length = tl.load(local_lens + cache_row)
+        tl.store(local_lens + cache_row, length + increment)
+
+
+def advance_decode_cache_lengths(
+    cache_indices: torch.Tensor,
+    local_lens: torch.Tensor,
+    *,
+    increment: int = 1,
+) -> None:
+    """Advance fixed-pool local lengths after a fused decode launch.
+
+    ``cache_indices`` must be unique.  Keeping this as a separate launch makes
+    every attention program observe the same pre-append length and remains
+    safe to capture and replay in a CUDA graph.
+    """
+    if cache_indices.ndim != 1 or local_lens.ndim != 1:
+        raise ValueError("decode cache indices and lengths must be vectors")
+    if cache_indices.device != local_lens.device:
+        raise ValueError("decode cache indices and lengths must share a device")
+    if increment <= 0:
+        raise ValueError("decode cache length increment must be positive")
+    rows = int(cache_indices.numel())
+    if rows:
+        _advance_decode_cache_lengths_kernel[(rows,)](
+            cache_indices,
+            local_lens,
+            rows,
+            increment=increment,
+            num_warps=1,
+        )
+
+
 def new_fused_decode_buffers(
     q: torch.Tensor,
     *,
@@ -5044,6 +5200,8 @@ def new_fused_decode_buffers(
 ) -> dict[str, torch.Tensor]:
     batch, query_heads, _, value_dim = q.shape
     buffers = {
+        "cache_indices": torch.arange(batch, dtype=torch.long, device=q.device),
+        "local_lens": torch.empty(batch, dtype=torch.int32, device=q.device),
         "partial_out": torch.empty(
             batch,
             query_heads,
@@ -5167,6 +5325,8 @@ def fused_decode_paged_lod_attention(
     sink_v: torch.Tensor | None = None,
     state_len: int,
     local_len: int | None = None,
+    cache_indices: torch.Tensor | None = None,
+    local_lens: torch.Tensor | None = None,
     new_k: torch.Tensor | None = None,
     new_v: torch.Tensor | None = None,
     kv_group_size: int,
@@ -5217,6 +5377,34 @@ def fused_decode_paged_lod_attention(
         local_len = int(local_k.size(2))
     if local_len < 0 or local_len > int(local_k.size(2)):
         raise ValueError("active local length exceeds its allocated cache")
+    if cache_indices is None:
+        if int(state_k.size(0)) != batch:
+            raise ValueError(
+                "cache indices are required when cache and query batches differ"
+            )
+        if buffers is not None and "cache_indices" in buffers:
+            cache_indices = buffers["cache_indices"][:batch]
+        else:
+            cache_indices = torch.arange(
+                batch, dtype=torch.long, device=q.device
+            )
+    if tuple(cache_indices.shape) != (batch,):
+        raise ValueError("cache indices must contain one stable slot per query row")
+    ragged_local_lens = local_lens is not None
+    if local_lens is None:
+        if (
+            buffers is not None
+            and "local_lens" in buffers
+            and int(buffers["local_lens"].numel()) >= int(state_k.size(0))
+        ):
+            local_lens = buffers["local_lens"][: int(state_k.size(0))]
+        else:
+            local_lens = torch.empty(
+                int(state_k.size(0)), dtype=torch.int32, device=q.device
+            )
+        local_lens.fill_(local_len)
+    elif tuple(local_lens.shape) != (int(state_k.size(0)),):
+        raise ValueError("local lengths must contain one value per cache slot")
     include_new = new_k is not None or new_v is not None
     include_sink = sink_k is not None or sink_v is not None
 
@@ -5238,7 +5426,7 @@ def fused_decode_paged_lod_attention(
     if include_sink and (sink_k is None or sink_v is None):
         raise ValueError("separate sink K and V must be provided together")
     if include_sink:
-        if tuple(sink_k.shape[:2]) != (batch, kv_heads):
+        if tuple(sink_k.shape[:2]) != (int(state_k.size(0)), kv_heads):
             raise ValueError("separate sink K has the wrong batch/head shape")
         if tuple(sink_v.shape[:3]) != tuple(sink_k.shape[:3]):
             raise ValueError("separate sink K/V shapes do not match")
@@ -5257,7 +5445,7 @@ def fused_decode_paged_lod_attention(
             raise ValueError("new decode K has the wrong shape")
         if tuple(new_v.shape[:3]) != (batch, kv_heads, 1):
             raise ValueError("new decode V has the wrong shape")
-        if local_len >= int(local_k.size(2)):
+        if not ragged_local_lens and local_len >= int(local_k.size(2)):
             raise ValueError("local decode cache has no append capacity")
     else:
         # Triton still requires valid pointer arguments for a constexpr-dead
@@ -5348,6 +5536,7 @@ def fused_decode_paged_lod_attention(
                 state_k,
                 state_v,
                 counts,
+                cache_indices,
                 buffers["route_candidate_scores"],
                 buffers["route_candidate_indices"],
                 buffers["route_group_out"],
@@ -5416,6 +5605,8 @@ def fused_decode_paged_lod_attention(
                         q,
                         local_k,
                         local_v,
+                        cache_indices,
+                        local_lens,
                         new_k,
                         new_v,
                         top_slots,
@@ -5491,6 +5682,8 @@ def fused_decode_paged_lod_attention(
                     q,
                     local_k,
                     local_v,
+                    cache_indices,
+                    local_lens,
                     new_k,
                     new_v,
                     top_slots,
@@ -5551,6 +5744,7 @@ def fused_decode_paged_lod_attention(
                     overflow_used,
                     slot_lengths,
                     top_slots,
+                    cache_indices=cache_indices,
                     kv_group_size=kv_group_size,
                     scale=scale,
                     hash_probes=hash_probes,
@@ -5619,6 +5813,7 @@ def fused_decode_paged_lod_attention(
                 state_k,
                 state_v,
                 counts,
+                cache_indices,
                 top_slots,
                 buffers["route_top_scores"],
                 buffers["coarse_out"],
@@ -5754,6 +5949,7 @@ def fused_decode_paged_lod_attention(
                 state_k,
                 state_v,
                 counts,
+                cache_indices,
                 top_slots,
                 buffers["route_top_scores"],
                 buffers["coarse_out"],
@@ -6024,6 +6220,56 @@ def paged_leaf_attention(
     return (
         exact_out.reshape(batch, query_heads, query_len, value_dim),
         exact_lse.reshape(batch, query_heads, query_len),
+    )
+
+
+def rehash_overflow_pages(
+    source_keys: torch.Tensor,
+    source_values: torch.Tensor,
+    destination_keys: torch.Tensor,
+    destination_values: torch.Tensor,
+    destination_used: torch.Tensor,
+    destination_flag: torch.Tensor,
+    *,
+    source_slot: int,
+    destination_slot: int,
+    hash_probes: int = 32,
+) -> None:
+    """Move one sparse page hash row between differently sized fixed pools."""
+    if source_keys.shape != source_values.shape or source_keys.ndim != 3:
+        raise ValueError("source overflow page tables must be matching rank three")
+    if destination_keys.shape != destination_values.shape or destination_keys.ndim != 3:
+        raise ValueError(
+            "destination overflow page tables must be matching rank three"
+        )
+    if int(source_keys.size(1)) != int(destination_keys.size(1)):
+        raise ValueError("overflow page tables have different KV head counts")
+    destination_capacity = int(destination_keys.size(2))
+    if destination_capacity & (destination_capacity - 1):
+        raise ValueError("destination overflow hash capacity must be a power of two")
+    if not 0 <= source_slot < int(source_keys.size(0)):
+        raise IndexError("source overflow hash slot is out of range")
+    if not 0 <= destination_slot < int(destination_keys.size(0)):
+        raise IndexError("destination overflow hash slot is out of range")
+    entries = int(source_keys.size(1)) * int(source_keys.size(2))
+    _rehash_overflow_pages_kernel[(entries,)](
+        source_keys,
+        source_values,
+        destination_keys,
+        destination_values,
+        destination_used,
+        destination_flag,
+        source_slot,
+        destination_slot,
+        SOURCE_BATCH_STRIDE=source_keys.stride(0),
+        SOURCE_HEAD_STRIDE=source_keys.stride(1),
+        DESTINATION_BATCH_STRIDE=destination_keys.stride(0),
+        DESTINATION_HEAD_STRIDE=destination_keys.stride(1),
+        KV_HEADS=int(source_keys.size(1)),
+        SOURCE_CAPACITY=int(source_keys.size(2)),
+        DESTINATION_CAPACITY=destination_capacity,
+        HASH_PROBES=hash_probes,
+        num_warps=1,
     )
 
 
@@ -6689,6 +6935,7 @@ def append_quantized_virtual_paged_kv(
 
 
 __all__ = [
+    "advance_decode_cache_lengths",
     "append_paged_kv",
     "append_quantized_virtual_paged_kv",
     "append_virtual_paged_kv",
@@ -6702,6 +6949,7 @@ __all__ = [
     "query_major_residual_page_attention",
     "quantize_page_summaries_int8",
     "quantize_virtual_paged_kv_int4",
+    "rehash_overflow_pages",
     "_assign_page_ordinals_kernel",
     "_paged_leaf_attention_kernel",
     "_query_major_paged_leaf_attention_kernel",

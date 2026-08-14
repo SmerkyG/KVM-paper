@@ -1,0 +1,44 @@
+{
+  "attention_backend": null,
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "decode_interval_tokens": 1,
+  "decode_timings_seconds": [
+    0.002046549692749977
+  ],
+  "decode_tokens": 2,
+  "enforce_eager": false,
+  "length": 32768,
+  "lod_diagnostics": {
+    "batched_cached_prefill_rows": 336,
+    "batched_cached_prefills": 84,
+    "cached_prefill_candidate_calls": 180,
+    "cached_prefill_candidate_rows": 720,
+    "cached_prefill_noncontiguous": 0,
+    "cached_prefill_nonuniform_lengths": 12,
+    "cached_prefill_nonuniform_previous": 96,
+    "cached_prefill_unready": 0,
+    "catch_up_batches": 0,
+    "catch_up_rows": 0,
+    "decode_calls": 48,
+    "direct_prefills": 204,
+    "installs": 96,
+    "layers": 6
+  },
+  "long_prefill_token_threshold": 4096,
+  "marginal_decode_ms_per_batch_step": 2.046549692749977,
+  "marginal_decode_ms_per_token": 0.25581871159374714,
+  "marginal_decode_tokens_per_second": 3909.018201874341,
+  "max_num_batched_tokens": 16384,
+  "mode": "lod",
+  "prefill_plus_decode_seconds": 3.345389423891902,
+  "prefill_prompt_tokens_per_second": 78524.00260359084,
+  "prefill_seconds": 3.338393246755004,
+  "prefill_timings_seconds": [
+    3.338393246755004
+  ],
+  "repeats": 1,
+  "total_timings_seconds": [
+    3.345389423891902
+  ]
+}
