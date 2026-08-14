@@ -100,15 +100,14 @@ full-to-LOD conversion happen between graph replays; attention, routing, and
 masked state updates operate on persistent device tables with shape-stable
 kernels.
 
-The initial out-of-tree implementation lives in `integrations/vllm_lod`. It
-retains native blocks as the authoritative cache, uses native attention for
-prefill and mixed batches, converts through block tables before pure decode,
-and maps stable vLLM request slots into a bounded fixed-address LOD pool. Pool
-and graph-scratch allocations happen before vLLM calculates its native block
-budget. Full-graph padding receives distinct unused rows which are reset before
-each replay, so fake padded appends cannot alias live requests. This makes
-decode graph-capturable without pretending that a chronological vLLM block is
-a quantizable semantic LOD page.
+The out-of-tree implementation lives in `integrations/vllm_lod`. Its default
+mode makes fixed-address LOD rows authoritative for eligible global-attention
+layers and uses direct LOD prefill. vLLM block tables retain only bounded exact
+staging for those layers plus the model's native recurrent state. Pool and
+graph-scratch allocations happen before vLLM calculates that staging budget.
+Graph padding never aliases a scheduled row; an unscheduled row can be used
+only after its true tail length is restored, so the fake append remains beyond
+the retained prefix and is discarded before reuse.
 
 Cache gathering must use the native backend's canonical K/V views rather than
 infer semantic order from the allocation shape. This matters on ROCm: the raw
@@ -117,26 +116,21 @@ and reads head-major key and value views over that storage. Conversion indexes
 the request block table in chronological order only after constructing those
 canonical views.
 
-The current adapter uses one mode for an entire attention batch. The default is
-native for prefill and mixed batches, then LOD for pure one-token decode. An
-automatic short-context native mode will require an LOD/native graph
-discriminator in vLLM's scheduler; a Python length check cannot change a graph
-after it has been captured.
+The current adapter uses one mode for an entire attention batch. Authoritative
+mode uses LOD for prefill and decode. An automatic short-context native mode
+would require an LOD/native graph discriminator in vLLM's scheduler; a Python
+length check cannot change a graph after it has been captured.
 
-The adapter also provides the complementary `VLLM_LOD_PREFILL_MODE=direct`
-path. It produces attention output and advances LOD state during initial or
-cached prefill, while vLLM continues writing the authoritative native cache.
-Thus both representations remain available: compatible cached turns advance
-directly, while a native prefix-cache hit without matching LOD state falls back
-to native attention and can use the ordinary conversion path before decode.
-Both pathways use the same architecture-aware routing geometry: normalized-key
-attention modules use coherence-corrected raw centroids, while unnormalized-key
-modules use spherical centroids. Exact protected K/V remains outside the
-clustered state in either case.
+`VLLM_LOD_CACHE_OWNERSHIP=dual` preserves the complementary rebuild path for
+diagnosis: native K/V remains authoritative and LOD can be reconstructed before
+decode. It does not save server cache memory. Both ownership modes use the same
+architecture-aware routing geometry: normalized-key attention modules use
+coherence-corrected raw centroids, while unnormalized-key modules use spherical
+centroids. Exact protected K/V remains outside clustered state.
 
-Rebuild conversion batches requests with the same logical prefix length and
-leaves the source vLLM blocks untouched. In mixed native prefill/decode batches,
-an already-exact one-token LOD shadow consumes the current post-RoPE K/V
-directly instead of being discarded and rebuilt. Ordinary decode tokens advance
-the device-local tail inside the captured graph; eager catch-up runs only when
-coverage crosses a state-update boundary.
+In dual mode, rebuild conversion batches requests with the same logical prefix
+length and leaves the source vLLM blocks untouched. In mixed native
+prefill/decode batches, an already-exact one-token LOD copy consumes the current
+post-RoPE K/V directly instead of being discarded and rebuilt. Ordinary decode
+tokens advance the device-local tail inside the captured graph; eager catch-up
+runs only when coverage crosses a state-update boundary.

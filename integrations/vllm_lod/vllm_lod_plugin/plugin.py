@@ -37,8 +37,10 @@ def register() -> None:
         AttentionBackendEnum.CUSTOM,
         "vllm_lod_plugin.backend.LODAttentionBackend",
     )
+    from .cache_ownership import install_cache_ownership_hooks
     from .runtime import install_model_state_hooks
 
+    install_cache_ownership_hooks()
     install_model_state_hooks()
     _REGISTERED = True
 

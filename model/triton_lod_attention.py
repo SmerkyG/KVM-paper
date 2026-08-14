@@ -5206,10 +5206,17 @@ class TritonLODAttentionCore(nn.Module):
         for query_begin in range(0, turn_len, prefill_chunk_len):
             query_end = min(turn_len, query_begin + prefill_chunk_len)
             absolute_query_begin = previous_total_len + query_begin
-            desired_coverage = max(
-                state_coverage,
-                absolute_query_begin - exact_lookback,
+            # Keep cached-prefill state boundaries on the decode chunk grid.
+            # This retains at most one extra partial chunk in exact local
+            # attention and gives the state/page kernels one reusable residual
+            # update shape across arbitrarily sized turns.
+            coverage_candidate = max(
+                0, absolute_query_begin - exact_lookback
             )
+            coverage_candidate = (
+                coverage_candidate // self.chunk_len * self.chunk_len
+            )
+            desired_coverage = max(state_coverage, coverage_candidate)
             update_to(
                 desired_coverage,
                 context_length_for=lambda update_end: (

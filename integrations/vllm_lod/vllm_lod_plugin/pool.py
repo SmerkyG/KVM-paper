@@ -76,9 +76,16 @@ class VLLMLayerLODPool:
             if geometry == "raw" or has_query_norm
             else "query"
         )
+        local_window = settings.local_window
+        if settings.cache_ownership == "lod":
+            # A completed cache may be reused at vLLM's preceding physical
+            # block boundary. Keep at least one staging chunk exact so that
+            # rolling a retained LOD cache back to that boundary only adjusts
+            # its recent-tail length; clustered state never has to be undone.
+            local_window = max(local_window, settings.native_staging_chunk)
         config = PagedLODConfig(
             chunk_size=settings.chunk_size,
-            local_window=settings.local_window,
+            local_window=local_window,
             state_growth_factor=settings.state_growth_factor,
             state_min_size=settings.state_min_size,
             protected_prefix=settings.protected_prefix,
@@ -106,7 +113,7 @@ class VLLMLayerLODPool:
         self.state_capacity = self.engine._state_capacity(
             request_capacity, min(request_capacity, settings.chunk_size)
         )
-        self.local_capacity = settings.local_window + int(
+        self.local_capacity = local_window + int(
             self.engine.decode_state_update_len
         )
         self.leaf_capacity = _round_up(request_capacity, settings.chunk_size) + max(
@@ -140,6 +147,7 @@ class VLLMLayerLODPool:
         self.decode_calls = 0
         self.catch_up_batches = 0
         self.catch_up_rows = 0
+        self.retained_reuse_count = 0
 
     def _allocate_state(self) -> dict[str, object]:
         r, h, s, d = (
@@ -374,6 +382,23 @@ class VLLMLayerLODPool:
         if "page_quantized_counts" in page:
             page["page_quantized_counts"][slot].zero_()
 
+    def truncate_recent(self, slot: int, total_length: int) -> None:
+        """Roll a retained cache back inside its unclustered exact tail."""
+        if not self.ready[slot]:
+            raise RuntimeError("cannot truncate an uninitialized LOD cache")
+        metadata = self.metadata[slot]
+        coverage = int(metadata["coverage"])
+        old_total = int(metadata["total_len"])
+        if not coverage <= total_length <= old_total:
+            raise ValueError(
+                "retained LOD prefix lies outside the exact recent tail: "
+                f"coverage={coverage}, requested={total_length}, total={old_total}"
+            )
+        recent_len = total_length - coverage
+        self.local_lens[slot].fill_(recent_len)
+        metadata["recent_len"] = recent_len
+        metadata["total_len"] = total_length
+
     @staticmethod
     def _copy_row(
         destination: torch.Tensor,
@@ -574,6 +599,7 @@ class VLLMLayerLODPool:
             self.batched_cached_prefill_calls += 1
             self.batched_cached_prefill_rows += len(slots)
         self._synchronize_rows(slots, cache)
+        self.engine.reset_runtime_cache()
         if packed:
             output.reshape(len(plan), length, *output.shape[1:]).copy_(
                 result.permute(0, 2, 1, 3)
@@ -589,7 +615,7 @@ class VLLMLayerLODPool:
         value: torch.Tensor,
         output: torch.Tensor,
     ) -> torch.Tensor:
-        """Run ragged initial/cached LOD prefill while native K/V is retained."""
+        """Run ragged initial or cached prefill into authoritative LOD rows."""
         plan = self.direct_prefill_plan
         self.direct_prefill_plan = None
         if plan is None:
@@ -629,6 +655,7 @@ class VLLMLayerLODPool:
                 raise AssertionError("direct LOD prefill did not return a cache")
             for source_slot, (slot, begin, end, _) in enumerate(plan):
                 self.install(slot, cache, source_slot=source_slot)
+            self.engine.reset_runtime_cache()
             if packed:
                 output.reshape(len(plan), length, *output.shape[1:]).copy_(
                     result.permute(0, 2, 1, 3)
@@ -716,6 +743,7 @@ class VLLMLayerLODPool:
                 if cache is None:
                     raise AssertionError("cached LOD prefill did not return a cache")
                 self._synchronize_row(slot, cache)
+            self.engine.reset_runtime_cache()
             output[begin:end].copy_(result.squeeze(0).permute(1, 0, 2))
         return output
 
@@ -724,20 +752,20 @@ class VLLMLayerLODPool:
         key: torch.Tensor,
         value: torch.Tensor,
     ) -> None:
-        """Keep exact one-token LOD shadows current after a mixed native batch."""
+        """Keep dual-cache LOD copies current after a mixed native batch."""
         plan = self.native_append_plan
         self.native_append_plan = None
         if plan is None:
             return
         for slot, begin, end, previous_length in plan:
             if end - begin != 1 or not self.ready[slot]:
-                raise AssertionError("native shadow append plan is invalid")
+                raise AssertionError("dual-cache append plan is invalid")
             metadata = self.metadata[slot]
             if int(metadata.get("total_len", -1)) != previous_length:
-                raise RuntimeError("native shadow append length changed before attention")
+                raise RuntimeError("dual-cache append length changed before attention")
             recent_len = int(self.local_lens[slot].item())
             if recent_len >= self.local_capacity:
-                raise RuntimeError("native shadow append exceeded its local cache")
+                raise RuntimeError("dual-cache append exceeded its local cache")
             self.state["recent_k"][slot, :, recent_len, :].copy_(key[begin])
             self.state["recent_v"][slot, :, recent_len, :].copy_(value[begin])
             recent_len += 1

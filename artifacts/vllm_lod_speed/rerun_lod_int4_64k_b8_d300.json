@@ -1,0 +1,63 @@
+{
+  "attention_backend": null,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 9401532416,
+    "device_used_bytes_before_reclaim": 21447573504,
+    "lod_cache_bytes": 2874249904,
+    "lod_decode_scratch_bytes": 117905400,
+    "native_cache_bytes": 1102970880,
+    "torch_allocated_bytes": 6680496640,
+    "torch_reclaimable_cached_bytes": 12046041088,
+    "torch_reserved_bytes_after_reclaim": 7124025344,
+    "torch_reserved_bytes_before_reclaim": 19170066432
+  },
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "decode_interval_tokens": 299,
+  "decode_timings_seconds": [
+    1.2683594664558768,
+    1.2736912751570344,
+    1.3097295630723238
+  ],
+  "decode_tokens": 300,
+  "enforce_eager": false,
+  "jit_monitor_verbose": false,
+  "length": 65536,
+  "lod_diagnostics": {
+    "batched_cached_prefill_rows": 3036,
+    "batched_cached_prefills": 1014,
+    "cached_prefill_candidate_calls": 726,
+    "cached_prefill_candidate_rows": 4440,
+    "cached_prefill_noncontiguous": 0,
+    "cached_prefill_nonuniform_lengths": 384,
+    "cached_prefill_nonuniform_previous": 636,
+    "cached_prefill_unready": 0,
+    "catch_up_batches": 90,
+    "catch_up_rows": 192,
+    "decode_calls": 48,
+    "direct_prefills": 810,
+    "installs": 192,
+    "layers": 6
+  },
+  "long_prefill_token_threshold": 4096,
+  "marginal_decode_ms_per_batch_step": 4.259837040658978,
+  "marginal_decode_ms_per_token": 0.5324796300823722,
+  "marginal_decode_tokens_per_second": 1878.0061123564567,
+  "max_num_batched_tokens": 16384,
+  "mode": "lod",
+  "num_gpu_blocks_override": null,
+  "prefill_plus_decode_seconds": 9.47052563726902,
+  "prefill_prompt_tokens_per_second": 64274.25317652091,
+  "prefill_seconds": 8.15704538114369,
+  "prefill_timings_seconds": [
+    8.468139541335404,
+    8.087056864984334,
+    8.15704538114369
+  ],
+  "repeats": 3,
+  "total_timings_seconds": [
+    9.740377417765558,
+    9.364523652009666,
+    9.47052563726902
+  ]
+}

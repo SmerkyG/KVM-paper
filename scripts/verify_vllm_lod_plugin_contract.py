@@ -29,6 +29,7 @@ os.environ.update(
     VLLM_LOD_MAX_CONTEXT="64",
     VLLM_LOD_KV_BITS="0",
     VLLM_LOD_PREFILL_MODE="direct",
+    VLLM_LOD_CACHE_OWNERSHIP="dual",
 )
 
 import vllm_lod_plugin.runtime as runtime_module

@@ -212,7 +212,7 @@ def evaluate_prolong(args: argparse.Namespace, tokenizer, llm) -> dict:
         "attention_exercised": (
             "direct_lod_prefill"
             if args.mode == "lod"
-            and os.environ.get("VLLM_LOD_PREFILL_MODE", "rebuild") == "direct"
+            and os.environ.get("VLLM_LOD_PREFILL_MODE", "direct") == "direct"
             else "native_prefill"
         ),
     }
@@ -257,7 +257,7 @@ def evaluate_niah_s3(args: argparse.Namespace, tokenizer, llm) -> dict:
         "attention_exercised": (
             (
                 "direct_lod_prefill_and_decode"
-                if os.environ.get("VLLM_LOD_PREFILL_MODE", "rebuild") == "direct"
+                if os.environ.get("VLLM_LOD_PREFILL_MODE", "direct") == "direct"
                 else "native_prefill_then_lod_decode"
             )
             if args.mode == "lod"
@@ -298,7 +298,7 @@ def main() -> None:
     if args.mode == "lod":
         lod_diagnostics_after = llm.apply_model(inspect_lod_model)[0]
         if (
-            os.environ.get("VLLM_LOD_PREFILL_MODE", "rebuild") == "direct"
+            os.environ.get("VLLM_LOD_PREFILL_MODE", "direct") == "direct"
             and lod_diagnostics_after["direct_prefill_calls"]
             <= lod_diagnostics_before["direct_prefill_calls"]
         ):
@@ -311,7 +311,7 @@ def main() -> None:
                 <= lod_diagnostics_before["install_count"]
             ):
                 raise RuntimeError(
-                    "NIAH-S3 completed without converting a native prefix to LOD"
+                    "NIAH-S3 completed without installing an LOD cache"
                 )
     result.update(
         checkpoint=args.checkpoint,

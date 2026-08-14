@@ -85,6 +85,7 @@ def main() -> None:
         pool_size=4,
         request_capacity=128,
         routing_geometry=args.routing_geometry,
+        cache_ownership="dual",
     )
     active = torch.zeros(4, dtype=torch.long, device=device)
     pool = VLLMLayerLODPool(

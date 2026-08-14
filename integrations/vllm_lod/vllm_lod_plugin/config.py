@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 
 def _integer(name: str, default: int) -> int:
@@ -44,8 +44,11 @@ class VLLMLODSettings:
     quant_group_size: int = 32
     pool_size: int = 8
     request_capacity: int | None = None
-    prefill_mode: str = "rebuild"
+    prefill_mode: str = "direct"
     routing_geometry: str = "auto"
+    cache_ownership: str = "lod"
+    native_staging_chunk: int = 1024
+    native_cache_headroom: float = 1.5
 
     @classmethod
     def from_environment(cls) -> VLLMLODSettings:
@@ -69,6 +72,15 @@ class VLLMLODSettings:
                 "auto",
                 ("auto", "raw", "spherical", "coherence"),
             ),
+            cache_ownership=_choice(
+                "VLLM_LOD_CACHE_OWNERSHIP", "lod", ("lod", "dual")
+            ),
+            native_staging_chunk=_integer(
+                "VLLM_LOD_NATIVE_STAGING_CHUNK", 1024
+            ),
+            native_cache_headroom=_floating(
+                "VLLM_LOD_NATIVE_CACHE_HEADROOM", 1.5
+            ),
         )
         if settings.kv_bits not in (0, 4):
             raise ValueError("VLLM_LOD_KV_BITS must be zero or four")
@@ -76,4 +88,10 @@ class VLLMLODSettings:
             raise ValueError("VLLM_LOD_OPEN_COUNT must be between one and eight")
         if settings.pool_size <= 0:
             raise ValueError("VLLM_LOD_POOL_SIZE must be positive")
+        if settings.native_staging_chunk <= 0:
+            raise ValueError("VLLM_LOD_NATIVE_STAGING_CHUNK must be positive")
+        if settings.native_cache_headroom < 1.0:
+            raise ValueError("VLLM_LOD_NATIVE_CACHE_HEADROOM must be at least one")
+        if settings.cache_ownership == "lod" and settings.prefill_mode != "direct":
+            settings = replace(settings, prefill_mode="direct")
         return settings

@@ -1,0 +1,69 @@
+{
+  "attention_backend": null,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 7390363648,
+    "device_used_bytes_before_reclaim": 10009706496,
+    "lod_cache_bytes": 1056019120,
+    "lod_decode_scratch_bytes": 66111480,
+    "native_cache_bytes": 1102970880,
+    "torch_allocated_bytes": 4621348352,
+    "torch_reclaimable_cached_bytes": 2619342848,
+    "torch_reserved_bytes_after_reclaim": 4978638848,
+    "torch_reserved_bytes_before_reclaim": 7597981696
+  },
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "decode_interval_tokens": 299,
+  "decode_timings_seconds": [
+    1.1720718620344996,
+    1.1727166830096394,
+    1.1745950980111957,
+    1.1739883460104465,
+    1.1756698437966406
+  ],
+  "decode_tokens": 300,
+  "enforce_eager": false,
+  "jit_monitor_verbose": false,
+  "length": 16384,
+  "lod_diagnostics": {
+    "batched_cached_prefill_rows": 1236,
+    "batched_cached_prefills": 384,
+    "cached_prefill_candidate_calls": 240,
+    "cached_prefill_candidate_rows": 1536,
+    "cached_prefill_noncontiguous": 0,
+    "cached_prefill_nonuniform_lengths": 144,
+    "cached_prefill_nonuniform_previous": 168,
+    "cached_prefill_unready": 0,
+    "catch_up_batches": 126,
+    "catch_up_rows": 288,
+    "decode_calls": 48,
+    "direct_prefills": 336,
+    "installs": 288,
+    "layers": 6
+  },
+  "long_prefill_token_threshold": 4096,
+  "marginal_decode_ms_per_batch_step": 3.926382428128584,
+  "marginal_decode_ms_per_token": 0.490797803516073,
+  "marginal_decode_tokens_per_second": 2037.4989309976636,
+  "max_num_batched_tokens": 16384,
+  "mode": "lod",
+  "num_gpu_blocks_override": null,
+  "prefill_plus_decode_seconds": 2.6742978140246123,
+  "prefill_prompt_tokens_per_second": 87410.90514598376,
+  "prefill_seconds": 1.4994925379287452,
+  "prefill_timings_seconds": [
+    1.4994925379287452,
+    1.5023306899238378,
+    1.4888689587824047,
+    1.7577259908430278,
+    1.4952159451786429
+  ],
+  "repeats": 5,
+  "total_timings_seconds": [
+    2.6742978140246123,
+    2.6787973640020937,
+    2.673270707949996,
+    2.9336048429831862,
+    2.673366135917604
+  ]
+}

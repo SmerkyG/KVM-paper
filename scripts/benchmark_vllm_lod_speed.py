@@ -8,8 +8,65 @@ import json
 import statistics
 import time
 from pathlib import Path
+from typing import Any
 
 from transformers import AutoTokenizer
+
+
+def _collect_cuda_storages(
+    value: Any, storages: dict[tuple[str, int | None, int], int]
+) -> None:
+    import torch
+
+    if isinstance(value, torch.Tensor):
+        if value.numel() == 0 or value.device.type != "cuda":
+            return
+        storage = value.untyped_storage()
+        key = (value.device.type, value.device.index, storage.data_ptr())
+        storages[key] = max(storages.get(key, 0), int(storage.nbytes()))
+    elif isinstance(value, dict):
+        for item in value.values():
+            _collect_cuda_storages(item, storages)
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            _collect_cuda_storages(item, storages)
+
+
+def inspect_attention_memory(model) -> dict[str, int]:
+    """Count unique persistent cache storages inside the worker process."""
+    import torch
+
+    native: dict[tuple[str, int | None, int], int] = {}
+    lod: dict[tuple[str, int | None, int], int] = {}
+    scratch: dict[tuple[str, int | None, int], int] = {}
+    for module in model.modules():
+        _collect_cuda_storages(getattr(module, "kv_cache", None), native)
+        pool = getattr(module, "_vllm_lod_pool", None)
+        if pool is None:
+            continue
+        _collect_cuda_storages(pool.state, lod)
+        _collect_cuda_storages(pool.local_lens, lod)
+        _collect_cuda_storages(pool.active_indices, lod)
+        _collect_cuda_storages(pool.decode_buffers, scratch)
+    for key in lod:
+        scratch.pop(key, None)
+    allocated = int(torch.cuda.memory_allocated())
+    reserved_before = int(torch.cuda.memory_reserved())
+    free_before, total = torch.cuda.mem_get_info()
+    torch.cuda.empty_cache()
+    reserved_after = int(torch.cuda.memory_reserved())
+    free_after, _ = torch.cuda.mem_get_info()
+    return {
+        "native_cache_bytes": sum(native.values()),
+        "lod_cache_bytes": sum(lod.values()),
+        "lod_decode_scratch_bytes": sum(scratch.values()),
+        "torch_allocated_bytes": allocated,
+        "torch_reserved_bytes_before_reclaim": reserved_before,
+        "torch_reserved_bytes_after_reclaim": reserved_after,
+        "torch_reclaimable_cached_bytes": reserved_before - reserved_after,
+        "device_used_bytes_before_reclaim": int(total - free_before),
+        "device_used_bytes_after_reclaim": int(total - free_after),
+    }
 
 
 def parse_args() -> argparse.Namespace:
@@ -23,7 +80,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-num-batched-tokens", type=int)
     parser.add_argument("--long-prefill-token-threshold", type=int, default=0)
     parser.add_argument("--gpu-memory-utilization", type=float, default=0.8)
+    parser.add_argument("--num-gpu-blocks-override", type=int)
     parser.add_argument("--enforce-eager", action="store_true")
+    parser.add_argument("--jit-monitor-verbose", action="store_true")
     parser.add_argument("--attention-backend")
     parser.add_argument("--output", type=Path, required=True)
     return parser.parse_args()
@@ -128,9 +187,12 @@ def main() -> None:
         "long_prefill_token_threshold": args.long_prefill_token_threshold,
         "gpu_memory_utilization": args.gpu_memory_utilization,
         "enforce_eager": args.enforce_eager,
+        "jit_monitor_verbose": args.jit_monitor_verbose,
         "enable_prefix_caching": False,
         "disable_log_stats": False,
     }
+    if args.num_gpu_blocks_override is not None:
+        kwargs["num_gpu_blocks_override"] = args.num_gpu_blocks_override
     if args.attention_backend is not None:
         if args.mode == "lod":
             raise ValueError("--attention-backend is only valid with --mode full")
@@ -174,6 +236,8 @@ def main() -> None:
         "max_num_batched_tokens": max_batched,
         "long_prefill_token_threshold": args.long_prefill_token_threshold,
         "enforce_eager": args.enforce_eager,
+        "jit_monitor_verbose": args.jit_monitor_verbose,
+        "num_gpu_blocks_override": args.num_gpu_blocks_override,
         "attention_backend": args.attention_backend,
         "prefill_seconds": prefill_elapsed,
         "prefill_timings_seconds": prefill_timings,
@@ -193,6 +257,7 @@ def main() -> None:
     }
     if args.mode == "lod":
         result["lod_diagnostics"] = llm.apply_model(inspect_lod_model)[0]
+    result["attention_memory"] = llm.apply_model(inspect_attention_memory)[0]
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
     print(json.dumps(result, sort_keys=True))

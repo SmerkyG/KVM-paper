@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
@@ -13,6 +14,14 @@ from .config import VLLMLODSettings
 from .pool import VLLMLayerLODPool
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class _CachedLODRow:
+    row: int
+    token_ids: tuple[int, ...]
+    total_length: int
+    last_used: int
 
 
 class VLLMLODRuntime:
@@ -49,6 +58,11 @@ class VLLMLODRuntime:
         self.block_size_by_group: dict[int, int] = {}
         self.req_to_slot: dict[str, int | str] = {}
         self.lod_row_by_slot: dict[int | str, int] = {}
+        self.cached_rows: dict[int, _CachedLODRow] = {}
+        self.request_states: Any | None = None
+        self.cache_clock = 0
+        self.borrowed_dummy_rows: set[int] = set()
+        self.borrowed_dummy_lens: dict[str, torch.Tensor] = {}
         self.free_lod_rows = list(range(self.pool_size - 1, -1, -1))
         self.initialized = False
         self.allocate_pools()
@@ -90,6 +104,7 @@ class VLLMLODRuntime:
             for rows in sorted(decode_sizes):
                 pool.reserve_decode_buffers(rows)
             self.pools[name] = pool
+            self.borrowed_dummy_lens[name] = torch.zeros_like(pool.local_lens)
             layer._vllm_lod_pool = pool
 
     def _attention_norm_flags(self) -> dict[str, tuple[bool, bool]]:
@@ -163,6 +178,7 @@ class VLLMLODRuntime:
         """Prepare the persistent-batch runner used by released vLLM wheels."""
         if not self.initialized or not self.enabled:
             return
+        self._restore_borrowed_dummy_rows()
         if for_capture:
             self._prepare_dummy_batch(num_reqs_padded, max_query_len)
             return
@@ -186,10 +202,17 @@ class VLLMLODRuntime:
 
         computed = input_batch.num_computed_tokens_cpu[:num_reqs]
         prompt_lengths = input_batch.num_prompt_tokens[:num_reqs]
+        for row, req_id in enumerate(req_ids):
+            if req_id in self.req_to_slot:
+                continue
+            self.req_to_slot[req_id] = req_id
+            if self.settings.cache_ownership != "lod" or int(computed[row]) <= 0:
+                continue
+            token_ids = self._legacy_token_ids(runner.requests[req_id])
+            if token_ids is not None:
+                self._restore_cached_prefix(req_id, token_ids, int(computed[row]))
         pure_decode = max_query_len == 1 and bool(np.all(computed >= prompt_lengths))
         if not pure_decode:
-            for req_id in req_ids:
-                self.req_to_slot[req_id] = req_id
             query_starts = np.asarray(
                 runner.query_start_loc.np[: num_reqs + 1], dtype=np.int64
             )
@@ -210,7 +233,6 @@ class VLLMLODRuntime:
 
         lod_rows = []
         for req_id in req_ids:
-            self.req_to_slot[req_id] = req_id
             lod_rows.append(self._lod_row(req_id))
         mapped_rows = self._pad_decode_rows(lod_rows, num_reqs_padded)
         self.active_indices[:num_reqs_padded].copy_(
@@ -220,15 +242,6 @@ class VLLMLODRuntime:
                 device=self.active_indices.device,
             )
         )
-        if num_reqs_padded > num_reqs:
-            dummy_rows = torch.tensor(
-                mapped_rows[num_reqs:],
-                dtype=torch.long,
-                device=self.active_indices.device,
-            )
-            for pool in self.pools.values():
-                pool.local_lens.index_fill_(0, dummy_rows, 0)
-
         block_tables = tuple(
             input_batch.block_table[group_id].get_device_tensor(num_reqs)
             for group_id in range(len(runner.kv_cache_config.kv_cache_groups))
@@ -247,33 +260,156 @@ class VLLMLODRuntime:
         self._convert_requests(conversions, block_tables)
 
     def add_request(self, slot: int, data: Any) -> None:
-        self.req_to_slot[data.req_id] = slot
         self._release_lod_row(slot)
+        self.req_to_slot[data.req_id] = slot
+        if self.settings.cache_ownership != "lod":
+            return
+        token_ids = data.prefill_token_ids or data.prompt_token_ids
+        if token_ids is None or int(data.num_computed_tokens) <= 0:
+            return
+        self._restore_cached_prefix(
+            slot,
+            token_ids,
+            int(data.num_computed_tokens),
+        )
 
-    def remove_request(self, req_id: str) -> None:
+    @staticmethod
+    def _legacy_token_ids(request: Any) -> list[int] | None:
+        prompt = getattr(request, "prompt_token_ids", None)
+        if prompt is None:
+            return None
+        return [*prompt, *getattr(request, "output_token_ids", ())]
+
+    def remove_request(
+        self, req_id: str, *, token_ids: list[int] | None = None
+    ) -> None:
         slot = self.req_to_slot.pop(req_id, None)
-        if slot is not None:
-            self._release_lod_row(slot)
+        if slot is None:
+            return
+        row = self.lod_row_by_slot.pop(slot, None)
+        if row is None:
+            return
+        if self.settings.cache_ownership == "lod" and self._cache_row(
+            req_id, slot, row, token_ids=token_ids
+        ):
+            return
+        self._free_lod_row(row)
+
+    def _request_token_ids(
+        self, req_id: str, slot: int | str, length: int
+    ) -> tuple[int, ...] | None:
+        states = self.request_states
+        if states is None or not isinstance(slot, int):
+            return None
+        req_index = states.req_id_to_index.get(req_id)
+        if req_index is None:
+            return None
+        storage = getattr(getattr(states.all_token_ids, "_uva_buf", None), "cpu", None)
+        if storage is None:
+            return None
+        return tuple(map(int, storage[req_index, :length].tolist()))
+
+    def _cache_row(
+        self,
+        req_id: str,
+        slot: int | str,
+        row: int,
+        *,
+        token_ids: list[int] | None = None,
+    ) -> bool:
+        if not all(pool.ready[row] for pool in self.pools.values()):
+            return False
+        lengths = {
+            int(pool.metadata[row].get("total_len", -1))
+            for pool in self.pools.values()
+        }
+        if len(lengths) != 1:
+            return False
+        total_length = lengths.pop()
+        if total_length <= 0:
+            return False
+        cached_tokens = (
+            tuple(map(int, token_ids[:total_length]))
+            if token_ids is not None
+            else self._request_token_ids(req_id, slot, total_length)
+        )
+        if cached_tokens is None or len(cached_tokens) != total_length:
+            return False
+        self.cache_clock += 1
+        self.cached_rows[row] = _CachedLODRow(
+            row=row,
+            token_ids=cached_tokens,
+            total_length=total_length,
+            last_used=self.cache_clock,
+        )
+        return True
+
+    def _restore_cached_prefix(
+        self, slot: int | str, token_ids: list[int], prefix_length: int
+    ) -> bool:
+        prefix = tuple(map(int, token_ids[:prefix_length]))
+        candidates = sorted(
+            self.cached_rows.values(),
+            key=lambda entry: entry.last_used,
+            reverse=True,
+        )
+        for entry in candidates:
+            if entry.total_length < prefix_length:
+                continue
+            if entry.token_ids[:prefix_length] != prefix:
+                continue
+            if any(
+                int(pool.metadata[entry.row].get("coverage", prefix_length + 1))
+                > prefix_length
+                for pool in self.pools.values()
+            ):
+                continue
+            self.cached_rows.pop(entry.row)
+            for pool in self.pools.values():
+                pool.truncate_recent(entry.row, prefix_length)
+                pool.retained_reuse_count += 1
+            self.lod_row_by_slot[slot] = entry.row
+            self.cache_clock += 1
+            return True
+        return False
+
+    def _free_lod_row(self, row: int) -> None:
+        self.cached_rows.pop(row, None)
+        self.borrowed_dummy_rows.discard(row)
+        if self.initialized:
+            for pool in self.pools.values():
+                pool.reset(row)
+        if row not in self.free_lod_rows:
+            self.free_lod_rows.append(row)
+
+    def _evict_cached_row(self) -> int | None:
+        if not self.cached_rows:
+            return None
+        entry = min(self.cached_rows.values(), key=lambda item: item.last_used)
+        self.cached_rows.pop(entry.row)
+        for pool in self.pools.values():
+            pool.reset(entry.row)
+        return entry.row
 
     def _release_lod_row(self, slot: int | str) -> None:
         row = self.lod_row_by_slot.pop(slot, None)
         if row is None:
             return
-        if self.initialized:
-            for pool in self.pools.values():
-                pool.reset(row)
-        self.free_lod_rows.append(row)
+        self._free_lod_row(row)
 
     def _lod_row(self, slot: int | str) -> int:
         row = self.lod_row_by_slot.get(slot)
         if row is not None:
             return row
         if not self.free_lod_rows:
-            raise RuntimeError(
-                "pure decode batch exceeds VLLM_LOD_POOL_SIZE; increase the "
-                "environment setting or reduce --max-num-seqs"
-            )
-        row = self.free_lod_rows.pop()
+            row = self._evict_cached_row()
+            if row is None:
+                raise RuntimeError(
+                    "active LOD requests exceed VLLM_LOD_POOL_SIZE; increase "
+                    "the environment setting or reduce --max-num-seqs"
+                )
+        else:
+            row = self.free_lod_rows.pop()
         self.lod_row_by_slot[slot] = row
         return row
 
@@ -297,7 +433,12 @@ class VLLMLODRuntime:
             pool.local_lens.zero_()
 
     def _use_native_attention(self, slots: list[int | str]) -> None:
-        """Disable LOD for this batch and mark affected shadow rows stale."""
+        """Disable LOD for a legacy dual-cache batch."""
+        if self.settings.cache_ownership == "lod":
+            raise RuntimeError(
+                "authoritative LOD cache cannot fall back to native remote "
+                "attention; the request needs a matching retained LOD prefix"
+            )
         for pool in self.pools.values():
             pool.decode_enabled = False
             pool.direct_prefill_plan = None
@@ -315,7 +456,7 @@ class VLLMLODRuntime:
         computed_lengths: np.ndarray,
         query_starts: np.ndarray,
     ) -> None:
-        """Use native attention while preserving exact one-token LOD shadows."""
+        """Use dual-cache native attention while preserving exact LOD copies."""
         if len(query_starts) != len(slots) + 1:
             raise ValueError("vLLM query boundaries do not match the request batch")
         plan: list[tuple[int, int, int, int]] = []
@@ -356,7 +497,7 @@ class VLLMLODRuntime:
         computed_lengths: np.ndarray,
         query_starts: np.ndarray,
     ) -> bool:
-        """Prepare a direct LOD batch only when every shadow can advance exactly."""
+        """Prepare direct LOD only when every authoritative row advances exactly."""
         if self.settings.prefill_mode != "direct" or len(slots) > self.pool_size:
             return False
         if len(query_starts) != len(slots) + 1:
@@ -380,9 +521,9 @@ class VLLMLODRuntime:
                     for pool in self.pools.values()
                 )
             if not compatible:
-                # This includes native prefix-cache hits for which no LOD shadow
-                # exists. Native attention remains authoritative and the prefix
-                # is converted before the next pure-decode batch.
+                # In dual mode this permits a native fallback. Authoritative
+                # mode turns the failed plan into an actionable error because
+                # no complete native remote cache exists to reconstruct from.
                 return False
             plan.append((lod_row, begin, end, previous_length))
 
@@ -395,20 +536,69 @@ class VLLMLODRuntime:
 
     def _pad_decode_rows(self, lod_rows: list[int], padded_rows: int) -> list[int]:
         dummy_count = padded_rows - len(lod_rows)
-        candidates = [row for row in range(self.pool_size) if row not in lod_rows]
+        active_rows = set(self.lod_row_by_slot.values())
+        current_rows = set(lod_rows)
+        unused = [
+            row
+            for row in range(self.pool_size)
+            if row not in active_rows and row not in self.cached_rows
+        ]
+        retained = [
+            entry.row
+            for entry in sorted(
+                self.cached_rows.values(), key=lambda item: item.last_used
+            )
+            if entry.row not in active_rows
+        ]
+        dormant = [
+            row
+            for row in active_rows - current_rows
+            if all(pool.ready[row] for pool in self.pools.values())
+        ]
+        candidates = unused + retained + dormant
         if dummy_count > len(candidates):
-            raise RuntimeError("not enough distinct LOD rows for padded decode")
+            raise RuntimeError(
+                "not enough distinct LOD rows for graph padding without "
+                "overwriting another authoritative request cache"
+            )
         dummy_rows = candidates[:dummy_count]
-        owned_rows = set(self.lod_row_by_slot.values())
-        for row in dummy_rows:
-            if row not in owned_rows:
-                continue
-            # A graph-padding row may temporarily borrow storage belonging to
-            # a currently unscheduled request. Mark it stale so that request
-            # is rebuilt from the authoritative native cache before reuse.
-            for pool in self.pools.values():
-                pool.ready[row] = False
+        if dummy_rows:
+            rows = torch.tensor(
+                dummy_rows, dtype=torch.long, device=self.active_indices.device
+            )
+            unused_rows = [row for row in dummy_rows if row in unused]
+            unused_tensor = (
+                torch.tensor(
+                    unused_rows,
+                    dtype=torch.long,
+                    device=self.active_indices.device,
+                )
+                if unused_rows
+                else None
+            )
+            for name, pool in self.pools.items():
+                if unused_tensor is not None:
+                    pool.local_lens.index_fill_(0, unused_tensor, 0)
+                self.borrowed_dummy_lens[name].index_copy_(
+                    0, rows, pool.local_lens.index_select(0, rows)
+                )
+        self.borrowed_dummy_rows.update(dummy_rows)
         return lod_rows + dummy_rows
+
+    def _restore_borrowed_dummy_rows(self) -> None:
+        """Discard graph-padding appends before a row is observed again."""
+        if not self.borrowed_dummy_rows:
+            return
+        rows = torch.tensor(
+            sorted(self.borrowed_dummy_rows),
+            dtype=torch.long,
+            device=self.active_indices.device,
+        )
+        for name, pool in self.pools.items():
+            pool.local_lens.index_copy_(
+                0, rows, self.borrowed_dummy_lens[name].index_select(0, rows)
+            )
+        self.borrowed_dummy_rows.clear()
 
     def prepare_capture(
         self, input_batch: Any, kv_cache_config: Any, *, for_capture: bool
@@ -540,6 +730,7 @@ class VLLMLODRuntime:
                         self.pools[name].install(
                             lod_row, converted, source_slot=source_slot
                         )
+                    self.pools[name].engine.reset_runtime_cache()
         except Exception:
             for _, lod_row, _ in requests:
                 for pool in self.pools.values():
@@ -555,6 +746,7 @@ class VLLMLODRuntime:
         self.initialize(kv_cache_config)
         if not self.enabled or input_batch.num_reqs == 0:
             return
+        self._restore_borrowed_dummy_rows()
         rows = int(input_batch.num_reqs)
         for req_id, slot in zip(input_batch.req_ids, input_batch.idx_mapping_np):
             self.req_to_slot[req_id] = int(slot)
@@ -572,9 +764,9 @@ class VLLMLODRuntime:
                 slots, input_batch.num_computed_tokens_np, query_starts
             ):
                 return
-            # Native attention updates the authoritative BF16 cache for any
-            # batch that cannot advance every LOD shadow exactly. Reconvert
-            # before these requests next enter a pure LOD decode graph.
+            # This is the legacy dual-cache fallback. Authoritative mode raises
+            # rather than silently using its bounded native staging as remote
+            # attention or pretending it can reconstruct a discarded prefix.
             self._prepare_native_attention(
                 slots, input_batch.num_computed_tokens_np, query_starts
             )
@@ -600,16 +792,6 @@ class VLLMLODRuntime:
                 device=self.active_indices.device,
             )
         )
-        if padded_rows > rows:
-            dummy_rows = torch.tensor(
-                mapped_rows[rows:],
-                dtype=torch.long,
-                device=self.active_indices.device,
-            )
-            # Padding executes inside a captured graph. Reset its distinct
-            # scratch rows before replay so fake appends never accumulate.
-            for pool in self.pools.values():
-                pool.local_lens.index_fill_(0, dummy_rows, 0)
         conversions: list[tuple[int, int, int]] = []
         catch_ups: list[tuple[int, int]] = []
         for row, raw_slot in enumerate(input_batch.idx_mapping_np):
@@ -720,7 +902,29 @@ def install_model_state_hooks() -> None:
     patch_state_class(DefaultModelState)
     patch_state_class(MambaHybridModelState)
     ModelState._vllm_lod_hooks_installed = True
+    install_gpu_runner_hooks()
     install_legacy_runner_hooks()
+
+
+def install_gpu_runner_hooks() -> None:
+    """Expose modern runner token state to persistent LOD cache ownership."""
+    try:
+        from vllm.v1.worker.gpu.model_runner import GPUModelRunner
+    except ImportError:
+        return
+    if getattr(GPUModelRunner, "_vllm_lod_token_hooks_installed", False):
+        return
+
+    original_load_model = GPUModelRunner.load_model
+
+    def load_model(self: Any, *args: Any, **kwargs: Any) -> None:
+        original_load_model(self, *args, **kwargs)
+        runtime = _runtime(self.model_state)
+        if runtime is not None:
+            runtime.request_states = self.req_states
+
+    GPUModelRunner.load_model = load_model
+    GPUModelRunner._vllm_lod_token_hooks_installed = True
 
 
 def install_legacy_runner_hooks() -> None:
@@ -737,6 +941,7 @@ def install_legacy_runner_hooks() -> None:
     original_load_model = GPUModelRunner.load_model
     original_initialize_kv_cache = GPUModelRunner.initialize_kv_cache
     original_build_attention_metadata = GPUModelRunner._build_attention_metadata
+    original_request_removed = GPUModelRunner._on_request_state_removed
 
     def load_model(self: Any, *args: Any, **kwargs: Any) -> None:
         original_load_model(self, *args, **kwargs)
@@ -776,14 +981,27 @@ def install_legacy_runner_hooks() -> None:
             )
         return original_build_attention_metadata(self, *args, **kwargs)
 
+    def on_request_state_removed(
+        self: Any, req_id: str, req_state: Any | None
+    ) -> None:
+        runtime = getattr(self, "_vllm_lod_runtime", None)
+        if runtime is not None and req_state is not None:
+            runtime.remove_request(
+                req_id,
+                token_ids=runtime._legacy_token_ids(req_state),
+            )
+        original_request_removed(self, req_id, req_state)
+
     GPUModelRunner.load_model = load_model
     GPUModelRunner.initialize_kv_cache = initialize_kv_cache
     GPUModelRunner._build_attention_metadata = build_attention_metadata
+    GPUModelRunner._on_request_state_removed = on_request_state_removed
     GPUModelRunner._vllm_lod_hooks_installed = True
 
 
 __all__ = [
     "VLLMLODRuntime",
+    "install_gpu_runner_hooks",
     "install_legacy_runner_hooks",
     "install_model_state_hooks",
 ]

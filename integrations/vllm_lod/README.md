@@ -1,21 +1,21 @@
 # LOD Attention for vLLM
 
-This out-of-tree plugin keeps vLLM's native FP16/BF16 paged cache as an
-authoritative representation. By default it uses native attention for prefill,
-prefix-cache hits, mixed prefill/decode batches, and sliding-window layers.
-Before a request's first pure decode batch, it gathers the request's native K/V
-through the vLLM block table, reconstructs semantic LOD regions, and switches
-compatible global-attention layers to recursive LOD decode. The same native
-cache continues to receive every K/V update, so a request can safely fall back
-to native attention and be reconverted later.
+This out-of-tree plugin makes semantic LOD state the authoritative cache for
+eligible global-attention layers. Initial and cached prefill build that state
+directly, and decode advances the same fixed-address rows. vLLM retains only a
+bounded chronological staging window for those layers; recurrent/Mamba state
+and attention layers that are not LOD-compatible remain in their native cache.
 
-Prefill has two selectable paths. `VLLM_LOD_PREFILL_MODE=rebuild` (the
-default) is the native-prefill behavior above. `VLLM_LOD_PREFILL_MODE=direct`
-runs LOD attention and incrementally builds the LOD shadow during initial or
-cached prefill, while vLLM still writes and retains the ordinary native K/V.
-The direct path is used only when every row in a mixed/ragged batch starts at
-zero or has an exactly matching LOD prefix. A native-only prefix-cache hit
-safely falls back to native attention and is rebuilt before LOD decode.
+Completed LOD rows remain available for content-matched prefix reuse. When
+vLLM resumes a prompt at a physical block boundary, the plugin verifies the
+exact token prefix and rolls the retained row back only within its unclustered
+exact tail. It never tries to undo clustered history. The bounded native
+staging cache is not a lossless remote-attention fallback.
+
+`VLLM_LOD_CACHE_OWNERSHIP=dual` retains the earlier diagnostic design: native
+FP16/BF16 K/V remains authoritative, prefill can run natively, and LOD is a
+rebuildable decode shadow. This mode is useful for comparisons but does not
+provide the authoritative mode's memory saving.
 
 INT4 is applied only after keys have been assigned to a semantic LOD region.
 The plugin never quantizes chronological vLLM cache blocks as if they were LOD
@@ -33,6 +33,7 @@ Then select the registered custom backend:
 
 ```bash
 VLLM_PLUGINS=lod_attention \
+VLLM_LOD_CACHE_OWNERSHIP=lod \
 VLLM_LOD_POOL_SIZE=8 \
 VLLM_LOD_KV_BITS=4 \
 vllm serve MODEL \
@@ -41,32 +42,33 @@ vllm serve MODEL \
   --max-num-seqs 8
 ```
 
-`VLLM_LOD_POOL_SIZE` is the maximum simultaneous pure-decode requests on each
-worker. It defaults to 8. The pool is independent of vLLM's stable request
-indices; a persistent device indirection table maps active batch rows to LOD
-rows without changing captured tensor addresses. Set it equal to
-`--max-num-seqs` when full CUDA graphs are enabled. Captured padding rows use
-distinct unused LOD rows and are reset before replay; mapping padding onto a
-live row would race its K/V append. A larger native prefill token batch is
-allowed, but a pure decode graph wider than the pool fails with an actionable
-error rather than silently aliasing rows.
+`VLLM_LOD_POOL_SIZE` is the number of simultaneous or retained request rows on
+each worker. It defaults to 8 and must be at least `--max-num-seqs`. The pool is
+independent of vLLM's stable request indices; a persistent device indirection
+table maps active batch rows to LOD rows without changing captured tensor
+addresses. Graph padding never borrows a scheduled row. It may temporarily use
+an unscheduled or completed row after restoring that row's real tail length;
+the dummy append is placed just beyond the retained tail and discarded before
+the row is observed again.
 
 The optional `VLLM_LOD_MAX_CONTEXT` caps each LOD row. It defaults to vLLM's
 `max_model_len`. Other settings are `VLLM_LOD_CHUNK_SIZE` (256),
 `VLLM_LOD_LOCAL_WINDOW` (512), `VLLM_LOD_STATE_FACTOR` (16),
 `VLLM_LOD_STATE_MIN` (256), `VLLM_LOD_OPEN_COUNT` (8), and
-`VLLM_LOD_QUANT_GROUP_SIZE` (32). Set `VLLM_LOD_PREFILL_MODE` to `direct` to
-exercise direct LOD prefill; leave it at `rebuild` for native prefill followed
-by conversion. `VLLM_LOD_ROUTING_GEOMETRY=auto` selects coherence-aware state
-routing for attention modules with normalized keys and spherical routing for
-unnormalized keys. `raw`, `spherical`, and `coherence` are available as explicit
-diagnostic overrides.
+`VLLM_LOD_QUANT_GROUP_SIZE` (32). Authoritative ownership forces
+`VLLM_LOD_PREFILL_MODE=direct`. `VLLM_LOD_NATIVE_STAGING_CHUNK` (1024) controls
+the exact chronological window retained by vLLM, while
+`VLLM_LOD_NATIVE_CACHE_HEADROOM` (1.5) controls transient block-pool headroom.
+`VLLM_LOD_ROUTING_GEOMETRY=auto` selects coherence-aware state routing for
+attention modules with normalized keys and spherical routing for unnormalized
+keys. `raw`, `spherical`, and `coherence` are explicit diagnostic overrides.
 
 ## Execution contract
 
-- The default rebuild path leaves native prefill unchanged. Both prefill modes
-  retain the native cache and remain compatible with continuous batching.
-- Prefix conversion reads each backend's canonical paged-cache view. In
+- The default authoritative path runs direct LOD prefill and keeps only bounded
+  native staging for eligible global-attention layers. `dual` ownership retains
+  the older native-prefill/rebuild path.
+- Dual-mode prefix conversion reads each backend's canonical paged-cache view. In
   particular, ROCm's raw allocation has a nominal token-major shape but is
   written through head-major K/V views; treating the raw shape as semantic
   token order scrambles the reconstructed prefix.
@@ -81,11 +83,9 @@ diagnostic overrides.
   replays, in 256-token batches. Decode itself only appends to a fixed local
   tail and advances one integer length per active row.
 - A direct-prefill mixed batch uses LOD only when every request can advance an
-  exact shadow prefix. Otherwise it stays entirely native; affected LOD rows
-  are invalidated and reconstructed from the authoritative native cache before
-  their next pure decode batch. Already-ready one-token decode rows are kept
-  current from that native batch's post-RoPE K/V, avoiding repeated full
-  reconstruction under continuous batching.
+  exact authoritative prefix. In `lod` ownership, a missing prefix is an error:
+  bounded staging cannot reconstruct discarded remote history. In `dual`
+  ownership the batch can use native attention and rebuild later.
 - Equal-length native prefixes are gathered and rebuilt as one batch per layer;
   ragged prefixes are grouped by length. Ordinary decode tokens update only
   host metadata between state boundaries, so eager state-maintenance launches
@@ -103,34 +103,79 @@ later integration stage, not a hidden branch in the captured kernel.
 
 ## Current memory behavior
 
-The native cache is deliberately retained in this first integration. It is
-the source for prefix sharing, fallback, and reconversion; LOD therefore adds
-a second representation rather than immediately reducing total server memory.
-INT4 still reduces the added LOD leaf pool substantially. Releasing native
-block references after conversion requires scheduler/KV-manager ownership and
-is a separate integration stage; it must not be approximated by quantizing
-sequential native blocks.
+Authoritative mode replaces full chronological K/V for eligible global layers.
+The vLLM scheduler uses chunk-local cache semantics to free settled staging
+blocks after each prefill/decode step, and startup caps that native pool from
+the global in-flight token budget rather than the maximum context length.
+Recurrent state remains native. Semantic leaves are quantized only after region
+assignment; sequential native blocks are never treated as quantizable pages.
+
+`dual` mode intentionally retains both representations and should not be used
+to assess memory savings.
 
 ## Quality validation
 
-The integration was checked with Qwen3.5-0.8B on vLLM 0.27.1 for ROCm. Each
-mode used eight 8K examples at batch size eight.
+The authoritative integration was checked with Qwen3.5-0.8B on vLLM 0.27.1
+for ROCm. NIAH used eight 8K examples at batch size eight; the initial ProLong
+check used two 8K documents.
 
 | Evaluation | Native vLLM | LOD backend |
 | --- | ---: | ---: |
-| ProLong token CE | 3.251862 | 3.251862 |
-| ProLong perplexity | 25.838413 | 25.838413 |
+| ProLong token CE | 3.109570 | 3.113030 |
+| ProLong perplexity | 22.411398 | 22.489091 |
 | NIAH-S3 exact match | 8/8 | 8/8 |
 
-ProLong prompt log-probabilities exercise the unchanged native-prefill path,
-so equality verifies that selecting the plugin does not perturb prefill.
-NIAH-S3 exercises native BF16 prefill, native-to-LOD conversion, and captured
-INT4 recursive LOD decode. The worker recorded 48 real cache installations for
-that run: six global-attention layers for each of eight requests.
+ProLong prompt log-probabilities exercise direct LOD prefill; its CE increase in
+this small check was 0.003461 (0.11%). NIAH-S3 exercises direct prefill and INT4
+recursive LOD decode. The final NIAH run used CUDA graphs. The worker recorded
+48 real authoritative cache installations: six global-attention layers for
+each of eight requests.
+
+## Warm serving performance
+
+The following Qwen3.5-0.8B measurements use batch size eight, CUDA graphs,
+16K-token vLLM prefill chunks, 300 generated tokens, and the authoritative INT4
+cache. They report the median after one complete warm request. The exact full
+backend uses `ROCM_AITER_UNIFIED_ATTN`, the fastest working exact backend tested
+on this ROCm 7.2 system, and a tightly sized native block pool. Generating 300
+tokens ensures that the LOD timing includes a real 256-token state update.
+
+| Context | Full prefill | LOD prefill | Full decode step | LOD decode step |
+| --- | ---: | ---: | ---: | ---: |
+| 16K | 0.934 s | 1.499 s | 3.13 ms | 3.93 ms |
+| 64K | 8.672 s | 8.157 s | 4.92 ms | 4.26 ms |
+
+At 64K this is a 1.06x prefill speedup and a 1.15x decode-step speedup. At 16K,
+exact full attention remains 1.61x faster in prefill and 1.25x faster in decode.
+The LOD semantic cache plus bounded native staging used 3.977 GB, versus
+7.248 GB for full K/V (45.1% less persistent attention storage). Total device
+use after reclaiming allocator cache was 9.402 GB versus 12.184 GB (22.8% less).
+The smaller 16K case does not yet provide a net memory saving because fixed LOD
+state/page pools and bounded native staging are similar in size to its short
+full cache.
+
+vLLM's automatic ROCm selection chose `ROCM_ATTN` for this hybrid model. Its
+native paged kernel supports only 16- and 32-token blocks, while Qwen3.5's
+hybrid recurrent cache forces a 544-token attention block. It therefore fell
+back to the generic Triton chunked-paged path, inflating the 16K decode step to
+15.93 ms and the 64K decode step to 56.78 ms. Those timings are backend fallback
+diagnostics, not a fair exact-attention baseline.
+
+Cached-prefill state boundaries are rounded down to the 256-token update grid.
+This keeps at most one extra partial chunk exact and prevents arbitrary request
+lengths from producing an unbounded family of page-update specializations.
+The fused routing, coherence-update, final-reduction, and sparse page-transfer
+kernels keep ragged tensor extents and their batch/head strides as runtime
+arguments. On the 16K batch-eight diagnostic this reduced inference-time JIT
+events from 117 to 56; all remaining compilations completed during the one warm
+request, and five measured prefills stayed between 1.47 and 1.77 seconds.
+An unseen device/kernel configuration still incurs ordinary Triton JIT work;
+production images should preserve or pre-populate their Triton compilation
+cache. The timings above do not include that one-time compilation.
 
 The paired evaluator is `scripts/eval_vllm_lod_quality.py`. Its LOD NIAH check
-requires both an executed decode path and at least one real prefix conversion,
-which prevents graph-capture warmups from being mistaken for an LOD result.
+requires both an executed decode path and real cache installation, preventing
+graph-capture warmups from being mistaken for an LOD result.
 
 Warm batch throughput can be reproduced with:
 
