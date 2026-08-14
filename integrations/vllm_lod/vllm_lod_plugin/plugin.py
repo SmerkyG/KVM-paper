@@ -9,6 +9,13 @@ _REGISTERED = False
 
 
 def _add_lod_source_tree() -> None:
+    # Respect an explicitly selected source checkout (for example through
+    # PYTHONPATH) instead of silently replacing it with this plugin's editable
+    # install root. This matters when benchmarking changes from a worktree.
+    for entry in sys.path:
+        candidate = Path(entry or ".").resolve()
+        if (candidate / "model" / "triton_lod_engines.py").is_file():
+            return
     # Editable installs retain this package beneath integrations/vllm_lod.
     root = Path(__file__).resolve().parents[3]
     if not (root / "model" / "triton_lod_engines.py").is_file():

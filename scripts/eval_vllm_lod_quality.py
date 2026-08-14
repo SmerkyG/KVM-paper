@@ -9,7 +9,9 @@ import json
 import math
 import os
 import random
+import sys
 import time
+import types
 from pathlib import Path
 
 import numpy as np
@@ -65,7 +67,42 @@ def select_prolong_tokens(tokenizer, length: int, samples: int) -> list[list[int
 def select_niah_s3(tokenizer, checkpoint: str, length: int, samples: int) -> list[dict]:
     random.seed(0)
     np.random.seed(1234)
-    from lm_eval.tasks.ruler.niah_utils import niah_single_3
+    try:
+        from lm_eval.tasks.ruler.niah_utils import niah_single_3
+    except ModuleNotFoundError as error:
+        package_root_value = os.environ.get("LMEVAL_PACKAGE_ROOT")
+        if not package_root_value:
+            raise RuntimeError(
+                "NIAH-S3 requires lm_eval, or LMEVAL_PACKAGE_ROOT must point "
+                "to its lm_eval package directory"
+            ) from error
+        package_root = Path(package_root_value).resolve()
+        if not (package_root / "tasks" / "ruler" / "niah_utils.py").is_file():
+            raise RuntimeError(
+                f"LMEVAL_PACKAGE_ROOT is not an lm_eval package: {package_root}"
+            ) from error
+        dependency_root = str(package_root.parent)
+        if dependency_root not in sys.path:
+            # Append rather than prepend so serving-environment builds of
+            # torch, transformers, and vLLM keep precedence. This path only
+            # supplies optional RULER helpers such as wonderwords and nltk.
+            sys.path.append(dependency_root)
+        # The NIAH generator itself has light dependencies, but importing it
+        # normally executes lm_eval.tasks.__init__, which pulls the full eval
+        # stack into the serving environment. Namespace packages load only the
+        # three RULER modules needed to create prompts.
+        for name in tuple(sys.modules):
+            if name == "lm_eval" or name.startswith("lm_eval."):
+                del sys.modules[name]
+        for name, path in (
+            ("lm_eval", package_root),
+            ("lm_eval.tasks", package_root / "tasks"),
+            ("lm_eval.tasks.ruler", package_root / "tasks" / "ruler"),
+        ):
+            package = types.ModuleType(name)
+            package.__path__ = [str(path)]
+            sys.modules[name] = package
+        from lm_eval.tasks.ruler.niah_utils import niah_single_3
 
     standard_lengths = [4096, 8192, 16384, 32768, 65536, 131072]
     lengths = [value for value in standard_lengths if value <= length]
