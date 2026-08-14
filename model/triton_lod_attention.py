@@ -14,6 +14,8 @@ bounded recent KV window. Model adapters live in separate modules.
 from __future__ import annotations
 
 import math
+import os
+import sys
 
 import torch
 import torch.nn.functional as F
@@ -2826,7 +2828,6 @@ class TritonLODAttentionCore(nn.Module):
                     and self.routing_rope_fast_pairs == 0
                     and not self.routing_rope_jensen
                     and self.routing_variance_bias == 0.0
-                    and int(q.size(0)) == 1
                     and dynamic_target is None
                     and dynamic_residual is None
                     and not (
@@ -2895,6 +2896,19 @@ class TritonLODAttentionCore(nn.Module):
                         state_len=state_len,
                         protected_len=protected_len,
                         return_lse=dynamic_residual is not None,
+                        block_m=(
+                            int(getattr(self, "prefill_route_block_m", 16))
+                            if int(q.size(2)) > 1
+                            else 1
+                        ),
+                        num_warps=(
+                            int(getattr(self, "prefill_route_num_warps", 4))
+                            if int(q.size(2)) > 1
+                            else 4
+                        ),
+                        # Prefill may open fewer than the returned route count,
+                        # so the selected prefix must remain score ordered.
+                        reorder_like_torch=True,
                     )
                     if dynamic_residual is not None:
                         routed, routed_state_lse = route_result
@@ -4584,40 +4598,51 @@ class TritonLODAttentionCore(nn.Module):
         query_offset: int,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         if self.prefill_local_attention_backend == "aiter":
-            from aiter.ops.mha import flash_attn_func
-
-            batch, query_heads, supplied_query_len, head_dim = q.shape
-            key_len = int(k.size(2))
-            query_len = key_len - query_offset
-            if supplied_query_len == key_len:
-                actual_q = q[..., query_offset:, :]
-            elif supplied_query_len == query_len:
-                actual_q = q
-            else:
-                raise ValueError(
-                    "AITER local attention requires a full local query field "
-                    "or its suffix queries"
-                )
-            dense_q = actual_q.permute(0, 2, 1, 3).contiguous()
-            dense_k = k.permute(0, 2, 1, 3).contiguous()
-            dense_v = v.permute(0, 2, 1, 3).contiguous()
+            original_dlopen_flags = sys.getdlopenflags()
+            deepbind = getattr(os, "RTLD_DEEPBIND", 0)
+            if deepbind:
+                # TileLang exposes its lazy HIP stubs through TVM's global
+                # symbol scope.  Bind AITER's CK extension to its own real
+                # libamdhip64 dependency so the stub cannot intercept the
+                # versioned hipGetDevicePropertiesR0600 entry point.
+                sys.setdlopenflags(original_dlopen_flags | deepbind)
             try:
-                output, lse = flash_attn_func(
-                    dense_q,
-                    dense_k,
-                    dense_v,
-                    softmax_scale=self.scaling,
-                    causal=True,
-                    return_lse=True,
-                )
-            except RuntimeError as exc:
-                raise RuntimeError(
-                    "AITER local attention rejected geometry "
-                    f"batch={batch}, query_heads={query_heads}, "
-                    f"kv_heads={int(k.size(1))}, query_len={query_len}, "
-                    f"key_len={key_len}, head_dim={head_dim}"
-                ) from exc
-            return output.permute(0, 2, 1, 3), lse
+                from aiter.ops.mha import flash_attn_func
+
+                batch, query_heads, supplied_query_len, head_dim = q.shape
+                key_len = int(k.size(2))
+                query_len = key_len - query_offset
+                if supplied_query_len == key_len:
+                    actual_q = q[..., query_offset:, :]
+                elif supplied_query_len == query_len:
+                    actual_q = q
+                else:
+                    raise ValueError(
+                        "AITER local attention requires a full local query field "
+                        "or its suffix queries"
+                    )
+                dense_q = actual_q.permute(0, 2, 1, 3).contiguous()
+                dense_k = k.permute(0, 2, 1, 3).contiguous()
+                dense_v = v.permute(0, 2, 1, 3).contiguous()
+                try:
+                    output, lse = flash_attn_func(
+                        dense_q,
+                        dense_k,
+                        dense_v,
+                        softmax_scale=self.scaling,
+                        causal=True,
+                        return_lse=True,
+                    )
+                except RuntimeError as exc:
+                    raise RuntimeError(
+                        "AITER local attention rejected geometry "
+                        f"batch={batch}, query_heads={query_heads}, "
+                        f"kv_heads={int(k.size(1))}, query_len={query_len}, "
+                        f"key_len={key_len}, head_dim={head_dim}"
+                    ) from exc
+                return output.permute(0, 2, 1, 3), lse
+            finally:
+                sys.setdlopenflags(original_dlopen_flags)
         if self.prefill_local_attention_backend not in ("torch", "aiter"):
             raise ValueError(
                 "prefill local attention backend must be torch or aiter"

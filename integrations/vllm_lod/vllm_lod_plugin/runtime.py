@@ -100,6 +100,15 @@ class VLLMLODRuntime:
                 device=self.model_state.device,
                 has_query_norm=has_query_norm,
                 has_key_norm=has_key_norm,
+                retain_prefix_rollback=bool(
+                    getattr(
+                        getattr(
+                            self.model_state.vllm_config, "cache_config", None
+                        ),
+                        "enable_prefix_caching",
+                        False,
+                    )
+                ),
             )
             for rows in sorted(decode_sizes):
                 pool.reserve_decode_buffers(rows)

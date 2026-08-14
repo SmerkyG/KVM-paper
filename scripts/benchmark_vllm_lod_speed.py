@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import statistics
 import time
@@ -84,6 +85,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--enforce-eager", action="store_true")
     parser.add_argument("--jit-monitor-verbose", action="store_true")
     parser.add_argument("--attention-backend")
+    parser.add_argument("--lod-leaf-num-warps", type=int)
+    parser.add_argument("--lod-prefill-chunk-len", type=int)
+    parser.add_argument("--lod-prefill-state-update-len", type=int)
+    parser.add_argument("--lod-direct-prefill-route", action="store_true")
     parser.add_argument("--output", type=Path, required=True)
     return parser.parse_args()
 
@@ -166,6 +171,39 @@ def inspect_lod_model(model) -> dict[str, int]:
     return diagnostics
 
 
+def configure_lod_model(
+    model,
+    *,
+    leaf_num_warps: int | None,
+    prefill_chunk_len: int | None,
+    prefill_state_update_len: int | None,
+    direct_prefill_route: bool,
+) -> int:
+    """Apply benchmark-only kernel tuning before the warmup request."""
+    configured = 0
+    for module in model.modules():
+        pool = getattr(module, "_vllm_lod_pool", None)
+        if pool is None:
+            continue
+        if leaf_num_warps is not None:
+            pool.engine.leaf_num_warps = int(leaf_num_warps)
+        if prefill_chunk_len is not None:
+            pool.engine.prefill_chunk_len = int(prefill_chunk_len)
+            pool.engine.prefill_local_len = (
+                int(prefill_chunk_len)
+                + int(pool.engine.local_len)
+                + int(pool.engine.chunk_len)
+            )
+        if prefill_state_update_len is not None:
+            pool.engine.prefill_state_update_len = int(
+                prefill_state_update_len
+            )
+        if direct_prefill_route:
+            pool.engine.reuse_route_logits_for_coarse = False
+        configured += 1
+    return configured
+
+
 def main() -> None:
     args = parse_args()
     if (
@@ -210,6 +248,26 @@ def main() -> None:
     elif args.mode == "lod":
         kwargs["attention_config"] = {"backend": "CUSTOM"}
     llm = LLM(**kwargs)
+    if args.mode == "lod" and any(
+        value is not None
+        for value in (
+            args.lod_leaf_num_warps,
+            args.lod_prefill_chunk_len,
+            args.lod_prefill_state_update_len,
+            args.lod_direct_prefill_route or None,
+        )
+    ):
+        configured = llm.apply_model(
+            functools.partial(
+                configure_lod_model,
+                leaf_num_warps=args.lod_leaf_num_warps,
+                prefill_chunk_len=args.lod_prefill_chunk_len,
+                prefill_state_update_len=args.lod_prefill_state_update_len,
+                direct_prefill_route=args.lod_direct_prefill_route,
+            )
+        )
+        if not configured or not all(value > 0 for value in configured):
+            raise RuntimeError("LOD benchmark tuning found no installed layers")
 
     many = SamplingParams(
         temperature=0,
@@ -249,6 +307,10 @@ def main() -> None:
         "jit_monitor_verbose": args.jit_monitor_verbose,
         "num_gpu_blocks_override": args.num_gpu_blocks_override,
         "attention_backend": args.attention_backend,
+        "lod_leaf_num_warps": args.lod_leaf_num_warps,
+        "lod_prefill_chunk_len": args.lod_prefill_chunk_len,
+        "lod_prefill_state_update_len": args.lod_prefill_state_update_len,
+        "lod_direct_prefill_route": args.lod_direct_prefill_route,
         "prefill_seconds": prefill_elapsed,
         "prefill_timings_seconds": prefill_timings,
         "decode_timings_seconds": decode_timings,

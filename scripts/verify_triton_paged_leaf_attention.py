@@ -717,11 +717,16 @@ def verify_residual_page_attention(
     overflow_used = torch.zeros((), device=device, dtype=torch.int32)
     overflow_flag = torch.zeros((), device=device, dtype=torch.int32)
     next_page = torch.zeros(batch, kv_heads, device=device, dtype=torch.int32)
-    owners = (
-        torch.arange(tokens, device=device, dtype=torch.long)
-        .remainder(slots)
-        .view(1, 1, tokens)
-    )
+    # Keep slot zero within one page while the other slots span several pages.
+    # This covers the no-residual fast path in the same mixed routing call.
+    owners = torch.cat(
+        (
+            torch.zeros(8, device=device, dtype=torch.long),
+            torch.arange(tokens - 8, device=device, dtype=torch.long)
+            .remainder(slots - 1)
+            .add(1),
+        )
+    ).view(1, 1, tokens)
     k = torch.randn(
         batch, kv_heads, tokens, head_dim, device=device, dtype=torch.bfloat16
     )
@@ -815,7 +820,7 @@ def verify_residual_page_attention(
             ).squeeze(0)
             expected_lse[0, head, query_index] = score_tensor.logsumexp(0)
 
-    for page_block_n in (8, 16, 32):
+    for page_block_n in (1, 2, 4, 8, 16, 32):
         actual_out, actual_lse = query_major_residual_page_attention(
             q,
             state_k,
@@ -865,7 +870,7 @@ def verify_residual_page_attention(
         kv_group_size=query_heads // kv_heads,
         scale=scale,
         hash_probes=0,
-        page_block_n=16,
+        page_block_n=2,
     )
     one_route_out, one_route_lse = query_major_residual_page_attention(
         q,
@@ -886,7 +891,7 @@ def verify_residual_page_attention(
         kv_group_size=query_heads // kv_heads,
         scale=scale,
         hash_probes=0,
-        page_block_n=16,
+        page_block_n=2,
     )
     torch.testing.assert_close(prefix_out, one_route_out)
     torch.testing.assert_close(prefix_lse, one_route_lse)
@@ -962,7 +967,7 @@ def verify_residual_page_attention(
         kv_group_size=query_heads // kv_heads,
         scale=scale,
         hash_probes=0,
-        page_block_n=16,
+        page_block_n=2,
     )
     torch.testing.assert_close(
         indexed_out.float(), expected_out, rtol=2e-2, atol=8e-3
@@ -1002,6 +1007,71 @@ def verify_residual_page_attention(
     torch.testing.assert_close(
         indexed_quantized_lse, expected_lse, rtol=2e-3, atol=3e-3
     )
+
+    quantized_leaf_k = torch.empty(
+        batch,
+        kv_heads,
+        flat_tokens,
+        head_dim // 2,
+        device=device,
+        dtype=torch.uint8,
+    )
+    quantized_leaf_v = torch.empty_like(quantized_leaf_k)
+    page_k_scales = torch.empty(
+        batch,
+        kv_heads,
+        page_capacity,
+        head_dim // 32,
+        device=device,
+        dtype=torch.bfloat16,
+    )
+    page_v_scales = torch.empty_like(page_k_scales)
+    page_quantized_counts = torch.zeros_like(page_counts)
+    quantize_virtual_paged_kv_int4(
+        leaf_k,
+        leaf_v,
+        page_indices,
+        page_sum_k,
+        page_sum_v,
+        page_counts,
+        quantized_leaf_k,
+        quantized_leaf_v,
+        page_k_scales,
+        page_v_scales,
+        page_quantized_counts,
+    )
+    int4_out, int4_lse = query_major_indexed_residual_page_attention(
+        q,
+        state_k,
+        state_v,
+        state_counts,
+        leaf_k[..., :1, :],
+        leaf_v[..., :1, :],
+        page_indices,
+        page_sum_k,
+        page_sum_v,
+        page_counts,
+        slot_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        slot_lengths,
+        top_slots,
+        kv_group_size=query_heads // kv_heads,
+        scale=scale,
+        hash_probes=0,
+        page_block_n=2,
+        quantized_leaf_k=quantized_leaf_k,
+        quantized_leaf_v=quantized_leaf_v,
+        page_k_scales=page_k_scales,
+        page_v_scales=page_v_scales,
+        page_quantized_counts=page_quantized_counts,
+    )
+    torch.testing.assert_close(
+        int4_out.float(), expected_out, rtol=2e-1, atol=1.2e-1
+    )
+    torch.testing.assert_close(int4_lse, expected_lse, rtol=2e-2, atol=3e-2)
+
     invalid_slots = torch.full_like(top_slots, -1)
     invalid_out, invalid_lse = query_major_indexed_residual_page_attention(
         q,

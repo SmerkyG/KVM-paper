@@ -175,6 +175,9 @@ def _merge_attention_branches_kernel(
         "TERTIARY_LSE_BATCH_STRIDE",
         "TERTIARY_LSE_HEAD_STRIDE",
         "TERTIARY_LSE_TOKEN_STRIDE",
+        "OUTPUT_BATCH_STRIDE",
+        "OUTPUT_HEAD_STRIDE",
+        "OUTPUT_TOKEN_STRIDE",
         "QUERY_LEN",
     ],
 )
@@ -216,6 +219,9 @@ def _merge_attention_branches_with_sink_kernel(
     TERTIARY_LSE_BATCH_STRIDE,
     TERTIARY_LSE_HEAD_STRIDE,
     TERTIARY_LSE_TOKEN_STRIDE,
+    OUTPUT_BATCH_STRIDE,
+    OUTPUT_HEAD_STRIDE,
+    OUTPUT_TOKEN_STRIDE,
     QUERY_LEN,
     QUERY_HEADS: tl.constexpr,
     KV_GROUP_SIZE: tl.constexpr,
@@ -376,8 +382,9 @@ def _merge_attention_branches_with_sink_kernel(
         denominator += tertiary_weight
         numerator += tertiary_weight[:, None] * tertiary_value
     output_offset = (
-        ((batch * QUERY_HEADS + query_head) * QUERY_LEN + query[:, None])
-        * HEAD_DIM
+        batch * OUTPUT_BATCH_STRIDE
+        + query_head * OUTPUT_HEAD_STRIDE
+        + query[:, None] * OUTPUT_TOKEN_STRIDE
         + dim[None, :]
     )
     tl.store(
@@ -4453,6 +4460,9 @@ def route_top8_scores_grouped(
     state_len: int | None = None,
     protected_len: int = 0,
     return_lse: bool = False,
+    block_m: int | None = None,
+    num_warps: int = 4,
+    reorder_like_torch: bool = True,
 ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
     """Select top state slots without changing the reference GEMM scores."""
     if not 1 <= topk <= 8:
@@ -4466,7 +4476,12 @@ def route_top8_scores_grouped(
         raise ValueError("active LOD state exceeds the routing score width")
     if protected_len < 0 or protected_len + topk > state_len:
         raise ValueError("protected state leaves too few routing candidates")
-    block_m = 16 if query_len > 1 else 1
+    if block_m is None:
+        block_m = 16 if query_len > 1 else 1
+    if block_m <= 0 or block_m & (block_m - 1):
+        raise ValueError("grouped routing query block must be a power of two")
+    if query_len == 1 and block_m != 1:
+        raise ValueError("decode grouped routing requires a one-row query block")
     block_n = 64
     active_groups = triton.cdiv(state_len, block_n)
     partial_scores = buffers["partial_scores"]
@@ -4514,7 +4529,7 @@ def route_top8_scores_grouped(
         PROTECTED_LEN=protected_len,
         TOPK=topk,
         STORE_LSE=return_lse,
-        **_launch_kwargs(4),
+        **_launch_kwargs(num_warps),
     )
     candidate_block = triton.next_power_of_2(max_groups * topk)
     lse_group_block = triton.next_power_of_2(max_groups)
@@ -4550,14 +4565,15 @@ def route_top8_scores_grouped(
         STORE_LSE=return_lse,
         **_launch_kwargs(4 if query_len > 1 else 2),
     )
-    _reorder_topk_like_torch_kernel[(batch, q_heads, query_len)](
-        output,
-        OUTPUT_BATCH_STRIDE=output.stride(0),
-        OUTPUT_HEAD_STRIDE=output.stride(1),
-        OUTPUT_TOKEN_STRIDE=output.stride(2),
-        TOPK=topk,
-        **_launch_kwargs(1),
-    )
+    if reorder_like_torch:
+        _reorder_topk_like_torch_kernel[(batch, q_heads, query_len)](
+            output,
+            OUTPUT_BATCH_STRIDE=output.stride(0),
+            OUTPUT_HEAD_STRIDE=output.stride(1),
+            OUTPUT_TOKEN_STRIDE=output.stride(2),
+            TOPK=topk,
+            **_launch_kwargs(1),
+        )
     routed = output[..., :query_len, :topk]
     if return_lse:
         return routed, state_lse[..., :query_len]
@@ -4620,6 +4636,24 @@ def apply_residual_mass_opening(
     return top_slots
 
 
+def _output_has_internal_overlap(output: torch.Tensor) -> bool:
+    """Conservatively reject writable views whose logical elements alias."""
+    span = 1
+    dimensions = sorted(
+        (
+            (int(stride), int(size))
+            for size, stride in zip(output.shape, output.stride(), strict=True)
+            if int(size) > 1
+        ),
+        key=lambda item: item[0],
+    )
+    for stride, size in dimensions:
+        if stride < span:
+            return True
+        span += (size - 1) * stride
+    return False
+
+
 def merge_attention_branches(
     primary_out: torch.Tensor,
     primary_lse: torch.Tensor,
@@ -4670,6 +4704,7 @@ def merge_attention_branches(
         or output.dtype != primary_out.dtype
         or output.device != primary_out.device
         or int(output.stride(-1)) != 1
+        or _output_has_internal_overlap(output)
     ):
         raise ValueError("fused branch output buffer has incompatible geometry")
     batch, heads, query_len, head_dim = expected_output_shape
@@ -4787,6 +4822,7 @@ def merge_attention_branches_with_sink(
         or output.dtype != q.dtype
         or output.device != q.device
         or int(output.stride(-1)) != 1
+        or _output_has_internal_overlap(output)
     ):
         raise ValueError("fused sink output buffer has incompatible geometry")
     grid = (batch, query_heads, triton.cdiv(query_len, block_m))
@@ -4828,6 +4864,9 @@ def merge_attention_branches_with_sink(
         tertiary_lse.stride(0),
         tertiary_lse.stride(1),
         tertiary_lse.stride(2),
+        output.stride(0),
+        output.stride(1),
+        output.stride(2),
         QUERY_LEN=query_len,
         QUERY_HEADS=query_heads,
         KV_GROUP_SIZE=kv_group_size,

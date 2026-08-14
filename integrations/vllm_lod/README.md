@@ -135,23 +135,23 @@ each of eight requests.
 
 The following Qwen3.5-0.8B measurements use batch size eight, CUDA graphs, a
 65,536-token scheduler budget, an 8,192-token long-prefill threshold, 1,025
-generated tokens, and the authoritative INT4 cache. They report the median of
-five runs after one complete warm request. The exact full backend uses
-`ROCM_AITER_UNIFIED_ATTN`, the fastest working exact backend tested on this ROCm
-7.2 system, and a tightly sized native block pool. The 1,024 measured decode
-intervals include four 256-token LOD state updates, so their costs are
-amortized rather than represented by a single boundary.
+generated tokens, and the speed-oriented BF16 LOD leaf cache
+(`VLLM_LOD_KV_BITS=0`). They report warm medians from five to seven runs. The
+exact full backend uses `ROCM_AITER_UNIFIED_ATTN`, the fastest working exact
+backend tested on this ROCm 7.2 system, and a tightly sized native block pool.
+The 1,024 measured decode intervals include four 256-token LOD state updates,
+so their costs are amortized rather than represented by a single boundary.
 
 | Context | Full prefill | LOD prefill | Full decode step | LOD decode step |
 | --- | ---: | ---: | ---: | ---: |
-| 16K | 0.911 s | 1.270 s | 3.19 ms | 3.88 ms |
-| 64K | 8.033 s | 6.836 s | 5.10 ms | 4.25 ms |
+| 16K | 0.898 s | 1.056 s | 3.09 ms | 3.47 ms |
+| 64K | 8.039 s | 6.177 s | 5.11 ms | 4.26 ms |
 
-At 64K this is a 1.18x prefill speedup and a 1.20x decode-step speedup. At 16K,
-exact full attention remains 1.39x faster in prefill and 1.22x faster in decode.
-At 64K, the persistent cache tensors attributed to the LOD semantic cache and
+At 64K this is a 1.30x prefill speedup and a 1.20x decode-step speedup. At 16K,
+exact full attention remains 1.18x faster in prefill and 1.12x faster in decode.
+INT4 remains the memory-oriented mode: at 64K its persistent semantic cache and
 bounded native staging used 5.804 GB, versus 7.248 GB for the full backend
-(19.9% less). At 16K they used 3.986 GB versus 2.265 GB, because fixed LOD pools
+(19.9% less). At 16K they used 3.986 GB versus 2.265 GB because fixed LOD pools
 and bounded staging outweigh compression at short context. Total device use is
 not reported as a cache metric because compiled kernels and runtime workspaces
 remain resident and vary with warmup history.
@@ -168,14 +168,14 @@ This keeps at most one extra partial chunk exact and prevents arbitrary request
 lengths from producing an unbounded family of page-update specializations.
 The fused routing, coherence-update, final-reduction, and sparse page-transfer
 kernels keep ragged tensor extents and their batch/head strides as runtime
-arguments. On the 16K batch-eight diagnostic this reduced inference-time JIT
-events from 117 to 56; all remaining compilations completed during the one warm
-request. Two clean paired replicas produced LOD prefill medians of 1.270 and
-1.279 seconds; the five runs in the reported replica stayed between 1.255 and
-1.278 seconds.
-An unseen device/kernel configuration still incurs ordinary Triton JIT work;
-production images should preserve or pre-populate their Triton compilation
-cache. The timings above do not include that one-time compilation.
+arguments. Prefill routing uses 128-query tiles, coarse attention uses 32x64
+tiles, recursive page attention uses two-page tiles, and the local branch uses
+AITER. The final merge now honors arbitrary output strides, so packed prefill
+writes directly into vLLM's token-major output rather than allocating and
+copying a second full output tensor. An unseen device/kernel configuration
+still incurs ordinary Triton JIT work; production images should preserve or
+pre-populate their Triton compilation cache. Warm medians above exclude setup
+time but can still contain isolated shape-specific compilation outliers.
 
 The paired evaluator is `scripts/eval_vllm_lod_quality.py`. Its LOD NIAH check
 requires both an executed decode path and real cache installation, preventing
@@ -184,7 +184,7 @@ graph-capture warmups from being mistaken for an LOD result.
 Warm batch throughput can be reproduced with:
 
 ```bash
-python scripts/benchmark_vllm_lod_speed.py \
+VLLM_LOD_KV_BITS=0 python scripts/benchmark_vllm_lod_speed.py \
   --mode lod --length 8192 --batch-size 8 --decode-tokens 1025 --repeats 5 \
   --max-num-batched-tokens 65536 --long-prefill-token-threshold 8192 \
   --output artifacts/vllm_lod_speed/lod_b8_8k_d1025.json
