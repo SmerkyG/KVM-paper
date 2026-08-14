@@ -78,6 +78,8 @@ class LODConfig:
     routing_leaf_mass_review_top_p: float | None = None
     routing_leaf_mass_top_p: float | None = None
     routing_leaf_mass_min_routes: int = 1
+    mla_state_key_normalization: str = "none"
+    mla_recursive_page_key_normalization: bool = False
 
     def __post_init__(self) -> None:
         if self.chunk_size <= 0:
@@ -337,6 +339,22 @@ class LODConfig:
             )
         if not 0 <= self.max_routes <= 128:
             raise ValueError("max_routes must be between zero and 128")
+        if self.mla_state_key_normalization not in {
+            "none",
+            "latent",
+            "whole",
+            "raw",
+        }:
+            raise ValueError(
+                "MLA state-key normalization must be none, latent, whole, or raw"
+            )
+        if (
+            self.mla_recursive_page_key_normalization
+            and self.mla_state_key_normalization != "latent"
+        ):
+            raise ValueError(
+                "recursive MLA page normalization requires latent state normalization"
+            )
         if (
             self.routing_leaf_mass_candidates
             and self.max_routes > self.routing_leaf_mass_candidates

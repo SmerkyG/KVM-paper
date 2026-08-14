@@ -371,6 +371,72 @@ class TritonLODAttentionCore(nn.Module):
         )
         return torch.linalg.cholesky(covariance + 1e-4 * identity)
 
+    def _mla_normalize_key(
+        self,
+        key: torch.Tensor,
+        *,
+        state_centroid: bool,
+    ) -> torch.Tensor:
+        """Normalize a raw MLA latent either per-token or after aggregation."""
+        mode = getattr(self, "mla_state_key_normalization", "none")
+        if mode == "none":
+            return key
+        weight = getattr(self, "mla_key_norm_weight", None)
+        if not isinstance(weight, torch.Tensor):
+            raise RuntimeError("raw MLA keys are missing their RMSNorm gain")
+        latent_dim = int(weight.numel())
+        if latent_dim <= 0 or latent_dim >= int(key.size(-1)):
+            raise ValueError("raw MLA key has the wrong latent/RoPE geometry")
+        key_float = key.detach().float()
+        epsilon = float(getattr(self, "mla_key_norm_epsilon", 0.0))
+        if state_centroid and mode == "raw":
+            return key
+        if state_centroid and mode == "whole":
+            inverse_rms = torch.rsqrt(
+                key_float.square().mean(dim=-1, keepdim=True) + epsilon
+            )
+            normalized = (key_float * inverse_rms).to(key.dtype)
+            normalized[..., :latent_dim] *= weight.detach().to(key.dtype)
+        else:
+            latent = key_float[..., :latent_dim]
+            inverse_rms = torch.rsqrt(
+                latent.square().mean(dim=-1, keepdim=True) + epsilon
+            )
+            # Match the model RMSNorm exactly: DeepSeek rounds the unit-RMS
+            # activation back to its input dtype before applying the learned
+            # gain.  Reversing those two operations is measurably different
+            # on the key-similarity edge cases this experiment targets.
+            normalized_latent = (latent * inverse_rms).to(key.dtype)
+            normalized_latent = normalized_latent * weight.detach().to(
+                key.dtype
+            )
+            normalized = torch.cat(
+                (normalized_latent, key[..., latent_dim:]), dim=-1
+            )
+        return normalized
+
+    def _mla_state_key_sum_for_attention(
+        self,
+        state_k: torch.Tensor,
+        counts: torch.Tensor,
+        *,
+        state_len: int,
+    ) -> torch.Tensor:
+        """Return transient normalized key sums for coarse attention kernels."""
+        if getattr(self, "mla_state_key_normalization", "none") == "none":
+            return state_k
+        active_counts = counts[..., :state_len, :]
+        mean_key = self._mean(state_k[..., :state_len, :], active_counts)
+        normalized_mean = self._mla_normalize_key(
+            mean_key, state_centroid=True
+        )
+        normalized_sum = normalized_mean * active_counts.to(normalized_mean.dtype)
+        if state_len == int(state_k.size(2)):
+            return normalized_sum
+        output = torch.zeros_like(state_k)
+        output[..., :state_len, :].copy_(normalized_sum)
+        return output
+
     def _state_clustering_key(
         self,
         key: torch.Tensor,
@@ -382,12 +448,15 @@ class TritonLODAttentionCore(nn.Module):
     ) -> torch.Tensor:
         """Map stored keys into the transient geometry used for clustering.
 
-        The attention state continues to hold exact sums in the model's full
-        post-RoPE key space.  This mapping only affects leaf-to-centroid
-        assignment, so it can make clusters more unimodal without increasing
-        persistent state or changing closed-centroid attention arithmetic.
+        The attention state continues to hold exact sums in its native key
+        space.  This mapping only affects leaf-to-centroid assignment, so it
+        can make clusters more unimodal without increasing persistent state or
+        changing closed-centroid attention arithmetic.
         """
-        clustering_key = key.detach()
+        clustering_key = self._mla_normalize_key(
+            key,
+            state_centroid=role == "centroid",
+        )
         if role not in {"leaf", "centroid"}:
             raise ValueError("state clustering role must be leaf or centroid")
         if purpose not in {"append", "assignment"}:
@@ -494,6 +563,10 @@ class TritonLODAttentionCore(nn.Module):
             centroid_rescale == "spherical_coherence" and role == "leaf"
         )
         if normalize:
+            # Ordinary MHA has an independently normalized key space for each
+            # head.  MLA shares one latent state across all query heads, so use
+            # the mean of those per-head cosine objectives rather than one
+            # global norm that lets high-norm projected heads dominate.
             rms = (
                 clustering_key.float()
                 .square()
@@ -611,6 +684,7 @@ class TritonLODAttentionCore(nn.Module):
         if (
             self.state_clustering_radial_bias
             or self.state_clustering_query_metric != "none"
+            or getattr(self, "mla_state_key_normalization", "none") != "none"
             or self.state_clustering_rope_fast_pairs
         ):
             return None
@@ -1929,6 +2003,7 @@ class TritonLODAttentionCore(nn.Module):
             state_k.detach()[..., :state_len, :],
             counts[..., :state_len, :],
         )
+        mean_k = self._mla_normalize_key(mean_k, state_centroid=True)
         if self.route_gqa_matmul:
             batch, query_heads, query_len, head_dim = q.shape
             kv_heads = int(mean_k.size(1))
@@ -1994,6 +2069,7 @@ class TritonLODAttentionCore(nn.Module):
             state_k.detach()[..., :state_len, :],
             counts[..., :state_len, :],
         )
+        mean_k = self._mla_normalize_key(mean_k, state_centroid=True)
         original_query_rms = None
         if rope_fast_pairs:
             rope_dim = int(self.routing_rope_dim)
@@ -2722,6 +2798,8 @@ class TritonLODAttentionCore(nn.Module):
             if (
                 self.fused_prefill_route_coarse
                 and self.reuse_route_logits_for_coarse
+                and int(q.size(-1)) <= 512
+                and int(state_v.size(-1)) <= 256
                 and self.routing_normalization == "none"
                 and self.routing_rope_fast_pairs == 0
                 and not self.routing_rope_jensen
@@ -3039,6 +3117,24 @@ class TritonLODAttentionCore(nn.Module):
                 new_k=new_k,
             )
             if (
+                self.reuse_route_logits_for_coarse
+                and int(q.size(2)) == 1
+                and self.routing_normalization in {"none", "query"}
+                and self.routing_rope_fast_pairs == 0
+                and not self.routing_rope_jensen
+                and self.routing_variance_bias == 0.0
+            ):
+                # Decode used to scan the MLA state twice: once with the
+                # routing query and again with the attention query.  For
+                # query-only routing, recover the raw attention logits with
+                # the scalar query RMS; no state-sized tensor is added.
+                query_rms = (
+                    q.detach().float().square().mean(dim=-1, keepdim=True).sqrt()
+                    if self.routing_normalization == "query"
+                    else None
+                )
+                self._lod_decode_route_logits = (logits, query_rms)
+            if (
                 self.routing_normalization == "none"
                 and self.routing_rope_fast_pairs == 0
                 and not self.routing_rope_jensen
@@ -3223,6 +3319,25 @@ class TritonLODAttentionCore(nn.Module):
         virtual_v: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor | int]:
         batch, kv_heads, _, head_dim = k.shape
+        raw_page_key_summaries = bool(
+            getattr(self, "mla_recursive_page_key_normalization", False)
+        )
+        if raw_page_key_summaries:
+            if not self.recursive_page_lod:
+                raise ValueError(
+                    "recursive MLA page normalization requires recursive page LOD"
+                )
+            if (
+                self.leaf_key_quant_bits
+                or self.leaf_value_quant_bits
+            ):
+                raise ValueError(
+                    "recursive raw MLA page summaries do not yet support quantization"
+                )
+            if self.routing_page_mass_candidates:
+                raise ValueError(
+                    "page-mass route refinement does not yet support raw MLA summaries"
+                )
         page_size = self.leaf_page_size
         page_capacity = (
             sequence_capacity + page_size - 1
@@ -3281,6 +3396,7 @@ class TritonLODAttentionCore(nn.Module):
             "page_size": page_size,
             "leaf_capacity": sequence_capacity,
             "leaf_count": 0,
+            "mla_raw_page_key_summaries": raw_page_key_summaries,
         }
         if self.virtual_page_storage:
             if not self.recursive_page_lod:
@@ -3296,6 +3412,13 @@ class TritonLODAttentionCore(nn.Module):
                 raise ValueError("virtual pages require the original prompt K/V")
             if virtual_k.shape[:3] != virtual_v.shape[:3]:
                 raise ValueError("virtual prompt K/V shapes do not match")
+            # Raw MLA latents are accumulated in the coarse state, but page
+            # leaves remain exact model keys.  Materialize the model's
+            # per-token latent normalization once when the virtual backing
+            # store is created rather than on every leaf lookup.
+            virtual_k = self._mla_normalize_key(
+                virtual_k, state_centroid=False
+            )
             if virtual_quantized:
                 flat_leaf_k = virtual_k.detach()
                 flat_leaf_v = virtual_v.detach()
@@ -3627,6 +3750,14 @@ class TritonLODAttentionCore(nn.Module):
         append_len = int(owners.size(2))
         if append_len == 0:
             return
+        raw_page_summary_k = (
+            k
+            if bool(cache.get("mla_raw_page_key_summaries", False))
+            else None
+        )
+        # Page leaves are exact tokens.  Only coarse state entries defer MLA
+        # normalization until after their raw latent sum is averaged.
+        k = self._mla_normalize_key(k, state_centroid=False)
         page_size = int(cache["page_size"])
         slot_lengths = cache["slot_lengths"]
         next_page = cache["next_page"]
@@ -3806,6 +3937,7 @@ class TritonLODAttentionCore(nn.Module):
                     quant_group_size=self.leaf_quant_group_size,
                     quantize_touched=False,
                     optimize_scale=(self.leaf_quant_scale_mode == "l2"),
+                    raw_page_summary_k=raw_page_summary_k,
                 )
         else:
             append_paged_kv(
@@ -3825,6 +3957,7 @@ class TritonLODAttentionCore(nn.Module):
                 page_sum_k=(page_sum_k if isinstance(page_sum_k, torch.Tensor) else None),
                 page_sum_v=(page_sum_v if isinstance(page_sum_v, torch.Tensor) else None),
                 page_counts=(page_counts if isinstance(page_counts, torch.Tensor) else None),
+                raw_page_summary_k=raw_page_summary_k,
             )
         if (
             self.leaf_key_quant_bits or self.leaf_value_quant_bits
@@ -3927,7 +4060,8 @@ class TritonLODAttentionCore(nn.Module):
             coarse_output, coarse_lse, fused_includes_local = fused_prefill
             if include_local != fused_includes_local:
                 raise AssertionError("fused prefill local-branch mode drifted")
-            if tuple(coarse_output.shape) != tuple(q.shape):
+            expected_output_shape = (*q.shape[:-1], int(state_v.size(-1)))
+            if tuple(coarse_output.shape) != expected_output_shape:
                 raise AssertionError("fused prefill coarse output shape drifted")
             return coarse_output, coarse_lse
         route_logits = getattr(self, "_lod_prefill_route_logits", None)
@@ -3948,6 +4082,17 @@ class TritonLODAttentionCore(nn.Module):
             coarse_local_v = (
                 local_v if include_local else local_v[..., :0, :].contiguous()
             )
+            if int(q.size(-1)) > 512 or int(state_v.size(-1)) > 256:
+                return self._gemm_coarse_attention(
+                    q,
+                    route_logits,
+                    state_v,
+                    counts,
+                    coarse_local_k,
+                    coarse_local_v,
+                    top_slots,
+                    state_len=state_len,
+                )
             return route_logits_coarse_attention(
                 q.contiguous(),
                 route_logits.contiguous(),
@@ -3963,12 +4108,62 @@ class TritonLODAttentionCore(nn.Module):
                 block_n=self.coarse_route_block_n,
                 num_warps=self.coarse_route_num_warps,
             )
+        decode_route_logits = getattr(self, "_lod_decode_route_logits", None)
+        if decode_route_logits is not None:
+            del self._lod_decode_route_logits
+            route_logits, query_rms = decode_route_logits
+            if tuple(route_logits.shape) != (
+                int(q.size(0)),
+                int(q.size(1)),
+                query_len,
+                state_len,
+            ):
+                raise AssertionError("LOD decode route-logit shape drifted")
+            if query_rms is not None:
+                route_logits = route_logits.float() * query_rms
+            if int(q.size(-1)) > 512 or int(state_v.size(-1)) > 256:
+                return self._gemm_coarse_attention(
+                    q,
+                    route_logits,
+                    state_v,
+                    counts,
+                    local_k if include_local else local_k[..., :0, :],
+                    local_v if include_local else local_v[..., :0, :],
+                    top_slots,
+                    state_len=state_len,
+                )
+            return route_logits_coarse_attention(
+                q.contiguous(),
+                route_logits.contiguous(),
+                state_v.contiguous(),
+                counts.contiguous(),
+                (local_k if include_local else local_k[..., :0, :]).contiguous(),
+                (local_v if include_local else local_v[..., :0, :]).contiguous(),
+                top_slots.contiguous(),
+                state_len=state_len,
+                kv_group_size=self.num_key_value_groups,
+                scale=self.scaling,
+                block_m=self.coarse_route_block_m,
+                block_n=self.coarse_route_block_n,
+                num_warps=self.coarse_route_num_warps,
+            )
         route_logits = self._state_route_logits(
             q,
             state_k,
             counts,
             state_len=state_len,
         )
+        if int(q.size(-1)) > 512 or int(state_v.size(-1)) > 256:
+            return self._gemm_coarse_attention(
+                q,
+                route_logits,
+                state_v,
+                counts,
+                local_k if include_local else local_k[..., :0, :],
+                local_v if include_local else local_v[..., :0, :],
+                top_slots,
+                state_len=state_len,
+            )
         coarse_output, coarse_lse = route_logits_coarse_attention(
             q.contiguous(),
             route_logits.contiguous(),
@@ -4007,6 +4202,79 @@ class TritonLODAttentionCore(nn.Module):
             torch.logaddexp(coarse_lse, local_lse),
         )
 
+    def _gemm_coarse_attention(
+        self,
+        q: torch.Tensor,
+        route_logits: torch.Tensor,
+        state_v: torch.Tensor,
+        counts: torch.Tensor,
+        local_k: torch.Tensor,
+        local_v: torch.Tensor,
+        top_slots: torch.Tensor,
+        *,
+        state_len: int,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Exact coarse/local branch using GEMMs for wide MLA values."""
+        batch, query_heads, query_len, head_dim = q.shape
+        kv_heads = int(state_v.size(1))
+        groups = self.num_key_value_groups
+        if query_heads != kv_heads * groups:
+            raise ValueError("query and KV heads do not match for MLA GEMM")
+
+        state_counts = counts.detach()[..., :state_len, 0]
+        query_counts = state_counts.repeat_interleave(groups, dim=1)
+        scores = route_logits.detach().float() * self.scaling
+        scores = scores + query_counts.clamp_min(1).log().unsqueeze(2)
+        scores.masked_fill_(query_counts.le(0).unsqueeze(2), float("-inf"))
+        routed = torch.zeros_like(scores, dtype=torch.bool)
+        valid_routes = top_slots.ge(0)
+        routed.scatter_(
+            -1,
+            top_slots.clamp(min=0, max=max(state_len - 1, 0)),
+            valid_routes,
+        )
+        scores.masked_fill_(routed, float("-inf"))
+
+        local_len = int(local_k.size(2))
+        if local_len:
+            grouped_q = q.detach().reshape(
+                batch, kv_heads, groups, query_len, head_dim
+            )
+            local_scores = torch.matmul(
+                grouped_q,
+                local_k.detach().transpose(-1, -2).unsqueeze(2),
+            ).reshape(batch, query_heads, query_len, local_len)
+            local_scores = local_scores.float() * self.scaling
+            local_offset = local_len - query_len
+            query_positions = local_offset + torch.arange(
+                query_len, device=q.device
+            )
+            key_positions = torch.arange(local_len, device=q.device)
+            visible = key_positions.unsqueeze(0) <= query_positions.unsqueeze(1)
+            local_scores.masked_fill_(~visible, float("-inf"))
+            scores = torch.cat((scores, local_scores), dim=-1)
+
+        lse = torch.logsumexp(scores, dim=-1)
+        probabilities = torch.softmax(scores, dim=-1).to(state_v.dtype)
+        state_probabilities = probabilities[..., :state_len].reshape(
+            batch, kv_heads, groups, query_len, state_len
+        )
+        mean_state_v = (
+            state_v.detach()[..., :state_len, :].float()
+            / state_counts.clamp_min(1).unsqueeze(-1)
+        ).to(state_v.dtype)
+        output = torch.matmul(
+            state_probabilities, mean_state_v.unsqueeze(2)
+        )
+        if local_len:
+            local_probabilities = probabilities[..., state_len:].reshape(
+                batch, kv_heads, groups, query_len, local_len
+            )
+            output = output + torch.matmul(
+                local_probabilities, local_v.detach().unsqueeze(2)
+            )
+        return output.reshape(batch, query_heads, query_len, -1), lse
+
     def _two_level_attention(
         self,
         q: torch.Tensor,
@@ -4030,6 +4298,18 @@ class TritonLODAttentionCore(nn.Module):
         sink_v: torch.Tensor | None = None,
     ) -> torch.Tensor:
         q = q.contiguous()
+        # The persistent MLA key buffers intentionally hold raw compressed
+        # latents in the experimental modes.  Normalize exact token keys at
+        # consumption time; values are already the model-normalized latent.
+        local_k = self._mla_normalize_key(local_k, state_centroid=False)
+        if new_k is not None:
+            new_k = self._mla_normalize_key(new_k, state_centroid=False)
+        if sink_k is not None:
+            sink_k = self._mla_normalize_key(sink_k, state_centroid=False)
+        if self.leaf_attention_backend == "packed":
+            exact_k = self._mla_normalize_key(
+                exact_k, state_centroid=False
+            )
         if (sink_k is None) != (sink_v is None):
             raise ValueError("separate sink K and V must be provided together")
         configured_topk = (
@@ -4098,12 +4378,14 @@ class TritonLODAttentionCore(nn.Module):
         )
         fuse_decode_route = (
             self.fused_decode_attention
+            and int(state_v.size(-1)) == int(q.size(-1))
             and self.fused_decode_state_route
             and self.routing_normalization == "none"
             and self.routing_rope_fast_pairs == 0
             and not self.routing_rope_jensen
             and self.routing_count_bias == 1.0
             and self.routing_variance_bias == 0.0
+            and getattr(self, "mla_state_key_normalization", "none") == "none"
             and self.routing_page_mass_candidates == 0
             and self.routing_leaf_mass_candidates == 0
             and int(q.size(2)) == 1
@@ -4176,6 +4458,7 @@ class TritonLODAttentionCore(nn.Module):
                 )
         if (
             self.fused_decode_attention
+            and int(state_v.size(-1)) == int(q.size(-1))
             and int(q.size(2)) == 1
             and self.leaf_attention_backend == "paged"
             and (
@@ -4345,9 +4628,21 @@ class TritonLODAttentionCore(nn.Module):
                 quantized_summaries = bool(
                     page_cache.get("summary_quantization_finalized", False)
                 )
+                raw_page_key_summaries = bool(
+                    page_cache.get("mla_raw_page_key_summaries", False)
+                )
+                recursive_state_k = (
+                    state_k
+                    if raw_page_key_summaries
+                    else self._mla_state_key_sum_for_attention(
+                        state_k,
+                        counts,
+                        state_len=state_len,
+                    )
+                )
                 exact_output, exact_lse = residual_page_function(
                     q,
-                    state_k,
+                    recursive_state_k,
                     state_v,
                     counts,
                     *page_storage_args,
@@ -4419,6 +4714,16 @@ class TritonLODAttentionCore(nn.Module):
                         else None
                     ),
                     quant_group_size=self.leaf_quant_group_size,
+                    mla_norm_weight=(
+                        self.mla_key_norm_weight
+                        if raw_page_key_summaries
+                        else None
+                    ),
+                    mla_norm_epsilon=(
+                        self.mla_key_norm_epsilon
+                        if raw_page_key_summaries
+                        else 0.0
+                    ),
                 )
             else:
                 exact_output, exact_lse = self._paged_leaf_attention(
@@ -4518,6 +4823,7 @@ class TritonLODAttentionCore(nn.Module):
         causal: bool,
         valid_starts: torch.Tensor | None = None,
     ) -> torch.Tensor:
+        k = self._mla_normalize_key(k, state_centroid=False)
         if valid_starts is not None:
             query_len = int(q.size(2))
             key_len = int(k.size(2))
@@ -4559,6 +4865,51 @@ class TritonLODAttentionCore(nn.Module):
         *,
         query_offset: int,
     ) -> tuple[torch.Tensor, torch.Tensor]:
+        k = self._mla_normalize_key(k, state_centroid=False)
+        if int(q.size(-1)) > 512:
+            # Platform FlashAttention caps Q/K width at 512, while absorbed
+            # DeepSeek-style MLA is 512 latent + 64 RoPE dimensions.  The
+            # generic coarse kernel can represent this geometry, but its
+            # 512-wide value accumulator forces a four-row tile and is much
+            # slower than GEMM for the dense exact-local branch.  Materialize
+            # only the target-chunk score tile (not lookback-query rows), then
+            # use optimized GEMMs on either side of the softmax.
+            target_len = int(q.size(2)) - query_offset
+            # A single large causal GEMM computes the entire upper triangle
+            # only to mask it away.  Tile target queries and stop each key
+            # field at that tile's end.  This preserves the exact factor-16
+            # routing/state schedule while avoiding most masked MLA work.
+            target_tile = 4 * self.chunk_len
+            output_tiles = []
+            lse_tiles = []
+            for target_begin in range(0, target_len, target_tile):
+                target_end = min(target_len, target_begin + target_tile)
+                local_begin = query_offset + target_begin
+                local_end = query_offset + target_end
+                target_q = q[..., local_begin:local_end, :]
+                target_k = k[..., :local_end, :]
+                scores = torch.matmul(
+                    target_q, target_k.transpose(-1, -2)
+                ).float()
+                scores.mul_(self.scaling)
+                query_positions = torch.arange(
+                    local_begin, local_end, device=q.device
+                )
+                key_positions = torch.arange(local_end, device=q.device)
+                visible = (
+                    key_positions.unsqueeze(0)
+                    <= query_positions.unsqueeze(1)
+                )
+                scores.masked_fill_(~visible, float("-inf"))
+                lse_tiles.append(torch.logsumexp(scores, dim=-1))
+                probabilities = torch.softmax(scores, dim=-1).to(v.dtype)
+                output_tiles.append(
+                    torch.matmul(probabilities, v[..., :local_end, :])
+                )
+            return (
+                torch.cat(output_tiles, dim=2),
+                torch.cat(lse_tiles, dim=2),
+            )
         output, lse, *_ = torch.ops.aten._scaled_dot_product_flash_attention.default(
             q.contiguous(),
             k.contiguous(),
@@ -5374,6 +5725,7 @@ class TritonLODAttentionCore(nn.Module):
             buffered_decode = (
                 page_cache is not None
                 and self.fused_decode_attention
+                and int(new_v.size(-1)) == int(q.size(-1))
                 and not isinstance(page_cache.get("page_indices"), torch.Tensor)
             )
             if page_cache is None:

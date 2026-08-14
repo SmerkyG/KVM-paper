@@ -29,6 +29,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--engine-backend", choices=("torch", "kernel"), default="torch"
     )
+    parser.add_argument(
+        "--use-upstream-code",
+        action="store_true",
+        help="ignore checkpoint auto_map entries when Transformers supports the model",
+    )
     return parser.parse_args()
 
 
@@ -41,7 +46,7 @@ def main() -> None:
         raise ValueError("--kv-bits=4 requires a positive --page-size")
     device = torch.device("cuda")
     composite_config = AutoConfig.from_pretrained(
-        args.checkpoint, trust_remote_code=True
+        args.checkpoint, trust_remote_code=not args.use_upstream_code
     )
     config = composite_config.get_text_config(decoder=True)
     is_qwen35 = type(config).__module__.startswith(
@@ -57,7 +62,7 @@ def main() -> None:
             args.checkpoint,
             config=config,
             dtype=torch.bfloat16,
-            trust_remote_code=True,
+            trust_remote_code=not args.use_upstream_code,
         )
         .to(device)
         .eval()

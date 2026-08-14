@@ -98,6 +98,12 @@ class _KernelLODEngine(TritonLODAttentionCore):
         )
         self.routing_leaf_mass_top_p = config.routing_leaf_mass_top_p
         self.routing_leaf_mass_min_routes = config.routing_leaf_mass_min_routes
+        self.mla_state_key_normalization = config.mla_state_key_normalization
+        self.mla_recursive_page_key_normalization = (
+            config.mla_recursive_page_key_normalization
+        )
+        self.mla_key_norm_weight = None
+        self.mla_key_norm_epsilon = 0.0
         self.collect_dynamic_open_stats = (
             config.routing_leaf_mass_review_top_p is not None
             or config.routing_leaf_mass_top_p is not None

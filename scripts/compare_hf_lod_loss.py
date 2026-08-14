@@ -126,6 +126,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--recursive-pages", action="store_true")
     parser.add_argument("--kv-bits", type=int, choices=(0, 4), default=0)
+    parser.add_argument(
+        "--use-upstream-code",
+        action="store_true",
+        help="ignore checkpoint auto_map entries when Transformers supports the model",
+    )
     parser.add_argument("--output", type=Path, required=True)
     return parser.parse_args()
 
@@ -155,7 +160,7 @@ def main() -> None:
     torch.cuda.set_device(device)
 
     tokenizer = AutoTokenizer.from_pretrained(
-        args.checkpoint, trust_remote_code=True
+        args.checkpoint, trust_remote_code=not args.use_upstream_code
     )
     sequences = select_sequences(
         tokenizer,
@@ -165,7 +170,11 @@ def main() -> None:
         rank,
         world_size,
     )
-    model, acceleration = load_model(args.checkpoint, device)
+    model, acceleration = load_model(
+        args.checkpoint,
+        device,
+        use_upstream_code=args.use_upstream_code,
+    )
     installed: list[str] = []
     if args.mode == "lod":
         config_kwargs = {
@@ -309,6 +318,7 @@ def main() -> None:
             "kv_bits": args.kv_bits,
         },
         "acceleration": acceleration,
+        "use_upstream_code": args.use_upstream_code,
         "peak_memory_gib": torch.cuda.max_memory_allocated(device) / (1024**3),
         "records": records,
     }

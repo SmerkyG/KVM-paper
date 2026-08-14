@@ -108,16 +108,47 @@ def _build_engine(
             "qk_norm_aware routing must be resolved for each attention module "
             "by install_hf_lod_attention"
         )
+    if (
+        config.mla_state_key_normalization != "none"
+        and settings.engine_backend != "kernel"
+    ):
+        raise ValueError(
+            "raw MLA state-key normalization requires the kernel backend"
+        )
+    if config.mla_recursive_page_key_normalization and not isinstance(
+        config, PagedLODConfig
+    ):
+        raise ValueError(
+            "recursive MLA page normalization requires recursive pages"
+        )
+
+    def finish_engine(engine: nn.Module) -> nn.Module:
+        if stats_owner is not None:
+            engine._lod_dynamic_stats_owner = weakref.ref(stats_owner)
+            if config.mla_state_key_normalization != "none":
+                norm = getattr(stats_owner, "kv_a_layernorm", None)
+                weight = getattr(norm, "weight", None)
+                epsilon = getattr(norm, "variance_epsilon", None)
+                if not isinstance(weight, torch.Tensor) or epsilon is None:
+                    raise ValueError(
+                        "raw MLA state keys require a latent RMSNorm module"
+                    )
+                engine.mla_key_norm_weight = weight.detach()
+                engine.mla_key_norm_epsilon = float(epsilon)
+        return engine
+
     if settings.engine_backend == "torch":
         if settings.open_count == 0:
-            return FastCoarseLODAttention(config)
-        if isinstance(config, PagedLODConfig):
-            return PagedTwoLevelLODAttention(
+            engine = FastCoarseLODAttention(config)
+        elif isinstance(config, PagedLODConfig):
+            engine = PagedTwoLevelLODAttention(
                 config, default_open_count=settings.open_count
             )
-        return FastTwoLevelLODAttention(
-            config, default_open_count=settings.open_count
-        )
+        else:
+            engine = FastTwoLevelLODAttention(
+                config, default_open_count=settings.open_count
+            )
+        return finish_engine(engine)
 
     effective_scale = (
         float(scale)
@@ -163,9 +194,7 @@ def _build_engine(
     if int(query.size(-1)) >= 512:
         engine.direct_fused_state_routing = False
         engine.route_gqa_matmul = True
-    if stats_owner is not None:
-        engine._lod_dynamic_stats_owner = weakref.ref(stats_owner)
-    return engine
+    return finish_engine(engine)
 
 
 def _map_batch_tensors(
@@ -941,6 +970,13 @@ def install_hf_lod_attention(
             left_padding_mode=left_padding_mode,
         )
         module._hf_lod_active_cache_layer = None
+        from .hf_mla_lod_attention import install_mla_lod_adapter
+
+        mla_installed = install_mla_lod_adapter(module)
+        if config.mla_state_key_normalization != "none" and not mla_installed:
+            raise ValueError(
+                "MLA state-key normalization was requested for a non-MLA layer"
+            )
         installed.append(name)
     if not installed:
         raise RuntimeError("no compatible causal AttentionInterface modules were found")

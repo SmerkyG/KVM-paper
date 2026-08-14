@@ -1064,6 +1064,7 @@ def _prepare_state_clustering_keys_kernel(
     slot_count,
     state_len,
     HEAD_DIM: tl.constexpr,
+    BLOCK_D: tl.constexpr,
     BLOCK_S: tl.constexpr,
     COHERENCE: tl.constexpr,
     WRITE_ROUTE: tl.constexpr,
@@ -1088,7 +1089,8 @@ def _prepare_state_clustering_keys_kernel(
     else:
         slot = item
     valid &= slot < state_len
-    dim = tl.arange(0, HEAD_DIM)
+    dim = tl.arange(0, BLOCK_D)
+    dim_valid = dim < HEAD_DIM
     count = tl.load(
         counts
         + batch * COUNT_BATCH_STRIDE
@@ -1104,7 +1106,7 @@ def _prepare_state_clustering_keys_kernel(
         + head * STATE_HEAD_STRIDE
         + slot[:, None] * STATE_TOKEN_STRIDE
         + dim[None, :],
-        mask=valid[:, None],
+        mask=valid[:, None] & dim_valid[None, :],
         other=0.0,
     )
     mean_key = (key / count.to(key.dtype)[:, None]).to(key.dtype)
@@ -1123,7 +1125,11 @@ def _prepare_state_clustering_keys_kernel(
             mean_key.to(tl.float32) / tl.maximum(centroid_rms[:, None], 1e-12)
         ).to(mean_key.dtype)
         if WRITE_APPEND:
-            tl.store(append_k + output_offset, normalized, mask=valid[:, None])
+            tl.store(
+                append_k + output_offset,
+                normalized,
+                mask=valid[:, None] & dim_valid[None, :],
+            )
     if COHERENCE:
         norm_sum = tl.load(
             key_norm_sums
@@ -1138,7 +1144,11 @@ def _prepare_state_clustering_keys_kernel(
             routed = (
                 mean_key.to(tl.float32) / tl.maximum(mean_norm[:, None], 1e-12)
             ).to(mean_key.dtype)
-            tl.store(route_k + output_offset, routed, mask=valid[:, None])
+            tl.store(
+                route_k + output_offset,
+                routed,
+                mask=valid[:, None] & dim_valid[None, :],
+            )
         if WRITE_SCALE:
             scale_offset = (
                 batch * SCALE_BATCH_STRIDE
@@ -1581,6 +1591,10 @@ def _route_logits_coarse_attention_kernel(
     HEAD_MAJOR: tl.constexpr,
     ROW_COUNT: tl.constexpr,
     HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+    HEAD_BLOCK_DIM: tl.constexpr,
+    HEAD_TAIL_BLOCK_DIM: tl.constexpr,
+    VALUE_BLOCK_DIM: tl.constexpr,
     ROUTE_COUNT: tl.constexpr,
     SCALE: tl.constexpr,
     BLOCK_M: tl.constexpr,
@@ -1601,7 +1615,8 @@ def _route_logits_coarse_attention_kernel(
         query = query_block * BLOCK_M + row % BLOCK_M
         query_head = kv_head * KV_GROUP_SIZE + group_head
     query_valid = query < query_len
-    dim = tl.arange(0, HEAD_DIM)
+    key_dim = tl.arange(0, HEAD_BLOCK_DIM)
+    value_dim = tl.arange(0, VALUE_BLOCK_DIM)
     token_offset = tl.arange(0, BLOCK_N)
 
     queries = tl.load(
@@ -1609,13 +1624,24 @@ def _route_logits_coarse_attention_kernel(
         + batch * Q_BATCH_STRIDE
         + query_head[:, None] * Q_HEAD_STRIDE
         + query[:, None] * Q_TOKEN_STRIDE
-        + dim[None, :],
-        mask=query_valid[:, None],
+        + key_dim[None, :],
+        mask=query_valid[:, None] & (key_dim[None, :] < HEAD_DIM),
         other=0.0,
     )
+    if HEAD_TAIL_BLOCK_DIM > 0:
+        tail_dim = HEAD_BLOCK_DIM + tl.arange(0, HEAD_TAIL_BLOCK_DIM)
+        tail_queries = tl.load(
+            q
+            + batch * Q_BATCH_STRIDE
+            + query_head[:, None] * Q_HEAD_STRIDE
+            + query[:, None] * Q_TOKEN_STRIDE
+            + tail_dim[None, :],
+            mask=query_valid[:, None] & (tail_dim[None, :] < HEAD_DIM),
+            other=0.0,
+        )
     maximum = tl.where(query_valid, -float("inf"), 0.0).to(tl.float32)
     denominator = tl.where(query_valid, 0.0, 1.0).to(tl.float32)
-    accumulator = tl.zeros((ROW_COUNT, HEAD_DIM), tl.float32)
+    accumulator = tl.zeros((ROW_COUNT, VALUE_BLOCK_DIM), tl.float32)
 
     for state_begin in tl.range(0, state_len, BLOCK_N, num_stages=1):
         slot = state_begin + token_offset
@@ -1633,8 +1659,8 @@ def _route_logits_coarse_attention_kernel(
             + batch * STATE_V_BATCH_STRIDE
             + kv_head * STATE_V_HEAD_STRIDE
             + slot[:, None] * STATE_V_TOKEN_STRIDE
-            + dim[None, :],
-            mask=state_valid[:, None],
+            + value_dim[None, :],
+            mask=state_valid[:, None] & (value_dim[None, :] < VALUE_DIM),
             other=0.0,
         )
         mean_values = (values.to(tl.float32) / count[:, None]).to(values.dtype)
@@ -1683,22 +1709,36 @@ def _route_logits_coarse_attention_kernel(
             + batch * LOCAL_K_BATCH_STRIDE
             + kv_head * LOCAL_K_HEAD_STRIDE
             + token[:, None] * LOCAL_K_TOKEN_STRIDE
-            + dim[None, :],
-            mask=token_valid[:, None],
+            + key_dim[None, :],
+            mask=token_valid[:, None] & (key_dim[None, :] < HEAD_DIM),
             other=0.0,
         )
+        if HEAD_TAIL_BLOCK_DIM > 0:
+            tail_keys = tl.load(
+                local_k
+                + batch * LOCAL_K_BATCH_STRIDE
+                + kv_head * LOCAL_K_HEAD_STRIDE
+                + token[:, None] * LOCAL_K_TOKEN_STRIDE
+                + tail_dim[None, :],
+                mask=token_valid[:, None] & (tail_dim[None, :] < HEAD_DIM),
+                other=0.0,
+            )
         values = tl.load(
             local_v
             + batch * LOCAL_V_BATCH_STRIDE
             + kv_head * LOCAL_V_HEAD_STRIDE
             + token[:, None] * LOCAL_V_TOKEN_STRIDE
-            + dim[None, :],
-            mask=token_valid[:, None],
+            + value_dim[None, :],
+            mask=token_valid[:, None] & (value_dim[None, :] < VALUE_DIM),
             other=0.0,
         )
         scores = SCALE * tl.dot(
             queries, tl.trans(keys), out_dtype=tl.float32
         )
+        if HEAD_TAIL_BLOCK_DIM > 0:
+            scores += SCALE * tl.dot(
+                tail_queries, tl.trans(tail_keys), out_dtype=tl.float32
+            )
         visible = token[None, :] <= query[:, None] + local_offset
         valid = query_valid[:, None] & token_valid[None, :] & visible
         scores = tl.where(valid, scores, -float("inf"))
@@ -1717,9 +1757,9 @@ def _route_logits_coarse_attention_kernel(
         (batch * QUERY_HEADS + query_head) * query_len + query
     ).to(tl.int64)
     tl.store(
-        output + output_row[:, None] * HEAD_DIM + dim[None, :],
+        output + output_row[:, None] * VALUE_DIM + value_dim[None, :],
         accumulator / denominator[:, None],
-        mask=query_valid[:, None],
+        mask=query_valid[:, None] & (value_dim[None, :] < VALUE_DIM),
     )
     tl.store(
         lse + output_row,
@@ -1775,6 +1815,10 @@ def _route_logits_topk_coarse_attention_kernel(
     ROW_COUNT: tl.constexpr,
     STABLE_RECOMPUTE: tl.constexpr,
     HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+    HEAD_BLOCK_DIM: tl.constexpr,
+    HEAD_TAIL_BLOCK_DIM: tl.constexpr,
+    VALUE_BLOCK_DIM: tl.constexpr,
     ROUTE_COUNT: tl.constexpr,
     OPEN_COUNT: tl.constexpr,
     MAX_LEAF_TOKENS: tl.constexpr,
@@ -1801,7 +1845,8 @@ def _route_logits_topk_coarse_attention_kernel(
         query = query_block * BLOCK_M + row % BLOCK_M
         query_head = kv_head * KV_GROUP_SIZE + group_head
     query_valid = query < query_len
-    dim = tl.arange(0, HEAD_DIM)
+    key_dim = tl.arange(0, HEAD_BLOCK_DIM)
+    value_dim = tl.arange(0, VALUE_BLOCK_DIM)
     token_offset = tl.arange(0, BLOCK_N)
     route_rank = tl.arange(0, ROUTE_COUNT)
 
@@ -1810,13 +1855,24 @@ def _route_logits_topk_coarse_attention_kernel(
         + batch * Q_BATCH_STRIDE
         + query_head[:, None] * Q_HEAD_STRIDE
         + query[:, None] * Q_TOKEN_STRIDE
-        + dim[None, :],
-        mask=query_valid[:, None],
+        + key_dim[None, :],
+        mask=query_valid[:, None] & (key_dim[None, :] < HEAD_DIM),
         other=0.0,
     )
+    if HEAD_TAIL_BLOCK_DIM > 0:
+        tail_dim = HEAD_BLOCK_DIM + tl.arange(0, HEAD_TAIL_BLOCK_DIM)
+        tail_queries = tl.load(
+            q
+            + batch * Q_BATCH_STRIDE
+            + query_head[:, None] * Q_HEAD_STRIDE
+            + query[:, None] * Q_TOKEN_STRIDE
+            + tail_dim[None, :],
+            mask=query_valid[:, None] & (tail_dim[None, :] < HEAD_DIM),
+            other=0.0,
+        )
     maximum = tl.where(query_valid, -float("inf"), 0.0).to(tl.float32)
     denominator = tl.where(query_valid, 0.0, 1.0).to(tl.float32)
-    accumulator = tl.zeros((ROW_COUNT, HEAD_DIM), tl.float32)
+    accumulator = tl.zeros((ROW_COUNT, VALUE_BLOCK_DIM), tl.float32)
     if ROUTE_COUNT == 8:
         # Sort scores and prefer the lower slot index on exact ties in one
         # packed scalar, so Triton's bitonic top-k can retain both fields.
@@ -1851,8 +1907,8 @@ def _route_logits_topk_coarse_attention_kernel(
             + batch * STATE_V_BATCH_STRIDE
             + kv_head * STATE_V_HEAD_STRIDE
             + slot[:, None] * STATE_V_TOKEN_STRIDE
-            + dim[None, :],
-            mask=state_valid[:, None],
+            + value_dim[None, :],
+            mask=state_valid[:, None] & (value_dim[None, :] < VALUE_DIM),
             other=0.0,
         )
         mean_values = (values.to(tl.float32) / count[:, None]).to(values.dtype)
@@ -1986,22 +2042,36 @@ def _route_logits_topk_coarse_attention_kernel(
             + batch * LOCAL_K_BATCH_STRIDE
             + kv_head * LOCAL_K_HEAD_STRIDE
             + token[:, None] * LOCAL_K_TOKEN_STRIDE
-            + dim[None, :],
-            mask=token_valid[:, None],
+            + key_dim[None, :],
+            mask=token_valid[:, None] & (key_dim[None, :] < HEAD_DIM),
             other=0.0,
         )
+        if HEAD_TAIL_BLOCK_DIM > 0:
+            tail_keys = tl.load(
+                local_k
+                + batch * LOCAL_K_BATCH_STRIDE
+                + kv_head * LOCAL_K_HEAD_STRIDE
+                + token[:, None] * LOCAL_K_TOKEN_STRIDE
+                + tail_dim[None, :],
+                mask=token_valid[:, None] & (tail_dim[None, :] < HEAD_DIM),
+                other=0.0,
+            )
         values = tl.load(
             local_v
             + batch * LOCAL_V_BATCH_STRIDE
             + kv_head * LOCAL_V_HEAD_STRIDE
             + token[:, None] * LOCAL_V_TOKEN_STRIDE
-            + dim[None, :],
-            mask=token_valid[:, None],
+            + value_dim[None, :],
+            mask=token_valid[:, None] & (value_dim[None, :] < VALUE_DIM),
             other=0.0,
         )
         scores = SCALE * tl.dot(
             queries, tl.trans(keys), out_dtype=tl.float32
         )
+        if HEAD_TAIL_BLOCK_DIM > 0:
+            scores += SCALE * tl.dot(
+                tail_queries, tl.trans(tail_keys), out_dtype=tl.float32
+            )
         visible = token[None, :] <= query[:, None] + local_offset
         valid = query_valid[:, None] & token_valid[None, :] & visible
         scores = tl.where(valid, scores, -float("inf"))
@@ -2102,7 +2172,7 @@ def _route_logits_topk_coarse_attention_kernel(
         # coarse remainder stays well-conditioned without another launch.
         maximum = tl.where(query_valid, -float("inf"), 0.0).to(tl.float32)
         denominator = tl.where(query_valid, 0.0, 1.0).to(tl.float32)
-        accumulator = tl.zeros((ROW_COUNT, HEAD_DIM), tl.float32)
+        accumulator = tl.zeros((ROW_COUNT, VALUE_BLOCK_DIM), tl.float32)
         for state_begin in tl.range(0, state_len, BLOCK_N, num_stages=1):
             slot = state_begin + token_offset
             state_valid = slot < state_len
@@ -2119,8 +2189,8 @@ def _route_logits_topk_coarse_attention_kernel(
                 + batch * STATE_V_BATCH_STRIDE
                 + kv_head * STATE_V_HEAD_STRIDE
                 + slot[:, None] * STATE_V_TOKEN_STRIDE
-                + dim[None, :],
-                mask=state_valid[:, None],
+                + value_dim[None, :],
+                mask=state_valid[:, None] & (value_dim[None, :] < VALUE_DIM),
                 other=0.0,
             )
             mean_values = (
@@ -2172,22 +2242,39 @@ def _route_logits_topk_coarse_attention_kernel(
                 + batch * LOCAL_K_BATCH_STRIDE
                 + kv_head * LOCAL_K_HEAD_STRIDE
                 + token[:, None] * LOCAL_K_TOKEN_STRIDE
-                + dim[None, :],
-                mask=token_valid[:, None],
+                + key_dim[None, :],
+                mask=token_valid[:, None] & (key_dim[None, :] < HEAD_DIM),
                 other=0.0,
             )
+            if HEAD_TAIL_BLOCK_DIM > 0:
+                tail_keys = tl.load(
+                    local_k
+                    + batch * LOCAL_K_BATCH_STRIDE
+                    + kv_head * LOCAL_K_HEAD_STRIDE
+                    + token[:, None] * LOCAL_K_TOKEN_STRIDE
+                    + tail_dim[None, :],
+                    mask=token_valid[:, None]
+                    & (tail_dim[None, :] < HEAD_DIM),
+                    other=0.0,
+                )
             values = tl.load(
                 local_v
                 + batch * LOCAL_V_BATCH_STRIDE
                 + kv_head * LOCAL_V_HEAD_STRIDE
                 + token[:, None] * LOCAL_V_TOKEN_STRIDE
-                + dim[None, :],
-                mask=token_valid[:, None],
+                + value_dim[None, :],
+                mask=token_valid[:, None] & (value_dim[None, :] < VALUE_DIM),
                 other=0.0,
             )
             scores = SCALE * tl.dot(
                 queries, tl.trans(keys), out_dtype=tl.float32
             )
+            if HEAD_TAIL_BLOCK_DIM > 0:
+                scores += SCALE * tl.dot(
+                    tail_queries,
+                    tl.trans(tail_keys),
+                    out_dtype=tl.float32,
+                )
             visible = token[None, :] <= query[:, None] + local_offset
             valid = query_valid[:, None] & token_valid[None, :] & visible
             scores = tl.where(valid, scores, -float("inf"))
@@ -2237,8 +2324,9 @@ def _route_logits_topk_coarse_attention_kernel(
                 + batch * STATE_V_BATCH_STRIDE
                 + kv_head * STATE_V_HEAD_STRIDE
                 + selected_slot[:, None] * STATE_V_TOKEN_STRIDE
-                + dim[None, :],
-                mask=selected_valid[:, None],
+                + value_dim[None, :],
+                mask=selected_valid[:, None]
+                & (value_dim[None, :] < VALUE_DIM),
                 other=0.0,
             )
             selected_mean = (
@@ -2256,9 +2344,9 @@ def _route_logits_topk_coarse_attention_kernel(
     ).to(tl.int64)
     has_mass = denominator > 0.0
     tl.store(
-        output + output_row[:, None] * HEAD_DIM + dim[None, :],
+        output + output_row[:, None] * VALUE_DIM + value_dim[None, :],
         tl.where(has_mass[:, None], accumulator / denominator[:, None], 0.0),
-        mask=query_valid[:, None],
+        mask=query_valid[:, None] & (value_dim[None, :] < VALUE_DIM),
     )
     tl.store(
         lse + output_row,
@@ -2306,14 +2394,16 @@ def _accumulate_state_deltas_kernel(
     TOKEN_BLOCK: tl.constexpr,
     HEAD_DIM: tl.constexpr,
     VALUE_DIM: tl.constexpr,
+    HEAD_BLOCK_DIM: tl.constexpr,
+    VALUE_BLOCK_DIM: tl.constexpr,
     HAS_KEY_NORMS: tl.constexpr,
 ):
     row = tl.program_id(0).to(tl.int64)
     token_block = tl.program_id(1).to(tl.int64)
     token = token_block * TOKEN_BLOCK + tl.arange(0, TOKEN_BLOCK)
     valid = token < TOKENS
-    key_dim = tl.arange(0, HEAD_DIM)
-    value_dim = tl.arange(0, VALUE_DIM)
+    key_dim = tl.arange(0, HEAD_BLOCK_DIM)
+    value_dim = tl.arange(0, VALUE_BLOCK_DIM)
 
     destination = tl.load(destinations + row * TOKENS + token, mask=valid, other=0).to(
         tl.int64
@@ -2332,7 +2422,7 @@ def _accumulate_state_deltas_kernel(
         + row * MERGE_K_ROW_STRIDE
         + token[:, None] * HEAD_DIM
         + key_dim[None, :],
-        mask=valid[:, None],
+        mask=valid[:, None] & (key_dim[None, :] < HEAD_DIM),
         other=0.0,
     ).to(tl.float32)
     v = tl.load(
@@ -2340,7 +2430,7 @@ def _accumulate_state_deltas_kernel(
         + row * MERGE_V_ROW_STRIDE
         + token[:, None] * VALUE_DIM
         + value_dim[None, :],
-        mask=valid[:, None],
+        mask=valid[:, None] & (value_dim[None, :] < VALUE_DIM),
         other=0.0,
     ).to(tl.float32)
     merge_count = tl.load(
@@ -2380,7 +2470,7 @@ def _accumulate_state_deltas_kernel(
         + key_dim[None, :],
         k,
         sem="relaxed",
-        mask=valid[:, None],
+        mask=valid[:, None] & (key_dim[None, :] < HEAD_DIM),
     )
     tl.atomic_add(
         delta_v
@@ -2389,7 +2479,7 @@ def _accumulate_state_deltas_kernel(
         + value_dim[None, :],
         v,
         sem="relaxed",
-        mask=valid[:, None],
+        mask=valid[:, None] & (value_dim[None, :] < VALUE_DIM),
     )
 
 
@@ -2415,6 +2505,8 @@ def _apply_state_deltas_kernel(
     STATE_BLOCK: tl.constexpr,
     HEAD_DIM: tl.constexpr,
     VALUE_DIM: tl.constexpr,
+    HEAD_BLOCK_DIM: tl.constexpr,
+    VALUE_BLOCK_DIM: tl.constexpr,
 ):
     row = tl.program_id(0).to(tl.int64)
     state_block = tl.program_id(1).to(tl.int64)
@@ -2424,15 +2516,15 @@ def _apply_state_deltas_kernel(
         tl.load(touched + row * DELTA_SLOT_STRIDE + slot, mask=valid, other=0) != 0
     )
     update = valid & is_touched
-    key_dim = tl.arange(0, HEAD_DIM)
-    value_dim = tl.arange(0, VALUE_DIM)
+    key_dim = tl.arange(0, HEAD_BLOCK_DIM)
+    value_dim = tl.arange(0, VALUE_BLOCK_DIM)
 
     old_k = tl.load(
         state_k
         + row * STATE_K_ROW_STRIDE
         + slot[:, None] * STATE_K_SLOT_STRIDE
         + key_dim[None, :],
-        mask=update[:, None],
+        mask=update[:, None] & (key_dim[None, :] < HEAD_DIM),
         other=0.0,
     ).to(tl.float32)
     old_v = tl.load(
@@ -2440,7 +2532,7 @@ def _apply_state_deltas_kernel(
         + row * STATE_V_ROW_STRIDE
         + slot[:, None] * STATE_V_SLOT_STRIDE
         + value_dim[None, :],
-        mask=update[:, None],
+        mask=update[:, None] & (value_dim[None, :] < VALUE_DIM),
         other=0.0,
     ).to(tl.float32)
     add_k = tl.load(
@@ -2448,7 +2540,7 @@ def _apply_state_deltas_kernel(
         + row * DELTA_K_ROW_STRIDE
         + slot[:, None] * HEAD_DIM
         + key_dim[None, :],
-        mask=update[:, None],
+        mask=update[:, None] & (key_dim[None, :] < HEAD_DIM),
         other=0.0,
     )
     add_v = tl.load(
@@ -2456,7 +2548,7 @@ def _apply_state_deltas_kernel(
         + row * DELTA_V_ROW_STRIDE
         + slot[:, None] * VALUE_DIM
         + value_dim[None, :],
-        mask=update[:, None],
+        mask=update[:, None] & (value_dim[None, :] < VALUE_DIM),
         other=0.0,
     )
     # As in the regular KVM kernels, accumulate in FP32 and perform one BF16
@@ -2467,7 +2559,7 @@ def _apply_state_deltas_kernel(
         + slot[:, None] * STATE_K_SLOT_STRIDE
         + key_dim[None, :],
         old_k + add_k,
-        mask=update[:, None],
+        mask=update[:, None] & (key_dim[None, :] < HEAD_DIM),
     )
     tl.store(
         state_v
@@ -2475,7 +2567,7 @@ def _apply_state_deltas_kernel(
         + slot[:, None] * STATE_V_SLOT_STRIDE
         + value_dim[None, :],
         old_v + add_v,
-        mask=update[:, None],
+        mask=update[:, None] & (value_dim[None, :] < VALUE_DIM),
     )
     old_count = tl.load(
         counts + row * COUNT_ROW_STRIDE + slot * COUNT_SLOT_STRIDE,
@@ -2499,7 +2591,7 @@ def _apply_state_deltas_kernel(
         + slot[:, None] * HEAD_DIM
         + key_dim[None, :],
         0.0,
-        mask=update[:, None],
+        mask=update[:, None] & (key_dim[None, :] < HEAD_DIM),
     )
     tl.store(
         delta_v
@@ -2507,7 +2599,7 @@ def _apply_state_deltas_kernel(
         + slot[:, None] * VALUE_DIM
         + value_dim[None, :],
         0.0,
-        mask=update[:, None],
+        mask=update[:, None] & (value_dim[None, :] < VALUE_DIM),
     )
     tl.store(delta_counts + row * DELTA_SLOT_STRIDE + slot, 0.0, mask=update)
     tl.store(touched + row * DELTA_SLOT_STRIDE + slot, 0, mask=update)
@@ -3547,6 +3639,7 @@ def prepare_state_clustering_keys(
             slot_count=slot_count,
             state_len=state_len,
             HEAD_DIM=head_dim,
+            BLOCK_D=triton.next_power_of_2(head_dim),
             BLOCK_S=block_s,
             COHERENCE=coherence,
             WRITE_ROUTE=coherence and prepare_coherence_route,
@@ -3843,6 +3936,7 @@ def route_logits_coarse_attention(
     batch, query_heads, query_len, head_dim = q.shape
     kv_heads = int(state_v.size(1))
     local_len = int(local_k.size(2))
+    value_dim = int(state_v.size(-1))
     if query_heads != kv_heads * kv_group_size:
         raise ValueError("query heads do not match the requested GQA grouping")
     if tuple(route_logits.shape) != (batch, query_heads, query_len, state_len):
@@ -3860,11 +3954,21 @@ def route_logits_coarse_attention(
         raise ValueError("local key/value lengths differ")
     if int(local_k.size(1)) != kv_heads or int(local_v.size(1)) != kv_heads:
         raise ValueError("local and state KV heads differ")
-    if int(local_k.size(-1)) != head_dim or int(local_v.size(-1)) != head_dim:
-        raise ValueError("the fused coarse kernel requires equal Q/K/V head sizes")
+    if int(local_k.size(-1)) != head_dim:
+        raise ValueError("local key dimension differs from the query")
+    if int(local_v.size(-1)) != value_dim:
+        raise ValueError("local and state value dimensions differ")
     if block_m <= 0 or block_n <= 0:
         raise ValueError("coarse-attention tile sizes must be positive")
 
+    if head_dim > 512 or value_dim > 256:
+        # Absorbed MLA heads (for example 576-wide Q/K and 512-wide V) need
+        # much larger feature tiles than conventional attention.  Keep their
+        # query tile small and head-major so register/shared-memory pressure
+        # does not scale with the GQA group as well.
+        block_m = min(block_m, 4)
+        num_warps = min(num_warps, 4)
+        head_major = True
     grouped_rows = kv_group_size * block_m
     if head_major is None:
         head_major = grouped_rows & (grouped_rows - 1) != 0
@@ -3874,7 +3978,14 @@ def route_logits_coarse_attention(
             "head-major coarse attention requires a power-of-two query tile"
         )
 
-    output = torch.empty_like(q)
+    output = torch.empty(
+        batch,
+        query_heads,
+        query_len,
+        value_dim,
+        dtype=q.dtype,
+        device=q.device,
+    )
     lse = torch.empty(
         batch,
         query_heads,
@@ -3886,6 +3997,12 @@ def route_logits_coarse_attention(
         batch,
         query_heads if head_major else kv_heads,
         triton.cdiv(query_len, block_m),
+    )
+    head_block_dim = min(triton.next_power_of_2(head_dim), 512)
+    head_tail_block_dim = (
+        0
+        if head_dim <= head_block_dim
+        else triton.next_power_of_2(head_dim - head_block_dim)
     )
     _route_logits_coarse_attention_kernel[grid](
         q,
@@ -3929,6 +4046,10 @@ def route_logits_coarse_attention(
         HEAD_MAJOR=head_major,
         ROW_COUNT=row_count,
         HEAD_DIM=head_dim,
+        VALUE_DIM=value_dim,
+        HEAD_BLOCK_DIM=head_block_dim,
+        HEAD_TAIL_BLOCK_DIM=head_tail_block_dim,
+        VALUE_BLOCK_DIM=triton.next_power_of_2(value_dim),
         ROUTE_COUNT=int(top_slots.size(-1)),
         SCALE=scale,
         BLOCK_M=block_m,
@@ -3969,6 +4090,7 @@ def route_logits_topk_coarse_attention(
     batch, query_heads, query_len, head_dim = q.shape
     kv_heads = int(state_v.size(1))
     local_len = int(local_k.size(2))
+    value_dim = int(state_v.size(-1))
     if query_heads != kv_heads * kv_group_size:
         raise ValueError("query heads do not match the requested GQA grouping")
     if tuple(route_logits.shape) != (batch, query_heads, query_len, state_len):
@@ -3989,11 +4111,17 @@ def route_logits_topk_coarse_attention(
         raise ValueError("local attention has an invalid length")
     if int(local_k.size(1)) != kv_heads or int(local_v.size(1)) != kv_heads:
         raise ValueError("local and state KV heads differ")
-    if int(local_k.size(-1)) != head_dim or int(local_v.size(-1)) != head_dim:
-        raise ValueError("fused LOD prefill requires equal Q/K/V head sizes")
+    if int(local_k.size(-1)) != head_dim:
+        raise ValueError("local key dimension differs from the query")
+    if int(local_v.size(-1)) != value_dim:
+        raise ValueError("local and state value dimensions differ")
     if block_m <= 0 or block_n <= 0:
         raise ValueError("coarse-attention tile sizes must be positive")
 
+    if head_dim > 512 or value_dim > 256:
+        block_m = min(block_m, 4)
+        num_warps = min(num_warps, 4)
+        head_major = True
     grouped_rows = kv_group_size * block_m
     if head_major is None:
         head_major = grouped_rows & (grouped_rows - 1) != 0
@@ -4012,7 +4140,14 @@ def route_logits_topk_coarse_attention(
         dtype=torch.long,
         device=q.device,
     )
-    output = torch.empty_like(q)
+    output = torch.empty(
+        batch,
+        query_heads,
+        query_len,
+        value_dim,
+        dtype=q.dtype,
+        device=q.device,
+    )
     lse = torch.empty(
         batch,
         query_heads,
@@ -4038,6 +4173,12 @@ def route_logits_topk_coarse_attention(
         batch,
         query_heads if head_major else kv_heads,
         triton.cdiv(query_len, block_m),
+    )
+    head_block_dim = min(triton.next_power_of_2(head_dim), 512)
+    head_tail_block_dim = (
+        0
+        if head_dim <= head_block_dim
+        else triton.next_power_of_2(head_dim - head_block_dim)
     )
     _route_logits_topk_coarse_attention_kernel[grid](
         q,
@@ -4085,6 +4226,10 @@ def route_logits_topk_coarse_attention(
         ROW_COUNT=row_count,
         STABLE_RECOMPUTE=head_major,
         HEAD_DIM=head_dim,
+        VALUE_DIM=value_dim,
+        HEAD_BLOCK_DIM=head_block_dim,
+        HEAD_TAIL_BLOCK_DIM=head_tail_block_dim,
+        VALUE_BLOCK_DIM=triton.next_power_of_2(value_dim),
         ROUTE_COUNT=padded_topk,
         OPEN_COUNT=topk,
         MAX_LEAF_TOKENS=max_leaf_tokens or 0,
@@ -4169,7 +4314,7 @@ def merge_state_in_place(
         raise ValueError("LOD state delta capacity is smaller than the active state")
     # Keep each atomic tile at 1024 lanes, matching the proven KVM update
     # shape. A 256-wide head therefore uses four tokens per program.
-    token_block = 4
+    token_block = 1 if max(head_dim, value_dim) > 256 else 4
     _accumulate_state_deltas_kernel[(rows, triton.cdiv(tokens, token_block))](
         merge_k,
         merge_v,
@@ -4195,12 +4340,14 @@ def merge_state_in_place(
         TOKEN_BLOCK=token_block,
         HEAD_DIM=head_dim,
         VALUE_DIM=value_dim,
+        HEAD_BLOCK_DIM=triton.next_power_of_2(head_dim),
+        VALUE_BLOCK_DIM=triton.next_power_of_2(value_dim),
         HAS_KEY_NORMS=has_key_norms,
         **_launch_kwargs(8),
     )
     # The KVM apply kernel uses an 8x128 tile. Preserve the same 1024-lane
     # footprint for a 256-wide state rather than doubling register use.
-    state_block = 4
+    state_block = 1 if max(head_dim, value_dim) > 256 else 4
     _apply_state_deltas_kernel[(rows, triton.cdiv(active_slots, state_block))](
         state_k,
         state_v,
@@ -4222,6 +4369,8 @@ def merge_state_in_place(
         STATE_BLOCK=state_block,
         HEAD_DIM=head_dim,
         VALUE_DIM=value_dim,
+        HEAD_BLOCK_DIM=triton.next_power_of_2(head_dim),
+        VALUE_BLOCK_DIM=triton.next_power_of_2(value_dim),
         **_launch_kwargs(2),
     )
 

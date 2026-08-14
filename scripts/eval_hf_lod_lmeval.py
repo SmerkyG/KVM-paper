@@ -40,6 +40,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--state-size-offset", type=int, default=0)
     parser.add_argument("--protected-prefix", type=int, default=1)
     parser.add_argument(
+        "--mla-state-key-normalization",
+        choices=("none", "latent", "whole", "raw"),
+        default="none",
+    )
+    parser.add_argument(
+        "--mla-recursive-page-key-normalization",
+        action="store_true",
+    )
+    parser.add_argument(
         "--state-clustering-policy",
         choices=(
             "manual",
@@ -154,13 +163,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--apply-chat-template", action="store_true")
     parser.add_argument("--disable-thinking", action="store_true")
     parser.add_argument("--log-samples", action="store_true")
+    parser.add_argument(
+        "--use-upstream-code",
+        action="store_true",
+        help="ignore checkpoint auto_map entries when Transformers supports the model",
+    )
     parser.add_argument("--output", type=Path, required=True)
     return parser.parse_args()
 
 
-def load_model(checkpoint: str, device: torch.device):
+def load_model(
+    checkpoint: str,
+    device: torch.device,
+    *,
+    use_upstream_code: bool = False,
+):
+    trust_remote_code = not use_upstream_code
     composite_config = AutoConfig.from_pretrained(
-        checkpoint, trust_remote_code=True
+        checkpoint, trust_remote_code=trust_remote_code
     )
     config = composite_config.get_text_config(decoder=True)
     is_muse_glimmer = getattr(composite_config, "model_type", None) == "muse_glimmer"
@@ -215,7 +235,7 @@ def load_model(checkpoint: str, device: torch.device):
             checkpoint,
             config=load_config,
             dtype=torch.bfloat16,
-            trust_remote_code=True,
+            trust_remote_code=trust_remote_code,
             **load_kwargs,
         )
         .to(device)
@@ -264,9 +284,13 @@ def main() -> None:
     device = torch.device("cuda", local_rank)
     torch.cuda.set_device(device)
     tokenizer = AutoTokenizer.from_pretrained(
-        args.checkpoint, trust_remote_code=True
+        args.checkpoint, trust_remote_code=not args.use_upstream_code
     )
-    model, acceleration = load_model(args.checkpoint, device)
+    model, acceleration = load_model(
+        args.checkpoint,
+        device,
+        use_upstream_code=args.use_upstream_code,
+    )
     installed = []
     if args.mode == "lod":
         config_kwargs = {
@@ -276,6 +300,10 @@ def main() -> None:
             "state_min_size": args.state_min_size,
             "state_size_offset": args.state_size_offset,
             "protected_prefix": args.protected_prefix,
+            "mla_state_key_normalization": args.mla_state_key_normalization,
+            "mla_recursive_page_key_normalization": (
+                args.mla_recursive_page_key_normalization
+            ),
             "state_clustering_policy": args.state_clustering_policy,
             "state_clustering_normalization": (
                 args.state_clustering_normalization
@@ -398,6 +426,10 @@ def main() -> None:
         "state_min_size": args.state_min_size,
         "state_size_offset": args.state_size_offset,
         "protected_prefix": args.protected_prefix,
+        "mla_state_key_normalization": args.mla_state_key_normalization,
+        "mla_recursive_page_key_normalization": (
+            args.mla_recursive_page_key_normalization
+        ),
         "state_clustering_policy": args.state_clustering_policy,
         "state_clustering_normalization": args.state_clustering_normalization,
         "state_clustering_radial_bias": args.state_clustering_radial_bias,
@@ -434,6 +466,7 @@ def main() -> None:
         "max_gen_toks": args.max_gen_toks,
         "apply_chat_template": args.apply_chat_template,
         "disable_thinking": args.disable_thinking,
+        "use_upstream_code": args.use_upstream_code,
         "attention_layers": installed,
         "evaluation_seconds": evaluation_seconds,
     }

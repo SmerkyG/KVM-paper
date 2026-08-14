@@ -275,7 +275,8 @@ class GroupedHFLODRuntime:
         scale: float | None,
         stats_owner: nn.Module | None = None,
     ) -> torch.Tensor:
-        output = torch.zeros_like(query)
+        output_shape = (*query.shape[:-1], int(value.size(-1)))
+        output = query.new_zeros(output_shape)
         sequence_length = int(query.size(2))
         for runtime in self.runtimes:
             begin = sequence_length - runtime.prompt_length if initial_prefill else 0
@@ -285,6 +286,7 @@ class GroupedHFLODRuntime:
             group_value = value.index_select(0, indices)[..., begin:, :].contiguous()
             logical_prefill_len = None
             if initial_prefill:
+                unpadded_length = int(group_query.size(2))
                 (
                     group_query,
                     group_key,
@@ -325,7 +327,7 @@ class GroupedHFLODRuntime:
             runtime.lod_cache = next_cache
 
             full_group_output = torch.zeros(
-                (int(indices.numel()), *query.shape[1:]),
+                (int(indices.numel()), *output_shape[1:]),
                 dtype=query.dtype,
                 device=query.device,
             )
@@ -401,7 +403,8 @@ def grouped_transient_attention(
             settings, query, key, scale=scale, stats_owner=module
         )
         module._hf_lod_transient_engine = engine
-    output = torch.zeros_like(query)
+    output_shape = (*query.shape[:-1], int(value.size(-1)))
+    output = query.new_zeros(output_shape)
     if settings.left_padding_mode == "chunk_aligned":
         plan = chunk_align_padding_plan(
             plan,
@@ -414,6 +417,7 @@ def grouped_transient_attention(
         group_query = query.index_select(0, indices)[..., begin:, :].contiguous()
         group_key = key.index_select(0, indices)[..., begin:, :].contiguous()
         group_value = value.index_select(0, indices)[..., begin:, :].contiguous()
+        unpadded_length = int(group_query.size(2))
         (
             group_query,
             group_key,
@@ -440,7 +444,7 @@ def grouped_transient_attention(
             ),
         )
         full_group_output = torch.zeros(
-            (int(indices.numel()), *query.shape[1:]),
+            (int(indices.numel()), *output_shape[1:]),
             dtype=query.dtype,
             device=query.device,
         )

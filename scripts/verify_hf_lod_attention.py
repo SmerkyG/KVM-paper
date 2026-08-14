@@ -9,8 +9,12 @@ from types import SimpleNamespace
 
 import torch
 from transformers import (
+    DeepseekV2Config,
+    DeepseekV2ForCausalLM,
     Gemma3ForCausalLM,
     Gemma3TextConfig,
+    Glm4MoeLiteConfig,
+    Glm4MoeLiteForCausalLM,
     LlamaConfig,
     LlamaForCausalLM,
     MistralConfig,
@@ -61,6 +65,119 @@ def _common_config() -> dict[str, int]:
         "head_dim": 8,
         "max_position_embeddings": 64,
     }
+
+
+def _check_glm4_moe_lite_mla_adapter() -> None:
+    torch.manual_seed(19)
+    config = Glm4MoeLiteConfig(
+        vocab_size=64,
+        hidden_size=32,
+        intermediate_size=64,
+        moe_intermediate_size=16,
+        num_hidden_layers=1,
+        num_attention_heads=2,
+        num_key_value_heads=2,
+        n_shared_experts=1,
+        n_routed_experts=2,
+        num_experts_per_tok=1,
+        kv_lora_rank=12,
+        q_lora_rank=16,
+        qk_nope_head_dim=8,
+        qk_rope_head_dim=4,
+        v_head_dim=8,
+        max_position_embeddings=64,
+        pad_token_id=0,
+        bos_token_id=1,
+        eos_token_id=2,
+        mlp_layer_types=["dense"],
+    )
+    model = Glm4MoeLiteForCausalLM(config).eval()
+    input_ids = torch.randint(3, config.vocab_size, (2, 8))
+    baseline = model(input_ids, use_cache=False).logits
+    original_keys = tuple(model.state_dict())
+
+    installed = install_hf_lod_attention(
+        model, config=_lod_config(), open_count=2, engine_backend="torch"
+    )
+    if installed != ["model.layers.0.self_attn"]:
+        raise AssertionError(f"unexpected GLM MLA installation: {installed}")
+    if tuple(model.state_dict()) != original_keys:
+        raise AssertionError("MLA adapter changed checkpoint state keys")
+    adapted = model(input_ids, use_cache=False).logits
+    torch.testing.assert_close(adapted, baseline, atol=2e-5, rtol=2e-4)
+
+    cache = new_hf_lod_cache(model)
+    model(input_ids[:, :7], past_key_values=cache, use_cache=True)
+    cached = model(
+        input_ids[:, 7:], past_key_values=cache, use_cache=True
+    ).logits
+    torch.testing.assert_close(
+        cached[:, -1], baseline[:, -1], atol=2e-5, rtol=2e-4
+    )
+    lod_cache = cache.layers[0].lod_cache
+    if int(lod_cache.recent_key.size(-1)) != 16:
+        raise AssertionError("GLM MLA key was not kept in latent-plus-RoPE form")
+    if int(lod_cache.recent_value.size(-1)) != 12:
+        raise AssertionError("GLM MLA value latent was expanded in the cache")
+    print("GLM-4.7-Flash latent-cache adapter parity passed")
+
+
+def _check_deepseek_v2_mla_adapter() -> None:
+    torch.manual_seed(23)
+    config = DeepseekV2Config(
+        vocab_size=64,
+        hidden_size=32,
+        intermediate_size=64,
+        num_hidden_layers=1,
+        num_attention_heads=2,
+        num_key_value_heads=2,
+        first_k_dense_replace=1,
+        kv_lora_rank=12,
+        q_lora_rank=None,
+        qk_nope_head_dim=8,
+        qk_rope_head_dim=4,
+        v_head_dim=8,
+        max_position_embeddings=64,
+        pad_token_id=0,
+        bos_token_id=1,
+        eos_token_id=2,
+    )
+    model = DeepseekV2ForCausalLM(config).eval()
+    input_ids = torch.randint(3, config.vocab_size, (2, 8))
+    baseline = model(input_ids, use_cache=False).logits
+    original_keys = tuple(model.state_dict())
+
+    installed = install_hf_lod_attention(
+        model, config=_lod_config(), open_count=2, engine_backend="torch"
+    )
+    if installed != ["model.layers.0.self_attn"]:
+        raise AssertionError(
+            f"unexpected DeepSeek-V2 MLA installation: {installed}"
+        )
+    if tuple(model.state_dict()) != original_keys:
+        raise AssertionError("DeepSeek-V2 adapter changed checkpoint state keys")
+    adapted = model(input_ids, use_cache=False).logits
+    torch.testing.assert_close(adapted, baseline, atol=2e-5, rtol=2e-4)
+
+    cache = new_hf_lod_cache(model)
+    model(input_ids[:, :7], past_key_values=cache, use_cache=True)
+    cached = model(
+        input_ids[:, 7:], past_key_values=cache, use_cache=True
+    ).logits
+    torch.testing.assert_close(
+        cached[:, -1], baseline[:, -1], atol=2e-5, rtol=2e-4
+    )
+    lod_cache = cache.layers[0].lod_cache
+    if int(lod_cache.recent_key.size(-1)) != 16:
+        raise AssertionError(
+            "DeepSeek-V2 key was not kept in latent-plus-RoPE form"
+        )
+    if int(lod_cache.recent_value.size(-1)) != 12:
+        raise AssertionError("DeepSeek-V2 value latent was expanded in the cache")
+    # Keep every row beyond the native-transient cutoff so the grouped and
+    # single-row references both exercise absorbed latent LOD attention.
+    _check_varied_left_padding(model, lengths=(9, 10, 11, 12))
+    print("DeepSeek-V2 latent-cache adapter parity passed")
 
 
 def _check_qk_norm_aware_routing() -> None:
@@ -628,9 +745,10 @@ def _check_model_family(model) -> None:
 
 
 @torch.inference_mode()
-def _check_varied_left_padding(model) -> None:
+def _check_varied_left_padding(
+    model, lengths: tuple[int, ...] = (5, 8, 8, 12)
+) -> None:
     torch.manual_seed(18)
-    lengths = (5, 8, 8, 12)
     padded_length = max(lengths)
     token = torch.zeros(len(lengths), padded_length, dtype=torch.long)
     attention_mask = torch.zeros_like(token)
@@ -1061,6 +1179,8 @@ def _check_sliding_layer_selection() -> None:
 
 
 def main() -> None:
+    _check_deepseek_v2_mla_adapter()
+    _check_glm4_moe_lite_mla_adapter()
     _check_qk_norm_aware_routing()
     _check_state_clustering_radial_metric()
     _check_rope_frequency_routing()
