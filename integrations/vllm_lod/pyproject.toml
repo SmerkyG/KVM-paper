@@ -1,0 +1,16 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "vllm-lod-attention"
+version = "0.1.0"
+description = "Out-of-tree vLLM backend for LOD Attention"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.entry-points."vllm.general_plugins"]
+lod_attention = "vllm_lod_plugin.plugin:register"
+
+[tool.hatch.build.targets.wheel]
+packages = ["vllm_lod_plugin"]

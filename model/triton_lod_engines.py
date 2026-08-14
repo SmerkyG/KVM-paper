@@ -114,6 +114,55 @@ class _KernelLODEngine(TritonLODAttentionCore):
         if hasattr(self, "_lod_state"):
             del self._lod_state
 
+    @torch.inference_mode()
+    def build_cache_from_bf16(
+        self,
+        key: torch.Tensor,
+        value: torch.Tensor,
+        *,
+        clustering_query: torch.Tensor | None = None,
+        logical_prefill_len: int | None = None,
+        prefill_valid_starts: torch.Tensor | None = None,
+    ) -> KernelLODCache:
+        """Convert an existing full-attention BF16 K/V prefix into LOD.
+
+        K/V must already include the model's positional encoding.  INT4 is
+        applied only after state routing has formed region-owned semantic
+        pages; consecutive source-cache positions are never a quantization
+        group merely because they share a physical cache block.
+        """
+        if key.dtype not in (torch.float16, torch.bfloat16) or value.dtype not in (
+            torch.float16,
+            torch.bfloat16,
+        ):
+            raise ValueError("full-cache conversion requires FP16 or BF16 K/V")
+        if key.ndim != 4 or value.ndim != 4:
+            raise ValueError("full-cache conversion requires rank-four K/V")
+        if key.shape[:3] != value.shape[:3]:
+            raise ValueError("full-cache conversion K/V shapes differ")
+        if int(key.size(1)) != self.config.num_key_value_heads:
+            raise ValueError("full-cache KV head count differs from engine geometry")
+        if self.leaf_attention_backend != "paged":
+            raise NotImplementedError(
+                "full-cache conversion currently requires region-paged LOD"
+            )
+        if clustering_query is not None:
+            self._validate_geometry(clustering_query, key, value)
+        self.reset_runtime_cache()
+        state = self._build_cache_from_bf16(
+            key,
+            value,
+            clustering_query=clustering_query,
+            logical_prefill_len=logical_prefill_len,
+            prefill_valid_starts=prefill_valid_starts,
+        )
+        page_cache = state.get("page_cache")
+        if isinstance(page_cache, dict) and not bool(
+            page_cache.get("region_owned_pages", False)
+        ):
+            raise AssertionError("converted INT4 cache lacks semantic page ownership")
+        return KernelLODCache(state)
+
     def _validate_geometry(
         self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor
     ) -> None:
@@ -139,6 +188,7 @@ class _KernelLODEngine(TritonLODAttentionCore):
         scale: float | None = None,
         logical_prefill_len: int | None = None,
         prefill_valid_starts: torch.Tensor | None = None,
+        output_buffer: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, KernelLODCache | None]:
         """Run optimized causal prefill or incremental cached decode."""
         self._validate_geometry(query, key, value)
@@ -152,6 +202,7 @@ class _KernelLODEngine(TritonLODAttentionCore):
                 value,
                 logical_prefill_len=logical_prefill_len,
                 prefill_valid_starts=prefill_valid_starts,
+                output_buffer=output_buffer,
             )
         else:
             if (
@@ -168,7 +219,9 @@ class _KernelLODEngine(TritonLODAttentionCore):
                 and self.split_prefill_local_attention
                 and isinstance(self._lod_state.get("page_cache"), dict)
             ):
-                output = self._cached_prefill_attention(query, key, value)
+                output = self._cached_prefill_attention(
+                    query, key, value, output_buffer=output_buffer
+                )
             else:
                 outputs = []
                 for token in range(int(query.size(2))):
@@ -327,10 +380,131 @@ class KernelRecursivePagedLODAttention(_KernelLODEngine):
         self.recursive_page_block_n = 4
         self.coarse_route_block_m = 16
         self.coarse_route_num_warps = 4
-        self.fused_prefill_route_coarse = True
+        # Reusing route logits in a separate coarse reduction is faster than
+        # the larger fused kernel on the target ROCm geometry.
+        self.fused_prefill_route_coarse = False
         self.leaf_key_quant_bits = config.kv_bits
         self.leaf_value_quant_bits = config.kv_bits
         self.leaf_quant_group_size = config.quant_group_size
+
+    @torch.inference_mode()
+    def catch_up_cache(
+        self,
+        cache: KernelLODCache,
+        *,
+        total_length: int,
+        recent_length: int | None = None,
+    ) -> None:
+        """Archive old decode-local entries without running attention.
+
+        Serving runtimes call this between graph replays.  Decode kernels can
+        append K/V into fixed recent-cache rows while this method periodically
+        advances the state and semantic page archive in chunk-sized batches.
+        """
+        state = cache.state
+        page_cache = state.get("page_cache")
+        if not isinstance(page_cache, dict):
+            raise NotImplementedError("cache catch-up requires recursive pages")
+        if self.state_clustering_query_metric != "none":
+            raise NotImplementedError(
+                "cache catch-up cannot reconstruct query-dependent clustering"
+            )
+        if total_length < int(state["total_len"]):
+            raise ValueError("cache catch-up cannot move the logical length backward")
+
+        state_k = state["state_k"]
+        state_v = state["state_v"]
+        counts = state["counts"]
+        recent_k = state["recent_k"]
+        recent_v = state["recent_v"]
+        if not all(
+            isinstance(tensor, torch.Tensor)
+            for tensor in (state_k, state_v, counts, recent_k, recent_v)
+        ):
+            raise TypeError("LOD cache tensors are incomplete")
+        key_norm_sums = state.get("key_norm_sums")
+        if key_norm_sums is not None and not isinstance(
+            key_norm_sums, torch.Tensor
+        ):
+            raise TypeError("LOD key-norm sum cache is invalid")
+
+        state_len = int(state["state_len"])
+        coverage = int(state["coverage"])
+        if recent_length is None:
+            recent_length = total_length - coverage
+        if recent_length != total_length - coverage:
+            raise ValueError("decode-local length does not match state coverage")
+        if recent_length < 0 or recent_length > int(recent_k.size(2)):
+            raise ValueError("decode-local length exceeds its fixed cache row")
+
+        update_len = int(self.decode_state_update_len)
+        exact_floor = self.local_len - self.chunk_len
+        if update_len <= 0 or exact_floor < 0:
+            raise ValueError("invalid decode state-update configuration")
+        upcoming_length = total_length + 1
+        target_coverage = max(min(total_length, self.chunk_len), coverage)
+        pending_update = upcoming_length - target_coverage - exact_floor
+        if pending_update > update_len:
+            target_coverage += ((pending_update - 1) // update_len) * update_len
+        target_coverage = min(target_coverage, total_length)
+
+        if coverage < target_coverage:
+            overflow_len = target_coverage - coverage
+            if overflow_len > recent_length:
+                raise AssertionError("LOD decode-local cache underflowed during catch-up")
+            state_capacity = int(state["state_capacity"])
+            (
+                state_k,
+                state_v,
+                counts,
+                state_len,
+                owners,
+                old_slot_remap,
+            ) = self._update_state(
+                state_k,
+                state_v,
+                counts,
+                key_norm_sums,
+                recent_k[..., :overflow_len, :],
+                recent_v[..., :overflow_len, :],
+                state_len=state_len,
+                ctx_len=exact_floor + target_coverage,
+                available_context=target_coverage,
+                state_capacity=state_capacity,
+                clustering_query_scale=None,
+            )
+            if old_slot_remap is not None:
+                raise AssertionError("paged state remapping is unsupported")
+            self._append_page_cache(
+                page_cache,
+                recent_k[..., :overflow_len, :],
+                recent_v[..., :overflow_len, :],
+                owners,
+            )
+            remaining = recent_length - overflow_len
+            if remaining:
+                recent_k[..., :remaining, :].copy_(
+                    recent_k[..., overflow_len:recent_length, :]
+                )
+                recent_v[..., :remaining, :].copy_(
+                    recent_v[..., overflow_len:recent_length, :]
+                )
+            recent_length = remaining
+            coverage = target_coverage
+
+        state.update(
+            state_k=state_k.detach(),
+            state_v=state_v.detach(),
+            counts=counts.detach(),
+            state_len=state_len,
+            coverage=coverage,
+            recent_k=recent_k.detach(),
+            recent_v=recent_v.detach(),
+            recent_len=recent_length,
+            total_len=total_length,
+        )
+        if key_norm_sums is not None:
+            state["key_norm_sums"] = key_norm_sums.detach()
 
 
 __all__ = [

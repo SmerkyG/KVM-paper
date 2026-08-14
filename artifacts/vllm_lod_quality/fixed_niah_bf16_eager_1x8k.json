@@ -1,0 +1,63 @@
+{
+  "accuracy": 1.0,
+  "attention_exercised": "native_prefill_then_lod_decode",
+  "batch_size": 1,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "correct": 1,
+  "elapsed_seconds": 2.5268023340031505,
+  "enforce_eager": true,
+  "eval": "niah_s3",
+  "length": 8192,
+  "lod_diagnostics_after": {
+    "custom_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "decode_calls": 192,
+    "install_count": 6,
+    "pooled_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ]
+  },
+  "lod_diagnostics_before": {
+    "custom_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "decode_calls": 0,
+    "install_count": 0,
+    "pooled_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ]
+  },
+  "mode": "lod",
+  "requested_samples": 1,
+  "samples": [
+    {
+      "exact": true,
+      "index": 0,
+      "input_tokens": 7447,
+      "response": ": acdf3038-467c-4afa-bbe7-4e1ba3289b58.",
+      "target": "acdf3038-467c-4afa-bbe7-4e1ba3289b58"
+    }
+  ],
+  "total": 1
+}

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Focused checks for paged and INT4 pure-PyTorch LOD attention."""
+"""Focused checks for paged pure-PyTorch LOD attention."""
 
 from __future__ import annotations
 
@@ -67,39 +67,24 @@ def check_page_storage(device: torch.device) -> None:
     assert int(paged.tail.size(2)) == 1
 
 
-def check_int4_storage(device: torch.device) -> None:
+def check_chronological_int4_rejected(device: torch.device) -> None:
     torch.manual_seed(20)
     original = torch.randn(
         1, 2, 64, 128, device=device, dtype=torch.bfloat16
     )
-    paged = PagedTensor.from_tensor(
-        original,
-        page_size=16,
-        bits=4,
-        group_size=32,
-        dtype=torch.bfloat16,
-    )
-    restored = paged.materialize()
-    error = (restored.float() - original.float()).abs()
-    assert float(error.mean()) < 0.12
-    assert paged.storage_bytes / (original.numel() * original.element_size()) < 0.33
-
-    position = torch.randint(0, 64, (1, 8, 2, 7), device=device)
-    gathered = paged.gather(position, query_heads=8)
-    expected = restored.repeat_interleave(4, dim=1).gather(
-        2,
-        position.flatten(2).unsqueeze(-1).expand(-1, -1, -1, 128),
-    ).reshape(*position.shape, 128)
-    _assert_close(gathered, expected)
-
-    addition = torch.randn(
-        1, 2, 17, 128, device=device, dtype=torch.bfloat16
-    )
-    appended = paged.append(addition)
-    assert appended.length == 81
-    assert appended.complete_pages == 5
-    assert int(appended.tail.size(2)) == 1
-    _assert_close(appended.materialize()[..., -1:, :], addition[..., -1:, :])
+    try:
+        PagedTensor.from_tensor(
+            original,
+            page_size=16,
+            bits=4,
+            group_size=32,
+            dtype=torch.bfloat16,
+        )
+    except NotImplementedError as error:
+        if "region-owned INT4" not in str(error):
+            raise
+    else:
+        raise AssertionError("pure-PyTorch chronological INT4 was accepted")
 
 
 def check_recursive_page_semantics(device: torch.device) -> None:
@@ -324,23 +309,22 @@ def check_module(device: torch.device) -> None:
     _assert_close(no_page_decode, flat_decode, atol=tolerance, rtol=tolerance)
     assert next_page_cache.leaves.length == 26
 
-    int4 = PagedTwoLevelLODAttention(
-        PagedLODConfig(
-            **_base_config(
-                leaf_dtype=torch.bfloat16,
-                page_size=4,
-                kv_bits=4,
-                quant_group_size=8,
-            )
-        ),
-        default_open_count=4,
-    )
-    with torch.inference_mode():
-        int4_output, int4_cache = int4(query, key, value, use_cache=True)
-    assert torch.isfinite(int4_output).all()
-    mean_error = (int4_output.float() - page_output.float()).abs().mean()
-    assert float(mean_error) < 0.12
-    assert int4_cache.leaves.storage_bytes < page_cache.leaves.storage_bytes
+    try:
+        PagedTwoLevelLODAttention(
+            PagedLODConfig(
+                **_base_config(
+                    leaf_dtype=torch.bfloat16,
+                    page_size=4,
+                    kv_bits=4,
+                    quant_group_size=8,
+                )
+            ),
+            default_open_count=4,
+        )
+    except NotImplementedError:
+        pass
+    else:
+        raise AssertionError("pure-PyTorch INT4 attention was accepted")
 
 
 def main() -> None:
@@ -359,7 +343,7 @@ def main() -> None:
         raise RuntimeError("CUDA was requested but is unavailable")
 
     check_page_storage(device)
-    check_int4_storage(device)
+    check_chronological_int4_rejected(device)
     check_recursive_page_semantics(device)
     check_protected_sink_routing(device)
     check_module(device)

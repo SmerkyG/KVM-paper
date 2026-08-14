@@ -1,0 +1,122 @@
+{
+  "attention_exercised": "direct_lod_prefill",
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "elapsed_seconds": 1.4259356204420328,
+  "enforce_eager": true,
+  "eval": "prolong",
+  "length": 8192,
+  "lod_diagnostics_after": {
+    "custom_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "decode_calls": 0,
+    "direct_prefill_calls": 6,
+    "install_count": 48,
+    "native_append_calls": 0,
+    "pooled_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "routing_geometries": [
+      [
+        "none",
+        "coherence",
+        "none"
+      ]
+    ]
+  },
+  "lod_diagnostics_before": {
+    "custom_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "decode_calls": 0,
+    "direct_prefill_calls": 0,
+    "install_count": 0,
+    "native_append_calls": 0,
+    "pooled_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "routing_geometries": [
+      [
+        "none",
+        "coherence",
+        "none"
+      ]
+    ]
+  },
+  "loss": 3.2560078562809505,
+  "mode": "lod",
+  "perplexity": 25.945750948969547,
+  "prediction_tokens": 65528,
+  "requested_samples": 8,
+  "samples": [
+    {
+      "loss": 3.3087439205731464,
+      "perplexity": 27.350749173396544,
+      "sample": 0,
+      "tokens": 8192
+    },
+    {
+      "loss": 2.918781097404197,
+      "perplexity": 18.51870120435173,
+      "sample": 1,
+      "tokens": 8192
+    },
+    {
+      "loss": 3.3885879288622522,
+      "perplexity": 29.62409139761486,
+      "sample": 2,
+      "tokens": 8192
+    },
+    {
+      "loss": 2.7336242659339596,
+      "perplexity": 15.388558302831544,
+      "sample": 3,
+      "tokens": 8192
+    },
+    {
+      "loss": 3.28412101645012,
+      "perplexity": 26.685517871859552,
+      "sample": 4,
+      "tokens": 8192
+    },
+    {
+      "loss": 3.6244989064657327,
+      "perplexity": 37.50592447379386,
+      "sample": 5,
+      "tokens": 8192
+    },
+    {
+      "loss": 3.5657635445668254,
+      "perplexity": 35.36644695599955,
+      "sample": 6,
+      "tokens": 8192
+    },
+    {
+      "loss": 3.22394216999137,
+      "perplexity": 25.12698001877006,
+      "sample": 7,
+      "tokens": 8192
+    }
+  ]
+}

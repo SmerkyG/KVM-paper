@@ -343,6 +343,69 @@ class HFLODCacheLayer(CacheLayerMixin):
         # are kept inside lod_cache, never in these HF compatibility sentinels.
         return key_states, value_states
 
+    def load_full_attention_kv(
+        self,
+        key_states: torch.Tensor,
+        value_states: torch.Tensor,
+        *,
+        clustering_query: torch.Tensor | None = None,
+        logical_prefill_len: int | None = None,
+        prefill_valid_starts: torch.Tensor | None = None,
+    ) -> None:
+        """Build this layer's LOD cache from retained native BF16 K/V."""
+        if self.pending_key is not None or self.pending_value is not None:
+            raise RuntimeError("cannot convert while an LOD cache update is staged")
+        if self.total_length or self.lod_cache is not None:
+            raise RuntimeError("full-cache conversion requires an empty LOD layer")
+        if self.settings.engine_backend != "kernel" or not isinstance(
+            self.settings.config, PagedLODConfig
+        ):
+            raise NotImplementedError(
+                "full-cache conversion currently requires the kernel recursive-paged engine"
+            )
+        module = self._module()
+        if module is None:
+            raise RuntimeError("the attention module bound to this cache was deleted")
+        if not self.is_initialized:
+            self.lazy_initialization(key_states, value_states)
+        elif int(key_states.size(0)) != self._batch_size:
+            raise ValueError("full-cache conversion batch size differs from LOD cache")
+        if self.engine is None:
+            query_heads = getattr(module, "num_attention_heads", None)
+            if query_heads is None:
+                query_heads = getattr(module, "num_heads", None)
+            if query_heads is None:
+                query_heads = getattr(module.config, "num_attention_heads", None)
+            if query_heads is None:
+                groups = getattr(module, "num_key_value_groups", None)
+                if groups is not None:
+                    query_heads = int(key_states.size(1)) * int(groups)
+            if query_heads is None:
+                raise TypeError("cannot determine this attention layer's query-head count")
+            query_geometry = key_states.new_empty(
+                int(key_states.size(0)),
+                int(query_heads),
+                1,
+                int(key_states.size(-1)),
+            )
+            self.engine = _build_engine(
+                self.settings,
+                query_geometry,
+                key_states[..., :1, :],
+                scale=getattr(module, "scaling", None),
+                stats_owner=module,
+            )
+        if not isinstance(self.engine, KernelRecursivePagedLODAttention):
+            raise TypeError("full-cache conversion resolved a non-recursive LOD engine")
+        self.lod_cache = self.engine.build_cache_from_bf16(
+            key_states,
+            value_states,
+            clustering_query=clustering_query,
+            logical_prefill_len=logical_prefill_len,
+            prefill_valid_starts=prefill_valid_starts,
+        )
+        self.total_length = int(self.lod_cache.total_length)
+
     def consume(
         self,
         module: nn.Module,
@@ -1006,6 +1069,75 @@ def new_hf_lod_cache(model: nn.Module) -> Any:
     return HFLODCache.for_model(model)
 
 
+def _full_cache_layer_kv(
+    full_cache: Any, layer_index: int
+) -> tuple[torch.Tensor, torch.Tensor]:
+    layers = getattr(full_cache, "layers", None)
+    if isinstance(layers, (list, tuple)) and layer_index < len(layers):
+        layer = layers[layer_index]
+        key = getattr(layer, "keys", None)
+        value = getattr(layer, "values", None)
+        if isinstance(key, torch.Tensor) and isinstance(value, torch.Tensor):
+            return key, value
+    key_cache = getattr(full_cache, "key_cache", None)
+    value_cache = getattr(full_cache, "value_cache", None)
+    if isinstance(key_cache, (list, tuple)) and isinstance(
+        value_cache, (list, tuple)
+    ):
+        key = key_cache[layer_index]
+        value = value_cache[layer_index]
+        if isinstance(key, torch.Tensor) and isinstance(value, torch.Tensor):
+            return key, value
+    if isinstance(full_cache, (list, tuple)) and layer_index < len(full_cache):
+        pair = full_cache[layer_index]
+        if isinstance(pair, (list, tuple)) and len(pair) == 2:
+            key, value = pair
+            if isinstance(key, torch.Tensor) and isinstance(value, torch.Tensor):
+                return key, value
+    raise TypeError(f"full cache has no K/V tensors for layer {layer_index}")
+
+
+@torch.inference_mode()
+def convert_hf_full_cache_to_lod(
+    model: nn.Module,
+    full_cache: Any,
+    *,
+    clustering_queries: dict[int, torch.Tensor] | None = None,
+    logical_prefill_len: int | None = None,
+    prefill_valid_starts: torch.Tensor | None = None,
+) -> HFLODCache:
+    """Convert native post-RoPE BF16 cache entries into region-paged LOD.
+
+    The source cache remains untouched, so its owner may release or retain its
+    references after this function succeeds. Hybrid recurrent caches require
+    a serving-runtime bridge that preserves their non-attention state and are
+    intentionally not guessed here.
+    """
+    lod_cache = new_hf_lod_cache(model)
+    if not isinstance(lod_cache, HFLODCache):
+        raise NotImplementedError(
+            "hybrid full-cache conversion must preserve the model's recurrent cache"
+        )
+    for layer in lod_cache.layers:
+        module = layer._module()
+        if module is None:
+            raise RuntimeError("an installed LOD attention module was deleted")
+        layer_index = int(module.layer_idx)
+        key, value = _full_cache_layer_kv(full_cache, layer_index)
+        layer.load_full_attention_kv(
+            key,
+            value,
+            clustering_query=(
+                None
+                if clustering_queries is None
+                else clustering_queries.get(layer_index)
+            ),
+            logical_prefill_len=logical_prefill_len,
+            prefill_valid_starts=prefill_valid_starts,
+        )
+    return lod_cache
+
+
 def pop_hf_lod_dynamic_open_statistics(model: nn.Module) -> dict[str, dict]:
     """Collect and clear route-row counts by dynamically opened page count."""
     result: dict[str, dict] = {}
@@ -1069,6 +1201,7 @@ __all__ = [
     "hf_lod_attention_mask",
     "install_hf_lod_attention",
     "new_hf_lod_cache",
+    "convert_hf_full_cache_to_lod",
     "pop_hf_lod_dynamic_open_statistics",
     "register_hf_lod_attention",
     *_LEGACY_QWEN_EXPORTS,

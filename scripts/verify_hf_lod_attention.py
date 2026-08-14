@@ -899,6 +899,16 @@ def _check_leaf_storage_modes() -> None:
         install_hf_lod_attention(model, config=config, open_count=2)
         cache = new_hf_lod_cache(model)
         token = torch.randint(0, model.config.vocab_size, (1, 14))
+        if bits == 4:
+            try:
+                model(token[:, :12], past_key_values=cache, use_cache=True)
+            except NotImplementedError as error:
+                if "region-owned INT4" not in str(error):
+                    raise
+            else:
+                raise AssertionError("unsafe pure-PyTorch INT4 was accepted")
+            cache_types.append(type(cache))
+            continue
         model(token[:, :12], past_key_values=cache, use_cache=True)
         result = model(token[:, 12:], past_key_values=cache, use_cache=True)
         if not bool(torch.isfinite(result.logits).all()):
@@ -911,7 +921,7 @@ def _check_leaf_storage_modes() -> None:
         cache_types.append(type(cache))
     if cache_types != [HFLODCache, HFLODCache]:
         raise AssertionError("BF16 and INT4 used different outer cache types")
-    print("BF16 and INT4 share one HFLODCache lifecycle")
+    print("BF16 cache lifecycle and unsafe PyTorch INT4 rejection passed")
 
 
 @torch.no_grad()

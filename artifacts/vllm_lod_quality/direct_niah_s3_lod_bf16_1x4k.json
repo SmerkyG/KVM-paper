@@ -1,0 +1,65 @@
+{
+  "accuracy": 1.0,
+  "attention_exercised": "direct_lod_prefill_and_decode",
+  "batch_size": 1,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "correct": 1,
+  "elapsed_seconds": 6.167117074131966,
+  "enforce_eager": true,
+  "eval": "niah_s3",
+  "length": 4096,
+  "lod_diagnostics_after": {
+    "custom_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "decode_calls": 378,
+    "direct_prefill_calls": 6,
+    "install_count": 6,
+    "pooled_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ]
+  },
+  "lod_diagnostics_before": {
+    "custom_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "decode_calls": 0,
+    "direct_prefill_calls": 0,
+    "install_count": 0,
+    "pooled_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ]
+  },
+  "mode": "lod",
+  "requested_samples": 1,
+  "samples": [
+    {
+      "exact": true,
+      "index": 0,
+      "input_tokens": 3736,
+      "response": ": b83e90ec-17e0-4a3c-8398-3ca8ea7e9d49.\n\n<think>\nThinking Process:\n\n1.  **Analyze the Request:**\n    *   Input: A long text containing various paragraphs,",
+      "target": "b83e90ec-17e0-4a3c-8398-3ca8ea7e9d49"
+    }
+  ],
+  "total": 1
+}

@@ -1,0 +1,69 @@
+{
+  "attention_backend": null,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 7717519360,
+    "device_used_bytes_before_reclaim": 10179575808,
+    "lod_cache_bytes": 1048732336,
+    "lod_decode_scratch_bytes": 66111480,
+    "native_cache_bytes": 1102970880,
+    "torch_allocated_bytes": 4543651328,
+    "torch_reclaimable_cached_bytes": 2462056448,
+    "torch_reserved_bytes_after_reclaim": 5138022400,
+    "torch_reserved_bytes_before_reclaim": 7600078848
+  },
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "decode_interval_tokens": 63,
+  "decode_timings_seconds": [
+    0.2324900079984218,
+    0.2310008369386196,
+    0.2327831049915403,
+    0.2320804640185088,
+    0.23232873994857073
+  ],
+  "decode_tokens": 64,
+  "enforce_eager": false,
+  "jit_monitor_verbose": true,
+  "length": 16384,
+  "lod_diagnostics": {
+    "batched_cached_prefill_rows": 900,
+    "batched_cached_prefills": 324,
+    "cached_prefill_candidate_calls": 222,
+    "cached_prefill_candidate_rows": 1464,
+    "cached_prefill_noncontiguous": 0,
+    "cached_prefill_nonuniform_lengths": 144,
+    "cached_prefill_nonuniform_previous": 204,
+    "cached_prefill_unready": 0,
+    "catch_up_batches": 0,
+    "catch_up_rows": 0,
+    "decode_calls": 48,
+    "direct_prefills": 354,
+    "installs": 288,
+    "layers": 6
+  },
+  "long_prefill_token_threshold": 4096,
+  "marginal_decode_ms_per_batch_step": 3.68775777696144,
+  "marginal_decode_ms_per_token": 0.46096972212018,
+  "marginal_decode_tokens_per_second": 2169.3398763819214,
+  "max_num_batched_tokens": 16384,
+  "mode": "lod",
+  "num_gpu_blocks_override": null,
+  "prefill_plus_decode_seconds": 1.9595177448354661,
+  "prefill_prompt_tokens_per_second": 75891.4671493114,
+  "prefill_seconds": 1.7270979851018637,
+  "prefill_timings_seconds": [
+    4.593218727968633,
+    1.7270979851018637,
+    8.18936946010217,
+    1.6587845378089696,
+    1.6614721729420125
+  ],
+  "repeats": 5,
+  "total_timings_seconds": [
+    4.829003894003108,
+    1.9595177448354661,
+    8.423883413197473,
+    1.8928332258947194,
+    1.8949536888394505
+  ]
+}

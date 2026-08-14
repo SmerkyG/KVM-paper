@@ -1,0 +1,96 @@
+{
+  "attention_exercised": "direct_lod_prefill",
+  "batch_size": 2,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "elapsed_seconds": 6.871691396459937,
+  "enforce_eager": true,
+  "eval": "prolong",
+  "length": 8192,
+  "lod_diagnostics_after": {
+    "batched_cached_prefill_rows": 12,
+    "batched_cached_prefills": 6,
+    "catch_up_batches": 0,
+    "catch_up_rows": 0,
+    "custom_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "decode_calls": 0,
+    "direct_prefill_calls": 12,
+    "install_count": 12,
+    "native_append_calls": 0,
+    "pooled_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "routing_geometries": [
+      [
+        "none",
+        "coherence",
+        "none"
+      ]
+    ]
+  },
+  "lod_diagnostics_before": {
+    "batched_cached_prefill_rows": 0,
+    "batched_cached_prefills": 0,
+    "catch_up_batches": 0,
+    "catch_up_rows": 0,
+    "custom_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "decode_calls": 0,
+    "direct_prefill_calls": 0,
+    "install_count": 0,
+    "native_append_calls": 0,
+    "pooled_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "routing_geometries": [
+      [
+        "none",
+        "coherence",
+        "none"
+      ]
+    ]
+  },
+  "long_prefill_token_threshold": 4096,
+  "loss": 3.1130303540485005,
+  "max_num_batched_tokens": 8192,
+  "mode": "lod",
+  "perplexity": 22.489091154222166,
+  "prediction_tokens": 16382,
+  "requested_samples": 2,
+  "samples": [
+    {
+      "loss": 3.308579162943342,
+      "perplexity": 27.34624329998806,
+      "sample": 0,
+      "tokens": 8192
+    },
+    {
+      "loss": 2.917481545153659,
+      "perplexity": 18.494650815277964,
+      "sample": 1,
+      "tokens": 8192
+    }
+  ]
+}

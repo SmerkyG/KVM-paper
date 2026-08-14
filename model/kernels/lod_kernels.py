@@ -145,7 +145,39 @@ def _merge_attention_branches_kernel(
     )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["QUERY_LEN"],
+    do_not_specialize_on_alignment=[
+        "Q_BATCH_STRIDE",
+        "Q_HEAD_STRIDE",
+        "Q_TOKEN_STRIDE",
+        "SINK_K_BATCH_STRIDE",
+        "SINK_K_HEAD_STRIDE",
+        "SINK_K_TOKEN_STRIDE",
+        "SINK_V_BATCH_STRIDE",
+        "SINK_V_HEAD_STRIDE",
+        "SINK_V_TOKEN_STRIDE",
+        "PRIMARY_BATCH_STRIDE",
+        "PRIMARY_HEAD_STRIDE",
+        "PRIMARY_TOKEN_STRIDE",
+        "PRIMARY_LSE_BATCH_STRIDE",
+        "PRIMARY_LSE_HEAD_STRIDE",
+        "PRIMARY_LSE_TOKEN_STRIDE",
+        "SECONDARY_BATCH_STRIDE",
+        "SECONDARY_HEAD_STRIDE",
+        "SECONDARY_TOKEN_STRIDE",
+        "SECONDARY_LSE_BATCH_STRIDE",
+        "SECONDARY_LSE_HEAD_STRIDE",
+        "SECONDARY_LSE_TOKEN_STRIDE",
+        "TERTIARY_BATCH_STRIDE",
+        "TERTIARY_HEAD_STRIDE",
+        "TERTIARY_TOKEN_STRIDE",
+        "TERTIARY_LSE_BATCH_STRIDE",
+        "TERTIARY_LSE_HEAD_STRIDE",
+        "TERTIARY_LSE_TOKEN_STRIDE",
+        "QUERY_LEN",
+    ],
+)
 def _merge_attention_branches_with_sink_kernel(
     q,
     sink_k,
@@ -184,7 +216,7 @@ def _merge_attention_branches_with_sink_kernel(
     TERTIARY_LSE_BATCH_STRIDE,
     TERTIARY_LSE_HEAD_STRIDE,
     TERTIARY_LSE_TOKEN_STRIDE,
-    QUERY_LEN: tl.constexpr,
+    QUERY_LEN,
     QUERY_HEADS: tl.constexpr,
     KV_GROUP_SIZE: tl.constexpr,
     HEAD_DIM: tl.constexpr,
@@ -1034,7 +1066,22 @@ def _balanced_bipartite_atomic_reduce_kernel(
     )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize_on_alignment=[
+        "STATE_BATCH_STRIDE",
+        "STATE_HEAD_STRIDE",
+        "COUNT_BATCH_STRIDE",
+        "COUNT_HEAD_STRIDE",
+        "KEY_NORM_BATCH_STRIDE",
+        "KEY_NORM_HEAD_STRIDE",
+        "OUTPUT_BATCH_STRIDE",
+        "OUTPUT_HEAD_STRIDE",
+        "SCALE_BATCH_STRIDE",
+        "SCALE_HEAD_STRIDE",
+        "INDEX_BATCH_STRIDE",
+        "INDEX_HEAD_STRIDE",
+    ]
+)
 def _prepare_state_clustering_keys_kernel(
     state_k,
     counts,
@@ -1043,23 +1090,23 @@ def _prepare_state_clustering_keys_kernel(
     append_k,
     select_scale,
     slot_indices,
-    STATE_BATCH_STRIDE: tl.constexpr,
-    STATE_HEAD_STRIDE: tl.constexpr,
+    STATE_BATCH_STRIDE,
+    STATE_HEAD_STRIDE,
     STATE_TOKEN_STRIDE: tl.constexpr,
-    COUNT_BATCH_STRIDE: tl.constexpr,
-    COUNT_HEAD_STRIDE: tl.constexpr,
+    COUNT_BATCH_STRIDE,
+    COUNT_HEAD_STRIDE,
     COUNT_TOKEN_STRIDE: tl.constexpr,
-    KEY_NORM_BATCH_STRIDE: tl.constexpr,
-    KEY_NORM_HEAD_STRIDE: tl.constexpr,
+    KEY_NORM_BATCH_STRIDE,
+    KEY_NORM_HEAD_STRIDE,
     KEY_NORM_TOKEN_STRIDE: tl.constexpr,
-    OUTPUT_BATCH_STRIDE: tl.constexpr,
-    OUTPUT_HEAD_STRIDE: tl.constexpr,
+    OUTPUT_BATCH_STRIDE,
+    OUTPUT_HEAD_STRIDE,
     OUTPUT_TOKEN_STRIDE: tl.constexpr,
-    SCALE_BATCH_STRIDE: tl.constexpr,
-    SCALE_HEAD_STRIDE: tl.constexpr,
+    SCALE_BATCH_STRIDE,
+    SCALE_HEAD_STRIDE,
     SCALE_TOKEN_STRIDE: tl.constexpr,
-    INDEX_BATCH_STRIDE: tl.constexpr,
-    INDEX_HEAD_STRIDE: tl.constexpr,
+    INDEX_BATCH_STRIDE,
+    INDEX_HEAD_STRIDE,
     INDEX_TOKEN_STRIDE: tl.constexpr,
     slot_count,
     state_len,
@@ -1166,11 +1213,11 @@ def _prepare_state_clustering_keys_kernel(
 def _constituent_rms_kernel(
     key,
     output,
-    KEY_BATCH_STRIDE: tl.constexpr,
-    KEY_HEAD_STRIDE: tl.constexpr,
+    KEY_BATCH_STRIDE,
+    KEY_HEAD_STRIDE,
     KEY_TOKEN_STRIDE: tl.constexpr,
-    OUTPUT_BATCH_STRIDE: tl.constexpr,
-    OUTPUT_HEAD_STRIDE: tl.constexpr,
+    OUTPUT_BATCH_STRIDE,
+    OUTPUT_HEAD_STRIDE,
     OUTPUT_TOKEN_STRIDE: tl.constexpr,
     token_len,
     HEAD_DIM: tl.constexpr,
@@ -1456,7 +1503,22 @@ def _streaming_state_maxsim_kernel(
         tl.store(overflow_norms + output_offset, overflow_rms, mask=token_valid)
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["overflow_len", "state_len"],
+    do_not_specialize_on_alignment=[
+        "SCORE_BATCH_STRIDE",
+        "SCORE_HEAD_STRIDE",
+        "SCORE_TOKEN_STRIDE",
+        "SCALE_BATCH_STRIDE",
+        "SCALE_HEAD_STRIDE",
+        "COUNT_BATCH_STRIDE",
+        "COUNT_HEAD_STRIDE",
+        "OUTPUT_BATCH_STRIDE",
+        "OUTPUT_HEAD_STRIDE",
+        "overflow_len",
+        "state_len",
+    ],
+)
 def _scaled_coherence_maxsim_kernel(
     append_scores,
     select_scale,
@@ -1464,18 +1526,18 @@ def _scaled_coherence_maxsim_kernel(
     route_scores,
     route_indices,
     select_scores,
-    SCORE_BATCH_STRIDE: tl.constexpr,
-    SCORE_HEAD_STRIDE: tl.constexpr,
-    SCORE_TOKEN_STRIDE: tl.constexpr,
+    SCORE_BATCH_STRIDE,
+    SCORE_HEAD_STRIDE,
+    SCORE_TOKEN_STRIDE,
     SCORE_STATE_STRIDE: tl.constexpr,
-    SCALE_BATCH_STRIDE: tl.constexpr,
-    SCALE_HEAD_STRIDE: tl.constexpr,
+    SCALE_BATCH_STRIDE,
+    SCALE_HEAD_STRIDE,
     SCALE_TOKEN_STRIDE: tl.constexpr,
-    COUNT_BATCH_STRIDE: tl.constexpr,
-    COUNT_HEAD_STRIDE: tl.constexpr,
+    COUNT_BATCH_STRIDE,
+    COUNT_HEAD_STRIDE,
     COUNT_TOKEN_STRIDE: tl.constexpr,
-    OUTPUT_BATCH_STRIDE: tl.constexpr,
-    OUTPUT_HEAD_STRIDE: tl.constexpr,
+    OUTPUT_BATCH_STRIDE,
+    OUTPUT_HEAD_STRIDE,
     OUTPUT_TOKEN_STRIDE: tl.constexpr,
     overflow_len,
     state_len,
@@ -1768,7 +1830,28 @@ def _route_logits_coarse_attention_kernel(
     )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["query_len", "state_len", "local_len", "local_offset"],
+    do_not_specialize_on_alignment=[
+        "Q_BATCH_STRIDE",
+        "Q_HEAD_STRIDE",
+        "LOGIT_BATCH_STRIDE",
+        "LOGIT_HEAD_STRIDE",
+        "LOGIT_QUERY_STRIDE",
+        "LOCAL_K_BATCH_STRIDE",
+        "LOCAL_K_HEAD_STRIDE",
+        "LOCAL_V_BATCH_STRIDE",
+        "LOCAL_V_HEAD_STRIDE",
+        "RESIDUAL_LSE_BATCH_STRIDE",
+        "RESIDUAL_LSE_HEAD_STRIDE",
+        "TOP_BATCH_STRIDE",
+        "TOP_HEAD_STRIDE",
+        "query_len",
+        "state_len",
+        "local_len",
+        "local_offset",
+    ],
+)
 def _route_logits_topk_coarse_attention_kernel(
     q,
     route_logits,
@@ -1780,12 +1863,12 @@ def _route_logits_topk_coarse_attention_kernel(
     top_slots,
     output,
     lse,
-    Q_BATCH_STRIDE: tl.constexpr,
-    Q_HEAD_STRIDE: tl.constexpr,
+    Q_BATCH_STRIDE,
+    Q_HEAD_STRIDE,
     Q_TOKEN_STRIDE: tl.constexpr,
-    LOGIT_BATCH_STRIDE: tl.constexpr,
-    LOGIT_HEAD_STRIDE: tl.constexpr,
-    LOGIT_QUERY_STRIDE: tl.constexpr,
+    LOGIT_BATCH_STRIDE,
+    LOGIT_HEAD_STRIDE,
+    LOGIT_QUERY_STRIDE,
     LOGIT_STATE_STRIDE: tl.constexpr,
     STATE_V_BATCH_STRIDE: tl.constexpr,
     STATE_V_HEAD_STRIDE: tl.constexpr,
@@ -1793,17 +1876,17 @@ def _route_logits_topk_coarse_attention_kernel(
     COUNT_BATCH_STRIDE: tl.constexpr,
     COUNT_HEAD_STRIDE: tl.constexpr,
     COUNT_TOKEN_STRIDE: tl.constexpr,
-    LOCAL_K_BATCH_STRIDE: tl.constexpr,
-    LOCAL_K_HEAD_STRIDE: tl.constexpr,
+    LOCAL_K_BATCH_STRIDE,
+    LOCAL_K_HEAD_STRIDE,
     LOCAL_K_TOKEN_STRIDE: tl.constexpr,
-    LOCAL_V_BATCH_STRIDE: tl.constexpr,
-    LOCAL_V_HEAD_STRIDE: tl.constexpr,
+    LOCAL_V_BATCH_STRIDE,
+    LOCAL_V_HEAD_STRIDE,
     LOCAL_V_TOKEN_STRIDE: tl.constexpr,
-    RESIDUAL_LSE_BATCH_STRIDE: tl.constexpr,
-    RESIDUAL_LSE_HEAD_STRIDE: tl.constexpr,
+    RESIDUAL_LSE_BATCH_STRIDE,
+    RESIDUAL_LSE_HEAD_STRIDE,
     RESIDUAL_LSE_TOKEN_STRIDE: tl.constexpr,
-    TOP_BATCH_STRIDE: tl.constexpr,
-    TOP_HEAD_STRIDE: tl.constexpr,
+    TOP_BATCH_STRIDE,
+    TOP_HEAD_STRIDE,
     TOP_QUERY_STRIDE: tl.constexpr,
     query_len,
     state_len,
@@ -2368,7 +2451,19 @@ def _route_logits_topk_coarse_attention_kernel(
     )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["TOKENS"],
+    do_not_specialize_on_alignment=[
+        "MERGE_K_ROW_STRIDE",
+        "MERGE_V_ROW_STRIDE",
+        "OWNER_ROW_STRIDE",
+        "DELTA_K_ROW_STRIDE",
+        "DELTA_V_ROW_STRIDE",
+        "DELTA_SLOT_STRIDE",
+        "KEY_NORM_ROW_STRIDE",
+        "TOKENS",
+    ],
+)
 def _accumulate_state_deltas_kernel(
     merge_k,
     merge_v,
@@ -2390,7 +2485,7 @@ def _accumulate_state_deltas_kernel(
     DELTA_SLOT_STRIDE,
     KEY_NORM_ROW_STRIDE,
     KEY_NORM_SLOT_STRIDE,
-    TOKENS: tl.constexpr,
+    TOKENS,
     TOKEN_BLOCK: tl.constexpr,
     HEAD_DIM: tl.constexpr,
     VALUE_DIM: tl.constexpr,
@@ -4682,6 +4777,7 @@ def merge_attention_branches(
     tertiary_out: torch.Tensor | None = None,
     tertiary_lse: torch.Tensor | None = None,
     *,
+    output_buffer: torch.Tensor | None = None,
     block_m: int = 8,
     num_warps: int = 4,
 ) -> torch.Tensor:
@@ -4717,7 +4813,14 @@ def merge_attention_branches(
     include_tertiary = tertiary_out is not None
     tertiary_out = primary_out if tertiary_out is None else tertiary_out
     tertiary_lse = primary_lse if tertiary_lse is None else tertiary_lse
-    output = torch.empty_like(primary_out)
+    output = torch.empty_like(primary_out) if output_buffer is None else output_buffer
+    if (
+        tuple(output.shape) != expected_output_shape
+        or output.dtype != primary_out.dtype
+        or output.device != primary_out.device
+        or int(output.stride(-1)) != 1
+    ):
+        raise ValueError("fused branch output buffer has incompatible geometry")
     batch, heads, query_len, head_dim = expected_output_shape
     _merge_attention_branches_kernel[
         (batch, heads, triton.cdiv(query_len, block_m))
@@ -4773,6 +4876,7 @@ def merge_attention_branches_with_sink(
     *,
     kv_group_size: int,
     scale: float,
+    output_buffer: torch.Tensor | None = None,
     block_m: int = 8,
     num_warps: int = 4,
 ) -> torch.Tensor:
@@ -4826,7 +4930,14 @@ def merge_attention_branches_with_sink(
     tertiary_lse = primary_lse if tertiary_lse is None else tertiary_lse
     include_secondary = branches[1][0] is not None
     include_tertiary = branches[2][0] is not None
-    output = torch.empty_like(q)
+    output = torch.empty_like(q) if output_buffer is None else output_buffer
+    if (
+        tuple(output.shape) != expected_output_shape
+        or output.dtype != q.dtype
+        or output.device != q.device
+        or int(output.stride(-1)) != 1
+    ):
+        raise ValueError("fused sink output buffer has incompatible geometry")
     grid = (batch, query_heads, triton.cdiv(query_len, block_m))
     _merge_attention_branches_with_sink_kernel[grid](
         q,
