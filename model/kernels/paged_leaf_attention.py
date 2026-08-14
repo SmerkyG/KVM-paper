@@ -766,6 +766,158 @@ def _assign_page_ordinals_kernel(
     tl.atomic_xchg(overflow_flag, 1, mask=active, sem="relaxed")
 
 
+@triton.jit
+def _assign_block_page_ordinals_kernel(
+    owners,
+    slot_lengths,
+    next_page,
+    slot_pages,
+    overflow_page_keys,
+    overflow_page_values,
+    overflow_used,
+    overflow_flag,
+    ordinals,
+    TOKENS: tl.constexpr,
+    STATE_CAPACITY: tl.constexpr,
+    INLINE_PAGES_PER_SLOT: tl.constexpr,
+    HASH_CAPACITY: tl.constexpr,
+    HASH_PROBES: tl.constexpr,
+    PAGE_SIZE: tl.constexpr,
+    BLOCK_TOKENS: tl.constexpr,
+):
+    """Reserve one ordinal range per owner represented in a token block."""
+    kv_row = tl.program_id(0).to(tl.int64)
+    token = tl.program_id(1).to(tl.int64) * BLOCK_TOKENS + tl.arange(
+        0, BLOCK_TOKENS
+    )
+    valid = token < TOKENS
+    token_row = kv_row * TOKENS + token
+    owner = tl.load(owners + token_row, mask=valid, other=-1).to(tl.int64)
+
+    lane = tl.arange(0, BLOCK_TOKENS)
+    same_owner = (
+        (owner[:, None] == owner[None, :])
+        & valid[:, None]
+        & valid[None, :]
+    )
+    earlier = lane[None, :] < lane[:, None]
+    rank = tl.sum((same_owner & earlier).to(tl.int32), axis=1)
+    block_count = tl.sum(same_owner.to(tl.int32), axis=1)
+    leader = valid & (rank == 0)
+    base = tl.zeros((BLOCK_TOKENS,), tl.int32)
+    # Scalar atomics have reliable fetch-add return values on the target ROCm
+    # stack.  The vector form updates counters correctly but can return stale
+    # per-lane values when several programs reserve different owners at once.
+    for leader_lane in tl.static_range(0, BLOCK_TOKENS):
+        selected = lane == leader_lane
+        leader_active = (
+            tl.sum((leader & selected).to(tl.int32), axis=0) != 0
+        )
+        leader_owner = tl.sum(tl.where(selected, owner, 0), axis=0)
+        leader_count = tl.sum(tl.where(selected, block_count, 0), axis=0)
+        leader_base = tl.atomic_add(
+            slot_lengths + kv_row * STATE_CAPACITY + leader_owner,
+            leader_count,
+            mask=leader_active,
+            sem="relaxed",
+        ).to(tl.int32)
+        base += tl.where(
+            valid & leader_active & (owner == leader_owner),
+            leader_base,
+            0,
+        )
+    ordinal = base + rank
+    tl.store(ordinals + token_row, ordinal, mask=valid)
+
+    page_ordinal = ordinal // PAGE_SIZE
+    starts_page = valid & (ordinal % PAGE_SIZE == 0)
+    page_rank = tl.cumsum(starts_page.to(tl.int32), axis=0) - 1
+    page_count = tl.sum(starts_page.to(tl.int32), axis=0)
+    first_page = tl.atomic_add(next_page + kv_row, page_count, sem="relaxed")
+    page_id = first_page + page_rank
+    inline = starts_page & (page_ordinal < INLINE_PAGES_PER_SLOT)
+    tl.store(
+        slot_pages
+        + (kv_row * STATE_CAPACITY + owner) * INLINE_PAGES_PER_SLOT
+        + page_ordinal,
+        page_id,
+        mask=inline,
+    )
+
+    lookup_key = (owner * 65_536 + page_ordinal).to(tl.int32)
+    index = _page_hash_index(lookup_key, HASH_CAPACITY)
+    active = starts_page & ~inline
+    ones = tl.full((BLOCK_TOKENS,), 1, tl.int32)
+    tl.atomic_xchg(
+        overflow_used + token * 0,
+        ones,
+        mask=active,
+        sem="relaxed",
+    )
+    for _ in tl.static_range(0, HASH_PROBES):
+        old_key = tl.atomic_cas(
+            overflow_page_keys + kv_row * HASH_CAPACITY + index,
+            tl.where(active, -1, -2),
+            lookup_key,
+            sem="relaxed",
+        )
+        claimed = active & ((old_key == -1) | (old_key == lookup_key))
+        tl.store(
+            overflow_page_values + kv_row * HASH_CAPACITY + index,
+            page_id,
+            mask=claimed,
+        )
+        active &= ~claimed
+        index = (index + 1) & (HASH_CAPACITY - 1)
+    tl.atomic_xchg(
+        overflow_flag + token * 0,
+        ones,
+        mask=active,
+        sem="relaxed",
+    )
+
+
+def _assign_page_ordinals(
+    owners: torch.Tensor,
+    slot_lengths: torch.Tensor,
+    next_page: torch.Tensor,
+    slot_pages: torch.Tensor,
+    overflow_page_keys: torch.Tensor,
+    overflow_page_values: torch.Tensor,
+    overflow_used: torch.Tensor,
+    overflow_flag: torch.Tensor,
+    *,
+    hash_probes: int,
+    page_size: int,
+) -> torch.Tensor:
+    """Assign page ordinals with block-local duplicate aggregation."""
+    batch, kv_heads, tokens = owners.shape
+    ordinals = torch.empty_like(owners, dtype=torch.int32)
+    block_tokens = 16
+    _assign_block_page_ordinals_kernel[
+        (batch * kv_heads, triton.cdiv(tokens, block_tokens))
+    ](
+        owners,
+        slot_lengths,
+        next_page,
+        slot_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        overflow_flag,
+        ordinals,
+        TOKENS=tokens,
+        STATE_CAPACITY=int(slot_pages.size(2)),
+        INLINE_PAGES_PER_SLOT=int(slot_pages.size(3)),
+        HASH_CAPACITY=int(overflow_page_keys.size(2)),
+        HASH_PROBES=hash_probes,
+        PAGE_SIZE=page_size,
+        BLOCK_TOKENS=block_tokens,
+        num_warps=1,
+    )
+    return ordinals
+
+
 @triton.jit(do_not_specialize=["source_slot", "destination_slot"])
 def _rehash_overflow_pages_kernel(
     source_keys,
@@ -6452,9 +6604,8 @@ def append_paged_kv(
         raise ValueError("page owners do not match incoming K/V")
     if slot_lengths.dtype != torch.int32 or next_page.dtype != torch.int32:
         raise TypeError("Triton page counters must use int32")
-    ordinals = torch.empty_like(owners, dtype=torch.int32)
     token_rows = batch * kv_heads * tokens
-    _assign_page_ordinals_kernel[(token_rows,)](
+    ordinals = _assign_page_ordinals(
         owners,
         slot_lengths,
         next_page,
@@ -6463,16 +6614,8 @@ def append_paged_kv(
         overflow_page_values,
         overflow_used,
         overflow_flag,
-        ordinals,
-        TOKENS=tokens,
-        KV_HEADS=kv_heads,
-        STATE_CAPACITY=int(slot_pages.size(2)),
-        INLINE_PAGES_PER_SLOT=int(slot_pages.size(3)),
-        PAGE_CAPACITY=int(page_k.size(2)),
-        HASH_CAPACITY=int(overflow_page_keys.size(2)),
-        HASH_PROBES=hash_probes,
-        PAGE_SIZE=int(page_k.size(3)),
-        num_warps=1,
+        hash_probes=hash_probes,
+        page_size=int(page_k.size(3)),
     )
     _write_paged_kv_kernel[(token_rows,)](
         k,
@@ -6601,9 +6744,8 @@ def append_virtual_paged_kv(
         raise ValueError("virtual page append requires 16-entry pages")
     if slot_lengths.dtype != torch.int32 or next_page.dtype != torch.int32:
         raise TypeError("Triton page counters must use int32")
-    ordinals = torch.empty_like(owners, dtype=torch.int32)
     token_rows = batch * kv_heads * tokens
-    _assign_page_ordinals_kernel[(token_rows,)](
+    ordinals = _assign_page_ordinals(
         owners,
         slot_lengths,
         next_page,
@@ -6612,16 +6754,8 @@ def append_virtual_paged_kv(
         overflow_page_values,
         overflow_used,
         overflow_flag,
-        ordinals,
-        TOKENS=tokens,
-        KV_HEADS=kv_heads,
-        STATE_CAPACITY=int(slot_pages.size(2)),
-        INLINE_PAGES_PER_SLOT=int(slot_pages.size(3)),
-        PAGE_CAPACITY=int(page_indices.size(2)),
-        HASH_CAPACITY=int(overflow_page_keys.size(2)),
-        HASH_PROBES=hash_probes,
-        PAGE_SIZE=int(page_indices.size(3)),
-        num_warps=1,
+        hash_probes=hash_probes,
+        page_size=int(page_indices.size(3)),
     )
     _write_virtual_page_indices_kernel[(token_rows,)](
         owners,
@@ -6974,9 +7108,8 @@ def append_quantized_virtual_paged_kv(
         for tensor in summary_quantization_tensors
     ):
         raise ValueError("INT8 page-summary tensors must be supplied together")
-    ordinals = torch.empty_like(owners, dtype=torch.int32)
     token_rows = batch * kv_heads * tokens
-    _assign_page_ordinals_kernel[(token_rows,)](
+    ordinals = _assign_page_ordinals(
         owners,
         slot_lengths,
         next_page,
@@ -6985,16 +7118,8 @@ def append_quantized_virtual_paged_kv(
         overflow_page_values,
         overflow_used,
         overflow_flag,
-        ordinals,
-        TOKENS=tokens,
-        KV_HEADS=kv_heads,
-        STATE_CAPACITY=int(slot_pages.size(2)),
-        INLINE_PAGES_PER_SLOT=int(slot_pages.size(3)),
-        PAGE_CAPACITY=int(page_indices.size(2)),
-        HASH_CAPACITY=int(overflow_page_keys.size(2)),
-        HASH_PROBES=hash_probes,
-        PAGE_SIZE=int(page_indices.size(3)),
-        num_warps=1,
+        hash_probes=hash_probes,
+        page_size=int(page_indices.size(3)),
     )
     _write_virtual_page_indices_kernel[(token_rows,)](
         owners,

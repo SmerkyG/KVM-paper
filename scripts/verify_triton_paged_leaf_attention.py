@@ -637,8 +637,12 @@ def verify_direct_page_append(device: torch.device) -> None:
         if not torch.equal(slot_lengths[0, head].long(), expected_counts):
             raise AssertionError("direct page append produced incorrect slot lengths")
         expected_pages = int(((expected_counts + page_size - 1) // page_size).sum())
-        if int(next_page[0, head].item()) != expected_pages:
-            raise AssertionError("direct page append produced incorrect page count")
+        actual_pages = int(next_page[0, head].item())
+        if actual_pages != expected_pages:
+            raise AssertionError(
+                "direct page append produced incorrect page count: "
+                f"head={head}, expected={expected_pages}, actual={actual_pages}"
+            )
         for slot in range(slots):
             count = int(expected_counts[slot].item())
             pages = (count + page_size - 1) // page_size
