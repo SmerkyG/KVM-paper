@@ -166,13 +166,13 @@ def main() -> None:
         ),
     )
     pool.direct_prefill_plan = (
-        (2, 0, direct_length, 0),
-        (3, direct_length, 2 * direct_length, 0),
+        (0, 0, direct_length, 0),
+        (2, direct_length, 2 * direct_length, 0),
     )
     pool.direct_prefill(direct_query, direct_key, direct_value, direct_output)
+    assert pool.ready[0]
     assert pool.ready[2]
-    assert pool.ready[3]
-    assert int(pool.metadata[2]["total_len"]) == direct_length
+    assert int(pool.metadata[0]["total_len"]) == direct_length
     assert bool(torch.isfinite(direct_output).all())
     torch.testing.assert_close(
         direct_output.reshape(2, direct_length, 8, 128).float(),
@@ -183,23 +183,27 @@ def main() -> None:
 
     cached_length = 5
     cached_query = torch.randn(
-        2 * cached_length, 8, 128, dtype=torch.bfloat16, device=device
+        4 * cached_length, 8, 128, dtype=torch.bfloat16, device=device
     )
     cached_key = torch.randn(
-        2 * cached_length, 2, 128, dtype=torch.bfloat16, device=device
+        4 * cached_length, 2, 128, dtype=torch.bfloat16, device=device
     )
     cached_value = torch.randn_like(cached_key)
     cached_output = torch.empty_like(cached_query)
-    # vLLM may reorder active requests between scheduler iterations. The pool
-    # batches a contiguous slot set regardless of the incoming plan order.
+    # vLLM may mix fresh and continuing requests, and reorder active requests,
+    # within one scheduler iteration. Batch each lifecycle group separately.
     pool.direct_prefill_plan = (
-        (3, cached_length, 2 * cached_length, direct_length),
         (2, 0, cached_length, direct_length),
+        (1, cached_length, 2 * cached_length, 0),
+        (0, 2 * cached_length, 3 * cached_length, direct_length),
+        (3, 3 * cached_length, 4 * cached_length, 0),
     )
     pool.direct_prefill(cached_query, cached_key, cached_value, cached_output)
     assert bool(torch.isfinite(cached_output).all())
+    assert int(pool.metadata[1]["total_len"]) == cached_length
+    assert int(pool.metadata[3]["total_len"]) == cached_length
+    assert int(pool.metadata[0]["total_len"]) == direct_length + cached_length
     assert int(pool.metadata[2]["total_len"]) == direct_length + cached_length
-    assert int(pool.metadata[3]["total_len"]) == direct_length + cached_length
     assert pool.batched_cached_prefill_calls == 1
     assert pool.batched_cached_prefill_rows == 2
 
