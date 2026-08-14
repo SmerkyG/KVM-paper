@@ -4628,6 +4628,7 @@ def merge_attention_branches(
     tertiary_out: torch.Tensor | None = None,
     tertiary_lse: torch.Tensor | None = None,
     *,
+    output_buffer: torch.Tensor | None = None,
     block_m: int = 8,
     num_warps: int = 4,
 ) -> torch.Tensor:
@@ -4663,7 +4664,14 @@ def merge_attention_branches(
     include_tertiary = tertiary_out is not None
     tertiary_out = primary_out if tertiary_out is None else tertiary_out
     tertiary_lse = primary_lse if tertiary_lse is None else tertiary_lse
-    output = torch.empty_like(primary_out)
+    output = torch.empty_like(primary_out) if output_buffer is None else output_buffer
+    if (
+        tuple(output.shape) != expected_output_shape
+        or output.dtype != primary_out.dtype
+        or output.device != primary_out.device
+        or int(output.stride(-1)) != 1
+    ):
+        raise ValueError("fused branch output buffer has incompatible geometry")
     batch, heads, query_len, head_dim = expected_output_shape
     _merge_attention_branches_kernel[
         (batch, heads, triton.cdiv(query_len, block_m))
@@ -4719,6 +4727,7 @@ def merge_attention_branches_with_sink(
     *,
     kv_group_size: int,
     scale: float,
+    output_buffer: torch.Tensor | None = None,
     block_m: int = 8,
     num_warps: int = 4,
 ) -> torch.Tensor:
@@ -4772,7 +4781,14 @@ def merge_attention_branches_with_sink(
     tertiary_lse = primary_lse if tertiary_lse is None else tertiary_lse
     include_secondary = branches[1][0] is not None
     include_tertiary = branches[2][0] is not None
-    output = torch.empty_like(q)
+    output = torch.empty_like(q) if output_buffer is None else output_buffer
+    if (
+        tuple(output.shape) != expected_output_shape
+        or output.dtype != q.dtype
+        or output.device != q.device
+        or int(output.stride(-1)) != 1
+    ):
+        raise ValueError("fused sink output buffer has incompatible geometry")
     grid = (batch, query_heads, triton.cdiv(query_len, block_m))
     _merge_attention_branches_with_sink_kernel[grid](
         q,

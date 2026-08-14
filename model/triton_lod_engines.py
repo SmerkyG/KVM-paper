@@ -182,6 +182,7 @@ class _KernelLODEngine(TritonLODAttentionCore):
         scale: float | None = None,
         logical_prefill_len: int | None = None,
         prefill_valid_starts: torch.Tensor | None = None,
+        output_buffer: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, KernelLODCache | None]:
         """Run optimized causal prefill or incremental cached decode."""
         self._validate_geometry(query, key, value)
@@ -195,6 +196,7 @@ class _KernelLODEngine(TritonLODAttentionCore):
                 value,
                 logical_prefill_len=logical_prefill_len,
                 prefill_valid_starts=prefill_valid_starts,
+                output_buffer=output_buffer,
             )
         else:
             if (
@@ -211,7 +213,9 @@ class _KernelLODEngine(TritonLODAttentionCore):
                 and self.split_prefill_local_attention
                 and isinstance(self._lod_state.get("page_cache"), dict)
             ):
-                output = self._cached_prefill_attention(query, key, value)
+                output = self._cached_prefill_attention(
+                    query, key, value, output_buffer=output_buffer
+                )
             else:
                 outputs = []
                 for token in range(int(query.size(2))):
@@ -370,7 +374,9 @@ class KernelRecursivePagedLODAttention(_KernelLODEngine):
         self.recursive_page_block_n = 4
         self.coarse_route_block_m = 16
         self.coarse_route_num_warps = 4
-        self.fused_prefill_route_coarse = True
+        # Reusing route logits in a separate coarse reduction is faster than
+        # the larger fused kernel on the target ROCm geometry.
+        self.fused_prefill_route_coarse = False
         self.leaf_key_quant_bits = config.kv_bits
         self.leaf_value_quant_bits = config.kv_bits
         self.leaf_quant_group_size = config.quant_group_size

@@ -8,7 +8,6 @@ from typing import Any
 import torch
 
 from model.kernels.paged_leaf_attention import (
-    advance_decode_cache_lengths,
     fused_decode_paged_lod_attention,
     new_fused_decode_buffers,
     rehash_overflow_pages,
@@ -106,6 +105,7 @@ class VLLMLayerLODPool:
             scale=float(layer.impl.scale),
             default_open_count=settings.open_count,
         )
+        self.engine.prefill_local_attention_backend = settings.prefill_local_backend
         # Keep exact sink/protected entries outside the clustered state. This
         # matches the standalone kernel architecture and folds the side cache
         # into the existing final decode reduction.
@@ -128,15 +128,19 @@ class VLLMLayerLODPool:
             max_requests, dtype=torch.int32, device=self.device
         )
         self.ready = [False] * max_requests
+        self.clean = [True] * max_requests
         self.metadata = [dict[str, int | bool]() for _ in range(max_requests)]
         self.decode_buffers: dict[int, dict[str, torch.Tensor]] = {}
         self.decode_enabled = False
         self.direct_prefill_plan: tuple[tuple[int, int, int, int], ...] | None = None
         self.native_append_plan: tuple[tuple[int, int, int, int], ...] | None = None
         self.install_count = 0
+        self.batched_install_calls = 0
         self.direct_prefill_calls = 0
         self.batched_cached_prefill_calls = 0
         self.batched_cached_prefill_rows = 0
+        self.cached_prefill_packed_calls = 0
+        self.cached_prefill_nonpacked_calls = 0
         self.cached_prefill_candidate_calls = 0
         self.cached_prefill_candidate_rows = 0
         self.cached_prefill_nonuniform_lengths = 0
@@ -363,6 +367,7 @@ class VLLMLayerLODPool:
         if not 0 <= slot < self.max_requests:
             raise IndexError("vLLM request slot is outside the LOD pool")
         self.ready[slot] = False
+        self.clean[slot] = True
         self.metadata[slot].clear()
         self.local_lens[slot].zero_()
         self.state["counts"][slot].zero_()
@@ -381,6 +386,32 @@ class VLLMLayerLODPool:
         page["overflow_page_values"][slot].fill_(-1)
         if "page_quantized_counts" in page:
             page["page_quantized_counts"][slot].zero_()
+
+    def _reset_range(self, start: int, stop: int) -> None:
+        """Reset one contiguous row range with one launch per cache field."""
+        if not 0 <= start < stop <= self.max_requests:
+            raise IndexError("vLLM request row range is outside the LOD pool")
+        for slot in range(start, stop):
+            self.ready[slot] = False
+            self.clean[slot] = True
+            self.metadata[slot].clear()
+        self.local_lens[start:stop].zero_()
+        self.state["counts"][start:stop].zero_()
+        if "sink_k" in self.state:
+            self.state["sink_k"][start:stop].zero_()
+            self.state["sink_v"][start:stop].zero_()
+        if "key_norm_sums" in self.state:
+            self.state["key_norm_sums"][start:stop].zero_()
+        page = self.state["page_cache"]
+        page["slot_pages"][start:stop].fill_(-1)
+        page["slot_lengths"][start:stop].zero_()
+        page["next_page"][start:stop].zero_()
+        page["page_indices"][start:stop].fill_(-1)
+        page["page_counts"][start:stop].zero_()
+        page["overflow_page_keys"][start:stop].fill_(-1)
+        page["overflow_page_values"][start:stop].fill_(-1)
+        if "page_quantized_counts" in page:
+            page["page_quantized_counts"][start:stop].zero_()
 
     def truncate_recent(self, slot: int, total_length: int) -> None:
         """Roll a retained cache back inside its unclustered exact tail."""
@@ -418,6 +449,144 @@ class VLLMLayerLODPool:
             return
         slices = tuple(slice(0, min(a, b)) for a, b in zip(target.shape, source.shape))
         target[slices].copy_(source[slices])
+
+    @staticmethod
+    def _copy_range(
+        destination: torch.Tensor,
+        source: torch.Tensor,
+        start: int,
+        stop: int,
+    ) -> None:
+        target = destination[start:stop]
+        if source.ndim != target.ndim or int(source.size(0)) != stop - start:
+            raise ValueError("converted LOD tensor batch differs from its pool range")
+        if (
+            source.data_ptr() == target.data_ptr()
+            and source.shape == target.shape
+            and source.stride() == target.stride()
+        ):
+            return
+        slices = tuple(slice(0, min(a, b)) for a, b in zip(target.shape, source.shape))
+        target[slices].copy_(source[slices])
+
+    @staticmethod
+    def _copy_rows(
+        destination: torch.Tensor,
+        source: torch.Tensor,
+        slots: tuple[int, ...],
+        indices: torch.Tensor,
+    ) -> None:
+        if source.ndim != destination.ndim or int(source.size(0)) != len(slots):
+            raise ValueError("converted LOD tensor batch differs from its pool rows")
+        slices = (slice(None),) + tuple(
+            slice(0, min(int(destination.size(axis)), int(source.size(axis))))
+            for axis in range(1, source.ndim)
+        )
+        destination[slices].index_copy_(
+            0,
+            indices,
+            source[slices],
+        )
+
+    def install_range(
+        self, start: int, stop: int, converted: KernelLODCache
+    ) -> None:
+        self.install_rows(tuple(range(start, stop)), converted)
+
+    def install_rows(
+        self, slots: tuple[int, ...], converted: KernelLODCache
+    ) -> None:
+        """Install one converted batch into a contiguous set of pool rows."""
+        if not slots or len(set(slots)) != len(slots):
+            raise ValueError("converted LOD row indices must be nonempty and unique")
+        start, stop = min(slots), max(slots) + 1
+        if tuple(sorted(slots)) != tuple(range(start, stop)):
+            raise ValueError("batched LOD installation requires a contiguous row set")
+        source = converted.state
+        source_page = source.get("page_cache")
+        if not isinstance(source_page, dict):
+            raise TypeError("converted LOD cache has no semantic page archive")
+        if int(source["total_len"]) > self.request_capacity:
+            raise ValueError("converted prefix exceeds VLLM_LOD_MAX_CONTEXT")
+        if int(source["state_k"].size(0)) != len(slots):
+            raise ValueError("converted LOD batch differs from its pool row range")
+        self.batched_install_calls += 1
+        if not all(self.clean[slot] for slot in slots):
+            self._reset_range(start, stop)
+        ascending = slots == tuple(range(start, stop))
+        slot_indices = (
+            None
+            if ascending
+            else torch.tensor(slots, dtype=torch.long, device=self.device)
+        )
+
+        def copy(destination: torch.Tensor, value: torch.Tensor) -> None:
+            if ascending:
+                self._copy_range(destination, value, start, stop)
+            else:
+                if slot_indices is None:
+                    raise AssertionError("permuted LOD row indices are missing")
+                self._copy_rows(destination, value, slots, slot_indices)
+
+        tensor_names = ["state_k", "state_v", "counts", "recent_k", "recent_v"]
+        if "sink_k" in source:
+            tensor_names.extend(("sink_k", "sink_v"))
+        if "key_norm_sums" in source:
+            tensor_names.append("key_norm_sums")
+        for name in tensor_names:
+            copy(self.state[name], source[name])
+
+        destination_page = self.state["page_cache"]
+        for name, value in source_page.items():
+            if name in ("overflow_page_keys", "overflow_page_values"):
+                continue
+            destination = destination_page.get(name)
+            if (
+                isinstance(value, torch.Tensor)
+                and isinstance(destination, torch.Tensor)
+                and value.ndim
+            ):
+                copy(destination, value)
+        source_keys = source_page["overflow_page_keys"]
+        source_values = source_page["overflow_page_values"]
+        destination_keys = destination_page["overflow_page_keys"]
+        destination_values = destination_page["overflow_page_values"]
+        if int(source_keys.size(2)) == int(destination_keys.size(2)):
+            copy(destination_keys, source_keys)
+            copy(destination_values, source_values)
+            destination_page["overflow_used"].logical_or_(source_page["overflow_used"])
+        else:
+            for source_slot, destination_slot in enumerate(slots):
+                rehash_overflow_pages(
+                    source_keys,
+                    source_values,
+                    destination_keys,
+                    destination_values,
+                    destination_page["overflow_used"],
+                    destination_page["overflow_flag"],
+                    source_slot=source_slot,
+                    destination_slot=destination_slot,
+                )
+        destination_page["overflow_flag"].logical_or_(source_page["overflow_flag"])
+        recent_len = int(source["recent_len"])
+        if ascending:
+            self.local_lens[start:stop].fill_(recent_len)
+        else:
+            if slot_indices is None:
+                raise AssertionError("permuted LOD row indices are missing")
+            self.local_lens.index_fill_(0, slot_indices, recent_len)
+        for slot in slots:
+            self.metadata[slot].update(
+                state_len=int(source["state_len"]),
+                coverage=int(source["coverage"]),
+                total_len=int(source["total_len"]),
+                recent_len=recent_len,
+                leaf_count=int(source_page["leaf_count"]),
+                overflow_safe_until=int(source_page["overflow_safe_until"]),
+            )
+            self.ready[slot] = True
+            self.clean[slot] = False
+            self.install_count += 1
 
     def install(
         self, slot: int, converted: KernelLODCache, *, source_slot: int = 0
@@ -496,6 +665,7 @@ class VLLMLayerLODPool:
             overflow_safe_until=int(source_page["overflow_safe_until"]),
         )
         self.ready[slot] = True
+        self.clean[slot] = False
         self.install_count += 1
 
     def _synchronize_row(self, slot: int, cache: KernelLODCache) -> None:
@@ -569,30 +739,64 @@ class VLLMLayerLODPool:
         length = plan[0][2] - plan[0][1]
         previous_length = plan[0][3]
         slots = tuple(slot for slot, _, _, _ in plan)
-        packed = int(query.size(0)) == len(plan) * length and all(
-            begin == source_slot * length
-            and end == (source_slot + 1) * length
+        packed_begin = plan[0][1]
+        packed_end = packed_begin + len(plan) * length
+        packed = packed_end <= int(query.size(0)) and all(
+            begin == packed_begin + source_slot * length
+            and end == packed_begin + (source_slot + 1) * length
             for source_slot, (_, begin, end, _) in enumerate(plan)
         )
+        if packed:
+            self.cached_prefill_packed_calls += 1
+        else:
+            self.cached_prefill_nonpacked_calls += 1
         q = (
-            query.reshape(len(plan), length, *query.shape[1:]).permute(0, 2, 1, 3)
+            query[packed_begin:packed_end]
+            .reshape(len(plan), length, *query.shape[1:])
+            .permute(0, 2, 1, 3)
             if packed
             else torch.stack(
                 [query[begin:end].permute(1, 0, 2) for _, begin, end, _ in plan]
             )
         )
-        k = torch.stack(
-            [key[begin:end].permute(1, 0, 2) for _, begin, end, _ in plan]
+        k = (
+            key[packed_begin:packed_end]
+            .reshape(len(plan), length, *key.shape[1:])
+            .permute(0, 2, 1, 3)
+            if packed
+            else torch.stack(
+                [key[begin:end].permute(1, 0, 2) for _, begin, end, _ in plan]
+            )
         )
-        v = torch.stack(
-            [value[begin:end].permute(1, 0, 2) for _, begin, end, _ in plan]
+        v = (
+            value[packed_begin:packed_end]
+            .reshape(len(plan), length, *value.shape[1:])
+            .permute(0, 2, 1, 3)
+            if packed
+            else torch.stack(
+                [value[begin:end].permute(1, 0, 2) for _, begin, end, _ in plan]
+            )
         )
         cache = self._range_cache(slots[0], slots[-1] + 1)
         if cache.total_length != previous_length:
             raise RuntimeError(
                 "batched cached LOD prefill length differs from its prepared plan"
             )
-        result, cache = self.engine(q, k, v, cache=cache, use_cache=True)
+        output_view = (
+            output[packed_begin:packed_end]
+            .reshape(len(plan), length, *output.shape[1:])
+            .permute(0, 2, 1, 3)
+            if packed
+            else None
+        )
+        result, cache = self.engine(
+            q,
+            k,
+            v,
+            cache=cache,
+            use_cache=True,
+            output_buffer=output_view,
+        )
         if cache is None:
             raise AssertionError("batched cached LOD prefill did not return a cache")
         if len(slots) > 1:
@@ -601,9 +805,10 @@ class VLLMLayerLODPool:
         self._synchronize_rows(slots, cache)
         self.engine.reset_runtime_cache()
         if packed:
-            output.reshape(len(plan), length, *output.shape[1:]).copy_(
-                result.permute(0, 2, 1, 3)
-            )
+            if output_view is None:
+                raise AssertionError("packed cached prefill has no output view")
+            if result.data_ptr() != output_view.data_ptr():
+                output_view.copy_(result)
         else:
             for source_slot, (_, begin, end, _) in enumerate(plan):
                 output[begin:end].copy_(result[source_slot].permute(1, 0, 2))
@@ -644,22 +849,40 @@ class VLLMLayerLODPool:
                     ]
                 )
             )
-            k = torch.stack(
-                [key[begin:end].permute(1, 0, 2) for _, begin, end, _ in plan]
+            k = (
+                key.reshape(len(plan), length, *key.shape[1:]).permute(0, 2, 1, 3)
+                if packed
+                else torch.stack(
+                    [key[begin:end].permute(1, 0, 2) for _, begin, end, _ in plan]
+                )
             )
-            v = torch.stack(
-                [value[begin:end].permute(1, 0, 2) for _, begin, end, _ in plan]
+            v = (
+                value.reshape(len(plan), length, *value.shape[1:]).permute(0, 2, 1, 3)
+                if packed
+                else torch.stack(
+                    [value[begin:end].permute(1, 0, 2) for _, begin, end, _ in plan]
+                )
             )
-            result, cache = self.engine(q, k, v, use_cache=True)
+            output_view = (
+                output.reshape(len(plan), length, *output.shape[1:]).permute(0, 2, 1, 3)
+                if packed
+                else None
+            )
+            result, cache = self.engine(
+                q, k, v, use_cache=True, output_buffer=output_view
+            )
             if cache is None:
                 raise AssertionError("direct LOD prefill did not return a cache")
-            for source_slot, (slot, begin, end, _) in enumerate(plan):
-                self.install(slot, cache, source_slot=source_slot)
+            slots = tuple(slot for slot, _, _, _ in plan)
+            if tuple(sorted(slots)) == tuple(range(min(slots), max(slots) + 1)):
+                self.install_rows(slots, cache)
+            else:
+                for source_slot, (slot, begin, end, _) in enumerate(plan):
+                    self.install(slot, cache, source_slot=source_slot)
             self.engine.reset_runtime_cache()
             if packed:
-                output.reshape(len(plan), length, *output.shape[1:]).copy_(
-                    result.permute(0, 2, 1, 3)
-                )
+                if result.data_ptr() != output.data_ptr():
+                    raise AssertionError("LOD prefill did not use its output buffer")
             else:
                 for source_slot, (_, begin, end, _) in enumerate(plan):
                     output[begin:end].copy_(result[source_slot].permute(1, 0, 2))
@@ -1010,9 +1233,10 @@ class VLLMLayerLODPool:
             protected_len=self.engine._protected_state_len(self.state_capacity),
             recursive_page_cache=page,
             recursive_quant_group_size=int(self.engine.leaf_quant_group_size),
+            output_buffer=output[:rows].unsqueeze(2),
         )
-        output[:rows].copy_(result.squeeze(2))
-        advance_decode_cache_lengths(self.active_indices[:rows], self.local_lens)
+        if result.data_ptr() != output.data_ptr():
+            raise AssertionError("fused LOD decode did not use the vLLM output buffer")
         return output
 
 

@@ -5005,6 +5005,11 @@ def _reduce_routed_split_decode_lod_attention_kernel(
     state_v,
     counts,
     cache_indices,
+    local_lens,
+    local_k,
+    local_v,
+    new_k,
+    new_v,
     top_slots,
     top_scores,
     coarse_out,
@@ -5029,18 +5034,32 @@ def _reduce_routed_split_decode_lod_attention_kernel(
     COUNT_BATCH_STRIDE,
     COUNT_HEAD_STRIDE,
     COUNT_TOKEN_STRIDE,
+    LOCAL_K_BATCH_STRIDE,
+    LOCAL_K_HEAD_STRIDE,
+    LOCAL_K_TOKEN_STRIDE,
+    LOCAL_V_BATCH_STRIDE,
+    LOCAL_V_HEAD_STRIDE,
+    LOCAL_V_TOKEN_STRIDE,
+    NEW_K_BATCH_STRIDE,
+    NEW_K_HEAD_STRIDE,
+    NEW_V_BATCH_STRIDE,
+    NEW_V_HEAD_STRIDE,
     QUERY_HEADS: tl.constexpr,
     KV_GROUP_SIZE: tl.constexpr,
     HEAD_DIM: tl.constexpr,
     ROUTE_COUNT: tl.constexpr,
     SPLITS: tl.constexpr,
     INCLUDE_SEPARATE_LOCAL: tl.constexpr,
+    FUSE_LOCAL_SCAN: tl.constexpr,
+    INCLUDE_NEW: tl.constexpr,
     INCLUDE_SINK: tl.constexpr,
     SINK_LEN: tl.constexpr,
+    LOCAL_BLOCK_N: tl.constexpr,
     SCALE: tl.constexpr,
     USE_DOT: tl.constexpr,
+    ADVANCE_LOCAL: tl.constexpr,
 ):
-    """Remove routed summaries, then merge coarse and exact/local branches."""
+    """Remove routed summaries, then stream exact branches into one softmax."""
     query_row = tl.program_id(0).to(tl.int64)
     batch = query_row // QUERY_HEADS
     cache_batch = tl.load(cache_indices + batch).to(tl.int64)
@@ -5077,18 +5096,131 @@ def _reduce_routed_split_decode_lod_attention_kernel(
     remainder_out = (remainder_out - selected_value) / remainder_mass
     remainder_lse = full_coarse_lse + tl.log(remainder_mass)
 
-    split = tl.arange(0, SPLITS)
-    split_lse = tl.load(partial_lse + query_row * SPLITS + split)
-    local_lse = tl.full((), -float("inf"), tl.float32)
+    # Fold branches sequentially. This keeps only one HEAD_DIM-wide value live
+    # instead of materializing SPLITS x HEAD_DIM in the final-reduction program.
+    maximum = remainder_lse
+    denominator = tl.full((), 1.0, tl.float32)
+    numerator = remainder_out.to(tl.float32)
     if INCLUDE_SEPARATE_LOCAL:
         local_lse = tl.load(separate_local_lse + query_row)
-    sink_lse = tl.full((), -float("inf"), tl.float32)
-    sink_out = tl.zeros((HEAD_DIM,), tl.float32)
+        local_value = tl.load(
+            separate_local_out + query_row * HEAD_DIM + dim
+        ).to(tl.float32)
+        new_maximum = tl.maximum(maximum, local_lse)
+        old_weight = tl.exp(maximum - new_maximum)
+        new_weight = tl.exp(local_lse - new_maximum)
+        denominator = denominator * old_weight + new_weight
+        numerator = numerator * old_weight + new_weight * local_value
+        maximum = new_maximum
+    for split_index in tl.static_range(0, SPLITS):
+        branch_lse = tl.load(
+            partial_lse + query_row * SPLITS + split_index
+        )
+        branch_value = tl.load(
+            partial_out
+            + (query_row * SPLITS + split_index) * HEAD_DIM
+            + dim
+        ).to(tl.float32)
+        new_maximum = tl.maximum(maximum, branch_lse)
+        old_weight = tl.exp(maximum - new_maximum)
+        new_weight = tl.exp(branch_lse - new_maximum)
+        denominator = denominator * old_weight + new_weight
+        numerator = numerator * old_weight + new_weight * branch_value
+        maximum = new_maximum
+
+    query = tl.load(q + query_row * HEAD_DIM + dim).to(tl.float32)
+    active_local_len = tl.load(local_lens + cache_batch).to(tl.int32)
+    if FUSE_LOCAL_SCAN:
+        token_offset = tl.arange(0, LOCAL_BLOCK_N)
+        for local_begin in tl.range(
+            0, active_local_len, LOCAL_BLOCK_N, num_stages=1
+        ):
+            token = local_begin + token_offset
+            valid = token < active_local_len
+            keys = tl.load(
+                local_k
+                + cache_batch * LOCAL_K_BATCH_STRIDE
+                + kv_head * LOCAL_K_HEAD_STRIDE
+                + token[:, None] * LOCAL_K_TOKEN_STRIDE
+                + dim[None, :],
+                mask=valid[:, None],
+                other=0.0,
+            )
+            values = tl.load(
+                local_v
+                + cache_batch * LOCAL_V_BATCH_STRIDE
+                + kv_head * LOCAL_V_HEAD_STRIDE
+                + token[:, None] * LOCAL_V_TOKEN_STRIDE
+                + dim[None, :],
+                mask=valid[:, None],
+                other=0.0,
+            )
+            if USE_DOT:
+                scores = tl.dot(
+                    query[None, :].to(keys.dtype),
+                    tl.trans(keys),
+                    out_dtype=tl.float32,
+                )
+                scores = tl.reshape(scores, (LOCAL_BLOCK_N,))
+            else:
+                scores = tl.sum(
+                    query[None, :] * keys.to(tl.float32), axis=1
+                )
+            scores = tl.where(valid, scores * SCALE, -float("inf"))
+            block_maximum = tl.max(scores, axis=0)
+            new_maximum = tl.maximum(maximum, block_maximum)
+            old_weight = tl.exp(maximum - new_maximum)
+            weights = tl.exp(scores - new_maximum)
+            denominator = denominator * old_weight + tl.sum(weights, axis=0)
+            numerator = numerator * old_weight + tl.sum(
+                weights[:, None] * values.to(tl.float32), axis=0
+            )
+            maximum = new_maximum
+
+        if INCLUDE_NEW:
+            current_key = tl.load(
+                new_k
+                + batch * NEW_K_BATCH_STRIDE
+                + kv_head * NEW_K_HEAD_STRIDE
+                + dim
+            )
+            current_value = tl.load(
+                new_v
+                + batch * NEW_V_BATCH_STRIDE
+                + kv_head * NEW_V_HEAD_STRIDE
+                + dim
+            )
+            current_score = (
+                tl.sum(query * current_key.to(tl.float32), axis=0) * SCALE
+            )
+            new_maximum = tl.maximum(maximum, current_score)
+            old_weight = tl.exp(maximum - new_maximum)
+            new_weight = tl.exp(current_score - new_maximum)
+            denominator = denominator * old_weight + new_weight
+            numerator = (
+                numerator * old_weight
+                + new_weight * current_value.to(tl.float32)
+            )
+            maximum = new_maximum
+            if query_head % KV_GROUP_SIZE == 0:
+                tl.store(
+                    local_k
+                    + cache_batch * LOCAL_K_BATCH_STRIDE
+                    + kv_head * LOCAL_K_HEAD_STRIDE
+                    + active_local_len * LOCAL_K_TOKEN_STRIDE
+                    + dim,
+                    current_key,
+                )
+                tl.store(
+                    local_v
+                    + cache_batch * LOCAL_V_BATCH_STRIDE
+                    + kv_head * LOCAL_V_HEAD_STRIDE
+                    + active_local_len * LOCAL_V_TOKEN_STRIDE
+                    + dim,
+                    current_value,
+                )
+
     if INCLUDE_SINK:
-        query = tl.load(q + query_row * HEAD_DIM + dim).to(tl.float32)
-        sink_maximum = tl.full((), -float("inf"), tl.float32)
-        sink_denominator = tl.zeros((), tl.float32)
-        sink_accumulator = tl.zeros((HEAD_DIM,), tl.float32)
         for sink_index in tl.static_range(0, SINK_LEN):
             key = tl.load(
                 sink_k
@@ -5105,47 +5237,17 @@ def _reduce_routed_split_decode_lod_attention_kernel(
                 + dim
             ).to(tl.float32)
             score = tl.sum(query * key, axis=0) * SCALE
-            new_maximum = tl.maximum(sink_maximum, score)
-            old_weight = tl.exp(sink_maximum - new_maximum)
+            new_maximum = tl.maximum(maximum, score)
+            old_weight = tl.exp(maximum - new_maximum)
             new_weight = tl.exp(score - new_maximum)
-            sink_denominator = sink_denominator * old_weight + new_weight
-            sink_accumulator = sink_accumulator * old_weight + value * new_weight
-            sink_maximum = new_maximum
-        sink_lse = sink_maximum + tl.log(sink_denominator)
-        sink_out = sink_accumulator / sink_denominator
-    maximum = tl.maximum(
-        tl.maximum(remainder_lse, local_lse), tl.max(split_lse, axis=0)
-    )
-    if INCLUDE_SINK:
-        maximum = tl.maximum(maximum, sink_lse)
-    remainder_weight = tl.exp(remainder_lse - maximum)
-    local_weight = tl.exp(local_lse - maximum)
-    split_weight = tl.exp(split_lse - maximum)
-    sink_weight = tl.exp(sink_lse - maximum)
-    denominator = (
-        remainder_weight
-        + local_weight
-        + tl.sum(split_weight, axis=0)
-        + tl.where(INCLUDE_SINK, sink_weight, 0.0)
-    )
-    split_values = tl.load(
-        partial_out
-        + (query_row * SPLITS + split[:, None]) * HEAD_DIM
-        + dim[None, :]
-    )
-    numerator = (
-        remainder_weight * remainder_out
-        + tl.sum(split_weight[:, None] * split_values, axis=0)
-    )
-    if INCLUDE_SEPARATE_LOCAL:
-        local_value = tl.load(
-            separate_local_out + query_row * HEAD_DIM + dim
-        )
-        numerator += local_weight * local_value
-    if INCLUDE_SINK:
-        numerator += sink_weight * sink_out
+            denominator = denominator * old_weight + new_weight
+            numerator = numerator * old_weight + value * new_weight
+            maximum = new_maximum
     result = numerator / denominator
     tl.store(out + query_row * HEAD_DIM + dim, result)
+    if ADVANCE_LOCAL and query_head == 0:
+        local_length = tl.load(local_lens + cache_batch)
+        tl.store(local_lens + cache_batch, local_length + 1)
 
 
 @triton.jit
@@ -5356,6 +5458,7 @@ def fused_decode_paged_lod_attention(
     ] | None = None,
     recursive_page_cache: dict[str, torch.Tensor | int] | None = None,
     recursive_quant_group_size: int = 32,
+    output_buffer: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """Fuse coarse, exact-leaf, local, and branch-merge decode attention."""
     batch, query_heads, query_len, head_dim = q.shape
@@ -5480,9 +5583,20 @@ def fused_decode_paged_lod_attention(
         raise ValueError("state-bound routing requires residual-mass routing")
     if route_residual_use_state_bound and reuse_residual_local_attention:
         raise ValueError("state-bound routing cannot reuse uncomputed local attention")
+    expected_output = (batch, query_heads, 1, head_dim)
+    if output_buffer is not None and (
+        tuple(output_buffer.shape) != expected_output
+        or output_buffer.dtype != q.dtype
+        or output_buffer.device != q.device
+    ):
+        raise ValueError("fused LOD decode output buffer has the wrong geometry")
     if split_kv == 1:
-        output = torch.empty(
-            batch, query_heads, 1, head_dim, dtype=q.dtype, device=q.device
+        output = (
+            output_buffer
+            if output_buffer is not None
+            else torch.empty(
+                expected_output, dtype=q.dtype, device=q.device
+            )
         )
     else:
         if buffers is None:
@@ -5492,7 +5606,7 @@ def fused_decode_paged_lod_attention(
                 state_capacity=(int(state_k.size(2)) if fuse_state_route else None),
                 route_group_size=route_group_size,
             )
-        output = buffers["output"]
+        output = buffers["output"] if output_buffer is None else output_buffer
         partial_out = buffers["partial_out"]
         partial_lse = buffers["partial_lse"]
         expected_partial = (batch, query_heads, split_kv, head_dim)
@@ -5668,13 +5782,15 @@ def fused_decode_paged_lod_attention(
                     )
                 return value
 
-            # The residual-mass mask can optionally compute this branch while
-            # it scans the local window.  Fixed-top-k and the other dynamic
-            # modes need the same local scan without changing routed slots.
-            if not (
+            # Residual-mass routing can reuse the local output it had to form
+            # while choosing routes. Other modes compute the bounded local
+            # branch separately; folding its scan into the final reducer makes
+            # that kernel register-bound on the target ROCm geometry.
+            reuse_separate_local = bool(
                 route_residual_mass is not None
                 and reuse_residual_local_attention
-            ):
+            )
+            if not reuse_separate_local:
                 local_begin = timing_begin()
                 _mask_decode_routes_residual_mass_kernel[
                     (batch * query_heads,)
@@ -5814,6 +5930,11 @@ def fused_decode_paged_lod_attention(
                 state_v,
                 counts,
                 cache_indices,
+                local_lens,
+                local_k,
+                local_v,
+                new_k,
+                new_v,
                 top_slots,
                 buffers["route_top_scores"],
                 buffers["coarse_out"],
@@ -5838,16 +5959,30 @@ def fused_decode_paged_lod_attention(
                 counts.stride(0),
                 counts.stride(1),
                 counts.stride(2),
+                local_k.stride(0),
+                local_k.stride(1),
+                local_k.stride(2),
+                local_v.stride(0),
+                local_v.stride(1),
+                local_v.stride(2),
+                new_k.stride(0),
+                new_k.stride(1),
+                new_v.stride(0),
+                new_v.stride(1),
                 QUERY_HEADS=query_heads,
                 KV_GROUP_SIZE=kv_group_size,
                 HEAD_DIM=head_dim,
                 ROUTE_COUNT=int(top_slots.size(-1)),
                 SPLITS=split_kv,
                 INCLUDE_SEPARATE_LOCAL=True,
+                FUSE_LOCAL_SCAN=False,
+                INCLUDE_NEW=False,
                 INCLUDE_SINK=include_sink,
                 SINK_LEN=int(sink_k.size(2)),
+                LOCAL_BLOCK_N=32,
                 SCALE=float(scale),
                 USE_DOT=score_use_dot,
+                ADVANCE_LOCAL=include_new and ragged_local_lens,
                 num_warps=final_reduce_num_warps,
                 waves_per_eu=waves_per_eu,
             )
@@ -5950,6 +6085,11 @@ def fused_decode_paged_lod_attention(
                 state_v,
                 counts,
                 cache_indices,
+                local_lens,
+                local_k,
+                local_v,
+                new_k,
+                new_v,
                 top_slots,
                 buffers["route_top_scores"],
                 buffers["coarse_out"],
@@ -5982,16 +6122,30 @@ def fused_decode_paged_lod_attention(
                 counts.stride(0),
                 counts.stride(1),
                 counts.stride(2),
+                local_k.stride(0),
+                local_k.stride(1),
+                local_k.stride(2),
+                local_v.stride(0),
+                local_v.stride(1),
+                local_v.stride(2),
+                new_k.stride(0),
+                new_k.stride(1),
+                new_v.stride(0),
+                new_v.stride(1),
                 QUERY_HEADS=query_heads,
                 KV_GROUP_SIZE=kv_group_size,
                 HEAD_DIM=head_dim,
                 ROUTE_COUNT=int(top_slots.size(-1)),
                 SPLITS=split_kv,
                 INCLUDE_SEPARATE_LOCAL=reuse_residual_local_attention,
+                FUSE_LOCAL_SCAN=False,
+                INCLUDE_NEW=False,
                 INCLUDE_SINK=include_sink,
                 SINK_LEN=int(sink_k.size(2)),
+                LOCAL_BLOCK_N=32,
                 SCALE=float(scale),
                 USE_DOT=score_use_dot,
+                ADVANCE_LOCAL=include_new and ragged_local_lens,
                 num_warps=final_reduce_num_warps,
                 waves_per_eu=waves_per_eu,
             )

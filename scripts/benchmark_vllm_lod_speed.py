@@ -108,9 +108,12 @@ def inspect_lod_model(model) -> dict[str, int]:
     diagnostics = {
         "layers": 0,
         "installs": 0,
+        "batched_install_calls": 0,
         "direct_prefills": 0,
         "batched_cached_prefills": 0,
         "batched_cached_prefill_rows": 0,
+        "cached_prefill_packed_calls": 0,
+        "cached_prefill_nonpacked_calls": 0,
         "cached_prefill_candidate_calls": 0,
         "cached_prefill_candidate_rows": 0,
         "cached_prefill_nonuniform_lengths": 0,
@@ -127,12 +130,19 @@ def inspect_lod_model(model) -> dict[str, int]:
             continue
         diagnostics["layers"] += 1
         diagnostics["installs"] += int(pool.install_count)
+        diagnostics["batched_install_calls"] += int(pool.batched_install_calls)
         diagnostics["direct_prefills"] += int(pool.direct_prefill_calls)
         diagnostics["batched_cached_prefills"] += int(
             pool.batched_cached_prefill_calls
         )
         diagnostics["batched_cached_prefill_rows"] += int(
             pool.batched_cached_prefill_rows
+        )
+        diagnostics["cached_prefill_packed_calls"] += int(
+            pool.cached_prefill_packed_calls
+        )
+        diagnostics["cached_prefill_nonpacked_calls"] += int(
+            pool.cached_prefill_nonpacked_calls
         )
         diagnostics["cached_prefill_candidate_calls"] += int(
             pool.cached_prefill_candidate_calls

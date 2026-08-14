@@ -381,6 +381,10 @@ class VLLMLODRuntime:
                 pool.reset(row)
         if row not in self.free_lod_rows:
             self.free_lod_rows.append(row)
+            # New uniform batches should receive ascending contiguous rows so
+            # Q/K/V remain packed and cache installation stays one batched
+            # operation after any request-release order.
+            self.free_lod_rows.sort(reverse=True)
 
     def _evict_cached_row(self) -> int | None:
         if not self.cached_rows:
@@ -502,6 +506,25 @@ class VLLMLODRuntime:
             return False
         if len(query_starts) != len(slots) + 1:
             raise ValueError("vLLM query boundaries do not match the request batch")
+
+        if slots and bool(np.all(computed_lengths == 0)):
+            rows = [self._lod_row(slot) for slot in slots]
+            first, last = min(rows), max(rows)
+            contiguous = (
+                len(set(rows)) == len(rows)
+                and sorted(rows) == list(range(first, last + 1))
+            )
+            unused = contiguous and all(
+                not pool.ready[row]
+                for pool in self.pools.values()
+                for row in rows
+            )
+            if unused:
+                # A retained-cache eviction can return the right row set in a
+                # different order from packed vLLM requests. The rows have no
+                # live contents yet, so remap them before any layer runs.
+                for slot, row in zip(slots, sorted(rows), strict=True):
+                    self.lod_row_by_slot[slot] = row
 
         plan: list[tuple[int, int, int, int]] = []
         for request_row, slot in enumerate(slots):

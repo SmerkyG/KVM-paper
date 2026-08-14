@@ -89,6 +89,7 @@ class TritonLODAttentionCore(nn.Module):
     prefill_chunk_len = 256
     prefill_local_len = 512
     prefill_state_update_len = 256
+    prefill_local_attention_backend = "torch"
     decode_state_update_len = 256
     decode_cache_headroom = 256
     state_growth_factor = 16.0
@@ -4032,8 +4033,16 @@ class TritonLODAttentionCore(nn.Module):
         local_branch: tuple[torch.Tensor, torch.Tensor] | None = None,
         sink_k: torch.Tensor | None = None,
         sink_v: torch.Tensor | None = None,
+        output_buffer: torch.Tensor | None = None,
     ) -> torch.Tensor:
         q = q.contiguous()
+        if output_buffer is not None and (
+            tuple(output_buffer.shape) != tuple(q.shape)
+            or output_buffer.dtype != q.dtype
+            or output_buffer.device != q.device
+            or int(output_buffer.stride(-1)) != 1
+        ):
+            raise ValueError("LOD output buffer has incompatible geometry")
         if (sink_k is None) != (sink_v is None):
             raise ValueError("separate sink K and V must be provided together")
         configured_topk = (
@@ -4083,8 +4092,12 @@ class TritonLODAttentionCore(nn.Module):
                     coarse_lse,
                     kv_group_size=self.num_key_value_groups,
                     scale=self.scaling,
+                    output_buffer=output_buffer,
                 )
-            return coarse_output
+            if output_buffer is None:
+                return coarse_output
+            output_buffer.copy_(coarse_output)
+            return output_buffer
         dynamic_active = dynamic_target is not None or dynamic_residual is not None
         if dynamic_active:
             if self.leaf_attention_backend != "paged" or self.leaf_layout != "query":
@@ -4487,6 +4500,7 @@ class TritonLODAttentionCore(nn.Module):
                     local_lse,
                     kv_group_size=self.num_key_value_groups,
                     scale=self.scaling,
+                    output_buffer=output_buffer,
                 )
             return merge_attention_branches(
                 coarse_output,
@@ -4495,9 +4509,14 @@ class TritonLODAttentionCore(nn.Module):
                 exact_lse,
                 local_output,
                 local_lse,
+                output_buffer=output_buffer,
             )
         output = merge_attention_branches(
-            coarse_output, coarse_lse, exact_output, exact_lse
+            coarse_output,
+            coarse_lse,
+            exact_output,
+            exact_lse,
+            output_buffer=output_buffer,
         )
         if sink_k is None or sink_v is None:
             return output
@@ -4511,6 +4530,7 @@ class TritonLODAttentionCore(nn.Module):
             exact_lse,
             kv_group_size=self.num_key_value_groups,
             scale=self.scaling,
+            output_buffer=output_buffer,
         )
 
     def _exact_attention(
@@ -4563,6 +4583,45 @@ class TritonLODAttentionCore(nn.Module):
         *,
         query_offset: int,
     ) -> tuple[torch.Tensor, torch.Tensor]:
+        if self.prefill_local_attention_backend == "aiter":
+            from aiter.ops.mha import flash_attn_func
+
+            batch, query_heads, supplied_query_len, head_dim = q.shape
+            key_len = int(k.size(2))
+            query_len = key_len - query_offset
+            if supplied_query_len == key_len:
+                actual_q = q[..., query_offset:, :]
+            elif supplied_query_len == query_len:
+                actual_q = q
+            else:
+                raise ValueError(
+                    "AITER local attention requires a full local query field "
+                    "or its suffix queries"
+                )
+            dense_q = actual_q.permute(0, 2, 1, 3).contiguous()
+            dense_k = k.permute(0, 2, 1, 3).contiguous()
+            dense_v = v.permute(0, 2, 1, 3).contiguous()
+            try:
+                output, lse = flash_attn_func(
+                    dense_q,
+                    dense_k,
+                    dense_v,
+                    softmax_scale=self.scaling,
+                    causal=True,
+                    return_lse=True,
+                )
+            except RuntimeError as exc:
+                raise RuntimeError(
+                    "AITER local attention rejected geometry "
+                    f"batch={batch}, query_heads={query_heads}, "
+                    f"kv_heads={int(k.size(1))}, query_len={query_len}, "
+                    f"key_len={key_len}, head_dim={head_dim}"
+                ) from exc
+            return output.permute(0, 2, 1, 3), lse
+        if self.prefill_local_attention_backend not in ("torch", "aiter"):
+            raise ValueError(
+                "prefill local attention backend must be torch or aiter"
+            )
         output, lse, *_ = torch.ops.aten._scaled_dot_product_flash_attention.default(
             q.contiguous(),
             k.contiguous(),
@@ -4583,6 +4642,7 @@ class TritonLODAttentionCore(nn.Module):
         *,
         logical_prefill_len: int | None = None,
         prefill_valid_starts: torch.Tensor | None = None,
+        output_buffer: torch.Tensor | None = None,
     ) -> torch.Tensor:
         output = self._run_prefill(
             q,
@@ -4591,6 +4651,7 @@ class TritonLODAttentionCore(nn.Module):
             logical_prefill_len=logical_prefill_len,
             prefill_valid_starts=prefill_valid_starts,
             build_cache_only=False,
+            output_buffer=output_buffer,
         )
         if output is None:
             raise AssertionError("attention prefill did not produce an output")
@@ -4635,6 +4696,7 @@ class TritonLODAttentionCore(nn.Module):
         logical_prefill_len: int | None,
         prefill_valid_starts: torch.Tensor | None,
         build_cache_only: bool,
+        output_buffer: torch.Tensor | None = None,
     ) -> torch.Tensor | None:
         if k.ndim != 4 or v.ndim != 4 or k.shape[:3] != v.shape[:3]:
             raise ValueError("prefill K/V must be matching rank-four tensors")
@@ -4648,6 +4710,15 @@ class TritonLODAttentionCore(nn.Module):
             raise ValueError("prefill query geometry does not match cached K/V")
         if not build_cache_only and q is None:
             raise ValueError("attention prefill requires query states")
+        if output_buffer is not None and (
+            build_cache_only
+            or q is None
+            or tuple(output_buffer.shape) != tuple(q.shape)
+            or output_buffer.dtype != q.dtype
+            or output_buffer.device != q.device
+            or int(output_buffer.stride(-1)) != 1
+        ):
+            raise ValueError("prefill output buffer has incompatible geometry")
         prefill_chunk_len = self.prefill_chunk_len
         prefill_local_len = self.prefill_local_len
         prefill_state_update_len = self.prefill_state_update_len
@@ -4708,15 +4779,17 @@ class TritonLODAttentionCore(nn.Module):
         if not build_cache_only:
             if q is None:
                 raise AssertionError("attention prefill query is missing")
-            outputs.append(
-                self._exact_attention(
-                    q[..., :front_len, :],
-                    k[..., :front_len, :],
-                    v[..., :front_len, :],
-                    causal=True,
-                    valid_starts=prefill_valid_starts,
-                )
+            exact_front = self._exact_attention(
+                q[..., :front_len, :],
+                k[..., :front_len, :],
+                v[..., :front_len, :],
+                causal=True,
+                valid_starts=prefill_valid_starts,
             )
+            if output_buffer is None:
+                outputs.append(exact_front)
+            else:
+                output_buffer[..., :front_len, :].copy_(exact_front)
 
         initial_len = min(prefill_len, self.chunk_len)
         separated_sink_len = (
@@ -4851,8 +4924,7 @@ class TritonLODAttentionCore(nn.Module):
                     if self.split_prefill_local_attention
                     else None
                 )
-                outputs.append(
-                    self._two_level_attention(
+                chunk_output = self._two_level_attention(
                         q[..., query_begin:query_end, :],
                         k[..., bswa_begin:query_end, :],
                         v[..., bswa_begin:query_end, :],
@@ -4868,8 +4940,14 @@ class TritonLODAttentionCore(nn.Module):
                         local_branch=local_branch,
                         sink_k=sink_k,
                         sink_v=sink_v,
+                        output_buffer=(
+                            output_buffer[..., query_begin:query_end, :]
+                            if output_buffer is not None
+                            else None
+                        ),
                     )
-                )
+                if output_buffer is None:
+                    outputs.append(chunk_output)
 
             next_bswa_begin = (
                 max(0, query_begin + prefill_chunk_len - exact_lookback)
@@ -5071,6 +5149,10 @@ class TritonLODAttentionCore(nn.Module):
             self._lod_state["exact_v"] = archive_v.detach()
         if build_cache_only:
             return None
+        if output_buffer is not None:
+            return output_buffer
+        if len(outputs) == 1:
+            return outputs[0]
         return torch.cat(outputs, dim=2)
 
     @torch.compiler.disable
@@ -5079,6 +5161,7 @@ class TritonLODAttentionCore(nn.Module):
         q: torch.Tensor,
         new_k: torch.Tensor,
         new_v: torch.Tensor,
+        output_buffer: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Append a causal multi-token turn without replaying decode kernels."""
         if not hasattr(self, "_lod_state"):
@@ -5228,15 +5311,19 @@ class TritonLODAttentionCore(nn.Module):
             local_k = working_k[..., local_begin:local_end, :]
             local_v = working_v[..., local_begin:local_end, :]
             query_prefix_len = absolute_query_begin - state_coverage
-            local_query = torch.cat(
-                (
-                    q.new_zeros(
-                        *q.shape[:2], query_prefix_len, int(q.size(-1))
+            suffix_query = q[..., query_begin:query_end, :]
+            if self.prefill_local_attention_backend == "aiter":
+                local_query = suffix_query
+            else:
+                local_query = torch.cat(
+                    (
+                        q.new_zeros(
+                            *q.shape[:2], query_prefix_len, int(q.size(-1))
+                        ),
+                        suffix_query,
                     ),
-                    q[..., query_begin:query_end, :],
-                ),
-                dim=2,
-            )
+                    dim=2,
+                )
             local_branch = self._prefill_local_attention(
                 local_query,
                 local_k,
@@ -5260,6 +5347,11 @@ class TritonLODAttentionCore(nn.Module):
                     local_branch=local_branch,
                     sink_k=sink_k,
                     sink_v=sink_v,
+                    output_buffer=(
+                        output_buffer[..., query_begin:query_end, :]
+                        if output_buffer is not None
+                        else None
+                    ),
                 )
             )
 
@@ -5304,6 +5396,10 @@ class TritonLODAttentionCore(nn.Module):
         )
         if key_norm_sums is not None:
             cache["key_norm_sums"] = key_norm_sums.detach()
+        if output_buffer is not None:
+            return output_buffer
+        if len(outputs) == 1:
+            return outputs[0]
         return torch.cat(outputs, dim=2)
 
     @torch.compiler.disable
