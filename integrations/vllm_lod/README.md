@@ -133,26 +133,28 @@ each of eight requests.
 
 ## Warm serving performance
 
-The following Qwen3.5-0.8B measurements use batch size eight, CUDA graphs,
-16K-token vLLM prefill chunks, 300 generated tokens, and the authoritative INT4
-cache. They report the median after one complete warm request. The exact full
-backend uses `ROCM_AITER_UNIFIED_ATTN`, the fastest working exact backend tested
-on this ROCm 7.2 system, and a tightly sized native block pool. Generating 300
-tokens ensures that the LOD timing includes a real 256-token state update.
+The following Qwen3.5-0.8B measurements use batch size eight, CUDA graphs, a
+65,536-token scheduler budget, an 8,192-token long-prefill threshold, 1,025
+generated tokens, and the authoritative INT4 cache. They report the median of
+five runs after one complete warm request. The exact full backend uses
+`ROCM_AITER_UNIFIED_ATTN`, the fastest working exact backend tested on this ROCm
+7.2 system, and a tightly sized native block pool. The 1,024 measured decode
+intervals include four 256-token LOD state updates, so their costs are
+amortized rather than represented by a single boundary.
 
 | Context | Full prefill | LOD prefill | Full decode step | LOD decode step |
 | --- | ---: | ---: | ---: | ---: |
-| 16K | 0.934 s | 1.499 s | 3.13 ms | 3.93 ms |
-| 64K | 8.672 s | 8.157 s | 4.92 ms | 4.26 ms |
+| 16K | 0.911 s | 1.270 s | 3.19 ms | 3.88 ms |
+| 64K | 8.033 s | 6.836 s | 5.10 ms | 4.25 ms |
 
-At 64K this is a 1.06x prefill speedup and a 1.15x decode-step speedup. At 16K,
-exact full attention remains 1.61x faster in prefill and 1.25x faster in decode.
-The LOD semantic cache plus bounded native staging used 3.977 GB, versus
-7.248 GB for full K/V (45.1% less persistent attention storage). Total device
-use after reclaiming allocator cache was 9.402 GB versus 12.184 GB (22.8% less).
-The smaller 16K case does not yet provide a net memory saving because fixed LOD
-state/page pools and bounded native staging are similar in size to its short
-full cache.
+At 64K this is a 1.18x prefill speedup and a 1.20x decode-step speedup. At 16K,
+exact full attention remains 1.39x faster in prefill and 1.22x faster in decode.
+At 64K, the persistent cache tensors attributed to the LOD semantic cache and
+bounded native staging used 5.804 GB, versus 7.248 GB for the full backend
+(19.9% less). At 16K they used 3.986 GB versus 2.265 GB, because fixed LOD pools
+and bounded staging outweigh compression at short context. Total device use is
+not reported as a cache metric because compiled kernels and runtime workspaces
+remain resident and vary with warmup history.
 
 vLLM's automatic ROCm selection chose `ROCM_ATTN` for this hybrid model. Its
 native paged kernel supports only 16- and 32-token blocks, while Qwen3.5's
@@ -168,7 +170,9 @@ The fused routing, coherence-update, final-reduction, and sparse page-transfer
 kernels keep ragged tensor extents and their batch/head strides as runtime
 arguments. On the 16K batch-eight diagnostic this reduced inference-time JIT
 events from 117 to 56; all remaining compilations completed during the one warm
-request, and five measured prefills stayed between 1.47 and 1.77 seconds.
+request. Two clean paired replicas produced LOD prefill medians of 1.270 and
+1.279 seconds; the five runs in the reported replica stayed between 1.255 and
+1.278 seconds.
 An unseen device/kernel configuration still incurs ordinary Triton JIT work;
 production images should preserve or pre-populate their Triton compilation
 cache. The timings above do not include that one-time compilation.
@@ -181,9 +185,10 @@ Warm batch throughput can be reproduced with:
 
 ```bash
 python scripts/benchmark_vllm_lod_speed.py \
-  --mode lod --length 8192 --batch-size 8 --decode-tokens 300 \
-  --output artifacts/vllm_lod_speed/lod_b8_8k_d300.json
+  --mode lod --length 8192 --batch-size 8 --decode-tokens 1025 --repeats 5 \
+  --max-num-batched-tokens 65536 --long-prefill-token-threshold 8192 \
+  --output artifacts/vllm_lod_speed/lod_b8_8k_d1025.json
 ```
 
-Use at least 257 decode tokens when comparing amortized serving performance so
-the measurement includes a real state-update boundary.
+Use at least 1,025 decode tokens when comparing amortized serving performance
+so the measurement spans four state-update boundaries.

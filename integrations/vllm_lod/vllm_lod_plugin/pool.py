@@ -777,7 +777,14 @@ class VLLMLayerLODPool:
                 [value[begin:end].permute(1, 0, 2) for _, begin, end, _ in plan]
             )
         )
-        cache = self._range_cache(slots[0], slots[-1] + 1)
+        contiguous_slots = slots == tuple(
+            range(slots[0], slots[0] + len(slots))
+        )
+        cache = (
+            self._range_cache(slots[0], slots[-1] + 1)
+            if contiguous_slots
+            else self._selected_cache(slots)
+        )
         if cache.total_length != previous_length:
             raise RuntimeError(
                 "batched cached LOD prefill length differs from its prepared plan"
@@ -826,45 +833,63 @@ class VLLMLayerLODPool:
         if plan is None:
             raise RuntimeError("direct LOD prefill has no prepared request plan")
         self.direct_prefill_calls += 1
-        lengths = {end - begin for _, begin, end, _ in plan}
-        if (
-            plan
-            and len(lengths) == 1
-            and all(previous_length == 0 for _, _, _, previous_length in plan)
-            and all(not self.ready[slot] for slot, _, _, _ in plan)
-        ):
-            length = next(iter(lengths))
-            packed = all(
-                begin == source_slot * length
-                and end == (source_slot + 1) * length
-                for source_slot, (_, begin, end, _) in enumerate(plan)
+        initial: dict[int, list[tuple[int, int, int, int]]] = {}
+        cached: list[tuple[int, int, int, int]] = []
+        for item in plan:
+            slot, begin, end, previous_length = item
+            if end <= begin:
+                continue
+            if previous_length == 0 and not self.ready[slot]:
+                initial.setdefault(end - begin, []).append(item)
+            elif previous_length > 0 and self.ready[slot]:
+                cached.append(item)
+            elif previous_length > 0:
+                raise RuntimeError("cached LOD prefill row is not initialized")
+            else:
+                raise RuntimeError("initial LOD prefill row is already initialized")
+
+        for length, group in initial.items():
+            packed_begin = group[0][1]
+            packed_end = packed_begin + len(group) * length
+            packed = packed_end <= int(query.size(0)) and all(
+                begin == packed_begin + source_slot * length
+                and end == packed_begin + (source_slot + 1) * length
+                for source_slot, (_, begin, end, _) in enumerate(group)
             )
             q = (
-                query.reshape(len(plan), length, *query.shape[1:]).permute(0, 2, 1, 3)
+                query[packed_begin:packed_end]
+                .reshape(len(group), length, *query.shape[1:])
+                .permute(0, 2, 1, 3)
                 if packed
                 else torch.stack(
                     [
                         query[begin:end].permute(1, 0, 2)
-                        for _, begin, end, _ in plan
+                        for _, begin, end, _ in group
                     ]
                 )
             )
             k = (
-                key.reshape(len(plan), length, *key.shape[1:]).permute(0, 2, 1, 3)
+                key[packed_begin:packed_end]
+                .reshape(len(group), length, *key.shape[1:])
+                .permute(0, 2, 1, 3)
                 if packed
                 else torch.stack(
-                    [key[begin:end].permute(1, 0, 2) for _, begin, end, _ in plan]
+                    [key[begin:end].permute(1, 0, 2) for _, begin, end, _ in group]
                 )
             )
             v = (
-                value.reshape(len(plan), length, *value.shape[1:]).permute(0, 2, 1, 3)
+                value[packed_begin:packed_end]
+                .reshape(len(group), length, *value.shape[1:])
+                .permute(0, 2, 1, 3)
                 if packed
                 else torch.stack(
-                    [value[begin:end].permute(1, 0, 2) for _, begin, end, _ in plan]
+                    [value[begin:end].permute(1, 0, 2) for _, begin, end, _ in group]
                 )
             )
             output_view = (
-                output.reshape(len(plan), length, *output.shape[1:]).permute(0, 2, 1, 3)
+                output[packed_begin:packed_end]
+                .reshape(len(group), length, *output.shape[1:])
+                .permute(0, 2, 1, 3)
                 if packed
                 else None
             )
@@ -873,101 +898,61 @@ class VLLMLayerLODPool:
             )
             if cache is None:
                 raise AssertionError("direct LOD prefill did not return a cache")
-            slots = tuple(slot for slot, _, _, _ in plan)
+            slots = tuple(slot for slot, _, _, _ in group)
             if tuple(sorted(slots)) == tuple(range(min(slots), max(slots) + 1)):
                 self.install_rows(slots, cache)
             else:
-                for source_slot, (slot, begin, end, _) in enumerate(plan):
+                for source_slot, (slot, _, _, _) in enumerate(group):
                     self.install(slot, cache, source_slot=source_slot)
             self.engine.reset_runtime_cache()
             if packed:
-                if result.data_ptr() != output.data_ptr():
+                if output_view is None or result.data_ptr() != output_view.data_ptr():
                     raise AssertionError("LOD prefill did not use its output buffer")
             else:
-                for source_slot, (_, begin, end, _) in enumerate(plan):
+                for source_slot, (_, begin, end, _) in enumerate(group):
                     output[begin:end].copy_(result[source_slot].permute(1, 0, 2))
+
+        if not cached:
             return output
-        previous_lengths = {previous_length for _, _, _, previous_length in plan}
-        slots = tuple(slot for slot, _, _, _ in plan)
-        ordered_plan = tuple(sorted(plan, key=lambda item: item[0]))
+        lengths = {end - begin for _, begin, end, _ in cached}
+        previous_lengths = {
+            previous_length for _, _, _, previous_length in cached
+        }
+        slots = tuple(slot for slot, _, _, _ in cached)
+        ordered_plan = tuple(sorted(cached, key=lambda item: item[0]))
         ordered_slots = tuple(slot for slot, _, _, _ in ordered_plan)
-        positive_previous = bool(plan) and all(
-            previous_length > 0 for _, _, _, previous_length in plan
-        )
         contiguous_slots = bool(ordered_slots) and ordered_slots == tuple(
             range(ordered_slots[0], ordered_slots[0] + len(ordered_slots))
         )
-        if positive_previous:
-            self.cached_prefill_candidate_calls += 1
-            self.cached_prefill_candidate_rows += len(plan)
-            self.cached_prefill_nonuniform_lengths += int(len(lengths) != 1)
-            self.cached_prefill_nonuniform_previous += int(
-                len(previous_lengths) != 1
+        self.cached_prefill_candidate_calls += 1
+        self.cached_prefill_candidate_rows += len(cached)
+        self.cached_prefill_nonuniform_lengths += int(len(lengths) != 1)
+        self.cached_prefill_nonuniform_previous += int(len(previous_lengths) != 1)
+        self.cached_prefill_noncontiguous += int(not contiguous_slots)
+        groups: dict[
+            tuple[int, ...], list[tuple[int, int, int, int]]
+        ] = {}
+        for item in ordered_plan:
+            slot, begin, end, previous_length = item
+            metadata = self.metadata[slot]
+            signature = (
+                end - begin,
+                previous_length,
+                int(metadata["state_len"]),
+                int(metadata["coverage"]),
+                int(metadata["recent_len"]),
+                int(metadata["leaf_count"]),
+                int(metadata["overflow_safe_until"]),
             )
-            self.cached_prefill_unready += int(
-                not all(self.ready[slot] for slot in slots)
+            groups.setdefault(signature, []).append(item)
+        for group in groups.values():
+            self._direct_cached_prefill_group(
+                query,
+                key,
+                value,
+                output,
+                tuple(group),
             )
-            self.cached_prefill_noncontiguous += int(not contiguous_slots)
-        if positive_previous and all(self.ready[slot] for slot in slots):
-            groups: dict[
-                tuple[int, ...], list[tuple[int, int, int, int]]
-            ] = {}
-            for item in ordered_plan:
-                slot, begin, end, previous_length = item
-                metadata = self.metadata[slot]
-                signature = (
-                    end - begin,
-                    previous_length,
-                    int(metadata["state_len"]),
-                    int(metadata["coverage"]),
-                    int(metadata["recent_len"]),
-                    int(metadata["leaf_count"]),
-                    int(metadata["overflow_safe_until"]),
-                )
-                groups.setdefault(signature, []).append(item)
-            for group in groups.values():
-                run_begin = 0
-                while run_begin < len(group):
-                    run_end = run_begin + 1
-                    while (
-                        run_end < len(group)
-                        and group[run_end][0] == group[run_end - 1][0] + 1
-                    ):
-                        run_end += 1
-                    self._direct_cached_prefill_group(
-                        query,
-                        key,
-                        value,
-                        output,
-                        tuple(group[run_begin:run_end]),
-                    )
-                    run_begin = run_end
-            return output
-        for slot, begin, end, previous_length in plan:
-            if end <= begin:
-                continue
-            q = query[begin:end].permute(1, 0, 2).unsqueeze(0)
-            k = key[begin:end].permute(1, 0, 2).unsqueeze(0)
-            v = value[begin:end].permute(1, 0, 2).unsqueeze(0)
-            if previous_length == 0 and not self.ready[slot]:
-                result, cache = self.engine(q, k, v, use_cache=True)
-                if cache is None:
-                    raise AssertionError("direct LOD prefill did not return a cache")
-                self.install(slot, cache)
-            else:
-                if not self.ready[slot]:
-                    raise RuntimeError("cached LOD prefill row is not initialized")
-                cache = self._row_cache(slot)
-                if cache.total_length != previous_length:
-                    raise RuntimeError(
-                        "cached LOD prefill length differs from its prepared plan"
-                    )
-                result, cache = self.engine(q, k, v, cache=cache, use_cache=True)
-                if cache is None:
-                    raise AssertionError("cached LOD prefill did not return a cache")
-                self._synchronize_row(slot, cache)
-            self.engine.reset_runtime_cache()
-            output[begin:end].copy_(result.squeeze(0).permute(1, 0, 2))
         return output
 
     def record_native_appends(
@@ -999,6 +984,58 @@ class VLLMLayerLODPool:
 
     def _row_cache(self, slot: int) -> KernelLODCache:
         return self._range_cache(slot, slot + 1)
+
+    def _selected_cache(self, slots: tuple[int, ...]) -> KernelLODCache:
+        """Gather equal-metadata noncontiguous rows for one prefill call."""
+        if not slots or len(set(slots)) != len(slots):
+            raise ValueError("LOD cache row indices must be nonempty and unique")
+        if any(not 0 <= slot < self.max_requests for slot in slots):
+            raise IndexError("LOD cache row index is outside the fixed pool")
+        metadata = self.metadata[slots[0]]
+        scalar_names = (
+            "state_len",
+            "coverage",
+            "recent_len",
+            "total_len",
+            "leaf_count",
+            "overflow_safe_until",
+        )
+        if any(
+            int(self.metadata[slot][name]) != int(metadata[name])
+            for slot in slots[1:]
+            for name in scalar_names
+        ):
+            raise ValueError("gathered LOD catch-up rows have different metadata")
+        indices = torch.tensor(slots, dtype=torch.long, device=self.device)
+        state: dict[str, object] = {
+            name: value.index_select(0, indices)
+            for name, value in self.state.items()
+            if isinstance(value, torch.Tensor) and value.ndim
+        }
+        state.update(
+            state_len=int(metadata["state_len"]),
+            coverage=int(metadata["coverage"]),
+            state_capacity=self.state_capacity,
+            recent_len=int(metadata["recent_len"]),
+            total_len=int(metadata["total_len"]),
+        )
+        page_pool = self.state["page_cache"]
+        page: dict[str, object] = {
+            name: (
+                value.index_select(0, indices)
+                if isinstance(value, torch.Tensor) and value.ndim
+                else value
+            )
+            for name, value in page_pool.items()
+        }
+        page.update(
+            leaf_count=int(metadata["leaf_count"]),
+            leaf_capacity=self.leaf_capacity,
+            overflow_active=True,
+            overflow_safe_until=int(metadata["overflow_safe_until"]),
+        )
+        state["page_cache"] = page
+        return KernelLODCache(state)
 
     def _range_cache(self, start: int, stop: int) -> KernelLODCache:
         if not 0 <= start < stop <= self.max_requests:
