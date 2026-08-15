@@ -23,7 +23,33 @@ def _launch_kwargs(num_warps: int) -> dict[str, int]:
     return kwargs
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["QUERY_LEN"],
+    do_not_specialize_on_alignment=[
+        "PRIMARY_BATCH_STRIDE",
+        "PRIMARY_HEAD_STRIDE",
+        "PRIMARY_TOKEN_STRIDE",
+        "PRIMARY_LSE_BATCH_STRIDE",
+        "PRIMARY_LSE_HEAD_STRIDE",
+        "PRIMARY_LSE_TOKEN_STRIDE",
+        "SECONDARY_BATCH_STRIDE",
+        "SECONDARY_HEAD_STRIDE",
+        "SECONDARY_TOKEN_STRIDE",
+        "SECONDARY_LSE_BATCH_STRIDE",
+        "SECONDARY_LSE_HEAD_STRIDE",
+        "SECONDARY_LSE_TOKEN_STRIDE",
+        "TERTIARY_BATCH_STRIDE",
+        "TERTIARY_HEAD_STRIDE",
+        "TERTIARY_TOKEN_STRIDE",
+        "TERTIARY_LSE_BATCH_STRIDE",
+        "TERTIARY_LSE_HEAD_STRIDE",
+        "TERTIARY_LSE_TOKEN_STRIDE",
+        "OUTPUT_BATCH_STRIDE",
+        "OUTPUT_HEAD_STRIDE",
+        "OUTPUT_TOKEN_STRIDE",
+        "QUERY_LEN",
+    ],
+)
 def _merge_attention_branches_kernel(
     primary_out,
     primary_lse,
@@ -53,7 +79,7 @@ def _merge_attention_branches_kernel(
     OUTPUT_BATCH_STRIDE,
     OUTPUT_HEAD_STRIDE,
     OUTPUT_TOKEN_STRIDE,
-    QUERY_LEN: tl.constexpr,
+    QUERY_LEN,
     HEAD_DIM: tl.constexpr,
     BLOCK_DIM: tl.constexpr,
     INCLUDE_TERTIARY: tl.constexpr,
@@ -1074,6 +1100,7 @@ def _balanced_bipartite_atomic_reduce_kernel(
 
 
 @triton.jit(
+    do_not_specialize=["slot_count", "state_len"],
     do_not_specialize_on_alignment=[
         "STATE_BATCH_STRIDE",
         "STATE_HEAD_STRIDE",
@@ -1087,6 +1114,8 @@ def _balanced_bipartite_atomic_reduce_kernel(
         "SCALE_HEAD_STRIDE",
         "INDEX_BATCH_STRIDE",
         "INDEX_HEAD_STRIDE",
+        "slot_count",
+        "state_len",
     ]
 )
 def _prepare_state_clustering_keys_kernel(
@@ -1216,7 +1245,16 @@ def _prepare_state_clustering_keys_kernel(
             )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["token_len"],
+    do_not_specialize_on_alignment=[
+        "KEY_BATCH_STRIDE",
+        "KEY_HEAD_STRIDE",
+        "OUTPUT_BATCH_STRIDE",
+        "OUTPUT_HEAD_STRIDE",
+        "token_len",
+    ],
+)
 def _constituent_rms_kernel(
     key,
     output,
@@ -1256,7 +1294,10 @@ def _constituent_rms_kernel(
     )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["overflow_len", "state_len"],
+    do_not_specialize_on_alignment=["overflow_len", "state_len"],
+)
 def _streaming_state_maxsim_kernel(
     overflow_k,
     state_k,
@@ -1617,7 +1658,26 @@ def _scaled_coherence_maxsim_kernel(
     tl.store(select_scores + output_offset, best_select_score, mask=token_valid)
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["query_len", "state_len", "local_len", "local_offset"],
+    do_not_specialize_on_alignment=[
+        "Q_BATCH_STRIDE",
+        "Q_HEAD_STRIDE",
+        "LOGIT_BATCH_STRIDE",
+        "LOGIT_HEAD_STRIDE",
+        "LOGIT_QUERY_STRIDE",
+        "LOCAL_K_BATCH_STRIDE",
+        "LOCAL_K_HEAD_STRIDE",
+        "LOCAL_V_BATCH_STRIDE",
+        "LOCAL_V_HEAD_STRIDE",
+        "TOP_BATCH_STRIDE",
+        "TOP_HEAD_STRIDE",
+        "query_len",
+        "state_len",
+        "local_len",
+        "local_offset",
+    ],
+)
 def _route_logits_coarse_attention_kernel(
     q,
     route_logits,
@@ -1628,12 +1688,12 @@ def _route_logits_coarse_attention_kernel(
     top_slots,
     output,
     lse,
-    Q_BATCH_STRIDE: tl.constexpr,
-    Q_HEAD_STRIDE: tl.constexpr,
+    Q_BATCH_STRIDE,
+    Q_HEAD_STRIDE,
     Q_TOKEN_STRIDE: tl.constexpr,
-    LOGIT_BATCH_STRIDE: tl.constexpr,
-    LOGIT_HEAD_STRIDE: tl.constexpr,
-    LOGIT_QUERY_STRIDE: tl.constexpr,
+    LOGIT_BATCH_STRIDE,
+    LOGIT_HEAD_STRIDE,
+    LOGIT_QUERY_STRIDE,
     LOGIT_STATE_STRIDE: tl.constexpr,
     STATE_V_BATCH_STRIDE: tl.constexpr,
     STATE_V_HEAD_STRIDE: tl.constexpr,
@@ -1641,14 +1701,14 @@ def _route_logits_coarse_attention_kernel(
     COUNT_BATCH_STRIDE: tl.constexpr,
     COUNT_HEAD_STRIDE: tl.constexpr,
     COUNT_TOKEN_STRIDE: tl.constexpr,
-    LOCAL_K_BATCH_STRIDE: tl.constexpr,
-    LOCAL_K_HEAD_STRIDE: tl.constexpr,
+    LOCAL_K_BATCH_STRIDE,
+    LOCAL_K_HEAD_STRIDE,
     LOCAL_K_TOKEN_STRIDE: tl.constexpr,
-    LOCAL_V_BATCH_STRIDE: tl.constexpr,
-    LOCAL_V_HEAD_STRIDE: tl.constexpr,
+    LOCAL_V_BATCH_STRIDE,
+    LOCAL_V_HEAD_STRIDE,
     LOCAL_V_TOKEN_STRIDE: tl.constexpr,
-    TOP_BATCH_STRIDE: tl.constexpr,
-    TOP_HEAD_STRIDE: tl.constexpr,
+    TOP_BATCH_STRIDE,
+    TOP_HEAD_STRIDE,
     TOP_QUERY_STRIDE: tl.constexpr,
     query_len,
     state_len,
@@ -2707,15 +2767,28 @@ def _apply_state_deltas_kernel(
     tl.store(touched + row * DELTA_SLOT_STRIDE + slot, 0, mask=update)
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["active_groups", "query_len", "state_len"],
+    do_not_specialize_on_alignment=[
+        "Q_BATCH_STRIDE",
+        "Q_HEAD_STRIDE",
+        "STATE_BATCH_STRIDE",
+        "STATE_HEAD_STRIDE",
+        "COUNT_BATCH_STRIDE",
+        "COUNT_HEAD_STRIDE",
+        "active_groups",
+        "query_len",
+        "state_len",
+    ],
+)
 def _route_state_group_candidates_kernel(
     q,
     state_k,
     counts,
     partial_scores,
     partial_indices,
-    Q_BATCH_STRIDE: tl.constexpr,
-    Q_HEAD_STRIDE: tl.constexpr,
+    Q_BATCH_STRIDE,
+    Q_HEAD_STRIDE,
     Q_TOKEN_STRIDE: tl.constexpr,
     STATE_BATCH_STRIDE,
     STATE_HEAD_STRIDE,
@@ -2824,16 +2897,28 @@ def _route_state_group_candidates_kernel(
         )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["active_groups", "query_len", "state_len"],
+    do_not_specialize_on_alignment=[
+        "LOGIT_BATCH_STRIDE",
+        "LOGIT_HEAD_STRIDE",
+        "LOGIT_QUERY_STRIDE",
+        "COUNT_BATCH_STRIDE",
+        "COUNT_HEAD_STRIDE",
+        "active_groups",
+        "query_len",
+        "state_len",
+    ],
+)
 def _route_score_group_candidates_kernel(
     logits,
     counts,
     partial_scores,
     partial_indices,
     partial_lse,
-    LOGIT_BATCH_STRIDE: tl.constexpr,
-    LOGIT_HEAD_STRIDE: tl.constexpr,
-    LOGIT_QUERY_STRIDE: tl.constexpr,
+    LOGIT_BATCH_STRIDE,
+    LOGIT_HEAD_STRIDE,
+    LOGIT_QUERY_STRIDE,
     COUNT_BATCH_STRIDE,
     COUNT_HEAD_STRIDE,
     COUNT_TOKEN_STRIDE,
@@ -2941,7 +3026,10 @@ def _route_score_group_candidates_kernel(
         )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["query_len", "active_groups"],
+    do_not_specialize_on_alignment=["query_len", "active_groups"],
+)
 def _reduce_route_group_candidates_kernel(
     partial_scores,
     partial_indices,
@@ -3087,27 +3175,42 @@ def _reorder_topk_like_torch_kernel(
         )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["query_len", "state_len"],
+    do_not_specialize_on_alignment=[
+        "LOGIT_BATCH_STRIDE",
+        "LOGIT_HEAD_STRIDE",
+        "LOGIT_QUERY_STRIDE",
+        "TOP_BATCH_STRIDE",
+        "TOP_HEAD_STRIDE",
+        "LSE_BATCH_STRIDE",
+        "LSE_HEAD_STRIDE",
+        "LOCAL_LSE_BATCH_STRIDE",
+        "LOCAL_LSE_HEAD_STRIDE",
+        "query_len",
+        "state_len",
+    ],
+)
 def _apply_residual_mass_opening_kernel(
     logits,
     counts,
     top_slots,
     state_lse,
     local_lse,
-    LOGIT_BATCH_STRIDE: tl.constexpr,
-    LOGIT_HEAD_STRIDE: tl.constexpr,
-    LOGIT_QUERY_STRIDE: tl.constexpr,
+    LOGIT_BATCH_STRIDE,
+    LOGIT_HEAD_STRIDE,
+    LOGIT_QUERY_STRIDE,
     COUNT_BATCH_STRIDE: tl.constexpr,
     COUNT_HEAD_STRIDE: tl.constexpr,
     COUNT_TOKEN_STRIDE: tl.constexpr,
-    TOP_BATCH_STRIDE: tl.constexpr,
-    TOP_HEAD_STRIDE: tl.constexpr,
+    TOP_BATCH_STRIDE,
+    TOP_HEAD_STRIDE,
     TOP_QUERY_STRIDE: tl.constexpr,
-    LSE_BATCH_STRIDE: tl.constexpr,
-    LSE_HEAD_STRIDE: tl.constexpr,
+    LSE_BATCH_STRIDE,
+    LSE_HEAD_STRIDE,
     LSE_QUERY_STRIDE: tl.constexpr,
-    LOCAL_LSE_BATCH_STRIDE: tl.constexpr,
-    LOCAL_LSE_HEAD_STRIDE: tl.constexpr,
+    LOCAL_LSE_BATCH_STRIDE,
+    LOCAL_LSE_HEAD_STRIDE,
     LOCAL_LSE_QUERY_STRIDE: tl.constexpr,
     query_len,
     state_len,

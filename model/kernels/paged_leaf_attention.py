@@ -76,7 +76,10 @@ def _lookup_page_id(
     return page_id
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["query_len"],
+    do_not_specialize_on_alignment=["query_len"],
+)
 def _candidate_page_mass_kernel(
     q,
     page_sum_k,
@@ -199,7 +202,10 @@ def _candidate_page_mass_kernel(
     )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["query_len"],
+    do_not_specialize_on_alignment=["query_len"],
+)
 def _candidate_leaf_mass_kernel(
     q,
     page_k,
@@ -340,7 +346,10 @@ def _candidate_leaf_mass_kernel(
     )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["query_len"],
+    do_not_specialize_on_alignment=["query_len"],
+)
 def _candidate_virtual_leaf_target_output_kernel(
     q,
     baseline_output,
@@ -514,7 +523,10 @@ def _candidate_virtual_leaf_target_output_kernel(
     tl.store(target_output + query_row * VALUE_DIM + value_dim, candidate_target)
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["query_len"],
+    do_not_specialize_on_alignment=["query_len"],
+)
 def _candidate_virtual_leaf_output_utility_kernel(
     q,
     baseline_output,
@@ -700,7 +712,10 @@ def _candidate_virtual_leaf_output_utility_kernel(
     )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["TOKENS"],
+    do_not_specialize_on_alignment=["TOKENS"],
+)
 def _assign_page_ordinals_kernel(
     owners,
     slot_lengths,
@@ -711,7 +726,7 @@ def _assign_page_ordinals_kernel(
     overflow_used,
     overflow_flag,
     ordinals,
-    TOKENS: tl.constexpr,
+    TOKENS,
     KV_HEADS: tl.constexpr,
     STATE_CAPACITY: tl.constexpr,
     INLINE_PAGES_PER_SLOT: tl.constexpr,
@@ -766,7 +781,10 @@ def _assign_page_ordinals_kernel(
     tl.atomic_xchg(overflow_flag, 1, mask=active, sem="relaxed")
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["TOKENS"],
+    do_not_specialize_on_alignment=["TOKENS"],
+)
 def _assign_block_page_ordinals_kernel(
     owners,
     slot_lengths,
@@ -777,7 +795,7 @@ def _assign_block_page_ordinals_kernel(
     overflow_used,
     overflow_flag,
     ordinals,
-    TOKENS: tl.constexpr,
+    TOKENS,
     STATE_CAPACITY: tl.constexpr,
     INLINE_PAGES_PER_SLOT: tl.constexpr,
     HASH_CAPACITY: tl.constexpr,
@@ -972,7 +990,10 @@ def _rehash_overflow_pages_kernel(
     tl.atomic_xchg(destination_flag, 1, mask=active, sem="relaxed")
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["TOKENS"],
+    do_not_specialize_on_alignment=["TOKENS"],
+)
 def _write_paged_kv_kernel(
     k,
     v,
@@ -990,7 +1011,7 @@ def _write_paged_kv_kernel(
     V_BATCH_STRIDE: tl.constexpr,
     V_HEAD_STRIDE: tl.constexpr,
     V_TOKEN_STRIDE: tl.constexpr,
-    TOKENS: tl.constexpr,
+    TOKENS,
     KV_HEADS: tl.constexpr,
     STATE_CAPACITY: tl.constexpr,
     INLINE_PAGES_PER_SLOT: tl.constexpr,
@@ -1057,7 +1078,10 @@ def _write_paged_kv_kernel(
     )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["LEAF_OFFSET", "TOKENS"],
+    do_not_specialize_on_alignment=["LEAF_OFFSET", "TOKENS"],
+)
 def _write_virtual_page_indices_kernel(
     owners,
     ordinals,
@@ -1067,7 +1091,7 @@ def _write_virtual_page_indices_kernel(
     overflow_used,
     page_indices,
     LEAF_OFFSET,
-    TOKENS: tl.constexpr,
+    TOKENS,
     STATE_CAPACITY: tl.constexpr,
     INLINE_PAGES_PER_SLOT: tl.constexpr,
     HASH_CAPACITY: tl.constexpr,
@@ -1102,7 +1126,10 @@ def _write_virtual_page_indices_kernel(
     tl.store(page_indices + physical_token, LEAF_OFFSET + token)
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["TOKENS"],
+    do_not_specialize_on_alignment=["TOKENS"],
+)
 def _update_page_summaries_kernel(
     owners,
     ordinals,
@@ -1119,7 +1146,7 @@ def _update_page_summaries_kernel(
     page_sum_k,
     page_sum_v,
     page_counts,
-    TOKENS: tl.constexpr,
+    TOKENS,
     KV_HEADS: tl.constexpr,
     STATE_CAPACITY: tl.constexpr,
     INLINE_PAGES_PER_SLOT: tl.constexpr,
@@ -1250,7 +1277,10 @@ def _update_page_summaries_kernel(
     )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["TOKENS"],
+    do_not_specialize_on_alignment=["TOKENS"],
+)
 def _update_raw_page_key_summaries_kernel(
     owners,
     ordinals,
@@ -1260,7 +1290,7 @@ def _update_raw_page_key_summaries_kernel(
     overflow_used,
     append_k,
     page_sum_k,
-    TOKENS: tl.constexpr,
+    TOKENS,
     KV_HEADS: tl.constexpr,
     STATE_CAPACITY: tl.constexpr,
     INLINE_PAGES_PER_SLOT: tl.constexpr,
@@ -1497,7 +1527,10 @@ def _quantize_virtual_page_tensor_int4(
     )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["TOKENS"],
+    do_not_specialize_on_alignment=["TOKENS"],
+)
 def _quantize_touched_virtual_pages_int4_kernel(
     owners,
     ordinals,
@@ -1517,7 +1550,7 @@ def _quantize_touched_virtual_pages_int4_kernel(
     page_k_scales,
     page_v_scales,
     page_quantized_counts,
-    TOKENS: tl.constexpr,
+    TOKENS,
     KV_HEADS: tl.constexpr,
     STATE_CAPACITY: tl.constexpr,
     INLINE_PAGES_PER_SLOT: tl.constexpr,
@@ -2079,7 +2112,10 @@ def _requantize_appended_virtual_page_tensor_int4(
     )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["leaf_offset", "TOKENS"],
+    do_not_specialize_on_alignment=["leaf_offset", "TOKENS"],
+)
 def _append_quantized_virtual_pages_int4_kernel(
     owners,
     ordinals,
@@ -2104,7 +2140,7 @@ def _append_quantized_virtual_pages_int4_kernel(
     page_v_scales,
     page_quantized_counts,
     leaf_offset,
-    TOKENS: tl.constexpr,
+    TOKENS,
     KV_HEADS: tl.constexpr,
     STATE_CAPACITY: tl.constexpr,
     INLINE_PAGES_PER_SLOT: tl.constexpr,
@@ -2245,7 +2281,10 @@ def _append_quantized_virtual_pages_int4_kernel(
     )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["TOKENS"],
+    do_not_specialize_on_alignment=["TOKENS"],
+)
 def _finalize_appended_virtual_page_counts_kernel(
     owners,
     ordinals,
@@ -2256,7 +2295,7 @@ def _finalize_appended_virtual_page_counts_kernel(
     slot_lengths,
     page_counts,
     page_quantized_counts,
-    TOKENS: tl.constexpr,
+    TOKENS,
     STATE_CAPACITY: tl.constexpr,
     INLINE_PAGES_PER_SLOT: tl.constexpr,
     PAGE_CAPACITY: tl.constexpr,
@@ -2452,7 +2491,10 @@ def _paged_leaf_attention_kernel(
     tl.store(lse + route_row, natural_lse, mask=valid_query)
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["QUERY_LEN"],
+    do_not_specialize_on_alignment=["QUERY_LEN"],
+)
 def _query_major_paged_leaf_attention_kernel(
     q,
     page_k,
@@ -2465,7 +2507,7 @@ def _query_major_paged_leaf_attention_kernel(
     top_slots,
     out,
     lse,
-    QUERY_LEN: tl.constexpr,
+    QUERY_LEN,
     QUERY_HEADS: tl.constexpr,
     KV_HEADS: tl.constexpr,
     KV_GROUP_SIZE: tl.constexpr,
@@ -2673,7 +2715,28 @@ def query_major_paged_leaf_attention(
     )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=[
+        "LEAF_CAPACITY",
+        "LEAF_K_BATCH_STRIDE",
+        "LEAF_K_HEAD_STRIDE",
+        "LEAF_K_TOKEN_STRIDE",
+        "LEAF_V_BATCH_STRIDE",
+        "LEAF_V_HEAD_STRIDE",
+        "LEAF_V_TOKEN_STRIDE",
+        "query_len",
+    ],
+    do_not_specialize_on_alignment=[
+        "LEAF_CAPACITY",
+        "LEAF_K_BATCH_STRIDE",
+        "LEAF_K_HEAD_STRIDE",
+        "LEAF_K_TOKEN_STRIDE",
+        "LEAF_V_BATCH_STRIDE",
+        "LEAF_V_HEAD_STRIDE",
+        "LEAF_V_TOKEN_STRIDE",
+        "query_len",
+    ],
+)
 def _query_major_residual_page_attention_kernel(
     q,
     state_k,
@@ -2723,13 +2786,13 @@ def _query_major_residual_page_attention_kernel(
     ROUTE_COUNT: tl.constexpr,
     SCALE_LOG2: tl.constexpr,
     PAGE_BLOCK_N: tl.constexpr,
-    LEAF_K_BATCH_STRIDE: tl.constexpr,
-    LEAF_K_HEAD_STRIDE: tl.constexpr,
-    LEAF_K_TOKEN_STRIDE: tl.constexpr,
-    LEAF_V_BATCH_STRIDE: tl.constexpr,
-    LEAF_V_HEAD_STRIDE: tl.constexpr,
-    LEAF_V_TOKEN_STRIDE: tl.constexpr,
-    LEAF_CAPACITY: tl.constexpr,
+    LEAF_K_BATCH_STRIDE,
+    LEAF_K_HEAD_STRIDE,
+    LEAF_K_TOKEN_STRIDE,
+    LEAF_V_BATCH_STRIDE,
+    LEAF_V_HEAD_STRIDE,
+    LEAF_V_TOKEN_STRIDE,
+    LEAF_CAPACITY,
     QUANT_GROUP_SIZE: tl.constexpr,
     QUANTIZED: tl.constexpr,
     QUANTIZED_SUMMARIES: tl.constexpr,
