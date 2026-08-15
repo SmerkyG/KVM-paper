@@ -114,8 +114,9 @@ class VLLMLayerLODPool:
         self.state_capacity = self.engine._state_capacity(
             request_capacity, min(request_capacity, settings.chunk_size)
         )
-        self.local_capacity = local_window + int(
-            self.engine.decode_state_update_len
+        self.local_capacity = max(
+            local_window + int(self.engine.decode_state_update_len),
+            int(self.engine.prefill_local_len),
         )
         self.leaf_capacity = _round_up(request_capacity, settings.chunk_size) + max(
             settings.chunk_size, int(self.engine.decode_cache_headroom)
@@ -131,6 +132,7 @@ class VLLMLayerLODPool:
         self.ready = [False] * max_requests
         self.clean = [True] * max_requests
         self.metadata = [dict[str, int | bool]() for _ in range(max_requests)]
+        self.decode_buffer_storage: dict[str, torch.Tensor] | None = None
         self.decode_buffers: dict[int, dict[str, torch.Tensor]] = {}
         self.decode_enabled = False
         self.direct_prefill_plan: tuple[tuple[int, int, int, int], ...] | None = None
@@ -804,6 +806,7 @@ class VLLMLayerLODPool:
             cache=cache,
             use_cache=True,
             output_buffer=output_view,
+            finalize_cache_for_decode=False,
         )
         if cache is None:
             raise AssertionError("batched cached LOD prefill did not return a cache")
@@ -900,6 +903,7 @@ class VLLMLayerLODPool:
                 v,
                 use_cache=True,
                 output_buffer=output_view,
+                finalize_cache_for_decode=False,
             )
             if cache is None:
                 raise AssertionError("direct LOD prefill did not return a cache")
@@ -1192,13 +1196,32 @@ class VLLMLayerLODPool:
 
     def _buffers(self, query: torch.Tensor, rows: int) -> dict[str, torch.Tensor]:
         buffers = self.decode_buffers.get(rows)
-        if buffers is None or buffers["partial_out"].device != query.device:
-            buffers = new_fused_decode_buffers(
-                query,
+        storage = self.decode_buffer_storage
+        if storage is None or storage["partial_out"].device != query.device:
+            template = query.new_empty(
+                self.max_requests,
+                self.query_heads,
+                1,
+                self.head_dim,
+            )
+            storage = new_fused_decode_buffers(
+                template,
                 splits=int(self.engine.decode_split_kv),
                 state_capacity=self.state_capacity,
                 route_group_size=int(self.engine.decode_route_group_size),
             )
+            self.decode_buffer_storage = storage
+            self.decode_buffers.clear()
+            buffers = None
+        if buffers is None:
+            buffers = {
+                name: (
+                    tensor[:rows]
+                    if tensor.ndim and int(tensor.size(0)) == self.max_requests
+                    else tensor
+                )
+                for name, tensor in storage.items()
+            }
             self.decode_buffers[rows] = buffers
         return buffers
 

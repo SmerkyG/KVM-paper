@@ -24,6 +24,18 @@ def _floating(name: str, default: float) -> float:
     return value
 
 
+def _boolean(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    value = raw.strip().lower()
+    if value in ("1", "true", "yes", "on"):
+        return True
+    if value in ("0", "false", "no", "off"):
+        return False
+    raise ValueError(f"{name} must be a boolean, got {raw!r}")
+
+
 def _choice(name: str, default: str, choices: tuple[str, ...]) -> str:
     value = os.getenv(name, default).strip().lower()
     if value not in choices:
@@ -48,7 +60,8 @@ class VLLMLODSettings:
     routing_geometry: str = "auto"
     cache_ownership: str = "lod"
     native_staging_chunk: int = 1024
-    native_cache_headroom: float = 1.5
+    native_cache_headroom: float = 1.0
+    native_placeholder_cache: bool = True
     prefill_local_backend: str = "aiter"
 
     @classmethod
@@ -80,7 +93,10 @@ class VLLMLODSettings:
                 "VLLM_LOD_NATIVE_STAGING_CHUNK", 1024
             ),
             native_cache_headroom=_floating(
-                "VLLM_LOD_NATIVE_CACHE_HEADROOM", 1.5
+                "VLLM_LOD_NATIVE_CACHE_HEADROOM", 1.0
+            ),
+            native_placeholder_cache=_boolean(
+                "VLLM_LOD_NATIVE_PLACEHOLDER_CACHE", True
             ),
             prefill_local_backend=_choice(
                 "VLLM_LOD_PREFILL_LOCAL_BACKEND",

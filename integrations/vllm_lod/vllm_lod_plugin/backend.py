@@ -7,6 +7,8 @@ from typing import Any
 import torch
 from vllm.v1.attention.backend import AttentionType
 
+from .config import VLLMLODSettings
+
 if torch.version.hip:
     from vllm.v1.attention.backends.rocm_attn import (
         RocmAttentionBackend as _NativeBackend,
@@ -74,6 +76,50 @@ class LODAttentionImpl(_NativeImpl):
             and not logits_soft_cap
             and kv_cache_dtype in ("auto", "float16", "bfloat16")
         )
+        self.lod_authoritative = (
+            VLLMLODSettings.from_environment().cache_ownership == "lod"
+        )
+
+    @staticmethod
+    def _uses_authoritative_lod(layer: torch.nn.Module) -> bool:
+        pool = getattr(layer, "_vllm_lod_pool", None)
+        return (
+            pool is not None
+            and pool.settings.cache_ownership == "lod"
+            and (
+                getattr(pool, "direct_prefill_plan", None) is not None
+                or bool(getattr(pool, "decode_enabled", False))
+            )
+        )
+
+    @staticmethod
+    def _uses_placeholder_cache(layer: torch.nn.Module) -> bool:
+        return bool(getattr(layer, "_vllm_lod_native_placeholder_cache", False))
+
+    def do_kv_cache_update(
+        self,
+        layer: torch.nn.Module,
+        key: torch.Tensor,
+        value: torch.Tensor,
+        kv_cache: torch.Tensor,
+        slot_mapping: torch.Tensor,
+    ) -> None:
+        if self.lod_eligible and (
+            self._uses_authoritative_lod(layer)
+            or self._uses_placeholder_cache(layer)
+        ):
+            return
+        super().do_kv_cache_update(layer, key, value, kv_cache, slot_mapping)
+
+    def fused_rope_kvcache_supported(self) -> bool:
+        # The platform fusion cannot independently suppress its chronological
+        # cache write. Keep RoPE separate so authoritative LOD can skip that
+        # redundant write while native-only layers retain the normal updater.
+        return (
+            False
+            if self.lod_eligible and self.lod_authoritative
+            else super().fused_rope_kvcache_supported()
+        )
 
     def forward(
         self,
@@ -88,6 +134,17 @@ class LODAttentionImpl(_NativeImpl):
         output_block_scale: torch.Tensor | None = None,
     ) -> torch.Tensor:
         pool = getattr(layer, "_vllm_lod_pool", None)
+        if (
+            pool is not None
+            and self.lod_eligible
+            and self._uses_placeholder_cache(layer)
+            and getattr(pool, "direct_prefill_plan", None) is None
+            and not pool.decode_enabled
+        ):
+            # Uncaptured/capture warmups have no logical request. Their output
+            # is discarded, and the tiny scheduler placeholder is deliberately
+            # not shaped for native remote attention.
+            return output.zero_()
         if (
             pool is not None
             and getattr(pool, "direct_prefill_plan", None) is not None

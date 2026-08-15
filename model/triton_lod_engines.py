@@ -65,6 +65,7 @@ class _KernelLODEngine(TritonLODAttentionCore):
         self.state_growth_factor = config.state_growth_factor
         self.state_min_len = config.state_min_size
         self.state_size_offset = config.state_size_offset
+        self.state_premerge_factor = config.state_premerge_factor
         self.sink_len = config.protected_prefix
         self.state_clustering_normalization = (
             config.state_clustering_normalization
@@ -189,6 +190,7 @@ class _KernelLODEngine(TritonLODAttentionCore):
         logical_prefill_len: int | None = None,
         prefill_valid_starts: torch.Tensor | None = None,
         output_buffer: torch.Tensor | None = None,
+        finalize_cache_for_decode: bool = True,
     ) -> tuple[torch.Tensor, KernelLODCache | None]:
         """Run optimized causal prefill or incremental cached decode."""
         self._validate_geometry(query, key, value)
@@ -203,6 +205,7 @@ class _KernelLODEngine(TritonLODAttentionCore):
                 logical_prefill_len=logical_prefill_len,
                 prefill_valid_starts=prefill_valid_starts,
                 output_buffer=output_buffer,
+                finalize_cache_for_decode=finalize_cache_for_decode,
             )
         else:
             if (
@@ -220,7 +223,11 @@ class _KernelLODEngine(TritonLODAttentionCore):
                 and isinstance(self._lod_state.get("page_cache"), dict)
             ):
                 output = self._cached_prefill_attention(
-                    query, key, value, output_buffer=output_buffer
+                    query,
+                    key,
+                    value,
+                    output_buffer=output_buffer,
+                    finalize_cache_for_decode=finalize_cache_for_decode,
                 )
             else:
                 outputs = []
@@ -312,6 +319,8 @@ class KernelCoarseLODAttention(_KernelLODEngine):
         *,
         logical_prefill_len: int | None = None,
         prefill_valid_starts: torch.Tensor | None = None,
+        output_buffer: torch.Tensor | None = None,
+        finalize_cache_for_decode: bool = True,
     ) -> torch.Tensor:
         output = super()._prefill_attention(
             query,
@@ -319,6 +328,8 @@ class KernelCoarseLODAttention(_KernelLODEngine):
             value,
             logical_prefill_len=logical_prefill_len,
             prefill_valid_starts=prefill_valid_starts,
+            output_buffer=output_buffer,
+            finalize_cache_for_decode=finalize_cache_for_decode,
         )
         # The common prefill path records these tensors for exact leaf opening.
         # Low-LOD attention never reads them, so retain typed empty sentinels.

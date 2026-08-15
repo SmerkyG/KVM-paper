@@ -38,6 +38,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--local-window", type=int, default=512)
     parser.add_argument("--state-min-size", type=int, default=256)
     parser.add_argument("--state-size-offset", type=int, default=0)
+    parser.add_argument(
+        "--state-premerge-factor",
+        type=int,
+        choices=(1, 2, 4),
+        default=1,
+        help=(
+            "merge each consecutive group into an atomic first-tier centroid "
+            "before state routing"
+        ),
+    )
     parser.add_argument("--protected-prefix", type=int, default=1)
     parser.add_argument(
         "--mla-state-key-normalization",
@@ -164,6 +174,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--disable-thinking", action="store_true")
     parser.add_argument("--log-samples", action="store_true")
     parser.add_argument(
+        "--warmup-evaluations",
+        type=int,
+        default=0,
+        help="discard this many complete lm-eval passes before timing",
+    )
+    parser.add_argument(
+        "--timing-repetitions",
+        type=int,
+        default=1,
+        help="number of complete post-warmup lm-eval passes to time",
+    )
+    parser.add_argument(
         "--use-upstream-code",
         action="store_true",
         help="ignore checkpoint auto_map entries when Transformers supports the model",
@@ -185,7 +207,7 @@ def load_model(
     config = composite_config.get_text_config(decoder=True)
     is_muse_glimmer = getattr(composite_config, "model_type", None) == "muse_glimmer"
     is_qwen35 = type(config).__module__.startswith(
-        "transformers.models.qwen3_5."
+        ("transformers.models.qwen3_5.", "transformers.models.qwen3_5_moe.")
     )
     if is_qwen35:
         from scripts.probe_qwen35_lod_niah import enable_fla_fast_path
@@ -252,6 +274,10 @@ def load_model(
 
 def main() -> None:
     args = parse_args()
+    if args.warmup_evaluations < 0:
+        raise ValueError("warmup evaluations cannot be negative")
+    if args.timing_repetitions <= 0:
+        raise ValueError("timing repetitions must be positive")
     if args.batch_size < 1:
         raise ValueError("batch size must be positive")
     if args.ruler_length is not None and args.ruler_length < 1:
@@ -299,6 +325,7 @@ def main() -> None:
             "state_growth_factor": args.state_growth_factor,
             "state_min_size": args.state_min_size,
             "state_size_offset": args.state_size_offset,
+            "state_premerge_factor": args.state_premerge_factor,
             "protected_prefix": args.protected_prefix,
             "mla_state_key_normalization": args.mla_state_key_normalization,
             "mla_recursive_page_key_normalization": (
@@ -387,20 +414,36 @@ def main() -> None:
     gen_kwargs = {}
     if args.max_gen_toks is not None:
         gen_kwargs["max_gen_toks"] = args.max_gen_toks
-    evaluation_start = time.perf_counter()
-    results = evaluator.simple_evaluate(
-        model=lm,
-        tasks=args.tasks,
-        batch_size=args.batch_size,
-        limit=args.limit,
-        bootstrap_iters=0,
-        log_samples=args.log_samples,
-        gen_kwargs=gen_kwargs or None,
-        apply_chat_template=args.apply_chat_template,
-        metadata=metadata,
-        confirm_run_unsafe_code=True,
-    )
-    evaluation_seconds = time.perf_counter() - evaluation_start
+    evaluation_kwargs = {
+        "model": lm,
+        "tasks": args.tasks,
+        "batch_size": args.batch_size,
+        "limit": args.limit,
+        "bootstrap_iters": 0,
+        "log_samples": args.log_samples,
+        "gen_kwargs": gen_kwargs or None,
+        "apply_chat_template": args.apply_chat_template,
+        "metadata": metadata,
+        "confirm_run_unsafe_code": True,
+    }
+    for warmup_index in range(args.warmup_evaluations):
+        print(
+            f"warmup evaluation {warmup_index + 1}/{args.warmup_evaluations}"
+        )
+        evaluator.simple_evaluate(**evaluation_kwargs)
+    evaluation_seconds_samples = []
+    results = None
+    for repetition in range(args.timing_repetitions):
+        evaluation_start = time.perf_counter()
+        results = evaluator.simple_evaluate(**evaluation_kwargs)
+        evaluation_seconds_samples.append(time.perf_counter() - evaluation_start)
+        print(
+            f"timed evaluation {repetition + 1}/{args.timing_repetitions}: "
+            f"{evaluation_seconds_samples[-1]:.6f} seconds"
+        )
+    evaluation_seconds = sorted(evaluation_seconds_samples)[
+        len(evaluation_seconds_samples) // 2
+    ]
     dynamic_open_statistics = (
         pop_hf_lod_dynamic_open_statistics(model)
         if args.mode == "lod"
@@ -425,6 +468,7 @@ def main() -> None:
         "local_window": args.local_window,
         "state_min_size": args.state_min_size,
         "state_size_offset": args.state_size_offset,
+        "state_premerge_factor": args.state_premerge_factor,
         "protected_prefix": args.protected_prefix,
         "mla_state_key_normalization": args.mla_state_key_normalization,
         "mla_recursive_page_key_normalization": (
@@ -469,6 +513,9 @@ def main() -> None:
         "use_upstream_code": args.use_upstream_code,
         "attention_layers": installed,
         "evaluation_seconds": evaluation_seconds,
+        "evaluation_seconds_samples": evaluation_seconds_samples,
+        "warmup_evaluations": args.warmup_evaluations,
+        "timing_repetitions": args.timing_repetitions,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(

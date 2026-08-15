@@ -220,7 +220,9 @@ def maybe_new_hybrid_hf_lod_cache(model: nn.Module):
         layer_idx: HFLODCacheLayer(module, settings)
         for layer_idx, (module, settings) in indexed.items()
     }
-    if config_module.startswith("transformers.models.qwen3_5."):
+    if config_module.startswith(
+        ("transformers.models.qwen3_5.", "transformers.models.qwen3_5_moe.")
+    ):
         from transformers import DynamicCache
 
         native_cache = DynamicCache(config=text_config)

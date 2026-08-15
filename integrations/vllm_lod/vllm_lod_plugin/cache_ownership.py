@@ -38,15 +38,31 @@ def _install_attention_spec_hook() -> None:
             raise NotImplementedError(
                 "authoritative LOD cache requires equal key and value widths"
             )
+        prefix_caching = bool(vllm_config.cache_config.enable_prefix_caching)
+        placeholder = settings.native_placeholder_cache and not prefix_caching
+        self._vllm_lod_native_placeholder_cache = placeholder
+        if settings.native_placeholder_cache and prefix_caching:
+            logger.info_once(
+                "Authoritative LOD keeps bounded native staging because "
+                "vLLM prefix caching is enabled"
+            )
         return ChunkedLocalAttentionSpec(
             block_size=spec.block_size,
-            num_kv_heads=spec.num_kv_heads,
-            head_size=spec.head_size,
+            # Direct authoritative LOD consumes post-RoPE K/V without reading
+            # chronological cache storage. Keep a scheduler-visible logical
+            # cache, but let hybrid page-size unification enlarge this tiny
+            # placeholder's token block rather than reserving full K/V pages.
+            num_kv_heads=1 if placeholder else spec.num_kv_heads,
+            head_size=1 if placeholder else spec.head_size,
             dtype=spec.dtype,
             kv_quant_mode=spec.kv_quant_mode,
-            page_size_padded=spec.page_size_padded,
-            indexes_kv_by_block_stride=spec.indexes_kv_by_block_stride,
-            attention_chunk_size=settings.native_staging_chunk,
+            page_size_padded=None if placeholder else spec.page_size_padded,
+            indexes_kv_by_block_stride=(
+                True if placeholder else spec.indexes_kv_by_block_stride
+            ),
+            attention_chunk_size=(
+                1 if placeholder else settings.native_staging_chunk
+            ),
         )
 
     Attention.get_kv_cache_spec = get_kv_cache_spec
@@ -77,11 +93,18 @@ def _native_block_cap(vllm_config: Any, kv_cache_specs: list[dict[str, Any]]) ->
             else (group_spec,)
         )
         if all(isinstance(spec, ChunkedLocalAttentionSpec) for spec in specs):
+            block_size = int(group_spec.block_size)
+            if block_size >= int(vllm_config.model_config.max_model_len):
+                # A placeholder page spans the entire supported request. Its
+                # retained and newly scheduled tokens share one block, so the
+                # ordinary retained + in-flight + fragmentation bound would
+                # charge the same request two or three times.
+                required += active
+                continue
             # max_in_flight_tokens is a global batch budget. Charging it once
             # per request over-reserves by max_num_seqs. Retained windows are
             # per request; newly scheduled tokens are global. One extra block
             # per request covers partial-block fragmentation between the two.
-            block_size = int(group_spec.block_size)
             retained = active * max(
                 math.ceil(int(spec.attention_chunk_size) / block_size)
                 for spec in specs
@@ -93,9 +116,15 @@ def _native_block_cap(vllm_config: Any, kv_cache_specs: list[dict[str, Any]]) ->
                 / group_spec.page_size_bytes
             )
             required += active * blocks_per_request
+    headroom = settings.native_cache_headroom
+    if vllm_config.cache_config.enable_prefix_caching:
+        # Released prefix blocks remain resident while their semantic LOD rows
+        # are candidates for reuse. The exact active-batch bound below does
+        # not include those dormant blocks.
+        headroom = max(headroom, 2.0)
     return max(
         2,
-        math.ceil(required * settings.native_cache_headroom) + 1,
+        math.ceil(required * headroom) + 1,
     )
 
 
@@ -125,13 +154,20 @@ def _install_native_pool_cap_hook() -> None:
             )
         ):
             return original(vllm_config, kv_cache_specs, available_memory)
+        if vllm_config.scheduler_config.async_scheduling:
+            # LOD rows are updated in place. Preparing a second model batch
+            # before the first graph settles can observe stale row metadata and
+            # cannot be made correct by merely reserving more native blocks.
+            # Ordinary request batching and CUDA graph replay remain enabled.
+            logger.info(
+                "Authoritative LOD disables asynchronous two-batch scheduling"
+            )
+            vllm_config.scheduler_config.async_scheduling = False
         cap = _native_block_cap(vllm_config, kv_cache_specs)
         cache_config.num_gpu_blocks_override = cap
         logger.info(
-            "Authoritative LOD cache caps native staging at %d blocks "
-            "(headroom %.2fx)",
+            "Authoritative LOD cache caps native staging at %d blocks",
             cap,
-            settings.native_cache_headroom,
         )
         try:
             return original(vllm_config, kv_cache_specs, available_memory)

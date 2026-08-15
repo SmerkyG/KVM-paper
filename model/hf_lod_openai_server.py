@@ -55,6 +55,8 @@ class LODServerConfig:
             max_routes=8,
             page_size=self.page_size,
             kv_bits=self.kv_bits,
+            state_clustering_policy="qk_norm_aware",
+            routing_normalization="qk_norm_aware",
         )
 
 
@@ -130,7 +132,7 @@ class LODModelManager(ModelManager):
             get_text_config(decoder=True) if callable(get_text_config) else config
         )
         is_qwen35 = type(text_config).__module__.startswith(
-            "transformers.models.qwen3_5."
+            ("transformers.models.qwen3_5.", "transformers.models.qwen3_5_moe.")
         )
         if is_qwen35:
             from scripts.probe_qwen35_lod_niah import enable_fla_fast_path

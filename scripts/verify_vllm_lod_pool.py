@@ -68,6 +68,12 @@ def main() -> None:
         default="raw",
     )
     parser.add_argument("--normalized-qk", action="store_true")
+    parser.add_argument(
+        "--serving-reuse-length",
+        type=int,
+        default=0,
+        help="also replay a scheduler-chunked prefill at serving scale",
+    )
     args = parser.parse_args()
     if not torch.cuda.is_available():
         raise RuntimeError("this check requires a CUDA or ROCm GPU")
@@ -266,6 +272,143 @@ def main() -> None:
             msg=(
                 f"mapped fixed-pool output diverged at decode step {step}; "
                 f"max_abs={(output[:2].float() - reference).abs().max().item():.6f}"
+            ),
+        )
+
+    # Reusing a released serving row must reproduce the same chunked prefill.
+    # This catches stale pool fields that ordinary fresh-row checks miss.
+    reuse_split, reuse_length = 80, 112
+    reuse_query = torch.randn(
+        reuse_length, 8, 128, dtype=torch.bfloat16, device=device
+    )
+    reuse_key = torch.randn(
+        reuse_length, 2, 128, dtype=torch.bfloat16, device=device
+    )
+    reuse_value = torch.randn_like(reuse_key)
+    reuse_pool = VLLMLayerLODPool(
+        _Layer(device),
+        settings=settings,
+        max_requests=4,
+        request_capacity=128,
+        active_indices=torch.zeros(4, dtype=torch.long, device=device),
+        dtype=torch.bfloat16,
+        device=device,
+        has_query_norm=args.normalized_qk,
+        has_key_norm=args.normalized_qk,
+    )
+
+    # Keep the source ranges and result buffer explicit because vLLM passes
+    # flattened layer-wide Q/K/V tensors rather than turn-local slices.
+    def run_reused_prefill() -> torch.Tensor:
+        output = torch.empty_like(reuse_query)
+        reuse_pool.direct_prefill_plan = ((0, 0, reuse_split, 0),)
+        reuse_pool.direct_prefill(reuse_query, reuse_key, reuse_value, output)
+        reuse_pool.direct_prefill_plan = (
+            (0, reuse_split, reuse_length, reuse_split),
+        )
+        reuse_pool.direct_prefill(reuse_query, reuse_key, reuse_value, output)
+        return output.clone()
+
+    first_reuse = run_reused_prefill()
+    reuse_pool.reset(0)
+    second_reuse = run_reused_prefill()
+    torch.testing.assert_close(
+        second_reuse.float(),
+        first_reuse.float(),
+        rtol=0,
+        atol=0,
+        msg="reset LOD pool row changed an identical chunked prefill",
+    )
+
+    if args.serving_reuse_length:
+        serving_length = args.serving_reuse_length
+        serving_capacity = max(32_768, serving_length + 32)
+        serving_settings = VLLMLODSettings(
+            kv_bits=args.kv_bits,
+            pool_size=1,
+            request_capacity=serving_capacity,
+            routing_geometry=args.routing_geometry,
+            cache_ownership="lod",
+        )
+        serving_pool = VLLMLayerLODPool(
+            _Layer(device),
+            settings=serving_settings,
+            max_requests=1,
+            request_capacity=serving_capacity,
+            active_indices=torch.zeros(1, dtype=torch.long, device=device),
+            dtype=torch.bfloat16,
+            device=device,
+            has_query_norm=args.normalized_qk,
+            has_key_norm=args.normalized_qk,
+        )
+        serving_query = torch.randn(
+            serving_length, 8, 128, dtype=torch.bfloat16, device=device
+        )
+        serving_key = torch.randn(
+            serving_length, 2, 128, dtype=torch.bfloat16, device=device
+        )
+        serving_value = torch.randn_like(serving_key)
+        serving_decode_query = torch.randn(
+            32, 8, 128, dtype=torch.bfloat16, device=device
+        )
+        serving_decode_key = torch.randn(
+            32, 2, 128, dtype=torch.bfloat16, device=device
+        )
+        serving_decode_value = torch.randn_like(serving_decode_key)
+
+        def run_serving_request() -> tuple[torch.Tensor, torch.Tensor]:
+            output = torch.empty_like(serving_query)
+            previous_length = 0
+            while previous_length < serving_length:
+                end = min(previous_length + 4096, serving_length)
+                serving_pool.direct_prefill_plan = (
+                    (0, previous_length, end, previous_length),
+                )
+                serving_pool.direct_prefill(
+                    serving_query, serving_key, serving_value, output
+                )
+                previous_length = end
+            decode_outputs = []
+            for decode_step in range(32):
+                previous_length = serving_length + decode_step
+                serving_pool.catch_up_many([(0, previous_length)])
+                decode_output = torch.empty_like(
+                    serving_decode_query[decode_step : decode_step + 1]
+                )
+                serving_pool.decode(
+                    serving_decode_query[decode_step : decode_step + 1],
+                    serving_decode_key[decode_step : decode_step + 1],
+                    serving_decode_value[decode_step : decode_step + 1],
+                    SimpleNamespace(num_actual_tokens=1),
+                    decode_output,
+                )
+                decode_outputs.append(decode_output.clone())
+            return output.clone(), torch.cat(decode_outputs)
+
+        first_serving, first_serving_decode = run_serving_request()
+        serving_pool.reset(0)
+        second_serving, second_serving_decode = run_serving_request()
+        torch.testing.assert_close(
+            second_serving.float(),
+            first_serving.float(),
+            rtol=0,
+            atol=0,
+            msg="reset LOD pool row changed a serving-scale chunked prefill",
+        )
+        serving_decode_delta = (
+            second_serving_decode.float() - first_serving_decode.float()
+        ).abs()
+        torch.testing.assert_close(
+            second_serving_decode.float(),
+            first_serving_decode.float(),
+            rtol=0,
+            atol=0,
+            msg=(
+                "reset LOD pool row changed serving-scale decode: "
+                f"max={serving_decode_delta.max().item():.6f} "
+                f"mean={serving_decode_delta.mean().item():.6f} "
+                f"per_step_max="
+                f"{serving_decode_delta.flatten(1).max(dim=1).values.tolist()}"
             ),
         )
     torch.cuda.synchronize(device)

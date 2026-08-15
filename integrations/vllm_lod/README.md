@@ -2,9 +2,11 @@
 
 This out-of-tree plugin makes semantic LOD state the authoritative cache for
 eligible global-attention layers. Initial and cached prefill build that state
-directly, and decode advances the same fixed-address rows. vLLM retains only a
-bounded chronological staging window for those layers; recurrent/Mamba state
-and attention layers that are not LOD-compatible remain in their native cache.
+directly, and decode advances the same fixed-address rows. With vLLM prefix
+caching disabled, the scheduler sees only a tiny logical placeholder and no
+chronological attention K/V is written. Prefix caching instead keeps a bounded
+chronological staging window so its block hashes remain usable. Recurrent/Mamba
+state and attention layers that are not LOD-compatible remain native.
 
 Completed LOD rows remain available for content-matched prefix reuse. When
 vLLM resumes a prompt at a physical block boundary, the plugin verifies the
@@ -39,8 +41,13 @@ VLLM_LOD_KV_BITS=4 \
 vllm serve MODEL \
   --attention-backend CUSTOM \
   --kv-cache-dtype bfloat16 \
+  --no-enable-prefix-caching \
   --max-num-seqs 8
 ```
+
+The `--no-enable-prefix-caching` form gives the smallest cache. Omit that flag
+when cross-request vLLM prefix reuse is more important; LOD then retains only
+the bounded native staging needed to validate and resume hashed prefixes.
 
 `VLLM_LOD_POOL_SIZE` is the number of simultaneous or retained request rows on
 each worker. It defaults to 8 and must be at least `--max-num-seqs`. The pool is
@@ -57,28 +64,36 @@ The optional `VLLM_LOD_MAX_CONTEXT` caps each LOD row. It defaults to vLLM's
 `VLLM_LOD_STATE_MIN` (256), `VLLM_LOD_OPEN_COUNT` (8), and
 `VLLM_LOD_QUANT_GROUP_SIZE` (32). Authoritative ownership forces
 `VLLM_LOD_PREFILL_MODE=direct`. `VLLM_LOD_NATIVE_STAGING_CHUNK` (1024) controls
-the exact chronological window retained by vLLM, while
-`VLLM_LOD_NATIVE_CACHE_HEADROOM` (1.5) controls transient block-pool headroom.
+the exact chronological window retained when prefix caching is enabled.
+`VLLM_LOD_NATIVE_PLACEHOLDER_CACHE` defaults to true and removes chronological
+attention K/V when prefix caching is disabled. `VLLM_LOD_NATIVE_CACHE_HEADROOM`
+defaults to 1.0; prefix caching enforces a 2.0 minimum for dormant hashed
+blocks.
 `VLLM_LOD_ROUTING_GEOMETRY=auto` selects coherence-aware state routing for
 attention modules with normalized keys and spherical routing for unnormalized
 keys. `raw`, `spherical`, and `coherence` are explicit diagnostic overrides.
 
 ## Execution contract
 
-- The default authoritative path runs direct LOD prefill and keeps only bounded
-  native staging for eligible global-attention layers. `dual` ownership retains
-  the older native-prefill/rebuild path.
+- The default authoritative path runs direct LOD prefill. It uses scheduler-only
+  placeholder pages when prefix caching is off and bounded native staging when
+  prefix caching is on. `dual` ownership retains the older
+  native-prefill/rebuild path.
 - Dual-mode prefix conversion reads each backend's canonical paged-cache view. In
   particular, ROCm's raw allocation has a nominal token-major shape but is
   written through head-major K/V views; treating the raw shape as semantic
   token order scrambles the reconstructed prefix.
 - Pure one-token decode uses fixed-address LOD pools and stable request-row
   indirection, so the Triton decode launches can be captured in CUDA graphs.
+- Authoritative mode disables vLLM's asynchronous two-model-batch queue because
+  an in-place LOD row must settle before its next update is prepared. Ordinary
+  request batching and CUDA graph replay remain enabled.
 - Exact protected/sink K/V lives in a separate side cache rather than consuming
   clustered state slots, and is fused into the final attention reduction.
-- State/page pools and scratch for configured decode capture sizes are reserved
-  before vLLM computes its native KV-block budget. Decode replay does not
-  allocate or change tensor addresses.
+- State/page pools and one maximum-batch decode workspace are reserved before
+  vLLM computes its native KV-block budget. Smaller captured batches use stable
+  views of that workspace, so decode replay does not allocate or change tensor
+  addresses.
 - State/page catch-up runs in `ModelState.preprocess_state`, between graph
   replays, in 256-token batches. Decode itself only appends to a fixed local
   tail and advances one integer length per active row.
@@ -104,11 +119,19 @@ later integration stage, not a hidden branch in the captured kernel.
 ## Current memory behavior
 
 Authoritative mode replaces full chronological K/V for eligible global layers.
-The vLLM scheduler uses chunk-local cache semantics to free settled staging
-blocks after each prefill/decode step, and startup caps that native pool from
-the global in-flight token budget rather than the maximum context length.
-Recurrent state remains native. Semantic leaves are quantized only after region
-assignment; sequential native blocks are never treated as quantizable pages.
+Without prefix caching, one logical placeholder block per active request is
+enough; K/V writes to it are skipped. With prefix caching, chunk-local semantics
+free settled staging blocks and startup sizes the pool from active, in-flight,
+and dormant-prefix demand rather than maximum context length. Recurrent state
+remains native. Semantic leaves are quantized only after region assignment;
+sequential native blocks are never treated as quantizable pages.
+
+For Qwen3.5-0.8B at 64K, batch eight, INT4 LOD uses 2.817 GB of semantic cache,
+0.221 GB of native scheduler/recurrent state, and a 0.063 GB shared decode
+workspace. Persistent cache is therefore 3.037 GB, 55.6% below full attention's
+6.845 GB. The earlier Transformers figure of 2.758 GB counted semantic
+attention state but not Qwen's recurrent GDN cache; adding the same 0.221 GB
+puts it within 2.0% of the vLLM result.
 
 `dual` mode intentionally retains both representations and should not be used
 to assess memory savings.
@@ -121,15 +144,33 @@ check used two 8K documents.
 
 | Evaluation | Native vLLM | LOD backend |
 | --- | ---: | ---: |
-| ProLong token CE | 3.109570 | 3.113030 |
-| ProLong perplexity | 22.411398 | 22.489091 |
+| ProLong token CE | 2.125621 | 2.128387 |
+| ProLong perplexity | 8.378100 | 8.401305 |
 | NIAH-S3 exact match | 8/8 | 8/8 |
 
 ProLong prompt log-probabilities exercise direct LOD prefill; its CE increase in
-this small check was 0.003461 (0.11%). NIAH-S3 exercises direct prefill and INT4
+this paired check was 0.002766 (0.13%). NIAH-S3 exercises direct prefill and INT4
 recursive LOD decode. The final NIAH run used CUDA graphs. The worker recorded
 48 real authoritative cache installations: six global-attention layers for
 each of eight requests.
+
+Full 503-example LongBench v2 runs used identical guided A-D decoding for full
+and LOD attention. After fixing cached-prefill finalization, stable page
+chronology, and unused INT4-page summaries, Qwen3.5-35B-A3B LOD scored 229/503
+(45.53%) versus full attention's 245/503 (48.71%). Qwen3.8-27B-FP8 LOD scored
+256/503 (50.89%) versus full attention's 269/503 (53.48%).
+
+| Model and subset | Full attention | LOD attention |
+| --- | ---: | ---: |
+| Qwen3.5 overall | 48.71% | 45.53% |
+| Qwen3.5 short / medium / long | 52.78% / 48.84% / 41.67% | 49.44% / 46.05% / 37.96% |
+| Qwen3.8 overall | 53.48% | 50.89% |
+| Qwen3.8 short / medium / long | 55.00% / 53.95% / 50.00% | 53.89% / 49.77% / 48.15% |
+
+All four runs truncated the same 205 prompts to the model's 131,072-token
+limit. The remaining LOD gaps are 3.18 percentage points on Qwen3.5 and 2.58
+points on Qwen3.8; NIAH success alone is not sufficient validation for this
+approximation.
 
 ## Warm serving performance
 
@@ -149,11 +190,9 @@ so their costs are amortized rather than represented by a single boundary.
 
 At 64K this is a 1.30x prefill speedup and a 1.20x decode-step speedup. At 16K,
 exact full attention remains 1.18x faster in prefill and 1.12x faster in decode.
-INT4 remains the memory-oriented mode: at 64K its persistent semantic cache and
-bounded native staging used 5.804 GB, versus 7.248 GB for the full backend
-(19.9% less). At 16K they used 3.986 GB versus 2.265 GB because fixed LOD pools
-and bounded staging outweigh compression at short context. Total device use is
-not reported as a cache metric because compiled kernels and runtime workspaces
+INT4 remains the memory-oriented mode. The current low-memory 64K result is
+reported in the memory section above. Total device use is not reported as a
+cache metric because model weights, compiled kernels, and runtime workspaces
 remain resident and vary with warmup history.
 
 vLLM's automatic ROCm selection chose `ROCM_ATTN` for this hybrid model. Its

@@ -14,6 +14,7 @@ from pathlib import Path
 import numpy as np
 import torch
 import transformers.models.qwen3_5.modeling_qwen3_5 as qwen35_modeling
+import transformers.models.qwen3_5_moe.modeling_qwen3_5_moe as qwen35_moe_modeling
 from transformers import AutoConfig, AutoTokenizer, Qwen3_5ForCausalLM
 
 from model.qwen35_two_level_attention import (
@@ -60,11 +61,15 @@ def enable_fla_fast_path(*, required: bool = False) -> bool:
     fused_recurrent_gated_delta_rule = compatible(
         fused_recurrent_gated_delta_rule
     )
-    qwen35_modeling.Qwen3_5RMSNormGated = FusedRMSNormGated
-    qwen35_modeling.torch_chunk_gated_delta_rule = chunk_gated_delta_rule
-    qwen35_modeling.torch_recurrent_gated_delta_rule = (
-        fused_recurrent_gated_delta_rule
-    )
+    for modeling, norm_name in (
+        (qwen35_modeling, "Qwen3_5RMSNormGated"),
+        (qwen35_moe_modeling, "Qwen3_5MoeRMSNormGated"),
+    ):
+        setattr(modeling, norm_name, FusedRMSNormGated)
+        modeling.torch_chunk_gated_delta_rule = chunk_gated_delta_rule
+        modeling.torch_recurrent_gated_delta_rule = (
+            fused_recurrent_gated_delta_rule
+        )
     return True
 
 
@@ -81,18 +86,28 @@ def require_qwen35_acceleration(model: torch.nn.Module) -> dict[str, bool | int]
     linear_layers = [
         module
         for module in model.modules()
-        if module.__class__.__name__ == "Qwen3_5GatedDeltaNet"
+        if module.__class__.__name__.endswith("GatedDeltaNet")
     ]
+    modeling = (
+        qwen35_moe_modeling
+        if any(
+            module.__class__.__module__.startswith(
+                "transformers.models.qwen3_5_moe."
+            )
+            for module in linear_layers
+        )
+        else qwen35_modeling
+    )
     has_linear_layers = bool(linear_layers)
     acceleration: dict[str, bool | int] = {
         "linear_layer_count": len(linear_layers),
         "fla_gated_delta_rule": has_linear_layers
         and uses_module(
-            qwen35_modeling.torch_chunk_gated_delta_rule, "fla."
+            modeling.torch_chunk_gated_delta_rule, "fla."
         ),
         "fla_recurrent_gated_delta_rule": has_linear_layers
         and uses_module(
-            qwen35_modeling.torch_recurrent_gated_delta_rule, "fla."
+            modeling.torch_recurrent_gated_delta_rule, "fla."
         ),
         "fla_fused_rms_norm_gated": has_linear_layers
         and all(
@@ -101,11 +116,11 @@ def require_qwen35_acceleration(model: torch.nn.Module) -> dict[str, bool | int]
         ),
         "causal_conv1d_prefill": has_linear_layers
         and uses_module(
-            qwen35_modeling.causal_conv1d_fn, "causal_conv1d"
+            modeling.causal_conv1d_fn, "causal_conv1d"
         ),
         "causal_conv1d_decode": has_linear_layers
         and uses_module(
-            qwen35_modeling.causal_conv1d_update, "causal_conv1d"
+            modeling.causal_conv1d_update, "causal_conv1d"
         ),
     }
     required = (

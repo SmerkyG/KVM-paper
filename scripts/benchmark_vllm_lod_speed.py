@@ -83,6 +83,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gpu-memory-utilization", type=float, default=0.8)
     parser.add_argument("--num-gpu-blocks-override", type=int)
     parser.add_argument("--enforce-eager", action="store_true")
+    parser.add_argument("--disable-async-scheduling", action="store_true")
     parser.add_argument("--jit-monitor-verbose", action="store_true")
     parser.add_argument("--attention-backend")
     parser.add_argument("--lod-leaf-num-warps", type=int)
@@ -235,6 +236,7 @@ def main() -> None:
         "long_prefill_token_threshold": args.long_prefill_token_threshold,
         "gpu_memory_utilization": args.gpu_memory_utilization,
         "enforce_eager": args.enforce_eager,
+        "async_scheduling": not args.disable_async_scheduling,
         "jit_monitor_verbose": args.jit_monitor_verbose,
         "enable_prefix_caching": False,
         "disable_log_stats": False,
@@ -304,6 +306,7 @@ def main() -> None:
         "max_num_batched_tokens": max_batched,
         "long_prefill_token_threshold": args.long_prefill_token_threshold,
         "enforce_eager": args.enforce_eager,
+        "async_scheduling_requested": not args.disable_async_scheduling,
         "jit_monitor_verbose": args.jit_monitor_verbose,
         "num_gpu_blocks_override": args.num_gpu_blocks_override,
         "attention_backend": args.attention_backend,

@@ -4072,8 +4072,19 @@ def route_logits_coarse_attention(
         num_warps = min(num_warps, 4)
         head_major = True
     grouped_rows = kv_group_size * block_m
+    value_block_dim = triton.next_power_of_2(value_dim)
     if head_major is None:
-        head_major = grouped_rows & (grouped_rows - 1) != 0
+        # GQA grouping keeps one value accumulator per grouped query row.
+        # Large groups with wide values can therefore exceed the device's
+        # shared-memory budget even though each individual head is ordinary
+        # attention (for example Qwen3.5-35B: 8 * 16 * 256 * fp32 = 128 KiB).
+        # Split those cases by query head. The kernel math is unchanged and
+        # the extra programs expose useful parallelism on these larger models.
+        grouped_accumulator_bytes = grouped_rows * value_block_dim * 4
+        head_major = (
+            grouped_rows & (grouped_rows - 1) != 0
+            or grouped_accumulator_bytes > 48 * 1024
+        )
     row_count = block_m if head_major else grouped_rows
     if row_count & (row_count - 1):
         raise ValueError(
@@ -4151,7 +4162,7 @@ def route_logits_coarse_attention(
         VALUE_DIM=value_dim,
         HEAD_BLOCK_DIM=head_block_dim,
         HEAD_TAIL_BLOCK_DIM=head_tail_block_dim,
-        VALUE_BLOCK_DIM=triton.next_power_of_2(value_dim),
+        VALUE_BLOCK_DIM=value_block_dim,
         ROUTE_COUNT=int(top_slots.size(-1)),
         SCALE=scale,
         BLOCK_M=block_m,

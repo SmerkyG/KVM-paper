@@ -27,6 +27,8 @@ from transformers import (
     Qwen3ForCausalLM,
     Qwen3_5ForCausalLM,
     Qwen3_5TextConfig,
+    Qwen3_5MoeForCausalLM,
+    Qwen3_5MoeTextConfig,
     SmolLM3Config,
     SmolLM3ForCausalLM,
 )
@@ -1061,6 +1063,43 @@ def _check_hybrid_cache() -> None:
 
 
 @torch.no_grad()
+def _check_qwen35_moe_hybrid_cache_factory() -> None:
+    config = Qwen3_5MoeTextConfig(
+        vocab_size=64,
+        hidden_size=32,
+        intermediate_size=64,
+        moe_intermediate_size=16,
+        num_experts=4,
+        num_experts_per_tok=2,
+        num_hidden_layers=2,
+        num_attention_heads=4,
+        num_key_value_heads=2,
+        head_dim=8,
+        linear_num_key_heads=4,
+        linear_num_value_heads=4,
+        linear_key_head_dim=8,
+        linear_value_head_dim=8,
+        linear_conv_kernel_dim=2,
+        layer_types=["linear_attention", "full_attention"],
+        max_position_embeddings=64,
+    )
+    model = Qwen3_5MoeForCausalLM(config).eval()
+    installed = install_hf_lod_attention(
+        model, config=_lod_config(), open_count=2
+    )
+    if installed != ["model.layers.1.self_attn"]:
+        raise AssertionError("Qwen3.5 MoE installer selected the wrong layer")
+    cache = new_hf_lod_cache(model)
+    if not isinstance(cache, HybridHFLODCache):
+        raise AssertionError("Qwen3.5 MoE did not receive a mixed LOD cache")
+    if sorted(cache.lod_layers) != [1]:
+        raise AssertionError("Qwen3.5 MoE LOD cache owns the wrong layers")
+    if type(cache.native_cache.layers[0]).__name__ != "LinearAttentionLayer":
+        raise AssertionError("Qwen3.5 MoE recurrent state lacks its native cache")
+    print("Qwen3.5 MoE hybrid cache factory passed")
+
+
+@torch.no_grad()
 def _check_partial_dense_cache() -> None:
     """A dense native/LOD split must remain exact inside the local window."""
     torch.manual_seed(39)
@@ -1209,6 +1248,7 @@ def main() -> None:
     _check_beam_reorder()
     _check_automatic_padded_generation()
     _check_hybrid_cache()
+    _check_qwen35_moe_hybrid_cache_factory()
     _check_partial_dense_cache()
     _check_sliding_layer_selection()
 

@@ -767,74 +767,30 @@ def _assign_page_ordinals_kernel(
 
 
 @triton.jit
-def _assign_block_page_ordinals_kernel(
+def _publish_page_ids_kernel(
     owners,
-    slot_lengths,
-    next_page,
+    ordinals,
+    page_ids,
     slot_pages,
     overflow_page_keys,
     overflow_page_values,
     overflow_used,
     overflow_flag,
-    ordinals,
     TOKENS: tl.constexpr,
     STATE_CAPACITY: tl.constexpr,
     INLINE_PAGES_PER_SLOT: tl.constexpr,
     HASH_CAPACITY: tl.constexpr,
     HASH_PROBES: tl.constexpr,
     PAGE_SIZE: tl.constexpr,
-    BLOCK_TOKENS: tl.constexpr,
 ):
-    """Reserve one ordinal range per owner represented in a token block."""
-    kv_row = tl.program_id(0).to(tl.int64)
-    token = tl.program_id(1).to(tl.int64) * BLOCK_TOKENS + tl.arange(
-        0, BLOCK_TOKENS
-    )
-    valid = token < TOKENS
-    token_row = kv_row * TOKENS + token
-    owner = tl.load(owners + token_row, mask=valid, other=-1).to(tl.int64)
-
-    lane = tl.arange(0, BLOCK_TOKENS)
-    same_owner = (
-        (owner[:, None] == owner[None, :])
-        & valid[:, None]
-        & valid[None, :]
-    )
-    earlier = lane[None, :] < lane[:, None]
-    rank = tl.sum((same_owner & earlier).to(tl.int32), axis=1)
-    block_count = tl.sum(same_owner.to(tl.int32), axis=1)
-    leader = valid & (rank == 0)
-    base = tl.zeros((BLOCK_TOKENS,), tl.int32)
-    # Scalar atomics have reliable fetch-add return values on the target ROCm
-    # stack.  The vector form updates counters correctly but can return stale
-    # per-lane values when several programs reserve different owners at once.
-    for leader_lane in tl.static_range(0, BLOCK_TOKENS):
-        selected = lane == leader_lane
-        leader_active = (
-            tl.sum((leader & selected).to(tl.int32), axis=0) != 0
-        )
-        leader_owner = tl.sum(tl.where(selected, owner, 0), axis=0)
-        leader_count = tl.sum(tl.where(selected, block_count, 0), axis=0)
-        leader_base = tl.atomic_add(
-            slot_lengths + kv_row * STATE_CAPACITY + leader_owner,
-            leader_count,
-            mask=leader_active,
-            sem="relaxed",
-        ).to(tl.int32)
-        base += tl.where(
-            valid & leader_active & (owner == leader_owner),
-            leader_base,
-            0,
-        )
-    ordinal = base + rank
-    tl.store(ordinals + token_row, ordinal, mask=valid)
-
+    """Publish deterministic page IDs for the first leaf of each page."""
+    token_row = tl.program_id(0).to(tl.int64)
+    kv_row = token_row // TOKENS
+    owner = tl.load(owners + token_row).to(tl.int64)
+    ordinal = tl.load(ordinals + token_row).to(tl.int64)
+    starts_page = ordinal % PAGE_SIZE == 0
     page_ordinal = ordinal // PAGE_SIZE
-    starts_page = valid & (ordinal % PAGE_SIZE == 0)
-    page_rank = tl.cumsum(starts_page.to(tl.int32), axis=0) - 1
-    page_count = tl.sum(starts_page.to(tl.int32), axis=0)
-    first_page = tl.atomic_add(next_page + kv_row, page_count, sem="relaxed")
-    page_id = first_page + page_rank
+    page_id = tl.load(page_ids + token_row).to(tl.int32)
     inline = starts_page & (page_ordinal < INLINE_PAGES_PER_SLOT)
     tl.store(
         slot_pages
@@ -847,13 +803,7 @@ def _assign_block_page_ordinals_kernel(
     lookup_key = (owner * 65_536 + page_ordinal).to(tl.int32)
     index = _page_hash_index(lookup_key, HASH_CAPACITY)
     active = starts_page & ~inline
-    ones = tl.full((BLOCK_TOKENS,), 1, tl.int32)
-    tl.atomic_xchg(
-        overflow_used + token * 0,
-        ones,
-        mask=active,
-        sem="relaxed",
-    )
+    tl.atomic_xchg(overflow_used, 1, mask=active, sem="relaxed")
     for _ in tl.static_range(0, HASH_PROBES):
         old_key = tl.atomic_cas(
             overflow_page_keys + kv_row * HASH_CAPACITY + index,
@@ -869,12 +819,7 @@ def _assign_block_page_ordinals_kernel(
         )
         active &= ~claimed
         index = (index + 1) & (HASH_CAPACITY - 1)
-    tl.atomic_xchg(
-        overflow_flag + token * 0,
-        ones,
-        mask=active,
-        sem="relaxed",
-    )
+    tl.atomic_xchg(overflow_flag, 1, mask=active, sem="relaxed")
 
 
 def _assign_page_ordinals(
@@ -890,29 +835,55 @@ def _assign_page_ordinals(
     hash_probes: int,
     page_size: int,
 ) -> torch.Tensor:
-    """Assign page ordinals with block-local duplicate aggregation."""
+    """Assign stable region-local ordinals and publish new logical pages."""
     batch, kv_heads, tokens = owners.shape
-    ordinals = torch.empty_like(owners, dtype=torch.int32)
-    block_tokens = 16
-    _assign_block_page_ordinals_kernel[
-        (batch * kv_heads, triton.cdiv(tokens, block_tokens))
-    ](
+    # Recursive LOD pages are semantic units, so their membership must not
+    # depend on the order in which GPU programs happen to reserve slot ranges.
+    # Stable owner sorting gives every leaf its chronological rank within the
+    # current append. Existing slot lengths make the result invariant to
+    # splitting the same history across multiple cached-prefill calls.
+    order = owners.argsort(dim=-1, stable=True)
+    sorted_owners = owners.gather(-1, order)
+    positions = torch.arange(
+        tokens, dtype=torch.int32, device=owners.device
+    ).view(1, 1, tokens)
+    group_start = torch.where(
+        (positions == 0)
+        | (sorted_owners != torch.roll(sorted_owners, shifts=1, dims=-1)),
+        positions,
+        0,
+    ).cummax(dim=-1).values
+    sorted_ranks = positions - group_start
+    ranks = torch.empty_like(owners, dtype=torch.int32)
+    ranks.scatter_(-1, order, sorted_ranks.expand(batch, kv_heads, tokens))
+    ordinals = slot_lengths.gather(-1, owners) + ranks
+
+    additions = torch.zeros_like(slot_lengths)
+    additions.scatter_add_(
+        -1, owners, torch.ones_like(owners, dtype=slot_lengths.dtype)
+    )
+    slot_lengths.add_(additions)
+
+    starts_page = ordinals.remainder(page_size).eq(0)
+    page_ids = next_page.unsqueeze(-1) + starts_page.cumsum(
+        dim=-1, dtype=torch.int32
+    ) - 1
+    next_page.add_(starts_page.sum(dim=-1, dtype=torch.int32))
+    _publish_page_ids_kernel[(batch * kv_heads * tokens,)](
         owners,
-        slot_lengths,
-        next_page,
+        ordinals,
+        page_ids,
         slot_pages,
         overflow_page_keys,
         overflow_page_values,
         overflow_used,
         overflow_flag,
-        ordinals,
         TOKENS=tokens,
         STATE_CAPACITY=int(slot_pages.size(2)),
         INLINE_PAGES_PER_SLOT=int(slot_pages.size(3)),
         HASH_CAPACITY=int(overflow_page_keys.size(2)),
         HASH_PROBES=hash_probes,
         PAGE_SIZE=page_size,
-        BLOCK_TOKENS=block_tokens,
         num_warps=1,
     )
     return ordinals
@@ -1819,34 +1790,35 @@ def _requantize_appended_virtual_page_tensor_int4(
         + (kv_row * PAGE_CAPACITY + page_id) * DIMENSION_SIZE
     )
     old_inverse_count = 1.0 / tl.maximum(old_count.to(tl.float32), 1.0)
+    has_old_tokens = refresh & (old_count > 0)
     if QUANTIZED_SUMMARIES:
         old_summary_scale = tl.load(
             page_sum_scales
             + (kv_row * PAGE_CAPACITY + page_id)
             * (DIMENSION_SIZE // GROUP_SIZE)
             + group,
-            mask=refresh,
+            mask=has_old_tokens,
             other=0.0,
         ).to(tl.float32)
         old_even_sum = tl.load(
             quantized_sum_base + even_dimension,
-            mask=refresh & (even_dimension < DIMENSION_SIZE),
+            mask=has_old_tokens & (even_dimension < DIMENSION_SIZE),
             other=0,
         ).to(tl.float32) * old_summary_scale
         old_odd_sum = tl.load(
             quantized_sum_base + odd_dimension,
-            mask=refresh & (odd_dimension < DIMENSION_SIZE),
+            mask=has_old_tokens & (odd_dimension < DIMENSION_SIZE),
             other=0,
         ).to(tl.float32) * old_summary_scale
     else:
         old_even_sum = tl.load(
             sum_base + even_dimension,
-            mask=refresh & (even_dimension < DIMENSION_SIZE),
+            mask=has_old_tokens & (even_dimension < DIMENSION_SIZE),
             other=0.0,
         ).to(tl.float32)
         old_odd_sum = tl.load(
             sum_base + odd_dimension,
-            mask=refresh & (odd_dimension < DIMENSION_SIZE),
+            mask=has_old_tokens & (odd_dimension < DIMENSION_SIZE),
             other=0.0,
         ).to(tl.float32)
     old_scale = tl.load(

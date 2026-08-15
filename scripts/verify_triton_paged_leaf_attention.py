@@ -190,12 +190,10 @@ def verify_page_append(device: torch.device) -> None:
             expected_k = torch.cat(
                 [k[0, head][owners[0, head] == slot] for owners, k, _ in chunks]
             )
-            actual_id = actual_k[:, 1].float() * 128 + actual_k[:, 0].float()
-            expected_id = expected_k[:, 1].float() * 128 + expected_k[:, 0].float()
-            actual_order = actual_id.argsort()
-            expected_order = expected_id.argsort()
-            if not torch.equal(actual_k[actual_order], expected_k[expected_order]):
-                raise AssertionError("Triton page append lost or corrupted a key")
+            if not torch.equal(actual_k, expected_k):
+                raise AssertionError(
+                    "Triton page append did not preserve chronological region order"
+                )
 
 
 def verify_virtual_page_append(device: torch.device) -> None:
@@ -341,10 +339,10 @@ def verify_virtual_page_append(device: torch.device) -> None:
             expected_indices = torch.nonzero(
                 owners[0, head] == slot, as_tuple=False
             ).flatten()
-            if not torch.equal(
-                actual_indices.sort().values, expected_indices.sort().values
-            ):
-                raise AssertionError("virtual page append lost a leaf index")
+            if not torch.equal(actual_indices, expected_indices):
+                raise AssertionError(
+                    "virtual page append did not preserve chronological region order"
+                )
             actual_key_sum = page_sum_k[0, head].index_select(0, page_ids).sum(0)
             actual_value_sum = page_sum_v[0, head].index_select(0, page_ids).sum(0)
             torch.testing.assert_close(
@@ -482,6 +480,15 @@ def verify_virtual_page_append(device: torch.device) -> None:
         assert torch.mean((l2_reconstruction - source.float()) ** 2) <= torch.mean(
             (max_reconstruction - source.float()) ** 2
         )
+    # Fixed-capacity serving pools deliberately reuse storage.  A page with no
+    # leaves must ignore whatever summary bytes its previous owner left behind.
+    unused_pages = torch.arange(page_capacity, device=device).view(1, 1, -1) >= (
+        next_page.unsqueeze(-1)
+    )
+    quantized_page_sum_k.masked_fill_(unused_pages.unsqueeze(-1), 127)
+    quantized_page_sum_v.masked_fill_(unused_pages.unsqueeze(-1), -127)
+    page_sum_k_scales.masked_fill_(unused_pages.unsqueeze(-1), 8)
+    page_sum_v_scales.masked_fill_(unused_pages.unsqueeze(-1), 8)
     append_k = torch.randn(
         batch,
         kv_heads,
@@ -553,6 +560,27 @@ def verify_virtual_page_append(device: torch.device) -> None:
             torch.testing.assert_close(
                 actual_key_sum,
                 expected_key_sum,
+                rtol=2e-2,
+                atol=3.0e-1,
+            )
+            expected_value_sum = torch.cat(
+                (
+                    leaf_v[0, head][owners[0, head] == slot],
+                    append_v[0, head][append_owners[0, head] == slot],
+                )
+            ).float().sum(0)
+            actual_value_sum = (
+                quantized_page_sum_v[0, head]
+                .index_select(0, page_ids)
+                .float()
+                * page_sum_v_scales[0, head]
+                .index_select(0, page_ids)
+                .repeat_interleave(32, dim=-1)
+                .float()
+            ).sum(0)
+            torch.testing.assert_close(
+                actual_value_sum,
+                expected_value_sum,
                 rtol=2e-2,
                 atol=3.0e-1,
             )
@@ -651,12 +679,10 @@ def verify_direct_page_append(device: torch.device) -> None:
                 raise AssertionError("direct page append left a missing page")
             actual_k = page_k[0, head].index_select(0, page_ids).flatten(0, 1)[:count]
             expected_k = k[0, head][owners[0, head] == slot]
-            actual_id = actual_k[:, 1].float() * 128 + actual_k[:, 0].float()
-            expected_id = expected_k[:, 1].float() * 128 + expected_k[:, 0].float()
-            if not torch.equal(
-                actual_k[actual_id.argsort()], expected_k[expected_id.argsort()]
-            ):
-                raise AssertionError("direct page append lost or corrupted a key")
+            if not torch.equal(actual_k, expected_k):
+                raise AssertionError(
+                    "direct page append did not preserve chronological region order"
+                )
             if int(page_counts[0, head].index_select(0, page_ids).sum().item()) != count:
                 raise AssertionError("direct page summaries have incorrect counts")
             actual_key_sum = page_sum_k[0, head].index_select(0, page_ids).sum(0)

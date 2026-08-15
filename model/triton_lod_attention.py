@@ -56,6 +56,10 @@ from .kernels.lod_kernels import (
     streaming_state_maxsim,
 )
 from .kvm_mixer import _all_idx, _gather_by_idx, _split_append_merge_idx_by_maxsim
+from .pytorch_lod_attention import (
+    _premerge_adjacent_state_inputs,
+    _sum_adjacent_groups,
+)
 
 
 def _round_up(value: int, multiple: int) -> int:
@@ -97,6 +101,7 @@ class TritonLODAttentionCore(nn.Module):
     state_growth_factor = 16.0
     state_min_len = 256
     state_size_offset = 0
+    state_premerge_factor = 1
     sink_len = 1
     # A protected singleton is already exact in the coarse branch, so opening
     # its one-token leaf would only consume a detailed-region route.
@@ -223,6 +228,13 @@ class TritonLODAttentionCore(nn.Module):
         if self.separate_sink_cache:
             return 0
         return min(self.sink_len, state_len)
+
+    def _protected_route_len(self, state_len: int) -> int:
+        # Protected singleton slots need no exact-leaf route. Fixed groups do:
+        # their coarse K/V mean is no longer identical to either constituent.
+        if self.state_premerge_factor > 1:
+            return 0
+        return self._protected_state_len(state_len)
 
     def _state_capacity(self, total_len: int, current_state_len: int) -> int:
         # One chunk of headroom avoids recompilation during short generation.
@@ -1417,6 +1429,17 @@ class TritonLODAttentionCore(nn.Module):
         torch.Tensor,
         torch.Tensor | None,
     ]:
+        if self.state_premerge_factor not in {1, 2, 4}:
+            raise ValueError("state premerge factor must be one, two, or four")
+        if self.state_premerge_factor > 1 and (
+            self.overflow_bipartite_merge
+            or self.state_union_bipartite
+            or self.state_precompact_direct_append
+        ):
+            raise ValueError(
+                "adjacent state premerge cannot be combined with another "
+                "state precompaction policy"
+            )
         use_constituent_norms = self.state_clustering_centroid_rescale != "none"
         if use_constituent_norms:
             if key_norm_sums is None:
@@ -1457,14 +1480,27 @@ class TritonLODAttentionCore(nn.Module):
             )
             if precompacted is not None:
                 return precompacted
-        original_overflow_len = int(overflow_k.size(2))
         overflow_key_norm_sums = (
             self._state_clustering_constituent_rms(overflow_k)
             if use_constituent_norms
             else None
         )
         membership = None
-        if self.overflow_bipartite_merge:
+        if self.state_premerge_factor > 1:
+            overflow_k, overflow_v, overflow_counts, membership = (
+                _premerge_adjacent_state_inputs(
+                    overflow_k,
+                    overflow_v,
+                    self.state_premerge_factor,
+                )
+            )
+            if overflow_key_norm_sums is not None:
+                overflow_key_norm_sums = _sum_adjacent_groups(
+                    overflow_key_norm_sums,
+                    self.state_premerge_factor,
+                )
+            overflow_select_k = self._mean(overflow_k, overflow_counts)
+        elif self.overflow_bipartite_merge:
             overflow_k, overflow_v, overflow_counts, membership = (
                 self._reduce_overflow_balanced(overflow_k, overflow_v)
             )
@@ -1483,6 +1519,11 @@ class TritonLODAttentionCore(nn.Module):
             ctx_len, available_context, current_state_len
         )
         n_append = min(max(desired_state_len - current_state_len, 0), overflow_len)
+        # A fixed premerge can expose fewer atomic routing inputs than the
+        # raw-token growth schedule asks us to append in this update.  The
+        # state can only grow by the number of available groups; subsequent
+        # updates will continue toward the scheduled target.
+        desired_state_len = current_state_len + n_append
         owners = torch.full(
             overflow_k.shape[:-1], -1, dtype=torch.long, device=overflow_k.device
         )
@@ -2398,7 +2439,7 @@ class TritonLODAttentionCore(nn.Module):
             else self.two_level_topk
         )
         protected_len = (
-            self._protected_state_len(state_len)
+            self._protected_route_len(state_len)
             if self.exclude_sink_from_routes
             else 0
         )
@@ -4603,7 +4644,7 @@ class TritonLODAttentionCore(nn.Module):
                 route_use_dot=self.decode_route_use_dot,
                 route_gqa_grouped=self.decode_route_gqa_grouped,
                 protected_len=(
-                    self._protected_state_len(state_len)
+                    self._protected_route_len(state_len)
                     if self.exclude_sink_from_routes
                     else 0
                 ),
@@ -5019,6 +5060,7 @@ class TritonLODAttentionCore(nn.Module):
         logical_prefill_len: int | None = None,
         prefill_valid_starts: torch.Tensor | None = None,
         output_buffer: torch.Tensor | None = None,
+        finalize_cache_for_decode: bool = True,
     ) -> torch.Tensor:
         output = self._run_prefill(
             q,
@@ -5028,6 +5070,7 @@ class TritonLODAttentionCore(nn.Module):
             prefill_valid_starts=prefill_valid_starts,
             build_cache_only=False,
             output_buffer=output_buffer,
+            finalize_cache_for_decode=finalize_cache_for_decode,
         )
         if output is None:
             raise AssertionError("attention prefill did not produce an output")
@@ -5073,6 +5116,7 @@ class TritonLODAttentionCore(nn.Module):
         prefill_valid_starts: torch.Tensor | None,
         build_cache_only: bool,
         output_buffer: torch.Tensor | None = None,
+        finalize_cache_for_decode: bool = True,
     ) -> torch.Tensor | None:
         if k.ndim != 4 or v.ndim != 4 or k.shape[:3] != v.shape[:3]:
             raise ValueError("prefill K/V must be matching rank-four tensors")
@@ -5183,8 +5227,8 @@ class TritonLODAttentionCore(nn.Module):
         )
         archive_k = k[..., separated_sink_len:, :]
         archive_v = v[..., separated_sink_len:, :]
-        initial_state_len = initial_len - separated_sink_len
-        state_capacity = self._state_capacity(prefill_len, initial_state_len)
+        initial_leaf_len = initial_len - separated_sink_len
+        initial_state_len = initial_leaf_len
         if prefill_valid_starts is None:
             initial_state_k = archive_k[..., :initial_state_len, :]
             initial_state_v = archive_v[..., :initial_state_len, :]
@@ -5234,6 +5278,116 @@ class TritonLODAttentionCore(nn.Module):
             )[:, None, :].expand(
                 -1, self.config.num_key_value_heads, -1
             )
+        initial_key_norm_sums = (
+            self._state_clustering_constituent_rms(initial_state_k)
+            if self.state_clustering_centroid_rescale != "none"
+            else None
+        )
+        if self.state_premerge_factor > 1:
+            (
+                initial_state_k,
+                initial_state_v,
+                initial_counts,
+                grouped_owners,
+            ) = _premerge_adjacent_state_inputs(
+                initial_state_k,
+                initial_state_v,
+                self.state_premerge_factor,
+            )
+            if initial_key_norm_sums is not None:
+                initial_key_norm_sums = _sum_adjacent_groups(
+                    initial_key_norm_sums,
+                    self.state_premerge_factor,
+                )
+            if initial_valid is None:
+                owners = grouped_owners
+            else:
+                grouped_counts = _sum_adjacent_groups(
+                    initial_valid[:, None, :, None].float(),
+                    self.state_premerge_factor,
+                ).expand(-1, self.config.num_key_value_heads, -1, -1)
+                initial_counts = torch.where(
+                    grouped_counts > 0,
+                    grouped_counts,
+                    torch.full_like(
+                        grouped_counts, torch.finfo(torch.float32).tiny
+                    ),
+                )
+                grouped_slots = int(initial_state_k.size(2))
+                initial_state_k = torch.cat(
+                    (
+                        initial_state_k,
+                        torch.zeros_like(initial_state_k[..., :1, :]),
+                    ),
+                    dim=2,
+                )
+                initial_state_v = torch.cat(
+                    (
+                        initial_state_v,
+                        torch.zeros_like(initial_state_v[..., :1, :]),
+                    ),
+                    dim=2,
+                )
+                initial_counts = torch.cat(
+                    (
+                        initial_counts,
+                        torch.full_like(
+                            initial_counts[..., :1, :],
+                            torch.finfo(torch.float32).tiny,
+                        ),
+                    ),
+                    dim=2,
+                )
+                if initial_key_norm_sums is not None:
+                    initial_key_norm_sums = torch.cat(
+                        (
+                            initial_key_norm_sums,
+                            torch.zeros_like(initial_key_norm_sums[..., :1, :]),
+                        ),
+                        dim=2,
+                    )
+                grouped_valid = grouped_counts[..., 0].gt(0).any(dim=1)
+                initial_valid = torch.cat(
+                    (
+                        grouped_valid,
+                        torch.zeros(
+                            batch_size,
+                            1,
+                            dtype=torch.bool,
+                            device=k.device,
+                        ),
+                    ),
+                    dim=1,
+                )
+                physical = slot.unsqueeze(0).expand(batch_size, -1)
+                owners = torch.where(
+                    physical >= prefill_valid_starts.unsqueeze(1),
+                    torch.div(
+                        physical - prefill_valid_starts.unsqueeze(1),
+                        self.state_premerge_factor,
+                        rounding_mode="floor",
+                    ),
+                    torch.full_like(physical, grouped_slots),
+                )[:, None, :].expand(
+                    -1, self.config.num_key_value_heads, -1
+                )
+            initial_state_len = int(initial_state_k.size(2))
+        elif initial_valid is None:
+            initial_counts = torch.ones(
+                *initial_state_k.shape[:3],
+                1,
+                dtype=torch.float32,
+                device=k.device,
+            )
+        else:
+            initial_counts = torch.full(
+                (*initial_state_k.shape[:3], 1),
+                torch.finfo(torch.float32).tiny,
+                dtype=torch.float32,
+                device=k.device,
+            )
+            initial_counts.masked_fill_(initial_valid[:, None, :, None], 1.0)
+        state_capacity = self._state_capacity(prefill_len, initial_state_len)
         state_k = _pad_sequence(initial_state_k, state_capacity).clone()
         state_v = _pad_sequence(initial_state_v, state_capacity).clone()
         counts = torch.zeros(
@@ -5244,26 +5398,19 @@ class TritonLODAttentionCore(nn.Module):
             dtype=torch.float32,
             device=k.device,
         )
-        if initial_valid is None:
-            counts[..., :initial_state_len, :].fill_(1.0)
-        else:
-            counts[..., :initial_state_len, :].fill_(
-                torch.finfo(torch.float32).tiny
-            )
-            counts[..., :initial_state_len, :].masked_fill_(
-                initial_valid[:, None, :, None], 1.0
-            )
+        counts[..., :initial_state_len, :].copy_(initial_counts)
         key_norm_sums = None
         if self.state_clustering_centroid_rescale != "none":
             key_norm_sums = torch.zeros_like(counts)
-            initial_key_rms = self._state_clustering_constituent_rms(
-                initial_state_k
-            )
-            key_norm_sums[..., :initial_state_len, :].copy_(initial_key_rms)
+            if initial_key_norm_sums is None:
+                raise AssertionError("initial constituent norms are missing")
             if initial_valid is not None:
-                key_norm_sums[..., :initial_state_len, :].masked_fill_(
+                initial_key_norm_sums = initial_key_norm_sums.masked_fill(
                     ~initial_valid[:, None, :, None], 0
                 )
+            key_norm_sums[..., :initial_state_len, :].copy_(
+                initial_key_norm_sums
+            )
         state_len = initial_state_len
         state_coverage = initial_len
         page_cache = None
@@ -5272,8 +5419,8 @@ class TritonLODAttentionCore(nn.Module):
                 self.chunk_len, self.decode_cache_headroom
             )
             page_cache = self._new_page_cache(
-                archive_k[..., :initial_state_len, :],
-                archive_v[..., :initial_state_len, :],
+                archive_k[..., :initial_leaf_len, :],
+                archive_v[..., :initial_leaf_len, :],
                 owners,
                 state_capacity=state_capacity,
                 sequence_capacity=sequence_capacity,
@@ -5374,7 +5521,19 @@ class TritonLODAttentionCore(nn.Module):
         # Prepare the state boundary required by the first decode token after
         # all prefill outputs have been computed.  Otherwise prompts ending on
         # a chunk boundary pay a full 256-token state update on token one.
-        decode_coverage = max(initial_len, self._bswa_begin(prefill_len + 1))
+        if finalize_cache_for_decode:
+            decode_coverage = max(initial_len, self._bswa_begin(prefill_len + 1))
+        else:
+            # A serving scheduler can split one logical prefill at arbitrary
+            # points. Preserve the exact field of the current *LOD* query
+            # block until that block is complete; otherwise every scheduler
+            # boundary irreversibly over-compresses part of the prefill field.
+            completed_blocks = max(
+                0,
+                (prefill_len - front_len) // prefill_chunk_len,
+            )
+            next_query_begin = front_len + completed_blocks * prefill_chunk_len
+            decode_coverage = max(initial_len, next_query_begin - exact_lookback)
         while decode_coverage > state_coverage:
             update_end = min(
                 decode_coverage, state_coverage + prefill_state_update_len
@@ -5421,7 +5580,12 @@ class TritonLODAttentionCore(nn.Module):
         recent_v = v[..., state_coverage:prefill_len, :]
         recent_len = int(recent_k.size(2))
         if page_cache is not None:
-            recent_capacity = self.local_len + self.decode_state_update_len
+            recent_capacity = max(
+                self.local_len + self.decode_state_update_len,
+                self.prefill_local_len
+                if not finalize_cache_for_decode
+                else 0,
+            )
             buffered_k = k.new_empty(
                 *k.shape[:2], recent_capacity, int(k.size(-1))
             )
@@ -5538,6 +5702,7 @@ class TritonLODAttentionCore(nn.Module):
         new_k: torch.Tensor,
         new_v: torch.Tensor,
         output_buffer: torch.Tensor | None = None,
+        finalize_cache_for_decode: bool = True,
     ) -> torch.Tensor:
         """Append a causal multi-token turn without replaying decode kernels."""
         if not hasattr(self, "_lod_state"):
@@ -5662,24 +5827,79 @@ class TritonLODAttentionCore(nn.Module):
                 state_coverage = update_end
 
         outputs = []
-        for query_begin in range(0, turn_len, prefill_chunk_len):
-            query_end = min(turn_len, query_begin + prefill_chunk_len)
+        query_begin = 0
+        front_len = exact_lookback + self.chunk_len
+        if previous_total_len < front_len:
+            front_query_end = min(turn_len, front_len - previous_total_len)
+            initial_state_k = self._mean(
+                state_k[..., :state_len, :], counts[..., :state_len, :]
+            )
+            initial_state_v = self._mean(
+                state_v[..., :state_len, :], counts[..., :state_len, :]
+            )
+            exact_key_parts = []
+            exact_value_parts = []
+            if isinstance(sink_k, torch.Tensor) and isinstance(
+                sink_v, torch.Tensor
+            ):
+                exact_key_parts.append(sink_k)
+                exact_value_parts.append(sink_v)
+            exact_tail_end = (
+                previous_total_len + front_query_end - initial_coverage
+            )
+            exact_key_parts.extend(
+                (initial_state_k, working_k[..., :exact_tail_end, :])
+            )
+            exact_value_parts.extend(
+                (initial_state_v, working_v[..., :exact_tail_end, :])
+            )
+            exact_k = torch.cat(exact_key_parts, dim=2)
+            exact_v = torch.cat(exact_value_parts, dim=2)
+            suffix_query = q[..., :front_query_end, :]
+            exact_q = (
+                suffix_query
+                if self.prefill_local_attention_backend == "aiter"
+                else torch.cat(
+                    (
+                        q.new_zeros(
+                            *q.shape[:2], previous_total_len, int(q.size(-1))
+                        ),
+                        suffix_query,
+                    ),
+                    dim=2,
+                )
+            )
+            exact_output, _ = self._prefill_local_attention(
+                exact_q,
+                exact_k,
+                exact_v,
+                query_offset=previous_total_len,
+            )
+            if output_buffer is not None:
+                output_buffer[..., :front_query_end, :].copy_(exact_output)
+                outputs.append(output_buffer[..., :front_query_end, :])
+            else:
+                outputs.append(exact_output)
+            query_begin = front_query_end
+        while query_begin < turn_len:
             absolute_query_begin = previous_total_len + query_begin
-            # Keep cached-prefill state boundaries on the decode chunk grid.
-            # This retains at most one extra partial chunk in exact local
-            # attention and gives the state/page kernels one reusable residual
-            # update shape across arbitrarily sized turns.
-            coverage_candidate = max(
-                0, absolute_query_begin - exact_lookback
+            block_index = (
+                absolute_query_begin - front_len
+            ) // prefill_chunk_len
+            block_begin = front_len + block_index * prefill_chunk_len
+            block_end = block_begin + prefill_chunk_len
+            query_end = min(
+                turn_len,
+                block_end - previous_total_len,
             )
-            coverage_candidate = (
-                coverage_candidate // self.chunk_len * self.chunk_len
+            desired_coverage = max(
+                state_coverage,
+                block_begin - exact_lookback,
             )
-            desired_coverage = max(state_coverage, coverage_candidate)
             update_to(
                 desired_coverage,
                 context_length_for=lambda update_end: (
-                    absolute_query_begin + update_end - desired_coverage
+                    block_begin + update_end - desired_coverage
                 ),
             )
             local_begin = state_coverage - initial_coverage
@@ -5730,11 +5950,24 @@ class TritonLODAttentionCore(nn.Module):
                     ),
                 )
             )
+            query_begin = query_end
 
-        decode_coverage = max(
-            state_coverage,
-            self._bswa_begin(total_len + 1),
-        )
+        if finalize_cache_for_decode:
+            decode_coverage = max(
+                state_coverage,
+                self._bswa_begin(total_len + 1),
+            )
+        else:
+            front_len = exact_lookback + self.chunk_len
+            completed_blocks = max(
+                0,
+                (total_len - front_len) // prefill_chunk_len,
+            )
+            next_query_begin = front_len + completed_blocks * prefill_chunk_len
+            decode_coverage = max(
+                state_coverage,
+                next_query_begin - exact_lookback,
+            )
         update_to(
             decode_coverage,
             context_length_for=lambda update_end: min(
@@ -5749,6 +5982,9 @@ class TritonLODAttentionCore(nn.Module):
             recent_capacity = max(
                 tail_len,
                 self.local_len + self.decode_state_update_len,
+                self.prefill_local_len
+                if not finalize_cache_for_decode
+                else 0,
             )
             recent_k = new_k.new_empty(
                 *new_k.shape[:2], recent_capacity, int(new_k.size(-1))

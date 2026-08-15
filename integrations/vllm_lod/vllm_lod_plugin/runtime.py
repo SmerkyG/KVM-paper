@@ -31,6 +31,13 @@ class VLLMLODRuntime:
         self.model_state = model_state
         self.settings = VLLMLODSettings.from_environment()
         config = model_state.vllm_config
+        self.prefix_caching = bool(
+            getattr(
+                getattr(config, "cache_config", None),
+                "enable_prefix_caching",
+                False,
+            )
+        )
         if config.parallel_config.decode_context_parallel_size != 1:
             raise NotImplementedError("vLLM LOD does not yet support DCP")
         if config.num_speculative_tokens:
@@ -298,8 +305,12 @@ class VLLMLODRuntime:
         row = self.lod_row_by_slot.pop(slot, None)
         if row is None:
             return
-        if self.settings.cache_ownership == "lod" and self._cache_row(
-            req_id, slot, row, token_ids=token_ids
+        if (
+            self.settings.cache_ownership == "lod"
+            and self.prefix_caching
+            and self._cache_row(
+                req_id, slot, row, token_ids=token_ids
+            )
         ):
             return
         self._free_lod_row(row)
