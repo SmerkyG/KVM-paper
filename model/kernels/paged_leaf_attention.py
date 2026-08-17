@@ -785,8 +785,9 @@ def _assign_page_ordinals_kernel(
     do_not_specialize=["TOKENS"],
     do_not_specialize_on_alignment=["TOKENS"],
 )
-def _assign_block_page_ordinals_kernel(
+def _publish_page_ids_kernel(
     owners,
+    ordinals,
     slot_lengths,
     next_page,
     slot_pages,
@@ -794,7 +795,6 @@ def _assign_block_page_ordinals_kernel(
     overflow_page_values,
     overflow_used,
     overflow_flag,
-    ordinals,
     TOKENS,
     STATE_CAPACITY: tl.constexpr,
     INLINE_PAGES_PER_SLOT: tl.constexpr,
@@ -803,14 +803,16 @@ def _assign_block_page_ordinals_kernel(
     PAGE_SIZE: tl.constexpr,
     BLOCK_TOKENS: tl.constexpr,
 ):
-    """Reserve one ordinal range per owner represented in a token block."""
+    """Commit counts and publish IDs after stable ordinals are materialized."""
     kv_row = tl.program_id(0).to(tl.int64)
-    token = tl.program_id(1).to(tl.int64) * BLOCK_TOKENS + tl.arange(
-        0, BLOCK_TOKENS
+    token = (
+        tl.program_id(1).to(tl.int64) * BLOCK_TOKENS
+        + tl.arange(0, BLOCK_TOKENS)
     )
     valid = token < TOKENS
     token_row = kv_row * TOKENS + token
-    owner = tl.load(owners + token_row, mask=valid, other=-1).to(tl.int64)
+    owner = tl.load(owners + token_row, mask=valid, other=0).to(tl.int64)
+    ordinal = tl.load(ordinals + token_row, mask=valid, other=0).to(tl.int64)
 
     lane = tl.arange(0, BLOCK_TOKENS)
     same_owner = (
@@ -819,39 +821,27 @@ def _assign_block_page_ordinals_kernel(
         & valid[None, :]
     )
     earlier = lane[None, :] < lane[:, None]
-    rank = tl.sum((same_owner & earlier).to(tl.int32), axis=1)
+    first_in_block = tl.sum(
+        (same_owner & earlier).to(tl.int32), axis=1
+    ) == 0
     block_count = tl.sum(same_owner.to(tl.int32), axis=1)
-    leader = valid & (rank == 0)
-    base = tl.zeros((BLOCK_TOKENS,), tl.int32)
-    # Scalar atomics have reliable fetch-add return values on the target ROCm
-    # stack.  The vector form updates counters correctly but can return stale
-    # per-lane values when several programs reserve different owners at once.
-    for leader_lane in tl.static_range(0, BLOCK_TOKENS):
-        selected = lane == leader_lane
-        leader_active = (
-            tl.sum((leader & selected).to(tl.int32), axis=0) != 0
-        )
-        leader_owner = tl.sum(tl.where(selected, owner, 0), axis=0)
-        leader_count = tl.sum(tl.where(selected, block_count, 0), axis=0)
-        leader_base = tl.atomic_add(
-            slot_lengths + kv_row * STATE_CAPACITY + leader_owner,
-            leader_count,
-            mask=leader_active,
-            sem="relaxed",
-        ).to(tl.int32)
-        base += tl.where(
-            valid & leader_active & (owner == leader_owner),
-            leader_base,
-            0,
-        )
-    ordinal = base + rank
-    tl.store(ordinals + token_row, ordinal, mask=valid)
+    tl.atomic_add(
+        slot_lengths + kv_row * STATE_CAPACITY + owner,
+        block_count,
+        mask=valid & first_in_block,
+        sem="relaxed",
+    )
 
-    page_ordinal = ordinal // PAGE_SIZE
     starts_page = valid & (ordinal % PAGE_SIZE == 0)
+    page_ordinal = ordinal // PAGE_SIZE
     page_rank = tl.cumsum(starts_page.to(tl.int32), axis=0) - 1
     page_count = tl.sum(starts_page.to(tl.int32), axis=0)
-    first_page = tl.atomic_add(next_page + kv_row, page_count, sem="relaxed")
+    first_page = tl.atomic_add(
+        next_page + kv_row,
+        page_count,
+        mask=page_count > 0,
+        sem="relaxed",
+    ).to(tl.int32)
     page_id = first_page + page_rank
     inline = starts_page & (page_ordinal < INLINE_PAGES_PER_SLOT)
     tl.store(
@@ -908,14 +898,36 @@ def _assign_page_ordinals(
     hash_probes: int,
     page_size: int,
 ) -> torch.Tensor:
-    """Assign page ordinals with block-local duplicate aggregation."""
+    """Assign stable region-local ordinals and publish new logical pages."""
     batch, kv_heads, tokens = owners.shape
-    ordinals = torch.empty_like(owners, dtype=torch.int32)
+    # Recursive LOD pages are semantic units, so their membership must not
+    # depend on the order in which GPU programs happen to reserve slot ranges.
+    # Sorting the unique (owner, sequence-position) pair groups equal owners
+    # while retaining chronological order inside each group. This produces the
+    # exact same ranks as counting all prior equal owners, without its O(T^2)
+    # scan. Page IDs may be reserved in any order: the semantic identity is
+    # (owner, page ordinal), not the numeric page ID.
+    positions = torch.arange(
+        tokens, device=owners.device, dtype=owners.dtype
+    ).view(1, 1, tokens)
+    order = torch.argsort(owners * tokens + positions, dim=2)
+    sorted_owners = owners.gather(2, order)
+    new_group = torch.ones_like(sorted_owners, dtype=torch.bool)
+    new_group[..., 1:] = sorted_owners[..., 1:] != sorted_owners[..., :-1]
+    sorted_positions = positions.expand(batch, kv_heads, tokens)
+    group_starts = torch.where(new_group, sorted_positions, 0).cummax(dim=2).values
+    sorted_ranks = sorted_positions - group_starts
+    ranks = torch.empty_like(owners)
+    ranks.scatter_(2, order, sorted_ranks)
+    ordinals = (
+        slot_lengths.gather(2, owners).to(owners.dtype) + ranks
+    ).to(torch.int32)
     block_tokens = 16
-    _assign_block_page_ordinals_kernel[
+    _publish_page_ids_kernel[
         (batch * kv_heads, triton.cdiv(tokens, block_tokens))
     ](
         owners,
+        ordinals,
         slot_lengths,
         next_page,
         slot_pages,
@@ -923,7 +935,6 @@ def _assign_page_ordinals(
         overflow_page_values,
         overflow_used,
         overflow_flag,
-        ordinals,
         TOKENS=tokens,
         STATE_CAPACITY=int(slot_pages.size(2)),
         INLINE_PAGES_PER_SLOT=int(slot_pages.size(3)),
@@ -1852,34 +1863,35 @@ def _requantize_appended_virtual_page_tensor_int4(
         + (kv_row * PAGE_CAPACITY + page_id) * DIMENSION_SIZE
     )
     old_inverse_count = 1.0 / tl.maximum(old_count.to(tl.float32), 1.0)
+    has_old_tokens = refresh & (old_count > 0)
     if QUANTIZED_SUMMARIES:
         old_summary_scale = tl.load(
             page_sum_scales
             + (kv_row * PAGE_CAPACITY + page_id)
             * (DIMENSION_SIZE // GROUP_SIZE)
             + group,
-            mask=refresh,
+            mask=has_old_tokens,
             other=0.0,
         ).to(tl.float32)
         old_even_sum = tl.load(
             quantized_sum_base + even_dimension,
-            mask=refresh & (even_dimension < DIMENSION_SIZE),
+            mask=has_old_tokens & (even_dimension < DIMENSION_SIZE),
             other=0,
         ).to(tl.float32) * old_summary_scale
         old_odd_sum = tl.load(
             quantized_sum_base + odd_dimension,
-            mask=refresh & (odd_dimension < DIMENSION_SIZE),
+            mask=has_old_tokens & (odd_dimension < DIMENSION_SIZE),
             other=0,
         ).to(tl.float32) * old_summary_scale
     else:
         old_even_sum = tl.load(
             sum_base + even_dimension,
-            mask=refresh & (even_dimension < DIMENSION_SIZE),
+            mask=has_old_tokens & (even_dimension < DIMENSION_SIZE),
             other=0.0,
         ).to(tl.float32)
         old_odd_sum = tl.load(
             sum_base + odd_dimension,
-            mask=refresh & (odd_dimension < DIMENSION_SIZE),
+            mask=has_old_tokens & (odd_dimension < DIMENSION_SIZE),
             other=0.0,
         ).to(tl.float32)
     old_scale = tl.load(
@@ -2845,10 +2857,41 @@ def _query_major_residual_page_attention_kernel(
             )
         selected_score = tl.full((), -float("inf"), tl.float32)
         selected_page = tl.full((), 0, tl.int64)
+        single_page = valid_slot & (slot_page_count == 1)
+        if HASH_PROBES == 0:
+            first_page = tl.load(
+                page_table,
+                mask=single_page,
+                other=0,
+            ).to(tl.int64)
+        else:
+            first_page = _lookup_page_id(
+                slot_pages,
+                overflow_page_keys,
+                overflow_page_values,
+                overflow_used,
+                kv_row,
+                slot,
+                0,
+                single_page,
+                STATE_CAPACITY,
+                INLINE_PAGES_PER_SLOT,
+                PAGE_CAPACITY,
+                HASH_CAPACITY,
+                HASH_PROBES,
+            ).to(tl.int64)
+        single_page &= (first_page >= 0) & (first_page < PAGE_CAPACITY)
+        selected_score = tl.where(
+            single_page, float("inf"), selected_score
+        )
+        selected_page = tl.where(single_page, first_page, selected_page)
+        scan_page_count = tl.where(single_page, 0, slot_page_count)
 
-        for page_begin in tl.range(0, slot_page_count, PAGE_BLOCK_N, num_stages=1):
+        for page_begin in tl.range(
+            0, scan_page_count, PAGE_BLOCK_N, num_stages=1
+        ):
             page_ordinal = page_begin + page_offset
-            valid_page = page_ordinal < slot_page_count
+            valid_page = page_ordinal < scan_page_count
             if HASH_PROBES == 0:
                 page_id = tl.load(
                     page_table + page_ordinal, mask=valid_page, other=0

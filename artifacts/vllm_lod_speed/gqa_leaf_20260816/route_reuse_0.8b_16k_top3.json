@@ -1,0 +1,171 @@
+{
+  "all_layers": {
+    "max_group_size": 3436,
+    "mean_group_size_per_tuple": 1.6550647020339966,
+    "queries": 737280,
+    "query_fraction_in_group_ge_16": 0.15171169704861112,
+    "query_fraction_in_group_ge_2": 0.5085354275173611,
+    "query_fraction_in_group_ge_32": 0.10197618272569445,
+    "query_fraction_in_group_ge_4": 0.3256144205729167,
+    "query_fraction_in_group_ge_64": 0.06634928385416666,
+    "query_fraction_in_group_ge_8": 0.22167561848958334,
+    "query_weighted_p50": 2.0,
+    "query_weighted_p90": 33.0,
+    "query_weighted_p95": 97.0,
+    "query_weighted_p99": 1131.0,
+    "unique_tuples": 445469
+  },
+  "attention_layers": 6,
+  "gqa_route_reuse": {
+    "fraction_groups_with_reuse": 0.9460394978523254,
+    "groups": 184320,
+    "mean_duplicate_fraction": 0.27871137857437134,
+    "mean_matched_assignment_fraction": 0.469815194606781,
+    "mean_unique_slots": 8.655463218688965
+  },
+  "gqa_route_reuse_by_layer": {
+    "11": {
+      "fraction_groups_with_reuse": 0.9683919548988342,
+      "groups": 30720,
+      "mean_duplicate_fraction": 0.30492350459098816,
+      "mean_matched_assignment_fraction": 0.5057075023651123,
+      "mean_unique_slots": 8.340917587280273
+    },
+    "15": {
+      "fraction_groups_with_reuse": 0.9742513298988342,
+      "groups": 30720,
+      "mean_duplicate_fraction": 0.3230143189430237,
+      "mean_matched_assignment_fraction": 0.5323377847671509,
+      "mean_unique_slots": 8.123827934265137
+    },
+    "19": {
+      "fraction_groups_with_reuse": 0.98388671875,
+      "groups": 30720,
+      "mean_duplicate_fraction": 0.32238495349884033,
+      "mean_matched_assignment_fraction": 0.5373915433883667,
+      "mean_unique_slots": 8.131380081176758
+    },
+    "23": {
+      "fraction_groups_with_reuse": 0.82373046875,
+      "groups": 30720,
+      "mean_duplicate_fraction": 0.16322699189186096,
+      "mean_matched_assignment_fraction": 0.291978657245636,
+      "mean_unique_slots": 10.041275978088379
+    },
+    "3": {
+      "fraction_groups_with_reuse": 0.9455403685569763,
+      "groups": 30720,
+      "mean_duplicate_fraction": 0.24973687529563904,
+      "mean_matched_assignment_fraction": 0.43313533067703247,
+      "mean_unique_slots": 9.003157615661621
+    },
+    "7": {
+      "fraction_groups_with_reuse": 0.9804362058639526,
+      "groups": 30720,
+      "mean_duplicate_fraction": 0.30898168683052063,
+      "mean_matched_assignment_fraction": 0.5183403491973877,
+      "mean_unique_slots": 8.292220115661621
+    }
+  },
+  "layers": {
+    "11": {
+      "max_group_size": 153,
+      "mean_group_size_per_tuple": 1.5156710147857666,
+      "queries": 122880,
+      "query_fraction_in_group_ge_16": 0.08046875,
+      "query_fraction_in_group_ge_2": 0.46177571614583335,
+      "query_fraction_in_group_ge_32": 0.03924967447916667,
+      "query_fraction_in_group_ge_4": 0.25992024739583336,
+      "query_fraction_in_group_ge_64": 0.014632161458333333,
+      "query_fraction_in_group_ge_8": 0.1494140625,
+      "query_weighted_p50": 1.0,
+      "query_weighted_p90": 12.0,
+      "query_weighted_p95": 25.0,
+      "query_weighted_p99": 78.0,
+      "unique_tuples": 81073
+    },
+    "15": {
+      "max_group_size": 173,
+      "mean_group_size_per_tuple": 1.518518090248108,
+      "queries": 122880,
+      "query_fraction_in_group_ge_16": 0.0943603515625,
+      "query_fraction_in_group_ge_2": 0.45807291666666666,
+      "query_fraction_in_group_ge_32": 0.04970703125,
+      "query_fraction_in_group_ge_4": 0.2637532552083333,
+      "query_fraction_in_group_ge_64": 0.02158203125,
+      "query_fraction_in_group_ge_8": 0.1609375,
+      "query_weighted_p50": 1.0,
+      "query_weighted_p90": 15.0,
+      "query_weighted_p95": 31.0,
+      "query_weighted_p99": 96.84375,
+      "unique_tuples": 80921
+    },
+    "19": {
+      "max_group_size": 3436,
+      "mean_group_size_per_tuple": 1.9951614141464233,
+      "queries": 122880,
+      "query_fraction_in_group_ge_16": 0.2650960286458333,
+      "query_fraction_in_group_ge_2": 0.6059488932291667,
+      "query_fraction_in_group_ge_32": 0.21728515625,
+      "query_fraction_in_group_ge_4": 0.43429361979166664,
+      "query_fraction_in_group_ge_64": 0.18318684895833334,
+      "query_fraction_in_group_ge_8": 0.331982421875,
+      "query_weighted_p50": 2.0,
+      "query_weighted_p90": 622.0,
+      "query_weighted_p95": 1168.0,
+      "query_weighted_p99": 3436.0,
+      "unique_tuples": 61589
+    },
+    "23": {
+      "max_group_size": 410,
+      "mean_group_size_per_tuple": 1.7218283414840698,
+      "queries": 122880,
+      "query_fraction_in_group_ge_16": 0.15913899739583334,
+      "query_fraction_in_group_ge_2": 0.5367350260416667,
+      "query_fraction_in_group_ge_32": 0.10513509114583333,
+      "query_fraction_in_group_ge_4": 0.34957682291666664,
+      "query_fraction_in_group_ge_64": 0.06344401041666667,
+      "query_fraction_in_group_ge_8": 0.237548828125,
+      "query_weighted_p50": 2.0,
+      "query_weighted_p90": 34.0,
+      "query_weighted_p95": 80.0,
+      "query_weighted_p99": 237.0,
+      "unique_tuples": 71366
+    },
+    "3": {
+      "max_group_size": 363,
+      "mean_group_size_per_tuple": 1.9492385387420654,
+      "queries": 122880,
+      "query_fraction_in_group_ge_16": 0.2393310546875,
+      "query_fraction_in_group_ge_2": 0.5941162109375,
+      "query_fraction_in_group_ge_32": 0.16543782552083333,
+      "query_fraction_in_group_ge_4": 0.43190104166666665,
+      "query_fraction_in_group_ge_64": 0.1021484375,
+      "query_fraction_in_group_ge_8": 0.3240152994791667,
+      "query_weighted_p50": 2.0,
+      "query_weighted_p90": 66.0,
+      "query_weighted_p95": 142.0,
+      "query_weighted_p99": 338.0,
+      "unique_tuples": 63040
+    },
+    "7": {
+      "max_group_size": 168,
+      "mean_group_size_per_tuple": 1.4046639204025269,
+      "queries": 122880,
+      "query_fraction_in_group_ge_16": 0.071875,
+      "query_fraction_in_group_ge_2": 0.39456380208333336,
+      "query_fraction_in_group_ge_32": 0.03504231770833333,
+      "query_fraction_in_group_ge_4": 0.21424153645833333,
+      "query_fraction_in_group_ge_64": 0.013102213541666666,
+      "query_fraction_in_group_ge_8": 0.12615559895833334,
+      "query_weighted_p50": 1.0,
+      "query_weighted_p90": 10.0,
+      "query_weighted_p95": 23.0,
+      "query_weighted_p99": 79.0,
+      "unique_tuples": 87480
+    }
+  },
+  "logit_finite": true,
+  "sequence_length": 16384,
+  "two_level_topk": 3
+}

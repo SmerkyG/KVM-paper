@@ -70,6 +70,33 @@ def verify_route_logits_coarse_attention(
         kv_group_size=kv_group_size,
         scale=scale,
     )
+    precomputed_output, precomputed_lse = route_logits_coarse_attention(
+        q.contiguous(),
+        route_logits.contiguous(),
+        state_v.contiguous(),
+        counts.contiguous(),
+        local_k.contiguous(),
+        local_v.contiguous(),
+        top_slots,
+        state_len=state_len,
+        kv_group_size=kv_group_size,
+        scale=scale,
+        precompute_mean_values=True,
+    )
+    warp2_output, warp2_lse = route_logits_coarse_attention(
+        q.contiguous(),
+        route_logits.contiguous(),
+        state_v.contiguous(),
+        counts.contiguous(),
+        local_k.contiguous(),
+        local_v.contiguous(),
+        top_slots,
+        state_len=state_len,
+        kv_group_size=kv_group_size,
+        scale=scale,
+        num_warps=2,
+        precompute_mean_values=True,
+    )
     zero_route_output, zero_route_lse = route_logits_coarse_attention(
         q.contiguous(),
         route_logits.contiguous(),
@@ -210,6 +237,27 @@ def verify_route_logits_coarse_attention(
     )
     torch.cuda.synchronize()
     return {
+        "precomputed_output_changed": float(
+            (precomputed_output != actual_output).float().sum().item()
+        ),
+        "precomputed_lse_changed": float(
+            (precomputed_lse != actual_lse).float().sum().item()
+        ),
+        "warp2_output_changed": float(
+            (warp2_output != precomputed_output).float().sum().item()
+        ),
+        "warp2_output_max_abs": float(
+            (warp2_output.float() - precomputed_output.float())
+            .abs()
+            .max()
+            .item()
+        ),
+        "warp2_lse_changed": float(
+            (warp2_lse != precomputed_lse).float().sum().item()
+        ),
+        "warp2_lse_max_abs": float(
+            (warp2_lse - precomputed_lse).abs().max().item()
+        ),
         "output_max_abs": float(
             (actual_output.float() - expected_output).abs().max().item()
         ),
@@ -1091,6 +1139,15 @@ def main() -> None:
         < 0.999
     ):
         raise AssertionError("fused residual-mass opening differs materially")
+    if (
+        result["route_logits_coarse_attention"][
+            "precomputed_output_changed"
+        ]
+        or result["route_logits_coarse_attention"][
+            "precomputed_lse_changed"
+        ]
+    ):
+        raise AssertionError("precomputed coarse means changed attention output")
     for label, fused_topk in result[
         "route_logits_topk_coarse_attention"
     ].items():

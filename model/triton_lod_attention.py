@@ -190,7 +190,14 @@ class TritonLODAttentionCore(nn.Module):
     coarse_route_block_m = 16
     coarse_route_block_n = 32
     coarse_route_num_warps = 8
+    coarse_max_grouped_rows = 8
+    prefill_coarse_max_grouped_rows = 8
     fused_prefill_route_coarse = False
+    fused_prefill_stable_recompute = True
+    fused_prefill_external_recompute = True
+    fused_prefill_block_m = 16
+    fused_prefill_block_n = 32
+    fused_prefill_num_warps = 8
     split_prefill_local_attention = False
     fused_prefill_residual_opening = False
     overflow_bipartite_merge = False
@@ -2846,9 +2853,14 @@ class TritonLODAttentionCore(nn.Module):
                             else None
                         ),
                         residual_mass=dynamic_residual,
-                        block_m=self.coarse_route_block_m,
-                        block_n=self.coarse_route_block_n,
-                        num_warps=self.coarse_route_num_warps,
+                        block_m=self.fused_prefill_block_m,
+                        block_n=self.fused_prefill_block_n,
+                        num_warps=self.fused_prefill_num_warps,
+                        stable_recompute=self.fused_prefill_stable_recompute,
+                        route_only=(
+                            self.fused_prefill_stable_recompute
+                            and self.fused_prefill_external_recompute
+                        ),
                     )
                 )
                 if self.collect_dynamic_open_stats and dynamic_residual is not None:
@@ -2859,11 +2871,21 @@ class TritonLODAttentionCore(nn.Module):
                     if not hasattr(self, "_lod_dynamic_prefill_histograms"):
                         self._lod_dynamic_prefill_histograms = []
                     self._lod_dynamic_prefill_histograms.append(histogram)
-                self._lod_prefill_fused_coarse = (
-                    coarse_output,
-                    coarse_lse,
-                    include_local,
-                )
+                if (
+                    self.fused_prefill_stable_recompute
+                    and self.fused_prefill_external_recompute
+                ):
+                    # The fused first scan selects routes without temporary
+                    # group buffers. Reuse those logits in the established
+                    # coarse kernel so stable mode remains numerically
+                    # identical to the quality baseline.
+                    self._lod_prefill_route_logits = logits
+                else:
+                    self._lod_prefill_fused_coarse = (
+                        coarse_output,
+                        coarse_lse,
+                        include_local,
+                    )
                 return routed
             if (
                 self.fused_state_routing
@@ -4126,6 +4148,8 @@ class TritonLODAttentionCore(nn.Module):
                 block_m=self.coarse_route_block_m,
                 block_n=self.coarse_route_block_n,
                 num_warps=self.coarse_route_num_warps,
+                precompute_mean_values=query_len > 1,
+                max_grouped_rows=self.prefill_coarse_max_grouped_rows,
             )
         decode_route_logits = getattr(self, "_lod_decode_route_logits", None)
         if decode_route_logits is not None:
@@ -4165,6 +4189,8 @@ class TritonLODAttentionCore(nn.Module):
                 block_m=self.coarse_route_block_m,
                 block_n=self.coarse_route_block_n,
                 num_warps=self.coarse_route_num_warps,
+                precompute_mean_values=query_len > 1,
+                max_grouped_rows=self.coarse_max_grouped_rows,
             )
         route_logits = self._state_route_logits(
             q,
@@ -4197,6 +4223,8 @@ class TritonLODAttentionCore(nn.Module):
             block_m=self.coarse_route_block_m,
             block_n=self.coarse_route_block_n,
             num_warps=self.coarse_route_num_warps,
+            precompute_mean_values=query_len > 1,
+            max_grouped_rows=self.coarse_max_grouped_rows,
         )
         if not include_local or int(local_k.size(2)) == 0:
             return coarse_output, coarse_lse
@@ -5019,6 +5047,7 @@ class TritonLODAttentionCore(nn.Module):
         logical_prefill_len: int | None = None,
         prefill_valid_starts: torch.Tensor | None = None,
         output_buffer: torch.Tensor | None = None,
+        finalize_cache_for_decode: bool = True,
     ) -> torch.Tensor:
         output = self._run_prefill(
             q,
@@ -5028,6 +5057,7 @@ class TritonLODAttentionCore(nn.Module):
             prefill_valid_starts=prefill_valid_starts,
             build_cache_only=False,
             output_buffer=output_buffer,
+            finalize_cache_for_decode=finalize_cache_for_decode,
         )
         if output is None:
             raise AssertionError("attention prefill did not produce an output")
@@ -5073,6 +5103,7 @@ class TritonLODAttentionCore(nn.Module):
         prefill_valid_starts: torch.Tensor | None,
         build_cache_only: bool,
         output_buffer: torch.Tensor | None = None,
+        finalize_cache_for_decode: bool = True,
     ) -> torch.Tensor | None:
         if k.ndim != 4 or v.ndim != 4 or k.shape[:3] != v.shape[:3]:
             raise ValueError("prefill K/V must be matching rank-four tensors")
@@ -5374,7 +5405,17 @@ class TritonLODAttentionCore(nn.Module):
         # Prepare the state boundary required by the first decode token after
         # all prefill outputs have been computed.  Otherwise prompts ending on
         # a chunk boundary pay a full 256-token state update on token one.
-        decode_coverage = max(initial_len, self._bswa_begin(prefill_len + 1))
+        if finalize_cache_for_decode:
+            decode_coverage = max(initial_len, self._bswa_begin(prefill_len + 1))
+        else:
+            # Scheduler chunks are not semantic LOD query blocks. Preserve the
+            # exact field until the current logical prefill block is complete.
+            completed_blocks = max(
+                0,
+                (prefill_len - front_len) // prefill_chunk_len,
+            )
+            next_query_begin = front_len + completed_blocks * prefill_chunk_len
+            decode_coverage = max(initial_len, next_query_begin - exact_lookback)
         while decode_coverage > state_coverage:
             update_end = min(
                 decode_coverage, state_coverage + prefill_state_update_len
@@ -5421,7 +5462,12 @@ class TritonLODAttentionCore(nn.Module):
         recent_v = v[..., state_coverage:prefill_len, :]
         recent_len = int(recent_k.size(2))
         if page_cache is not None:
-            recent_capacity = self.local_len + self.decode_state_update_len
+            recent_capacity = max(
+                self.local_len + self.decode_state_update_len,
+                self.prefill_local_len
+                if not finalize_cache_for_decode
+                else 0,
+            )
             buffered_k = k.new_empty(
                 *k.shape[:2], recent_capacity, int(k.size(-1))
             )
@@ -5538,6 +5584,7 @@ class TritonLODAttentionCore(nn.Module):
         new_k: torch.Tensor,
         new_v: torch.Tensor,
         output_buffer: torch.Tensor | None = None,
+        finalize_cache_for_decode: bool = True,
     ) -> torch.Tensor:
         """Append a causal multi-token turn without replaying decode kernels."""
         if not hasattr(self, "_lod_state"):
@@ -5662,24 +5709,79 @@ class TritonLODAttentionCore(nn.Module):
                 state_coverage = update_end
 
         outputs = []
-        for query_begin in range(0, turn_len, prefill_chunk_len):
-            query_end = min(turn_len, query_begin + prefill_chunk_len)
+        query_begin = 0
+        front_len = exact_lookback + self.chunk_len
+        if previous_total_len < front_len:
+            front_query_end = min(turn_len, front_len - previous_total_len)
+            initial_state_k = self._mean(
+                state_k[..., :state_len, :], counts[..., :state_len, :]
+            )
+            initial_state_v = self._mean(
+                state_v[..., :state_len, :], counts[..., :state_len, :]
+            )
+            exact_key_parts = []
+            exact_value_parts = []
+            if isinstance(sink_k, torch.Tensor) and isinstance(
+                sink_v, torch.Tensor
+            ):
+                exact_key_parts.append(sink_k)
+                exact_value_parts.append(sink_v)
+            exact_tail_end = (
+                previous_total_len + front_query_end - initial_coverage
+            )
+            exact_key_parts.extend(
+                (initial_state_k, working_k[..., :exact_tail_end, :])
+            )
+            exact_value_parts.extend(
+                (initial_state_v, working_v[..., :exact_tail_end, :])
+            )
+            exact_k = torch.cat(exact_key_parts, dim=2)
+            exact_v = torch.cat(exact_value_parts, dim=2)
+            suffix_query = q[..., :front_query_end, :]
+            exact_q = (
+                suffix_query
+                if self.prefill_local_attention_backend == "aiter"
+                else torch.cat(
+                    (
+                        q.new_zeros(
+                            *q.shape[:2], previous_total_len, int(q.size(-1))
+                        ),
+                        suffix_query,
+                    ),
+                    dim=2,
+                )
+            )
+            exact_output, _ = self._prefill_local_attention(
+                exact_q,
+                exact_k,
+                exact_v,
+                query_offset=previous_total_len,
+            )
+            if output_buffer is not None:
+                output_buffer[..., :front_query_end, :].copy_(exact_output)
+                outputs.append(output_buffer[..., :front_query_end, :])
+            else:
+                outputs.append(exact_output)
+            query_begin = front_query_end
+        while query_begin < turn_len:
             absolute_query_begin = previous_total_len + query_begin
-            # Keep cached-prefill state boundaries on the decode chunk grid.
-            # This retains at most one extra partial chunk in exact local
-            # attention and gives the state/page kernels one reusable residual
-            # update shape across arbitrarily sized turns.
-            coverage_candidate = max(
-                0, absolute_query_begin - exact_lookback
+            block_index = (
+                absolute_query_begin - front_len
+            ) // prefill_chunk_len
+            block_begin = front_len + block_index * prefill_chunk_len
+            block_end = block_begin + prefill_chunk_len
+            query_end = min(
+                turn_len,
+                block_end - previous_total_len,
             )
-            coverage_candidate = (
-                coverage_candidate // self.chunk_len * self.chunk_len
+            desired_coverage = max(
+                state_coverage,
+                block_begin - exact_lookback,
             )
-            desired_coverage = max(state_coverage, coverage_candidate)
             update_to(
                 desired_coverage,
                 context_length_for=lambda update_end: (
-                    absolute_query_begin + update_end - desired_coverage
+                    block_begin + update_end - desired_coverage
                 ),
             )
             local_begin = state_coverage - initial_coverage
@@ -5730,11 +5832,23 @@ class TritonLODAttentionCore(nn.Module):
                     ),
                 )
             )
+            query_begin = query_end
 
-        decode_coverage = max(
-            state_coverage,
-            self._bswa_begin(total_len + 1),
-        )
+        if finalize_cache_for_decode:
+            decode_coverage = max(
+                state_coverage,
+                self._bswa_begin(total_len + 1),
+            )
+        else:
+            completed_blocks = max(
+                0,
+                (total_len - front_len) // prefill_chunk_len,
+            )
+            next_query_begin = front_len + completed_blocks * prefill_chunk_len
+            decode_coverage = max(
+                state_coverage,
+                next_query_begin - exact_lookback,
+            )
         update_to(
             decode_coverage,
             context_length_for=lambda update_end: min(
@@ -5749,6 +5863,9 @@ class TritonLODAttentionCore(nn.Module):
             recent_capacity = max(
                 tail_len,
                 self.local_len + self.decode_state_update_len,
+                self.prefill_local_len
+                if not finalize_cache_for_decode
+                else 0,
             )
             recent_k = new_k.new_empty(
                 *new_k.shape[:2], recent_capacity, int(new_k.size(-1))

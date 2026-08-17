@@ -1,0 +1,82 @@
+{
+  "attention_backend": null,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 108489867264,
+    "device_used_bytes_before_reclaim": 122293321728,
+    "lod_cache_bytes": 3049350224,
+    "lod_decode_scratch_bytes": 263531400,
+    "native_cache_bytes": 2357329920,
+    "torch_allocated_bytes": 88750828544,
+    "torch_reclaimable_cached_bytes": 13803454464,
+    "torch_reserved_bytes_after_reclaim": 104916320256,
+    "torch_reserved_bytes_before_reclaim": 118719774720
+  },
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.5-35B-A3B",
+  "decode_interval_tokens": 256,
+  "decode_timings_seconds": [
+    4.211967886425555,
+    4.574131959117949,
+    4.641469901427627
+  ],
+  "decode_tokens": 257,
+  "enforce_eager": false,
+  "jit_monitor_verbose": false,
+  "length": null,
+  "lengths": [
+    18857,
+    19003,
+    20377,
+    21300,
+    22799,
+    25313,
+    25345,
+    27470
+  ],
+  "lod_diagnostics": {
+    "batched_cached_prefill_rows": 490,
+    "batched_cached_prefills": 170,
+    "batched_install_calls": 190,
+    "cached_prefill_candidate_calls": 470,
+    "cached_prefill_candidate_rows": 2850,
+    "cached_prefill_noncontiguous": 30,
+    "cached_prefill_nonpacked_calls": 0,
+    "cached_prefill_nonuniform_lengths": 350,
+    "cached_prefill_nonuniform_previous": 400,
+    "cached_prefill_packed_calls": 2530,
+    "cached_prefill_unready": 0,
+    "catch_up_batches": 410,
+    "catch_up_rows": 410,
+    "decode_calls": 80,
+    "direct_prefills": 510,
+    "installs": 320,
+    "layers": 10
+  },
+  "lod_direct_prefill_route": false,
+  "lod_leaf_num_warps": null,
+  "lod_prefill_chunk_len": null,
+  "lod_prefill_state_update_len": null,
+  "lod_recursive_page_block_n": null,
+  "long_prefill_token_threshold": 4096,
+  "marginal_decode_ms_per_batch_step": 17.86770296530449,
+  "marginal_decode_ms_per_token": 2.233462870663061,
+  "marginal_decode_tokens_per_second": 447.7352245856338,
+  "max_num_batched_tokens": 16384,
+  "mode": "lod",
+  "num_gpu_blocks_override": null,
+  "prefill_plus_decode_seconds": 11.757887023501098,
+  "prefill_prompt_tokens_per_second": 24899.606406100724,
+  "prefill_seconds": 7.247664764523506,
+  "prefill_timings_seconds": [
+    7.544547211378813,
+    7.1002147905528545,
+    7.247664764523506
+  ],
+  "prompt_tokens": 180464,
+  "repeats": 3,
+  "total_timings_seconds": [
+    11.757887023501098,
+    11.676935129798949,
+    11.890379580669105
+  ]
+}

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Microbenchmark legacy and block-aggregated page ordinal allocation."""
+"""Microbenchmark legacy and stable page ordinal allocation."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import statistics
 import torch
 
 from model.kernels.paged_leaf_attention import (
-    _assign_block_page_ordinals_kernel,
+    _assign_page_ordinals,
     _assign_page_ordinals_kernel,
 )
 
@@ -84,17 +84,10 @@ def launch_legacy(
     )
 
 
-def launch_block(
-    owners: torch.Tensor,
-    metadata: dict[str, torch.Tensor],
-    block_tokens: int,
+def launch_stable(
+    owners: torch.Tensor, metadata: dict[str, torch.Tensor]
 ) -> None:
-    batch, kv_heads, tokens = owners.shape
-    import triton
-
-    _assign_block_page_ordinals_kernel[
-        (batch * kv_heads, triton.cdiv(tokens, block_tokens))
-    ](
+    _assign_page_ordinals(
         owners,
         metadata["slot_lengths"],
         metadata["next_page"],
@@ -103,15 +96,8 @@ def launch_block(
         metadata["overflow_values"],
         metadata["overflow_used"],
         metadata["overflow_flag"],
-        metadata["ordinals"],
-        TOKENS=tokens,
-        STATE_CAPACITY=int(metadata["slot_lengths"].size(2)),
-        INLINE_PAGES_PER_SLOT=int(metadata["slot_pages"].size(3)),
-        HASH_CAPACITY=1,
-        HASH_PROBES=0,
-        PAGE_SIZE=16,
-        BLOCK_TOKENS=block_tokens,
-        num_warps=1,
+        hash_probes=0,
+        page_size=16,
     )
 
 
@@ -147,17 +133,13 @@ def main() -> None:
         )
         metadata = make_metadata(batch, kv_heads, slots, tokens)
         legacy_us = measure(launch_legacy, owners, metadata)
-        result = {"slots": slots, "legacy_us": legacy_us}
-        for block_tokens in (8, 16, 32):
-            block_us = measure(
-                lambda current_owners, current_metadata: launch_block(
-                    current_owners, current_metadata, block_tokens
-                ),
-                owners,
-                metadata,
-            )
-            result[f"block{block_tokens}_us"] = block_us
-            result[f"block{block_tokens}_speedup"] = legacy_us / block_us
+        stable_us = measure(launch_stable, owners, metadata)
+        result = {
+            "slots": slots,
+            "legacy_us": legacy_us,
+            "stable_us": stable_us,
+            "stable_speedup": legacy_us / stable_us,
+        }
         print(result)
 
 

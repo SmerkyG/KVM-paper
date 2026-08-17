@@ -50,6 +50,10 @@ class VLLMLODSettings:
     native_staging_chunk: int = 1024
     native_cache_headroom: float = 1.5
     prefill_local_backend: str = "aiter"
+    fused_prefill_route_coarse: bool = False
+    fused_prefill_stable_recompute: bool = True
+    fused_prefill_external_recompute: bool = True
+    prefill_coarse_max_grouped_rows: int = 64
 
     @classmethod
     def from_environment(cls) -> VLLMLODSettings:
@@ -87,6 +91,18 @@ class VLLMLODSettings:
                 "aiter",
                 ("torch", "aiter"),
             ),
+            fused_prefill_route_coarse=bool(
+                _integer("VLLM_LOD_FUSED_PREFILL_ROUTE_COARSE", 0)
+            ),
+            fused_prefill_stable_recompute=bool(
+                _integer("VLLM_LOD_FUSED_PREFILL_STABLE_RECOMPUTE", 1)
+            ),
+            fused_prefill_external_recompute=bool(
+                _integer("VLLM_LOD_FUSED_PREFILL_EXTERNAL_RECOMPUTE", 1)
+            ),
+            prefill_coarse_max_grouped_rows=_integer(
+                "VLLM_LOD_PREFILL_COARSE_GROUPED_ROWS", 64
+            ),
         )
         if settings.kv_bits not in (0, 4):
             raise ValueError("VLLM_LOD_KV_BITS must be zero or four")
@@ -98,6 +114,10 @@ class VLLMLODSettings:
             raise ValueError("VLLM_LOD_NATIVE_STAGING_CHUNK must be positive")
         if settings.native_cache_headroom < 1.0:
             raise ValueError("VLLM_LOD_NATIVE_CACHE_HEADROOM must be at least one")
+        if settings.prefill_coarse_max_grouped_rows <= 0:
+            raise ValueError(
+                "VLLM_LOD_PREFILL_COARSE_GROUPED_ROWS must be positive"
+            )
         if settings.cache_ownership == "lod" and settings.prefill_mode != "direct":
             settings = replace(settings, prefill_mode="direct")
         return settings

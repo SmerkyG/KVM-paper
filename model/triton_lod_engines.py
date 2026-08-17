@@ -189,6 +189,7 @@ class _KernelLODEngine(TritonLODAttentionCore):
         logical_prefill_len: int | None = None,
         prefill_valid_starts: torch.Tensor | None = None,
         output_buffer: torch.Tensor | None = None,
+        finalize_cache_for_decode: bool = True,
     ) -> tuple[torch.Tensor, KernelLODCache | None]:
         """Run optimized causal prefill or incremental cached decode."""
         self._validate_geometry(query, key, value)
@@ -203,6 +204,7 @@ class _KernelLODEngine(TritonLODAttentionCore):
                 logical_prefill_len=logical_prefill_len,
                 prefill_valid_starts=prefill_valid_starts,
                 output_buffer=output_buffer,
+                finalize_cache_for_decode=finalize_cache_for_decode,
             )
         else:
             if (
@@ -220,7 +222,11 @@ class _KernelLODEngine(TritonLODAttentionCore):
                 and isinstance(self._lod_state.get("page_cache"), dict)
             ):
                 output = self._cached_prefill_attention(
-                    query, key, value, output_buffer=output_buffer
+                    query,
+                    key,
+                    value,
+                    output_buffer=output_buffer,
+                    finalize_cache_for_decode=finalize_cache_for_decode,
                 )
             else:
                 outputs = []
@@ -379,12 +385,15 @@ class KernelRecursivePagedLODAttention(_KernelLODEngine):
         self.leaf_num_warps = 1
         self.prefill_route_block_m = 128
         self.prefill_route_num_warps = 8
-        self.recursive_page_block_n = 2
+        # Four-page scans amortize recursive page-selection loop overhead.
+        self.recursive_page_block_n = 4
         self.coarse_route_block_m = 32
         self.coarse_route_block_n = 64
-        self.coarse_route_num_warps = 8
-        # Reusing route logits in a separate coarse reduction is faster than
-        # the larger fused kernel on the target ROCm geometry.
+        # Two wavefronts keep the quality-safe 64-wide accumulation order but
+        # avoid over-subscribing this memory-bound reduction on ROCm.
+        self.coarse_route_num_warps = 2
+        # Keep routing and coarse reduction separate. The fused path amplifies
+        # small INT4 page-requantization differences across scheduler splits.
         self.fused_prefill_route_coarse = False
         self.leaf_key_quant_bits = config.kv_bits
         self.leaf_value_quant_bits = config.kv_bits
