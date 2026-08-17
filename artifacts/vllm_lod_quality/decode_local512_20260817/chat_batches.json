@@ -1,0 +1,305 @@
+{
+  "before": {
+    "batched_cached_prefill_rows": 0,
+    "batched_cached_prefills": 0,
+    "catch_up_batches": 0,
+    "catch_up_rows": 0,
+    "decode_calls": 48,
+    "direct_prefills": 0,
+    "installs": 0,
+    "layers": 6,
+    "retained_reuses": 0
+  },
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "decode_tokens": 8,
+  "initial_lengths": [
+    512,
+    1024,
+    2048,
+    4096,
+    6144,
+    8192,
+    12288,
+    16384
+  ],
+  "long_prefill_token_threshold": 4096,
+  "marker_hits": [
+    7,
+    7,
+    7
+  ],
+  "max_num_batched_tokens": 16384,
+  "mode": "lod",
+  "rounds": [
+    {
+      "elapsed_seconds": 12.28075890429318,
+      "lod_counters": {
+        "batched_cached_prefill_rows": 0,
+        "batched_cached_prefills": 0,
+        "catch_up_batches": 6,
+        "catch_up_rows": 6,
+        "decode_calls": 48,
+        "direct_prefills": 48,
+        "installs": 48,
+        "layers": 6,
+        "retained_reuses": 0
+      },
+      "order": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "requests": [
+        {
+          "cached_tokens": 0,
+          "conversation": 0,
+          "marker_hit": false,
+          "output": " amber\n\nUser: What is my private",
+          "prompt_tokens": 520
+        },
+        {
+          "cached_tokens": 0,
+          "conversation": 1,
+          "marker_hit": true,
+          "output": " copper willow nine.\nSystem:",
+          "prompt_tokens": 1032
+        },
+        {
+          "cached_tokens": 0,
+          "conversation": 2,
+          "marker_hit": true,
+          "output": " silver otter four.\nSystem:",
+          "prompt_tokens": 2056
+        },
+        {
+          "cached_tokens": 0,
+          "conversation": 3,
+          "marker_hit": true,
+          "output": " violet cedar eight.\nAssistant: violet",
+          "prompt_tokens": 4104
+        },
+        {
+          "cached_tokens": 0,
+          "conversation": 4,
+          "marker_hit": true,
+          "output": " The private passphrase is golden heron three",
+          "prompt_tokens": 6152
+        },
+        {
+          "cached_tokens": 0,
+          "conversation": 5,
+          "marker_hit": true,
+          "output": " The private passphrase is indigo maple six",
+          "prompt_tokens": 8200
+        },
+        {
+          "cached_tokens": 0,
+          "conversation": 6,
+          "marker_hit": true,
+          "output": " The private passphrase is crimson badger two",
+          "prompt_tokens": 12296
+        },
+        {
+          "cached_tokens": 0,
+          "conversation": 7,
+          "marker_hit": true,
+          "output": " The private passphrase is ivory raven five",
+          "prompt_tokens": 16392
+        }
+      ],
+      "round": 0
+    },
+    {
+      "elapsed_seconds": 3.8388588335365057,
+      "lod_counters": {
+        "batched_cached_prefill_rows": 0,
+        "batched_cached_prefills": 0,
+        "catch_up_batches": 30,
+        "catch_up_rows": 30,
+        "decode_calls": 48,
+        "direct_prefills": 66,
+        "installs": 54,
+        "layers": 6,
+        "retained_reuses": 42
+      },
+      "order": [
+        7,
+        0,
+        5,
+        2,
+        6,
+        1,
+        4,
+        3
+      ],
+      "requests": [
+        {
+          "cached_tokens": 16320,
+          "conversation": 7,
+          "marker_hit": true,
+          "output": " The private passphrase is ivory raven five",
+          "prompt_tokens": 18448
+        },
+        {
+          "cached_tokens": 0,
+          "conversation": 0,
+          "marker_hit": false,
+          "output": " amber\n\nUser: What is my private",
+          "prompt_tokens": 592
+        },
+        {
+          "cached_tokens": 8160,
+          "conversation": 5,
+          "marker_hit": true,
+          "output": " The private passphrase is indigo maple six",
+          "prompt_tokens": 9232
+        },
+        {
+          "cached_tokens": 1632,
+          "conversation": 2,
+          "marker_hit": true,
+          "output": " silver otter four.\nSystem:",
+          "prompt_tokens": 2320
+        },
+        {
+          "cached_tokens": 11968,
+          "conversation": 6,
+          "marker_hit": true,
+          "output": " The private passphrase is crimson badger two",
+          "prompt_tokens": 13840
+        },
+        {
+          "cached_tokens": 544,
+          "conversation": 1,
+          "marker_hit": true,
+          "output": " copper willow nine.\nSystem:",
+          "prompt_tokens": 1168
+        },
+        {
+          "cached_tokens": 5984,
+          "conversation": 4,
+          "marker_hit": true,
+          "output": " The private passphrase is golden heron three",
+          "prompt_tokens": 6928
+        },
+        {
+          "cached_tokens": 3808,
+          "conversation": 3,
+          "marker_hit": true,
+          "output": " violet cedar eight.\nAssistant: violet",
+          "prompt_tokens": 4624
+        }
+      ],
+      "round": 1
+    },
+    {
+      "elapsed_seconds": 2.8370657162740827,
+      "lod_counters": {
+        "batched_cached_prefill_rows": 0,
+        "batched_cached_prefills": 0,
+        "catch_up_batches": 60,
+        "catch_up_rows": 60,
+        "decode_calls": 48,
+        "direct_prefills": 84,
+        "installs": 54,
+        "layers": 6,
+        "retained_reuses": 90
+      },
+      "order": [
+        3,
+        6,
+        1,
+        7,
+        0,
+        4,
+        2,
+        5
+      ],
+      "requests": [
+        {
+          "cached_tokens": 4352,
+          "conversation": 3,
+          "marker_hit": true,
+          "output": " violet cedar eight.\nAssistant: violet",
+          "prompt_tokens": 5400
+        },
+        {
+          "cached_tokens": 13600,
+          "conversation": 6,
+          "marker_hit": true,
+          "output": " The private passphrase is crimson badger two",
+          "prompt_tokens": 13976
+        },
+        {
+          "cached_tokens": 1088,
+          "conversation": 1,
+          "marker_hit": true,
+          "output": " copper willow nine.\nSystem:",
+          "prompt_tokens": 2712
+        },
+        {
+          "cached_tokens": 17952,
+          "conversation": 7,
+          "marker_hit": true,
+          "output": " The private passphrase is ivory raven five",
+          "prompt_tokens": 18520
+        },
+        {
+          "cached_tokens": 544,
+          "conversation": 0,
+          "marker_hit": false,
+          "output": " amber\n\nUser: What is my private",
+          "prompt_tokens": 2648
+        },
+        {
+          "cached_tokens": 6528,
+          "conversation": 4,
+          "marker_hit": true,
+          "output": " The private passphrase is golden heron three",
+          "prompt_tokens": 7448
+        },
+        {
+          "cached_tokens": 2176,
+          "conversation": 2,
+          "marker_hit": true,
+          "output": " silver otter four.\nSystem:",
+          "prompt_tokens": 3352
+        },
+        {
+          "cached_tokens": 8704,
+          "conversation": 5,
+          "marker_hit": true,
+          "output": " The private passphrase is indigo maple six",
+          "prompt_tokens": 9496
+        }
+      ],
+      "round": 2
+    }
+  ],
+  "status": "PASS",
+  "turn_one_lengths": [
+    64,
+    128,
+    256,
+    512,
+    768,
+    1024,
+    1536,
+    2048
+  ],
+  "turn_two_lengths": [
+    2048,
+    1536,
+    1024,
+    768,
+    512,
+    256,
+    128,
+    64
+  ]
+}

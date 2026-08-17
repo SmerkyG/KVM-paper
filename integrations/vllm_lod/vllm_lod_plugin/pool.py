@@ -139,8 +139,11 @@ class VLLMLayerLODPool:
         self.state_capacity = self.engine._state_capacity(
             request_capacity, min(request_capacity, settings.chunk_size)
         )
+        self.decode_local_capacity = (
+            local_window + int(self.engine.decode_state_update_len)
+        )
         self.local_capacity = max(
-            local_window + int(self.engine.decode_state_update_len),
+            self.decode_local_capacity,
             int(self.engine.prefill_local_len),
         )
         self.leaf_capacity = _round_up(request_capacity, settings.chunk_size) + max(
@@ -1278,7 +1281,11 @@ class VLLMLayerLODPool:
             sink_k=self.state.get("sink_k"),
             sink_v=self.state.get("sink_v"),
             state_len=self.state_capacity,
-            local_len=self.local_capacity,
+            # Prefill keeps a larger exact lookback in the same backing row,
+            # but catch-up keeps each decode query's live tail within the
+            # normal local window. The extra storage only receives the current
+            # token before the next scheduled catch-up.
+            local_len=int(self.engine.local_len),
             cache_indices=self.active_indices[:rows],
             local_lens=self.local_lens,
             new_k=k,

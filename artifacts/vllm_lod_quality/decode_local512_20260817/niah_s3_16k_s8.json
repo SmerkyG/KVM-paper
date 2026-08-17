@@ -1,0 +1,143 @@
+{
+  "accuracy": 1.0,
+  "attention_exercised": "direct_lod_prefill_and_decode",
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "correct": 8,
+  "elapsed_seconds": 7.344503883272409,
+  "enforce_eager": false,
+  "eval": "niah_s3",
+  "length": 16384,
+  "lod_diagnostics_after": {
+    "batched_cached_prefill_rows": 72,
+    "batched_cached_prefills": 24,
+    "catch_up_batches": 48,
+    "catch_up_rows": 48,
+    "custom_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "decode_calls": 48,
+    "direct_prefill_calls": 48,
+    "install_count": 48,
+    "native_append_calls": 0,
+    "pooled_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "routing_geometries": [
+      [
+        "none",
+        "coherence",
+        "none"
+      ]
+    ]
+  },
+  "lod_diagnostics_before": {
+    "batched_cached_prefill_rows": 0,
+    "batched_cached_prefills": 0,
+    "catch_up_batches": 0,
+    "catch_up_rows": 0,
+    "custom_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "decode_calls": 48,
+    "direct_prefill_calls": 0,
+    "install_count": 0,
+    "native_append_calls": 0,
+    "pooled_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "routing_geometries": [
+      [
+        "none",
+        "coherence",
+        "none"
+      ]
+    ]
+  },
+  "lod_prefill_route_block_m": null,
+  "lod_prefill_route_num_warps": null,
+  "lod_recursive_page_block_n": null,
+  "long_prefill_token_threshold": 4096,
+  "max_num_batched_tokens": 16384,
+  "mode": "lod",
+  "requested_samples": 8,
+  "samples": [
+    {
+      "exact": true,
+      "index": 0,
+      "input_tokens": 16089,
+      "response": ": eff10c1d-0e27-4b0f-8455-1cbec09e0615.\n\neff10c1d-0e27-4b0f-8455-1cbec09e0",
+      "target": "eff10c1d-0e27-4b0f-8455-1cbec09e0615"
+    },
+    {
+      "exact": true,
+      "index": 1,
+      "input_tokens": 16086,
+      "response": ": 1cafe034-53d9-4a8e-93cb-dcdccb650ac5.",
+      "target": "1cafe034-53d9-4a8e-93cb-dcdccb650ac5"
+    },
+    {
+      "exact": true,
+      "index": 2,
+      "input_tokens": 16088,
+      "response": ": c314f367-f984-48a6-8ec0-03b677760e5d.",
+      "target": "c314f367-f984-48a6-8ec0-03b677760e5d"
+    },
+    {
+      "exact": true,
+      "index": 3,
+      "input_tokens": 16093,
+      "response": ": c56300bb-e6d5-41fe-8568-e46b43cc31cf.\nThe special magic uuid for flowery-cruelty mentioned in the provided text is: c56300bb-e6d5-4",
+      "target": "c56300bb-e6d5-41fe-8568-e46b43cc31cf"
+    },
+    {
+      "exact": true,
+      "index": 4,
+      "input_tokens": 16085,
+      "response": ": 5c9fb440-5ecc-4838-9e33-ae648b5ff9ef.",
+      "target": "5c9fb440-5ecc-4838-9e33-ae648b5ff9ef"
+    },
+    {
+      "exact": true,
+      "index": 5,
+      "input_tokens": 16088,
+      "response": ": f11433a7-4a94-4f02-a89f-2d23100aef24.",
+      "target": "f11433a7-4a94-4f02-a89f-2d23100aef24"
+    },
+    {
+      "exact": true,
+      "index": 6,
+      "input_tokens": 16094,
+      "response": ": 3872e121-55e0-437c-bd49-0adf234877e3.",
+      "target": "3872e121-55e0-437c-bd49-0adf234877e3"
+    },
+    {
+      "exact": true,
+      "index": 7,
+      "input_tokens": 16092,
+      "response": ": 12ad7191-a940-4bdb-88ae-0b7658e3d282. If people who are young but smart and driven can make more by starting their own companies than by working for existing ones, the existing companies are forced to",
+      "target": "12ad7191-a940-4bdb-88ae-0b7658e3d282"
+    }
+  ],
+  "total": 8
+}

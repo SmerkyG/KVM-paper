@@ -64,6 +64,8 @@ class VLLMLODRuntime:
         self.borrowed_dummy_rows: set[int] = set()
         self.borrowed_dummy_lens: dict[str, torch.Tensor] = {}
         self.free_lod_rows = list(range(self.pool_size - 1, -1, -1))
+        self.logical_lengths = [0] * self.pool_size
+        self._active_decode_rows: tuple[int, ...] | None = None
         self.initialized = False
         self.allocate_pools()
 
@@ -244,29 +246,25 @@ class VLLMLODRuntime:
         for req_id in req_ids:
             lod_rows.append(self._lod_row(req_id))
         mapped_rows = self._pad_decode_rows(lod_rows, num_reqs_padded)
-        self.active_indices[:num_reqs_padded].copy_(
-            torch.tensor(
-                mapped_rows,
-                dtype=torch.long,
-                device=self.active_indices.device,
-            )
-        )
+        self._set_active_decode_rows(mapped_rows)
         block_tables = tuple(
             input_batch.block_table[group_id].get_device_tensor(num_reqs)
             for group_id in range(len(runner.kv_cache_config.kv_cache_groups))
         )
         conversions: list[tuple[int, int, int]] = []
         catch_ups: list[tuple[int, int]] = []
+        reference_pool = next(iter(self.pools.values()))
         for row, req_id in enumerate(req_ids):
             lod_row = self.lod_row_by_slot[req_id]
             length = int(computed[row])
-            if not all(pool.ready[lod_row] for pool in self.pools.values()):
+            if not reference_pool.ready[lod_row]:
                 conversions.append((row, lod_row, length))
             else:
                 catch_ups.append((lod_row, length))
-        for pool in self.pools.values():
-            pool.catch_up_many(catch_ups)
+        self._catch_up_decode_rows(catch_ups)
         self._convert_requests(conversions, block_tables)
+        for _, lod_row, length in conversions:
+            self.logical_lengths[lod_row] = length
 
     def add_request(self, slot: int, data: Any) -> None:
         self._release_lod_row(slot)
@@ -328,6 +326,10 @@ class VLLMLODRuntime:
     ) -> bool:
         if not all(pool.ready[row] for pool in self.pools.values()):
             return False
+        total_length = self.logical_lengths[row]
+        if total_length > 0:
+            for pool in self.pools.values():
+                pool.catch_up_many([(row, total_length)])
         lengths = {
             int(pool.metadata[row].get("total_len", -1))
             for pool in self.pools.values()
@@ -378,6 +380,7 @@ class VLLMLODRuntime:
                 pool.truncate_recent(entry.row, prefix_length)
                 pool.retained_reuse_count += 1
             self.lod_row_by_slot[slot] = entry.row
+            self.logical_lengths[entry.row] = prefix_length
             self.cache_clock += 1
             return True
         return False
@@ -388,6 +391,7 @@ class VLLMLODRuntime:
         if self.initialized:
             for pool in self.pools.values():
                 pool.reset(row)
+        self.logical_lengths[row] = 0
         if row not in self.free_lod_rows:
             self.free_lod_rows.append(row)
             # New uniform batches should receive ascending contiguous rows so
@@ -402,6 +406,7 @@ class VLLMLODRuntime:
         self.cached_rows.pop(entry.row)
         for pool in self.pools.values():
             pool.reset(entry.row)
+        self.logical_lengths[entry.row] = 0
         return entry.row
 
     def _release_lod_row(self, slot: int | str) -> None:
@@ -442,8 +447,44 @@ class VLLMLODRuntime:
         self.active_indices[:rows].copy_(
             torch.arange(rows, device=self.active_indices.device)
         )
+        self._active_decode_rows = None
         for pool in self.pools.values():
             pool.local_lens.zero_()
+
+    def _set_active_decode_rows(self, rows: list[int]) -> None:
+        """Update the graph-visible row map only when the batch changes."""
+        mapped = tuple(rows)
+        if mapped == self._active_decode_rows:
+            return
+        self.active_indices[: len(mapped)].copy_(
+            torch.tensor(
+                mapped,
+                dtype=torch.long,
+                device=self.active_indices.device,
+            )
+        )
+        self._active_decode_rows = mapped
+
+    def _catch_up_decode_rows(self, requests: list[tuple[int, int]]) -> None:
+        """Skip layer-by-layer host work between state-update boundaries."""
+        if not requests:
+            return
+        reference_pool = next(iter(self.pools.values()))
+        update_due = any(
+            int(reference_pool.metadata[row]["coverage"])
+            < reference_pool._catch_up_target(row, length)[1]
+            for row, length in requests
+        )
+        if update_due:
+            for pool in self.pools.values():
+                pool.catch_up_many(requests)
+        for row, length in requests:
+            recent_length = length - int(reference_pool.metadata[row]["coverage"])
+            if recent_length > int(reference_pool.engine.local_len):
+                raise RuntimeError(
+                    "LOD catch-up left more live tokens than the decode-local field"
+                )
+            self.logical_lengths[row] = length
 
     def _use_native_attention(self, slots: list[int | str]) -> None:
         """Disable LOD for a legacy dual-cache batch."""
@@ -817,26 +858,22 @@ class VLLMLODRuntime:
                 "VLLM_LOD_POOL_SIZE and --max-num-seqs to the same value"
             )
         mapped_rows = self._pad_decode_rows(lod_rows, padded_rows)
-        self.active_indices[:padded_rows].copy_(
-            torch.tensor(
-                mapped_rows,
-                dtype=torch.long,
-                device=self.active_indices.device,
-            )
-        )
+        self._set_active_decode_rows(mapped_rows)
         conversions: list[tuple[int, int, int]] = []
         catch_ups: list[tuple[int, int]] = []
+        reference_pool = next(iter(self.pools.values()))
         for row, raw_slot in enumerate(input_batch.idx_mapping_np):
             slot = int(raw_slot)
             lod_row = self.lod_row_by_slot[slot]
             length = int(lengths[row])
-            if not all(pool.ready[lod_row] for pool in self.pools.values()):
+            if not reference_pool.ready[lod_row]:
                 conversions.append((row, lod_row, length))
             else:
                 catch_ups.append((lod_row, length))
-        for pool in self.pools.values():
-            pool.catch_up_many(catch_ups)
+        self._catch_up_decode_rows(catch_ups)
         self._convert_requests(conversions, block_tables)
+        for _, lod_row, length in conversions:
+            self.logical_lengths[lod_row] = length
 
 
 def math_ceil_div(value: int, divisor: int) -> int:

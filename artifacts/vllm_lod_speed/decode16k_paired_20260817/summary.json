@@ -1,0 +1,16 @@
+{
+  "checkpoint": "Qwen/Qwen3.5-35B-A3B",
+  "context_length": 16384,
+  "batch_size": 8,
+  "decode_tokens": 1025,
+  "measured_decode_intervals": 1024,
+  "repeats": 5,
+  "full_attention_backend": "ROCM_AITER_UNIFIED_ATTN",
+  "full_attention_ms_per_batch_step": 11.71016203011277,
+  "lod_attention_ms_per_batch_step": 10.721909995254464,
+  "lod_latency_reduction_percent": 8.439268665258501,
+  "lod_throughput_improvement_percent": 9.217126755360816,
+  "profiled_lod_baseline_ms_per_batch_step": 14.696271445245657,
+  "lod_reduction_from_profiled_baseline_percent": 27.043331805612,
+  "change": "Decode now scans the configured 512-token local field instead of the 4864-token prefill lookback allocation; unchanged active-row mappings and non-boundary catch-up work are also skipped."
+}

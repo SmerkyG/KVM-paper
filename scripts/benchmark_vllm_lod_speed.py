@@ -95,7 +95,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--lod-prefill-chunk-len", type=int)
     parser.add_argument("--lod-prefill-state-update-len", type=int)
     parser.add_argument("--lod-direct-prefill-route", action="store_true")
+    parser.add_argument("--lod-decode-route-group-size", type=int)
+    parser.add_argument("--lod-decode-route-num-warps", type=int)
+    parser.add_argument("--lod-decode-route-reduce-num-warps", type=int)
+    parser.add_argument("--lod-decode-final-reduce-num-warps", type=int)
+    parser.add_argument("--lod-decode-block-n", type=int)
+    parser.add_argument("--lod-decode-num-warps", type=int)
+    parser.add_argument(
+        "--lod-decode-use-dot", action=argparse.BooleanOptionalAction, default=None
+    )
     parser.add_argument("--profile-lod-phases", action="store_true")
+    parser.add_argument("--torch-profile-dir", type=Path)
+    parser.add_argument("--torch-profile-delay-iterations", type=int, default=0)
+    parser.add_argument("--torch-profile-max-iterations", type=int, default=0)
     parser.add_argument("--output", type=Path, required=True)
     return parser.parse_args()
 
@@ -201,6 +213,10 @@ def install_lod_phase_timers(model) -> int:
             continue
         events = {name: [] for name in methods}
         engine._lod_phase_timing_events = events
+        # The fused recursive decode path has its own phase boundaries inside
+        # one engine call.  Share the same event sink so its route, local,
+        # exact-leaf, and final-reduction costs appear in the profile.
+        engine._lod_decode_timing_events = events
         if getattr(engine, "recursive_page_lod", False):
             # Recursive prefill calls the residual-page function directly
             # instead of passing through ``_paged_leaf_attention``.
@@ -259,6 +275,13 @@ def configure_lod_model(
     prefill_chunk_len: int | None,
     prefill_state_update_len: int | None,
     direct_prefill_route: bool,
+    decode_route_group_size: int | None,
+    decode_route_num_warps: int | None,
+    decode_route_reduce_num_warps: int | None,
+    decode_final_reduce_num_warps: int | None,
+    decode_block_n: int | None,
+    decode_num_warps: int | None,
+    decode_use_dot: bool | None,
 ) -> int:
     """Apply benchmark-only kernel tuning before the warmup request."""
     configured = 0
@@ -283,6 +306,24 @@ def configure_lod_model(
             )
         if direct_prefill_route:
             pool.engine.reuse_route_logits_for_coarse = False
+        if decode_route_group_size is not None:
+            pool.engine.decode_route_group_size = int(decode_route_group_size)
+        if decode_route_num_warps is not None:
+            pool.engine.decode_route_num_warps = int(decode_route_num_warps)
+        if decode_route_reduce_num_warps is not None:
+            pool.engine.decode_route_reduce_num_warps = int(
+                decode_route_reduce_num_warps
+            )
+        if decode_final_reduce_num_warps is not None:
+            pool.engine.decode_final_reduce_num_warps = int(
+                decode_final_reduce_num_warps
+            )
+        if decode_block_n is not None:
+            pool.engine.decode_block_n = int(decode_block_n)
+        if decode_num_warps is not None:
+            pool.engine.decode_num_warps = int(decode_num_warps)
+        if decode_use_dot is not None:
+            pool.engine.decode_use_dot = bool(decode_use_dot)
         configured += 1
     return configured
 
@@ -339,6 +380,17 @@ def main() -> None:
         kwargs["attention_config"] = {"backend": args.attention_backend}
     elif args.mode == "lod":
         kwargs["attention_config"] = {"backend": "CUSTOM"}
+    if args.torch_profile_dir is not None:
+        profile_dir = args.torch_profile_dir.resolve()
+        profile_dir.mkdir(parents=True, exist_ok=True)
+        kwargs["profiler_config"] = {
+            "profiler": "torch",
+            "torch_profiler_dir": str(profile_dir),
+            "torch_profiler_with_stack": False,
+            "torch_profiler_use_gzip": False,
+            "delay_iterations": args.torch_profile_delay_iterations,
+            "max_iterations": args.torch_profile_max_iterations,
+        }
     llm = LLM(**kwargs)
     if args.mode == "lod" and any(
         value is not None
@@ -348,6 +400,13 @@ def main() -> None:
             args.lod_prefill_chunk_len,
             args.lod_prefill_state_update_len,
             args.lod_direct_prefill_route or None,
+            args.lod_decode_route_group_size,
+            args.lod_decode_route_num_warps,
+            args.lod_decode_route_reduce_num_warps,
+            args.lod_decode_final_reduce_num_warps,
+            args.lod_decode_block_n,
+            args.lod_decode_num_warps,
+            args.lod_decode_use_dot,
         )
     ):
         configured = llm.apply_model(
@@ -358,6 +417,17 @@ def main() -> None:
                 prefill_chunk_len=args.lod_prefill_chunk_len,
                 prefill_state_update_len=args.lod_prefill_state_update_len,
                 direct_prefill_route=args.lod_direct_prefill_route,
+                decode_route_group_size=args.lod_decode_route_group_size,
+                decode_route_num_warps=args.lod_decode_route_num_warps,
+                decode_route_reduce_num_warps=(
+                    args.lod_decode_route_reduce_num_warps
+                ),
+                decode_final_reduce_num_warps=(
+                    args.lod_decode_final_reduce_num_warps
+                ),
+                decode_block_n=args.lod_decode_block_n,
+                decode_num_warps=args.lod_decode_num_warps,
+                decode_use_dot=args.lod_decode_use_dot,
             )
         )
         if not configured or not all(value > 0 for value in configured):
@@ -378,6 +448,8 @@ def main() -> None:
         installed = llm.apply_model(install_lod_phase_timers)
         if not installed or not all(value > 0 for value in installed):
             raise RuntimeError("LOD phase profiler found no installed layers")
+    if args.torch_profile_dir is not None:
+        llm.start_profile("decode_benchmark")
     prefill_timings = []
     total_timings = []
     decode_timings = []
@@ -388,6 +460,8 @@ def main() -> None:
         total_timings.append(elapsed)
         prefill_timings.append(prefill_elapsed)
         decode_timings.append(decode_elapsed)
+    if args.torch_profile_dir is not None:
+        llm.stop_profile()
     prefill_elapsed = statistics.median(prefill_timings)
     total_elapsed = statistics.median(total_timings)
     marginal_decode = statistics.median(decode_timings)
@@ -414,6 +488,22 @@ def main() -> None:
         "lod_prefill_chunk_len": args.lod_prefill_chunk_len,
         "lod_prefill_state_update_len": args.lod_prefill_state_update_len,
         "lod_direct_prefill_route": args.lod_direct_prefill_route,
+        "lod_decode_route_group_size": args.lod_decode_route_group_size,
+        "lod_decode_route_num_warps": args.lod_decode_route_num_warps,
+        "lod_decode_route_reduce_num_warps": (
+            args.lod_decode_route_reduce_num_warps
+        ),
+        "lod_decode_final_reduce_num_warps": (
+            args.lod_decode_final_reduce_num_warps
+        ),
+        "lod_decode_block_n": args.lod_decode_block_n,
+        "lod_decode_num_warps": args.lod_decode_num_warps,
+        "lod_decode_use_dot": args.lod_decode_use_dot,
+        "torch_profile_dir": (
+            str(args.torch_profile_dir.resolve())
+            if args.torch_profile_dir is not None
+            else None
+        ),
         "prefill_seconds": prefill_elapsed,
         "prefill_timings_seconds": prefill_timings,
         "decode_timings_seconds": decode_timings,
