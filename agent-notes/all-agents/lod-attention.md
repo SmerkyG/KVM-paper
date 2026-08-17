@@ -1,6 +1,6 @@
 # Lod Attention
 
-Topic hints: Keep logical padding contracts complete and verify clean snapshots
+Topic hints: Separate LOD prefill allocation from decode scan bounds
 
 ## Lessons
 
@@ -15,3 +15,5 @@ Topic hints: Keep logical padding contracts complete and verify clean snapshots
 - Generic HF LOD installation must use decoder config.layer_types (and module sliding_window as a fallback) to replace only full/global attention; mixed full/SWA models need per-module backend dispatch plus a native sliding-cache/LOD-cache bridge.
 
 - When adding physical prefill padding to generic HF LOD, propagate logical_prefill_len through both the engine wrapper and Triton core, and verify the committed snapshot rather than a dirty development worktree.
+
+- Keep the large prefill lookback allocation separate from the logical LOD decode-local scan bound. Pass the configured decode local length to fused decode and assert state catch-up keeps each active local length within it; passing the backing/prefill capacity makes every layer loop over masked rows and can dominate decode latency.
