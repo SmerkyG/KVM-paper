@@ -1,0 +1,62 @@
+{
+  "attention_backend": "ROCM_AITER_UNIFIED_ATTN",
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 219666186240,
+    "device_used_bytes_before_reclaim": 222413455360,
+    "lod_cache_bytes": 0,
+    "lod_decode_scratch_bytes": 0,
+    "native_cache_bytes": 120078991360,
+    "torch_allocated_bytes": 199885956608,
+    "torch_reclaimable_cached_bytes": 2747269120,
+    "torch_reserved_bytes_after_reclaim": 215956324352,
+    "torch_reserved_bytes_before_reclaim": 218703593472
+  },
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.5-35B-A3B",
+  "decode_interval_tokens": 256,
+  "decode_timings_seconds": [
+    4.0645662089809775,
+    4.076033915858716,
+    4.056770542869344
+  ],
+  "decode_tokens": 257,
+  "enforce_eager": false,
+  "jit_monitor_verbose": false,
+  "length": null,
+  "lengths": [
+    33341,
+    36081,
+    36295,
+    41997,
+    45118,
+    45603,
+    46968,
+    53972
+  ],
+  "lod_direct_prefill_route": false,
+  "lod_leaf_num_warps": null,
+  "lod_prefill_chunk_len": null,
+  "lod_prefill_state_update_len": null,
+  "long_prefill_token_threshold": 4096,
+  "marginal_decode_ms_per_batch_step": 15.877211753831943,
+  "marginal_decode_ms_per_token": 1.984651469228993,
+  "marginal_decode_tokens_per_second": 503.8668076004725,
+  "max_num_batched_tokens": 16384,
+  "mode": "full",
+  "num_gpu_blocks_override": null,
+  "prefill_plus_decode_seconds": 20.125882426043972,
+  "prefill_prompt_tokens_per_second": 21134.785952064696,
+  "prefill_seconds": 16.0576502061449,
+  "prefill_timings_seconds": [
+    16.04363987292163,
+    16.0768601000309,
+    16.0576502061449
+  ],
+  "prompt_tokens": 339375,
+  "repeats": 3,
+  "total_timings_seconds": [
+    20.114183641970158,
+    20.15514637506567,
+    20.125882426043972
+  ]
+}

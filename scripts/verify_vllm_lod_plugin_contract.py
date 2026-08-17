@@ -200,6 +200,8 @@ def main() -> None:
     for pool in runtime.pools.values():
         pool.ready[first] = True
         pool.ready[second] = True
+        pool.metadata[first]["coverage"] = 16
+        pool.metadata[second]["coverage"] = 16
         pool.local_lens.fill_(9)
         pool.catch_up_many = lambda *_args, **_kwargs: None
     runtime.preprocess(batch, (), SimpleNamespace(kv_cache_groups=[group]))

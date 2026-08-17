@@ -22,6 +22,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dataset", default="Seerkfang/prolong-64k-512-new")
     parser.add_argument("--sequence-length", type=int, default=32768)
     parser.add_argument("--state-growth-factor", type=float, default=8.0)
+    parser.add_argument("--two-level-topk", type=int, default=8)
     parser.add_argument("--output", type=Path, required=True)
     return parser.parse_args()
 
@@ -57,7 +58,7 @@ def main() -> None:
     model = load_text_model(
         args.checkpoint,
         "two_level",
-        8,
+        args.two_level_topk,
         args.state_growth_factor,
         device,
         "paged",
@@ -81,11 +82,16 @@ def main() -> None:
     counts_by_layer: dict[int, list[torch.Tensor]] = {
         module.layer_idx: [] for module in modules
     }
+    gqa_reuse_by_layer: dict[int, list[dict[str, torch.Tensor]]] = {
+        module.layer_idx: [] for module in modules
+    }
     for module in modules:
         original = module._route_top_slots
 
-        def collect(self, q, state_k, counts, *, __original=original):
-            top_slots = __original(q, state_k, counts)
+        def collect(
+            self, q, state_k, state_v, counts, *, __original=original, **kwargs
+        ):
+            top_slots = __original(q, state_k, state_v, counts, **kwargs)
             batch, query_heads, query_len, route_count = top_slots.shape
             canonical = top_slots.sort(dim=-1).values.reshape(
                 batch * query_heads * query_len, route_count
@@ -103,6 +109,31 @@ def main() -> None:
                 signature, dim=0, return_counts=True
             )
             counts_by_layer[self.layer_idx].append(group_counts)
+            kv_heads = query_heads // self.num_key_value_groups
+            grouped = top_slots.reshape(
+                batch,
+                kv_heads,
+                self.num_key_value_groups,
+                query_len,
+                route_count,
+            ).permute(0, 1, 3, 2, 4)
+            grouped = grouped.reshape(-1, self.num_key_value_groups * route_count)
+            matches = grouped[:, :, None] == grouped[:, None, :]
+            match_count = matches.sum(dim=-1)
+            sorted_slots = grouped.sort(dim=-1).values
+            unique_count = torch.cat(
+                (
+                    torch.ones_like(sorted_slots[:, :1], dtype=torch.bool),
+                    sorted_slots[:, 1:] != sorted_slots[:, :-1],
+                ),
+                dim=-1,
+            ).sum(dim=-1)
+            gqa_reuse_by_layer[self.layer_idx].append(
+                {
+                    "unique_count": unique_count.cpu(),
+                    "matched_assignments": match_count.gt(1).sum(dim=-1).cpu(),
+                }
+            )
             return top_slots
 
         module._route_top_slots = types.MethodType(collect, module)
@@ -114,13 +145,47 @@ def main() -> None:
         str(layer): summarize_group_counts(group_counts)
         for layer, group_counts in counts_by_layer.items()
     }
+    assignments_per_group = modules[0].num_key_value_groups * args.two_level_topk
+
+    def summarize_gqa(records: list[dict[str, torch.Tensor]]) -> dict[str, float]:
+        unique = torch.cat([record["unique_count"] for record in records]).float()
+        matched = torch.cat(
+            [record["matched_assignments"] for record in records]
+        ).float()
+        return {
+            "groups": int(unique.numel()),
+            "mean_unique_slots": float(unique.mean().item()),
+            "mean_duplicate_fraction": float(
+                (1.0 - unique / assignments_per_group).mean().item()
+            ),
+            "mean_matched_assignment_fraction": float(
+                (matched / assignments_per_group).mean().item()
+            ),
+            "fraction_groups_with_reuse": float(
+                unique.lt(assignments_per_group).float().mean().item()
+            ),
+        }
+
+    gqa_layer_records = {
+        str(layer): summarize_gqa(records)
+        for layer, records in gqa_reuse_by_layer.items()
+    }
     record = {
         "sequence_length": args.sequence_length,
+        "two_level_topk": args.two_level_topk,
         "attention_layers": len(modules),
         "all_layers": summarize_group_counts(
             [counts for values in counts_by_layer.values() for counts in values]
         ),
         "layers": layer_records,
+        "gqa_route_reuse": summarize_gqa(
+            [
+                record
+                for records in gqa_reuse_by_layer.values()
+                for record in records
+            ]
+        ),
+        "gqa_route_reuse_by_layer": gqa_layer_records,
         "logit_finite": bool(torch.isfinite(result.logits).all().item()),
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)

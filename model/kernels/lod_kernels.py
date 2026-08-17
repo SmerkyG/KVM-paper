@@ -23,7 +23,33 @@ def _launch_kwargs(num_warps: int) -> dict[str, int]:
     return kwargs
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["QUERY_LEN"],
+    do_not_specialize_on_alignment=[
+        "PRIMARY_BATCH_STRIDE",
+        "PRIMARY_HEAD_STRIDE",
+        "PRIMARY_TOKEN_STRIDE",
+        "PRIMARY_LSE_BATCH_STRIDE",
+        "PRIMARY_LSE_HEAD_STRIDE",
+        "PRIMARY_LSE_TOKEN_STRIDE",
+        "SECONDARY_BATCH_STRIDE",
+        "SECONDARY_HEAD_STRIDE",
+        "SECONDARY_TOKEN_STRIDE",
+        "SECONDARY_LSE_BATCH_STRIDE",
+        "SECONDARY_LSE_HEAD_STRIDE",
+        "SECONDARY_LSE_TOKEN_STRIDE",
+        "TERTIARY_BATCH_STRIDE",
+        "TERTIARY_HEAD_STRIDE",
+        "TERTIARY_TOKEN_STRIDE",
+        "TERTIARY_LSE_BATCH_STRIDE",
+        "TERTIARY_LSE_HEAD_STRIDE",
+        "TERTIARY_LSE_TOKEN_STRIDE",
+        "OUTPUT_BATCH_STRIDE",
+        "OUTPUT_HEAD_STRIDE",
+        "OUTPUT_TOKEN_STRIDE",
+        "QUERY_LEN",
+    ],
+)
 def _merge_attention_branches_kernel(
     primary_out,
     primary_lse,
@@ -53,7 +79,7 @@ def _merge_attention_branches_kernel(
     OUTPUT_BATCH_STRIDE,
     OUTPUT_HEAD_STRIDE,
     OUTPUT_TOKEN_STRIDE,
-    QUERY_LEN: tl.constexpr,
+    QUERY_LEN,
     HEAD_DIM: tl.constexpr,
     BLOCK_DIM: tl.constexpr,
     INCLUDE_TERTIARY: tl.constexpr,
@@ -1074,6 +1100,7 @@ def _balanced_bipartite_atomic_reduce_kernel(
 
 
 @triton.jit(
+    do_not_specialize=["slot_count", "state_len"],
     do_not_specialize_on_alignment=[
         "STATE_BATCH_STRIDE",
         "STATE_HEAD_STRIDE",
@@ -1087,6 +1114,8 @@ def _balanced_bipartite_atomic_reduce_kernel(
         "SCALE_HEAD_STRIDE",
         "INDEX_BATCH_STRIDE",
         "INDEX_HEAD_STRIDE",
+        "slot_count",
+        "state_len",
     ]
 )
 def _prepare_state_clustering_keys_kernel(
@@ -1216,7 +1245,16 @@ def _prepare_state_clustering_keys_kernel(
             )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["token_len"],
+    do_not_specialize_on_alignment=[
+        "KEY_BATCH_STRIDE",
+        "KEY_HEAD_STRIDE",
+        "OUTPUT_BATCH_STRIDE",
+        "OUTPUT_HEAD_STRIDE",
+        "token_len",
+    ],
+)
 def _constituent_rms_kernel(
     key,
     output,
@@ -1256,7 +1294,10 @@ def _constituent_rms_kernel(
     )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["overflow_len", "state_len"],
+    do_not_specialize_on_alignment=["overflow_len", "state_len"],
+)
 def _streaming_state_maxsim_kernel(
     overflow_k,
     state_k,
@@ -1617,7 +1658,26 @@ def _scaled_coherence_maxsim_kernel(
     tl.store(select_scores + output_offset, best_select_score, mask=token_valid)
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["query_len", "state_len", "local_len", "local_offset"],
+    do_not_specialize_on_alignment=[
+        "Q_BATCH_STRIDE",
+        "Q_HEAD_STRIDE",
+        "LOGIT_BATCH_STRIDE",
+        "LOGIT_HEAD_STRIDE",
+        "LOGIT_QUERY_STRIDE",
+        "LOCAL_K_BATCH_STRIDE",
+        "LOCAL_K_HEAD_STRIDE",
+        "LOCAL_V_BATCH_STRIDE",
+        "LOCAL_V_HEAD_STRIDE",
+        "TOP_BATCH_STRIDE",
+        "TOP_HEAD_STRIDE",
+        "query_len",
+        "state_len",
+        "local_len",
+        "local_offset",
+    ],
+)
 def _route_logits_coarse_attention_kernel(
     q,
     route_logits,
@@ -1628,12 +1688,12 @@ def _route_logits_coarse_attention_kernel(
     top_slots,
     output,
     lse,
-    Q_BATCH_STRIDE: tl.constexpr,
-    Q_HEAD_STRIDE: tl.constexpr,
+    Q_BATCH_STRIDE,
+    Q_HEAD_STRIDE,
     Q_TOKEN_STRIDE: tl.constexpr,
-    LOGIT_BATCH_STRIDE: tl.constexpr,
-    LOGIT_HEAD_STRIDE: tl.constexpr,
-    LOGIT_QUERY_STRIDE: tl.constexpr,
+    LOGIT_BATCH_STRIDE,
+    LOGIT_HEAD_STRIDE,
+    LOGIT_QUERY_STRIDE,
     LOGIT_STATE_STRIDE: tl.constexpr,
     STATE_V_BATCH_STRIDE: tl.constexpr,
     STATE_V_HEAD_STRIDE: tl.constexpr,
@@ -1641,14 +1701,14 @@ def _route_logits_coarse_attention_kernel(
     COUNT_BATCH_STRIDE: tl.constexpr,
     COUNT_HEAD_STRIDE: tl.constexpr,
     COUNT_TOKEN_STRIDE: tl.constexpr,
-    LOCAL_K_BATCH_STRIDE: tl.constexpr,
-    LOCAL_K_HEAD_STRIDE: tl.constexpr,
+    LOCAL_K_BATCH_STRIDE,
+    LOCAL_K_HEAD_STRIDE,
     LOCAL_K_TOKEN_STRIDE: tl.constexpr,
-    LOCAL_V_BATCH_STRIDE: tl.constexpr,
-    LOCAL_V_HEAD_STRIDE: tl.constexpr,
+    LOCAL_V_BATCH_STRIDE,
+    LOCAL_V_HEAD_STRIDE,
     LOCAL_V_TOKEN_STRIDE: tl.constexpr,
-    TOP_BATCH_STRIDE: tl.constexpr,
-    TOP_HEAD_STRIDE: tl.constexpr,
+    TOP_BATCH_STRIDE,
+    TOP_HEAD_STRIDE,
     TOP_QUERY_STRIDE: tl.constexpr,
     query_len,
     state_len,
@@ -1665,6 +1725,7 @@ def _route_logits_coarse_attention_kernel(
     HEAD_TAIL_BLOCK_DIM: tl.constexpr,
     VALUE_BLOCK_DIM: tl.constexpr,
     ROUTE_COUNT: tl.constexpr,
+    STATE_V_IS_MEAN: tl.constexpr,
     SCALE: tl.constexpr,
     BLOCK_M: tl.constexpr,
     BLOCK_N: tl.constexpr,
@@ -1732,7 +1793,12 @@ def _route_logits_coarse_attention_kernel(
             mask=state_valid[:, None] & (value_dim[None, :] < VALUE_DIM),
             other=0.0,
         )
-        mean_values = (values.to(tl.float32) / count[:, None]).to(values.dtype)
+        if STATE_V_IS_MEAN:
+            mean_values = values
+        else:
+            mean_values = (
+                values.to(tl.float32) / count[:, None]
+            ).to(values.dtype)
         scores = tl.load(
             route_logits
             + batch * LOGIT_BATCH_STRIDE
@@ -1904,6 +1970,7 @@ def _route_logits_topk_coarse_attention_kernel(
     HEAD_MAJOR: tl.constexpr,
     ROW_COUNT: tl.constexpr,
     STABLE_RECOMPUTE: tl.constexpr,
+    ROUTE_ONLY: tl.constexpr,
     HEAD_DIM: tl.constexpr,
     VALUE_DIM: tl.constexpr,
     HEAD_BLOCK_DIM: tl.constexpr,
@@ -1992,16 +2059,20 @@ def _route_logits_topk_coarse_attention_kernel(
             mask=state_valid,
             other=1.0,
         ).to(tl.float32)
-        values = tl.load(
-            state_v
-            + batch * STATE_V_BATCH_STRIDE
-            + kv_head * STATE_V_HEAD_STRIDE
-            + slot[:, None] * STATE_V_TOKEN_STRIDE
-            + value_dim[None, :],
-            mask=state_valid[:, None] & (value_dim[None, :] < VALUE_DIM),
-            other=0.0,
-        )
-        mean_values = (values.to(tl.float32) / count[:, None]).to(values.dtype)
+        if not STABLE_RECOMPUTE and not ROUTE_ONLY:
+            values = tl.load(
+                state_v
+                + batch * STATE_V_BATCH_STRIDE
+                + kv_head * STATE_V_HEAD_STRIDE
+                + slot[:, None] * STATE_V_TOKEN_STRIDE
+                + value_dim[None, :],
+                mask=state_valid[:, None]
+                & (value_dim[None, :] < VALUE_DIM),
+                other=0.0,
+            )
+            mean_values = (
+                values.to(tl.float32) / count[:, None]
+            ).to(values.dtype)
         scores = tl.load(
             route_logits
             + batch * LOGIT_BATCH_STRIDE
@@ -2011,9 +2082,16 @@ def _route_logits_topk_coarse_attention_kernel(
             mask=query_valid[:, None] & state_valid[None, :],
             other=-float("inf"),
         ).to(tl.float32)
+        # Match the standalone route kernel's BF16 scale rounding exactly;
+        # coarse mass still uses the unrounded FP32 score below.
+        route_dot_scores = (
+            scores.to(tl.bfloat16) * SCALE
+        ).to(tl.bfloat16).to(tl.float32)
         dot_scores = scores * SCALE
         scores = dot_scores + tl.log(count)[None, :]
-        route_scores = dot_scores + ROUTE_COUNT_BIAS * tl.log(count)[None, :]
+        route_scores = (
+            route_dot_scores + ROUTE_COUNT_BIAS * tl.log(count)[None, :]
+        )
         valid = query_valid[:, None] & state_valid[None, :]
         scores = tl.where(valid, scores, -float("inf"))
         route_scores = tl.where(valid, route_scores, -float("inf"))
@@ -2085,18 +2163,25 @@ def _route_logits_topk_coarse_attention_kernel(
                     remaining_scores,
                 )
 
-        block_maximum = tl.max(scores, axis=1)
-        new_maximum = tl.maximum(maximum, block_maximum)
-        correction = tl.exp(maximum - new_maximum)
-        probabilities = tl.exp(scores - new_maximum[:, None])
-        probabilities = tl.where(valid, probabilities, 0.0)
-        denominator = denominator * correction + tl.sum(probabilities, axis=1)
-        accumulator = accumulator * correction[:, None] + tl.dot(
-            probabilities.to(mean_values.dtype),
-            mean_values,
-            out_dtype=tl.float32,
-        )
-        maximum = new_maximum
+        if (
+            (not STABLE_RECOMPUTE and not ROUTE_ONLY)
+            or RESIDUAL_MASS > 0.0
+        ):
+            block_maximum = tl.max(scores, axis=1)
+            new_maximum = tl.maximum(maximum, block_maximum)
+            correction = tl.exp(maximum - new_maximum)
+            probabilities = tl.exp(scores - new_maximum[:, None])
+            probabilities = tl.where(valid, probabilities, 0.0)
+            denominator = denominator * correction + tl.sum(
+                probabilities, axis=1
+            )
+            if not STABLE_RECOMPUTE:
+                accumulator = accumulator * correction[:, None] + tl.dot(
+                    probabilities.to(mean_values.dtype),
+                    mean_values,
+                    out_dtype=tl.float32,
+                )
+            maximum = new_maximum
 
     if ROUTE_COUNT == 8:
         inverse_slot = top_packed & 0xFFFFFFFF
@@ -2121,6 +2206,10 @@ def _route_logits_topk_coarse_attention_kernel(
         mask=selected_valid,
         other=-float("inf"),
     ).to(tl.float32)
+    top_route_scores = (
+        selected_logits.to(tl.bfloat16) * SCALE
+    ).to(tl.bfloat16).to(tl.float32)
+    top_route_scores += ROUTE_COUNT_BIAS * tl.log(selected_counts)
     top_scores = selected_logits * SCALE + tl.log(selected_counts)
     top_indices = tl.where(selected_valid, top_indices, -1)
 
@@ -2176,7 +2265,11 @@ def _route_logits_topk_coarse_attention_kernel(
         )
         maximum = new_maximum
 
-    if RESIDUAL_MASS > 0.0 or OPEN_COUNT < ROUTE_COUNT:
+    if (
+        RESIDUAL_MASS > 0.0
+        or OPEN_COUNT < ROUTE_COUNT
+        or OPEN_COUNT <= 4
+    ):
         if RESIDUAL_MASS > 0.0:
             full_lse = maximum + tl.log(denominator)
             if USE_EXTERNAL_LOCAL_LSE:
@@ -2196,7 +2289,14 @@ def _route_logits_topk_coarse_attention_kernel(
             remaining_mass = tl.sum(
                 tl.exp(top_scores - full_lse[:, None]), axis=1
             )
-        remaining_scores = top_scores
+        if RESIDUAL_MASS > 0.0:
+            remaining_scores = top_scores
+        else:
+            # Padded top-k storage may contain one extra candidate (for
+            # example top-3 uses a four-wide vector). Select the requested
+            # routes with the same BF16-rounded objective as the standalone
+            # routing kernel, while retaining exact coarse scores below.
+            remaining_scores = top_route_scores
         opened_indices = tl.full(
             (ROW_COUNT, ROUTE_COUNT), -1, tl.int32
         )
@@ -2207,19 +2307,28 @@ def _route_logits_topk_coarse_attention_kernel(
         )
         for route in tl.static_range(0, OPEN_COUNT):
             candidate_score = tl.max(remaining_scores, axis=1)
-            candidate_rank = tl.min(
+            candidate_index = tl.min(
                 tl.where(
                     remaining_scores == candidate_score[:, None],
+                    top_indices,
+                    0x7FFFFFFF,
+                ),
+                axis=1,
+            )
+            candidate_rank = tl.min(
+                tl.where(
+                    (remaining_scores == candidate_score[:, None])
+                    & (top_indices == candidate_index[:, None]),
                     route_rank[None, :],
                     ROUTE_COUNT,
                 ),
                 axis=1,
             )
-            candidate_index = tl.max(
+            candidate_coarse_score = tl.max(
                 tl.where(
                     route_rank[None, :] == candidate_rank[:, None],
-                    top_indices,
-                    -1,
+                    top_scores,
+                    -float("inf"),
                 ),
                 axis=1,
             )
@@ -2242,11 +2351,13 @@ def _route_logits_topk_coarse_attention_kernel(
             )
             opened_scores = tl.where(
                 destination,
-                tl.where(opened, candidate_score, -float("inf"))[:, None],
+                tl.where(opened, candidate_coarse_score, -float("inf"))[
+                    :, None
+                ],
                 opened_scores,
             )
             if RESIDUAL_MASS > 0.0:
-                remaining_mass -= tl.exp(candidate_score - full_lse)
+                remaining_mass -= tl.exp(candidate_coarse_score - full_lse)
             remaining_scores = tl.where(
                 route_rank[None, :] == candidate_rank[:, None],
                 -float("inf"),
@@ -2254,6 +2365,72 @@ def _route_logits_topk_coarse_attention_kernel(
             )
         top_indices = opened_indices
         top_scores = opened_scores
+
+    if RESIDUAL_MASS == 0.0 and OPEN_COUNT > 1:
+        # Match route_top8_scores_grouped(..., reorder_like_torch=True): keep
+        # the boundary candidate last and sort the preceding selected slot
+        # indices. Recursive leaf reductions consume routes in this order, so
+        # set equality alone is not sufficient for numerical parity.
+        boundary_index = tl.max(
+            tl.where(
+                route_rank[None, :] == OPEN_COUNT - 1,
+                top_indices,
+                -1,
+            ),
+            axis=1,
+        )
+        boundary_score = tl.max(
+            tl.where(
+                route_rank[None, :] == OPEN_COUNT - 1,
+                top_scores,
+                -float("inf"),
+            ),
+            axis=1,
+        )
+        remaining_indices = tl.where(
+            route_rank[None, :] < OPEN_COUNT - 1,
+            top_indices,
+            0x7FFFFFFF,
+        )
+        reordered_indices = tl.full(
+            (ROW_COUNT, ROUTE_COUNT), -1, tl.int32
+        )
+        reordered_scores = tl.full(
+            (ROW_COUNT, ROUTE_COUNT), -float("inf"), tl.float32
+        )
+        for output_rank in tl.static_range(0, OPEN_COUNT - 1):
+            best_index = tl.min(remaining_indices, axis=1)
+            best_score = tl.max(
+                tl.where(
+                    top_indices == best_index[:, None],
+                    top_scores,
+                    -float("inf"),
+                ),
+                axis=1,
+            )
+            destination = route_rank[None, :] == output_rank
+            reordered_indices = tl.where(
+                destination, best_index[:, None], reordered_indices
+            )
+            reordered_scores = tl.where(
+                destination, best_score[:, None], reordered_scores
+            )
+            remaining_indices = tl.where(
+                remaining_indices == best_index[:, None],
+                0x7FFFFFFF,
+                remaining_indices,
+            )
+        boundary_destination = route_rank[None, :] == OPEN_COUNT - 1
+        top_indices = tl.where(
+            boundary_destination,
+            boundary_index[:, None],
+            reordered_indices,
+        )
+        top_scores = tl.where(
+            boundary_destination,
+            boundary_score[:, None],
+            reordered_scores,
+        )
 
     if STABLE_RECOMPUTE:
         # When selected states dominate the softmax, subtracting their mass
@@ -2380,7 +2557,7 @@ def _route_logits_topk_coarse_attention_kernel(
                 probabilities.to(values.dtype), values, out_dtype=tl.float32
             )
             maximum = new_maximum
-    else:
+    elif not ROUTE_ONLY:
         # The streamed field included every low-resolution state summary.
         # Remove selected summaries so exact leaves replace them once.
         for route in tl.static_range(0, OPEN_COUNT):
@@ -2429,24 +2606,27 @@ def _route_logits_topk_coarse_attention_kernel(
                 * selected_mean.to(tl.float32)
             )
 
-    output_row = (
-        (batch * QUERY_HEADS + query_head) * query_len + query
-    ).to(tl.int64)
-    has_mass = denominator > 0.0
-    tl.store(
-        output + output_row[:, None] * VALUE_DIM + value_dim[None, :],
-        tl.where(has_mass[:, None], accumulator / denominator[:, None], 0.0),
-        mask=query_valid[:, None] & (value_dim[None, :] < VALUE_DIM),
-    )
-    tl.store(
-        lse + output_row,
-        tl.where(
-            has_mass,
-            maximum + tl.log(denominator),
-            -float("inf"),
-        ),
-        mask=query_valid,
-    )
+    if not ROUTE_ONLY:
+        output_row = (
+            (batch * QUERY_HEADS + query_head) * query_len + query
+        ).to(tl.int64)
+        has_mass = denominator > 0.0
+        tl.store(
+            output + output_row[:, None] * VALUE_DIM + value_dim[None, :],
+            tl.where(
+                has_mass[:, None], accumulator / denominator[:, None], 0.0
+            ),
+            mask=query_valid[:, None] & (value_dim[None, :] < VALUE_DIM),
+        )
+        tl.store(
+            lse + output_row,
+            tl.where(
+                has_mass,
+                maximum + tl.log(denominator),
+                -float("inf"),
+            ),
+            mask=query_valid,
+        )
     tl.store(
         top_slots
         + batch * TOP_BATCH_STRIDE
@@ -2707,15 +2887,28 @@ def _apply_state_deltas_kernel(
     tl.store(touched + row * DELTA_SLOT_STRIDE + slot, 0, mask=update)
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["active_groups", "query_len", "state_len"],
+    do_not_specialize_on_alignment=[
+        "Q_BATCH_STRIDE",
+        "Q_HEAD_STRIDE",
+        "STATE_BATCH_STRIDE",
+        "STATE_HEAD_STRIDE",
+        "COUNT_BATCH_STRIDE",
+        "COUNT_HEAD_STRIDE",
+        "active_groups",
+        "query_len",
+        "state_len",
+    ],
+)
 def _route_state_group_candidates_kernel(
     q,
     state_k,
     counts,
     partial_scores,
     partial_indices,
-    Q_BATCH_STRIDE: tl.constexpr,
-    Q_HEAD_STRIDE: tl.constexpr,
+    Q_BATCH_STRIDE,
+    Q_HEAD_STRIDE,
     Q_TOKEN_STRIDE: tl.constexpr,
     STATE_BATCH_STRIDE,
     STATE_HEAD_STRIDE,
@@ -2824,16 +3017,28 @@ def _route_state_group_candidates_kernel(
         )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["active_groups", "query_len", "state_len"],
+    do_not_specialize_on_alignment=[
+        "LOGIT_BATCH_STRIDE",
+        "LOGIT_HEAD_STRIDE",
+        "LOGIT_QUERY_STRIDE",
+        "COUNT_BATCH_STRIDE",
+        "COUNT_HEAD_STRIDE",
+        "active_groups",
+        "query_len",
+        "state_len",
+    ],
+)
 def _route_score_group_candidates_kernel(
     logits,
     counts,
     partial_scores,
     partial_indices,
     partial_lse,
-    LOGIT_BATCH_STRIDE: tl.constexpr,
-    LOGIT_HEAD_STRIDE: tl.constexpr,
-    LOGIT_QUERY_STRIDE: tl.constexpr,
+    LOGIT_BATCH_STRIDE,
+    LOGIT_HEAD_STRIDE,
+    LOGIT_QUERY_STRIDE,
     COUNT_BATCH_STRIDE,
     COUNT_HEAD_STRIDE,
     COUNT_TOKEN_STRIDE,
@@ -2941,7 +3146,10 @@ def _route_score_group_candidates_kernel(
         )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["query_len", "active_groups"],
+    do_not_specialize_on_alignment=["query_len", "active_groups"],
+)
 def _reduce_route_group_candidates_kernel(
     partial_scores,
     partial_indices,
@@ -3087,27 +3295,42 @@ def _reorder_topk_like_torch_kernel(
         )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["query_len", "state_len"],
+    do_not_specialize_on_alignment=[
+        "LOGIT_BATCH_STRIDE",
+        "LOGIT_HEAD_STRIDE",
+        "LOGIT_QUERY_STRIDE",
+        "TOP_BATCH_STRIDE",
+        "TOP_HEAD_STRIDE",
+        "LSE_BATCH_STRIDE",
+        "LSE_HEAD_STRIDE",
+        "LOCAL_LSE_BATCH_STRIDE",
+        "LOCAL_LSE_HEAD_STRIDE",
+        "query_len",
+        "state_len",
+    ],
+)
 def _apply_residual_mass_opening_kernel(
     logits,
     counts,
     top_slots,
     state_lse,
     local_lse,
-    LOGIT_BATCH_STRIDE: tl.constexpr,
-    LOGIT_HEAD_STRIDE: tl.constexpr,
-    LOGIT_QUERY_STRIDE: tl.constexpr,
+    LOGIT_BATCH_STRIDE,
+    LOGIT_HEAD_STRIDE,
+    LOGIT_QUERY_STRIDE,
     COUNT_BATCH_STRIDE: tl.constexpr,
     COUNT_HEAD_STRIDE: tl.constexpr,
     COUNT_TOKEN_STRIDE: tl.constexpr,
-    TOP_BATCH_STRIDE: tl.constexpr,
-    TOP_HEAD_STRIDE: tl.constexpr,
+    TOP_BATCH_STRIDE,
+    TOP_HEAD_STRIDE,
     TOP_QUERY_STRIDE: tl.constexpr,
-    LSE_BATCH_STRIDE: tl.constexpr,
-    LSE_HEAD_STRIDE: tl.constexpr,
+    LSE_BATCH_STRIDE,
+    LSE_HEAD_STRIDE,
     LSE_QUERY_STRIDE: tl.constexpr,
-    LOCAL_LSE_BATCH_STRIDE: tl.constexpr,
-    LOCAL_LSE_HEAD_STRIDE: tl.constexpr,
+    LOCAL_LSE_BATCH_STRIDE,
+    LOCAL_LSE_HEAD_STRIDE,
     LOCAL_LSE_QUERY_STRIDE: tl.constexpr,
     query_len,
     state_len,
@@ -4027,7 +4250,9 @@ def route_logits_coarse_attention(
     block_m: int = 4,
     block_n: int = 32,
     num_warps: int = 4,
+    precompute_mean_values: bool = False,
     head_major: bool | None = None,
+    max_grouped_rows: int = 8,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Compute the coarse state/local branch while reusing routing logits."""
     tensors = (q, route_logits, state_v, counts, local_k, local_v, top_slots)
@@ -4060,7 +4285,11 @@ def route_logits_coarse_attention(
         raise ValueError("local key dimension differs from the query")
     if int(local_v.size(-1)) != value_dim:
         raise ValueError("local and state value dimensions differ")
-    if block_m <= 0 or block_n <= 0:
+    if (
+        block_m <= 0
+        or block_n <= 0
+        or max_grouped_rows <= 0
+    ):
         raise ValueError("coarse-attention tile sizes must be positive")
 
     if head_dim > 512 or value_dim > 256:
@@ -4071,6 +4300,11 @@ def route_logits_coarse_attention(
         block_m = min(block_m, 4)
         num_warps = min(num_warps, 4)
         head_major = True
+    # Runtime strides can make Triton spill the per-row value accumulator to
+    # shared memory.  Keep that tile bounded for high-GQA models instead of
+    # relying on stride specialization to keep the accumulator in registers.
+    if head_major is not True and kv_group_size * block_m > max_grouped_rows:
+        block_m = max(1, max_grouped_rows // kv_group_size)
     grouped_rows = kv_group_size * block_m
     value_block_dim = triton.next_power_of_2(value_dim)
     if head_major is None:
@@ -4090,6 +4324,13 @@ def route_logits_coarse_attention(
         raise ValueError(
             "head-major coarse attention requires a power-of-two query tile"
         )
+
+    kernel_state_v = state_v
+    if precompute_mean_values:
+        active_counts = counts[..., :state_len, :].clamp_min(1.0)
+        kernel_state_v = (
+            state_v[..., :state_len, :].float() / active_counts
+        ).to(state_v.dtype).contiguous()
 
     output = torch.empty(
         batch,
@@ -4120,7 +4361,7 @@ def route_logits_coarse_attention(
     _route_logits_coarse_attention_kernel[grid](
         q,
         route_logits,
-        state_v,
+        kernel_state_v,
         counts,
         local_k,
         local_v,
@@ -4134,9 +4375,9 @@ def route_logits_coarse_attention(
         route_logits.stride(1),
         route_logits.stride(2),
         route_logits.stride(3),
-        state_v.stride(0),
-        state_v.stride(1),
-        state_v.stride(2),
+        kernel_state_v.stride(0),
+        kernel_state_v.stride(1),
+        kernel_state_v.stride(2),
         counts.stride(0),
         counts.stride(1),
         counts.stride(2),
@@ -4164,6 +4405,7 @@ def route_logits_coarse_attention(
         HEAD_TAIL_BLOCK_DIM=head_tail_block_dim,
         VALUE_BLOCK_DIM=value_block_dim,
         ROUTE_COUNT=int(top_slots.size(-1)),
+        STATE_V_IS_MEAN=precompute_mean_values,
         SCALE=scale,
         BLOCK_M=block_m,
         BLOCK_N=block_n,
@@ -4193,6 +4435,8 @@ def route_logits_topk_coarse_attention(
     block_n: int = 32,
     num_warps: int = 8,
     head_major: bool | None = None,
+    stable_recompute: bool = True,
+    route_only: bool = False,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Select top-k routes and form their coarse remainder in one scan."""
     tensors = (q, route_logits, state_v, counts, local_k, local_v)
@@ -4214,6 +4458,8 @@ def route_logits_topk_coarse_attention(
         raise ValueError("maximum routed leaf count must be positive")
     if residual_mass is not None and not 0.0 < residual_mass < 1.0:
         raise ValueError("residual route mass must lie strictly between zero and one")
+    if route_only and residual_mass is not None:
+        raise ValueError("route-only fusion does not support residual-mass opening")
     if state_len < topk:
         raise ValueError("active state is smaller than the requested route count")
     if protected_len < 0 or protected_len + topk > state_len:
@@ -4253,21 +4499,35 @@ def route_logits_topk_coarse_attention(
         dtype=torch.long,
         device=q.device,
     )
-    output = torch.empty(
-        batch,
-        query_heads,
-        query_len,
-        value_dim,
-        dtype=q.dtype,
-        device=q.device,
-    )
-    lse = torch.empty(
-        batch,
-        query_heads,
-        query_len,
-        dtype=torch.float32,
-        device=q.device,
-    )
+    if route_only:
+        output = torch.empty(1, dtype=q.dtype, device=q.device)
+        lse = torch.empty(
+            batch,
+            query_heads,
+            1,
+            dtype=torch.float32,
+            device=q.device,
+        )
+        local_k = local_k[..., :0, :].contiguous()
+        local_v = local_v[..., :0, :].contiguous()
+        local_len = 0
+    else:
+        output = torch.empty(
+            batch,
+            query_heads,
+            query_len,
+            value_dim,
+            dtype=q.dtype,
+            device=q.device,
+        )
+        lse = torch.empty(
+            batch,
+            query_heads,
+            query_len,
+            dtype=torch.float32,
+            device=q.device,
+        )
+    use_external_local_lse = residual_local_lse is not None and local_len == 0
     if residual_local_lse is not None:
         if residual_mass is None:
             raise ValueError("a residual local LSE requires a residual-mass threshold")
@@ -4275,7 +4535,7 @@ def route_logits_topk_coarse_attention(
             raise ValueError("residual local LSE has the wrong shape")
         if not residual_local_lse.is_cuda or not residual_local_lse.is_contiguous():
             raise ValueError("residual local LSE must be contiguous on the GPU")
-        residual_lse = residual_local_lse
+        residual_lse = residual_local_lse if use_external_local_lse else lse
     else:
         if residual_mass is not None and local_len == 0:
             raise ValueError(
@@ -4337,7 +4597,8 @@ def route_logits_topk_coarse_attention(
         KV_GROUP_SIZE=kv_group_size,
         HEAD_MAJOR=head_major,
         ROW_COUNT=row_count,
-        STABLE_RECOMPUTE=head_major,
+        STABLE_RECOMPUTE=stable_recompute and not route_only,
+        ROUTE_ONLY=route_only,
         HEAD_DIM=head_dim,
         VALUE_DIM=value_dim,
         HEAD_BLOCK_DIM=head_block_dim,
@@ -4348,7 +4609,7 @@ def route_logits_topk_coarse_attention(
         MAX_LEAF_TOKENS=max_leaf_tokens or 0,
         PROTECTED_LEN=protected_len,
         RESIDUAL_MASS=residual_mass or 0.0,
-        USE_EXTERNAL_LOCAL_LSE=residual_local_lse is not None,
+        USE_EXTERNAL_LOCAL_LSE=use_external_local_lse,
         SCALE=scale,
         ROUTE_COUNT_BIAS=route_count_bias,
         BLOCK_M=block_m,

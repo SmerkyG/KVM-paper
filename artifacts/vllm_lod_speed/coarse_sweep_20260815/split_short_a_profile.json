@@ -1,0 +1,137 @@
+{
+  "attention_backend": null,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 105849552896,
+    "device_used_bytes_before_reclaim": 118428270592,
+    "lod_cache_bytes": 1724724304,
+    "lod_decode_scratch_bytes": 220369800,
+    "native_cache_bytes": 2357329920,
+    "torch_allocated_bytes": 86674664448,
+    "torch_reclaimable_cached_bytes": 12578717696,
+    "torch_reserved_bytes_after_reclaim": 102531858432,
+    "torch_reserved_bytes_before_reclaim": 115110576128
+  },
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.5-35B-A3B",
+  "decode_interval_tokens": 7,
+  "decode_timings_seconds": [
+    0.06598527543246746
+  ],
+  "decode_tokens": 8,
+  "enforce_eager": false,
+  "jit_monitor_verbose": false,
+  "length": null,
+  "lengths": [
+    10998,
+    12866,
+    15646,
+    15989,
+    16897,
+    17185,
+    17284,
+    17716
+  ],
+  "lod_coarse_block_m": 16,
+  "lod_coarse_block_n": 32,
+  "lod_coarse_num_warps": 8,
+  "lod_diagnostics": {
+    "batched_cached_prefill_rows": 130,
+    "batched_cached_prefills": 50,
+    "batched_install_calls": 100,
+    "cached_prefill_candidate_calls": 170,
+    "cached_prefill_candidate_rows": 1080,
+    "cached_prefill_noncontiguous": 20,
+    "cached_prefill_nonpacked_calls": 20,
+    "cached_prefill_nonuniform_lengths": 150,
+    "cached_prefill_nonuniform_previous": 140,
+    "cached_prefill_packed_calls": 980,
+    "cached_prefill_unready": 0,
+    "catch_up_batches": 0,
+    "catch_up_rows": 0,
+    "decode_calls": 80,
+    "direct_prefills": 190,
+    "installs": 160,
+    "layers": 10,
+    "varlen_local_calls": 0,
+    "varlen_local_query_tokens": 0,
+    "varlen_local_rows": 0
+  },
+  "lod_direct_prefill_route": false,
+  "lod_fused_prefill_route_coarse": false,
+  "lod_leaf_num_warps": null,
+  "lod_prefill_chunk_len": null,
+  "lod_prefill_profile": {
+    "derived_per_repeat_ms": {
+      "direct_unattributed": 558.0996614471078,
+      "two_level_unattributed": 61.41442132741213
+    },
+    "direct_share_of_measured_prefill": 0.6293503443379064,
+    "layers": 10,
+    "measured_prefill_mean_ms": 6113.963510841131,
+    "phases": {
+      "coarse_followup": {
+        "calls": 300,
+        "per_repeat_ms": 1284.2218673489988,
+        "total_ms": 1284.2218673489988
+      },
+      "direct_total": {
+        "calls": 100,
+        "per_repeat_ms": 3847.8250408172607,
+        "total_ms": 3847.8250408172607
+      },
+      "exact_local": {
+        "calls": 300,
+        "per_repeat_ms": 144.58195317536592,
+        "total_ms": 144.58195317536592
+      },
+      "leaf_kernel": {
+        "calls": 300,
+        "per_repeat_ms": 1116.7456970997155,
+        "total_ms": 1116.7456970997155
+      },
+      "leaf_total": {
+        "calls": 300,
+        "per_repeat_ms": 1116.7456970997155,
+        "total_ms": 1116.7456970997155
+      },
+      "route_and_coarse": {
+        "calls": 300,
+        "per_repeat_ms": 154.4336383715272,
+        "total_ms": 154.4336383715272
+      },
+      "state_update": {
+        "calls": 970,
+        "per_repeat_ms": 528.3278020471334,
+        "total_ms": 528.3278020471334
+      },
+      "two_level": {
+        "calls": 300,
+        "per_repeat_ms": 2616.8156241476536,
+        "total_ms": 2616.8156241476536
+      }
+    }
+  },
+  "lod_prefill_state_update_len": null,
+  "long_prefill_token_threshold": 4096,
+  "marginal_decode_ms_per_batch_step": 9.426467918923922,
+  "marginal_decode_ms_per_token": 1.1783084898654903,
+  "marginal_decode_tokens_per_second": 848.674187278541,
+  "max_num_batched_tokens": 16384,
+  "mode": "lod",
+  "num_gpu_blocks_override": null,
+  "prefill_plus_decode_seconds": 6.18131517060101,
+  "prefill_prompt_tokens_per_second": 20376.47097158758,
+  "prefill_seconds": 6.113963510841131,
+  "prefill_timings_seconds": [
+    6.113963510841131
+  ],
+  "profile_lod_prefill_phases": true,
+  "prompt_tokens": 124581,
+  "repeats": 1,
+  "total_timings_seconds": [
+    6.18131517060101
+  ],
+  "warmup_decode_seconds": 0.06658160779625177,
+  "warmup_prefill_seconds": 15.059294247068465,
+  "warmup_total_seconds": 15.133326849900186
+}

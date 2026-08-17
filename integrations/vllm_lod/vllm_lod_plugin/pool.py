@@ -107,6 +107,31 @@ class VLLMLayerLODPool:
             default_open_count=settings.open_count,
         )
         self.engine.prefill_local_attention_backend = settings.prefill_local_backend
+        self.engine.fused_prefill_route_coarse = (
+            settings.fused_prefill_route_coarse
+        )
+        self.engine.fused_prefill_stable_recompute = (
+            settings.fused_prefill_stable_recompute
+        )
+        self.engine.fused_prefill_external_recompute = (
+            settings.fused_prefill_external_recompute
+        )
+        if (
+            settings.fused_prefill_route_coarse
+            and settings.fused_prefill_stable_recompute
+            and not settings.fused_prefill_external_recompute
+        ):
+            # A 128-row value accumulator spills on the Qwen 3.5 GQA=8
+            # geometry. Keep the single-kernel stable path at 64 rows.
+            self.engine.fused_prefill_block_m = 8
+        if (
+            settings.fused_prefill_route_coarse
+            and settings.fused_prefill_stable_recompute
+            and settings.fused_prefill_external_recompute
+        ):
+            self.engine.prefill_coarse_max_grouped_rows = (
+                settings.prefill_coarse_max_grouped_rows
+            )
         # Keep exact sink/protected entries outside the clustered state. This
         # matches the standalone kernel architecture and folds the side cache
         # into the existing final decode reduction.
@@ -114,8 +139,11 @@ class VLLMLayerLODPool:
         self.state_capacity = self.engine._state_capacity(
             request_capacity, min(request_capacity, settings.chunk_size)
         )
+        self.decode_local_capacity = (
+            local_window + int(self.engine.decode_state_update_len)
+        )
         self.local_capacity = max(
-            local_window + int(self.engine.decode_state_update_len),
+            self.decode_local_capacity,
             int(self.engine.prefill_local_len),
         )
         self.leaf_capacity = _round_up(request_capacity, settings.chunk_size) + max(
@@ -1273,7 +1301,11 @@ class VLLMLayerLODPool:
             sink_k=self.state.get("sink_k"),
             sink_v=self.state.get("sink_v"),
             state_len=self.state_capacity,
-            local_len=self.local_capacity,
+            # Prefill keeps a larger exact lookback in the same backing row,
+            # but catch-up keeps each decode query's live tail within the
+            # normal local window. The extra storage only receives the current
+            # token before the next scheduled catch-up.
+            local_len=int(self.engine.local_len),
             cache_indices=self.active_indices[:rows],
             local_lens=self.local_lens,
             new_k=k,

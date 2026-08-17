@@ -1,0 +1,109 @@
+{
+  "attention_backend": null,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 110601699328,
+    "device_used_bytes_before_reclaim": 118547808256,
+    "lod_cache_bytes": 1724724304,
+    "lod_decode_scratch_bytes": 220369800,
+    "native_cache_bytes": 2357329920,
+    "torch_allocated_bytes": 86790904832,
+    "torch_reclaimable_cached_bytes": 7946108928,
+    "torch_reserved_bytes_after_reclaim": 107162370048,
+    "torch_reserved_bytes_before_reclaim": 115108478976
+  },
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.5-35B-A3B",
+  "decode_interval_tokens": 7,
+  "decode_timings_seconds": [
+    0.06705468241125345
+  ],
+  "decode_tokens": 8,
+  "enforce_eager": false,
+  "jit_monitor_verbose": false,
+  "length": null,
+  "lengths": [
+    10998,
+    12866,
+    15646,
+    15989,
+    16897,
+    17185,
+    17284,
+    17716
+  ],
+  "lod_diagnostics": {
+    "batched_cached_prefill_rows": 140,
+    "batched_cached_prefills": 40,
+    "batched_install_calls": 100,
+    "cached_prefill_candidate_calls": 160,
+    "cached_prefill_candidate_rows": 1040,
+    "cached_prefill_noncontiguous": 0,
+    "cached_prefill_nonpacked_calls": 0,
+    "cached_prefill_nonuniform_lengths": 140,
+    "cached_prefill_nonuniform_previous": 120,
+    "cached_prefill_packed_calls": 940,
+    "cached_prefill_unready": 0,
+    "catch_up_batches": 0,
+    "catch_up_rows": 0,
+    "decode_calls": 80,
+    "direct_prefills": 180,
+    "installs": 160,
+    "layers": 10,
+    "varlen_local_calls": 0,
+    "varlen_local_query_tokens": 0,
+    "varlen_local_rows": 0
+  },
+  "lod_direct_prefill_route": false,
+  "lod_leaf_num_warps": null,
+  "lod_prefill_chunk_len": null,
+  "lod_prefill_profile": {
+    "direct_share_of_measured_prefill": 0.5875881739638368,
+    "layers": 10,
+    "measured_prefill_mean_ms": 5426.8905175849795,
+    "phases": {
+      "direct_total": {
+        "calls": 90,
+        "per_repeat_ms": 3188.776689529419,
+        "total_ms": 3188.776689529419
+      },
+      "exact_local": {
+        "calls": 270,
+        "per_repeat_ms": 139.1114961206913,
+        "total_ms": 139.1114961206913
+      },
+      "state_update": {
+        "calls": 860,
+        "per_repeat_ms": 477.43148279190063,
+        "total_ms": 477.43148279190063
+      },
+      "two_level": {
+        "calls": 270,
+        "per_repeat_ms": 2331.2469627559185,
+        "total_ms": 2331.2469627559185
+      }
+    }
+  },
+  "lod_prefill_state_update_len": null,
+  "long_prefill_token_threshold": 4096,
+  "marginal_decode_ms_per_batch_step": 9.579240344464779,
+  "marginal_decode_ms_per_token": 1.1974050430580974,
+  "marginal_decode_tokens_per_second": 835.1392920862123,
+  "max_num_batched_tokens": 16384,
+  "mode": "lod",
+  "num_gpu_blocks_override": null,
+  "prefill_plus_decode_seconds": 5.499967996031046,
+  "prefill_prompt_tokens_per_second": 22956.239783410958,
+  "prefill_seconds": 5.4268905175849795,
+  "prefill_timings_seconds": [
+    5.4268905175849795
+  ],
+  "profile_lod_prefill_phases": true,
+  "prompt_tokens": 124581,
+  "repeats": 1,
+  "total_timings_seconds": [
+    5.499967996031046
+  ],
+  "warmup_decode_seconds": 0.06745124608278275,
+  "warmup_prefill_seconds": 15.034179325215518,
+  "warmup_total_seconds": 15.110627254471183
+}

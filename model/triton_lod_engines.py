@@ -390,12 +390,15 @@ class KernelRecursivePagedLODAttention(_KernelLODEngine):
         self.leaf_num_warps = 1
         self.prefill_route_block_m = 128
         self.prefill_route_num_warps = 8
-        self.recursive_page_block_n = 2
+        # Four-page scans amortize recursive page-selection loop overhead.
+        self.recursive_page_block_n = 4
         self.coarse_route_block_m = 32
         self.coarse_route_block_n = 64
-        self.coarse_route_num_warps = 8
-        # Reusing route logits in a separate coarse reduction is faster than
-        # the larger fused kernel on the target ROCm geometry.
+        # Two wavefronts keep the quality-safe 64-wide accumulation order but
+        # avoid over-subscribing this memory-bound reduction on ROCm.
+        self.coarse_route_num_warps = 2
+        # Keep routing and coarse reduction separate. The fused path amplifies
+        # small INT4 page-requantization differences across scheduler splits.
         self.fused_prefill_route_coarse = False
         self.leaf_key_quant_bits = config.kv_bits
         self.leaf_value_quant_bits = config.kv_bits

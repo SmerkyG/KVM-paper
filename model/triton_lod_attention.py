@@ -195,7 +195,14 @@ class TritonLODAttentionCore(nn.Module):
     coarse_route_block_m = 16
     coarse_route_block_n = 32
     coarse_route_num_warps = 8
+    coarse_max_grouped_rows = 8
+    prefill_coarse_max_grouped_rows = 8
     fused_prefill_route_coarse = False
+    fused_prefill_stable_recompute = True
+    fused_prefill_external_recompute = True
+    fused_prefill_block_m = 16
+    fused_prefill_block_n = 32
+    fused_prefill_num_warps = 8
     split_prefill_local_attention = False
     fused_prefill_residual_opening = False
     overflow_bipartite_merge = False
@@ -2887,9 +2894,14 @@ class TritonLODAttentionCore(nn.Module):
                             else None
                         ),
                         residual_mass=dynamic_residual,
-                        block_m=self.coarse_route_block_m,
-                        block_n=self.coarse_route_block_n,
-                        num_warps=self.coarse_route_num_warps,
+                        block_m=self.fused_prefill_block_m,
+                        block_n=self.fused_prefill_block_n,
+                        num_warps=self.fused_prefill_num_warps,
+                        stable_recompute=self.fused_prefill_stable_recompute,
+                        route_only=(
+                            self.fused_prefill_stable_recompute
+                            and self.fused_prefill_external_recompute
+                        ),
                     )
                 )
                 if self.collect_dynamic_open_stats and dynamic_residual is not None:
@@ -2900,11 +2912,21 @@ class TritonLODAttentionCore(nn.Module):
                     if not hasattr(self, "_lod_dynamic_prefill_histograms"):
                         self._lod_dynamic_prefill_histograms = []
                     self._lod_dynamic_prefill_histograms.append(histogram)
-                self._lod_prefill_fused_coarse = (
-                    coarse_output,
-                    coarse_lse,
-                    include_local,
-                )
+                if (
+                    self.fused_prefill_stable_recompute
+                    and self.fused_prefill_external_recompute
+                ):
+                    # The fused first scan selects routes without temporary
+                    # group buffers. Reuse those logits in the established
+                    # coarse kernel so stable mode remains numerically
+                    # identical to the quality baseline.
+                    self._lod_prefill_route_logits = logits
+                else:
+                    self._lod_prefill_fused_coarse = (
+                        coarse_output,
+                        coarse_lse,
+                        include_local,
+                    )
                 return routed
             if (
                 self.fused_state_routing
@@ -4167,6 +4189,8 @@ class TritonLODAttentionCore(nn.Module):
                 block_m=self.coarse_route_block_m,
                 block_n=self.coarse_route_block_n,
                 num_warps=self.coarse_route_num_warps,
+                precompute_mean_values=query_len > 1,
+                max_grouped_rows=self.prefill_coarse_max_grouped_rows,
             )
         decode_route_logits = getattr(self, "_lod_decode_route_logits", None)
         if decode_route_logits is not None:
@@ -4206,6 +4230,8 @@ class TritonLODAttentionCore(nn.Module):
                 block_m=self.coarse_route_block_m,
                 block_n=self.coarse_route_block_n,
                 num_warps=self.coarse_route_num_warps,
+                precompute_mean_values=query_len > 1,
+                max_grouped_rows=self.coarse_max_grouped_rows,
             )
         route_logits = self._state_route_logits(
             q,
@@ -4238,6 +4264,8 @@ class TritonLODAttentionCore(nn.Module):
             block_m=self.coarse_route_block_m,
             block_n=self.coarse_route_block_n,
             num_warps=self.coarse_route_num_warps,
+            precompute_mean_values=query_len > 1,
+            max_grouped_rows=self.coarse_max_grouped_rows,
         )
         if not include_local or int(local_k.size(2)) == 0:
             return coarse_output, coarse_lse
@@ -5524,10 +5552,8 @@ class TritonLODAttentionCore(nn.Module):
         if finalize_cache_for_decode:
             decode_coverage = max(initial_len, self._bswa_begin(prefill_len + 1))
         else:
-            # A serving scheduler can split one logical prefill at arbitrary
-            # points. Preserve the exact field of the current *LOD* query
-            # block until that block is complete; otherwise every scheduler
-            # boundary irreversibly over-compresses part of the prefill field.
+            # Scheduler chunks are not semantic LOD query blocks. Preserve the
+            # exact field until the current logical prefill block is complete.
             completed_blocks = max(
                 0,
                 (prefill_len - front_len) // prefill_chunk_len,
@@ -5958,7 +5984,6 @@ class TritonLODAttentionCore(nn.Module):
                 self._bswa_begin(total_len + 1),
             )
         else:
-            front_len = exact_lookback + self.chunk_len
             completed_blocks = max(
                 0,
                 (total_len - front_len) // prefill_chunk_len,

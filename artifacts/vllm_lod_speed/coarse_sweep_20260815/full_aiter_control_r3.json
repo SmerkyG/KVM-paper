@@ -1,0 +1,70 @@
+{
+  "attention_backend": "ROCM_AITER_UNIFIED_ATTN",
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 219666186240,
+    "device_used_bytes_before_reclaim": 222413455360,
+    "lod_cache_bytes": 0,
+    "lod_decode_scratch_bytes": 0,
+    "native_cache_bytes": 120078991360,
+    "torch_allocated_bytes": 199885955584,
+    "torch_reclaimable_cached_bytes": 2747269120,
+    "torch_reserved_bytes_after_reclaim": 215956324352,
+    "torch_reserved_bytes_before_reclaim": 218703593472
+  },
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.5-35B-A3B",
+  "decode_interval_tokens": 7,
+  "decode_timings_seconds": [
+    0.06835078611038625,
+    0.07003032299689949,
+    0.06848474289290607
+  ],
+  "decode_tokens": 8,
+  "enforce_eager": false,
+  "jit_monitor_verbose": false,
+  "length": null,
+  "lengths": [
+    18857,
+    19003,
+    20377,
+    21300,
+    22799,
+    25313,
+    25345,
+    27470
+  ],
+  "lod_coarse_block_m": null,
+  "lod_coarse_block_n": null,
+  "lod_coarse_num_warps": null,
+  "lod_direct_prefill_route": false,
+  "lod_fused_prefill_route_coarse": null,
+  "lod_leaf_num_warps": null,
+  "lod_prefill_chunk_len": null,
+  "lod_prefill_state_update_len": null,
+  "long_prefill_token_threshold": 4096,
+  "marginal_decode_ms_per_batch_step": 9.783534698986582,
+  "marginal_decode_ms_per_token": 1.2229418373733227,
+  "marginal_decode_tokens_per_second": 817.700375798603,
+  "max_num_batched_tokens": 16384,
+  "mode": "full",
+  "num_gpu_blocks_override": null,
+  "prefill_plus_decode_seconds": 6.209248078987002,
+  "prefill_prompt_tokens_per_second": 29396.479760495786,
+  "prefill_seconds": 6.1389663480222225,
+  "prefill_timings_seconds": [
+    6.1389663480222225,
+    6.1421527459751815,
+    6.121173884021118
+  ],
+  "profile_lod_prefill_phases": false,
+  "prompt_tokens": 180464,
+  "repeats": 3,
+  "total_timings_seconds": [
+    6.209248078987002,
+    6.217639398062602,
+    6.190808532992378
+  ],
+  "warmup_decode_seconds": 0.06803302001208067,
+  "warmup_prefill_seconds": 6.21565398410894,
+  "warmup_total_seconds": 6.291247242828831
+}

@@ -1,0 +1,302 @@
+(APIServer pid=2606853) INFO 08-16 14:50:13 [api_utils.py:345] 
+(APIServer pid=2606853) INFO 08-16 14:50:13 [api_utils.py:345]        █     █     █▄   ▄█
+(APIServer pid=2606853) INFO 08-16 14:50:13 [api_utils.py:345]  ▄▄ ▄█ █     █     █ ▀▄▀ █  version 0.27.1
+(APIServer pid=2606853) INFO 08-16 14:50:13 [api_utils.py:345]   █▄█▀ █     █     █     █  model   Qwen/Qwen3.5-35B-A3B
+(APIServer pid=2606853) INFO 08-16 14:50:13 [api_utils.py:345]    ▀▀  ▀▀▀▀▀ ▀▀▀▀▀ ▀     ▀
+(APIServer pid=2606853) INFO 08-16 14:50:13 [api_utils.py:345] 
+(APIServer pid=2606853) INFO 08-16 14:50:13 [api_utils.py:273] non-default args: {'model_tag': 'Qwen/Qwen3.5-35B-A3B', 'host': '127.0.0.1', 'port': 20000, 'model': 'Qwen/Qwen3.5-35B-A3B', 'dtype': 'bfloat16', 'max_model_len': 131200, 'gpu_memory_utilization': 0.8, 'kv_cache_dtype': 'bfloat16', 'enable_prefix_caching': False, 'max_num_batched_tokens': 16384, 'max_num_seqs': 8, 'long_prefill_token_threshold': 4096, 'attention_config': AttentionConfig(backend=<AttentionBackendEnum.CUSTOM: None>, minimax_m3_msa_decode_backend='triton', backend_per_kind={}, flash_attn_version=None, use_prefill_decode_attention=False, flash_attn_max_num_splits_for_cuda_graph=32, tq_max_kv_splits_for_cuda_graph=32, use_trtllm_attention=None, disable_flashinfer_q_quantization=False, mla_prefill_backend=None, use_prefill_query_quantization=False, use_fp4_indexer_cache=False, indexer_kv_dtype='bf16', use_non_causal=False, sparse_mla_force_mqa=False, flex_attn_block_m=None, flex_attn_block_n=None, flex_attn_q_block_size=None, flex_attn_kv_block_size=None)}
+(APIServer pid=2606853) WARNING 08-16 14:50:13 [envs.py:2128] Unknown vLLM environment variable detected: VLLM_LOD_FUSED_PREFILL_STABLE_RECOMPUTE
+(APIServer pid=2606853) WARNING 08-16 14:50:13 [envs.py:2128] Unknown vLLM environment variable detected: VLLM_LOD_FUSED_PREFILL_ROUTE_COARSE
+(APIServer pid=2606853) WARNING 08-16 14:50:13 [envs.py:2128] Unknown vLLM environment variable detected: VLLM_LOD_FUSED_PREFILL_EXTERNAL_RECOMPUTE
+(APIServer pid=2606853) WARNING 08-16 14:50:13 [envs.py:2128] Unknown vLLM environment variable detected: VLLM_LOD_CACHE_OWNERSHIP
+(APIServer pid=2606853) WARNING 08-16 14:50:13 [envs.py:2128] Unknown vLLM environment variable detected: VLLM_LOD_POOL_SIZE
+(APIServer pid=2606853) WARNING 08-16 14:50:13 [envs.py:2128] Unknown vLLM environment variable detected: VLLM_LOD_KV_BITS
+(APIServer pid=2606853) WARNING 08-16 14:50:13 [envs.py:2128] Unknown vLLM environment variable detected: VLLM_LOD_MAX_CONTEXT
+(APIServer pid=2606853) Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+(APIServer pid=2606853) INFO 08-16 14:50:14 [model.py:645] Resolved architecture: Qwen3_5MoeForConditionalGeneration
+(APIServer pid=2606853) INFO 08-16 14:50:14 [model.py:1883] Using max model len 131200
+(APIServer pid=2606853) [ERROR] `min_frames` is part of Qwen3VLVideoProcessorInitKwargs, but not documented. Make sure to add it to the docstring of the function in /home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/transformers/models/qwen3_vl/video_processing_qwen3_vl.py.
+(APIServer pid=2606853) [ERROR] `max_frames` is part of Qwen3VLVideoProcessorInitKwargs, but not documented. Make sure to add it to the docstring of the function in /home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/transformers/models/qwen3_vl/video_processing_qwen3_vl.py.
+(APIServer pid=2606853) INFO 08-16 14:50:15 [scheduler.py:242] Chunked prefill is enabled with max_num_batched_tokens=16384.
+(APIServer pid=2606853) INFO 08-16 14:50:15 [kernel.py:306] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+(APIServer pid=2606853) [transformers] The `use_fast` parameter is deprecated and will be removed in a future version. Use `backend="torchvision"` instead of `use_fast=True`, or `backend="pil"` instead of `use_fast=False`.
+(EngineCore pid=2631168) INFO 08-16 14:50:33 [core.py:121] Initializing a V1 LLM engine (v0.27.1) with config: model='Qwen/Qwen3.5-35B-A3B', speculative_config=None, tokenizer='Qwen/Qwen3.5-35B-A3B', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=131200, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=False, quantization=None, quantization_config=None, enforce_eager=False, enable_return_routed_experts=False, kv_cache_dtype=bfloat16, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False, jit_monitor_mode='warn', jit_monitor_verbose=False), seed=0, served_model_name=Qwen/Qwen3.5-35B-A3B, enable_prefix_caching=False, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.VLLM_COMPILE: 3>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['+sparse_attn_indexer', 'none'], 'ir_enable_torch_wrap': True, 'splitting_ops': ['vllm::unified_attention_with_output', 'vllm::unified_mla_attention_with_output', 'vllm::mamba_mixer2', 'vllm::mamba_mixer', 'vllm::short_conv', 'vllm::linear_attention', 'vllm::qwen_gdn_attention_core', 'vllm::gdn_attention_core_xpu', 'vllm::olmo_hybrid_gdn_full_forward', 'vllm::sparse_attn_indexer', 'vllm::rocm_aiter_sparse_attn_indexer', 'vllm::deepseek_v4_attention', 'vllm::hpc_rope_norm_forward', 'vllm::unified_kv_cache_update', 'vllm::unified_mla_kv_cache_update'], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': None, 'compile_sizes': [], 'compile_ranges_endpoints': [16384], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'size_asserts': False, 'alignment_asserts': False, 'scalar_asserts': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.FULL_AND_PIECEWISE: (2, 1)>, 'cudagraph_num_of_warmups': 1, 'cudagraph_capture_sizes': [1, 2, 4, 8, 16], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': False, 'fuse_act_quant': False, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': False, 'enable_qk_norm_rope_fusion': False, 'fuse_rope_kvcache_cat_mla': False, 'fuse_act_padding': False, 'fuse_mla_dual_rms_norm': False, 'fuse_rope_kvcache': False, 'fuse_qk_norm_rope_kvcache': False}, 'max_cudagraph_capture_size': 16, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native']), enable_flashinfer_autotune=True, enable_cutedsl_warmup=True, enable_jit_warmup=True, enable_bf16x3_router_gemm=False, moe_backend='auto', linear_backend='auto')
+(EngineCore pid=2631168) Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+(EngineCore pid=2631168) [ERROR] `min_frames` is part of Qwen3VLVideoProcessorInitKwargs, but not documented. Make sure to add it to the docstring of the function in /home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/transformers/models/qwen3_vl/video_processing_qwen3_vl.py.
+(EngineCore pid=2631168) [ERROR] `max_frames` is part of Qwen3VLVideoProcessorInitKwargs, but not documented. Make sure to add it to the docstring of the function in /home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/transformers/models/qwen3_vl/video_processing_qwen3_vl.py.
+(EngineCore pid=2631168) INFO 08-16 14:50:35 [parallel_state.py:1640] world_size=1 rank=0 local_rank=0 distributed_init_method=tcp://10.42.29.175:44109 backend=nccl
+(EngineCore pid=2631168) INFO 08-16 14:50:35 [parallel_state.py:1977] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank 0, EPLB rank N/A
+(EngineCore pid=2631168) [transformers] The `use_fast` parameter is deprecated and will be removed in a future version. Use `backend="torchvision"` instead of `use_fast=True`, or `backend="pil"` instead of `use_fast=False`.
+(EngineCore pid=2631168) INFO 08-16 14:50:43 [gpu_model_runner.py:5308] Starting to load model Qwen/Qwen3.5-35B-A3B...
+(EngineCore pid=2631168) INFO 08-16 14:50:44 [rocm.py:705] Using Flash Attention backend for ViT model.
+(EngineCore pid=2631168) WARNING 08-16 14:50:44 [activation.py:856] [ROCm] PyTorch's native GELU with tanh approximation is unstable. Falling back to GELU(approximate='none').
+(EngineCore pid=2631168) INFO 08-16 14:50:44 [mm_encoder_attention.py:375] Using AttentionBackendEnum.FLASH_ATTN for MMEncoderAttention.
+(EngineCore pid=2631168) INFO 08-16 14:50:44 [qwen_gdn_linear_attn.py:150] Using Triton/FLA GDN prefill kernel (requested=auto, head_k_dim=128).
+(EngineCore pid=2631168) INFO 08-16 14:50:44 [unquantized.py:304] Using TRITON Unquantized MoE backend out of potential backends: ['ROCm AITER', 'TRITON', 'BATCHED_TRITON'].
+(EngineCore pid=2631168) INFO 08-16 14:50:44 [rocm.py:606] Using CUSTOM backend (selected via --attention-backend).
+(EngineCore pid=2631168) WARNING 08-16 14:50:44 [compilation.py:1347] Op 'sparse_attn_indexer' not present in model, enabling with '+sparse_attn_indexer' has no effect
+(EngineCore pid=2631168) INFO 08-16 14:50:44 [weight_utils.py:867] Filesystem type for checkpoints: CEPH. Checkpoint size: 66.97 GiB. Available RAM: 1685.16 GiB.
+(EngineCore pid=2631168) INFO 08-16 14:50:44 [weight_utils.py:890] Auto-prefetch is disabled because the filesystem (CEPH) is not a recognized network FS (NFS/Lustre). If you want to force prefetching, start vLLM with --safetensors-load-strategy=prefetch.
+(EngineCore pid=2631168) Loading safetensors checkpoint shards:   0% Completed | 0/14 [00:00<?, ?it/s]
+(EngineCore pid=2631168) Loading safetensors checkpoint shards:   7% Completed | 1/14 [00:08<01:53,  8.75s/it]
+(EngineCore pid=2631168) Loading safetensors checkpoint shards:  14% Completed | 2/14 [00:16<01:40,  8.42s/it]
+(EngineCore pid=2631168) Loading safetensors checkpoint shards:  21% Completed | 3/14 [00:25<01:34,  8.56s/it]
+(EngineCore pid=2631168) Loading safetensors checkpoint shards:  29% Completed | 4/14 [00:35<01:29,  8.99s/it]
+(EngineCore pid=2631168) Loading safetensors checkpoint shards:  36% Completed | 5/14 [00:44<01:20,  8.93s/it]
+(EngineCore pid=2631168) Loading safetensors checkpoint shards:  43% Completed | 6/14 [00:52<01:10,  8.86s/it]
+(EngineCore pid=2631168) Loading safetensors checkpoint shards:  50% Completed | 7/14 [01:02<01:02,  8.96s/it]
+(EngineCore pid=2631168) Loading safetensors checkpoint shards:  57% Completed | 8/14 [01:11<00:55,  9.19s/it]
+(EngineCore pid=2631168) Loading safetensors checkpoint shards:  64% Completed | 9/14 [01:19<00:43,  8.64s/it]
+(EngineCore pid=2631168) Loading safetensors checkpoint shards:  71% Completed | 10/14 [01:28<00:36,  9.01s/it]
+(EngineCore pid=2631168) Loading safetensors checkpoint shards:  79% Completed | 11/14 [01:38<00:27,  9.25s/it]
+(EngineCore pid=2631168) Loading safetensors checkpoint shards:  86% Completed | 12/14 [01:48<00:19,  9.52s/it]
+(EngineCore pid=2631168) Loading safetensors checkpoint shards:  93% Completed | 13/14 [01:56<00:09,  9.01s/it]
+(EngineCore pid=2631168) Loading safetensors checkpoint shards: 100% Completed | 14/14 [02:00<00:00,  7.31s/it]
+(EngineCore pid=2631168) Loading safetensors checkpoint shards: 100% Completed | 14/14 [02:00<00:00,  8.58s/it]
+(EngineCore pid=2631168) 
+(EngineCore pid=2631168) INFO 08-16 14:52:44 [default_loader.py:430] Loading weights took 120.14 seconds
+(EngineCore pid=2631168) INFO 08-16 14:52:44 [unquantized.py:383] Using MoEPrepareAndFinalizeNoDPEPModular
+(EngineCore pid=2631168) INFO 08-16 14:52:44 [unquantized.py:384] Using TritonExperts MoE backend
+(EngineCore pid=2631168) INFO 08-16 14:52:46 [gpu_model_runner.py:5405] Model loading took 73.03 GiB memory and 121.006097 seconds
+(EngineCore pid=2631168) INFO 08-16 14:52:46 [interface.py:911] Setting attention block size to 1056 tokens to ensure that attention page size is >= mamba page size.
+(EngineCore pid=2631168) INFO 08-16 14:52:46 [interface.py:935] Padding mamba page size by 0.76% to ensure that mamba page size and attention page size are exactly equal.
+(EngineCore pid=2631168) INFO 08-16 14:52:46 [gpu_model_runner.py:6465] Encoder cache will be initialized with a budget of 16384 tokens, and profiled with 1 image items of the maximum feature size.
+(EngineCore pid=2631168) INFO 08-16 14:52:48 [backends.py:1094] Using cache directory: /home/dan/subusers/agent/.cache/vllm/torch_compile_cache/b77518c4c6/rank_0_0/backbone for vLLM's torch.compile
+(EngineCore pid=2631168) INFO 08-16 14:52:48 [backends.py:1155] Dynamo bytecode transform time: 0.71 s
+(EngineCore pid=2631168) INFO 08-16 14:52:51 [backends.py:292] Directly load the compiled graph(s) for compile range (1, 16384) from the cache, took 2.059 s
+(EngineCore pid=2631168) INFO 08-16 14:52:51 [decorators.py:311] Directly load AOT compilation from path /home/dan/subusers/agent/.cache/vllm/torch_compile_cache/torch_aot_compile/ffd6ec916762e3ac81591b45e6891c1b55d9d805b33d8652d0f10e64dcd3ed6b/rank_0_0/model
+(EngineCore pid=2631168) INFO 08-16 14:52:51 [monitor.py:53] torch.compile took 2.90 s in total
+(EngineCore pid=2631168) WARNING 08-16 14:52:51 [fused_moe.py:1161] Using default MoE config. Performance might be sub-optimal! Config file not found at /home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/model_executor/layers/fused_moe/configs/E=256,N=512,device_name=AMD_Instinct_MI325X.json
+(EngineCore pid=2631168) INFO 08-16 14:52:53 [monitor.py:81] Initial profiling/warmup run took 2.31 s
+(EngineCore pid=2631168) INFO 08-16 14:52:54 [gpu_model_runner.py:6681] Profiling CUDA graph memory: PIECEWISE=5 (largest=16), FULL=4 (largest=8)
+(EngineCore pid=2631168) WARNING 08-16 14:52:55 [chunked_prefill_paged_decode.py:419] Cannot use ROCm custom paged attention kernel, falling back to Triton implementation.
+(EngineCore pid=2631168) INFO 08-16 14:52:56 [gpu_model_runner.py:6806] Estimated CUDA graph memory: 0.52 GiB total
+(EngineCore pid=2631168) INFO 08-16 14:52:56 [gpu_worker.py:563] Available KV cache memory: 112.27 GiB
+(EngineCore pid=2631168) INFO 08-16 14:52:56 [gpu_worker.py:578] CUDA graph memory profiling is enabled (default since v0.21.0). The current --gpu-memory-utilization=0.8000 is equivalent to --gpu-memory-utilization=0.7980 without CUDA graph memory profiling. To maintain the same effective KV cache size as before, increase --gpu-memory-utilization to 0.8020. To disable, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=0.
+(EngineCore pid=2631168) INFO 08-16 14:52:56 [kv_cache_utils.py:2173] Overriding num_gpu_blocks=5574 with num_gpu_blocks_override=109
+(EngineCore pid=2631168) INFO 08-16 14:52:56 [kv_cache_utils.py:2235] GPU KV cache size: 408,594 tokens
+(EngineCore pid=2631168) INFO 08-16 14:52:56 [kv_cache_utils.py:2236] Maximum concurrency for 131,200 tokens per request: 3.11x
+(EngineCore pid=2631168) INFO 08-16 14:52:56 [qwen_triton_warmup.py:270] Warming up Qwen Triton kernels for model_type=qwen3_5_moe_text.
+(EngineCore pid=2631168) INFO 08-16 14:52:56 [ll_bf16.py:30] cuteDSL (CUTLASS Python) not available, ll_bf16_gemm disabled
+(EngineCore pid=2631168) INFO 08-16 14:52:56 [gpu_model_runner.py:6867] Rank 0: Torch profiler disabled for CUDA graph capture
+(EngineCore pid=2631168) Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):   0%|          | 0/5 [00:00<?, ?it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  40%|████      | 2/5 [00:00<00:00, 15.26it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  80%|████████  | 4/5 [00:00<00:00, 16.91it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE): 100%|██████████| 5/5 [00:00<00:00, 14.35it/s]
+(EngineCore pid=2631168) Capturing CUDA graphs (decode, FULL):   0%|          | 0/4 [00:00<?, ?it/s]Capturing CUDA graphs (decode, FULL):  25%|██▌       | 1/4 [00:01<00:05,  1.89s/it]Capturing CUDA graphs (decode, FULL):  75%|███████▌  | 3/4 [00:02<00:00,  1.88it/s]Capturing CUDA graphs (decode, FULL): 100%|██████████| 4/4 [00:02<00:00,  1.94it/s]
+(EngineCore pid=2631168) INFO 08-16 14:52:59 [gpu_model_runner.py:6913] Graph capturing finished in 3 secs, took 0.50 GiB
+(EngineCore pid=2631168) INFO 08-16 14:52:59 [gpu_worker.py:726] CUDA graph pool memory: 0.5 GiB (actual), 0.52 GiB (estimated), difference: 0.02 GiB (3.5%).
+(EngineCore pid=2631168) INFO 08-16 14:52:59 [gpu_worker.py:789] Free memory on device (255.38/255.98 GiB) on startup. Desired GPU memory utilization is (0.8, 204.79 GiB). Actual usage is 90.45 GiB for consumed memory (weights + non-torch), 2.06 GiB for peak activation, and 0.5 GiB for CUDAGraph memory. Replace gpu_memory_utilization config with `--kv-cache-memory=119855885927` (111.62 GiB) to fit into requested memory, or `--kv-cache-memory=174180091904` (162.22 GiB) to fully utilize gpu memory. Current kv cache memory in use is 112.27 GiB.
+(EngineCore pid=2631168) INFO 08-16 14:53:00 [jit_monitor.py:79] Kernel JIT monitor activated; monitored JIT compilations during inference will use mode=warn.
+(EngineCore pid=2631168) INFO 08-16 14:53:00 [core.py:348] init engine (profile, create kv cache, warmup model) took 14.65 s (compilation: 2.90 s)
+(EngineCore pid=2631168) WARNING 08-16 14:53:00 [serial_utils.py:79] Allowing insecure serialization using pickle due to VLLM_ALLOW_INSECURE_SERIALIZATION=1
+(EngineCore pid=2631168) INFO 08-16 14:53:00 [kernel.py:306] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+(APIServer pid=2606853) WARNING 08-16 14:53:00 [serial_utils.py:79] Allowing insecure serialization using pickle due to VLLM_ALLOW_INSECURE_SERIALIZATION=1
+(APIServer pid=2606853) INFO 08-16 14:53:00 [api_server.py:678] Supported tasks: ('generate',)
+(APIServer pid=2606853) INFO 08-16 14:53:03 [hf.py:540] Detected the chat template content format to be 'openai'. You can set `--chat-template-content-format` to override this.
+(APIServer pid=2606853) INFO 08-16 14:53:16 [core_client.py:686] [shutdown] MPClient: start timeout=0s
+(EngineCore pid=2631168) INFO 08-16 14:53:16 [core.py:1332] [shutdown] EngineCore: trigger received signal=SIGTERM
+(EngineCore pid=2631168) INFO 08-16 14:53:16 [core.py:1468] [shutdown] EngineCore: start mode=abort timeout=0s
+(EngineCore pid=2631168) INFO 08-16 14:53:16 [core.py:1499] [shutdown] EngineCore: request processing complete; starting resource teardown
+(EngineCore pid=2631168) INFO 08-16 14:53:16 [core.py:1345] [shutdown] EngineCore: exiting busy loop
+(APIServer pid=2606853) Traceback (most recent call last):
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/entrypoints/openai/api_server.py", line 183, in build_async_engine_client_from_engine_args
+(APIServer pid=2606853)     yield async_llm
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/entrypoints/openai/api_server.py", line 137, in build_async_engine_client
+(APIServer pid=2606853)     yield engine
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/entrypoints/openai/api_server.py", line 782, in run_server_worker
+(APIServer pid=2606853)     shutdown_task = await build_and_serve(
+(APIServer pid=2606853)                     ^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/entrypoints/openai/api_server.py", line 680, in build_and_serve
+(APIServer pid=2606853)     await init_app_state(engine_client, app.state, args, supported_tasks)
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/entrypoints/openai/api_server.py", line 429, in init_app_state
+(APIServer pid=2606853)     state.online_renderer.warmup()
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/renderers/online_renderer.py", line 109, in warmup
+(APIServer pid=2606853)     self.renderer.warmup(
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/renderers/base.py", line 264, in warmup
+(APIServer pid=2606853)     self._warmup_mm_processor(
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/renderers/base.py", line 227, in _warmup_mm_processor
+(APIServer pid=2606853)     processor_inputs = processor.dummy_inputs.get_dummy_processor_inputs(
+(APIServer pid=2606853)                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/multimodal/processing/dummy_inputs.py", line 83, in get_dummy_processor_inputs
+(APIServer pid=2606853)     dummy_mm_data = self.get_dummy_mm_data(seq_len, mm_counts, mm_options)
+(APIServer pid=2606853)                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/model_executor/models/qwen3_vl.py", line 1074, in get_dummy_mm_data
+(APIServer pid=2606853)     self.info.get_image_size_with_most_features()
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/model_executor/models/qwen2_vl.py", line 970, in get_image_size_with_most_features
+(APIServer pid=2606853)     image_processor = self.get_image_processor()
+(APIServer pid=2606853)                       ^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/model_executor/models/qwen3_vl.py", line 871, in get_image_processor
+(APIServer pid=2606853)     return self.get_hf_processor(**kwargs).image_processor
+(APIServer pid=2606853)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/model_executor/models/qwen3_vl.py", line 864, in get_hf_processor
+(APIServer pid=2606853)     return self.ctx.get_hf_processor(
+(APIServer pid=2606853)            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/multimodal/processing/context.py", line 205, in get_hf_processor
+(APIServer pid=2606853)     return cached_processor_from_config(
+(APIServer pid=2606853)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/transformers_utils/processor.py", line 379, in cached_processor_from_config
+(APIServer pid=2606853)     return cached_get_processor_without_dynamic_kwargs(
+(APIServer pid=2606853)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/transformers_utils/processor.py", line 363, in cached_get_processor_without_dynamic_kwargs
+(APIServer pid=2606853)     final_processor = cached_get_processor(
+(APIServer pid=2606853)                       ^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/transformers_utils/processor.py", line 233, in get_processor
+(APIServer pid=2606853)     processor = processor_cls.from_pretrained(
+(APIServer pid=2606853)                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/transformers/processing_utils.py", line 1731, in from_pretrained
+(APIServer pid=2606853)     args = cls._get_arguments_from_pretrained(pretrained_model_name_or_path, processor_dict, **kwargs)
+(APIServer pid=2606853)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/transformers/processing_utils.py", line 1871, in _get_arguments_from_pretrained
+(APIServer pid=2606853)     sub_processor = auto_processor_class.from_pretrained(
+(APIServer pid=2606853)                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/transformers/models/auto/video_processing_auto.py", line 317, in from_pretrained
+(APIServer pid=2606853)     config_dict, _ = BaseVideoProcessor.get_video_processor_dict(pretrained_model_name_or_path, **kwargs)
+(APIServer pid=2606853)                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/transformers/video_processing_utils.py", line 557, in get_video_processor_dict
+(APIServer pid=2606853)     resolved_file := cached_file(
+(APIServer pid=2606853)                      ^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/transformers/utils/hub.py", line 294, in cached_file
+(APIServer pid=2606853)     file = cached_files(path_or_repo_id=path_or_repo_id, filenames=[filename], **kwargs)
+(APIServer pid=2606853)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/transformers/utils/hub.py", line 438, in cached_files
+(APIServer pid=2606853)     hf_hub_download(
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/huggingface_hub/utils/_validators.py", line 88, in _inner_fn
+(APIServer pid=2606853)     return fn(*args, **kwargs)
+(APIServer pid=2606853)            ^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/huggingface_hub/file_download.py", line 1019, in hf_hub_download
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/huggingface_hub/file_download.py", line 1089, in _hf_hub_download_to_cache_dir
+(APIServer pid=2606853)     (url_to_download, etag, commit_hash, expected_size, xet_file_data, head_call_error) = _get_metadata_or_catch_error(
+(APIServer pid=2606853)                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/huggingface_hub/file_download.py", line 1713, in _get_metadata_or_catch_error
+(APIServer pid=2606853)     metadata = get_hf_file_metadata(
+(APIServer pid=2606853)                ^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/huggingface_hub/utils/_validators.py", line 88, in _inner_fn
+(APIServer pid=2606853)     return fn(*args, **kwargs)
+(APIServer pid=2606853)            ^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/huggingface_hub/file_download.py", line 1621, in get_hf_file_metadata
+(APIServer pid=2606853)     response = _httpx_follow_relative_redirects_with_backoff(
+(APIServer pid=2606853)                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/huggingface_hub/utils/_http.py", line 721, in _httpx_follow_relative_redirects_with_backoff
+(APIServer pid=2606853)     response = http_backoff(
+(APIServer pid=2606853)                ^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/huggingface_hub/utils/_http.py", line 598, in http_backoff
+(APIServer pid=2606853)     return next(
+(APIServer pid=2606853)            ^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/huggingface_hub/utils/_http.py", line 506, in _http_backoff_base
+(APIServer pid=2606853)     response = client.request(method=method, url=url, **kwargs)
+(APIServer pid=2606853)                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/httpx/_client.py", line 825, in request
+(APIServer pid=2606853)     return self.send(request, auth=auth, follow_redirects=follow_redirects)
+(APIServer pid=2606853)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/httpx/_client.py", line 914, in send
+(APIServer pid=2606853)     response = self._send_handling_auth(
+(APIServer pid=2606853)                ^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/httpx/_client.py", line 942, in _send_handling_auth
+(APIServer pid=2606853)     response = self._send_handling_redirects(
+(APIServer pid=2606853)                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/httpx/_client.py", line 979, in _send_handling_redirects
+(APIServer pid=2606853)     response = self._send_single_request(request)
+(APIServer pid=2606853)                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/httpx/_client.py", line 1014, in _send_single_request
+(APIServer pid=2606853)     response = transport.handle_request(request)
+(APIServer pid=2606853)                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/httpx/_transports/default.py", line 250, in handle_request
+(APIServer pid=2606853)     resp = self._pool.handle_request(req)
+(APIServer pid=2606853)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/httpcore/_sync/connection_pool.py", line 256, in handle_request
+(APIServer pid=2606853)     raise exc from None
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/httpcore/_sync/connection_pool.py", line 236, in handle_request
+(APIServer pid=2606853)     response = connection.handle_request(
+(APIServer pid=2606853)                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/httpcore/_sync/connection.py", line 103, in handle_request
+(APIServer pid=2606853)     return self._connection.handle_request(request)
+(APIServer pid=2606853)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/httpcore/_sync/http11.py", line 136, in handle_request
+(APIServer pid=2606853)     raise exc
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/httpcore/_sync/http11.py", line 106, in handle_request
+(APIServer pid=2606853)     ) = self._receive_response_headers(**kwargs)
+(APIServer pid=2606853)         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/httpcore/_sync/http11.py", line 177, in _receive_response_headers
+(APIServer pid=2606853)     event = self._receive_event(timeout=timeout)
+(APIServer pid=2606853)             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/httpcore/_sync/http11.py", line 217, in _receive_event
+(APIServer pid=2606853)     data = self._network_stream.read(
+(APIServer pid=2606853)            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/httpcore/_backends/sync.py", line 128, in read
+(APIServer pid=2606853)     return self._sock.recv(max_bytes)
+(APIServer pid=2606853)            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/ssl.py", line 1244, in recv
+(APIServer pid=2606853)     return self.read(buflen)
+(APIServer pid=2606853)            ^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/ssl.py", line 1117, in read
+(APIServer pid=2606853)     return self._sslobj.read(len)
+(APIServer pid=2606853)            ^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/entrypoints/openai/api_server.py", line 759, in _interrupt_init
+(APIServer pid=2606853)     raise KeyboardInterrupt("terminated")
+(APIServer pid=2606853) KeyboardInterrupt: terminated
+(APIServer pid=2606853) 
+(APIServer pid=2606853) During handling of the above exception, another exception occurred:
+(APIServer pid=2606853) 
+(APIServer pid=2606853) Traceback (most recent call last):
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/bin/vllm", line 10, in <module>
+(APIServer pid=2606853)     sys.exit(main())
+(APIServer pid=2606853)              ^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/entrypoints/cli/main.py", line 97, in main
+(APIServer pid=2606853)     args.dispatch_function(args)
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/entrypoints/cli/serve.py", line 152, in cmd
+(APIServer pid=2606853)     uvloop.run(run_server(args))
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/uvloop/__init__.py", line 96, in run
+(APIServer pid=2606853)     return __asyncio.run(
+(APIServer pid=2606853)            ^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/runners.py", line 195, in run
+(APIServer pid=2606853)     return runner.run(main)
+(APIServer pid=2606853)            ^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/runners.py", line 118, in run
+(APIServer pid=2606853)     return self._loop.run_until_complete(task)
+(APIServer pid=2606853)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "uvloop/loop.pyx", line 1512, in uvloop.loop.Loop.run_until_complete
+(APIServer pid=2606853)   File "uvloop/loop.pyx", line 1505, in uvloop.loop.Loop.run_until_complete
+(APIServer pid=2606853)   File "uvloop/loop.pyx", line 1379, in uvloop.loop.Loop.run_forever
+(APIServer pid=2606853)   File "uvloop/loop.pyx", line 557, in uvloop.loop.Loop._run
+(APIServer pid=2606853)   File "uvloop/loop.pyx", line 476, in uvloop.loop.Loop._on_idle
+(APIServer pid=2606853)   File "uvloop/cbhandles.pyx", line 83, in uvloop.loop.Handle._run
+(APIServer pid=2606853)   File "uvloop/cbhandles.pyx", line 63, in uvloop.loop.Handle._run
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/uvloop/__init__.py", line 48, in wrapper
+(APIServer pid=2606853)     return await main
+(APIServer pid=2606853)            ^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/entrypoints/openai/api_server.py", line 764, in run_server
+(APIServer pid=2606853)     await run_server_worker(listen_address, sock, args, **uvicorn_kwargs)
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/entrypoints/openai/api_server.py", line 778, in run_server_worker
+(APIServer pid=2606853)     async with build_async_engine_client(
+(APIServer pid=2606853)                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/contextlib.py", line 231, in __aexit__
+(APIServer pid=2606853)     await self.gen.athrow(value)
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/entrypoints/openai/api_server.py", line 132, in build_async_engine_client
+(APIServer pid=2606853)     async with build_async_engine_client_from_engine_args(
+(APIServer pid=2606853)                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/contextlib.py", line 231, in __aexit__
+(APIServer pid=2606853)     await self.gen.athrow(value)
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/entrypoints/openai/api_server.py", line 186, in build_async_engine_client_from_engine_args
+(APIServer pid=2606853)     async_llm.shutdown(timeout=vllm_config.shutdown_timeout)
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/v1/engine/async_llm.py", line 270, in shutdown
+(APIServer pid=2606853)     engine_core.shutdown(timeout=timeout)
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/v1/engine/core_client.py", line 686, in shutdown
+(APIServer pid=2606853)     logger.info("[shutdown] MPClient: start timeout=%s", timeout_str)
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/logging/__init__.py", line 1539, in info
+(APIServer pid=2606853)     self._log(INFO, msg, args, **kwargs)
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/logging/__init__.py", line 1684, in _log
+(APIServer pid=2606853)     self.handle(record)
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/logging/__init__.py", line 1700, in handle
+(APIServer pid=2606853)     self.callHandlers(record)
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/logging/__init__.py", line 1762, in callHandlers
+(APIServer pid=2606853)     hdlr.handle(record)
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/logging/__init__.py", line 1028, in handle
+(APIServer pid=2606853)     self.emit(record)
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/logging/__init__.py", line 1164, in emit
+(APIServer pid=2606853)     self.flush()
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/logging/__init__.py", line 1144, in flush
+(APIServer pid=2606853)     self.stream.flush()
+(APIServer pid=2606853)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/entrypoints/openai/api_server.py", line 759, in _interrupt_init
+(APIServer pid=2606853)     raise KeyboardInterrupt("terminated")
+(APIServer pid=2606853) KeyboardInterrupt: terminated
+(APIServer pid=2606853) INFO 08-16 14:53:16 [utils.py:612] [shutdown] Process manager: send sigterm to process EngineCore
+/home/dan/subusers/agent/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/multiprocessing/resource_tracker.py:279: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '

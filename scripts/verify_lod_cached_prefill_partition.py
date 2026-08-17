@@ -11,7 +11,9 @@ from model.pytorch_lod_attention_paged import PagedLODConfig
 from model.triton_lod_engines import KernelRecursivePagedLODAttention
 
 
-def _engine(kv_bits: int) -> KernelRecursivePagedLODAttention:
+def _engine(
+    kv_bits: int, *, fused_prefill_route_coarse: bool
+) -> KernelRecursivePagedLODAttention:
     config = PagedLODConfig(
         chunk_size=16,
         local_window=32,
@@ -31,12 +33,14 @@ def _engine(kv_bits: int) -> KernelRecursivePagedLODAttention:
         default_open_count=3,
     ).cuda()
     engine.separate_sink_cache = True
+    engine.fused_prefill_route_coarse = fused_prefill_route_coarse
     return engine
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--kv-bits", type=int, choices=(0, 4), default=0)
+    parser.add_argument("--fused-coarse", action="store_true")
     args = parser.parse_args()
     torch.manual_seed(1234)
     length, split, dim = 700, 400, 64
@@ -44,7 +48,9 @@ def main() -> None:
     k = torch.randn(1, 2, length, dim, device="cuda", dtype=torch.bfloat16)
     v = torch.randn_like(k)
 
-    whole_engine = _engine(args.kv_bits)
+    whole_engine = _engine(
+        args.kv_bits, fused_prefill_route_coarse=args.fused_coarse
+    )
     whole, whole_cache = whole_engine(
         q,
         k,
@@ -52,7 +58,9 @@ def main() -> None:
         use_cache=True,
         finalize_cache_for_decode=False,
     )
-    split_engine = _engine(args.kv_bits)
+    split_engine = _engine(
+        args.kv_bits, fused_prefill_route_coarse=args.fused_coarse
+    )
     first, cache = split_engine(
         q[..., :split, :],
         k[..., :split, :],

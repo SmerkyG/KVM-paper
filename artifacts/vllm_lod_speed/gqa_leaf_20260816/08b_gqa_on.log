@@ -1,0 +1,412 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+INFO 08-16 02:53:03 [api_utils.py:273] non-default args: {'dtype': 'bfloat16', 'max_model_len': 27494, 'enable_prefix_caching': False, 'gpu_memory_utilization': 0.8, 'max_num_batched_tokens': 16384, 'long_prefill_token_threshold': 4096, 'max_num_seqs': 8, 'attention_config': AttentionConfig(backend=<AttentionBackendEnum.CUSTOM: None>, minimax_m3_msa_decode_backend='triton', backend_per_kind={}, flash_attn_version=None, use_prefill_decode_attention=False, flash_attn_max_num_splits_for_cuda_graph=32, tq_max_kv_splits_for_cuda_graph=32, use_trtllm_attention=None, disable_flashinfer_q_quantization=False, mla_prefill_backend=None, use_prefill_query_quantization=False, use_fp4_indexer_cache=False, indexer_kv_dtype='bf16', use_non_causal=False, sparse_mla_force_mqa=False, flex_attn_block_m=None, flex_attn_block_n=None, flex_attn_q_block_size=None, flex_attn_kv_block_size=None), 'model': 'Qwen/Qwen3.5-0.8B'}
+WARNING 08-16 02:53:03 [envs.py:2128] Unknown vLLM environment variable detected: VLLM_LOD_MAX_CONTEXT
+WARNING 08-16 02:53:03 [envs.py:2128] Unknown vLLM environment variable detected: VLLM_LOD_KV_BITS
+WARNING 08-16 02:53:03 [envs.py:2128] Unknown vLLM environment variable detected: VLLM_LOD_POOL_SIZE
+WARNING 08-16 02:53:03 [envs.py:2128] Unknown vLLM environment variable detected: VLLM_LOD_CACHE_OWNERSHIP
+INFO 08-16 02:53:03 [model.py:645] Resolved architecture: Qwen3_5ForConditionalGeneration
+INFO 08-16 02:53:03 [model.py:1883] Using max model len 27494
+[ERROR] `min_frames` is part of Qwen3VLVideoProcessorInitKwargs, but not documented. Make sure to add it to the docstring of the function in /home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/transformers/models/qwen3_vl/video_processing_qwen3_vl.py.
+[ERROR] `max_frames` is part of Qwen3VLVideoProcessorInitKwargs, but not documented. Make sure to add it to the docstring of the function in /home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/transformers/models/qwen3_vl/video_processing_qwen3_vl.py.
+INFO 08-16 02:53:05 [scheduler.py:242] Chunked prefill is enabled with max_num_batched_tokens=16384.
+INFO 08-16 02:53:05 [kernel.py:306] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+[transformers] The `use_fast` parameter is deprecated and will be removed in a future version. Use `backend="torchvision"` instead of `use_fast=True`, or `backend="pil"` instead of `use_fast=False`.
+WARNING 08-16 02:53:15 [system_utils.py:157] We must use the `spawn` multiprocessing start method. Overriding VLLM_WORKER_MULTIPROC_METHOD to 'spawn'. See https://docs.vllm.ai/en/latest/usage/troubleshooting.html#python-multiprocessing for more information. Reasons: CUDA is initialized
+(EngineCore pid=1266867) INFO 08-16 02:53:25 [core.py:121] Initializing a V1 LLM engine (v0.27.1) with config: model='Qwen/Qwen3.5-0.8B', speculative_config=None, tokenizer='Qwen/Qwen3.5-0.8B', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=27494, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=False, quantization=None, quantization_config=None, enforce_eager=False, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False, jit_monitor_mode='warn', jit_monitor_verbose=False), seed=0, served_model_name=Qwen/Qwen3.5-0.8B, enable_prefix_caching=False, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.VLLM_COMPILE: 3>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['+sparse_attn_indexer', 'none'], 'ir_enable_torch_wrap': True, 'splitting_ops': ['vllm::unified_attention_with_output', 'vllm::unified_mla_attention_with_output', 'vllm::mamba_mixer2', 'vllm::mamba_mixer', 'vllm::short_conv', 'vllm::linear_attention', 'vllm::qwen_gdn_attention_core', 'vllm::gdn_attention_core_xpu', 'vllm::olmo_hybrid_gdn_full_forward', 'vllm::sparse_attn_indexer', 'vllm::rocm_aiter_sparse_attn_indexer', 'vllm::deepseek_v4_attention', 'vllm::hpc_rope_norm_forward', 'vllm::unified_kv_cache_update', 'vllm::unified_mla_kv_cache_update'], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': None, 'compile_sizes': [], 'compile_ranges_endpoints': [16384], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'size_asserts': False, 'alignment_asserts': False, 'scalar_asserts': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.FULL_AND_PIECEWISE: (2, 1)>, 'cudagraph_num_of_warmups': 1, 'cudagraph_capture_sizes': [1, 2, 4, 8, 16], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': False, 'fuse_act_quant': False, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': False, 'enable_qk_norm_rope_fusion': False, 'fuse_rope_kvcache_cat_mla': False, 'fuse_act_padding': False, 'fuse_mla_dual_rms_norm': False, 'fuse_rope_kvcache': False, 'fuse_qk_norm_rope_kvcache': False}, 'max_cudagraph_capture_size': 16, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native']), enable_flashinfer_autotune=True, enable_cutedsl_warmup=True, enable_jit_warmup=True, enable_bf16x3_router_gemm=False, moe_backend='auto', linear_backend='auto')
+(EngineCore pid=1266867) Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+(EngineCore pid=1266867) [ERROR] `min_frames` is part of Qwen3VLVideoProcessorInitKwargs, but not documented. Make sure to add it to the docstring of the function in /home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/transformers/models/qwen3_vl/video_processing_qwen3_vl.py.
+(EngineCore pid=1266867) [ERROR] `max_frames` is part of Qwen3VLVideoProcessorInitKwargs, but not documented. Make sure to add it to the docstring of the function in /home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/transformers/models/qwen3_vl/video_processing_qwen3_vl.py.
+(EngineCore pid=1266867) INFO 08-16 02:53:27 [parallel_state.py:1640] world_size=1 rank=0 local_rank=0 distributed_init_method=tcp://10.42.75.123:43105 backend=nccl
+(EngineCore pid=1266867) INFO 08-16 02:53:27 [parallel_state.py:1977] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank N/A, EPLB rank N/A
+(EngineCore pid=1266867) [transformers] The `use_fast` parameter is deprecated and will be removed in a future version. Use `backend="torchvision"` instead of `use_fast=True`, or `backend="pil"` instead of `use_fast=False`.
+(EngineCore pid=1266867) INFO 08-16 02:53:34 [gpu_model_runner.py:5308] Starting to load model Qwen/Qwen3.5-0.8B...
+(EngineCore pid=1266867) INFO 08-16 02:53:35 [rocm.py:705] Using Flash Attention backend for ViT model.
+(EngineCore pid=1266867) WARNING 08-16 02:53:35 [activation.py:856] [ROCm] PyTorch's native GELU with tanh approximation is unstable. Falling back to GELU(approximate='none').
+(EngineCore pid=1266867) INFO 08-16 02:53:35 [mm_encoder_attention.py:375] Using AttentionBackendEnum.FLASH_ATTN for MMEncoderAttention.
+(EngineCore pid=1266867) INFO 08-16 02:53:35 [qwen_gdn_linear_attn.py:150] Using Triton/FLA GDN prefill kernel (requested=auto, head_k_dim=128).
+(EngineCore pid=1266867) INFO 08-16 02:53:35 [rocm.py:606] Using CUSTOM backend (selected via --attention-backend).
+(EngineCore pid=1266867) WARNING 08-16 02:53:35 [compilation.py:1347] Op 'sparse_attn_indexer' not present in model, enabling with '+sparse_attn_indexer' has no effect
+(EngineCore pid=1266867) INFO 08-16 02:53:35 [weight_utils.py:867] Filesystem type for checkpoints: CEPH. Checkpoint size: 1.63 GiB. Available RAM: 1833.55 GiB.
+(EngineCore pid=1266867) INFO 08-16 02:53:35 [weight_utils.py:890] Auto-prefetch is disabled because the filesystem (CEPH) is not a recognized network FS (NFS/Lustre). If you want to force prefetching, start vLLM with --safetensors-load-strategy=prefetch.
+(EngineCore pid=1266867) Loading safetensors checkpoint shards:   0% Completed | 0/1 [00:00<?, ?it/s]
+(EngineCore pid=1266867) Loading safetensors checkpoint shards: 100% Completed | 1/1 [00:02<00:00,  2.47s/it]
+(EngineCore pid=1266867) Loading safetensors checkpoint shards: 100% Completed | 1/1 [00:02<00:00,  2.47s/it]
+(EngineCore pid=1266867) 
+(EngineCore pid=1266867) INFO 08-16 02:53:38 [default_loader.py:430] Loading weights took 2.56 seconds
+(EngineCore pid=1266867) INFO 08-16 02:53:39 [gpu_model_runner.py:5405] Model loading took 1.72 GiB memory and 3.247702 seconds
+(EngineCore pid=1266867) INFO 08-16 02:53:39 [interface.py:911] Setting attention block size to 544 tokens to ensure that attention page size is >= mamba page size.
+(EngineCore pid=1266867) INFO 08-16 02:53:39 [interface.py:935] Padding mamba page size by 2.64% to ensure that mamba page size and attention page size are exactly equal.
+(EngineCore pid=1266867) INFO 08-16 02:53:39 [gpu_model_runner.py:6465] Encoder cache will be initialized with a budget of 16384 tokens, and profiled with 1 image items of the maximum feature size.
+(EngineCore pid=1266867) INFO 08-16 02:53:45 [backends.py:1094] Using cache directory: /home/dan/subusers/agent/.cache/vllm/torch_compile_cache/1a3916d9df/rank_0_0/backbone for vLLM's torch.compile
+(EngineCore pid=1266867) INFO 08-16 02:53:45 [backends.py:1155] Dynamo bytecode transform time: 3.96 s
+(EngineCore pid=1266867) INFO 08-16 02:53:46 [backends.py:378] Cache the graph of compile range (1, 16384) for later use
+(EngineCore pid=1266867) INFO 08-16 02:53:51 [backends.py:393] Compiling a graph for compile range (1, 16384) takes 6.39 s
+(EngineCore pid=1266867) INFO 08-16 02:53:52 [decorators.py:708] saved AOT compiled function to /home/dan/subusers/agent/.cache/vllm/torch_compile_cache/torch_aot_compile/2724151d7f2a4ffda20e763107977cf7297167d7487d1425123c6e3f372bce4f/rank_0_0/model
+(EngineCore pid=1266867) INFO 08-16 02:53:52 [monitor.py:53] torch.compile took 11.28 s in total
+(EngineCore pid=1266867) INFO 08-16 02:53:52 [monitor.py:81] Initial profiling/warmup run took 0.46 s
+(EngineCore pid=1266867) INFO 08-16 02:53:54 [gpu_model_runner.py:6681] Profiling CUDA graph memory: PIECEWISE=5 (largest=16), FULL=4 (largest=8)
+(EngineCore pid=1266867) WARNING 08-16 02:53:55 [chunked_prefill_paged_decode.py:419] Cannot use ROCm custom paged attention kernel, falling back to Triton implementation.
+(EngineCore pid=1266867) INFO 08-16 02:53:56 [gpu_model_runner.py:6806] Estimated CUDA graph memory: 0.36 GiB total
+(EngineCore pid=1266867) INFO 08-16 02:53:56 [gpu_worker.py:563] Available KV cache memory: 198.89 GiB
+(EngineCore pid=1266867) INFO 08-16 02:53:56 [gpu_worker.py:578] CUDA graph memory profiling is enabled (default since v0.21.0). The current --gpu-memory-utilization=0.8000 is equivalent to --gpu-memory-utilization=0.7986 without CUDA graph memory profiling. To maintain the same effective KV cache size as before, increase --gpu-memory-utilization to 0.8014. To disable, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=0.
+(EngineCore pid=1266867) INFO 08-16 02:53:56 [kv_cache_utils.py:2173] Overriding num_gpu_blocks=31946 with num_gpu_blocks_override=165
+(EngineCore pid=1266867) INFO 08-16 02:53:56 [kv_cache_utils.py:2235] GPU KV cache size: 84,009 tokens
+(EngineCore pid=1266867) INFO 08-16 02:53:56 [kv_cache_utils.py:2236] Maximum concurrency for 27,494 tokens per request: 3.06x
+(EngineCore pid=1266867) INFO 08-16 02:53:56 [qwen_triton_warmup.py:270] Warming up Qwen Triton kernels for model_type=qwen3_5_text.
+(EngineCore pid=1266867) INFO 08-16 02:53:56 [ll_bf16.py:30] cuteDSL (CUTLASS Python) not available, ll_bf16_gemm disabled
+(EngineCore pid=1266867) INFO 08-16 02:53:56 [gpu_model_runner.py:6867] Rank 0: Torch profiler disabled for CUDA graph capture
+(EngineCore pid=1266867) Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):   0%|          | 0/5 [00:00<?, ?it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE): 100%|██████████| 5/5 [00:00<00:00, 51.39it/s]
+(EngineCore pid=1266867) Capturing CUDA graphs (decode, FULL):   0%|          | 0/4 [00:00<?, ?it/s]Capturing CUDA graphs (decode, FULL):  25%|██▌       | 1/4 [00:00<00:02,  1.06it/s]Capturing CUDA graphs (decode, FULL): 100%|██████████| 4/4 [00:01<00:00,  3.96it/s]
+(EngineCore pid=1266867) INFO 08-16 02:53:59 [gpu_model_runner.py:6913] Graph capturing finished in 3 secs, took 0.35 GiB
+(EngineCore pid=1266867) INFO 08-16 02:53:59 [gpu_worker.py:726] CUDA graph pool memory: 0.35 GiB (actual), 0.36 GiB (estimated), difference: 0.01 GiB (3.4%).
+(EngineCore pid=1266867) INFO 08-16 02:53:59 [gpu_worker.py:789] Free memory on device (255.38/255.98 GiB) on startup. Desired GPU memory utilization is (0.8, 204.79 GiB). Actual usage is 4.13 GiB for consumed memory (weights + non-torch), 1.77 GiB for peak activation, and 0.35 GiB for CUDAGraph memory. Replace gpu_memory_utilization config with `--kv-cache-memory=213023287911` (198.39 GiB) to fit into requested memory, or `--kv-cache-memory=267347493888` (248.99 GiB) to fully utilize gpu memory. Current kv cache memory in use is 198.89 GiB.
+(EngineCore pid=1266867) INFO 08-16 02:54:00 [jit_monitor.py:79] Kernel JIT monitor activated; monitored JIT compilations during inference will use mode=warn.
+(EngineCore pid=1266867) INFO 08-16 02:54:01 [core.py:348] init engine (profile, create kv cache, warmup model) took 21.82 s (compilation: 11.28 s)
+(EngineCore pid=1266867) WARNING 08-16 02:54:01 [serial_utils.py:79] Allowing insecure serialization using pickle due to VLLM_ALLOW_INSECURE_SERIALIZATION=1
+(EngineCore pid=1266867) WARNING 08-16 02:54:01 [serial_utils.py:79] Allowing insecure serialization using pickle due to VLLM_ALLOW_INSECURE_SERIALIZATION=1
+WARNING 08-16 02:54:01 [serial_utils.py:79] Allowing insecure serialization using pickle due to VLLM_ALLOW_INSECURE_SERIALIZATION=1
+(EngineCore pid=1266867) INFO 08-16 02:54:01 [kernel.py:306] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+INFO 08-16 02:54:03 [hf.py:540] Detected the chat template content format to be 'openai'. You can set `--chat-template-content-format` to override this.
+INFO 08-16 02:54:16 [base.py:235] Multi-modal warmup completed in 12.733s
+INFO 08-16 02:54:16 [base.py:235] Readonly multi-modal warmup completed in 0.807s
+(EngineCore pid=1266867) WARNING 08-16 02:54:17 [jit_monitor.py:135] Triton kernel JIT compilation during inference: _constituent_rms_kernel. This causes a latency spike; consider extending warmup to cover this shape/config.
+(EngineCore pid=1266867) WARNING 08-16 02:54:17 [jit_monitor.py:135] Triton kernel JIT compilation during inference: _assign_block_page_ordinals_kernel. This causes a latency spike; consider extending warmup to cover this shape/config.
+(EngineCore pid=1266867) WARNING 08-16 02:54:17 [jit_monitor.py:135] Triton kernel JIT compilation during inference: _write_virtual_page_indices_kernel. This causes a latency spike; consider extending warmup to cover this shape/config.
+(EngineCore pid=1266867) WARNING 08-16 02:54:17 [jit_monitor.py:135] Triton kernel JIT compilation during inference: _update_page_summaries_kernel. This causes a latency spike; consider extending warmup to cover this shape/config.
+(EngineCore pid=1266867) [aiter] import [module_aiter_core] under /home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/aiter/jit/module_aiter_core.so
+(EngineCore pid=1266867) [aiter] import [mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale] under /home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale.so
+(EngineCore pid=1266867) [aiter] type hints mismatch, override to --> mha_fwd(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, dropout_p: float, softmax_scale: float, is_causal: bool, window_size_left: int, window_size_right: int, sink_size: int, return_softmax_lse: bool, return_dropout_randval: bool, cu_seqlens_q: Optional[torch.Tensor] = None, cu_seqlens_kv: Optional[torch.Tensor] = None, out: Optional[torch.Tensor] = None, bias: Optional[torch.Tensor] = None, alibi_slopes: Optional[torch.Tensor] = None, q_descale: Optional[torch.Tensor] = None, k_descale: Optional[torch.Tensor] = None, v_descale: Optional[torch.Tensor] = None, sink_ptr: Optional[torch.Tensor] = None, gen: Optional[torch.Generator] = None) -> List[torch.Tensor]
+(EngineCore pid=1266867) WARNING 08-16 02:54:19 [jit_monitor.py:135] Triton kernel JIT compilation during inference: _route_logits_topk_coarse_attention_kernel. This causes a latency spike; consider extending warmup to cover this shape/config.
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [dump_input.py:72] Dumping input data for V1 LLM engine (v0.27.1) with config: model='Qwen/Qwen3.5-0.8B', speculative_config=None, tokenizer='Qwen/Qwen3.5-0.8B', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=27494, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=False, quantization=None, quantization_config=None, enforce_eager=False, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False, jit_monitor_mode='warn', jit_monitor_verbose=False), seed=0, served_model_name=Qwen/Qwen3.5-0.8B, enable_prefix_caching=False, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.VLLM_COMPILE: 3>, 'debug_dump_path': None, 'cache_dir': '/home/dan/subusers/agent/.cache/vllm/torch_compile_cache/1a3916d9df', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['+sparse_attn_indexer', 'none', '+sparse_attn_indexer'], 'ir_enable_torch_wrap': True, 'splitting_ops': ['vllm::unified_attention_with_output', 'vllm::unified_mla_attention_with_output', 'vllm::mamba_mixer2', 'vllm::mamba_mixer', 'vllm::short_conv', 'vllm::linear_attention', 'vllm::qwen_gdn_attention_core', 'vllm::gdn_attention_core_xpu', 'vllm::olmo_hybrid_gdn_full_forward', 'vllm::sparse_attn_indexer', 'vllm::rocm_aiter_sparse_attn_indexer', 'vllm::deepseek_v4_attention', 'vllm::hpc_rope_norm_forward', 'vllm::unified_kv_cache_update', 'vllm::unified_mla_kv_cache_update'], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': None, 'compile_sizes': [], 'compile_ranges_endpoints': [16384], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'size_asserts': False, 'alignment_asserts': False, 'scalar_asserts': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.FULL_AND_PIECEWISE: (2, 1)>, 'cudagraph_num_of_warmups': 1, 'cudagraph_capture_sizes': [1, 2, 4, 8, 16], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': False, 'fuse_act_quant': False, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': False, 'enable_qk_norm_rope_fusion': False, 'fuse_rope_kvcache_cat_mla': False, 'fuse_act_padding': False, 'fuse_mla_dual_rms_norm': False, 'fuse_rope_kvcache': False, 'fuse_qk_norm_rope_kvcache': False}, 'max_cudagraph_capture_size': 16, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': '/home/dan/subusers/agent/.cache/vllm/torch_compile_cache/1a3916d9df/rank_0_0/backbone', 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native']), enable_flashinfer_autotune=True, enable_cutedsl_warmup=True, enable_jit_warmup=True, enable_bf16x3_router_gemm=False, moe_backend='auto', linear_backend='auto'), 
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [dump_input.py:79] Dumping scheduler output for model execution: SchedulerOutput(scheduled_new_reqs=[NewRequestData(req_id=0-bc615b9c,prompt_token_ids_len=18857,prefill_token_ids_len=None,mm_features=[],sampling_params=SamplingParams(n=1, presence_penalty=0.0, frequency_penalty=0.0, repetition_penalty=1.0, temperature=0.0, top_p=1.0, top_k=0, min_p=0.0, seed=None, stop=[], stop_token_ids=[], bad_words=[], thinking_token_budget=None, include_stop_str_in_output=False, ignore_eos=True, max_tokens=8, min_tokens=0, logprobs=None, prompt_logprobs=None, skip_special_tokens=True, spaces_between_special_tokens=True, structured_outputs=None, extra_args=None),block_ids=([1], [2], [3], [4, 5, 6, 7, 8, 9, 10, 11]),num_computed_tokens=0,lora_request=None,prompt_embeds_shape=None), NewRequestData(req_id=1-857a8ff0,prompt_token_ids_len=19003,prefill_token_ids_len=None,mm_features=[],sampling_params=SamplingParams(n=1, presence_penalty=0.0, frequency_penalty=0.0, repetition_penalty=1.0, temperature=0.0, top_p=1.0, top_k=0, min_p=0.0, seed=None, stop=[], stop_token_ids=[], bad_words=[], thinking_token_budget=None, include_stop_str_in_output=False, ignore_eos=True, max_tokens=8, min_tokens=0, logprobs=None, prompt_logprobs=None, skip_special_tokens=True, spaces_between_special_tokens=True, structured_outputs=None, extra_args=None),block_ids=([12], [13], [14], [15, 16, 17, 18, 19, 20, 21, 22]),num_computed_tokens=0,lora_request=None,prompt_embeds_shape=None), NewRequestData(req_id=2-93e3a3de,prompt_token_ids_len=20377,prefill_token_ids_len=None,mm_features=[],sampling_params=SamplingParams(n=1, presence_penalty=0.0, frequency_penalty=0.0, repetition_penalty=1.0, temperature=0.0, top_p=1.0, top_k=0, min_p=0.0, seed=None, stop=[], stop_token_ids=[], bad_words=[], thinking_token_budget=None, include_stop_str_in_output=False, ignore_eos=True, max_tokens=8, min_tokens=0, logprobs=None, prompt_logprobs=None, skip_special_tokens=True, spaces_between_special_tokens=True, structured_outputs=None, extra_args=None),block_ids=([23], [24], [25], [26, 27, 28, 29, 30, 31, 32, 33]),num_computed_tokens=0,lora_request=None,prompt_embeds_shape=None), NewRequestData(req_id=3-89702d80,prompt_token_ids_len=21300,prefill_token_ids_len=None,mm_features=[],sampling_params=SamplingParams(n=1, presence_penalty=0.0, frequency_penalty=0.0, repetition_penalty=1.0, temperature=0.0, top_p=1.0, top_k=0, min_p=0.0, seed=None, stop=[], stop_token_ids=[], bad_words=[], thinking_token_budget=None, include_stop_str_in_output=False, ignore_eos=True, max_tokens=8, min_tokens=0, logprobs=None, prompt_logprobs=None, skip_special_tokens=True, spaces_between_special_tokens=True, structured_outputs=None, extra_args=None),block_ids=([34], [35], [36], [37, 38, 39, 40, 41, 42, 43, 44]),num_computed_tokens=0,lora_request=None,prompt_embeds_shape=None)], scheduled_cached_reqs=CachedRequestData(req_ids=[],resumed_req_ids=set(),new_token_ids_lens=[],all_token_ids_lens={},new_block_ids=[],num_computed_tokens=[],num_output_tokens=[]), num_scheduled_tokens={3-89702d80: 4096, 2-93e3a3de: 4096, 1-857a8ff0: 4096, 0-bc615b9c: 4096}, total_num_scheduled_tokens=16384, scheduled_spec_decode_tokens={}, scheduled_encoder_inputs={}, num_common_prefix_blocks=[0, 0, 0, 0], finished_req_ids=[], free_encoder_mm_hashes=[], scheduled_encoder_input_stats=null, preempted_req_ids=[], has_structured_output_requests=false, pending_structured_output_tokens=false, num_invalid_spec_tokens=null, kv_connector_metadata=null, ec_connector_metadata=null, ec_manager_metadata=null, new_block_ids_to_zero=null, kv_cache_block_copies=null, partial_tail_offloads=null, num_spec_tokens_to_schedule=0)
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [dump_input.py:81] Dumping scheduler stats: SchedulerStats(num_running_reqs=4, num_waiting_reqs=1, num_skipped_waiting_reqs=0, step_counter=0, current_wave=0, kv_cache_usage=0.2682926829268293, iteration_details=None, prefix_cache_stats=PrefixCacheStats(reset=False, requests=0, queries=0, hits=0, preempted_requests=0, preempted_queries=0, preempted_hits=0), connector_prefix_cache_stats=None, kv_cache_eviction_events=[], spec_decoding_stats=None, kv_connector_stats=None, waiting_lora_adapters={}, running_lora_adapters={}, cudagraph_stats=None, perf_stats=None)
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351] EngineCore encountered a fatal error.
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351] Traceback (most recent call last):
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/triton/language/core.py", line 43, in wrapper
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     return fn(*args, **kwargs)
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]            ^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/triton/language/core.py", line 1644, in arange
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     return _semantic.arange(start, end)
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/triton/language/semantic.py", line 583, in arange
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     raise ValueError("arange's range must be a power of 2")
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351] ValueError: arange's range must be a power of 2
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351] 
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351] The above exception was the direct cause of the following exception:
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351] 
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351] Traceback (most recent call last):
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/v1/engine/core.py", line 1342, in run_engine_core
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     engine_core.run_busy_loop()
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/v1/fault_tolerance/engine_core_sentinel.py", line 179, in run_with_fault_tolerance
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     busy_loop_func(self)
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/v1/engine/core.py", line 1386, in run_busy_loop
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     self._process_engine_step()
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/v1/engine/core.py", line 1439, in _process_engine_step
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     outputs, model_executed = self.step_fn()
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]                               ^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/v1/engine/core.py", line 655, in step_with_batch_queue
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     exec_future = self.model_executor.execute_model(
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/v1/executor/uniproc_executor.py", line 120, in execute_model
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     output.result()
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     return self.__get_result()
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]            ^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     raise self._exception
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/v1/executor/uniproc_executor.py", line 98, in collective_rpc
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     result = run_method(self.driver_worker, method, args, kwargs)
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/v1/serial_utils.py", line 510, in run_method
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     return func(*args, **kwargs)
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/v1/worker/worker_base.py", line 351, in execute_model
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     return self.worker.execute_model(scheduler_output)
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     return func(*args, **kwargs)
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/v1/worker/gpu_worker.py", line 1079, in execute_model
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     output = self.model_runner.execute_model(
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     return func(*args, **kwargs)
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/v1/worker/gpu_model_runner.py", line 4450, in execute_model
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     model_output = self._model_forward(
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]                    ^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/v1/worker/gpu_model_runner.py", line 3903, in _model_forward
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     return self.model(
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]            ^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/compilation/cuda_graph.py", line 254, in __call__
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     return self.runnable(*args, **kwargs)
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     return self._call_impl(*args, **kwargs)
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     return forward_call(*args, **kwargs)
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/model_executor/models/qwen3_5.py", line 557, in forward
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     hidden_states = self.language_model.model(
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/compilation/decorators.py", line 520, in __call__
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     return self.aot_compiled_fn(self, *args, **kwargs)
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/torch/_dynamo/aot_compile.py", line 224, in __call__
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     return self.fn(*args, **kwargs)
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]            ^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/model_executor/models/qwen3_next.py", line 646, in forward
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     def forward(
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/compilation/caching.py", line 217, in __call__
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     return self.optimized_call(*args, **kwargs)
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "<string>", line 151, in execution_fn
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "<string>", line 18, in __vllm_inlined_submods__7
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/torch/_ops.py", line 1269, in __call__
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     return self._op(*args, **kwargs)
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]            ^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/model_executor/layers/attention/kv_transfer_utils.py", line 40, in wrapper
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     return func(*args, **kwargs)
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/model_executor/layers/attention/attention.py", line 836, in unified_attention_with_output
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     self.impl.forward(
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/kvm-paper-dg/.runtime/lod-dev-nospecialize-20260815/integrations/vllm_lod/vllm_lod_plugin/backend.py", line 101, in forward
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     return pool.direct_prefill(query, key, value, output)
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/kvm-paper-dg/.runtime/lod-dev-nospecialize-20260815/integrations/vllm_lod/vllm_lod_plugin/pool.py", line 897, in direct_prefill
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     result, cache = self.engine(
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]                     ^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     return self._call_impl(*args, **kwargs)
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     return forward_call(*args, **kwargs)
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/kvm-paper-dg/.runtime/lod-dev-nospecialize-20260815/model/triton_lod_engines.py", line 199, in forward
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     output = self._prefill_attention(
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]              ^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/torch/_dynamo/eval_frame.py", line 1263, in _fn
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     return fn(*args, **kwargs)
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]            ^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/kvm-paper-dg/.runtime/lod-dev-nospecialize-20260815/model/triton_lod_attention.py", line 5074, in _prefill_attention
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     output = self._run_prefill(
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]              ^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/kvm-paper-dg/.runtime/lod-dev-nospecialize-20260815/model/triton_lod_attention.py", line 5354, in _run_prefill
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     chunk_output = self._two_level_attention(
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]                    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/kvm-paper-dg/.runtime/lod-dev-nospecialize-20260815/model/triton_lod_attention.py", line 4682, in _two_level_attention
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     selected_pages = gqa_preselect_residual_pages(
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/kvm-paper-dg/.runtime/lod-dev-nospecialize-20260815/model/kernels/paged_leaf_attention.py", line 3930, in gqa_preselect_residual_pages
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     _gqa_residual_page_selector_kernel[(batch * kv_heads * query_len,)](
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/triton/runtime/jit.py", line 370, in <lambda>
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/triton/runtime/jit.py", line 720, in run
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     kernel = self._do_compile(key, signature, device, constexprs, options, attrs, warmup)
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/triton/runtime/jit.py", line 849, in _do_compile
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     kernel = self.compile(src, target=target, options=options.__dict__)
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/triton/compiler/compiler.py", line 304, in compile
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     module = src.make_ir(target, options, codegen_fns, module_map, context)
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/triton/compiler/compiler.py", line 80, in make_ir
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     return ast_to_ttir(self.fn, self, context=context, options=options, codegen_fns=codegen_fns,
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351] triton.compiler.errors.CompilationError: at 46:11:
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351] ):
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     """Choose recursive pages while sharing each region scan across GQA heads."""
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     group_row = tl.program_id(0).to(tl.int64)
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     query_index = group_row % query_len
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     batch_kv = group_row // query_len
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     batch = batch_kv // KV_HEADS
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     kv_head = batch_kv - batch * KV_HEADS
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     cache_batch = tl.load(cache_indices + batch).to(tl.int64)
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     kv_row = cache_batch * KV_HEADS + kv_head
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351] 
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     head = tl.arange(0, 16)
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]     rank = tl.arange(0, ROUTE_COUNT)
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351]            ^
+(EngineCore pid=1266867) ERROR 08-16 02:54:19 [core.py:1351] arange's range must be a power of 2
+Traceback (most recent call last):
+  File "/home/dan/subusers/agent/kvm-paper-dg/.runtime/lod-dev-nospecialize-20260815/scripts/benchmark_vllm_lod_speed.py", line 369, in <module>
+    main()
+  File "/home/dan/subusers/agent/kvm-paper-dg/.runtime/lod-dev-nospecialize-20260815/scripts/benchmark_vllm_lod_speed.py", line 305, in main
+    timed_generate(llm, prompts, many)
+  File "/home/dan/subusers/agent/kvm-paper-dg/.runtime/lod-dev-nospecialize-20260815/scripts/benchmark_vllm_lod_speed.py", line 106, in timed_generate
+    outputs = llm.generate(prompts, params, use_tqdm=False)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/entrypoints/llm.py", line 468, in generate
+    return self._run_completion(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/entrypoints/offline_utils.py", line 349, in _run_completion
+    return self._run_engine(use_tqdm=use_tqdm, output_type=output_type)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/entrypoints/offline_utils.py", line 595, in _run_engine
+    step_outputs = self.llm_engine.step()
+                   ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/v1/engine/llm_engine.py", line 304, in step
+    outputs = self.engine_core.get_output()
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/v1/engine/core_client.py", line 879, in get_output
+    raise self._format_exception(outputs) from None
+vllm.v1.engine.exceptions.EngineDeadError: EngineCore encountered an issue. See stack trace (above) for the root cause.
+(EngineCore pid=1266867) Process EngineCore:
+(EngineCore pid=1266867) Traceback (most recent call last):
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/triton/language/core.py", line 43, in wrapper
+(EngineCore pid=1266867)     return fn(*args, **kwargs)
+(EngineCore pid=1266867)            ^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/triton/language/core.py", line 1644, in arange
+(EngineCore pid=1266867)     return _semantic.arange(start, end)
+(EngineCore pid=1266867)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/triton/language/semantic.py", line 583, in arange
+(EngineCore pid=1266867)     raise ValueError("arange's range must be a power of 2")
+(EngineCore pid=1266867) ValueError: arange's range must be a power of 2
+(EngineCore pid=1266867) 
+(EngineCore pid=1266867) The above exception was the direct cause of the following exception:
+(EngineCore pid=1266867) 
+(EngineCore pid=1266867) Traceback (most recent call last):
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+(EngineCore pid=1266867)     self.run()
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/multiprocessing/process.py", line 108, in run
+(EngineCore pid=1266867)     self._target(*self._args, **self._kwargs)
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/v1/engine/core.py", line 1353, in run_engine_core
+(EngineCore pid=1266867)     raise e
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/v1/engine/core.py", line 1342, in run_engine_core
+(EngineCore pid=1266867)     engine_core.run_busy_loop()
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/v1/fault_tolerance/engine_core_sentinel.py", line 179, in run_with_fault_tolerance
+(EngineCore pid=1266867)     busy_loop_func(self)
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/v1/engine/core.py", line 1386, in run_busy_loop
+(EngineCore pid=1266867)     self._process_engine_step()
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/v1/engine/core.py", line 1439, in _process_engine_step
+(EngineCore pid=1266867)     outputs, model_executed = self.step_fn()
+(EngineCore pid=1266867)                               ^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/v1/engine/core.py", line 655, in step_with_batch_queue
+(EngineCore pid=1266867)     exec_future = self.model_executor.execute_model(
+(EngineCore pid=1266867)                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/v1/executor/uniproc_executor.py", line 120, in execute_model
+(EngineCore pid=1266867)     output.result()
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+(EngineCore pid=1266867)     return self.__get_result()
+(EngineCore pid=1266867)            ^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+(EngineCore pid=1266867)     raise self._exception
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/v1/executor/uniproc_executor.py", line 98, in collective_rpc
+(EngineCore pid=1266867)     result = run_method(self.driver_worker, method, args, kwargs)
+(EngineCore pid=1266867)              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/v1/serial_utils.py", line 510, in run_method
+(EngineCore pid=1266867)     return func(*args, **kwargs)
+(EngineCore pid=1266867)            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/v1/worker/worker_base.py", line 351, in execute_model
+(EngineCore pid=1266867)     return self.worker.execute_model(scheduler_output)
+(EngineCore pid=1266867)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(EngineCore pid=1266867)     return func(*args, **kwargs)
+(EngineCore pid=1266867)            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/v1/worker/gpu_worker.py", line 1079, in execute_model
+(EngineCore pid=1266867)     output = self.model_runner.execute_model(
+(EngineCore pid=1266867)              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(EngineCore pid=1266867)     return func(*args, **kwargs)
+(EngineCore pid=1266867)            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/v1/worker/gpu_model_runner.py", line 4450, in execute_model
+(EngineCore pid=1266867)     model_output = self._model_forward(
+(EngineCore pid=1266867)                    ^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/v1/worker/gpu_model_runner.py", line 3903, in _model_forward
+(EngineCore pid=1266867)     return self.model(
+(EngineCore pid=1266867)            ^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/compilation/cuda_graph.py", line 254, in __call__
+(EngineCore pid=1266867)     return self.runnable(*args, **kwargs)
+(EngineCore pid=1266867)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+(EngineCore pid=1266867)     return self._call_impl(*args, **kwargs)
+(EngineCore pid=1266867)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+(EngineCore pid=1266867)     return forward_call(*args, **kwargs)
+(EngineCore pid=1266867)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/model_executor/models/qwen3_5.py", line 557, in forward
+(EngineCore pid=1266867)     hidden_states = self.language_model.model(
+(EngineCore pid=1266867)                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/compilation/decorators.py", line 520, in __call__
+(EngineCore pid=1266867)     return self.aot_compiled_fn(self, *args, **kwargs)
+(EngineCore pid=1266867)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/torch/_dynamo/aot_compile.py", line 224, in __call__
+(EngineCore pid=1266867)     return self.fn(*args, **kwargs)
+(EngineCore pid=1266867)            ^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/model_executor/models/qwen3_next.py", line 646, in forward
+(EngineCore pid=1266867)     def forward(
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/compilation/caching.py", line 217, in __call__
+(EngineCore pid=1266867)     return self.optimized_call(*args, **kwargs)
+(EngineCore pid=1266867)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "<string>", line 151, in execution_fn
+(EngineCore pid=1266867)   File "<string>", line 18, in __vllm_inlined_submods__7
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/torch/_ops.py", line 1269, in __call__
+(EngineCore pid=1266867)     return self._op(*args, **kwargs)
+(EngineCore pid=1266867)            ^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/model_executor/layers/attention/kv_transfer_utils.py", line 40, in wrapper
+(EngineCore pid=1266867)     return func(*args, **kwargs)
+(EngineCore pid=1266867)            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/vllm/model_executor/layers/attention/attention.py", line 836, in unified_attention_with_output
+(EngineCore pid=1266867)     self.impl.forward(
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/kvm-paper-dg/.runtime/lod-dev-nospecialize-20260815/integrations/vllm_lod/vllm_lod_plugin/backend.py", line 101, in forward
+(EngineCore pid=1266867)     return pool.direct_prefill(query, key, value, output)
+(EngineCore pid=1266867)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/kvm-paper-dg/.runtime/lod-dev-nospecialize-20260815/integrations/vllm_lod/vllm_lod_plugin/pool.py", line 897, in direct_prefill
+(EngineCore pid=1266867)     result, cache = self.engine(
+(EngineCore pid=1266867)                     ^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+(EngineCore pid=1266867)     return self._call_impl(*args, **kwargs)
+(EngineCore pid=1266867)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+(EngineCore pid=1266867)     return forward_call(*args, **kwargs)
+(EngineCore pid=1266867)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/kvm-paper-dg/.runtime/lod-dev-nospecialize-20260815/model/triton_lod_engines.py", line 199, in forward
+(EngineCore pid=1266867)     output = self._prefill_attention(
+(EngineCore pid=1266867)              ^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/torch/_dynamo/eval_frame.py", line 1263, in _fn
+(EngineCore pid=1266867)     return fn(*args, **kwargs)
+(EngineCore pid=1266867)            ^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/kvm-paper-dg/.runtime/lod-dev-nospecialize-20260815/model/triton_lod_attention.py", line 5074, in _prefill_attention
+(EngineCore pid=1266867)     output = self._run_prefill(
+(EngineCore pid=1266867)              ^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/kvm-paper-dg/.runtime/lod-dev-nospecialize-20260815/model/triton_lod_attention.py", line 5354, in _run_prefill
+(EngineCore pid=1266867)     chunk_output = self._two_level_attention(
+(EngineCore pid=1266867)                    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/kvm-paper-dg/.runtime/lod-dev-nospecialize-20260815/model/triton_lod_attention.py", line 4682, in _two_level_attention
+(EngineCore pid=1266867)     selected_pages = gqa_preselect_residual_pages(
+(EngineCore pid=1266867)                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/kvm-paper-dg/.runtime/lod-dev-nospecialize-20260815/model/kernels/paged_leaf_attention.py", line 3930, in gqa_preselect_residual_pages
+(EngineCore pid=1266867)     _gqa_residual_page_selector_kernel[(batch * kv_heads * query_len,)](
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/triton/runtime/jit.py", line 370, in <lambda>
+(EngineCore pid=1266867)     return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)
+(EngineCore pid=1266867)                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/triton/runtime/jit.py", line 720, in run
+(EngineCore pid=1266867)     kernel = self._do_compile(key, signature, device, constexprs, options, attrs, warmup)
+(EngineCore pid=1266867)              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/triton/runtime/jit.py", line 849, in _do_compile
+(EngineCore pid=1266867)     kernel = self.compile(src, target=target, options=options.__dict__)
+(EngineCore pid=1266867)              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/triton/compiler/compiler.py", line 304, in compile
+(EngineCore pid=1266867)     module = src.make_ir(target, options, codegen_fns, module_map, context)
+(EngineCore pid=1266867)              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867)   File "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/lib/python3.12/site-packages/triton/compiler/compiler.py", line 80, in make_ir
+(EngineCore pid=1266867)     return ast_to_ttir(self.fn, self, context=context, options=options, codegen_fns=codegen_fns,
+(EngineCore pid=1266867)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1266867) triton.compiler.errors.CompilationError: at 46:11:
+(EngineCore pid=1266867) ):
+(EngineCore pid=1266867)     """Choose recursive pages while sharing each region scan across GQA heads."""
+(EngineCore pid=1266867)     group_row = tl.program_id(0).to(tl.int64)
+(EngineCore pid=1266867)     query_index = group_row % query_len
+(EngineCore pid=1266867)     batch_kv = group_row // query_len
+(EngineCore pid=1266867)     batch = batch_kv // KV_HEADS
+(EngineCore pid=1266867)     kv_head = batch_kv - batch * KV_HEADS
+(EngineCore pid=1266867)     cache_batch = tl.load(cache_indices + batch).to(tl.int64)
+(EngineCore pid=1266867)     kv_row = cache_batch * KV_HEADS + kv_head
+(EngineCore pid=1266867) 
+(EngineCore pid=1266867)     head = tl.arange(0, 16)
+(EngineCore pid=1266867)     rank = tl.arange(0, ROUTE_COUNT)
+(EngineCore pid=1266867)            ^
+(EngineCore pid=1266867) arange's range must be a power of 2
+INFO 08-16 02:54:24 [utils.py:612] [shutdown] Process manager: send sigterm to process EngineCore

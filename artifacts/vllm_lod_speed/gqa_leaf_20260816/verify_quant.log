@@ -1,0 +1,12 @@
+{'virtual_int4_max_mse': 0.01677633263170719, 'virtual_int4_l2_mse': 0.015835918486118317, 'virtual_int4_l2_mse_ratio': 0.943943977355957}
+Traceback (most recent call last):
+  File "/home/dan/subusers/agent/kvm-paper-dg/.runtime/lod-dev-nospecialize-20260815/scripts/verify_triton_paged_leaf_attention.py", line 2381, in <module>
+    main()
+  File "/home/dan/subusers/agent/kvm-paper-dg/.runtime/lod-dev-nospecialize-20260815/scripts/verify_triton_paged_leaf_attention.py", line 1377, in main
+    verify_residual_page_attention(device)
+  File "/home/dan/subusers/agent/kvm-paper-dg/.runtime/lod-dev-nospecialize-20260815/scripts/verify_triton_paged_leaf_attention.py", line 978, in verify_residual_page_attention
+    quantized_selected_pages = gqa_preselect_residual_pages(
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dan/subusers/agent/kvm-paper-dg/.runtime/lod-dev-nospecialize-20260815/model/kernels/paged_leaf_attention.py", line 3908, in gqa_preselect_residual_pages
+    raise ValueError("page counts differ from page-summary storage")
+ValueError: page counts differ from page-summary storage

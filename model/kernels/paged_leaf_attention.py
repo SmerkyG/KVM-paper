@@ -76,7 +76,10 @@ def _lookup_page_id(
     return page_id
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["query_len"],
+    do_not_specialize_on_alignment=["query_len"],
+)
 def _candidate_page_mass_kernel(
     q,
     page_sum_k,
@@ -199,7 +202,10 @@ def _candidate_page_mass_kernel(
     )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["query_len"],
+    do_not_specialize_on_alignment=["query_len"],
+)
 def _candidate_leaf_mass_kernel(
     q,
     page_k,
@@ -340,7 +346,10 @@ def _candidate_leaf_mass_kernel(
     )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["query_len"],
+    do_not_specialize_on_alignment=["query_len"],
+)
 def _candidate_virtual_leaf_target_output_kernel(
     q,
     baseline_output,
@@ -514,7 +523,10 @@ def _candidate_virtual_leaf_target_output_kernel(
     tl.store(target_output + query_row * VALUE_DIM + value_dim, candidate_target)
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["query_len"],
+    do_not_specialize_on_alignment=["query_len"],
+)
 def _candidate_virtual_leaf_output_utility_kernel(
     q,
     baseline_output,
@@ -700,7 +712,10 @@ def _candidate_virtual_leaf_output_utility_kernel(
     )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["TOKENS"],
+    do_not_specialize_on_alignment=["TOKENS"],
+)
 def _assign_page_ordinals_kernel(
     owners,
     slot_lengths,
@@ -711,7 +726,7 @@ def _assign_page_ordinals_kernel(
     overflow_used,
     overflow_flag,
     ordinals,
-    TOKENS: tl.constexpr,
+    TOKENS,
     KV_HEADS: tl.constexpr,
     STATE_CAPACITY: tl.constexpr,
     INLINE_PAGES_PER_SLOT: tl.constexpr,
@@ -766,31 +781,68 @@ def _assign_page_ordinals_kernel(
     tl.atomic_xchg(overflow_flag, 1, mask=active, sem="relaxed")
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["TOKENS"],
+    do_not_specialize_on_alignment=["TOKENS"],
+)
 def _publish_page_ids_kernel(
     owners,
     ordinals,
-    page_ids,
+    slot_lengths,
+    next_page,
     slot_pages,
     overflow_page_keys,
     overflow_page_values,
     overflow_used,
     overflow_flag,
-    TOKENS: tl.constexpr,
+    TOKENS,
     STATE_CAPACITY: tl.constexpr,
     INLINE_PAGES_PER_SLOT: tl.constexpr,
     HASH_CAPACITY: tl.constexpr,
     HASH_PROBES: tl.constexpr,
     PAGE_SIZE: tl.constexpr,
+    BLOCK_TOKENS: tl.constexpr,
 ):
-    """Publish deterministic page IDs for the first leaf of each page."""
-    token_row = tl.program_id(0).to(tl.int64)
-    kv_row = token_row // TOKENS
-    owner = tl.load(owners + token_row).to(tl.int64)
-    ordinal = tl.load(ordinals + token_row).to(tl.int64)
-    starts_page = ordinal % PAGE_SIZE == 0
+    """Commit counts and publish IDs after stable ordinals are materialized."""
+    kv_row = tl.program_id(0).to(tl.int64)
+    token = (
+        tl.program_id(1).to(tl.int64) * BLOCK_TOKENS
+        + tl.arange(0, BLOCK_TOKENS)
+    )
+    valid = token < TOKENS
+    token_row = kv_row * TOKENS + token
+    owner = tl.load(owners + token_row, mask=valid, other=0).to(tl.int64)
+    ordinal = tl.load(ordinals + token_row, mask=valid, other=0).to(tl.int64)
+
+    lane = tl.arange(0, BLOCK_TOKENS)
+    same_owner = (
+        (owner[:, None] == owner[None, :])
+        & valid[:, None]
+        & valid[None, :]
+    )
+    earlier = lane[None, :] < lane[:, None]
+    first_in_block = tl.sum(
+        (same_owner & earlier).to(tl.int32), axis=1
+    ) == 0
+    block_count = tl.sum(same_owner.to(tl.int32), axis=1)
+    tl.atomic_add(
+        slot_lengths + kv_row * STATE_CAPACITY + owner,
+        block_count,
+        mask=valid & first_in_block,
+        sem="relaxed",
+    )
+
+    starts_page = valid & (ordinal % PAGE_SIZE == 0)
     page_ordinal = ordinal // PAGE_SIZE
-    page_id = tl.load(page_ids + token_row).to(tl.int32)
+    page_rank = tl.cumsum(starts_page.to(tl.int32), axis=0) - 1
+    page_count = tl.sum(starts_page.to(tl.int32), axis=0)
+    first_page = tl.atomic_add(
+        next_page + kv_row,
+        page_count,
+        mask=page_count > 0,
+        sem="relaxed",
+    ).to(tl.int32)
+    page_id = first_page + page_rank
     inline = starts_page & (page_ordinal < INLINE_PAGES_PER_SLOT)
     tl.store(
         slot_pages
@@ -803,7 +855,13 @@ def _publish_page_ids_kernel(
     lookup_key = (owner * 65_536 + page_ordinal).to(tl.int32)
     index = _page_hash_index(lookup_key, HASH_CAPACITY)
     active = starts_page & ~inline
-    tl.atomic_xchg(overflow_used, 1, mask=active, sem="relaxed")
+    ones = tl.full((BLOCK_TOKENS,), 1, tl.int32)
+    tl.atomic_xchg(
+        overflow_used + token * 0,
+        ones,
+        mask=active,
+        sem="relaxed",
+    )
     for _ in tl.static_range(0, HASH_PROBES):
         old_key = tl.atomic_cas(
             overflow_page_keys + kv_row * HASH_CAPACITY + index,
@@ -819,7 +877,12 @@ def _publish_page_ids_kernel(
         )
         active &= ~claimed
         index = (index + 1) & (HASH_CAPACITY - 1)
-    tl.atomic_xchg(overflow_flag, 1, mask=active, sem="relaxed")
+    tl.atomic_xchg(
+        overflow_flag + token * 0,
+        ones,
+        mask=active,
+        sem="relaxed",
+    )
 
 
 def _assign_page_ordinals(
@@ -839,40 +902,34 @@ def _assign_page_ordinals(
     batch, kv_heads, tokens = owners.shape
     # Recursive LOD pages are semantic units, so their membership must not
     # depend on the order in which GPU programs happen to reserve slot ranges.
-    # Stable owner sorting gives every leaf its chronological rank within the
-    # current append. Existing slot lengths make the result invariant to
-    # splitting the same history across multiple cached-prefill calls.
-    order = owners.argsort(dim=-1, stable=True)
-    sorted_owners = owners.gather(-1, order)
+    # Sorting the unique (owner, sequence-position) pair groups equal owners
+    # while retaining chronological order inside each group. This produces the
+    # exact same ranks as counting all prior equal owners, without its O(T^2)
+    # scan. Page IDs may be reserved in any order: the semantic identity is
+    # (owner, page ordinal), not the numeric page ID.
     positions = torch.arange(
-        tokens, dtype=torch.int32, device=owners.device
+        tokens, device=owners.device, dtype=owners.dtype
     ).view(1, 1, tokens)
-    group_start = torch.where(
-        (positions == 0)
-        | (sorted_owners != torch.roll(sorted_owners, shifts=1, dims=-1)),
-        positions,
-        0,
-    ).cummax(dim=-1).values
-    sorted_ranks = positions - group_start
-    ranks = torch.empty_like(owners, dtype=torch.int32)
-    ranks.scatter_(-1, order, sorted_ranks.expand(batch, kv_heads, tokens))
-    ordinals = slot_lengths.gather(-1, owners) + ranks
-
-    additions = torch.zeros_like(slot_lengths)
-    additions.scatter_add_(
-        -1, owners, torch.ones_like(owners, dtype=slot_lengths.dtype)
-    )
-    slot_lengths.add_(additions)
-
-    starts_page = ordinals.remainder(page_size).eq(0)
-    page_ids = next_page.unsqueeze(-1) + starts_page.cumsum(
-        dim=-1, dtype=torch.int32
-    ) - 1
-    next_page.add_(starts_page.sum(dim=-1, dtype=torch.int32))
-    _publish_page_ids_kernel[(batch * kv_heads * tokens,)](
+    order = torch.argsort(owners * tokens + positions, dim=2)
+    sorted_owners = owners.gather(2, order)
+    new_group = torch.ones_like(sorted_owners, dtype=torch.bool)
+    new_group[..., 1:] = sorted_owners[..., 1:] != sorted_owners[..., :-1]
+    sorted_positions = positions.expand(batch, kv_heads, tokens)
+    group_starts = torch.where(new_group, sorted_positions, 0).cummax(dim=2).values
+    sorted_ranks = sorted_positions - group_starts
+    ranks = torch.empty_like(owners)
+    ranks.scatter_(2, order, sorted_ranks)
+    ordinals = (
+        slot_lengths.gather(2, owners).to(owners.dtype) + ranks
+    ).to(torch.int32)
+    block_tokens = 16
+    _publish_page_ids_kernel[
+        (batch * kv_heads, triton.cdiv(tokens, block_tokens))
+    ](
         owners,
         ordinals,
-        page_ids,
+        slot_lengths,
+        next_page,
         slot_pages,
         overflow_page_keys,
         overflow_page_values,
@@ -884,6 +941,7 @@ def _assign_page_ordinals(
         HASH_CAPACITY=int(overflow_page_keys.size(2)),
         HASH_PROBES=hash_probes,
         PAGE_SIZE=page_size,
+        BLOCK_TOKENS=block_tokens,
         num_warps=1,
     )
     return ordinals
@@ -943,7 +1001,10 @@ def _rehash_overflow_pages_kernel(
     tl.atomic_xchg(destination_flag, 1, mask=active, sem="relaxed")
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["TOKENS"],
+    do_not_specialize_on_alignment=["TOKENS"],
+)
 def _write_paged_kv_kernel(
     k,
     v,
@@ -961,7 +1022,7 @@ def _write_paged_kv_kernel(
     V_BATCH_STRIDE: tl.constexpr,
     V_HEAD_STRIDE: tl.constexpr,
     V_TOKEN_STRIDE: tl.constexpr,
-    TOKENS: tl.constexpr,
+    TOKENS,
     KV_HEADS: tl.constexpr,
     STATE_CAPACITY: tl.constexpr,
     INLINE_PAGES_PER_SLOT: tl.constexpr,
@@ -1028,7 +1089,10 @@ def _write_paged_kv_kernel(
     )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["LEAF_OFFSET", "TOKENS"],
+    do_not_specialize_on_alignment=["LEAF_OFFSET", "TOKENS"],
+)
 def _write_virtual_page_indices_kernel(
     owners,
     ordinals,
@@ -1038,7 +1102,7 @@ def _write_virtual_page_indices_kernel(
     overflow_used,
     page_indices,
     LEAF_OFFSET,
-    TOKENS: tl.constexpr,
+    TOKENS,
     STATE_CAPACITY: tl.constexpr,
     INLINE_PAGES_PER_SLOT: tl.constexpr,
     HASH_CAPACITY: tl.constexpr,
@@ -1073,7 +1137,10 @@ def _write_virtual_page_indices_kernel(
     tl.store(page_indices + physical_token, LEAF_OFFSET + token)
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["TOKENS"],
+    do_not_specialize_on_alignment=["TOKENS"],
+)
 def _update_page_summaries_kernel(
     owners,
     ordinals,
@@ -1090,7 +1157,7 @@ def _update_page_summaries_kernel(
     page_sum_k,
     page_sum_v,
     page_counts,
-    TOKENS: tl.constexpr,
+    TOKENS,
     KV_HEADS: tl.constexpr,
     STATE_CAPACITY: tl.constexpr,
     INLINE_PAGES_PER_SLOT: tl.constexpr,
@@ -1221,7 +1288,10 @@ def _update_page_summaries_kernel(
     )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["TOKENS"],
+    do_not_specialize_on_alignment=["TOKENS"],
+)
 def _update_raw_page_key_summaries_kernel(
     owners,
     ordinals,
@@ -1231,7 +1301,7 @@ def _update_raw_page_key_summaries_kernel(
     overflow_used,
     append_k,
     page_sum_k,
-    TOKENS: tl.constexpr,
+    TOKENS,
     KV_HEADS: tl.constexpr,
     STATE_CAPACITY: tl.constexpr,
     INLINE_PAGES_PER_SLOT: tl.constexpr,
@@ -1468,7 +1538,10 @@ def _quantize_virtual_page_tensor_int4(
     )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["TOKENS"],
+    do_not_specialize_on_alignment=["TOKENS"],
+)
 def _quantize_touched_virtual_pages_int4_kernel(
     owners,
     ordinals,
@@ -1488,7 +1561,7 @@ def _quantize_touched_virtual_pages_int4_kernel(
     page_k_scales,
     page_v_scales,
     page_quantized_counts,
-    TOKENS: tl.constexpr,
+    TOKENS,
     KV_HEADS: tl.constexpr,
     STATE_CAPACITY: tl.constexpr,
     INLINE_PAGES_PER_SLOT: tl.constexpr,
@@ -2051,7 +2124,10 @@ def _requantize_appended_virtual_page_tensor_int4(
     )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["leaf_offset", "TOKENS"],
+    do_not_specialize_on_alignment=["leaf_offset", "TOKENS"],
+)
 def _append_quantized_virtual_pages_int4_kernel(
     owners,
     ordinals,
@@ -2076,7 +2152,7 @@ def _append_quantized_virtual_pages_int4_kernel(
     page_v_scales,
     page_quantized_counts,
     leaf_offset,
-    TOKENS: tl.constexpr,
+    TOKENS,
     KV_HEADS: tl.constexpr,
     STATE_CAPACITY: tl.constexpr,
     INLINE_PAGES_PER_SLOT: tl.constexpr,
@@ -2217,7 +2293,10 @@ def _append_quantized_virtual_pages_int4_kernel(
     )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["TOKENS"],
+    do_not_specialize_on_alignment=["TOKENS"],
+)
 def _finalize_appended_virtual_page_counts_kernel(
     owners,
     ordinals,
@@ -2228,7 +2307,7 @@ def _finalize_appended_virtual_page_counts_kernel(
     slot_lengths,
     page_counts,
     page_quantized_counts,
-    TOKENS: tl.constexpr,
+    TOKENS,
     STATE_CAPACITY: tl.constexpr,
     INLINE_PAGES_PER_SLOT: tl.constexpr,
     PAGE_CAPACITY: tl.constexpr,
@@ -2424,7 +2503,10 @@ def _paged_leaf_attention_kernel(
     tl.store(lse + route_row, natural_lse, mask=valid_query)
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=["QUERY_LEN"],
+    do_not_specialize_on_alignment=["QUERY_LEN"],
+)
 def _query_major_paged_leaf_attention_kernel(
     q,
     page_k,
@@ -2437,7 +2519,7 @@ def _query_major_paged_leaf_attention_kernel(
     top_slots,
     out,
     lse,
-    QUERY_LEN: tl.constexpr,
+    QUERY_LEN,
     QUERY_HEADS: tl.constexpr,
     KV_HEADS: tl.constexpr,
     KV_GROUP_SIZE: tl.constexpr,
@@ -2645,7 +2727,28 @@ def query_major_paged_leaf_attention(
     )
 
 
-@triton.jit
+@triton.jit(
+    do_not_specialize=[
+        "LEAF_CAPACITY",
+        "LEAF_K_BATCH_STRIDE",
+        "LEAF_K_HEAD_STRIDE",
+        "LEAF_K_TOKEN_STRIDE",
+        "LEAF_V_BATCH_STRIDE",
+        "LEAF_V_HEAD_STRIDE",
+        "LEAF_V_TOKEN_STRIDE",
+        "query_len",
+    ],
+    do_not_specialize_on_alignment=[
+        "LEAF_CAPACITY",
+        "LEAF_K_BATCH_STRIDE",
+        "LEAF_K_HEAD_STRIDE",
+        "LEAF_K_TOKEN_STRIDE",
+        "LEAF_V_BATCH_STRIDE",
+        "LEAF_V_HEAD_STRIDE",
+        "LEAF_V_TOKEN_STRIDE",
+        "query_len",
+    ],
+)
 def _query_major_residual_page_attention_kernel(
     q,
     state_k,
@@ -2695,13 +2798,13 @@ def _query_major_residual_page_attention_kernel(
     ROUTE_COUNT: tl.constexpr,
     SCALE_LOG2: tl.constexpr,
     PAGE_BLOCK_N: tl.constexpr,
-    LEAF_K_BATCH_STRIDE: tl.constexpr,
-    LEAF_K_HEAD_STRIDE: tl.constexpr,
-    LEAF_K_TOKEN_STRIDE: tl.constexpr,
-    LEAF_V_BATCH_STRIDE: tl.constexpr,
-    LEAF_V_HEAD_STRIDE: tl.constexpr,
-    LEAF_V_TOKEN_STRIDE: tl.constexpr,
-    LEAF_CAPACITY: tl.constexpr,
+    LEAF_K_BATCH_STRIDE,
+    LEAF_K_HEAD_STRIDE,
+    LEAF_K_TOKEN_STRIDE,
+    LEAF_V_BATCH_STRIDE,
+    LEAF_V_HEAD_STRIDE,
+    LEAF_V_TOKEN_STRIDE,
+    LEAF_CAPACITY,
     QUANT_GROUP_SIZE: tl.constexpr,
     QUANTIZED: tl.constexpr,
     QUANTIZED_SUMMARIES: tl.constexpr,
@@ -2754,10 +2857,41 @@ def _query_major_residual_page_attention_kernel(
             )
         selected_score = tl.full((), -float("inf"), tl.float32)
         selected_page = tl.full((), 0, tl.int64)
+        single_page = valid_slot & (slot_page_count == 1)
+        if HASH_PROBES == 0:
+            first_page = tl.load(
+                page_table,
+                mask=single_page,
+                other=0,
+            ).to(tl.int64)
+        else:
+            first_page = _lookup_page_id(
+                slot_pages,
+                overflow_page_keys,
+                overflow_page_values,
+                overflow_used,
+                kv_row,
+                slot,
+                0,
+                single_page,
+                STATE_CAPACITY,
+                INLINE_PAGES_PER_SLOT,
+                PAGE_CAPACITY,
+                HASH_CAPACITY,
+                HASH_PROBES,
+            ).to(tl.int64)
+        single_page &= (first_page >= 0) & (first_page < PAGE_CAPACITY)
+        selected_score = tl.where(
+            single_page, float("inf"), selected_score
+        )
+        selected_page = tl.where(single_page, first_page, selected_page)
+        scan_page_count = tl.where(single_page, 0, slot_page_count)
 
-        for page_begin in tl.range(0, slot_page_count, PAGE_BLOCK_N, num_stages=1):
+        for page_begin in tl.range(
+            0, scan_page_count, PAGE_BLOCK_N, num_stages=1
+        ):
             page_ordinal = page_begin + page_offset
-            valid_page = page_ordinal < slot_page_count
+            valid_page = page_ordinal < scan_page_count
             if HASH_PROBES == 0:
                 page_id = tl.load(
                     page_table + page_ordinal, mask=valid_page, other=0

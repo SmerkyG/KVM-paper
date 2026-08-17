@@ -341,8 +341,12 @@ def verify_virtual_page_append(device: torch.device) -> None:
             ).flatten()
             if not torch.equal(actual_indices, expected_indices):
                 raise AssertionError(
-                    "virtual page append did not preserve chronological region order"
+                    "virtual page append changed chronological leaf order"
                 )
+            if not torch.equal(
+                actual_indices.sort().values, expected_indices.sort().values
+            ):
+                raise AssertionError("virtual page append lost a leaf index")
             actual_key_sum = page_sum_k[0, head].index_select(0, page_ids).sum(0)
             actual_value_sum = page_sum_v[0, head].index_select(0, page_ids).sum(0)
             torch.testing.assert_close(
@@ -480,7 +484,7 @@ def verify_virtual_page_append(device: torch.device) -> None:
         assert torch.mean((l2_reconstruction - source.float()) ** 2) <= torch.mean(
             (max_reconstruction - source.float()) ** 2
         )
-    # Fixed-capacity serving pools deliberately reuse storage.  A page with no
+    # Fixed-capacity serving pools deliberately reuse storage. A page with no
     # leaves must ignore whatever summary bytes its previous owner left behind.
     unused_pages = torch.arange(page_capacity, device=device).view(1, 1, -1) >= (
         next_page.unsqueeze(-1)

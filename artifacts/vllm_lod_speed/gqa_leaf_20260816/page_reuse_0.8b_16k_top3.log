@@ -1,0 +1,12 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/320 [00:00<?, ?it/s]Loading weights: 100%|██████████| 320/320 [00:00<00:00, 14760.23it/s]
+Traceback (most recent call last):
+  File "/home/dan/subusers/agent/kvm-paper-dg/.runtime/lod-dev-nospecialize-20260815/scripts/profile_qwen35_lod_route_tuple_reuse.py", line 229, in <module>
+    main()
+  File "/home/dan/subusers/agent/kvm-paper-dg/.runtime/lod-dev-nospecialize-20260815/scripts/profile_qwen35_lod_route_tuple_reuse.py", line 220, in main
+    "gqa_page_reuse": summarize_gqa(gqa_page_reuse),
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dan/subusers/agent/kvm-paper-dg/.runtime/lod-dev-nospecialize-20260815/scripts/profile_qwen35_lod_route_tuple_reuse.py", line 182, in summarize_gqa
+    unique = torch.cat([record["unique_count"] for record in records]).float()
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: torch.cat(): expected a non-empty list of Tensors

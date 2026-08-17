@@ -1,0 +1,82 @@
+{
+  "attention_backend": null,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 113223139328,
+    "device_used_bytes_before_reclaim": 209127997440,
+    "lod_cache_bytes": 8963421264,
+    "lod_decode_scratch_bytes": 522501000,
+    "native_cache_bytes": 2357329920,
+    "torch_allocated_bytes": 98504437760,
+    "torch_reclaimable_cached_bytes": 95904858112,
+    "torch_reserved_bytes_after_reclaim": 107246256128,
+    "torch_reserved_bytes_before_reclaim": 203151114240
+  },
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.5-35B-A3B",
+  "decode_interval_tokens": 256,
+  "decode_timings_seconds": [
+    4.04703676328063,
+    4.0386707335710526,
+    4.037995404563844
+  ],
+  "decode_tokens": 257,
+  "enforce_eager": false,
+  "jit_monitor_verbose": false,
+  "length": 131072,
+  "lengths": [
+    131072,
+    131072,
+    131072,
+    131072,
+    131072,
+    131072,
+    131072,
+    131072
+  ],
+  "lod_diagnostics": {
+    "batched_cached_prefill_rows": 13120,
+    "batched_cached_prefills": 3840,
+    "batched_install_calls": 140,
+    "cached_prefill_candidate_calls": 2570,
+    "cached_prefill_candidate_rows": 15380,
+    "cached_prefill_noncontiguous": 0,
+    "cached_prefill_nonpacked_calls": 960,
+    "cached_prefill_nonuniform_lengths": 1300,
+    "cached_prefill_nonuniform_previous": 1600,
+    "cached_prefill_packed_calls": 5140,
+    "cached_prefill_unready": 0,
+    "catch_up_batches": 40,
+    "catch_up_rows": 40,
+    "decode_calls": 80,
+    "direct_prefills": 2610,
+    "installs": 320,
+    "layers": 10
+  },
+  "lod_direct_prefill_route": false,
+  "lod_leaf_num_warps": null,
+  "lod_prefill_chunk_len": null,
+  "lod_prefill_state_update_len": null,
+  "lod_recursive_page_block_n": null,
+  "long_prefill_token_threshold": 4096,
+  "marginal_decode_ms_per_batch_step": 15.776057553011924,
+  "marginal_decode_ms_per_token": 1.9720071941264905,
+  "marginal_decode_tokens_per_second": 507.0975415193424,
+  "max_num_batched_tokens": 16384,
+  "mode": "lod",
+  "num_gpu_blocks_override": null,
+  "prefill_plus_decode_seconds": 61.06007148977369,
+  "prefill_prompt_tokens_per_second": 18396.52403782086,
+  "prefill_seconds": 56.998593747615814,
+  "prefill_timings_seconds": [
+    57.033740382641554,
+    56.98383321519941,
+    56.998593747615814
+  ],
+  "prompt_tokens": 1048576,
+  "repeats": 3,
+  "total_timings_seconds": [
+    61.099971923045814,
+    61.05056950636208,
+    61.06007148977369
+  ]
+}
