@@ -104,6 +104,14 @@ blocks.
 attention modules with normalized keys and spherical routing for unnormalized
 keys. `raw`, `spherical`, and `coherence` are explicit diagnostic overrides.
 
+`VLLM_LOD_AUG19_COMPAT=1` selects the closest reconstructable execution path
+to the August 19, 2026 BF16 LongBench run: fixed eight-way Triton decode,
+cooperative GQA/HIP decode disabled, and a four-warp leaf-route reduction.
+The historical run used an uncommitted working tree, so this is an execution
+compatibility preset rather than a byte-exact source restoration. The current
+optimized path remains the default. `VLLM_LOD_LEAF_REDUCE_NUM_WARPS` controls
+the route-reduction warp count directly when the compatibility preset is off.
+
 ## Execution contract
 
 - The default authoritative path runs direct LOD prefill. It uses scheduler-only

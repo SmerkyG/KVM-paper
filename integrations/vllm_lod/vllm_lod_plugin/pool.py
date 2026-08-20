@@ -174,6 +174,7 @@ class VLLMLayerLODPool:
                 if flat_int8
                 else settings.leaf_num_warps
             )
+            self.engine.leaf_reduce_num_warps = settings.leaf_reduce_num_warps
             self.engine.leaf_paged_directory = settings.leaf_paged_directory
             self.engine.leaf_seal_capacity = settings.leaf_seal_capacity
             self.engine.decode_split_kv = settings.decode_split_kv

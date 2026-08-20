@@ -7,6 +7,7 @@ output=${3:?output path required}
 repo=${4:-/home/dan/subusers/agent/kvm-paper-dg/branches/lod-diffusion-gemma/code}
 max_num_batched_tokens=${5:-131072}
 long_prefill_token_threshold=${6:-16384}
+profile=${7:-current}
 port=${CLUSTER_RUN_PORT_0:-${MASTER_PORT:?}}
 server_log=${output%.jsonl}.server.log
 eval_log=${output%.jsonl}.eval.log
@@ -27,6 +28,19 @@ case "$precision" in
     ;;
 esac
 
+case "$profile" in
+  current)
+    aug19_compat=0
+    ;;
+  aug19)
+    aug19_compat=1
+    ;;
+  *)
+    echo "profile must be current or aug19, got: $profile" >&2
+    exit 2
+    ;;
+esac
+
 cd "$repo"
 mkdir -p "$(dirname "$output")"
 rm -f "$output" "$warm_output"
@@ -36,6 +50,7 @@ env \
   VLLM_PLUGINS=lod_attention \
   PYTHONPATH="$repo/integrations/vllm_lod:$repo" \
   VLLM_LOD_CACHE_OWNERSHIP=lod \
+  VLLM_LOD_AUG19_COMPAT="$aug19_compat" \
   VLLM_LOD_POOL_SIZE=8 \
   VLLM_LOD_LEVELS=2 \
   VLLM_LOD_KV_BITS="$kv_bits" \

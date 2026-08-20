@@ -46,6 +46,7 @@ def _choice(name: str, default: str, choices: tuple[str, ...]) -> str:
 
 @dataclass(frozen=True)
 class VLLMLODSettings:
+    aug19_compat: bool = False
     levels: int = 2
     chunk_size: int = 256
     local_window: int = 512
@@ -83,6 +84,7 @@ class VLLMLODSettings:
     leaf_block_m: int = 16
     leaf_block_n: int = 32
     leaf_num_warps: int = 2
+    leaf_reduce_num_warps: int = 1
     prefill_int8_leaf_num_warps: int = 2
     leaf_paged_directory: bool = True
     dense_leaf_storage: bool = True
@@ -104,6 +106,7 @@ class VLLMLODSettings:
     def from_environment(cls) -> VLLMLODSettings:
         capacity = _integer("VLLM_LOD_MAX_CONTEXT", 0)
         settings = cls(
+            aug19_compat=_boolean("VLLM_LOD_AUG19_COMPAT", False),
             levels=_integer("VLLM_LOD_LEVELS", 2),
             chunk_size=_integer("VLLM_LOD_CHUNK_SIZE", 256),
             local_window=_integer("VLLM_LOD_LOCAL_WINDOW", 512),
@@ -194,6 +197,9 @@ class VLLMLODSettings:
             leaf_block_m=_integer("VLLM_LOD_LEAF_BLOCK_M", 16),
             leaf_block_n=_integer("VLLM_LOD_LEAF_BLOCK_N", 32),
             leaf_num_warps=_integer("VLLM_LOD_LEAF_NUM_WARPS", 2),
+            leaf_reduce_num_warps=_integer(
+                "VLLM_LOD_LEAF_REDUCE_NUM_WARPS", 1
+            ),
             prefill_int8_leaf_num_warps=_integer(
                 "VLLM_LOD_PREFILL_INT8_LEAF_NUM_WARPS", 2
             ),
@@ -214,6 +220,19 @@ class VLLMLODSettings:
                 _integer("VLLM_LOD_DECODE_GQA_ROUTE_SPLITS", 0) or None
             ),
         )
+        if settings.aug19_compat:
+            # The August 19 LongBench run predates the cooperative GQA/HIP
+            # decode path and the one-warp route reduction.  Its exact dirty
+            # source tree was not archived, so this is a best-effort execution
+            # compatibility preset rather than a byte-for-byte restoration.
+            settings = replace(
+                settings,
+                leaf_reduce_num_warps=4,
+                decode_split_kv=8,
+                decode_gqa_cooperative=False,
+                decode_gqa_cooperative_hip=False,
+                decode_gqa_route_splits=None,
+            )
         if settings.levels not in (2, 3):
             raise ValueError("VLLM_LOD_LEVELS must be two or three")
         if settings.kv_bits not in (0, 4, 8):
@@ -270,6 +289,10 @@ class VLLMLODSettings:
             raise ValueError("VLLM_LOD leaf block sizes must be positive")
         if settings.leaf_num_warps not in (1, 2, 4, 8):
             raise ValueError("VLLM_LOD_LEAF_NUM_WARPS must be 1, 2, 4, or 8")
+        if settings.leaf_reduce_num_warps not in (1, 2, 4, 8):
+            raise ValueError(
+                "VLLM_LOD_LEAF_REDUCE_NUM_WARPS must be 1, 2, 4, or 8"
+            )
         if settings.prefill_int8_leaf_num_warps not in (1, 2, 4, 8):
             raise ValueError(
                 "VLLM_LOD_PREFILL_INT8_LEAF_NUM_WARPS must be 1, 2, 4, or 8"

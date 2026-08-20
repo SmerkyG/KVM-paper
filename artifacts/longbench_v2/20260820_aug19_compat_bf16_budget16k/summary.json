@@ -1,0 +1,54 @@
+{
+  "run_date": "2026-08-20",
+  "model": "Qwen/Qwen3.5-35B-A3B",
+  "profile": "aug19_compat",
+  "precision": "bf16",
+  "correct": 234,
+  "count": 503,
+  "accuracy": 0.46520874751491054,
+  "subsets": {
+    "untruncated": {"correct": 190, "count": 403},
+    "truncated": {"correct": 44, "count": 100},
+    "short": {"correct": 95, "count": 180},
+    "medium": {"correct": 95, "count": 215},
+    "long": {"correct": 44, "count": 108}
+  },
+  "timing_seconds": {
+    "slowest_shard_wall": 528.7996935171541,
+    "aggregate_shard_wall": 3581.911978469696,
+    "summed_request_latency": 21294.444881832693,
+    "shard_wall": [
+      426.266862292774,
+      393.47621176880784,
+      481.82052691304125,
+      433.61932100495324,
+      469.52099879295565,
+      403.51622136705555,
+      528.7996935171541,
+      444.89214281295426
+    ]
+  },
+  "comparisons": {
+    "historical_aug19": {
+      "correct": 243,
+      "prediction_agreement": 455,
+      "compat_only_wins": 12,
+      "historical_only_wins": 21,
+      "paired_exact_p": 0.16275565745308995
+    },
+    "current_bf16_run1": {
+      "correct": 230,
+      "prediction_agreement": 444,
+      "compat_only_wins": 21,
+      "current_only_wins": 17,
+      "paired_exact_p": 0.6271025701571489
+    },
+    "current_bf16_run2": {
+      "correct": 240,
+      "prediction_agreement": 445,
+      "compat_only_wins": 18,
+      "current_only_wins": 24,
+      "paired_exact_p": 0.44079906734259566
+    }
+  }
+}
