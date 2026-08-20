@@ -1,0 +1,62 @@
+{
+  "scheduler": {
+    "max_num_seqs": 8,
+    "max_num_batched_tokens": 16384,
+    "long_prefill_token_threshold": 4096
+  },
+  "full_attention": {
+    "source": "../20260816_latest_fixed_native262k_rerun/full",
+    "shard_wall_seconds": [
+      1088.03774021985,
+      985.5981041558553,
+      1216.7041539910715,
+      1096.185364899924,
+      1176.7785955471918,
+      980.8198991063982,
+      1355.017069377005,
+      1181.3070452241227
+    ],
+    "slowest_shard_wall_seconds": 1355.017069377005,
+    "aggregate_shard_wall_seconds": 9080.447972521419,
+    "summed_request_seconds": 51369.46992471162
+  },
+  "two_level_bf16": {
+    "shard_wall_seconds": [
+      430.500967127271,
+      395.8890032777563,
+      487.0745258210227,
+      435.41313297953457,
+      470.03317053895444,
+      406.79816851206124,
+      528.2041048491374,
+      444.87474284041673
+    ],
+    "slowest_shard_wall_seconds": 528.2041048491374,
+    "aggregate_shard_wall_seconds": 3598.7878159461543,
+    "summed_request_seconds": 21435.099675860256,
+    "speedup_vs_full_slowest_wall": 2.5653285480695334,
+    "speedup_vs_full_aggregate_wall": 2.5231962641104158,
+    "speedup_vs_full_summed_request": 2.3965118288002554
+  },
+  "two_level_int8": {
+    "shard_wall_seconds": [
+      377.0283331188839,
+      352.19001891906373,
+      428.276476648869,
+      382.5108523676172,
+      411.17080270685256,
+      359.13038178440183,
+      463.3954035821371,
+      391.843463874422
+    ],
+    "slowest_shard_wall_seconds": 463.3954035821371,
+    "aggregate_shard_wall_seconds": 3165.5457330022473,
+    "summed_request_seconds": 19032.77194126905,
+    "speedup_vs_full_slowest_wall": 2.924105545507051,
+    "speedup_vs_full_aggregate_wall": 2.868525283919811,
+    "speedup_vs_full_summed_request": 2.6990009696552093,
+    "speedup_vs_bf16_slowest_wall": 1.1398561590512473,
+    "speedup_vs_bf16_aggregate_wall": 1.1368617355380977,
+    "speedup_vs_bf16_summed_request": 1.1262205916197736
+  }
+}

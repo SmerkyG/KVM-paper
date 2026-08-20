@@ -103,6 +103,11 @@ class _KernelLODEngine(TritonLODAttentionCore):
         self.mla_recursive_page_key_normalization = (
             config.mla_recursive_page_key_normalization
         )
+        self.leaf_paged_directory = config.leaf_paged_directory
+        self.leaf_seal_capacity = config.leaf_seal_capacity
+        self.prefill_int8_leaf_mma = config.prefill_int8_leaf_mma
+        self.prefill_int8_coarse_mma = config.prefill_int8_coarse_mma
+        self.prefill_int8_pv_mma = config.prefill_int8_pv_mma
         self.mla_key_norm_weight = None
         self.mla_key_norm_epsilon = 0.0
         self.collect_dynamic_open_stats = (
@@ -272,6 +277,9 @@ class KernelTwoLevelLODAttention(_KernelLODEngine):
         self.leaf_page_size = 16
         self.virtual_page_storage = False
         self.recursive_page_lod = False
+        if config.prefill_int8_leaf_mma:
+            self.leaf_layout = "expert"
+            self.leaf_num_warps = 2
 
 
 class KernelCoarseLODAttention(_KernelLODEngine):
@@ -352,7 +360,7 @@ class KernelCoarseLODAttention(_KernelLODEngine):
 
 
 class KernelRecursivePagedLODAttention(_KernelLODEngine):
-    """Fast recursive one-page-per-region LOD with optional INT4 K/V."""
+    """Fast recursive one-page-per-region LOD with optional INT4/INT8 K/V."""
 
     def __init__(
         self,
@@ -522,6 +530,14 @@ class KernelRecursivePagedLODAttention(_KernelLODEngine):
         )
         if key_norm_sums is not None:
             state["key_norm_sums"] = key_norm_sums.detach()
+
+
+# Cache catch-up archives exact recent tokens through the common semantic-page
+# updater and does not depend on recursive page selection. Serving uses the
+# same graph-safe operation for flat two-tier caches.
+KernelTwoLevelLODAttention.catch_up_cache = (  # type: ignore[attr-defined]
+    KernelRecursivePagedLODAttention.catch_up_cache
+)
 
 
 __all__ = [

@@ -7,6 +7,7 @@ import argparse
 from dataclasses import replace
 import json
 from pathlib import Path
+import statistics
 import time
 
 import torch
@@ -34,6 +35,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--length", type=int, default=4096)
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--decode-tokens", type=int, default=32)
+    parser.add_argument("--state-growth-factor", type=float, default=16.0)
+    parser.add_argument(
+        "--state-premerge-factor", type=int, choices=(1, 2, 4), default=1
+    )
+    parser.add_argument("--repetitions", type=int, default=3)
+    parser.add_argument(
+        "--padding-modes",
+        nargs="+",
+        choices=("exact", "chunk_aligned"),
+        default=("exact", "chunk_aligned", "exact"),
+    )
     parser.add_argument("--prolong", action="store_true")
     parser.add_argument("--recursive-pages", action="store_true")
     parser.add_argument("--speed-only", action="store_true")
@@ -108,7 +120,12 @@ def run_once(
 
 def main() -> None:
     args = parse_args()
-    if args.length < 512 or args.batch_size < 1 or args.decode_tokens < 1:
+    if (
+        args.length < 512
+        or args.batch_size < 1
+        or args.decode_tokens < 1
+        or args.repetitions < 1
+    ):
         raise ValueError("length, batch size, and decode count are too small")
     enable_fla_fast_path(required=True)
     composite = AutoConfig.from_pretrained(
@@ -131,8 +148,9 @@ def main() -> None:
     config_kwargs = {
         "chunk_size": 256,
         "local_window": 512,
-        "state_growth_factor": 16.0,
+        "state_growth_factor": args.state_growth_factor,
         "state_min_size": 256,
+        "state_premerge_factor": args.state_premerge_factor,
         "protected_prefix": 1,
         "max_routes": 8,
     }
@@ -191,8 +209,15 @@ def main() -> None:
     measurements = {}
     final_logits = {}
     prefill_logits = {}
-    for mode in ("exact", "chunk_aligned", "exact_repeat"):
-        actual_mode = "exact" if mode == "exact_repeat" else mode
+    mode_counts = {}
+    for requested_mode in args.padding_modes:
+        mode_counts[requested_mode] = mode_counts.get(requested_mode, 0) + 1
+        mode = (
+            requested_mode
+            if mode_counts[requested_mode] == 1
+            else f"{requested_mode}_repeat{mode_counts[requested_mode]}"
+        )
+        actual_mode = requested_mode
         set_padding_mode(model, actual_mode)
         run_once(
             model,
@@ -201,32 +226,64 @@ def main() -> None:
             decode_tokens=min(args.decode_tokens, 4),
             collect_quality=False,
         )
-        result = run_once(
-            model,
-            token,
-            attention_mask,
-            decode_tokens=args.decode_tokens,
-            collect_quality=not args.speed_only,
-        )
+        samples = []
+        result = None
+        for _ in range(args.repetitions):
+            sample = run_once(
+                model,
+                token,
+                attention_mask,
+                decode_tokens=args.decode_tokens,
+                collect_quality=not args.speed_only,
+            )
+            samples.append(sample)
+            result = sample
+        if result is None:
+            raise AssertionError("timing repetitions produced no result")
         final_logits[mode] = result.pop("final_logits")
         prefill_logits[mode] = result.pop("prefill_last_logits")
-        measurements[mode] = result
+        measurements[mode] = {
+            **result,
+            "prefill_seconds_samples": [
+                sample["prefill_seconds"] for sample in samples
+            ],
+            "decode_ms_per_token_samples": [
+                sample["decode_ms_per_token"] for sample in samples
+            ],
+            "prefill_seconds_median": statistics.median(
+                sample["prefill_seconds"] for sample in samples
+            ),
+            "decode_ms_per_token_median": statistics.median(
+                sample["decode_ms_per_token"] for sample in samples
+            ),
+        }
 
-    aligned_delta = final_logits["chunk_aligned"] - final_logits["exact_repeat"]
-    prefill_delta = (
-        prefill_logits["chunk_aligned"] - prefill_logits["exact_repeat"]
-    )
+    exact_modes = [name for name in measurements if name.startswith("exact")]
+    aligned_delta = None
+    prefill_delta = None
+    if "chunk_aligned" in measurements and exact_modes:
+        exact_mode = exact_modes[-1]
+        aligned_delta = (
+            final_logits["chunk_aligned"] - final_logits[exact_mode]
+        )
+        prefill_delta = (
+            prefill_logits["chunk_aligned"] - prefill_logits[exact_mode]
+        )
     payload = {
         "checkpoint": args.checkpoint,
         "batch_size": args.batch_size,
         "lengths": lengths,
         "decode_tokens": args.decode_tokens,
+        "state_growth_factor": args.state_growth_factor,
+        "state_premerge_factor": args.state_premerge_factor,
+        "repetitions": args.repetitions,
+        "padding_modes": list(args.padding_modes),
         "prolong": args.prolong,
         "recursive_pages": args.recursive_pages,
         "speed_only": args.speed_only,
         "acceleration": acceleration,
         "measurements": measurements,
-        "aligned_vs_exact": {
+        "aligned_vs_exact": None if aligned_delta is None else {
             "mean_absolute_logit_delta": aligned_delta.abs().mean().item(),
             "max_absolute_logit_delta": aligned_delta.abs().max().item(),
             "top1_agreement": (

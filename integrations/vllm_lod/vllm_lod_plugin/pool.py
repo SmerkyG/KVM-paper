@@ -12,10 +12,12 @@ from model.kernels.paged_leaf_attention import (
     new_fused_decode_buffers,
     rehash_overflow_pages,
 )
+from model.pytorch_lod_attention import LODConfig
 from model.pytorch_lod_attention_paged import PagedLODConfig
 from model.triton_lod_engines import (
     KernelLODCache,
     KernelRecursivePagedLODAttention,
+    KernelTwoLevelLODAttention,
 )
 
 from .config import VLLMLODSettings
@@ -83,7 +85,8 @@ class VLLMLayerLODPool:
             # rolling a retained LOD cache back to that boundary only adjusts
             # its recent-tail length; clustered state never has to be undone.
             local_window = max(local_window, settings.native_staging_chunk)
-        config = PagedLODConfig(
+        config_type = PagedLODConfig if settings.levels == 3 else LODConfig
+        config_kwargs = dict(
             chunk_size=settings.chunk_size,
             local_window=local_window,
             state_growth_factor=settings.state_growth_factor,
@@ -91,22 +94,98 @@ class VLLMLayerLODPool:
             protected_prefix=settings.protected_prefix,
             max_routes=max(settings.open_count, 8),
             leaf_dtype=self.dtype,
-            page_size=16,
-            kv_bits=settings.kv_bits,
-            quant_group_size=settings.quant_group_size,
             state_clustering_normalization=state_normalization,
             state_clustering_centroid_rescale=centroid_rescale,
             state_clustering_centroid_rescale_scope="assignment",
             routing_normalization=routing_normalization,
+            leaf_paged_directory=settings.leaf_paged_directory,
+            leaf_seal_capacity=(
+                settings.leaf_seal_capacity if settings.levels == 2 else None
+            ),
         )
-        self.engine = KernelRecursivePagedLODAttention(
+        if settings.levels == 3:
+            config_kwargs.update(
+                page_size=16,
+                kv_bits=settings.kv_bits,
+                quant_group_size=settings.quant_group_size,
+                # The compatibility pool uses its fixed graph-safe overflow
+                # hash rather than the flat two-tier directory allocation.
+                leaf_paged_directory=False,
+            )
+        config = config_type(**config_kwargs)
+        engine_type = (
+            KernelTwoLevelLODAttention
+            if settings.levels == 2
+            else KernelRecursivePagedLODAttention
+        )
+        self.engine = engine_type(
             config,
             query_heads=self.query_heads,
             key_value_heads=self.kv_heads,
             scale=float(layer.impl.scale),
             default_open_count=settings.open_count,
         )
+        flat_int8 = settings.levels == 2 and settings.kv_bits == 8
+        self.engine.leaf_key_quant_bits = (
+            0 if flat_int8 else settings.resolved_key_bits
+        )
+        self.engine.leaf_value_quant_bits = (
+            0 if flat_int8 else settings.resolved_value_bits
+        )
+        self.engine.prefill_int8_leaf_mma = flat_int8
+        int8_pv_mma = settings.prefill_int8_pv_mma
+        if int8_pv_mma is None:
+            # Probability requantization has a fixed per-tile cost. It loses
+            # at 32K but is amortized by longer posting-list scans at 64K.
+            int8_pv_mma = request_capacity >= 65_536
+        self.engine.prefill_int8_pv_mma = flat_int8 and int8_pv_mma
+        self.engine.prefill_int8_coarse_mma = (
+            flat_int8 and settings.prefill_int8_coarse_mma
+        )
+        self.engine.prefill_int8_coarse_block_n = (
+            settings.prefill_int8_coarse_block_n
+        )
+        self.engine.prefill_int8_coarse_num_warps = (
+            settings.prefill_int8_coarse_num_warps
+        )
+        self.engine.prefill_int8_append_num_warps = (
+            settings.prefill_int8_append_num_warps
+        )
+        self.engine.prefill_int8_route_mma = (
+            flat_int8 and settings.prefill_int8_route_mma
+        )
+        self.engine.simulate_leaf_quantization = (
+            settings.kv_bits == 0
+            and bool(settings.resolved_key_bits or settings.resolved_value_bits)
+        )
         self.engine.prefill_local_attention_backend = settings.prefill_local_backend
+        if settings.levels == 2:
+            self.engine.virtual_page_storage = settings.dense_leaf_storage
+            self.engine.prefill_chunk_len = settings.prefill_chunk_size
+            self.engine.prefill_local_len = settings.prefill_local_window
+            self.engine.prefill_state_update_len = settings.prefill_state_update_size
+            self.engine.prefill_two_level_topk = min(3, settings.open_count)
+            self.engine.split_prefill_local_attention = True
+            self.engine.leaf_layout = settings.leaf_layout
+            self.engine.leaf_block_m = settings.leaf_block_m
+            self.engine.leaf_block_n = settings.leaf_block_n
+            self.engine.leaf_num_warps = (
+                settings.prefill_int8_leaf_num_warps
+                if flat_int8
+                else settings.leaf_num_warps
+            )
+            self.engine.leaf_paged_directory = settings.leaf_paged_directory
+            self.engine.leaf_seal_capacity = settings.leaf_seal_capacity
+            self.engine.decode_split_kv = settings.decode_split_kv
+            self.engine.decode_gqa_cooperative_leaf = (
+                settings.decode_gqa_cooperative
+            )
+            self.engine.decode_gqa_cooperative_hip = (
+                settings.decode_gqa_cooperative_hip
+            )
+            self.engine.decode_gqa_cooperative_route_splits = (
+                settings.decode_gqa_route_splits
+            )
         self.engine.fused_prefill_route_coarse = (
             settings.fused_prefill_route_coarse
         )
@@ -132,10 +211,10 @@ class VLLMLayerLODPool:
             self.engine.prefill_coarse_max_grouped_rows = (
                 settings.prefill_coarse_max_grouped_rows
             )
-        # Keep exact sink/protected entries outside the clustered state. This
-        # matches the standalone kernel architecture and folds the side cache
-        # into the existing final decode reduction.
-        self.engine.separate_sink_cache = True
+        # The current flat two-tier path keeps the protected token in state,
+        # exactly matching the HF benchmark. Retain the older recursive side
+        # cache for compatibility with VLLM_LOD_LEVELS=3.
+        self.engine.separate_sink_cache = settings.levels == 3
         self.state_capacity = self.engine._state_capacity(
             request_capacity, min(request_capacity, settings.chunk_size)
         )
@@ -207,7 +286,7 @@ class VLLMLayerLODPool:
             "recent_len": 0,
             "total_len": 0,
         }
-        if self.settings.protected_prefix:
+        if self.engine.separate_sink_cache and self.settings.protected_prefix:
             state["sink_k"] = torch.empty(
                 r,
                 h,
@@ -221,6 +300,199 @@ class VLLMLayerLODPool:
             state["key_norm_sums"] = torch.zeros(
                 r, h, s, 1, dtype=torch.float32, device=self.device
             )
+
+        if self.settings.levels == 2:
+            page_size = 16
+            int8_storage = self.settings.kv_bits == 8
+            maximum_slot_pages = max(
+                1, math.ceil(self.leaf_capacity / page_size)
+            )
+            root_capacity = max(1, math.ceil(maximum_slot_pages / 64))
+            if self.settings.leaf_paged_directory:
+                slot_pages = torch.full(
+                    (r, h, s, root_capacity),
+                    -1,
+                    dtype=torch.int32,
+                    device=self.device,
+                )
+                overflow_page_keys = torch.full(
+                    (r, h, 1), -1, dtype=torch.int32, device=self.device
+                )
+                overflow_page_values = torch.full(
+                    (r, h, self.page_capacity, 64),
+                    -1,
+                    dtype=torch.int32,
+                    device=self.device,
+                )
+                overflow_active = False
+                overflow_safe_until = root_capacity * 64 * page_size
+            else:
+                slot_dtype = (
+                    torch.int16
+                    if self.page_capacity <= torch.iinfo(torch.int16).max
+                    else torch.int32
+                )
+                slot_pages = torch.full(
+                    (r, h, s, int(self.engine.leaf_inline_pages_per_slot)),
+                    -1,
+                    dtype=slot_dtype,
+                    device=self.device,
+                )
+                overflow_page_keys = torch.full(
+                    (r, h, self.hash_capacity),
+                    -1,
+                    dtype=torch.int32,
+                    device=self.device,
+                )
+                overflow_page_values = torch.full_like(overflow_page_keys, -1)
+                overflow_active = True
+                overflow_safe_until = 0
+            if self.settings.dense_leaf_storage:
+                state["page_cache"] = {
+                    "region_owned_pages": True,
+                    "dense_leaf_storage": True,
+                    "slot_pages": slot_pages,
+                    "overflow_page_keys": overflow_page_keys,
+                    "overflow_page_values": overflow_page_values,
+                    "overflow_hash_capacity": self.hash_capacity,
+                    "overflow_flag": torch.zeros(
+                        (), dtype=torch.int32, device=self.device
+                    ),
+                    "overflow_used": torch.zeros(
+                        (), dtype=torch.int32, device=self.device
+                    ),
+                    "overflow_active": overflow_active,
+                    "overflow_safe_until": overflow_safe_until,
+                    "paged_page_directory": self.settings.leaf_paged_directory,
+                    "page_directory_size": 64,
+                    "slot_lengths": torch.zeros(
+                        r, h, s, dtype=torch.int32, device=self.device
+                    ),
+                    "next_page": torch.zeros(
+                        r, h, dtype=torch.int32, device=self.device
+                    ),
+                    "page_size": page_size,
+                    "leaf_capacity": self.leaf_capacity,
+                    "leaf_count": 0,
+                    "page_indices": torch.full(
+                        (r, h, self.page_capacity, page_size),
+                        -1,
+                        dtype=torch.int32,
+                        device=self.device,
+                    ),
+                    "leaf_k": torch.zeros(
+                        r,
+                        h,
+                        self.leaf_capacity,
+                        d,
+                        dtype=torch.int8 if int8_storage else self.dtype,
+                        device=self.device,
+                    ),
+                    "leaf_v": torch.zeros(
+                        r,
+                        h,
+                        self.leaf_capacity,
+                        d,
+                        dtype=torch.int8 if int8_storage else self.dtype,
+                        device=self.device,
+                    ),
+                    # The shared virtual-page append primitive maintains these
+                    # summaries. Flat two-tier attention does not consume them,
+                    # but retaining them keeps append graph-safe and makes the
+                    # storage interchangeable with the recursive allocator.
+                    "page_sum_k": torch.zeros(
+                        r, h, self.page_capacity, d,
+                        dtype=self.dtype, device=self.device,
+                    ),
+                    "page_sum_v": torch.zeros(
+                        r, h, self.page_capacity, d,
+                        dtype=self.dtype, device=self.device,
+                    ),
+                    "page_counts": torch.zeros(
+                        r, h, self.page_capacity,
+                        dtype=torch.int32, device=self.device,
+                    ),
+                    "quantization_finalized": False,
+                    "summary_quantization_finalized": False,
+                }
+                if int8_storage:
+                    state["page_cache"].update(
+                        page_k_token_scales=torch.zeros(
+                            r, h, self.leaf_capacity,
+                            dtype=self.dtype, device=self.device,
+                        ),
+                        page_v_token_scales=torch.zeros(
+                            r, h, self.leaf_capacity,
+                            dtype=self.dtype, device=self.device,
+                        ),
+                        prefill_int8_leaf_mma=True,
+                    )
+                return state
+            state["page_cache"] = {
+                "region_owned_pages": True,
+                "slot_pages": slot_pages,
+                "overflow_page_keys": overflow_page_keys,
+                "overflow_page_values": overflow_page_values,
+                "overflow_hash_capacity": self.hash_capacity,
+                "overflow_flag": torch.zeros(
+                    (), dtype=torch.int32, device=self.device
+                ),
+                "overflow_used": torch.zeros(
+                    (), dtype=torch.int32, device=self.device
+                ),
+                "overflow_active": overflow_active,
+                "overflow_safe_until": overflow_safe_until,
+                "paged_page_directory": self.settings.leaf_paged_directory,
+                "page_directory_size": 64,
+                "slot_lengths": torch.zeros(
+                    r, h, s, dtype=torch.int32, device=self.device
+                ),
+                "next_page": torch.zeros(
+                    r, h, dtype=torch.int32, device=self.device
+                ),
+                "page_size": page_size,
+                "leaf_capacity": self.leaf_capacity,
+                "leaf_count": 0,
+                "page_k": torch.zeros(
+                    r,
+                    h,
+                    self.page_capacity,
+                    page_size,
+                    d,
+                    dtype=torch.int8 if int8_storage else self.dtype,
+                    device=self.device,
+                ),
+                "page_v": torch.zeros(
+                    r,
+                    h,
+                    self.page_capacity,
+                    page_size,
+                    d,
+                    dtype=torch.int8 if int8_storage else self.dtype,
+                    device=self.device,
+                ),
+            }
+            if int8_storage:
+                state["page_cache"].update(
+                    page_k_token_scales=torch.zeros(
+                        r,
+                        h,
+                        self.page_capacity,
+                        page_size,
+                        dtype=self.dtype,
+                        device=self.device,
+                    ),
+                    page_v_token_scales=torch.zeros(
+                        r,
+                        h,
+                        self.page_capacity,
+                        page_size,
+                        dtype=self.dtype,
+                        device=self.device,
+                    ),
+                    prefill_int8_leaf_mma=True,
+                )
+            return state
 
         slot_dtype = (
             torch.int16
@@ -270,24 +542,28 @@ class VLLMLayerLODPool:
             ),
         }
         groups = d // self.settings.quant_group_size
-        if self.settings.kv_bits == 4:
+        if self.settings.kv_bits in (4, 8):
+            quant_bits = self.settings.kv_bits
+            quant_width = d // 2 if quant_bits == 4 else d
+            quant_dtype = torch.uint8 if quant_bits == 4 else torch.int8
             page.update(
+                leaf_quant_bits=quant_bits,
                 leaf_k=torch.empty(r, h, 1, d, dtype=self.dtype, device=self.device),
                 leaf_v=torch.empty(r, h, 1, d, dtype=self.dtype, device=self.device),
                 quantized_leaf_k=torch.empty(
                     r,
                     h,
                     self.leaf_capacity,
-                    d // 2,
-                    dtype=torch.uint8,
+                    quant_width,
+                    dtype=quant_dtype,
                     device=self.device,
                 ),
                 quantized_leaf_v=torch.empty(
                     r,
                     h,
                     self.leaf_capacity,
-                    d // 2,
-                    dtype=torch.uint8,
+                    quant_width,
+                    dtype=quant_dtype,
                     device=self.device,
                 ),
                 page_k_scales=torch.empty(
@@ -356,6 +632,7 @@ class VLLMLayerLODPool:
             )
         else:
             page.update(
+                leaf_quant_bits=0,
                 leaf_k=torch.empty(
                     r,
                     h,
@@ -411,8 +688,10 @@ class VLLMLayerLODPool:
         page["slot_pages"][slot].fill_(-1)
         page["slot_lengths"][slot].zero_()
         page["next_page"][slot].zero_()
-        page["page_indices"][slot].fill_(-1)
-        page["page_counts"][slot].zero_()
+        if "page_indices" in page:
+            page["page_indices"][slot].fill_(-1)
+        if "page_counts" in page:
+            page["page_counts"][slot].zero_()
         page["overflow_page_keys"][slot].fill_(-1)
         page["overflow_page_values"][slot].fill_(-1)
         if "page_quantized_counts" in page:
@@ -437,8 +716,10 @@ class VLLMLayerLODPool:
         page["slot_pages"][start:stop].fill_(-1)
         page["slot_lengths"][start:stop].zero_()
         page["next_page"][start:stop].zero_()
-        page["page_indices"][start:stop].fill_(-1)
-        page["page_counts"][start:stop].zero_()
+        if "page_indices" in page:
+            page["page_indices"][start:stop].fill_(-1)
+        if "page_counts" in page:
+            page["page_counts"][start:stop].zero_()
         page["overflow_page_keys"][start:stop].fill_(-1)
         page["overflow_page_values"][start:stop].fill_(-1)
         if "page_quantized_counts" in page:
@@ -1237,6 +1518,7 @@ class VLLMLayerLODPool:
                 splits=int(self.engine.decode_split_kv),
                 state_capacity=self.state_capacity,
                 route_group_size=int(self.engine.decode_route_group_size),
+                gqa_route_splits=self._decode_route_splits(),
             )
             self.decode_buffer_storage = storage
             self.decode_buffers.clear()
@@ -1252,6 +1534,18 @@ class VLLMLayerLODPool:
             }
             self.decode_buffers[rows] = buffers
         return buffers
+
+    def _decode_route_splits(self) -> int:
+        configured = self.settings.decode_gqa_route_splits
+        if configured is not None:
+            return configured
+        split_work = max(1, self.request_capacity // 4096)
+        return max(8, min(32, 1 << (split_work.bit_length() - 1)))
+
+    def _use_cooperative_decode(self) -> bool:
+        if self.settings.levels != 2 or not self.settings.decode_gqa_cooperative:
+            return False
+        return self.request_capacity >= max(32768, 4096 * self.max_requests)
 
     def reserve_decode_buffers(self, rows: int) -> None:
         """Reserve graph scratch before vLLM computes its native cache budget."""
@@ -1283,6 +1577,15 @@ class VLLMLayerLODPool:
         k = key[:rows].unsqueeze(2)
         v = value[:rows].unsqueeze(2)
         page = self.state["page_cache"]
+        recursive = self.settings.levels == 3
+        indexed_flat = (
+            not recursive and isinstance(page.get("page_indices"), torch.Tensor)
+        )
+        page_k = page["leaf_k"] if recursive or indexed_flat else page["page_k"]
+        page_v = page["leaf_v"] if recursive or indexed_flat else page["page_v"]
+        flat_int8 = not recursive and (
+            page_k.dtype == torch.int8 or page_v.dtype == torch.int8
+        )
         result = fused_decode_paged_lod_attention(
             q,
             self.state["state_k"],
@@ -1290,8 +1593,8 @@ class VLLMLayerLODPool:
             self.state["counts"],
             self.state["recent_k"],
             self.state["recent_v"],
-            page["leaf_k"],
-            page["leaf_v"],
+            page_k,
+            page_v,
             page["slot_pages"],
             page["overflow_page_keys"],
             page["overflow_page_values"],
@@ -1312,7 +1615,7 @@ class VLLMLayerLODPool:
             new_v=v,
             kv_group_size=self.query_heads // self.kv_heads,
             scale=float(self.engine.scaling),
-            hash_probes=int(self.engine.leaf_hash_probes),
+            hash_probes=int(self.engine._page_lookup_probes(page)),
             block_n=int(self.engine.decode_block_n),
             num_warps=int(self.engine.decode_num_warps),
             waves_per_eu=int(self.engine.leaf_waves_per_eu),
@@ -1327,8 +1630,21 @@ class VLLMLayerLODPool:
             fuse_final_reduce=bool(self.engine.decode_fuse_final_reduce),
             route_use_dot=bool(self.engine.decode_route_use_dot),
             route_gqa_grouped=bool(self.engine.decode_route_gqa_grouped),
+            gqa_cooperative_leaf=self._use_cooperative_decode(),
+            gqa_cooperative_hip=bool(
+                self.settings.decode_gqa_cooperative_hip
+            ),
+            gqa_cooperative_route_splits=self._decode_route_splits(),
             protected_len=self.engine._protected_state_len(self.state_capacity),
-            recursive_page_cache=page,
+            max_leaf_tokens=self.settings.leaf_seal_capacity,
+            recursive_page_cache=page if recursive else None,
+            flat_page_indices=page["page_indices"] if indexed_flat else None,
+            flat_page_k_scales=(
+                page.get("page_k_token_scales") if flat_int8 else None
+            ),
+            flat_page_v_scales=(
+                page.get("page_v_token_scales") if flat_int8 else None
+            ),
             recursive_quant_group_size=int(self.engine.leaf_quant_group_size),
             output_buffer=output[:rows].unsqueeze(2),
         )

@@ -14,8 +14,8 @@ from transformers import AutoTokenizer
 from transformers.models.qwen3_5.modeling_qwen3_5 import Qwen3_5Attention
 
 from model.qwen35_two_level_attention import Qwen3_5TwoLevelAttention
-from scripts.compare_qwen35_lod_loss import select_sequences
 from scripts.probe_qwen35_lod_niah import load_text_model
+from scripts.profile_qwen35_prefill_total import select_profile_sequence
 
 
 def parse_args() -> argparse.Namespace:
@@ -30,6 +30,22 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--recursive-page-lod", action="store_true")
     parser.add_argument("--virtual-page-storage", action="store_true")
     parser.add_argument("--recursive-page-block-n", type=int, default=4)
+    parser.add_argument(
+        "--leaf-layout",
+        choices=(
+            "expert",
+            "query",
+            "aiter_varlen",
+            "aiter_union",
+            "aiter_masked_union",
+        ),
+        default="query",
+    )
+    parser.add_argument(
+        "--leaf-union-query-tile", type=int, choices=(2, 4, 8, 16, 32), default=8
+    )
+    parser.add_argument("--leaf-block-m", type=int, default=16)
+    parser.add_argument("--leaf-block-n", type=int, default=32)
     parser.add_argument("--leaf-num-warps", type=int, default=1)
     parser.add_argument("--page-summary-quant-bits", type=int, choices=(0, 8), default=8)
     parser.add_argument("--state-growth-factor", type=float, default=16.0)
@@ -135,14 +151,7 @@ def main() -> None:
     )
     tokenizer = AutoTokenizer.from_pretrained(args.checkpoint, trust_remote_code=True)
     sequence = (
-        select_sequences(
-            tokenizer,
-            args.dataset,
-            args.sequence_length,
-            1,
-            0,
-            1,
-        )[0][1]
+        select_profile_sequence(tokenizer, args.dataset, args.sequence_length)
         .unsqueeze(0)
         .expand(args.batch_size, -1)
         .contiguous()
@@ -161,6 +170,10 @@ def main() -> None:
         module.recursive_page_lod = args.recursive_page_lod
         module.virtual_page_storage = args.virtual_page_storage
         module.recursive_page_block_n = args.recursive_page_block_n
+        module.leaf_layout = args.leaf_layout
+        module.leaf_union_query_tile = args.leaf_union_query_tile
+        module.leaf_block_m = args.leaf_block_m
+        module.leaf_block_n = args.leaf_block_n
         module.leaf_num_warps = args.leaf_num_warps
         module.page_summary_quant_bits = args.page_summary_quant_bits
         if args.prefill_chunk_length is not None:
@@ -258,6 +271,14 @@ def main() -> None:
         "recursive_page_lod": args.recursive_page_lod,
         "virtual_page_storage": args.virtual_page_storage,
         "recursive_page_block_n": args.recursive_page_block_n,
+        "leaf_layout": args.leaf_layout,
+        "leaf_union_query_tile": (
+            args.leaf_union_query_tile
+            if args.leaf_layout in ("aiter_union", "aiter_masked_union")
+            else None
+        ),
+        "leaf_block_m": args.leaf_block_m,
+        "leaf_block_n": args.leaf_block_n,
         "leaf_num_warps": args.leaf_num_warps,
         "page_summary_quant_bits": args.page_summary_quant_bits,
         "fused_state_update": bool(modules[0].fused_state_update),

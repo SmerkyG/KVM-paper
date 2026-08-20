@@ -81,6 +81,14 @@ class LODConfig:
     routing_leaf_mass_min_routes: int = 1
     mla_state_key_normalization: str = "none"
     mla_recursive_page_key_normalization: bool = False
+    # Flat kernel-backend archive controls. Sealing stops exact-leaf growth
+    # without freezing the centroid sum/count. Native INT8 uses signed K/V
+    # pages and real INT8 MMA in the expert-layout prefill kernels.
+    leaf_paged_directory: bool = True
+    leaf_seal_capacity: int | None = None
+    prefill_int8_leaf_mma: bool = False
+    prefill_int8_coarse_mma: bool = False
+    prefill_int8_pv_mma: bool = True
 
     def __post_init__(self) -> None:
         if self.chunk_size <= 0:
@@ -99,6 +107,8 @@ class LODConfig:
             raise ValueError("state_premerge_factor must be one, two, or four")
         if self.protected_prefix < 0:
             raise ValueError("protected_prefix cannot be negative")
+        if self.leaf_seal_capacity is not None and self.leaf_seal_capacity <= 0:
+            raise ValueError("leaf_seal_capacity must be positive")
         if self.state_clustering_policy not in {
             "manual",
             "qk_norm_aware",

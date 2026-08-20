@@ -39,6 +39,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--separate-sink-cache", action="store_true")
     parser.add_argument("--prefill-two-level-topk", type=int, default=3)
     parser.add_argument("--prefill-max-leaf-tokens", type=int)
+    parser.add_argument("--leaf-seal-capacity", type=int)
     parser.add_argument("--dynamic-open-top-p", type=float)
     parser.add_argument("--dynamic-open-prefill-top-p", type=float)
     parser.add_argument("--dynamic-open-prefill-residual-mass", type=float)
@@ -47,6 +48,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--reuse-dynamic-local-attention", action="store_true")
     parser.add_argument("--dynamic-open-residual-state-bound", action="store_true")
     parser.add_argument("--recursive-page-lod", action="store_true")
+    parser.add_argument("--dense-page-prefill", action="store_true")
+    parser.add_argument("--dense-page-split-kernels", action="store_true")
+    parser.add_argument("--profile-dense-page-phases", action="store_true")
+    parser.add_argument("--dense-page-topk", type=int, choices=(1, 2, 4, 8), default=8)
+    parser.add_argument("--dense-page-block-m", type=int, default=64)
+    parser.add_argument("--dense-page-block-n", type=int, default=64)
+    parser.add_argument(
+        "--dense-page-indexed-aiter-union",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument(
+        "--dense-page-union-query-tile", type=int, choices=(4, 8, 16, 32), default=32
+    )
     parser.add_argument(
         "--leaf-attention-backend",
         choices=("packed", "paged"),
@@ -54,17 +69,57 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--virtual-page-storage", action="store_true")
     parser.add_argument("--recursive-page-block-n", type=int, default=4)
+    parser.add_argument(
+        "--leaf-layout",
+        choices=(
+            "expert",
+            "expert_tiny",
+            "query",
+            "aiter_varlen",
+            "aiter_union",
+            "aiter_masked_union",
+        ),
+        default="query",
+    )
+    parser.add_argument(
+        "--leaf-union-query-tile", type=int, choices=(2, 4, 8, 16, 32), default=8
+    )
+    parser.add_argument("--prefill-int8-leaf-mma", action="store_true")
+    parser.add_argument("--prefill-int8-coarse-mma", action="store_true")
+    parser.add_argument("--prefill-int8-coarse-block-n", type=int, default=64)
+    parser.add_argument(
+        "--prefill-int8-coarse-num-warps", type=int, choices=(1, 2, 4, 8), default=2
+    )
+    parser.add_argument(
+        "--prefill-int8-append-num-warps", type=int, choices=(1, 2, 4, 8), default=4
+    )
+    parser.add_argument(
+        "--prefill-int8-pv-mma",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument("--leaf-block-m", type=int, default=16)
+    parser.add_argument("--leaf-block-n", type=int, default=32)
     parser.add_argument("--leaf-num-warps", type=int, default=1)
+    parser.add_argument("--tiny-expert-max", type=int, choices=(4, 8, 16), default=8)
+    parser.add_argument("--tiny-max-context", type=int, default=65_536)
+    parser.add_argument("--tiny-block-m", type=int, default=8)
+    parser.add_argument("--tiny-num-warps", type=int, default=1)
+    parser.add_argument("--long-expert-threshold", type=int, default=0)
+    parser.add_argument(
+        "--long-expert-splits", type=int, choices=(1, 2, 4, 8), default=1
+    )
+    parser.add_argument("--reduce-num-warps", type=int, choices=(1, 2, 4, 8), default=1)
     parser.add_argument("--leaf-key-quant-bits", type=int, choices=(0, 4), default=0)
     parser.add_argument("--leaf-value-quant-bits", type=int, choices=(0, 4), default=0)
     parser.add_argument("--leaf-quant-group-size", type=int, default=32)
-    parser.add_argument(
-        "--leaf-quant-scale-mode", choices=("max", "l2"), default="max"
-    )
+    parser.add_argument("--leaf-quant-scale-mode", choices=("max", "l2"), default="max")
     parser.add_argument(
         "--leaf-append-quant-scale-mode", choices=("max", "l2"), default="max"
     )
-    parser.add_argument("--page-summary-quant-bits", type=int, choices=(0, 8), default=8)
+    parser.add_argument(
+        "--page-summary-quant-bits", type=int, choices=(0, 8), default=8
+    )
     parser.add_argument(
         "--page-summary-scale-mode", choices=("max", "l2"), default="l2"
     )
@@ -90,6 +145,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--append-subblock-size", type=int, default=0)
     parser.add_argument("--union-bipartite-state", action="store_true")
     parser.add_argument("--state-precompact-direct-append", action="store_true")
+    parser.add_argument(
+        "--leaf-paged-directory",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
     parser.add_argument("--leaf-inline-pages-per-slot", type=int)
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--decode-steps", type=int, default=0)
@@ -97,11 +157,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--decode-state-update-length", type=int, default=256)
     parser.add_argument("--decode-cache-headroom", type=int, default=256)
     parser.add_argument("--profile-decode-kernels", action="store_true")
+    parser.add_argument("--profile-decode-phases", action="store_true")
     parser.add_argument("--profile-prefill-kernels", action="store_true")
     parser.add_argument("--disable-fused-decode", action="store_true")
     parser.add_argument("--disable-fused-decode-state-route", action="store_true")
     parser.add_argument("--no-clone-decode-routes", action="store_true")
     parser.add_argument("--decode-route-group-size", type=int, default=32)
+    parser.add_argument("--decode-num-warps", type=int, choices=(1, 2, 4, 8), default=2)
     parser.add_argument("--decode-route-num-warps", type=int, default=2)
     parser.add_argument("--decode-route-reduce-num-warps", type=int, default=4)
     parser.add_argument("--decode-final-reduce-num-warps", type=int, default=4)
@@ -117,6 +179,31 @@ def parse_args() -> argparse.Namespace:
         "--decode-route-gqa-grouped",
         action=argparse.BooleanOptionalAction,
         default=None,
+    )
+    parser.add_argument(
+        "--decode-gqa-cooperative-leaf",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument(
+        "--decode-gqa-cooperative-hip",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+    )
+    parser.add_argument(
+        "--decode-gqa-cooperative-route-splits",
+        type=int,
+        choices=(4, 8, 16, 32),
+    )
+    parser.add_argument(
+        "--decode-gqa-cooperative-adaptive-splits",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+    )
+    parser.add_argument(
+        "--decode-gqa-cooperative-fused-reduce",
+        action=argparse.BooleanOptionalAction,
+        default=True,
     )
     parser.add_argument("--enable-fused-state-update", action="store_true")
     parser.add_argument(
@@ -165,7 +252,9 @@ def clear_lod_state(model: torch.nn.Module) -> None:
             delattr(module, "_lod_state")
 
 
-def select_profile_sequence(tokenizer, dataset: str, sequence_length: int) -> torch.Tensor:
+def select_profile_sequence(
+    tokenizer, dataset: str, sequence_length: int
+) -> torch.Tensor:
     """Build long natural-text profiles from deterministic 64K ProLong pieces."""
     piece_length = min(sequence_length, 65_536)
     piece_count = math.ceil(sequence_length / piece_length)
@@ -239,25 +328,100 @@ def cache_memory_breakdown(model: torch.nn.Module, past_key_values) -> dict[str,
 
 def lod_cache_statistics(model: torch.nn.Module) -> dict[str, int]:
     max_slot_tokens = 0
+    max_centroid_tokens = 0
+    sealed_slots = 0
     max_used_pages = 0
     overflow_failures = 0
     for module in model.modules():
         if not isinstance(module, Qwen3_5TwoLevelAttention):
             continue
-        cache = getattr(module, "_lod_state", {}).get("page_cache", {})
+        state = getattr(module, "_lod_state", {})
+        cache = state.get("page_cache", {})
+        counts = state.get("counts")
         slot_lengths = cache.get("slot_lengths")
         next_page = cache.get("next_page")
         overflow_flag = cache.get("overflow_flag")
         if isinstance(slot_lengths, torch.Tensor):
             max_slot_tokens = max(max_slot_tokens, int(slot_lengths.max().item()))
+        if isinstance(counts, torch.Tensor):
+            centroid_counts = counts[..., 0]
+            max_centroid_tokens = max(
+                max_centroid_tokens, int(centroid_counts.max().item())
+            )
+            if module.leaf_seal_capacity is not None:
+                sealed_slots += int(
+                    centroid_counts.ge(module.leaf_seal_capacity).sum().item()
+                )
         if isinstance(next_page, torch.Tensor):
             max_used_pages = max(max_used_pages, int(next_page.max().item()))
         if isinstance(overflow_flag, torch.Tensor):
             overflow_failures += int(overflow_flag.item())
     return {
         "max_slot_tokens": max_slot_tokens,
+        "max_centroid_tokens": max_centroid_tokens,
+        "sealed_slots": sealed_slots,
         "max_used_pages_per_batch_head": max_used_pages,
         "overflow_hash_failures": overflow_failures,
+    }
+
+
+def decode_route_union_statistics(model: torch.nn.Module) -> dict[str, float]:
+    """Measure page-load reuse available inside each decode GQA group."""
+    selected_total = 0
+    union_total = 0
+    selected_leaf_tokens = 0
+    union_leaf_tokens = 0
+    groups = 0
+    max_union = 0
+    for module in model.modules():
+        if not isinstance(module, Qwen3_5TwoLevelAttention):
+            continue
+        buffers = getattr(module, "_lod_decode_attention_buffers", None)
+        state = getattr(module, "_lod_state", {})
+        page_cache = state.get("page_cache", {})
+        slot_lengths = page_cache.get("slot_lengths")
+        if not isinstance(buffers, dict):
+            continue
+        top_slots = buffers.get("route_top_slots")
+        group_size = int(module.num_key_value_groups)
+        if (
+            not isinstance(top_slots, torch.Tensor)
+            or top_slots.ndim != 4
+            or group_size <= 0
+            or int(top_slots.size(1)) % group_size
+        ):
+            continue
+        grouped = top_slots[..., 0, :].reshape(
+            int(top_slots.size(0)),
+            int(top_slots.size(1)) // group_size,
+            group_size * int(top_slots.size(-1)),
+        )
+        flat_groups = grouped.reshape(-1, int(grouped.size(-1)))
+        for group_index, routes in enumerate(flat_groups):
+            valid = routes[routes >= 0]
+            selected = int(valid.numel())
+            union = int(torch.unique(valid).numel())
+            selected_total += selected
+            union_total += union
+            max_union = max(max_union, union)
+            if isinstance(slot_lengths, torch.Tensor) and selected:
+                batch_index = group_index // int(grouped.size(1))
+                kv_head = group_index % int(grouped.size(1))
+                lengths = slot_lengths[batch_index, kv_head]
+                selected_leaf_tokens += int(
+                    lengths.index_select(0, valid.long()).sum().item()
+                )
+                union_leaf_tokens += int(
+                    lengths.index_select(0, torch.unique(valid).long()).sum().item()
+                )
+            groups += 1
+    return {
+        "mean_selected_routes": selected_total / groups if groups else 0.0,
+        "mean_union_routes": union_total / groups if groups else 0.0,
+        "page_load_reuse": (selected_total / union_total if union_total else 1.0),
+        "max_union_routes": float(max_union),
+        "mean_selected_leaf_tokens": (selected_leaf_tokens / groups if groups else 0.0),
+        "mean_union_leaf_tokens": (union_leaf_tokens / groups if groups else 0.0),
     }
 
 
@@ -310,6 +474,29 @@ def merge_batch_dicts(dicts: list[dict]) -> dict:
 
 def merge_qwen_caches(caches):
     merged = caches[0]
+    if hasattr(merged, "layers"):
+        if any(len(cache.layers) != len(merged.layers) for cache in caches):
+            raise ValueError("microbatch Qwen cache layer counts differ")
+        for layer_index, destination in enumerate(merged.layers):
+            sources = [cache.layers[layer_index] for cache in caches]
+            for name in ("keys", "values"):
+                values = [getattr(source, name, None) for source in sources]
+                tensors = [value for value in values if isinstance(value, torch.Tensor)]
+                if tensors:
+                    setattr(destination, name, torch.cat(tensors, dim=0))
+            for name in ("conv_states", "recurrent_states"):
+                destination_states = getattr(destination, name, None)
+                if not isinstance(destination_states, dict):
+                    continue
+                for state_index in destination_states:
+                    values = [getattr(source, name)[state_index] for source in sources]
+                    tensors = [
+                        value for value in values if isinstance(value, torch.Tensor)
+                    ]
+                    destination_states[state_index] = (
+                        torch.cat(tensors, dim=0) if tensors else None
+                    )
+        return merged
     for name in ("key_cache", "value_cache", "conv_states", "recurrent_states"):
         destination = getattr(merged, name)
         for layer in range(len(destination)):
@@ -379,6 +566,8 @@ def main() -> None:
         raise ValueError("prefill top-k must be in [0, 8]")
     if args.prefill_max_leaf_tokens is not None and args.prefill_max_leaf_tokens <= 0:
         raise ValueError("maximum prefill leaf count must be positive")
+    if args.leaf_seal_capacity is not None and args.leaf_seal_capacity <= 0:
+        raise ValueError("leaf seal capacity must be positive")
     if args.decode_steps < 0:
         raise ValueError("decode steps must be non-negative")
     if args.decode_warmup_steps < 0:
@@ -396,6 +585,11 @@ def main() -> None:
         and args.prefill_state_update_length <= 0
     ):
         raise ValueError("prefill state update length must be positive")
+    if (
+        args.prefill_int8_coarse_block_n <= 0
+        or args.prefill_int8_coarse_block_n % 32
+    ):
+        raise ValueError("INT8 coarse block N must be a positive multiple of 32")
     effective_prefill_chunk = (
         args.prefill_chunk_length or Qwen3_5TwoLevelAttention.prefill_chunk_len
     )
@@ -472,20 +666,50 @@ def main() -> None:
                 module.prefill_two_level_topk = args.prefill_two_level_topk
                 module.separate_sink_cache = args.separate_sink_cache
                 module.prefill_max_leaf_tokens = args.prefill_max_leaf_tokens
+                module.leaf_seal_capacity = args.leaf_seal_capacity
+                module.leaf_paged_directory = args.leaf_paged_directory
                 module.decode_state_update_len = args.decode_state_update_length
                 module.decode_cache_headroom = args.decode_cache_headroom
                 module.fused_decode_attention = not args.disable_fused_decode
                 module.recursive_page_lod = args.recursive_page_lod
+                module.dense_page_prefill = args.dense_page_prefill
+                module.dense_page_split_kernels = args.dense_page_split_kernels
+                module.dense_page_topk = args.dense_page_topk
+                module.dense_page_block_m = args.dense_page_block_m
+                module.dense_page_block_n = args.dense_page_block_n
+                module.dense_page_indexed_aiter_union = (
+                    args.dense_page_indexed_aiter_union
+                )
+                module.dense_page_union_query_tile = args.dense_page_union_query_tile
                 module.virtual_page_storage = args.virtual_page_storage
                 module.recursive_page_block_n = args.recursive_page_block_n
+                module.leaf_layout = args.leaf_layout
+                module.leaf_union_query_tile = args.leaf_union_query_tile
+                module.prefill_int8_leaf_mma = args.prefill_int8_leaf_mma
+                module.prefill_int8_coarse_mma = args.prefill_int8_coarse_mma
+                module.prefill_int8_coarse_block_n = args.prefill_int8_coarse_block_n
+                module.prefill_int8_coarse_num_warps = (
+                    args.prefill_int8_coarse_num_warps
+                )
+                module.prefill_int8_append_num_warps = (
+                    args.prefill_int8_append_num_warps
+                )
+                module.prefill_int8_pv_mma = args.prefill_int8_pv_mma
+                module.leaf_block_m = args.leaf_block_m
+                module.leaf_block_n = args.leaf_block_n
                 module.leaf_num_warps = args.leaf_num_warps
+                module.leaf_tiny_expert_max = args.tiny_expert_max
+                module.leaf_tiny_max_context = args.tiny_max_context
+                module.leaf_tiny_block_m = args.tiny_block_m
+                module.leaf_tiny_num_warps = args.tiny_num_warps
+                module.leaf_long_expert_threshold = args.long_expert_threshold
+                module.leaf_long_expert_splits = args.long_expert_splits
+                module.leaf_reduce_num_warps = args.reduce_num_warps
                 module.leaf_key_quant_bits = args.leaf_key_quant_bits
                 module.leaf_value_quant_bits = args.leaf_value_quant_bits
                 module.leaf_quant_group_size = args.leaf_quant_group_size
                 module.leaf_quant_scale_mode = args.leaf_quant_scale_mode
-                module.leaf_append_quant_scale_mode = (
-                    args.leaf_append_quant_scale_mode
-                )
+                module.leaf_append_quant_scale_mode = args.leaf_append_quant_scale_mode
                 module.page_summary_quant_bits = args.page_summary_quant_bits
                 module.page_summary_scale_mode = args.page_summary_scale_mode
                 module.state_clustering_normalization = "none"
@@ -505,9 +729,7 @@ def main() -> None:
                 if args.prefill_local_length is not None:
                     module.prefill_local_len = args.prefill_local_length
                 if args.prefill_state_update_length is not None:
-                    module.prefill_state_update_len = (
-                        args.prefill_state_update_length
-                    )
+                    module.prefill_state_update_len = args.prefill_state_update_length
                 module.overflow_bipartite_merge = args.overflow_bipartite_merge
                 module.overflow_bipartite_block_size = (
                     args.overflow_bipartite_block_size
@@ -536,9 +758,7 @@ def main() -> None:
                     args.dynamic_open_residual_state_bound
                 )
                 if args.leaf_inline_pages_per_slot is not None:
-                    module.leaf_inline_pages_per_slot = (
-                        args.leaf_inline_pages_per_slot
-                    )
+                    module.leaf_inline_pages_per_slot = args.leaf_inline_pages_per_slot
                 module.fused_decode_state_route = (
                     not args.disable_fused_decode_state_route
                 )
@@ -548,6 +768,7 @@ def main() -> None:
                 module.state_maxsim_num_warps = args.state_maxsim_num_warps
                 module.clone_decode_routes = not args.no_clone_decode_routes
                 module.decode_route_group_size = args.decode_route_group_size
+                module.decode_num_warps = args.decode_num_warps
                 module.decode_route_num_warps = args.decode_route_num_warps
                 module.decode_route_reduce_num_warps = (
                     args.decode_route_reduce_num_warps
@@ -563,6 +784,18 @@ def main() -> None:
                     module.decode_route_use_dot = args.decode_route_use_dot
                 if args.decode_route_gqa_grouped is not None:
                     module.decode_route_gqa_grouped = args.decode_route_gqa_grouped
+                module.decode_gqa_cooperative_leaf = args.decode_gqa_cooperative_leaf
+                if args.decode_gqa_cooperative_hip is not None:
+                    module.decode_gqa_cooperative_hip = args.decode_gqa_cooperative_hip
+                module.decode_gqa_cooperative_route_splits = (
+                    args.decode_gqa_cooperative_route_splits
+                )
+                module.decode_gqa_cooperative_adaptive_splits = (
+                    args.decode_gqa_cooperative_adaptive_splits
+                )
+                module.decode_gqa_cooperative_fused_reduce = (
+                    args.decode_gqa_cooperative_fused_reduce
+                )
                 if args.enable_fused_state_update:
                     module.fused_state_update = True
                 if args.fused_state_routing is not None:
@@ -664,14 +897,22 @@ def main() -> None:
 
         prefill_elapsed_ms = []
         decode_elapsed_ms = []
+        decode_top1 = []
         decode_state_update_tokens_per_layer = []
         decode_state_update_intervals_per_layer = []
+        decode_phase_elapsed_ms = []
+        dense_page_phase_elapsed_ms = []
         cache_memory_gib = None
         cache_statistics = None
         finite = True
         torch.cuda.reset_peak_memory_stats(device)
         for _ in range(args.repeats):
             clear_lod_state(model)
+            dense_page_phase_events = {} if args.profile_dense_page_phases else None
+            if dense_page_phase_events is not None:
+                for module in model.modules():
+                    if isinstance(module, Qwen3_5TwoLevelAttention):
+                        module._lod_dense_page_timing_events = dense_page_phase_events
             begin = torch.cuda.Event(enable_timing=True)
             end = torch.cuda.Event(enable_timing=True)
             begin.record()
@@ -679,6 +920,19 @@ def main() -> None:
             end.record()
             torch.cuda.synchronize(device)
             prefill_elapsed_ms.append(float(begin.elapsed_time(end)))
+            if dense_page_phase_events is not None:
+                dense_page_phase_elapsed_ms.append(
+                    {
+                        name: sum(
+                            phase_begin.elapsed_time(phase_end)
+                            for phase_begin, phase_end in event_pairs
+                        )
+                        for name, event_pairs in dense_page_phase_events.items()
+                    }
+                )
+                for module in model.modules():
+                    if isinstance(module, Qwen3_5TwoLevelAttention):
+                        del module._lod_dense_page_timing_events
             finite = finite and bool(torch.isfinite(result.logits).all().item())
             cache = result.past_key_values
             if args.decode_steps:
@@ -693,6 +947,10 @@ def main() -> None:
                     for module in model.modules()
                     if isinstance(module, Qwen3_5TwoLevelAttention)
                 ]
+                phase_events = {} if args.profile_decode_phases else None
+                if phase_events is not None:
+                    for module in lod_modules:
+                        module._lod_decode_timing_events = phase_events
                 coverage_before = [
                     int(module._lod_state["coverage"]) for module in lod_modules
                 ]
@@ -707,6 +965,17 @@ def main() -> None:
                 decode_end.record()
                 torch.cuda.synchronize(device)
                 decode_elapsed_ms.append(float(decode_begin.elapsed_time(decode_end)))
+                if phase_events is not None:
+                    decode_phase_elapsed_ms.append(
+                        {
+                            name: sum(
+                                begin.elapsed_time(end) for begin, end in event_pairs
+                            )
+                            for name, event_pairs in phase_events.items()
+                        }
+                    )
+                    for module in lod_modules:
+                        del module._lod_decode_timing_events
                 coverage_after = [
                     int(module._lod_state["coverage"]) for module in lod_modules
                 ]
@@ -722,9 +991,7 @@ def main() -> None:
                             "is amortized"
                         )
                     state_update_intervals = []
-                    for module, update_tokens in zip(
-                        lod_modules, state_update_tokens
-                    ):
+                    for module, update_tokens in zip(lod_modules, state_update_tokens):
                         if update_tokens % module.decode_state_update_len:
                             raise AssertionError(
                                 "decode state coverage advanced off schedule"
@@ -732,9 +999,7 @@ def main() -> None:
                         state_update_intervals.append(
                             update_tokens // module.decode_state_update_len
                         )
-                    decode_state_update_tokens_per_layer.append(
-                        state_update_tokens
-                    )
+                    decode_state_update_tokens_per_layer.append(state_update_tokens)
                     decode_state_update_intervals_per_layer.append(
                         state_update_intervals
                     )
@@ -742,6 +1007,9 @@ def main() -> None:
                     raise AssertionError("decode produced no output")
                 finite = finite and bool(
                     torch.isfinite(decode_result.logits).all().item()
+                )
+                decode_top1.append(
+                    decode_result.logits.argmax(dim=-1).cpu().tolist()
                 )
                 del decode_result
             if cache_memory_gib is None:
@@ -832,13 +1100,24 @@ def main() -> None:
 
     mean_prefill_ms = sum(prefill_elapsed_ms) / len(prefill_elapsed_ms)
     mean_decode_ms = (
-        sum(decode_elapsed_ms) / len(decode_elapsed_ms)
-        if decode_elapsed_ms
-        else None
+        sum(decode_elapsed_ms) / len(decode_elapsed_ms) if decode_elapsed_ms else None
     )
     mean_decode_step_ms = (
         mean_decode_ms / args.decode_steps if mean_decode_ms is not None else None
     )
+    effective_gqa_dispatches = [
+        module._last_decode_gqa_cooperative_dispatch
+        for module in model.modules()
+        if isinstance(module, Qwen3_5TwoLevelAttention)
+        and hasattr(module, "_last_decode_gqa_cooperative_dispatch")
+    ]
+    effective_gqa_dispatch = (
+        effective_gqa_dispatches[0] if effective_gqa_dispatches else None
+    )
+    if any(
+        dispatch != effective_gqa_dispatch for dispatch in effective_gqa_dispatches[1:]
+    ):
+        raise RuntimeError("LOD layers selected inconsistent GQA decode dispatches")
     record = {
         "checkpoint": args.checkpoint,
         "qwen35_acceleration": acceleration,
@@ -847,9 +1126,7 @@ def main() -> None:
         "batch_size": args.batch_size,
         "prefill_microbatch_size": args.prefill_microbatch_size,
         "two_level_topk": (
-            args.two_level_topk
-            if args.mode in ("two_level", "pytorch_lod")
-            else None
+            args.two_level_topk if args.mode in ("two_level", "pytorch_lod") else None
         ),
         "separate_sink_cache": (
             args.separate_sink_cache if args.mode == "two_level" else None
@@ -859,6 +1136,12 @@ def main() -> None:
         ),
         "prefill_max_leaf_tokens": (
             args.prefill_max_leaf_tokens if args.mode == "two_level" else None
+        ),
+        "leaf_seal_capacity": (
+            args.leaf_seal_capacity if args.mode == "two_level" else None
+        ),
+        "leaf_paged_directory": (
+            args.leaf_paged_directory if args.mode == "two_level" else None
         ),
         "dynamic_open_top_p": (
             args.dynamic_open_top_p if args.mode == "two_level" else None
@@ -875,22 +1158,36 @@ def main() -> None:
             dynamic_decode_top_p if args.mode == "two_level" else None
         ),
         "dynamic_open_decode_residual_mass": (
-            args.dynamic_open_decode_residual_mass
-            if args.mode == "two_level"
-            else None
+            args.dynamic_open_decode_residual_mass if args.mode == "two_level" else None
         ),
         "reuse_dynamic_local_attention": (
-            args.reuse_dynamic_local_attention
-            if args.mode == "two_level"
-            else None
+            args.reuse_dynamic_local_attention if args.mode == "two_level" else None
         ),
         "dynamic_open_residual_state_bound": (
-            args.dynamic_open_residual_state_bound
-            if args.mode == "two_level"
-            else None
+            args.dynamic_open_residual_state_bound if args.mode == "two_level" else None
         ),
         "recursive_page_lod": (
             args.recursive_page_lod if args.mode == "two_level" else None
+        ),
+        "dense_page_prefill": (
+            args.dense_page_prefill if args.mode == "two_level" else None
+        ),
+        "dense_page_split_kernels": (
+            args.dense_page_split_kernels if args.mode == "two_level" else None
+        ),
+        "dense_page_phase_elapsed_ms": dense_page_phase_elapsed_ms,
+        "dense_page_topk": (args.dense_page_topk if args.mode == "two_level" else None),
+        "dense_page_block_m": (
+            args.dense_page_block_m if args.mode == "two_level" else None
+        ),
+        "dense_page_block_n": (
+            args.dense_page_block_n if args.mode == "two_level" else None
+        ),
+        "dense_page_indexed_aiter_union": (
+            args.dense_page_indexed_aiter_union if args.mode == "two_level" else None
+        ),
+        "dense_page_union_query_tile": (
+            args.dense_page_union_query_tile if args.mode == "two_level" else None
         ),
         "leaf_attention_backend": (
             args.leaf_attention_backend if args.mode == "two_level" else None
@@ -911,9 +1208,7 @@ def main() -> None:
             args.leaf_quant_scale_mode if args.mode == "two_level" else None
         ),
         "leaf_append_quant_scale_mode": (
-            args.leaf_append_quant_scale_mode
-            if args.mode == "two_level"
-            else None
+            args.leaf_append_quant_scale_mode if args.mode == "two_level" else None
         ),
         "page_summary_quant_bits": (
             args.page_summary_quant_bits if args.mode == "two_level" else None
@@ -924,9 +1219,65 @@ def main() -> None:
         "recursive_page_block_n": (
             args.recursive_page_block_n if args.mode == "two_level" else None
         ),
-        "leaf_num_warps": (
-            args.leaf_num_warps if args.mode == "two_level" else None
+        "leaf_layout": args.leaf_layout if args.mode == "two_level" else None,
+        "tiny_expert_max": (
+            args.tiny_expert_max
+            if args.mode == "two_level" and args.leaf_layout == "expert_tiny"
+            else None
         ),
+        "tiny_max_context": (
+            args.tiny_max_context
+            if args.mode == "two_level" and args.leaf_layout == "expert_tiny"
+            else None
+        ),
+        "long_expert_threshold": (
+            args.long_expert_threshold
+            if args.mode == "two_level"
+            and args.leaf_layout in ("expert", "expert_tiny")
+            else None
+        ),
+        "long_expert_splits": (
+            args.long_expert_splits
+            if args.mode == "two_level"
+            and args.leaf_layout in ("expert", "expert_tiny")
+            else None
+        ),
+        "reduce_num_warps": (
+            args.reduce_num_warps if args.mode == "two_level" else None
+        ),
+        "leaf_union_query_tile": (
+            args.leaf_union_query_tile
+            if args.mode == "two_level"
+            and args.leaf_layout in ("aiter_union", "aiter_masked_union")
+            else None
+        ),
+        "prefill_int8_leaf_mma": (
+            args.prefill_int8_leaf_mma if args.mode == "two_level" else None
+        ),
+        "prefill_int8_coarse_mma": (
+            args.prefill_int8_coarse_mma if args.mode == "two_level" else None
+        ),
+        "prefill_int8_coarse_block_n": (
+            args.prefill_int8_coarse_block_n
+            if args.mode == "two_level" and args.prefill_int8_coarse_mma
+            else None
+        ),
+        "prefill_int8_coarse_num_warps": (
+            args.prefill_int8_coarse_num_warps
+            if args.mode == "two_level" and args.prefill_int8_coarse_mma
+            else None
+        ),
+        "prefill_int8_append_num_warps": (
+            args.prefill_int8_append_num_warps
+            if args.mode == "two_level" and args.prefill_int8_leaf_mma
+            else None
+        ),
+        "prefill_int8_pv_mma": (
+            args.prefill_int8_pv_mma if args.mode == "two_level" else None
+        ),
+        "leaf_block_m": args.leaf_block_m if args.mode == "two_level" else None,
+        "leaf_block_n": args.leaf_block_n if args.mode == "two_level" else None,
+        "leaf_num_warps": (args.leaf_num_warps if args.mode == "two_level" else None),
         "state_growth_factor": (
             args.state_growth_factor
             if args.mode in ("two_level", "pytorch_lod")
@@ -941,12 +1292,16 @@ def main() -> None:
         "prefill_chunk_length": (
             256
             if args.mode == "pytorch_lod"
-            else effective_prefill_chunk if args.mode == "two_level" else None
+            else effective_prefill_chunk
+            if args.mode == "two_level"
+            else None
         ),
         "prefill_local_length": (
             512
             if args.mode == "pytorch_lod"
-            else effective_prefill_local if args.mode == "two_level" else None
+            else effective_prefill_local
+            if args.mode == "two_level"
+            else None
         ),
         "prefill_state_update_length": (
             256
@@ -1003,18 +1358,17 @@ def main() -> None:
         "decode_route_group_size": (
             args.decode_route_group_size if args.mode == "two_level" else None
         ),
+        "decode_num_warps": (
+            args.decode_num_warps if args.mode == "two_level" else None
+        ),
         "decode_route_num_warps": (
             args.decode_route_num_warps if args.mode == "two_level" else None
         ),
         "decode_route_reduce_num_warps": (
-            args.decode_route_reduce_num_warps
-            if args.mode == "two_level"
-            else None
+            args.decode_route_reduce_num_warps if args.mode == "two_level" else None
         ),
         "decode_final_reduce_num_warps": (
-            args.decode_final_reduce_num_warps
-            if args.mode == "two_level"
-            else None
+            args.decode_final_reduce_num_warps if args.mode == "two_level" else None
         ),
         "decode_split_kv": (
             (
@@ -1037,9 +1391,35 @@ def main() -> None:
             if args.mode == "two_level"
             else None
         ),
-        "decode_use_dot": (
-            args.decode_use_dot if args.mode == "two_level" else None
+        "decode_use_dot": (args.decode_use_dot if args.mode == "two_level" else None),
+        "decode_gqa_cooperative_leaf": (
+            args.decode_gqa_cooperative_leaf if args.mode == "two_level" else None
         ),
+        "decode_gqa_cooperative_hip": (
+            (
+                args.decode_gqa_cooperative_hip
+                if args.decode_gqa_cooperative_hip is not None
+                else Qwen3_5TwoLevelAttention.decode_gqa_cooperative_hip
+            )
+            if args.mode == "two_level"
+            else None
+        ),
+        "decode_gqa_cooperative_route_splits": (
+            args.decode_gqa_cooperative_route_splits
+            if args.mode == "two_level"
+            else None
+        ),
+        "decode_gqa_cooperative_adaptive_splits": (
+            args.decode_gqa_cooperative_adaptive_splits
+            if args.mode == "two_level"
+            else None
+        ),
+        "decode_gqa_cooperative_fused_reduce": (
+            args.decode_gqa_cooperative_fused_reduce
+            if args.mode == "two_level"
+            else None
+        ),
+        "decode_gqa_cooperative_effective_dispatch": effective_gqa_dispatch,
         "decode_route_gqa_grouped": (
             (
                 args.decode_route_gqa_grouped
@@ -1050,9 +1430,7 @@ def main() -> None:
             else None
         ),
         "fused_state_update": (
-            bool(args.enable_fused_state_update)
-            if args.mode == "two_level"
-            else None
+            bool(args.enable_fused_state_update) if args.mode == "two_level" else None
         ),
         "fused_state_maxsim": (
             args.fused_state_maxsim if args.mode == "two_level" else None
@@ -1070,9 +1448,7 @@ def main() -> None:
             not args.disable_coarse_gqa if args.mode == "two_level" else None
         ),
         "coarse_compact_bias": (
-            not args.disable_compact_coarse_bias
-            if args.mode == "two_level"
-            else None
+            not args.disable_compact_coarse_bias if args.mode == "two_level" else None
         ),
         "reuse_route_logits_for_coarse": (
             (
@@ -1084,19 +1460,13 @@ def main() -> None:
             else None
         ),
         "fused_prefill_route_coarse": (
-            args.enable_fused_prefill_route_coarse
-            if args.mode == "two_level"
-            else None
+            args.enable_fused_prefill_route_coarse if args.mode == "two_level" else None
         ),
         "split_prefill_local_attention": (
-            args.split_prefill_local_attention
-            if args.mode == "two_level"
-            else None
+            args.split_prefill_local_attention if args.mode == "two_level" else None
         ),
         "fused_prefill_residual_opening": (
-            args.fused_prefill_residual_opening
-            if args.mode == "two_level"
-            else None
+            args.fused_prefill_residual_opening if args.mode == "two_level" else None
         ),
         "coarse_route_block_m": (
             args.coarse_route_block_m if args.mode == "two_level" else None
@@ -1124,11 +1494,21 @@ def main() -> None:
             else None
         ),
         "decode_kernel_profile": kernel_profile,
+        "decode_phase_elapsed_ms": decode_phase_elapsed_ms,
+        "decode_phase_mean_ms_per_step": {
+            name: sum(repeat[name] for repeat in decode_phase_elapsed_ms)
+            / (len(decode_phase_elapsed_ms) * args.decode_steps)
+            for name in (
+                decode_phase_elapsed_ms[0].keys() if decode_phase_elapsed_ms else ()
+            )
+        },
         "prefill_kernel_profile": prefill_kernel_profile,
         "cache_memory_gib": cache_memory_gib,
         "cache_statistics": cache_statistics,
+        "decode_route_union_statistics": decode_route_union_statistics(model),
         "peak_memory_gib": torch.cuda.max_memory_allocated(device) / (1024**3),
         "logit_finite": finite,
+        "decode_top1": decode_top1,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n")

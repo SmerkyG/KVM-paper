@@ -39,23 +39,38 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--separate-sink-cache", action="store_true")
     parser.add_argument("--prefill-two-level-topk", type=int, default=3)
     parser.add_argument("--prefill-max-leaf-tokens", type=int)
+    parser.add_argument("--leaf-seal-capacity", type=int)
     parser.add_argument("--dynamic-open-top-p", type=float)
     parser.add_argument("--dynamic-open-prefill-top-p", type=float)
     parser.add_argument("--dynamic-open-prefill-residual-mass", type=float)
     parser.add_argument("--dynamic-open-decode-top-p", type=float)
     parser.add_argument("--recursive-page-lod", action="store_true")
+    parser.add_argument("--dense-page-prefill", action="store_true")
+    parser.add_argument("--dense-page-topk", type=int, choices=(1, 2, 4, 8), default=8)
+    parser.add_argument("--dense-page-block-m", type=int, default=64)
+    parser.add_argument("--dense-page-block-n", type=int, default=64)
+    parser.add_argument(
+        "--dense-page-indexed-aiter-union",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument(
+        "--dense-page-union-query-tile", type=int, choices=(4, 8, 16, 32), default=32
+    )
     parser.add_argument("--recursive-page-block-n", type=int, default=4)
     parser.add_argument("--leaf-num-warps", type=int, default=1)
     parser.add_argument("--leaf-key-quant-bits", type=int, choices=(0, 4, 8), default=0)
-    parser.add_argument("--leaf-value-quant-bits", type=int, choices=(0, 4, 8), default=0)
-    parser.add_argument("--leaf-quant-group-size", type=int, default=32)
     parser.add_argument(
-        "--leaf-quant-scale-mode", choices=("max", "l2"), default="max"
+        "--leaf-value-quant-bits", type=int, choices=(0, 4, 8), default=0
     )
+    parser.add_argument("--leaf-quant-group-size", type=int, default=32)
+    parser.add_argument("--leaf-quant-scale-mode", choices=("max", "l2"), default="max")
     parser.add_argument(
         "--leaf-append-quant-scale-mode", choices=("max", "l2"), default="max"
     )
-    parser.add_argument("--page-summary-quant-bits", type=int, choices=(0, 8), default=8)
+    parser.add_argument(
+        "--page-summary-quant-bits", type=int, choices=(0, 8), default=8
+    )
     parser.add_argument(
         "--page-summary-scale-mode", choices=("max", "l2"), default="l2"
     )
@@ -88,6 +103,14 @@ def parse_args() -> argparse.Namespace:
         "--leaf-attention-backend",
         choices=("packed", "paged"),
         default="packed",
+    )
+    parser.add_argument("--leaf-layout", choices=("expert", "query"), default="query")
+    parser.add_argument("--prefill-int8-leaf-mma", action="store_true")
+    parser.add_argument("--prefill-int8-coarse-mma", action="store_true")
+    parser.add_argument(
+        "--prefill-int8-pv-mma",
+        action=argparse.BooleanOptionalAction,
+        default=True,
     )
     parser.add_argument("--output", type=Path, required=True)
     return parser.parse_args()
@@ -140,8 +163,12 @@ def main() -> None:
         raise ValueError("prefill top-k must be in [0, 8]")
     if args.prefill_max_leaf_tokens is not None and args.prefill_max_leaf_tokens <= 0:
         raise ValueError("maximum prefill leaf count must be positive")
+    if args.leaf_seal_capacity is not None and args.leaf_seal_capacity <= 0:
+        raise ValueError("leaf seal capacity must be positive")
     if args.decode_tail_tokens < 0 or args.decode_tail_tokens >= args.sequence_length:
-        raise ValueError("decode tail must be nonnegative and shorter than the sequence")
+        raise ValueError(
+            "decode tail must be nonnegative and shorter than the sequence"
+        )
     local_rank = int(os.environ.get("LOCAL_RANK", "0"))
     rank = int(os.environ.get("RANK", "0"))
     world_size = int(os.environ.get("WORLD_SIZE", "1"))
@@ -189,16 +216,27 @@ def main() -> None:
                 module.exclude_sink_from_routes = args.exclude_sink_from_routes
                 module.separate_sink_cache = args.separate_sink_cache
                 module.prefill_max_leaf_tokens = args.prefill_max_leaf_tokens
+                module.leaf_seal_capacity = args.leaf_seal_capacity
                 module.recursive_page_lod = args.recursive_page_lod
+                module.dense_page_prefill = args.dense_page_prefill
+                module.dense_page_topk = args.dense_page_topk
+                module.dense_page_block_m = args.dense_page_block_m
+                module.dense_page_block_n = args.dense_page_block_n
+                module.dense_page_indexed_aiter_union = (
+                    args.dense_page_indexed_aiter_union
+                )
+                module.dense_page_union_query_tile = args.dense_page_union_query_tile
                 module.recursive_page_block_n = args.recursive_page_block_n
                 module.leaf_num_warps = args.leaf_num_warps
+                module.leaf_layout = args.leaf_layout
+                module.prefill_int8_leaf_mma = args.prefill_int8_leaf_mma
+                module.prefill_int8_coarse_mma = args.prefill_int8_coarse_mma
+                module.prefill_int8_pv_mma = args.prefill_int8_pv_mma
                 module.leaf_key_quant_bits = args.leaf_key_quant_bits
                 module.leaf_value_quant_bits = args.leaf_value_quant_bits
                 module.leaf_quant_group_size = args.leaf_quant_group_size
                 module.leaf_quant_scale_mode = args.leaf_quant_scale_mode
-                module.leaf_append_quant_scale_mode = (
-                    args.leaf_append_quant_scale_mode
-                )
+                module.leaf_append_quant_scale_mode = args.leaf_append_quant_scale_mode
                 module.page_summary_quant_bits = args.page_summary_quant_bits
                 module.page_summary_scale_mode = args.page_summary_scale_mode
                 module.virtual_page_storage = args.virtual_page_storage
@@ -207,9 +245,7 @@ def main() -> None:
                 if args.prefill_local_length is not None:
                     module.prefill_local_len = args.prefill_local_length
                 if args.prefill_state_update_length is not None:
-                    module.prefill_state_update_len = (
-                        args.prefill_state_update_length
-                    )
+                    module.prefill_state_update_len = args.prefill_state_update_length
                 module.overflow_bipartite_merge = args.overflow_bipartite_merge
                 module.overflow_bipartite_block_size = (
                     args.overflow_bipartite_block_size
@@ -256,9 +292,7 @@ def main() -> None:
                 prefix = input_ids[..., : -args.decode_tail_tokens]
                 tail = input_ids[..., -args.decode_tail_tokens :]
                 result = model(input_ids=prefix, use_cache=True)
-                losses = [
-                    F.cross_entropy(result.logits[:, -1].float(), tail[:, 0])
-                ]
+                losses = [F.cross_entropy(result.logits[:, -1].float(), tail[:, 0])]
                 past_key_values = result.past_key_values
                 for tail_index in range(args.decode_tail_tokens - 1):
                     result = model(
@@ -298,22 +332,19 @@ def main() -> None:
                     args.two_level_topk if args.mode == "two_level" else None
                 ),
                 "exclude_sink_from_routes": (
-                    args.exclude_sink_from_routes
-                    if args.mode == "two_level"
-                    else None
+                    args.exclude_sink_from_routes if args.mode == "two_level" else None
                 ),
                 "separate_sink_cache": (
                     args.separate_sink_cache if args.mode == "two_level" else None
                 ),
                 "prefill_two_level_topk": (
-                    args.prefill_two_level_topk
-                    if args.mode == "two_level"
-                    else None
+                    args.prefill_two_level_topk if args.mode == "two_level" else None
                 ),
                 "prefill_max_leaf_tokens": (
-                    args.prefill_max_leaf_tokens
-                    if args.mode == "two_level"
-                    else None
+                    args.prefill_max_leaf_tokens if args.mode == "two_level" else None
+                ),
+                "leaf_seal_capacity": (
+                    args.leaf_seal_capacity if args.mode == "two_level" else None
                 ),
                 "fused_prefill_route_coarse": (
                     args.enable_fused_prefill_route_coarse
@@ -339,13 +370,53 @@ def main() -> None:
                 "recursive_page_lod": (
                     args.recursive_page_lod if args.mode == "two_level" else None
                 ),
-                "recursive_page_block_n": (
-                    args.recursive_page_block_n
+                "dense_page_prefill": (
+                    args.dense_page_prefill if args.mode == "two_level" else None
+                ),
+                "dense_page_topk": (
+                    args.dense_page_topk if args.mode == "two_level" else None
+                ),
+                "dense_page_block_m": (
+                    args.dense_page_block_m if args.mode == "two_level" else None
+                ),
+                "dense_page_block_n": (
+                    args.dense_page_block_n if args.mode == "two_level" else None
+                ),
+                "dense_page_indexed_aiter_union": (
+                    args.dense_page_indexed_aiter_union
                     if args.mode == "two_level"
                     else None
                 ),
+                "dense_page_union_query_tile": (
+                    args.dense_page_union_query_tile
+                    if args.mode == "two_level"
+                    else None
+                ),
+                "recursive_page_block_n": (
+                    args.recursive_page_block_n if args.mode == "two_level" else None
+                ),
                 "leaf_num_warps": (
                     args.leaf_num_warps if args.mode == "two_level" else None
+                ),
+                "leaf_layout": (args.leaf_layout if args.mode == "two_level" else None),
+                "prefill_int8_leaf_mma": (
+                    args.prefill_int8_leaf_mma if args.mode == "two_level" else None
+                ),
+                "prefill_int8_coarse_mma": (
+                    args.prefill_int8_coarse_mma if args.mode == "two_level" else None
+                ),
+                "prefill_int8_coarse_block_n": (
+                    Qwen3_5TwoLevelAttention.prefill_int8_coarse_block_n
+                    if args.mode == "two_level" and args.prefill_int8_coarse_mma
+                    else None
+                ),
+                "prefill_int8_coarse_num_warps": (
+                    Qwen3_5TwoLevelAttention.prefill_int8_coarse_num_warps
+                    if args.mode == "two_level" and args.prefill_int8_coarse_mma
+                    else None
+                ),
+                "prefill_int8_pv_mma": (
+                    args.prefill_int8_pv_mma if args.mode == "two_level" else None
                 ),
                 "leaf_key_quant_bits": (
                     args.leaf_key_quant_bits if args.mode == "two_level" else None
@@ -377,14 +448,10 @@ def main() -> None:
                     args.state_growth_factor if args.mode == "two_level" else None
                 ),
                 "prefill_chunk_length": (
-                    args.prefill_chunk_length
-                    if args.mode == "two_level"
-                    else None
+                    args.prefill_chunk_length if args.mode == "two_level" else None
                 ),
                 "prefill_local_length": (
-                    args.prefill_local_length
-                    if args.mode == "two_level"
-                    else None
+                    args.prefill_local_length if args.mode == "two_level" else None
                 ),
                 "prefill_state_update_length": (
                     args.prefill_state_update_length
@@ -392,9 +459,7 @@ def main() -> None:
                     else None
                 ),
                 "overflow_bipartite_merge": (
-                    args.overflow_bipartite_merge
-                    if args.mode == "two_level"
-                    else None
+                    args.overflow_bipartite_merge if args.mode == "two_level" else None
                 ),
                 "overflow_bipartite_block_size": (
                     args.overflow_bipartite_block_size
@@ -418,9 +483,7 @@ def main() -> None:
                     args.append_subblock_size if args.mode == "two_level" else None
                 ),
                 "union_bipartite_state": (
-                    args.union_bipartite_state
-                    if args.mode == "two_level"
-                    else None
+                    args.union_bipartite_state if args.mode == "two_level" else None
                 ),
                 "state_precompact_direct_append": (
                     args.state_precompact_direct_append
@@ -433,15 +496,12 @@ def main() -> None:
                     else None
                 ),
                 "leaf_attention_backend": (
-                    args.leaf_attention_backend
-                    if args.mode == "two_level"
-                    else None
+                    args.leaf_attention_backend if args.mode == "two_level" else None
                 ),
                 "loss": float(loss.item()),
                 "elapsed_seconds": elapsed_seconds,
                 "tokens_per_second": args.sequence_length / elapsed_seconds,
-                "peak_memory_gib": torch.cuda.max_memory_allocated(device)
-                / (1024**3),
+                "peak_memory_gib": torch.cuda.max_memory_allocated(device) / (1024**3),
             }
             handle.write(json.dumps(record, sort_keys=True) + "\n")
             handle.flush()

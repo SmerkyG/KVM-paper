@@ -48,6 +48,33 @@ def _clone_cache(cache: KernelLODCache) -> KernelLODCache:
     return KernelLODCache(clone(cache.state))
 
 
+def _physical_to_indexed_reference(cache: KernelLODCache) -> None:
+    """Express physical pages as equivalent indexed storage for parity."""
+    page = cache.state["page_cache"]
+    if "page_indices" in page:
+        return
+    page_k = page["page_k"]
+    page_v = page["page_v"]
+    batches, heads, page_capacity, page_size, head_dim = page_k.shape
+    leaf_capacity = page_capacity * page_size
+    page["leaf_k"] = page_k.reshape(batches, heads, leaf_capacity, head_dim)
+    page["leaf_v"] = page_v.reshape(batches, heads, leaf_capacity, head_dim)
+    page["page_indices"] = (
+        torch.arange(leaf_capacity, dtype=torch.int32, device=page_k.device)
+        .reshape(1, 1, page_capacity, page_size)
+        .expand(batches, heads, -1, -1)
+        .contiguous()
+    )
+    if "page_k_token_scales" in page:
+        page["page_k_token_scales"] = page["page_k_token_scales"].reshape(
+            batches, heads, leaf_capacity
+        )
+        page["page_v_token_scales"] = page["page_v_token_scales"].reshape(
+            batches, heads, leaf_capacity
+        )
+    page["leaf_capacity"] = leaf_capacity
+
+
 def _hash_index(key: int, capacity: int) -> int:
     value = key & 0xFFFFFFFF
     value ^= value >> 16
@@ -61,13 +88,22 @@ def _hash_index(key: int, capacity: int) -> int:
 @torch.inference_mode()
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--kv-bits", type=int, choices=(0, 4), required=True)
+    parser.add_argument("--kv-bits", type=int, choices=(0, 4, 8), required=True)
+    parser.add_argument("--levels", type=int, choices=(2, 3))
+    parser.add_argument("--key-bits", type=int, choices=(0, 4, 8))
+    parser.add_argument("--value-bits", type=int, choices=(0, 4, 8))
     parser.add_argument(
         "--routing-geometry",
         choices=("auto", "raw", "spherical", "coherence"),
         default="raw",
     )
     parser.add_argument("--normalized-qk", action="store_true")
+    parser.add_argument("--prefill-only", action="store_true")
+    parser.add_argument(
+        "--physical-pages",
+        action="store_true",
+        help="exercise physical page K/V storage instead of indexed leaves",
+    )
     parser.add_argument(
         "--serving-reuse-length",
         type=int,
@@ -80,6 +116,7 @@ def main() -> None:
     torch.manual_seed(17)
     device = torch.device("cuda")
     settings = VLLMLODSettings(
+        levels=args.levels or (2 if args.kv_bits == 0 else 3),
         chunk_size=16,
         local_window=32,
         state_growth_factor=4.0,
@@ -87,11 +124,22 @@ def main() -> None:
         protected_prefix=1,
         open_count=8,
         kv_bits=args.kv_bits,
+        key_bits=args.key_bits,
+        value_bits=args.value_bits,
         quant_group_size=32,
         pool_size=4,
         request_capacity=128,
         routing_geometry=args.routing_geometry,
         cache_ownership="dual",
+        prefill_local_backend="torch",
+        prefill_chunk_size=16,
+        prefill_local_window=32,
+        prefill_state_update_size=16,
+        leaf_layout="expert" if args.kv_bits == 8 and args.levels == 2 else "query",
+        leaf_block_m=16,
+        leaf_block_n=32,
+        leaf_num_warps=1,
+        dense_leaf_storage=not args.physical_pages,
     )
     active = torch.zeros(4, dtype=torch.long, device=device)
     pool = VLLMLayerLODPool(
@@ -107,6 +155,10 @@ def main() -> None:
     )
     # Force frequent state maintenance so the short test exercises catch-up.
     pool.engine.decode_state_update_len = 4
+    if settings.levels == 2 and args.kv_bits == 0:
+        # Exercise the cache-indexed cooperative Triton path at a small test
+        # capacity; production enables it automatically at long context.
+        pool._use_cooperative_decode = lambda: True
 
     source_keys = torch.full((1, 2, 8), -1, dtype=torch.int32, device=device)
     source_values = torch.full_like(source_keys, -1)
@@ -186,6 +238,19 @@ def main() -> None:
         rtol=4e-2,
         atol=2e-2,
     )
+    if args.prefill_only:
+        page = pool.state["page_cache"]
+        if args.kv_bits == 8 and args.levels == 2:
+            key_storage = page.get("leaf_k", page.get("page_k"))
+            value_storage = page.get("leaf_v", page.get("page_v"))
+            assert isinstance(key_storage, torch.Tensor)
+            assert isinstance(value_storage, torch.Tensor)
+            assert key_storage.dtype == torch.int8
+            assert value_storage.dtype == torch.int8
+            assert bool((page["page_k_token_scales"][:2] > 0).any())
+            assert bool((page["page_v_token_scales"][:2] > 0).any())
+        print("vLLM LOD prefill verification passed")
+        return
 
     cached_length = 5
     cached_query = torch.randn(
@@ -251,6 +316,13 @@ def main() -> None:
         expected = []
         for batch_row, pool_row in enumerate((1, 0)):
             reference = _clone_cache(pool._row_cache(pool_row))
+            if args.physical_pages:
+                # Compare physical addressing against the same pages exposed
+                # through the already-verified indexed addressing path.
+                _physical_to_indexed_reference(reference)
+            # Captured vLLM decode specializes one fixed state extent for all
+            # rows. Zero-count padding must therefore be semantically inert.
+            reference.state["state_len"] = pool.state_capacity
             output, _ = pool.engine(
                 query[batch_row : batch_row + 1].unsqueeze(2),
                 new_key[batch_row : batch_row + 1].unsqueeze(2),
@@ -264,6 +336,11 @@ def main() -> None:
         output = torch.empty_like(query)
         pool.decode(query, new_key, new_value, metadata, output)
         reference = torch.cat(expected).float()
+        if not bool(torch.isfinite(reference).all()) or not bool(torch.isfinite(output[:2]).all()):
+            raise AssertionError(
+                f"nonfinite decode: reference={torch.isfinite(reference).float().mean().item():.4f} "
+                f"pool={torch.isfinite(output[:2]).float().mean().item():.4f}"
+            )
         torch.testing.assert_close(
             output[:2].float(),
             reference,
@@ -329,6 +406,7 @@ def main() -> None:
             request_capacity=serving_capacity,
             routing_geometry=args.routing_geometry,
             cache_ownership="lod",
+            prefill_local_backend="torch",
         )
         serving_pool = VLLMLayerLODPool(
             _Layer(device),
@@ -414,6 +492,7 @@ def main() -> None:
     torch.cuda.synchronize(device)
     print(
         f"vLLM LOD fixed pool KV{args.kv_bits} "
+        f"K{settings.resolved_key_bits}/V{settings.resolved_value_bits} "
         f"routing={args.routing_geometry} parity: PASS"
     )
 

@@ -3,8 +3,8 @@
 The backend starts at Hugging Face's post-QKV/post-position-encoding attention
 interface.  Projections, positional encoding, output gating, and output
 projection therefore remain model-owned.  ``HFLODCache`` owns every tensor
-used by LOD attention, including exact BF16 or INT4 leaves; Hugging Face's
-cache API is used only for lifecycle and generation bookkeeping.
+used by LOD attention, including exact BF16, INT4, or native INT8 leaves;
+Hugging Face's cache API is used only for lifecycle and generation bookkeeping.
 
 Left-padded batches are partitioned only at the attention boundary, preserving
 batching through the rest of the model while keeping padding out of every LOD
@@ -73,6 +73,19 @@ class HFLODSettings:
             raise ValueError(
                 "custom state clustering currently requires the kernel backend"
             )
+        if self.engine_backend != "kernel" and (
+            self.config.leaf_seal_capacity is not None
+            or self.config.prefill_int8_leaf_mma
+            or self.config.prefill_int8_coarse_mma
+        ):
+            raise ValueError(
+                "sealed or native INT8 LOD prefill requires the kernel backend"
+            )
+        if self.open_count == 0 and (
+            self.config.leaf_seal_capacity is not None
+            or self.config.prefill_int8_leaf_mma
+        ):
+            raise ValueError("exact-leaf controls require at least one open route")
         if (
             (
                 self.config.routing_leaf_mass_review_top_p is not None
@@ -256,6 +269,8 @@ def _clear_engine_derived_state(engine: nn.Module | None) -> None:
             setattr(engine, attribute, None)
     for attribute in (
         "_lod_decode_attention_buffers",
+        "_lod_premerge_buffers",
+        "_lod_premerge_owner_buffer",
         "_lod_route_buffers",
         "_lod_state_maxsim_buffers",
         "_lod_state_update_buffers",

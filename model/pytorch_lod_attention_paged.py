@@ -51,7 +51,7 @@ from .pytorch_lod_attention_fast import (
 
 @dataclass(frozen=True)
 class PagedLODConfig(LODConfig):
-    """LOD settings plus optional chronological pages and INT4 storage."""
+    """LOD settings plus optional chronological pages and quantized storage."""
 
     page_size: int | None = 16
     kv_bits: int = 0
@@ -63,12 +63,16 @@ class PagedLODConfig(LODConfig):
             raise ValueError("page_size must be positive or None")
         if self.page_size is not None and self.chunk_size % self.page_size:
             raise ValueError("page_size must divide chunk_size for causal prefill")
-        if self.kv_bits not in (0, 4):
-            raise ValueError("kv_bits must be zero or four")
+        if self.kv_bits not in (0, 4, 8):
+            raise ValueError("kv_bits must be zero, four, or eight")
         if self.kv_bits and self.page_size is None:
-            raise ValueError("INT4 storage requires pages")
+            raise ValueError("quantized storage requires pages")
         if self.quant_group_size <= 0:
             raise ValueError("quant_group_size must be positive")
+        if self.leaf_seal_capacity is not None:
+            raise ValueError("sealed exact leaves require flat two-level LOD")
+        if self.prefill_int8_leaf_mma:
+            raise ValueError("native INT8 leaf MMA requires flat two-level LOD")
 
 
 def _tensor_bytes(tensor: torch.Tensor | None) -> int:

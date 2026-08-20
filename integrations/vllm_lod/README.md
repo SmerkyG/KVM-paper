@@ -19,9 +19,13 @@ FP16/BF16 K/V remains authoritative, prefill can run natively, and LOD is a
 rebuildable decode shadow. This mode is useful for comparisons but does not
 provide the authoritative mode's memory saving.
 
-INT4 is applied only after keys have been assigned to a semantic LOD region.
-The plugin never quantizes chronological vLLM cache blocks as if they were LOD
-pages.
+The default `VLLM_LOD_LEVELS=2` path is the current flat BF16 implementation
+shared with the Hugging Face benchmark. Exact leaves are stored once in a
+dense chronological pool; compact per-centroid page tables index that pool.
+It opens all exact pages in each of the top-eight centroids. Set
+`VLLM_LOD_DENSE_LEAF_STORAGE=0` only for matched comparisons with the older
+region-owned physical-page layout. `VLLM_LOD_LEVELS=3` retains the older
+recursive page-summary implementation and its INT4/INT8 storage modes.
 
 ## Install and run
 
@@ -37,7 +41,8 @@ Then select the registered custom backend:
 VLLM_PLUGINS=lod_attention \
 VLLM_LOD_CACHE_OWNERSHIP=lod \
 VLLM_LOD_POOL_SIZE=8 \
-VLLM_LOD_KV_BITS=4 \
+VLLM_LOD_LEVELS=2 \
+VLLM_LOD_KV_BITS=0 \
 vllm serve MODEL \
   --attention-backend CUSTOM \
   --kv-cache-dtype bfloat16 \
@@ -62,14 +67,40 @@ The optional `VLLM_LOD_MAX_CONTEXT` caps each LOD row. It defaults to vLLM's
 `max_model_len`. Other settings are `VLLM_LOD_CHUNK_SIZE` (256),
 `VLLM_LOD_LOCAL_WINDOW` (512), `VLLM_LOD_STATE_FACTOR` (16),
 `VLLM_LOD_STATE_MIN` (256), `VLLM_LOD_OPEN_COUNT` (8), and
-`VLLM_LOD_QUANT_GROUP_SIZE` (32). Authoritative ownership forces
+`VLLM_LOD_QUANT_GROUP_SIZE` (32). The two-tier path additionally defaults to
+4,096-token prefill chunks, a 4,864-token prefill local field, 4,096-token
+prefill state updates, expert-layout BF16 leaf attention, and the two-level
+page directory. These are configurable with `VLLM_LOD_PREFILL_CHUNK_SIZE`,
+`VLLM_LOD_PREFILL_LOCAL_WINDOW`, `VLLM_LOD_PREFILL_STATE_UPDATE_SIZE`,
+`VLLM_LOD_LEAF_LAYOUT`, and `VLLM_LOD_LEAF_PAGED_DIRECTORY`.
+`VLLM_LOD_LEAF_SEAL_CAPACITY` is an opt-in diagnostic; it is unset by default,
+and the reported two-tier benchmarks retain every leaf. The two-tier cache accepts
+`VLLM_LOD_KV_BITS=0` (BF16) or `8` (signed INT8 K/V with one BF16 scale per
+token); its routing state and page summaries remain BF16.
+`VLLM_LOD_DENSE_LEAF_STORAGE` defaults to true and
+removes the physical page-fragmentation overhead without discarding leaves.
+`VLLM_LOD_PREFILL_INT8_ROUTE_MMA=1` enables the experimental Sage-style
+fused centroid QK path: queries and centroid keys are scaled per row, QK uses
+INT8 MMA, and route selection plus stable coarse attention consume the scores
+without materializing a query-by-centroid tensor. It remains opt-in because
+the current Triton value accumulator reduces occupancy on gfx942; the regular
+materialized route GEMM is faster in the measured Qwen3.5-0.8B configuration.
+For leaf attention, the Sage-style path quantizes Q and uses INT8 QK MMA.
+Below 64K it dequantizes V for BF16 PV MMA; at 64K and above it also quantizes
+the probabilities for INT8 PV because the longer posting-list scan amortizes
+that fixed work. `VLLM_LOD_PREFILL_INT8_PV_MMA=0` or `1` overrides this
+automatic crossover. Batch-8 INT8 leaf kernels use two warps by default; one
+warp under-occupies the true batched workload.
+Recursive three-tier storage accepts 0, 4, or 8 bits;
+quantized storage requires the same precision for K and V. Authoritative ownership forces
 `VLLM_LOD_PREFILL_MODE=direct`. `VLLM_LOD_NATIVE_STAGING_CHUNK` (1024) controls
 the exact chronological window retained when prefix caching is enabled.
 `VLLM_LOD_NATIVE_PLACEHOLDER_CACHE` defaults to true and removes chronological
 attention K/V when prefix caching is disabled. `VLLM_LOD_NATIVE_CACHE_HEADROOM`
 defaults to 1.0; prefix caching enforces a 2.0 minimum for dormant hashed
 blocks.
-`VLLM_LOD_ROUTING_GEOMETRY=auto` selects coherence-aware state routing for
+`VLLM_LOD_ROUTING_GEOMETRY=raw` matches the current two-tier HF configuration.
+`auto` selects coherence-aware state routing for
 attention modules with normalized keys and spherical routing for unnormalized
 keys. `raw`, `spherical`, and `coherence` are explicit diagnostic overrides.
 
@@ -88,8 +119,12 @@ keys. `raw`, `spherical`, and `coherence` are explicit diagnostic overrides.
 - Authoritative mode disables vLLM's asynchronous two-model-batch queue because
   an in-place LOD row must settle before its next update is prepared. Ordinary
   request batching and CUDA graph replay remain enabled.
-- Exact protected/sink K/V lives in a separate side cache rather than consuming
-  clustered state slots, and is fused into the final attention reduction.
+- Use a 16,384-token `long_prefill_token_threshold` per request. The aggregate
+  `max_num_batched_tokens` should remain `batch_size * 16,384` (131,072 for
+  batch 8); setting the aggregate limit itself to 16,384 serializes the batch.
+- Two-tier mode protects the sink inside the state, matching the current HF
+  implementation. Recursive compatibility mode retains its separate sink
+  branch.
 - State/page pools and one maximum-batch decode workspace are reserved before
   vLLM computes its native KV-block budget. Smaller captured batches use stable
   views of that workspace, so decode replay does not allocate or change tensor
@@ -97,6 +132,14 @@ keys. `raw`, `spherical`, and `coherence` are explicit diagnostic overrides.
 - State/page catch-up runs in `ModelState.preprocess_state`, between graph
   replays, in 256-token batches. Decode itself only appends to a fixed local
   tail and advances one integer length per active row.
+- Long-context two-tier decode groups routes across the four GQA heads and
+  loads each union centroid once. The gfx942 HIP kernel and its Triton fallback
+  both consume vLLM's persistent cache-row indirection, so reordered requests
+  and graph-padding rows do not assume query-row/cache-row identity.
+- Flat INT8 currently uses the regular split decode kernel. The cooperative
+  GQA decoder remains enabled for BF16, but is gated for INT8 because its graph
+  capture path faults with physical INT8 pages; this does not affect INT8
+  prefill.
 - A direct-prefill mixed batch uses LOD only when every request can advance an
   exact authoritative prefix. In `lod` ownership, a missing prefix is an error:
   bounded staging cannot reconstruct discarded remote history. In `dual`
@@ -154,6 +197,12 @@ recursive LOD decode. The final NIAH run used CUDA graphs. The worker recorded
 48 real authoritative cache installations: six global-attention layers for
 each of eight requests.
 
+The current flat two-tier BF16 port was separately checked after enabling raw
+routing and the 4,096/4,864/4,096 prefill schedule. It also scored 8/8 on the
+same 8K NIAH-S3 batch, with direct LOD prefill and captured LOD decode both
+exercised. See
+`artifacts/vllm_lod_quality/qwen35_0p8b_two_tier_raw_bf16_niah_s3_8k_s8.json`.
+
 Full 503-example LongBench v2 runs used identical guided A-D decoding for full
 and LOD attention. After fixing cached-prefill finalization, stable page
 chronology, and unused INT4-page summaries, Qwen3.5-35B-A3B LOD scored 229/503
@@ -173,6 +222,40 @@ points on Qwen3.8; NIAH success alone is not sufficient validation for this
 approximation.
 
 ## Warm serving performance
+
+The flat physical-page INT8 path now allocates the persistent vLLM pool as
+signed INT8 and retains its per-token K/V scales. Before this fix, only the
+transient prefill cache was INT8: installation copied its integer codes into a
+BF16 destination and discarded the scales. Results from that broken path did
+not measure valid INT8 attention.
+
+The corrected uncapped Qwen3.5-0.8B batch-8 measurements below use 16K chunks
+per request, a 128K aggregate scheduler budget, M=16/N=32 leaf tiles, two
+warps, and 4,096-token state updates. The 32K pair disables asynchronous
+scheduling so both precisions execute the same 78 direct-prefill calls. The
+64K pair has identical scheduler diagnostics. INT8 uses BF16 PV below 64K and
+INT8 PV at 64K, selected automatically.
+
+| Context | BF16 prefill | INT8 prefill | INT8 change | BF16 LOD cache | INT8 LOD cache |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 32K | 1.791 s | 1.798 s | 0.4% slower | 9.05 GB | 5.03 GB |
+| 64K | 4.089 s | 3.952 s | 3.3% faster | 14.56 GB | 7.95 GB |
+
+Thus the remaining 32K difference is effectively noise-sized, while the
+longer posting-list scan amortizes probability quantization at 64K. Cache
+storage falls by 44.4% and 45.4%, respectively; BF16 routing state and page
+metadata prevent the total from reaching exactly 50%. The optimized INT8
+kernel retains NIAH-S3 accuracy at 64/64. On eight 8K ProLong examples it has
+token CE 1.924265 and perplexity 6.850114, versus 1.923501--1.923557 for the
+matched BF16 checks.
+
+Recursive cache-native INT8 uses signed 8-bit page-mean residuals for both K and V, with
+one BF16 scale per page and 32 channels. At 8K and batch eight on
+Qwen3.5-0.8B, five warm 1,025-token runs measured 0.418 s prefill and 3.677 ms
+per decode batch step. That is within 0.3% of BF16 decode, 3.1% faster than
+INT4 decode, and 7.6% faster than INT4 prefill. Its 1.341 GB LOD cache was
+30.2% smaller than BF16. See
+`artifacts/vllm_lod_speed/INT8_8K_B8_20260817.md` for the paired results.
 
 The following Qwen3.5-0.8B measurements use batch size eight, CUDA graphs, a
 65,536-token scheduler budget, an 8,192-token long-prefill threshold, 1,025

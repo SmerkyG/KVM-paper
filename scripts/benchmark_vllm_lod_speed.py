@@ -129,7 +129,7 @@ def timed_generate(llm, prompts, params) -> tuple[float, float, float]:
     return elapsed, first_token - scheduled, last_token - first_token
 
 
-def inspect_lod_model(model) -> dict[str, int]:
+def inspect_lod_model(model) -> dict[str, int | bool | None]:
     diagnostics = {
         "layers": 0,
         "installs": 0,
@@ -153,6 +153,32 @@ def inspect_lod_model(model) -> dict[str, int]:
         pool = getattr(module, "_vllm_lod_pool", None)
         if pool is None:
             continue
+        if diagnostics["layers"] == 0:
+            # Record the resolved worker-side configuration, rather than only
+            # benchmark CLI overrides.  In particular this makes an uncapped
+            # run and the automatic short/long INT8 PV choice auditable from
+            # the artifact itself.
+            diagnostics.update(
+                levels=int(pool.settings.levels),
+                kv_bits=int(pool.settings.kv_bits),
+                dense_leaf_storage=bool(pool.settings.dense_leaf_storage),
+                leaf_seal_capacity=pool.settings.leaf_seal_capacity,
+                prefill_chunk_len=(
+                    int(pool.engine.prefill_chunk_len)
+                    if pool.engine.prefill_chunk_len is not None
+                    else None
+                ),
+                prefill_state_update_len=(
+                    int(pool.engine.prefill_state_update_len)
+                    if pool.engine.prefill_state_update_len is not None
+                    else None
+                ),
+                prefill_int8_leaf_mma=bool(pool.engine.prefill_int8_leaf_mma),
+                prefill_int8_pv_mma=bool(pool.engine.prefill_int8_pv_mma),
+                prefill_int8_coarse_mma=bool(pool.engine.prefill_int8_coarse_mma),
+                leaf_num_warps=int(pool.engine.leaf_num_warps),
+                decode_gqa_cooperative=bool(pool._use_cooperative_decode()),
+            )
         diagnostics["layers"] += 1
         diagnostics["installs"] += int(pool.install_count)
         diagnostics["batched_install_calls"] += int(pool.batched_install_calls)
@@ -222,6 +248,11 @@ def install_lod_phase_timers(model) -> int:
             # Recursive prefill calls the residual-page function directly
             # instead of passing through ``_paged_leaf_attention``.
             engine._lod_leaf_timing_events = {"total": events["exact_leaf"]}
+        else:
+            # The expert leaf kernel exposes dispatch, query quantization/pack,
+            # attention, and reduction boundaries. Keep those separate from
+            # the outer exact-leaf phase so INT8 overhead is attributable.
+            engine._lod_leaf_timing_events = {}
         for phase, method_name in methods.items():
             original = getattr(engine, method_name)
 
@@ -262,6 +293,14 @@ def summarize_lod_phase_timers(model) -> dict[str, dict[str, float | int]]:
                 float(begin.elapsed_time(end)) for begin, end in pairs
             )
             calls[phase] = calls.get(phase, 0) + len(pairs)
+        if not getattr(pool.engine, "recursive_page_lod", False):
+            leaf_events = getattr(pool.engine, "_lod_leaf_timing_events", {})
+            for leaf_phase, pairs in leaf_events.items():
+                phase = f"exact_leaf_{leaf_phase}"
+                totals[phase] = totals.get(phase, 0.0) + sum(
+                    float(begin.elapsed_time(end)) for begin, end in pairs
+                )
+                calls[phase] = calls.get(phase, 0) + len(pairs)
     return {
         phase: {"milliseconds": totals[phase], "calls": calls[phase]}
         for phase in sorted(totals)
@@ -335,11 +374,11 @@ def main() -> None:
     if (
         args.batch_size < 1
         or min(prompt_lengths) < 2
-        or args.decode_tokens < 2
+        or args.decode_tokens < 1
         or args.repeats < 1
     ):
         raise ValueError(
-            "length >= 2, batch size >= 1, decode tokens >= 2, and repeats >= 1 required"
+            "length >= 2, batch size >= 1, decode tokens >= 1, and repeats >= 1 required"
         )
     if len(prompt_lengths) != args.batch_size:
         raise ValueError("--lengths must contain exactly --batch-size entries")
@@ -350,23 +389,48 @@ def main() -> None:
         "LOD attention retains precise high-mass regions and summarizes the rest. ",
         add_special_tokens=False,
     )["input_ids"]
+    # Give every request a distinct leading token pattern. Identical synthetic
+    # prompts exercise the LOD pool's content-matched completed-prefix reuse,
+    # which changes the number and batch shape of measured prefill calls based
+    # on scheduler timing and obscures kernel occupancy comparisons.
+    request_seeds = [
+        tokenizer(
+            f"LOD benchmark request {request_index}: ",
+            add_special_tokens=False,
+        )["input_ids"]
+        + seed
+        for request_index in range(args.batch_size)
+    ]
     prompts = [
         {
             "prompt_token_ids": (
-                seed * ((length + len(seed) - 1) // len(seed))
+                request_seed
+                * ((length + len(request_seed) - 1) // len(request_seed))
             )[:length]
         }
-        for length in prompt_lengths
+        for request_seed, length in zip(request_seeds, prompt_lengths)
     ]
     prompt_tokens = sum(prompt_lengths)
-    max_batched = args.max_num_batched_tokens or prompt_tokens
+    # Cap each request at a consistent 16K scheduler chunk while retaining the
+    # actual request batch. ``max_num_batched_tokens`` is an aggregate budget;
+    # setting it to only 16K serializes a nominal batch of eight and gives
+    # misleading kernel-occupancy results. This 8 x 16K default also stays far
+    # below the ROCm Qwen3.5 GDN fault seen for one 8 x 64K (524K-token) step.
+    per_request_prefill_chunk = min(max(prompt_lengths), 16_384)
+    max_batched = args.max_num_batched_tokens or min(
+        prompt_tokens,
+        args.batch_size * per_request_prefill_chunk,
+    )
+    long_prefill_token_threshold = (
+        args.long_prefill_token_threshold or per_request_prefill_chunk
+    )
     kwargs = {
         "model": args.checkpoint,
         "dtype": "bfloat16",
         "max_model_len": max(prompt_lengths) + args.decode_tokens + 16,
         "max_num_seqs": args.batch_size,
         "max_num_batched_tokens": max_batched,
-        "long_prefill_token_threshold": args.long_prefill_token_threshold,
+        "long_prefill_token_threshold": long_prefill_token_threshold,
         "gpu_memory_utilization": args.gpu_memory_utilization,
         "enforce_eager": args.enforce_eager,
         "async_scheduling": not args.disable_async_scheduling,
@@ -480,7 +544,7 @@ def main() -> None:
         "decode_interval_tokens": decode_interval,
         "repeats": args.repeats,
         "max_num_batched_tokens": max_batched,
-        "long_prefill_token_threshold": args.long_prefill_token_threshold,
+        "long_prefill_token_threshold": long_prefill_token_threshold,
         "enforce_eager": args.enforce_eager,
         "async_scheduling_requested": not args.disable_async_scheduling,
         "jit_monitor_verbose": args.jit_monitor_verbose,
@@ -515,12 +579,20 @@ def main() -> None:
             prompt_tokens / prefill_elapsed
         ),
         "prefill_plus_decode_seconds": total_elapsed,
-        "marginal_decode_ms_per_token": 1000.0 * marginal_decode / marginal_tokens,
+        "marginal_decode_ms_per_token": (
+            1000.0 * marginal_decode / marginal_tokens
+            if marginal_tokens
+            else None
+        ),
         "marginal_decode_ms_per_batch_step": (
             1000.0 * marginal_decode / decode_interval
+            if decode_interval
+            else None
         ),
         "marginal_decode_tokens_per_second": (
-            marginal_tokens / marginal_decode if marginal_decode else None
+            marginal_tokens / marginal_decode
+            if marginal_decode and marginal_tokens
+            else None
         ),
     }
     if args.mode == "lod":

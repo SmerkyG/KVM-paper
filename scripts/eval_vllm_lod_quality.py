@@ -240,7 +240,15 @@ def evaluate_prolong(args: argparse.Namespace, tokenizer, llm) -> dict:
         detokenize=False,
     )
     started = time.perf_counter()
-    outputs = llm.generate(prompts, params, use_tqdm=True)
+    outputs = []
+    for begin in range(0, len(prompts), args.batch_size):
+        outputs.extend(
+            llm.generate(
+                prompts[begin : begin + args.batch_size],
+                params,
+                use_tqdm=True,
+            )
+        )
     elapsed = time.perf_counter() - started
     sample_records = []
     total_nll = 0.0
@@ -295,7 +303,19 @@ def evaluate_niah_s3(args: argparse.Namespace, tokenizer, llm) -> dict:
         detokenize=True,
     )
     started = time.perf_counter()
-    outputs = llm.generate(prompts, params, use_tqdm=True)
+    # Keep each submission within the authoritative LOD pool. Passing all 64
+    # prompts to vLLM at once lets the scheduler admit replacement requests as
+    # earlier rows finish, which can evict semantic cache rows still needed by
+    # in-flight decode and spuriously requests an impossible native fallback.
+    outputs = []
+    for begin in range(0, len(prompts), args.batch_size):
+        outputs.extend(
+            llm.generate(
+                prompts[begin : begin + args.batch_size],
+                params,
+                use_tqdm=True,
+            )
+        )
     elapsed = time.perf_counter() - started
     records = []
     for document, output in zip(documents, outputs):

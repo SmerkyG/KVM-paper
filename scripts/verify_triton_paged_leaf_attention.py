@@ -4,13 +4,16 @@
 from __future__ import annotations
 
 import math
+import os
 
 import torch
 
 from model.kernels.paged_leaf_attention import (
+    append_paged_int8_kv,
     append_paged_kv,
     append_quantized_virtual_paged_kv,
     append_virtual_paged_kv,
+    dense_page_summary_attention,
     fused_decode_paged_lod_attention,
     new_fused_decode_buffers,
     paged_leaf_attention,
@@ -18,6 +21,7 @@ from model.kernels.paged_leaf_attention import (
     query_major_indexed_residual_page_attention,
     query_major_residual_page_attention,
     quantize_page_summaries_int8,
+    quantize_virtual_paged_kv,
     quantize_virtual_paged_kv_int4,
 )
 from model.kernels.lod_kernels import merge_attention_branches_with_sink
@@ -28,27 +32,34 @@ def verify_fused_sink_branch_merge(device: torch.device) -> None:
     batch, query_heads, kv_heads = 2, 8, 2
     query_len, head_dim, sink_len = 17, 128, 3
     q = torch.randn(
-        batch, query_heads, query_len, head_dim,
-        device=device, dtype=torch.bfloat16,
+        batch,
+        query_heads,
+        query_len,
+        head_dim,
+        device=device,
+        dtype=torch.bfloat16,
     )
     sink_k = torch.randn(
-        batch, kv_heads, sink_len, head_dim,
-        device=device, dtype=torch.bfloat16,
+        batch,
+        kv_heads,
+        sink_len,
+        head_dim,
+        device=device,
+        dtype=torch.bfloat16,
     )
     sink_v = torch.randn_like(sink_k)
     outputs = [torch.randn_like(q) for _ in range(2)]
-    lses = [
-        torch.randn(batch, query_heads, query_len, device=device)
-        for _ in range(2)
-    ]
+    lses = [torch.randn(batch, query_heads, query_len, device=device) for _ in range(2)]
     # Exercise non-contiguous query slices from split local prefill attention.
     tertiary_storage = torch.randn(
-        batch, query_heads, query_len + 3, head_dim,
-        device=device, dtype=torch.bfloat16,
+        batch,
+        query_heads,
+        query_len + 3,
+        head_dim,
+        device=device,
+        dtype=torch.bfloat16,
     )
-    tertiary_lse_storage = torch.randn(
-        batch, query_heads, query_len + 3, device=device
-    )
+    tertiary_lse_storage = torch.randn(batch, query_heads, query_len + 3, device=device)
     tertiary_output = tertiary_storage[..., 3:, :]
     tertiary_lse = tertiary_lse_storage[..., 3:]
     scale = head_dim**-0.5
@@ -82,6 +93,286 @@ def verify_fused_sink_branch_merge(device: torch.device) -> None:
     torch.cuda.synchronize(device)
     torch.testing.assert_close(actual.float(), expected.float(), rtol=2e-2, atol=8e-3)
 
+
+def verify_dense_page_summary_attention(device: torch.device) -> None:
+    batch, query_heads, kv_heads = 1, 4, 1
+    query_len, pages, page_size, head_dim = 17, 64, 16, 128
+    topk = 4
+    union_query_tile = 32
+    tokens = pages * page_size
+    q = torch.randn(
+        batch,
+        query_heads,
+        query_len,
+        head_dim,
+        device=device,
+        dtype=torch.bfloat16,
+    )
+    leaf_k = torch.randn(
+        batch, kv_heads, tokens, head_dim, device=device, dtype=torch.bfloat16
+    )
+    leaf_v = torch.randn_like(leaf_k)
+    counts = torch.full(
+        (batch, kv_heads, pages), page_size, device=device, dtype=torch.int32
+    )
+    counts[..., -1] = 7
+    page_view_k = leaf_k.view(batch, kv_heads, pages, page_size, head_dim)
+    page_view_v = leaf_v.view_as(page_view_k)
+    valid = torch.arange(page_size, device=device).view(
+        1, 1, 1, page_size, 1
+    ) < counts.unsqueeze(-1).unsqueeze(-1)
+    page_sum_k = torch.where(valid, page_view_k, 0).float().sum(3).to(leaf_k.dtype)
+    page_sum_v = torch.where(valid, page_view_v, 0).float().sum(3).to(leaf_v.dtype)
+    page_indices = torch.arange(tokens, device=device, dtype=torch.int32).view(
+        1, 1, pages, page_size
+    )
+    page_indices = torch.where(valid.squeeze(-1), page_indices, -1)
+    next_page = torch.full((batch, kv_heads), pages, device=device, dtype=torch.int32)
+    scale = head_dim**-0.5
+    residual, residual_lse, exact, exact_lse, selected = dense_page_summary_attention(
+        q,
+        leaf_k,
+        leaf_v,
+        page_indices,
+        page_sum_k,
+        page_sum_v,
+        counts,
+        next_page,
+        kv_group_size=query_heads // kv_heads,
+        scale=scale,
+        top_pages=topk,
+        block_m=16,
+        block_n=16,
+        num_warps=4,
+    )
+
+    repeated_counts = counts.repeat_interleave(query_heads, dim=1)
+    means_k = (
+        page_sum_k.float() / counts.clamp_min(1).unsqueeze(-1)
+    ).repeat_interleave(query_heads, dim=1)
+    means_v = (
+        page_sum_v.float() / counts.clamp_min(1).unsqueeze(-1)
+    ).repeat_interleave(query_heads, dim=1)
+    page_scores = torch.matmul(q.float(), means_k.transpose(-1, -2)) * scale
+    page_scores += repeated_counts.float().log().unsqueeze(2)
+    reference_scores, reference_pages = page_scores.topk(topk, dim=-1)
+    residual_scores = page_scores.clone()
+    residual_scores.scatter_(-1, reference_pages, float("-inf"))
+    reference_residual_lse = torch.logsumexp(residual_scores, dim=-1)
+    reference_residual = torch.matmul(torch.softmax(residual_scores, dim=-1), means_v)
+
+    selected_counts = torch.gather(
+        repeated_counts.unsqueeze(2).expand(-1, -1, query_len, -1),
+        -1,
+        reference_pages,
+    )
+    token_offset = torch.arange(page_size, device=device)
+    token_index = reference_pages.unsqueeze(-1) * page_size + token_offset
+    token_valid = token_offset < selected_counts.unsqueeze(-1)
+    flat_index = token_index.flatten(-2)
+    repeated_k = leaf_k.repeat_interleave(query_heads, dim=1)
+    repeated_v = leaf_v.repeat_interleave(query_heads, dim=1)
+    expanded_k = repeated_k.unsqueeze(2).expand(-1, -1, query_len, -1, -1)
+    expanded_v = repeated_v.unsqueeze(2).expand_as(expanded_k)
+    gathered_k = torch.gather(
+        expanded_k,
+        3,
+        flat_index.unsqueeze(-1).expand(-1, -1, -1, -1, head_dim),
+    )
+    gathered_v = torch.gather(
+        expanded_v,
+        3,
+        flat_index.unsqueeze(-1).expand(-1, -1, -1, -1, head_dim),
+    )
+    exact_scores = (q.float().unsqueeze(-2) * gathered_k.float()).sum(-1) * scale
+    exact_scores.masked_fill_(~token_valid.flatten(-2), float("-inf"))
+    reference_exact_lse = torch.logsumexp(exact_scores, dim=-1)
+    reference_exact = torch.matmul(
+        torch.softmax(exact_scores, dim=-1).unsqueeze(-2), gathered_v.float()
+    ).squeeze(-2)
+
+    torch.cuda.synchronize(device)
+    if not torch.equal(
+        selected.long().sort(dim=-1).values,
+        reference_pages.sort(dim=-1).values,
+    ):
+        raise AssertionError("dense page attention selected the wrong pages")
+    torch.testing.assert_close(
+        residual.float(), reference_residual, rtol=0.02, atol=0.02
+    )
+    torch.testing.assert_close(
+        residual_lse.float(), reference_residual_lse, rtol=0.002, atol=0.01
+    )
+    torch.testing.assert_close(exact.float(), reference_exact, rtol=0.02, atol=0.02)
+    torch.testing.assert_close(
+        exact_lse.float(), reference_exact_lse, rtol=0.002, atol=0.01
+    )
+
+    (
+        union_residual,
+        union_residual_lse,
+        union_exact,
+        union_exact_lse,
+        union_selected,
+    ) = dense_page_summary_attention(
+        q,
+        leaf_k,
+        leaf_v,
+        page_indices,
+        page_sum_k,
+        page_sum_v,
+        counts,
+        next_page,
+        kv_group_size=query_heads // kv_heads,
+        scale=scale,
+        top_pages=topk,
+        block_m=16,
+        block_n=16,
+        num_warps=4,
+        indexed_aiter_union=True,
+        union_query_tile=union_query_tile,
+    )
+    reference_union_residual = torch.empty_like(reference_residual)
+    reference_union_residual_lse = torch.empty_like(reference_residual_lse)
+    reference_union_exact = torch.empty_like(reference_exact)
+    reference_union_exact_lse = torch.empty_like(reference_exact_lse)
+    for query_begin in range(0, query_len, union_query_tile):
+        query_end = min(query_begin + union_query_tile, query_len)
+        union = torch.unique(reference_pages[:, :, query_begin:query_end])
+        union_page_scores = page_scores[:, :, query_begin:query_end, union]
+        kept_scores = page_scores[:, :, query_begin:query_end].clone()
+        kept_scores[..., union] = float("-inf")
+        reference_union_residual_lse[:, :, query_begin:query_end] = torch.logsumexp(
+            kept_scores, dim=-1
+        )
+        reference_union_residual[:, :, query_begin:query_end] = torch.matmul(
+            torch.softmax(kept_scores, dim=-1), means_v
+        )
+        union_counts = counts[..., union]
+        union_offsets = torch.arange(page_size, device=device)
+        union_token_indices = (
+            union[:, None] * page_size + union_offsets[None, :]
+        ).reshape(-1)
+        union_token_valid = (
+            union_offsets[None, :] < union_counts.reshape(-1, 1)
+        ).reshape(-1)
+        union_token_indices = union_token_indices[union_token_valid]
+        union_keys = leaf_k[..., union_token_indices, :].repeat_interleave(
+            query_heads, dim=1
+        )
+        union_values = leaf_v[..., union_token_indices, :].repeat_interleave(
+            query_heads, dim=1
+        )
+        tile_q = q[:, :, query_begin:query_end]
+        union_scores = (
+            torch.matmul(tile_q.float(), union_keys.float().transpose(-1, -2)) * scale
+        )
+        reference_union_exact_lse[:, :, query_begin:query_end] = torch.logsumexp(
+            union_scores, dim=-1
+        )
+        reference_union_exact[:, :, query_begin:query_end] = torch.matmul(
+            torch.softmax(union_scores, dim=-1), union_values.float()
+        )
+    torch.cuda.synchronize(device)
+    if not torch.equal(
+        union_selected.long().sort(dim=-1).values,
+        reference_pages.sort(dim=-1).values,
+    ):
+        raise AssertionError("tile-union dense attention selected the wrong pages")
+    torch.testing.assert_close(
+        union_residual_lse.float(),
+        reference_union_residual_lse,
+        rtol=0.003,
+        atol=0.015,
+    )
+    torch.testing.assert_close(
+        union_exact.float(), reference_union_exact, rtol=0.025, atol=0.025
+    )
+    torch.testing.assert_close(
+        union_exact_lse.float(),
+        reference_union_exact_lse,
+        rtol=0.002,
+        atol=0.01,
+    )
+    # Union removal reconstructs the residual numerator from the BF16 full
+    # summary output.  Its normalized value is ill-conditioned when the union
+    # owns almost all summary mass, but that branch is downweighted by exactly
+    # the same small mass during LSE merging.  Check the mass-weighted
+    # numerator and the observable merged output instead of magnifying that
+    # harmless cancellation in the standalone residual value.
+    page_normalizer = torch.maximum(
+        reference_union_residual_lse, reference_union_exact_lse
+    )
+    actual_residual_numerator = union_residual.float() * torch.exp(
+        union_residual_lse.float().unsqueeze(-1) - page_normalizer.unsqueeze(-1)
+    )
+    reference_residual_numerator = reference_union_residual * torch.exp(
+        reference_union_residual_lse.unsqueeze(-1) - page_normalizer.unsqueeze(-1)
+    )
+    torch.testing.assert_close(
+        actual_residual_numerator,
+        reference_residual_numerator,
+        rtol=0.04,
+        atol=0.025,
+    )
+    actual_page_weights = torch.softmax(
+        torch.stack((union_residual_lse, union_exact_lse), dim=-1), dim=-1
+    )
+    actual_page_output = (
+        union_residual.float() * actual_page_weights[..., 0, None]
+        + union_exact.float() * actual_page_weights[..., 1, None]
+    )
+    reference_page_weights = torch.softmax(
+        torch.stack((reference_union_residual_lse, reference_union_exact_lse), dim=-1),
+        dim=-1,
+    )
+    reference_page_output = (
+        reference_union_residual * reference_page_weights[..., 0, None]
+        + reference_union_exact * reference_page_weights[..., 1, None]
+    )
+    torch.testing.assert_close(
+        actual_page_output, reference_page_output, rtol=0.035, atol=0.025
+    )
+
+    split_residual, split_residual_lse, split_exact, split_exact_lse, split_selected = (
+        dense_page_summary_attention(
+            q,
+            leaf_k,
+            leaf_v,
+            page_indices,
+            page_sum_k,
+            page_sum_v,
+            counts,
+            next_page,
+            kv_group_size=query_heads // kv_heads,
+            scale=scale,
+            top_pages=topk,
+            block_m=16,
+            block_n=16,
+            num_warps=4,
+            split_kernels=True,
+        )
+    )
+    torch.cuda.synchronize(device)
+    if not torch.equal(
+        split_selected.long().sort(dim=-1).values,
+        reference_pages.sort(dim=-1).values,
+    ):
+        raise AssertionError("split dense page attention selected the wrong pages")
+    torch.testing.assert_close(
+        split_residual.float(), reference_residual, rtol=0.02, atol=0.02
+    )
+    torch.testing.assert_close(
+        split_residual_lse.float(), reference_residual_lse, rtol=0.002, atol=0.01
+    )
+    torch.testing.assert_close(
+        split_exact.float(), reference_exact, rtol=0.02, atol=0.02
+    )
+    torch.testing.assert_close(
+        split_exact_lse.float(), reference_exact_lse, rtol=0.002, atol=0.01
+    )
+
+
 def verify_page_append(device: torch.device) -> None:
     batch, kv_heads, slots, tokens, head_dim = 1, 4, 64, 256, 256
     page_size, inline_pages_per_slot, page_capacity = 16, 2, 256
@@ -101,9 +392,7 @@ def verify_page_append(device: torch.device) -> None:
         device=device,
         dtype=torch.int16,
     )
-    slot_lengths = torch.zeros(
-        batch, kv_heads, slots, device=device, dtype=torch.int32
-    )
+    slot_lengths = torch.zeros(batch, kv_heads, slots, device=device, dtype=torch.int32)
     overflow_page_keys = torch.full(
         (batch, kv_heads, 1024), -1, device=device, dtype=torch.int32
     )
@@ -196,6 +485,310 @@ def verify_page_append(device: torch.device) -> None:
                 )
 
 
+def verify_two_level_page_directory(device: torch.device) -> None:
+    """Cross multiple directory pages without a hash or oversized root."""
+    batch, kv_heads, slots, tokens, head_dim = 1, 2, 4, 2080, 64
+    page_size, directory_size = 16, 64
+    page_capacity = 256
+    page_k = torch.zeros(
+        batch,
+        kv_heads,
+        page_capacity,
+        page_size,
+        head_dim,
+        device=device,
+        dtype=torch.bfloat16,
+    )
+    page_v = torch.zeros_like(page_k)
+    # Four root entries address 256 physical pages, but every populated root
+    # entry occupies only one int32 per centroid.
+    slot_pages = torch.full(
+        (batch, kv_heads, slots, 4),
+        -1,
+        device=device,
+        dtype=torch.int32,
+    )
+    page_directory = torch.full(
+        (batch, kv_heads, page_capacity, directory_size),
+        -1,
+        device=device,
+        dtype=torch.int32,
+    )
+    overflow_page_keys = torch.full(
+        (batch, kv_heads, 1), -1, device=device, dtype=torch.int32
+    )
+    directory_next_page = torch.zeros((), device=device, dtype=torch.int32)
+    overflow_flag = torch.zeros((), device=device, dtype=torch.int32)
+    slot_lengths = torch.zeros(batch, kv_heads, slots, device=device, dtype=torch.int32)
+    next_page = torch.zeros(batch, kv_heads, device=device, dtype=torch.int32)
+    owners = torch.zeros(batch, kv_heads, tokens, device=device, dtype=torch.long)
+    k = torch.randn(
+        batch,
+        kv_heads,
+        tokens,
+        head_dim,
+        device=device,
+        dtype=torch.bfloat16,
+    )
+    v = torch.randn_like(k)
+    append_paged_kv(
+        k,
+        v,
+        owners,
+        page_k,
+        page_v,
+        slot_pages,
+        overflow_page_keys,
+        page_directory,
+        directory_next_page,
+        overflow_flag,
+        slot_lengths,
+        next_page,
+        hash_probes=-1,
+    )
+    torch.cuda.synchronize(device)
+    pages = math.ceil(tokens / page_size)
+    if int(overflow_flag.item()) != 0:
+        raise AssertionError("two-level page directory exhausted its hard capacity")
+    for head in range(kv_heads):
+        physical_pages = []
+        for page_ordinal in range(pages):
+            directory_id = int(
+                slot_pages[0, head, 0, page_ordinal // directory_size].item()
+            )
+            physical_pages.append(
+                int(
+                    page_directory[
+                        0,
+                        head,
+                        directory_id,
+                        page_ordinal % directory_size,
+                    ].item()
+                )
+            )
+        page_ids = torch.tensor(physical_pages, device=device, dtype=torch.long)
+        restored_k = page_k[0, head].index_select(0, page_ids).flatten(0, 1)[:tokens]
+        restored_v = page_v[0, head].index_select(0, page_ids).flatten(0, 1)[:tokens]
+        torch.testing.assert_close(restored_k, k[0, head])
+        torch.testing.assert_close(restored_v, v[0, head])
+
+    query_len = 8
+    q = torch.randn(
+        batch,
+        kv_heads,
+        query_len,
+        head_dim,
+        device=device,
+        dtype=torch.bfloat16,
+    )
+    top_slots = torch.zeros(
+        batch, kv_heads, query_len, 1, device=device, dtype=torch.long
+    )
+    scale = head_dim**-0.5
+    actual, actual_lse = paged_leaf_attention(
+        q,
+        page_k,
+        page_v,
+        slot_pages,
+        overflow_page_keys,
+        page_directory,
+        directory_next_page,
+        slot_lengths,
+        top_slots,
+        kv_group_size=1,
+        scale=scale,
+        hash_probes=-1,
+        block_m=16,
+        block_n=32,
+        num_warps=2,
+    )
+    scores = torch.matmul(q.float(), k.float().transpose(-1, -2)) * scale
+    expected = torch.matmul(scores.softmax(dim=-1), v.float()).to(q.dtype)
+    expected_lse = torch.logsumexp(scores, dim=-1)
+    torch.testing.assert_close(actual.float(), expected.float(), rtol=2e-2, atol=2e-2)
+    torch.testing.assert_close(actual_lse, expected_lse, rtol=2e-2, atol=2e-2)
+
+
+def verify_sealed_page_append(device: torch.device) -> None:
+    cap = 32
+    page_size = 16
+    page_k = torch.zeros(1, 1, 8, page_size, 64, device=device, dtype=torch.bfloat16)
+    page_v = torch.zeros_like(page_k)
+    slot_pages = torch.full(
+        (1, 1, 4, cap // page_size),
+        -1,
+        device=device,
+        dtype=torch.int16,
+    )
+    slot_lengths = torch.zeros(1, 1, 4, device=device, dtype=torch.int32)
+    overflow_page_keys = torch.full((1, 1, 1), -1, device=device, dtype=torch.int32)
+    overflow_page_values = torch.full_like(overflow_page_keys, -1)
+    overflow_used = torch.zeros((), device=device, dtype=torch.int32)
+    overflow_flag = torch.zeros((), device=device, dtype=torch.int32)
+    next_page = torch.zeros(1, 1, device=device, dtype=torch.int32)
+    expected = []
+    for chunk in range(2):
+        tokens = 24
+        owners = torch.zeros(1, 1, tokens, device=device, dtype=torch.long)
+        k = torch.zeros(1, 1, tokens, 64, device=device, dtype=torch.bfloat16)
+        k[..., 0] = torch.arange(
+            chunk * tokens,
+            (chunk + 1) * tokens,
+            device=device,
+            dtype=k.dtype,
+        )
+        v = -k
+        append_paged_kv(
+            k,
+            v,
+            owners,
+            page_k,
+            page_v,
+            slot_pages,
+            overflow_page_keys,
+            overflow_page_values,
+            overflow_used,
+            overflow_flag,
+            slot_lengths,
+            next_page,
+            hash_probes=0,
+            max_leaf_tokens=cap,
+        )
+        expected.append(k)
+    torch.cuda.synchronize(device)
+    if int(slot_lengths[0, 0, 0].item()) != cap:
+        raise AssertionError("sealed page append did not stop at its leaf cap")
+    if int(next_page[0, 0].item()) != cap // page_size:
+        raise AssertionError("sealed page append allocated pages beyond its cap")
+    page_ids = slot_pages[0, 0, 0].long()
+    actual = page_k[0, 0].index_select(0, page_ids).flatten(0, 1)
+    reference = torch.cat(expected, dim=2)[0, 0, :cap]
+    if not torch.equal(actual, reference):
+        raise AssertionError("sealed page append did not retain the earliest leaves")
+
+
+def verify_int8_mma_page_attention(device: torch.device) -> None:
+    # Use several batches and a non-tile-aligned query length so blocked INT8
+    # query preparation exercises row-to-(batch, head, token) indexing and its
+    # masked tail, not only the trivial single-batch case.
+    batch, query_heads, kv_heads = 3, 4, 1
+    tokens, query_len, head_dim = 256, 35, 256
+    slots, routes, page_size = 4, 2, 16
+    page_capacity = tokens // page_size + slots
+
+    def metadata(dtype: torch.dtype):
+        page_k = torch.zeros(
+            batch,
+            kv_heads,
+            page_capacity,
+            page_size,
+            head_dim,
+            device=device,
+            dtype=dtype,
+        )
+        page_v = torch.zeros_like(page_k)
+        slot_pages = torch.full(
+            (batch, kv_heads, slots, tokens // page_size),
+            -1,
+            device=device,
+            dtype=torch.int16,
+        )
+        slot_lengths = torch.zeros(
+            batch, kv_heads, slots, device=device, dtype=torch.int32
+        )
+        overflow_keys = torch.full(
+            (batch, kv_heads, 1), -1, device=device, dtype=torch.int32
+        )
+        return (
+            page_k,
+            page_v,
+            slot_pages,
+            overflow_keys,
+            torch.full_like(overflow_keys, -1),
+            torch.zeros((), device=device, dtype=torch.int32),
+            torch.zeros((), device=device, dtype=torch.int32),
+            slot_lengths,
+            torch.zeros(batch, kv_heads, device=device, dtype=torch.int32),
+        )
+
+    torch.manual_seed(7)
+    k = torch.randn(
+        batch, kv_heads, tokens, head_dim, device=device, dtype=torch.bfloat16
+    )
+    v = torch.randn_like(k)
+    owners = (
+        torch.arange(tokens, device=device)
+        .remainder(slots)
+        .view(1, 1, -1)
+        .expand(batch, kv_heads, tokens)
+        .contiguous()
+    )
+    bf16 = metadata(torch.bfloat16)
+    int8 = metadata(torch.int8)
+    append_paged_kv(k, v, owners, *bf16, hash_probes=0)
+    k_scales = torch.zeros(*int8[0].shape[:-1], device=device, dtype=torch.bfloat16)
+    v_scales = torch.zeros_like(k_scales)
+    append_paged_int8_kv(
+        k,
+        v,
+        owners,
+        int8[0],
+        int8[1],
+        k_scales,
+        v_scales,
+        *int8[2:],
+        hash_probes=0,
+    )
+    q = torch.randn(
+        batch,
+        query_heads,
+        query_len,
+        head_dim,
+        device=device,
+        dtype=torch.bfloat16,
+    )
+    top_slots = torch.randint(
+        slots,
+        (batch, query_heads, query_len, routes),
+        device=device,
+        dtype=torch.long,
+    )
+    scale = head_dim**-0.5
+    expected, expected_lse = paged_leaf_attention(
+        q,
+        *bf16[:2],
+        *bf16[2:6],
+        bf16[7],
+        top_slots,
+        kv_group_size=query_heads // kv_heads,
+        scale=scale,
+        hash_probes=0,
+        block_m=16,
+        block_n=32,
+        num_warps=2,
+    )
+    actual, actual_lse = paged_leaf_attention(
+        q,
+        *int8[:2],
+        *int8[2:6],
+        int8[7],
+        top_slots,
+        page_k_scales=k_scales,
+        page_v_scales=v_scales,
+        kv_group_size=query_heads // kv_heads,
+        scale=scale,
+        hash_probes=0,
+        block_m=16,
+        block_n=32,
+        num_warps=2,
+    )
+    torch.cuda.synchronize(device)
+    torch.testing.assert_close(actual.float(), expected.float(), rtol=0.08, atol=0.03)
+    torch.testing.assert_close(
+        actual_lse.float(), expected_lse.float(), rtol=0.01, atol=0.03
+    )
+
+
 def verify_virtual_page_append(device: torch.device) -> None:
     batch, kv_heads, slots, tokens, head_dim = 1, 2, 64, 512, 256
     page_size, inline_pages_per_slot, page_capacity = 16, 32, 128
@@ -213,8 +806,12 @@ def verify_virtual_page_append(device: torch.device) -> None:
         dtype=torch.int32,
     )
     page_sum_k = torch.zeros(
-        batch, kv_heads, page_capacity, head_dim,
-        device=device, dtype=torch.bfloat16,
+        batch,
+        kv_heads,
+        page_capacity,
+        head_dim,
+        device=device,
+        dtype=torch.bfloat16,
     )
     page_sum_v = torch.zeros_like(page_sum_k)
     decode_tokens = 64
@@ -252,9 +849,7 @@ def verify_virtual_page_append(device: torch.device) -> None:
         device=device,
         dtype=torch.int16,
     )
-    slot_lengths = torch.zeros(
-        batch, kv_heads, slots, device=device, dtype=torch.int32
-    )
+    slot_lengths = torch.zeros(batch, kv_heads, slots, device=device, dtype=torch.int32)
     overflow_page_keys = torch.full(
         (batch, kv_heads, 16), -1, device=device, dtype=torch.int32
     )
@@ -327,10 +922,7 @@ def verify_virtual_page_append(device: torch.device) -> None:
             pages = (count + page_size - 1) // page_size
             page_ids = slot_pages[0, head, slot, :pages].long()
             actual_indices = (
-                page_indices[0, head]
-                .index_select(0, page_ids)
-                .flatten()[:count]
-                .long()
+                page_indices[0, head].index_select(0, page_ids).flatten()[:count].long()
             )
             torch.testing.assert_close(
                 page_quantized_counts[0, head].index_select(0, page_ids).long(),
@@ -398,8 +990,10 @@ def verify_virtual_page_append(device: torch.device) -> None:
                     code = torch.floor(residual / scale[None, :, None] + 0.5)
                     code = code.clamp(-7, 7).to(torch.int32) + 8
                     expected_packed = (
-                        code[..., 0::2] | (code[..., 1::2] << 4)
-                    ).reshape(page_count, -1).to(torch.uint8)
+                        (code[..., 0::2] | (code[..., 1::2] << 4))
+                        .reshape(page_count, -1)
+                        .to(torch.uint8)
+                    )
                     actual_packed = packed_cache[0, head].index_select(0, indices)
                     actual_low = (actual_packed.to(torch.int32) & 15) - 8
                     actual_high = (actual_packed.to(torch.int32) >> 4) - 8
@@ -407,7 +1001,9 @@ def verify_virtual_page_append(device: torch.device) -> None:
                         (actual_low, actual_high), dim=-1
                     ).reshape(page_count, -1, 32)
                     if int((actual_code - (code - 8)).abs().max().item()) > 1:
-                        raise AssertionError("virtual INT4 code differs by more than one")
+                        raise AssertionError(
+                            "virtual INT4 code differs by more than one"
+                        )
                     torch.testing.assert_close(
                         scales_cache[0, head, page_id].float(),
                         scale,
@@ -420,16 +1016,12 @@ def verify_virtual_page_append(device: torch.device) -> None:
                     l2_code = torch.stack((l2_low, l2_high), dim=-1).reshape(
                         page_count, -1, 32
                     )
-                    max_reconstruction = (
-                        actual_code.float()
-                        * scales_cache[0, head, page_id].float()[None, :, None]
-                        + anchor.reshape(1, -1, 32)
-                    )
-                    l2_reconstruction = (
-                        l2_code.float()
-                        * l2_scales_cache[0, head, page_id].float()[None, :, None]
-                        + anchor.reshape(1, -1, 32)
-                    )
+                    max_reconstruction = actual_code.float() * scales_cache[
+                        0, head, page_id
+                    ].float()[None, :, None] + anchor.reshape(1, -1, 32)
+                    l2_reconstruction = l2_code.float() * l2_scales_cache[
+                        0, head, page_id
+                    ].float()[None, :, None] + anchor.reshape(1, -1, 32)
                     target = values.reshape(page_count, -1, 32)
                     max_leaf_squared_errors.append(
                         (max_reconstruction - target).square().flatten()
@@ -456,9 +1048,7 @@ def verify_virtual_page_append(device: torch.device) -> None:
         quantized_page_sum_v,
         page_sum_k_scales,
         page_sum_v_scales,
-    ) = quantize_page_summaries_int8(
-        page_sum_k, page_sum_v, optimize_scale=True
-    )
+    ) = quantize_page_summaries_int8(page_sum_k, page_sum_v, optimize_scale=True)
     for source, max_codes, max_scales, l2_codes, l2_scales in (
         (
             page_sum_k,
@@ -475,12 +1065,12 @@ def verify_virtual_page_append(device: torch.device) -> None:
             page_sum_v_scales,
         ),
     ):
-        max_reconstruction = max_codes.float() * max_scales.repeat_interleave(
-            32, dim=-1
-        ).float()
-        l2_reconstruction = l2_codes.float() * l2_scales.repeat_interleave(
-            32, dim=-1
-        ).float()
+        max_reconstruction = (
+            max_codes.float() * max_scales.repeat_interleave(32, dim=-1).float()
+        )
+        l2_reconstruction = (
+            l2_codes.float() * l2_scales.repeat_interleave(32, dim=-1).float()
+        )
         assert torch.mean((l2_reconstruction - source.float()) ** 2) <= torch.mean(
             (max_reconstruction - source.float()) ** 2
         )
@@ -546,16 +1136,18 @@ def verify_virtual_page_append(device: torch.device) -> None:
         for slot in range(4):
             count = int(expected_counts[slot].item())
             page_ids = slot_pages[0, head, slot, : math.ceil(count / page_size)].long()
-            expected_key_sum = torch.cat(
-                (
-                    leaf_k[0, head][owners[0, head] == slot],
-                    append_k[0, head][append_owners[0, head] == slot],
+            expected_key_sum = (
+                torch.cat(
+                    (
+                        leaf_k[0, head][owners[0, head] == slot],
+                        append_k[0, head][append_owners[0, head] == slot],
+                    )
                 )
-            ).float().sum(0)
-            actual_key_sum = (
-                quantized_page_sum_k[0, head]
-                .index_select(0, page_ids)
                 .float()
+                .sum(0)
+            )
+            actual_key_sum = (
+                quantized_page_sum_k[0, head].index_select(0, page_ids).float()
                 * page_sum_k_scales[0, head]
                 .index_select(0, page_ids)
                 .repeat_interleave(32, dim=-1)
@@ -567,16 +1159,18 @@ def verify_virtual_page_append(device: torch.device) -> None:
                 rtol=2e-2,
                 atol=3.0e-1,
             )
-            expected_value_sum = torch.cat(
-                (
-                    leaf_v[0, head][owners[0, head] == slot],
-                    append_v[0, head][append_owners[0, head] == slot],
+            expected_value_sum = (
+                torch.cat(
+                    (
+                        leaf_v[0, head][owners[0, head] == slot],
+                        append_v[0, head][append_owners[0, head] == slot],
+                    )
                 )
-            ).float().sum(0)
-            actual_value_sum = (
-                quantized_page_sum_v[0, head]
-                .index_select(0, page_ids)
                 .float()
+                .sum(0)
+            )
+            actual_value_sum = (
+                quantized_page_sum_v[0, head].index_select(0, page_ids).float()
                 * page_sum_v_scales[0, head]
                 .index_select(0, page_ids)
                 .repeat_interleave(32, dim=-1)
@@ -622,9 +1216,7 @@ def verify_direct_page_append(device: torch.device) -> None:
         device=device,
         dtype=torch.int32,
     )
-    slot_lengths = torch.zeros(
-        batch, kv_heads, slots, device=device, dtype=torch.int32
-    )
+    slot_lengths = torch.zeros(batch, kv_heads, slots, device=device, dtype=torch.int32)
     overflow_page_keys = torch.full(
         (batch, kv_heads, 16), -1, device=device, dtype=torch.int32
     )
@@ -687,7 +1279,10 @@ def verify_direct_page_append(device: torch.device) -> None:
                 raise AssertionError(
                     "direct page append did not preserve chronological region order"
                 )
-            if int(page_counts[0, head].index_select(0, page_ids).sum().item()) != count:
+            if (
+                int(page_counts[0, head].index_select(0, page_ids).sum().item())
+                != count
+            ):
                 raise AssertionError("direct page summaries have incorrect counts")
             actual_key_sum = page_sum_k[0, head].index_select(0, page_ids).sum(0)
             actual_value_sum = page_sum_v[0, head].index_select(0, page_ids).sum(0)
@@ -741,9 +1336,7 @@ def verify_residual_page_attention(
         device=device,
         dtype=torch.int32,
     )
-    slot_lengths = torch.zeros(
-        batch, kv_heads, slots, device=device, dtype=torch.int32
-    )
+    slot_lengths = torch.zeros(batch, kv_heads, slots, device=device, dtype=torch.int32)
     overflow_page_keys = torch.full(
         (batch, kv_heads, 16), -1, device=device, dtype=torch.int32
     )
@@ -804,9 +1397,11 @@ def verify_residual_page_attention(
         device=device,
         dtype=torch.bfloat16,
     )
-    top_slots = torch.rand(
-        batch, query_heads, query_len, slots, device=device
-    ).topk(2, dim=-1, sorted=False).indices
+    top_slots = (
+        torch.rand(batch, query_heads, query_len, slots, device=device)
+        .topk(2, dim=-1, sorted=False)
+        .indices
+    )
     scale = head_dim**-0.5
     expected_out = torch.empty_like(q, dtype=torch.float32)
     expected_lse = torch.empty(
@@ -834,14 +1429,14 @@ def verify_residual_page_attention(
                 residual_count = count - selected_count
                 if residual_count:
                     residual_key = (
-                        state_k[0, 0, slot].float()
-                        - page_sum_k[0, 0, selected].float()
+                        state_k[0, 0, slot].float() - page_sum_k[0, 0, selected].float()
                     ) / residual_count
                     residual_value = (
-                        state_v[0, 0, slot].float()
-                        - page_sum_v[0, 0, selected].float()
+                        state_v[0, 0, slot].float() - page_sum_v[0, 0, selected].float()
                     ) / residual_count
-                    scores.append(query.dot(residual_key) * scale + math.log(residual_count))
+                    scores.append(
+                        query.dot(residual_key) * scale + math.log(residual_count)
+                    )
                     values.append(residual_value.unsqueeze(0))
                 exact_keys = page_k[0, 0, selected, :selected_count].float()
                 exact_values = page_v[0, 0, selected, :selected_count].float()
@@ -879,9 +1474,7 @@ def verify_residual_page_attention(
         torch.testing.assert_close(
             actual_out.float(), expected_out, rtol=2e-2, atol=8e-3
         )
-        torch.testing.assert_close(
-            actual_lse, expected_lse, rtol=2e-4, atol=2e-4
-        )
+        torch.testing.assert_close(actual_lse, expected_lse, rtol=2e-4, atol=2e-4)
 
     prefix_slots = top_slots.clone()
     prefix_slots[..., 1:] = -1
@@ -935,35 +1528,31 @@ def verify_residual_page_attention(
         quantized_page_sum_v,
         page_sum_k_scales,
         page_sum_v_scales,
-    ) = quantize_page_summaries_int8(
-        page_sum_k, page_sum_v, optimize_scale=True
-    )
-    quantized_summary_out, quantized_summary_lse = (
-        query_major_residual_page_attention(
-            q,
-            state_k,
-            state_v,
-            state_counts,
-            page_k,
-            page_v,
-            page_sum_k[..., :1, :],
-            page_sum_v[..., :1, :],
-            page_counts,
-            slot_pages,
-            overflow_page_keys,
-            overflow_page_values,
-            overflow_used,
-            slot_lengths,
-            top_slots,
-            kv_group_size=query_heads // kv_heads,
-            scale=scale,
-            hash_probes=0,
-            page_block_n=16,
-            quantized_page_sum_k=quantized_page_sum_k,
-            quantized_page_sum_v=quantized_page_sum_v,
-            page_sum_k_scales=page_sum_k_scales,
-            page_sum_v_scales=page_sum_v_scales,
-        )
+    ) = quantize_page_summaries_int8(page_sum_k, page_sum_v, optimize_scale=True)
+    quantized_summary_out, quantized_summary_lse = query_major_residual_page_attention(
+        q,
+        state_k,
+        state_v,
+        state_counts,
+        page_k,
+        page_v,
+        page_sum_k[..., :1, :],
+        page_sum_v[..., :1, :],
+        page_counts,
+        slot_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        slot_lengths,
+        top_slots,
+        kv_group_size=query_heads // kv_heads,
+        scale=scale,
+        hash_probes=0,
+        page_block_n=16,
+        quantized_page_sum_k=quantized_page_sum_k,
+        quantized_page_sum_v=quantized_page_sum_v,
+        page_sum_k_scales=page_sum_k_scales,
+        page_sum_v_scales=page_sum_v_scales,
     )
     torch.testing.assert_close(
         quantized_summary_out.float(), expected_out, rtol=3e-2, atol=1.5e-2
@@ -978,9 +1567,7 @@ def verify_residual_page_attention(
     inverse[permutation] = torch.arange(flat_tokens, device=device)
     leaf_k = page_k.flatten(2, 3).index_select(2, permutation).contiguous()
     leaf_v = page_v.flatten(2, 3).index_select(2, permutation).contiguous()
-    page_indices = inverse.to(torch.int32).view(
-        1, 1, page_capacity, page_size
-    )
+    page_indices = inverse.to(torch.int32).view(1, 1, page_capacity, page_size)
     indexed_out, indexed_lse = query_major_indexed_residual_page_attention(
         q,
         state_k,
@@ -1003,9 +1590,7 @@ def verify_residual_page_attention(
         hash_probes=0,
         page_block_n=2,
     )
-    torch.testing.assert_close(
-        indexed_out.float(), expected_out, rtol=2e-2, atol=8e-3
-    )
+    torch.testing.assert_close(indexed_out.float(), expected_out, rtol=2e-2, atol=8e-3)
     torch.testing.assert_close(indexed_lse, expected_lse, rtol=2e-4, atol=2e-4)
     indexed_quantized_out, indexed_quantized_lse = (
         query_major_indexed_residual_page_attention(
@@ -1101,10 +1686,65 @@ def verify_residual_page_attention(
         page_v_scales=page_v_scales,
         page_quantized_counts=page_quantized_counts,
     )
-    torch.testing.assert_close(
-        int4_out.float(), expected_out, rtol=2e-1, atol=1.2e-1
-    )
+    torch.testing.assert_close(int4_out.float(), expected_out, rtol=2e-1, atol=1.2e-1)
     torch.testing.assert_close(int4_lse, expected_lse, rtol=2e-2, atol=3e-2)
+
+    int8_leaf_k = torch.empty(
+        batch,
+        kv_heads,
+        flat_tokens,
+        head_dim,
+        device=device,
+        dtype=torch.int8,
+    )
+    int8_leaf_v = torch.empty_like(int8_leaf_k)
+    int8_page_k_scales = torch.empty_like(page_k_scales)
+    int8_page_v_scales = torch.empty_like(page_v_scales)
+    int8_page_quantized_counts = torch.zeros_like(page_counts)
+    quantize_virtual_paged_kv(
+        leaf_k,
+        leaf_v,
+        page_indices,
+        page_sum_k,
+        page_sum_v,
+        page_counts,
+        int8_leaf_k,
+        int8_leaf_v,
+        int8_page_k_scales,
+        int8_page_v_scales,
+        int8_page_quantized_counts,
+        quant_bits=8,
+    )
+    int8_out, int8_lse = query_major_indexed_residual_page_attention(
+        q,
+        state_k,
+        state_v,
+        state_counts,
+        leaf_k[..., :1, :],
+        leaf_v[..., :1, :],
+        page_indices,
+        page_sum_k,
+        page_sum_v,
+        page_counts,
+        slot_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        slot_lengths,
+        top_slots,
+        kv_group_size=query_heads // kv_heads,
+        scale=scale,
+        hash_probes=0,
+        page_block_n=2,
+        quantized_leaf_k=int8_leaf_k,
+        quantized_leaf_v=int8_leaf_v,
+        page_k_scales=int8_page_k_scales,
+        page_v_scales=int8_page_v_scales,
+        page_quantized_counts=int8_page_quantized_counts,
+        quant_bits=8,
+    )
+    torch.testing.assert_close(int8_out.float(), expected_out, rtol=3e-2, atol=2e-2)
+    torch.testing.assert_close(int8_lse, expected_lse, rtol=3e-3, atol=4e-3)
 
     invalid_slots = torch.full_like(top_slots, -1)
     invalid_out, invalid_lse = query_major_indexed_residual_page_attention(
@@ -1193,12 +1833,14 @@ def verify_residual_page_attention(
             atol=2e-4,
         )
     parallel_weights = parallel_lse.softmax(dim=-1).to(parallel_out.dtype)
-    parallel_merged = (
-        parallel_out * parallel_weights.unsqueeze(-1)
-    ).sum(dim=-2, keepdim=True)
+    parallel_merged = (parallel_out * parallel_weights.unsqueeze(-1)).sum(
+        dim=-2, keepdim=True
+    )
     torch.testing.assert_close(
-        parallel_merged.float(), indexed_out[..., :1, :].float(),
-        rtol=2e-2, atol=8e-3,
+        parallel_merged.float(),
+        indexed_out[..., :1, :].float(),
+        rtol=2e-2,
+        atol=8e-3,
     )
     torch.testing.assert_close(
         parallel_lse.logsumexp(dim=-1, keepdim=True),
@@ -1317,11 +1959,20 @@ def compare_large_gqa_route(device: torch.device) -> dict[str, float]:
 def main() -> None:
     torch.manual_seed(0)
     device = torch.device("cuda")
-    verify_fused_sink_branch_merge(device)
-    verify_direct_page_append(device)
-    verify_virtual_page_append(device)
-    verify_residual_page_attention(device)
-    verify_page_append(device)
+    cooperative_hip = os.environ.get("VERIFY_GQA_COOPERATIVE_HIP") == "1"
+    cooperative_route_splits = int(
+        os.environ.get("VERIFY_GQA_COOPERATIVE_ROUTE_SPLITS", "4")
+    )
+    if os.environ.get("VERIFY_GQA_ONLY") != "1":
+        verify_fused_sink_branch_merge(device)
+        verify_dense_page_summary_attention(device)
+        verify_direct_page_append(device)
+        verify_virtual_page_append(device)
+        verify_residual_page_attention(device)
+        verify_page_append(device)
+        verify_two_level_page_directory(device)
+        verify_sealed_page_append(device)
+        verify_int8_mma_page_attention(device)
     batch, query_heads, kv_heads = 1, 16, 4
     query_len, slots, routes, head_dim = 256, 64, 8, 256
     page_size, pages_per_slot = 16, 4
@@ -1335,16 +1986,14 @@ def main() -> None:
         dtype=torch.long,
     )
     slot_lengths = (
-        lengths.view(1, 1, slots)
-        .expand(batch, kv_heads, slots)
-        .clone()
-        .to(torch.int32)
+        lengths.view(1, 1, slots).expand(batch, kv_heads, slots).clone().to(torch.int32)
     )
-    slot_pages = torch.arange(
-        slots * pages_per_slot, device=device, dtype=torch.int32
-    ).view(1, 1, slots, pages_per_slot).expand(
-        batch, kv_heads, slots, pages_per_slot
-    ).clone()
+    slot_pages = (
+        torch.arange(slots * pages_per_slot, device=device, dtype=torch.int32)
+        .view(1, 1, slots, pages_per_slot)
+        .expand(batch, kv_heads, slots, pages_per_slot)
+        .clone()
+    )
     overflow_page_keys = torch.full(
         (batch, kv_heads, 16), -1, device=device, dtype=torch.int32
     )
@@ -1360,6 +2009,18 @@ def main() -> None:
         dtype=torch.bfloat16,
     )
     page_v = torch.randn_like(page_k)
+    page_k_scales = (
+        page_k.float().abs().amax(dim=-1).clamp_min(1.0e-8) / 127.0
+    ).to(torch.bfloat16)
+    page_v_scales = (
+        page_v.float().abs().amax(dim=-1).clamp_min(1.0e-8) / 127.0
+    ).to(torch.bfloat16)
+    int8_page_k = (
+        page_k.float() / page_k_scales.float().unsqueeze(-1)
+    ).round().clamp(-127, 127).to(torch.int8)
+    int8_page_v = (
+        page_v.float() / page_v_scales.float().unsqueeze(-1)
+    ).round().clamp(-127, 127).to(torch.int8)
     q = torch.randn(
         batch,
         query_heads,
@@ -1368,9 +2029,11 @@ def main() -> None:
         device=device,
         dtype=torch.bfloat16,
     )
-    top_slots = torch.rand(
-        batch, query_heads, query_len, slots, device=device
-    ).topk(routes, dim=-1, sorted=False).indices
+    top_slots = (
+        torch.rand(batch, query_heads, query_len, slots, device=device)
+        .topk(routes, dim=-1, sorted=False)
+        .indices
+    )
 
     exact_k_parts = []
     exact_v_parts = []
@@ -1378,26 +2041,24 @@ def main() -> None:
     for slot in range(slots):
         length = int(lengths[slot].item())
         exact_k_parts.append(
-            page_k[:, :, slot * pages_per_slot : (slot + 1) * pages_per_slot]
-            .flatten(2, 3)[:, :, :length]
+            page_k[:, :, slot * pages_per_slot : (slot + 1) * pages_per_slot].flatten(
+                2, 3
+            )[:, :, :length]
         )
         exact_v_parts.append(
-            page_v[:, :, slot * pages_per_slot : (slot + 1) * pages_per_slot]
-            .flatten(2, 3)[:, :, :length]
+            page_v[:, :, slot * pages_per_slot : (slot + 1) * pages_per_slot].flatten(
+                2, 3
+            )[:, :, :length]
         )
         owner_parts.append(
-            torch.full(
-                (batch, kv_heads, length), slot, device=device, dtype=torch.long
-            )
+            torch.full((batch, kv_heads, length), slot, device=device, dtype=torch.long)
         )
     exact_k = torch.cat(exact_k_parts, dim=2)
     exact_v = torch.cat(exact_v_parts, dim=2)
     owners = torch.cat(owner_parts, dim=2)
     state_counts = slot_lengths.unsqueeze(-1).float()
     scale = head_dim**-0.5
-    dynamic_open_counts = (
-        torch.arange(query_len, device=device).remainder(routes) + 1
-    )
+    dynamic_open_counts = torch.arange(query_len, device=device).remainder(routes) + 1
     dynamic_top_slots = torch.where(
         torch.arange(routes, device=device).view(1, 1, 1, routes)
         < dynamic_open_counts.view(1, 1, query_len, 1),
@@ -1414,9 +2075,7 @@ def main() -> None:
             state_counts,
             top_slots,
             kv_group_size=group_size,
-            head_temperature=torch.ones(
-                query_heads, device=device, dtype=q.dtype
-            ),
+            head_temperature=torch.ones(query_heads, device=device, dtype=q.dtype),
             scale=scale,
         )
         actual_out, actual_lse = paged_leaf_attention(
@@ -1452,12 +2111,11 @@ def main() -> None:
         repeated_exact_v = exact_v.repeat_interleave(group_size, dim=1)
         repeated_owners = owners.repeat_interleave(group_size, dim=1)
         dynamic_selected = (
-            repeated_owners.unsqueeze(2).unsqueeze(-1)
-            == dynamic_top_slots.unsqueeze(3)
+            repeated_owners.unsqueeze(2).unsqueeze(-1) == dynamic_top_slots.unsqueeze(3)
         ).any(dim=-1)
-        dynamic_scores = torch.matmul(
-            q.float(), repeated_exact_k.float().transpose(-1, -2)
-        ) * scale
+        dynamic_scores = (
+            torch.matmul(q.float(), repeated_exact_k.float().transpose(-1, -2)) * scale
+        )
         dynamic_scores.masked_fill_(~dynamic_selected, float("-inf"))
         expected_dynamic_lse = torch.logsumexp(dynamic_scores, dim=-1)
         expected_dynamic_out = torch.matmul(
@@ -1480,12 +2138,8 @@ def main() -> None:
 
         decode_q = q[..., :1, :].contiguous()
         decode_top_slots = top_slots[..., :1, :].contiguous()
-        state_k = torch.stack(
-            [part.sum(dim=2) for part in exact_k_parts], dim=2
-        )
-        state_v = torch.stack(
-            [part.sum(dim=2) for part in exact_v_parts], dim=2
-        )
+        state_k = torch.stack([part.sum(dim=2) for part in exact_k_parts], dim=2)
+        state_v = torch.stack([part.sum(dim=2) for part in exact_v_parts], dim=2)
         local_k = torch.randn(
             batch,
             kv_heads,
@@ -1504,14 +2158,12 @@ def main() -> None:
         )
         repeated_local_k = local_k.repeat_interleave(group_size, dim=1)
         repeated_local_v = local_v.repeat_interleave(group_size, dim=1)
-        coarse_scores = torch.matmul(
-            decode_q, mean_k.transpose(-1, -2)
-        ) * scale
+        coarse_scores = torch.matmul(decode_q, mean_k.transpose(-1, -2)) * scale
         coarse_scores += query_counts.squeeze(-1).log().unsqueeze(2)
         coarse_scores.scatter_(-1, decode_top_slots, float("-inf"))
-        local_scores = torch.matmul(
-            decode_q, repeated_local_k.transpose(-1, -2)
-        ) * scale
+        local_scores = (
+            torch.matmul(decode_q, repeated_local_k.transpose(-1, -2)) * scale
+        )
         combined_scores = torch.cat((coarse_scores, local_scores), dim=-1)
         combined_values = torch.cat((mean_v, repeated_local_v), dim=2)
         coarse_weight = torch.softmax(combined_scores.float(), dim=-1).to(
@@ -1527,9 +2179,7 @@ def main() -> None:
             state_counts,
             decode_top_slots,
             kv_group_size=group_size,
-            head_temperature=torch.ones(
-                query_heads, device=device, dtype=q.dtype
-            ),
+            head_temperature=torch.ones(query_heads, device=device, dtype=q.dtype),
             scale=scale,
         )
         expected_decode = _merge_lse_branches(
@@ -1644,18 +2294,14 @@ def main() -> None:
             decode_q.float().unsqueeze(-2) * mean_k.float().unsqueeze(2)
         ).sum(dim=-1) * scale
         routed_scores += query_counts.squeeze(-1).log().unsqueeze(2)
-        fused_route_top = routed_scores.topk(
-            routes, dim=-1, sorted=False
-        ).indices
+        fused_route_top = routed_scores.topk(routes, dim=-1, sorted=False).indices
         routed_coarse_scores = routed_scores.clone()
         routed_coarse_scores.scatter_(-1, fused_route_top, float("-inf"))
         routed_combined_scores = torch.cat(
             (routed_coarse_scores, local_scores.float()), dim=-1
         )
         routed_combined_values = torch.cat((mean_v, repeated_local_v), dim=2)
-        routed_weight = torch.softmax(routed_combined_scores, dim=-1).to(
-            decode_q.dtype
-        )
+        routed_weight = torch.softmax(routed_combined_scores, dim=-1).to(decode_q.dtype)
         routed_coarse_out = torch.matmul(routed_weight, routed_combined_values)
         routed_coarse_lse = torch.logsumexp(routed_combined_scores, dim=-1)
         routed_exact_out, routed_exact_lse = _expert_leaf_attention(
@@ -1666,9 +2312,7 @@ def main() -> None:
             state_counts,
             fused_route_top,
             kv_group_size=group_size,
-            head_temperature=torch.ones(
-                query_heads, device=device, dtype=q.dtype
-            ),
+            head_temperature=torch.ones(query_heads, device=device, dtype=q.dtype),
             scale=scale,
         )
         expected_fused_route = _merge_lse_branches(
@@ -1702,9 +2346,10 @@ def main() -> None:
         sink_v = torch.randn_like(state_v[..., :1, :])
         repeated_sink_k = sink_k.repeat_interleave(group_size, dim=1)
         repeated_sink_v = sink_v.repeat_interleave(group_size, dim=1)
-        sink_scores = torch.matmul(
-            decode_q.float(), repeated_sink_k.float().transpose(-1, -2)
-        ) * scale
+        sink_scores = (
+            torch.matmul(decode_q.float(), repeated_sink_k.float().transpose(-1, -2))
+            * scale
+        )
         sink_lse = torch.logsumexp(sink_scores, dim=-1)
         sink_out = torch.matmul(
             torch.softmax(sink_scores, dim=-1).to(decode_q.dtype), repeated_sink_v
@@ -1782,6 +2427,95 @@ def main() -> None:
             fuse_state_route=True,
             route_group_size=32,
             route_gqa_grouped=True,
+            hash_probes=0 if cooperative_hip else 8,
+            gqa_cooperative_hip=cooperative_hip,
+            gqa_cooperative_route_splits=cooperative_route_splits,
+            gqa_cooperative_adaptive_splits=os.environ.get(
+                "VERIFY_GQA_COOPERATIVE_ADAPTIVE_SPLITS", "0"
+            )
+            == "1",
+        )
+        fused_route_gqa_combined_decode = fused_decode_paged_lod_attention(
+            decode_q,
+            state_k,
+            state_v,
+            state_counts,
+            local_k,
+            local_v,
+            page_k,
+            page_v,
+            slot_pages,
+            overflow_page_keys,
+            overflow_page_values,
+            overflow_used,
+            slot_lengths,
+            None,
+            state_len=slots,
+            kv_group_size=group_size,
+            scale=scale,
+            split_kv=8,
+            fuse_state_route=True,
+            route_group_size=32,
+            route_gqa_grouped=True,
+            hash_probes=0 if cooperative_hip else 8,
+            gqa_cooperative_hip=cooperative_hip,
+            gqa_cooperative_route_splits=cooperative_route_splits,
+            gqa_cooperative_fused_reduce=True,
+        )
+        int8_route_gqa_triton_decode = fused_decode_paged_lod_attention(
+            decode_q,
+            state_k,
+            state_v,
+            state_counts,
+            local_k,
+            local_v,
+            int8_page_k,
+            int8_page_v,
+            slot_pages,
+            overflow_page_keys,
+            overflow_page_values,
+            overflow_used,
+            slot_lengths,
+            None,
+            state_len=slots,
+            kv_group_size=group_size,
+            scale=scale,
+            split_kv=8,
+            fuse_state_route=True,
+            route_group_size=32,
+            route_gqa_grouped=True,
+            hash_probes=0,
+            gqa_cooperative_hip=False,
+            flat_page_k_scales=page_k_scales,
+            flat_page_v_scales=page_v_scales,
+        )
+        int8_route_gqa_hip_decode = fused_decode_paged_lod_attention(
+            decode_q,
+            state_k,
+            state_v,
+            state_counts,
+            local_k,
+            local_v,
+            int8_page_k,
+            int8_page_v,
+            slot_pages,
+            overflow_page_keys,
+            overflow_page_values,
+            overflow_used,
+            slot_lengths,
+            None,
+            state_len=slots,
+            kv_group_size=group_size,
+            scale=scale,
+            split_kv=8,
+            fuse_state_route=True,
+            route_group_size=32,
+            route_gqa_grouped=True,
+            hash_probes=0,
+            gqa_cooperative_hip=cooperative_hip,
+            gqa_cooperative_route_splits=cooperative_route_splits,
+            flat_page_k_scales=page_k_scales,
+            flat_page_v_scales=page_v_scales,
         )
         dynamic_route_buffers = new_fused_decode_buffers(
             decode_q,
@@ -1880,12 +2614,12 @@ def main() -> None:
         residual_cumulative_before = (
             residual_global_mass.cumsum(dim=-1) - residual_global_mass
         )
-        residual_remaining_before = residual_global_mass.sum(
-            dim=-1, keepdim=True
-        ) - residual_cumulative_before
-        residual_keep = (
-            torch.arange(routes, device=device) == 0
-        ) | (residual_remaining_before > 0.05)
+        residual_remaining_before = (
+            residual_global_mass.sum(dim=-1, keepdim=True) - residual_cumulative_before
+        )
+        residual_keep = (torch.arange(routes, device=device) == 0) | (
+            residual_remaining_before > 0.05
+        )
         expected_residual_slots = torch.where(
             residual_keep, residual_slots, torch.full_like(residual_slots, -1)
         )
@@ -2057,15 +2791,9 @@ def main() -> None:
         new_v = torch.randn_like(new_k)
         repeated_new_k = new_k.repeat_interleave(group_size, dim=1)
         repeated_new_v = new_v.repeat_interleave(group_size, dim=1)
-        new_scores = torch.matmul(
-            decode_q, repeated_new_k.transpose(-1, -2)
-        ) * scale
-        appended_scores = torch.cat(
-            (coarse_scores, local_scores, new_scores), dim=-1
-        )
-        appended_values = torch.cat(
-            (mean_v, repeated_local_v, repeated_new_v), dim=2
-        )
+        new_scores = torch.matmul(decode_q, repeated_new_k.transpose(-1, -2)) * scale
+        appended_scores = torch.cat((coarse_scores, local_scores, new_scores), dim=-1)
+        appended_values = torch.cat((mean_v, repeated_local_v, repeated_new_v), dim=2)
         appended_weight = torch.softmax(appended_scores.float(), dim=-1).to(
             decode_q.dtype
         )
@@ -2131,16 +2859,10 @@ def main() -> None:
             (query_lse.float() - expected_lse.float()).abs().max().item()
         ),
         "dynamic_query_output_max_abs": float(
-            (dynamic_query_out.float() - expected_dynamic_out)
-            .abs()
-            .max()
-            .item()
+            (dynamic_query_out.float() - expected_dynamic_out).abs().max().item()
         ),
         "dynamic_query_lse_max_abs": float(
-            (dynamic_query_lse.float() - expected_dynamic_lse)
-            .abs()
-            .max()
-            .item()
+            (dynamic_query_lse.float() - expected_dynamic_lse).abs().max().item()
         ),
         "fused_decode_max_abs": float(
             (fused_decode.float() - expected_decode.float()).abs().max().item()
@@ -2155,16 +2877,16 @@ def main() -> None:
             (split_fused_decode.float() - expected_decode.float()).abs().mean().item()
         ),
         "dynamic_split_decode_max_abs": float(
-            (
-                dynamic_split_fused_decode.float()
-                - two_route_split_fused_decode.float()
-            )
+            (dynamic_split_fused_decode.float() - two_route_split_fused_decode.float())
             .abs()
             .max()
             .item()
         ),
         "dot_split_fused_decode_max_abs": float(
-            (dot_split_fused_decode.float() - expected_decode.float()).abs().max().item()
+            (dot_split_fused_decode.float() - expected_decode.float())
+            .abs()
+            .max()
+            .item()
         ),
         "appended_fused_decode_max_abs": float(
             (appended_fused_decode.float() - expected_appended_decode.float())
@@ -2173,16 +2895,10 @@ def main() -> None:
             .item()
         ),
         "appended_k_max_abs": float(
-            (buffered_local_k[..., -1:, :].float() - new_k.float())
-            .abs()
-            .max()
-            .item()
+            (buffered_local_k[..., -1:, :].float() - new_k.float()).abs().max().item()
         ),
         "appended_v_max_abs": float(
-            (buffered_local_v[..., -1:, :].float() - new_v.float())
-            .abs()
-            .max()
-            .item()
+            (buffered_local_v[..., -1:, :].float() - new_v.float()).abs().max().item()
         ),
         "fused_route_decode_max_abs": float(
             (fused_route_decode.float() - expected_fused_route.float())
@@ -2209,10 +2925,7 @@ def main() -> None:
             .item()
         ),
         "dynamic_fused_route_decode_max_abs": float(
-            (
-                dynamic_fused_route_decode.float()
-                - dynamic_explicit_route_decode.float()
-            )
+            (dynamic_fused_route_decode.float() - dynamic_explicit_route_decode.float())
             .abs()
             .max()
             .item()
@@ -2251,7 +2964,22 @@ def main() -> None:
             .item()
         ),
         "gqa_vs_scalar_dot_decode_max_abs": float(
-            (gqa_compare_decode.float() - scalar_dot_decode.float())
+            (gqa_compare_decode.float() - scalar_dot_decode.float()).abs().max().item()
+        ),
+        "gqa_combined_reduce_max_abs": float(
+            (
+                fused_route_gqa_combined_decode.float()
+                - fused_route_gqa_decode.float()
+            )
+            .abs()
+            .max()
+            .item()
+        ),
+        "int8_gqa_hip_vs_triton_max_abs": float(
+            (
+                int8_route_gqa_hip_decode.float()
+                - int8_route_gqa_triton_decode.float()
+            )
             .abs()
             .max()
             .item()
@@ -2309,6 +3037,10 @@ def main() -> None:
         raise AssertionError("group-8 fused route/coarse disagrees with reference")
     if result["fused_route_gqa_decode_max_abs"] > 0.03:
         raise AssertionError("GQA fused route/coarse decode disagrees with reference")
+    if result["gqa_combined_reduce_max_abs"] > 0.03:
+        raise AssertionError("combined GQA split/final reduction changed decode output")
+    if result["int8_gqa_hip_vs_triton_max_abs"] > 0.03:
+        raise AssertionError("INT8 HIP cooperative decode disagrees with Triton")
     if result["dynamic_fused_route_decode_max_abs"] > 0.03:
         raise AssertionError("dynamic fused routing disagrees with explicit routing")
     if result["dynamic_fused_route_mean_opened"] >= 8.0:
@@ -2318,7 +3050,9 @@ def main() -> None:
     if not result["residual_fused_route_slots_match"]:
         raise AssertionError("full-mass fused routing chose the wrong route prefix")
     if result["state_bound_fused_decode_max_abs"] > 0.03:
-        raise AssertionError("state-bound fused routing disagrees with explicit routing")
+        raise AssertionError(
+            "state-bound fused routing disagrees with explicit routing"
+        )
     if result["atomic_final_decode_max_abs"] > 0.03:
         raise AssertionError("atomic final decode disagrees with separate reduction")
 

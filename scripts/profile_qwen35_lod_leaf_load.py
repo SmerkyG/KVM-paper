@@ -11,8 +11,8 @@ import torch
 from transformers import AutoTokenizer
 
 from model.qwen35_two_level_attention import Qwen3_5TwoLevelAttention
-from scripts.compare_qwen35_lod_loss import select_sequences
 from scripts.probe_qwen35_lod_niah import load_text_model
+from scripts.profile_qwen35_prefill_total import select_profile_sequence
 
 
 def parse_args() -> argparse.Namespace:
@@ -63,14 +63,7 @@ def main() -> None:
     torch.cuda.set_device(0)
     device = torch.device("cuda", 0)
     tokenizer = AutoTokenizer.from_pretrained(args.checkpoint, trust_remote_code=True)
-    _, sequence = select_sequences(
-        tokenizer,
-        args.dataset,
-        args.sequence_length,
-        samples=1,
-        rank=0,
-        world_size=1,
-    )[0]
+    sequence = select_profile_sequence(tokenizer, args.dataset, args.sequence_length)
     model = load_text_model(
         args.checkpoint,
         "two_level",

@@ -1,0 +1,45 @@
+{
+  "prompt_tokens": 62210414,
+  "bf16": {
+    "shard_wall_seconds": [
+      378.8714334371034,
+      348.43930462980643,
+      429.2782741209958,
+      382.81665924494155,
+      417.3632986298762,
+      362.60690565034747,
+      464.9116923401598,
+      395.6165601860266
+    ],
+    "slowest_shard_wall_seconds": 464.9116923401598,
+    "aggregate_shard_wall_seconds": 3179.9041282392573,
+    "summed_request_seconds": 24507.324630633462,
+    "effective_eight_gpu_prompt_tokens_per_second": 133811.24851229336
+  },
+  "int8": {
+    "shard_wall_seconds": [
+      318.9848188541364,
+      298.8263419987634,
+      359.3872845377773,
+      325.01618930883706,
+      352.24944838136435,
+      307.7509333472699,
+      395.5148744052276,
+      338.4893282921985
+    ],
+    "slowest_shard_wall_seconds": 395.5148744052276,
+    "aggregate_shard_wall_seconds": 2696.2192191255745,
+    "summed_request_seconds": 20797.875216312706,
+    "effective_eight_gpu_prompt_tokens_per_second": 157289.69509314047
+  },
+  "int8_speedup": {
+    "slowest_shard": 1.175459438887831,
+    "aggregate_shard": 1.17939376208087,
+    "summed_request": 1.1783571338773717,
+    "summed_request_by_longbench_length": {
+      "short": 1.053736285112717,
+      "medium": 1.1704622229237824,
+      "long": 1.2112725207077428
+    }
+  }
+}

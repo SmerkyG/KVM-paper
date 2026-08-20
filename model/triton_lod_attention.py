@@ -22,26 +22,33 @@ import torch.nn.functional as F
 from torch import nn
 
 from .kernels.paged_leaf_attention import (
+    append_paged_int8_kv,
     append_paged_kv,
     append_quantized_virtual_paged_kv,
     append_virtual_paged_kv,
+    aiter_query_tile_union_paged_leaf_attention,
+    aiter_varlen_paged_leaf_attention,
+    dense_page_summary_attention,
     fused_decode_paged_lod_attention,
     new_fused_decode_buffers,
     paged_leaf_attention,
     query_major_paged_leaf_attention,
     query_major_indexed_residual_page_attention,
     query_major_residual_page_attention,
+    query_tile_slot_unions,
+    remove_query_tile_union_from_coarse,
     refine_route_candidates_by_leaf_mass,
     refine_route_candidates_by_page_mass,
     refine_route_candidates_by_virtual_leaf_mass,
     refine_route_candidates_by_virtual_leaf_output,
     quantize_page_summaries_int8,
-    quantize_virtual_paged_kv_int4,
+    quantize_virtual_paged_kv,
 )
 from .kernels.lod_kernels import (
     apply_residual_mass_opening,
     bipartite_reduce_overflow,
     constituent_rms,
+    expand_adjacent_group_owners,
     merge_attention_branches,
     merge_attention_branches_with_sink,
     merge_state_in_place,
@@ -49,6 +56,7 @@ from .kernels.lod_kernels import (
     new_state_delta_buffers,
     new_state_maxsim_buffers,
     prepare_state_clustering_keys,
+    premerge_adjacent_kv,
     route_logits_coarse_attention,
     route_logits_topk_coarse_attention,
     route_top8_scores_grouped,
@@ -66,6 +74,9 @@ def _round_up(value: int, multiple: int) -> int:
     return ((value + multiple - 1) // multiple) * multiple
 
 
+_PAGE_DIRECTORY_SIZE = 64
+
+
 def _pad_sequence(x: torch.Tensor, length: int) -> torch.Tensor:
     missing = length - int(x.size(2))
     if missing < 0:
@@ -81,10 +92,9 @@ def _merge_lse_branches(
 ) -> torch.Tensor:
     branch_lse = torch.stack((left_lse, right_lse), dim=-1).float()
     weights = torch.softmax(branch_lse, dim=-1).to(left_output.dtype)
-    return (
-        left_output * weights[..., 0].unsqueeze(-1)
-        + right_output * weights[..., 1].unsqueeze(-1)
-    )
+    return left_output * weights[..., 0].unsqueeze(-1) + right_output * weights[
+        ..., 1
+    ].unsqueeze(-1)
 
 
 class TritonLODAttentionCore(nn.Module):
@@ -112,8 +122,17 @@ class TritonLODAttentionCore(nn.Module):
     two_level_topk = 8
     prefill_two_level_topk: int | None = None
     prefill_max_leaf_tokens: int | None = None
+    # Stop archiving exact leaves once a centroid reaches this many members.
+    # Its K/V sums and count still receive every assignment, so a sealed
+    # centroid remains available as coarse residual mass.
+    leaf_seal_capacity: int | None = None
     leaf_attention_backend = "packed"
     leaf_page_size = 16
+    # Use a two-level direct page directory instead of spilling long centroid
+    # posting lists into an open-addressed hash table.  One compact root entry
+    # addresses 64 physical-page IDs, so the root remains small while lookup
+    # has a fixed two-load cost and cannot run out of probes.
+    leaf_paged_directory = True
     leaf_inline_pages_per_slot = 128
     leaf_overflow_hash_factor = 4
     leaf_hash_probes = 8
@@ -124,6 +143,36 @@ class TritonLODAttentionCore(nn.Module):
     leaf_num_warps = 2
     leaf_waves_per_eu = 1
     leaf_layout = "query"
+    # Exact scalar-vector attention wins through eight leaves on gfx942.  At
+    # sixteen leaves the unrolled kernel loses to the regular MMA path.
+    leaf_tiny_expert_max = 8
+    # As the state grows, large posting lists dominate and the extra bucketed
+    # launches stop paying for themselves. Fall back to the same optimized
+    # generic expert kernel after this many archived leaves.
+    leaf_tiny_max_context: int | None = 65_536
+    leaf_tiny_block_m = 8
+    leaf_tiny_num_warps = 1
+    # Split only exceptionally long centroid posting lists across programs,
+    # then merge their normalized output/LSE pairs. Zero/one disables it.
+    leaf_long_expert_threshold = 0
+    leaf_long_expert_splits = 1
+    # Each row merges only the top-eight routes. One wave is sufficient and
+    # avoids the synchronization/occupancy overhead of a four-wave reduction.
+    leaf_reduce_num_warps = 1
+    leaf_union_query_tile = 8
+    leaf_aiter_copy_page_size = 16
+    # Store flat exact leaves as tokenwise symmetric INT8 and execute both QK
+    # and quantized-probability PV with INT8 MMA during expert-layout prefill.
+    prefill_int8_leaf_mma = False
+    prefill_int8_pv_mma = True
+    prefill_int8_coarse_mma = False
+    prefill_int8_route_mma = False
+    # The INT8 coarse PV kernel benefits from a wider state tile and fewer
+    # warps than its BF16 counterpart on gfx942.  Keep this separate so
+    # enabling INT8 does not silently retune the existing BF16 path.
+    prefill_int8_coarse_block_n = 64
+    prefill_int8_coarse_num_warps = 2
+    prefill_int8_append_num_warps = 4
     leaf_key_quant_bits = 0
     leaf_value_quant_bits = 0
     leaf_quant_group_size = 32
@@ -134,6 +183,17 @@ class TritonLODAttentionCore(nn.Module):
     virtual_page_storage = False
     recursive_page_lod = False
     recursive_page_block_n = 16
+    # Prefill-only quadratic/constant-factor alternative: scan every physical
+    # page summary as one dense field and exactly replace its best pages.
+    # Decode retains ordinary recursive centroid->page routing.
+    dense_page_prefill = False
+    dense_page_split_kernels = False
+    dense_page_topk = 8
+    dense_page_block_m = 64
+    dense_page_block_n = 64
+    dense_page_num_warps = 4
+    dense_page_indexed_aiter_union = True
+    dense_page_union_query_tile = 32
     dynamic_open_prefill_top_p: float | None = None
     dynamic_open_decode_top_p: float | None = None
     dynamic_open_prefill_residual_mass: float | None = None
@@ -154,6 +214,15 @@ class TritonLODAttentionCore(nn.Module):
     decode_fuse_final_reduce = False
     decode_route_use_dot = True
     decode_route_gqa_grouped = True
+    decode_gqa_cooperative_leaf = True
+    decode_gqa_cooperative_hip = True
+    # Auto-tune page-list parallelism from context. An explicit 4/8/16/32
+    # value and experimental per-centroid adaptation remain available.
+    decode_gqa_cooperative_route_splits: int | None = None
+    decode_gqa_cooperative_adaptive_splits = False
+    # Directly fold the eight route partials into the final branch reduction.
+    # The dispatch automatically retains the two-stage tree for 16/32 splits.
+    decode_gqa_cooperative_fused_reduce = True
     clone_decode_routes = False
     # Dense BF16 state aggregation is faster for batch-one inference;
     # the KVM-style FP32 delta path remains available for larger batches.
@@ -224,10 +293,13 @@ class TritonLODAttentionCore(nn.Module):
         # Masked left-padding slots deliberately consume part of the shared
         # schedule. Reserving replacements here can round state capacity up
         # for every row in the batch and make recursive decode much slower.
-        target = max(
-            math.floor(self.state_growth_factor * math.sqrt(max(ctx_len, 0))),
-            self.state_min_len,
-        ) + self.state_size_offset
+        target = (
+            max(
+                math.floor(self.state_growth_factor * math.sqrt(max(ctx_len, 0))),
+                self.state_min_len,
+            )
+            + self.state_size_offset
+        )
         available = max(available_context - separated, 0)
         return max(current_state_len, min(target, available))
 
@@ -281,7 +353,9 @@ class TritonLODAttentionCore(nn.Module):
         base_quota, remainder = divmod(n_append, subblocks)
         if base_quota + int(remainder > 0) > subblock_size:
             raise ValueError("append quota exceeds its subblock size")
-        block_scores = scores.float().reshape(*scores.shape[:-1], subblocks, subblock_size)
+        block_scores = scores.float().reshape(
+            *scores.shape[:-1], subblocks, subblock_size
+        )
         block_order = torch.argsort(block_scores, dim=-1, descending=False)
         block_offset = (
             torch.arange(subblocks, device=scores.device, dtype=torch.long)
@@ -292,28 +366,18 @@ class TritonLODAttentionCore(nn.Module):
         append_parts = []
         merge_parts = []
         if remainder:
-            append_parts.append(
-                block_indices[..., :remainder, :high_quota].flatten(-2)
-            )
-            merge_parts.append(
-                block_indices[..., :remainder, high_quota:].flatten(-2)
-            )
+            append_parts.append(block_indices[..., :remainder, :high_quota].flatten(-2))
+            merge_parts.append(block_indices[..., :remainder, high_quota:].flatten(-2))
         if remainder < subblocks:
-            append_parts.append(
-                block_indices[..., remainder:, :base_quota].flatten(-2)
-            )
-            merge_parts.append(
-                block_indices[..., remainder:, base_quota:].flatten(-2)
-            )
+            append_parts.append(block_indices[..., remainder:, :base_quota].flatten(-2))
+            merge_parts.append(block_indices[..., remainder:, base_quota:].flatten(-2))
         append_idx = (
             append_parts[0]
             if len(append_parts) == 1
             else torch.cat(append_parts, dim=-1)
         )
         merge_idx = (
-            merge_parts[0]
-            if len(merge_parts) == 1
-            else torch.cat(merge_parts, dim=-1)
+            merge_parts[0] if len(merge_parts) == 1 else torch.cat(merge_parts, dim=-1)
         )
         return (
             torch.sort(append_idx, dim=-1).values,
@@ -347,8 +411,10 @@ class TritonLODAttentionCore(nn.Module):
         groups = int(self.num_key_value_groups)
         if query_heads != key_value_heads * groups:
             raise ValueError("query heads do not match the configured GQA geometry")
-        grouped = query.detach().float().reshape(
-            batch_size, key_value_heads, groups, query_len, head_dim
+        grouped = (
+            query.detach()
+            .float()
+            .reshape(batch_size, key_value_heads, groups, query_len, head_dim)
         )
         valid = None
         if valid_starts is not None:
@@ -360,12 +426,10 @@ class TritonLODAttentionCore(nn.Module):
             if valid is None:
                 mean_square = grouped.square().mean(dim=(2, 3), keepdim=False)
             else:
-                denominator = valid.sum(dim=1).clamp_min(1).view(
-                    batch_size, 1, 1
-                )
-                mean_square = (
-                    grouped.square() * valid[:, None, None, :, None]
-                ).sum(dim=(2, 3)) / (denominator * groups)
+                denominator = valid.sum(dim=1).clamp_min(1).view(batch_size, 1, 1)
+                mean_square = (grouped.square() * valid[:, None, None, :, None]).sum(
+                    dim=(2, 3)
+                ) / (denominator * groups)
             scale = mean_square.clamp_min(1e-12).sqrt()
             scale = scale * torch.rsqrt(
                 scale.square().mean(dim=-1, keepdim=True).clamp_min(1e-12)
@@ -373,24 +437,18 @@ class TritonLODAttentionCore(nn.Module):
             return scale.unsqueeze(2)
 
         if valid is None:
-            covariance = torch.einsum(
-                "bkgtd,bkgte->bkde", grouped, grouped
-            ) / float(groups * query_len)
+            covariance = torch.einsum("bkgtd,bkgte->bkde", grouped, grouped) / float(
+                groups * query_len
+            )
         else:
             masked = grouped * valid[:, None, None, :, None]
-            denominator = (
-                valid.sum(dim=1).clamp_min(1).float() * groups
-            ).view(batch_size, 1, 1, 1)
-            covariance = torch.einsum(
-                "bkgtd,bkgte->bkde", masked, masked
-            ) / denominator
-        mean_variance = covariance.diagonal(dim1=-2, dim2=-1).mean(
-            dim=-1, keepdim=True
-        )
+            denominator = (valid.sum(dim=1).clamp_min(1).float() * groups).view(
+                batch_size, 1, 1, 1
+            )
+            covariance = torch.einsum("bkgtd,bkgte->bkde", masked, masked) / denominator
+        mean_variance = covariance.diagonal(dim1=-2, dim2=-1).mean(dim=-1, keepdim=True)
         covariance = covariance / mean_variance.clamp_min(1e-12).unsqueeze(-1)
-        identity = torch.eye(
-            head_dim, dtype=covariance.dtype, device=covariance.device
-        )
+        identity = torch.eye(head_dim, dtype=covariance.dtype, device=covariance.device)
         return torch.linalg.cholesky(covariance + 1e-4 * identity)
 
     def _mla_normalize_key(
@@ -429,12 +487,8 @@ class TritonLODAttentionCore(nn.Module):
             # gain.  Reversing those two operations is measurably different
             # on the key-similarity edge cases this experiment targets.
             normalized_latent = (latent * inverse_rms).to(key.dtype)
-            normalized_latent = normalized_latent * weight.detach().to(
-                key.dtype
-            )
-            normalized = torch.cat(
-                (normalized_latent, key[..., latent_dim:]), dim=-1
-            )
+            normalized_latent = normalized_latent * weight.detach().to(key.dtype)
+            normalized = torch.cat((normalized_latent, key[..., latent_dim:]), dim=-1)
         return normalized
 
     def _mla_state_key_sum_for_attention(
@@ -449,9 +503,7 @@ class TritonLODAttentionCore(nn.Module):
             return state_k
         active_counts = counts[..., :state_len, :]
         mean_key = self._mean(state_k[..., :state_len, :], active_counts)
-        normalized_mean = self._mla_normalize_key(
-            mean_key, state_centroid=True
-        )
+        normalized_mean = self._mla_normalize_key(mean_key, state_centroid=True)
         normalized_sum = normalized_mean * active_counts.to(normalized_mean.dtype)
         if state_len == int(state_k.size(2)):
             return normalized_sum
@@ -563,12 +615,8 @@ class TritonLODAttentionCore(nn.Module):
                         .mean(dim=-1, keepdim=True)
                         .sqrt()
                     )
-                    coherence = rope_centroid_rms / radial_rms.float().clamp_min(
-                        1e-12
-                    )
-                    clustering_key = (
-                        clustering_key.float() / centroid_rms * coherence
-                    )
+                    coherence = rope_centroid_rms / radial_rms.float().clamp_min(1e-12)
+                    clustering_key = clustering_key.float() / centroid_rms * coherence
                 else:
                     denominator = radial_rms.float() if use_coherence else centroid_rms
                     clustering_key = clustering_key.float() / denominator.clamp_min(
@@ -581,9 +629,7 @@ class TritonLODAttentionCore(nn.Module):
         normalize = self.state_clustering_normalization in {
             "cosine",
             f"{role}_cosine",
-        } or (
-            centroid_rescale == "spherical_coherence" and role == "leaf"
-        )
+        } or (centroid_rescale == "spherical_coherence" and role == "leaf")
         if normalize:
             # Ordinary MHA has an independently normalized key space for each
             # head.  MLA shares one latent state across all query heads, so use
@@ -610,9 +656,7 @@ class TritonLODAttentionCore(nn.Module):
                             "state-clustering radial RMS has the wrong shape"
                         )
                     route_rms = radial_rms.float().clamp_min(1e-12)
-                clustering_key = torch.cat(
-                    (clustering_key, route_rms.log()), dim=-1
-                )
+                clustering_key = torch.cat((clustering_key, route_rms.log()), dim=-1)
         elif self.state_clustering_normalization not in {
             "none",
             "leaf_cosine",
@@ -685,17 +729,13 @@ class TritonLODAttentionCore(nn.Module):
             )
         return similarity
 
-    def _state_clustering_constituent_rms(
-        self, key: torch.Tensor
-    ) -> torch.Tensor:
+    def _state_clustering_constituent_rms(self, key: torch.Tensor) -> torch.Tensor:
         """Return the one scalar accumulated per clustering constituent."""
         radial_key = key.detach()
         if self.state_clustering_centroid_rescale == "rope_coherence":
             rope_dim = int(self.state_clustering_rope_dim)
             if not 0 < rope_dim < int(key.size(-1)):
-                raise ValueError(
-                    "rope_coherence requires a nonempty partial-RoPE band"
-                )
+                raise ValueError("rope_coherence requires a nonempty partial-RoPE band")
             radial_key = radial_key[..., :rope_dim]
         if radial_key.is_cuda and radial_key.ndim == 4 and radial_key.stride(-1) == 1:
             return constituent_rms(radial_key)
@@ -750,18 +790,26 @@ class TritonLODAttentionCore(nn.Module):
 
         rows = batch * heads
         if positional_halves:
-            left_slots = torch.arange(
-                protected,
-                protected + left_count,
-                device=key_sum.device,
-                dtype=torch.long,
-            ).view(1, left_count).expand(rows, left_count)
-            right_slots = torch.arange(
-                protected + left_count,
-                current_len,
-                device=key_sum.device,
-                dtype=torch.long,
-            ).view(1, right_count).expand(rows, right_count)
+            left_slots = (
+                torch.arange(
+                    protected,
+                    protected + left_count,
+                    device=key_sum.device,
+                    dtype=torch.long,
+                )
+                .view(1, left_count)
+                .expand(rows, left_count)
+            )
+            right_slots = (
+                torch.arange(
+                    protected + left_count,
+                    current_len,
+                    device=key_sum.device,
+                    dtype=torch.long,
+                )
+                .view(1, right_count)
+                .expand(rows, right_count)
+            )
         else:
             pair_position = torch.arange(
                 right_count, device=key_sum.device, dtype=torch.long
@@ -812,11 +860,8 @@ class TritonLODAttentionCore(nn.Module):
         nearest_score, nearest_position = similarity.max(dim=-1)
         nearest_slot = torch.gather(right_slots, 1, nearest_position)
 
-        if (
-            protected == 0
-            and current_len % 2 == 0
-            and target_len * 2 == current_len
-        ):
+        if protected == 0 and current_len % 2 == 0 and target_len * 2 == current_len:
+
             def exact_half_sum(values: torch.Tensor) -> torch.Tensor:
                 feature_dim = int(values.size(-1))
                 output = torch.zeros(
@@ -829,9 +874,7 @@ class TritonLODAttentionCore(nn.Module):
                 )
                 return output.scatter_add_(
                     2,
-                    assignment.reshape(batch, heads, current_len, 1).expand_as(
-                        values
-                    ),
+                    assignment.reshape(batch, heads, current_len, 1).expand_as(values),
                     values,
                 )
 
@@ -841,9 +884,11 @@ class TritonLODAttentionCore(nn.Module):
                 dtype=torch.long,
                 device=key_sum.device,
             )
-            compact = torch.arange(
-                target_len, dtype=torch.long, device=key_sum.device
-            ).view(1, target_len).expand(rows, target_len)
+            compact = (
+                torch.arange(target_len, dtype=torch.long, device=key_sum.device)
+                .view(1, target_len)
+                .expand(rows, target_len)
+            )
             assignment.scatter_(1, right_slots, compact)
             assignment.scatter_(1, left_slots, nearest_position)
             return (
@@ -986,17 +1031,13 @@ class TritonLODAttentionCore(nn.Module):
                         reduced_block,
                         0,
                         protected_len=0,
-                        positional_halves=(
-                            self.overflow_bipartite_positional_halves
-                        ),
+                        positional_halves=(self.overflow_bipartite_positional_halves),
                     )
                 )
 
             def unblocked(values: torch.Tensor, dim: int) -> torch.Tensor:
                 return (
-                    values.reshape(
-                        batch, full_blocks, heads, reduced_block, dim
-                    )
+                    values.reshape(batch, full_blocks, heads, reduced_block, dim)
                     .permute(0, 2, 1, 3, 4)
                     .reshape(batch, heads, full_blocks * reduced_block, dim)
                 )
@@ -1014,9 +1055,7 @@ class TritonLODAttentionCore(nn.Module):
             ).view(1, full_blocks, 1, 1)
             membership_parts.append(
                 (
-                    blocked_membership.reshape(
-                        batch, full_blocks, heads, block_size
-                    )
+                    blocked_membership.reshape(batch, full_blocks, heads, block_size)
                     + block_offset
                 )
                 .permute(0, 2, 1, 3)
@@ -1069,9 +1108,7 @@ class TritonLODAttentionCore(nn.Module):
                 )
             else:
                 tail_membership = (
-                    torch.arange(
-                        tail_len, device=overflow_k.device, dtype=torch.long
-                    )
+                    torch.arange(tail_len, device=overflow_k.device, dtype=torch.long)
                     .view(1, 1, tail_len)
                     .expand(batch, heads, tail_len)
                 )
@@ -1118,9 +1155,7 @@ class TritonLODAttentionCore(nn.Module):
             block_size = self.overflow_bipartite_block_size
             overflow_len = int(overflow_k.size(2))
             if block_size <= 0 or block_size % 2:
-                raise ValueError(
-                    "union overflow block size must be positive and even"
-                )
+                raise ValueError("union overflow block size must be positive and even")
             batch, heads, _, key_dim = overflow_k.shape
             value_dim = int(overflow_v.size(-1))
             full_blocks, tail_len = divmod(overflow_len, block_size)
@@ -1168,9 +1203,7 @@ class TritonLODAttentionCore(nn.Module):
 
                 def unblocked(values: torch.Tensor, dim: int) -> torch.Tensor:
                     return (
-                        values.reshape(
-                            batch, full_blocks, heads, reduced_block, dim
-                        )
+                        values.reshape(batch, full_blocks, heads, reduced_block, dim)
                         .permute(0, 2, 1, 3, 4)
                         .reshape(batch, heads, full_blocks * reduced_block, dim)
                     )
@@ -1248,12 +1281,8 @@ class TritonLODAttentionCore(nn.Module):
         target_len = self._desired_state_len(
             ctx_len, available_context, current_state_len
         )
-        expanded_k = torch.cat(
-            (state_k[..., :current_state_len, :], overflow_k), dim=2
-        )
-        expanded_v = torch.cat(
-            (state_v[..., :current_state_len, :], overflow_v), dim=2
-        )
+        expanded_k = torch.cat((state_k[..., :current_state_len, :], overflow_k), dim=2)
+        expanded_v = torch.cat((state_v[..., :current_state_len, :], overflow_v), dim=2)
         expanded_counts = torch.cat(
             (
                 counts[..., :current_state_len, :],
@@ -1288,9 +1317,7 @@ class TritonLODAttentionCore(nn.Module):
                 next_len,
                 round_index,
             )
-            union_assignment = torch.gather(
-                round_assignment, 2, union_assignment
-            )
+            union_assignment = torch.gather(round_assignment, 2, union_assignment)
             round_index += 1
 
         state_k[..., :target_len, :].copy_(expanded_k)
@@ -1320,14 +1347,17 @@ class TritonLODAttentionCore(nn.Module):
         ctx_len: int,
         available_context: int,
         state_capacity: int,
-    ) -> tuple[
-        torch.Tensor,
-        torch.Tensor,
-        torch.Tensor,
-        int,
-        torch.Tensor,
-        torch.Tensor | None,
-    ] | None:
+    ) -> (
+        tuple[
+            torch.Tensor,
+            torch.Tensor,
+            torch.Tensor,
+            int,
+            torch.Tensor,
+            torch.Tensor | None,
+        ]
+        | None
+    ):
         """Compact old state first, then append all locally reduced overflow."""
 
         if not self.overflow_bipartite_merge:
@@ -1355,9 +1385,7 @@ class TritonLODAttentionCore(nn.Module):
             full_blocks, tail_len = divmod(body_len, block_size)
 
             def reduced_body_len(ratio: float) -> int:
-                full_target = max(
-                    block_size // 2, math.ceil(block_size * ratio)
-                )
+                full_target = max(block_size // 2, math.ceil(block_size * ratio))
                 tail_target = (
                     max((tail_len + 1) // 2, math.ceil(tail_len * ratio))
                     if tail_len
@@ -1388,9 +1416,7 @@ class TritonLODAttentionCore(nn.Module):
             state_v[..., protected:retained_state_len, :].copy_(compact_body_v)
             counts[..., protected:retained_state_len, :].copy_(compact_body_counts)
             protected_membership = (
-                torch.arange(
-                    protected, device=state_k.device, dtype=torch.long
-                )
+                torch.arange(protected, device=state_k.device, dtype=torch.long)
                 .view(1, 1, protected)
                 .expand(*state_k.shape[:2], protected)
             )
@@ -1412,6 +1438,89 @@ class TritonLODAttentionCore(nn.Module):
             output_state_len,
             reduced_owners,
             old_slot_remap,
+        )
+
+    def _premerge_state_inputs_cuda(
+        self,
+        key: torch.Tensor,
+        value: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Use persistent workspaces for fixed-group state inputs."""
+        factor = int(self.state_premerge_factor)
+        groups = (int(key.size(2)) + factor - 1) // factor
+        prefix = (int(key.size(0)), int(key.size(1)))
+        buffers = getattr(self, "_lod_premerge_buffers", None)
+        needs_buffers = (
+            not isinstance(buffers, dict)
+            or tuple(buffers["key"].shape[:2]) != prefix
+            or int(buffers["key"].size(2)) < groups
+            or int(buffers["key"].size(3)) != int(key.size(3))
+            or int(buffers["value"].size(3)) != int(value.size(3))
+            or buffers["key"].dtype != key.dtype
+            or buffers["value"].dtype != value.dtype
+            or buffers["key"].device != key.device
+        )
+        if needs_buffers:
+            capacity = _round_up(max(groups, 1), 128)
+            buffers = {
+                "key": torch.empty(
+                    *prefix,
+                    capacity,
+                    int(key.size(3)),
+                    dtype=key.dtype,
+                    device=key.device,
+                ),
+                "value": torch.empty(
+                    *prefix,
+                    capacity,
+                    int(value.size(3)),
+                    dtype=value.dtype,
+                    device=value.device,
+                ),
+                "count": torch.empty(
+                    *prefix,
+                    capacity,
+                    1,
+                    dtype=torch.float32,
+                    device=key.device,
+                ),
+            }
+            self._lod_premerge_buffers = buffers
+        return premerge_adjacent_kv(
+            key,
+            value,
+            factor,
+            grouped_key=buffers["key"],
+            grouped_value=buffers["value"],
+            grouped_count=buffers["count"],
+        )
+
+    def _expand_premerged_owners_cuda(
+        self,
+        group_owners: torch.Tensor,
+        output_len: int,
+    ) -> torch.Tensor:
+        output = getattr(self, "_lod_premerge_owner_buffer", None)
+        prefix = (int(group_owners.size(0)), int(group_owners.size(1)))
+        if (
+            not isinstance(output, torch.Tensor)
+            or tuple(output.shape[:2]) != prefix
+            or int(output.size(2)) < output_len
+            or output.dtype != group_owners.dtype
+            or output.device != group_owners.device
+        ):
+            output = torch.empty(
+                *prefix,
+                _round_up(max(output_len, 1), 256),
+                dtype=group_owners.dtype,
+                device=group_owners.device,
+            )
+            self._lod_premerge_owner_buffer = output
+        return expand_adjacent_group_owners(
+            group_owners,
+            output_len,
+            int(self.state_premerge_factor),
+            output=output,
         )
 
     def _update_state(
@@ -1493,14 +1602,21 @@ class TritonLODAttentionCore(nn.Module):
             else None
         )
         membership = None
+        premerge_input_len = None
         if self.state_premerge_factor > 1:
-            overflow_k, overflow_v, overflow_counts, membership = (
-                _premerge_adjacent_state_inputs(
-                    overflow_k,
-                    overflow_v,
-                    self.state_premerge_factor,
+            if overflow_k.is_cuda and overflow_v.is_cuda:
+                premerge_input_len = int(overflow_k.size(2))
+                overflow_k, overflow_v, overflow_counts = (
+                    self._premerge_state_inputs_cuda(overflow_k, overflow_v)
                 )
-            )
+            else:
+                overflow_k, overflow_v, overflow_counts, membership = (
+                    _premerge_adjacent_state_inputs(
+                        overflow_k,
+                        overflow_v,
+                        self.state_premerge_factor,
+                    )
+                )
             if overflow_key_norm_sums is not None:
                 overflow_key_norm_sums = _sum_adjacent_groups(
                     overflow_key_norm_sums,
@@ -1520,6 +1636,14 @@ class TritonLODAttentionCore(nn.Module):
                 dtype=torch.float32,
                 device=overflow_k.device,
             )
+
+        def expand_premerged_owners(owners: torch.Tensor) -> torch.Tensor:
+            if premerge_input_len is not None:
+                return self._expand_premerged_owners_cuda(owners, premerge_input_len)
+            if membership is not None:
+                return owners.gather(2, membership)
+            return owners
+
         overflow_len = int(overflow_k.size(2))
         current_state_len = state_len
         desired_state_len = self._desired_state_len(
@@ -1548,10 +1672,7 @@ class TritonLODAttentionCore(nn.Module):
             and streaming_geometry is not None
             and (
                 self.fused_state_maxsim
-                or (
-                    streaming_geometry != "raw"
-                    and int(state_k.size(0)) > 1
-                )
+                or (streaming_geometry != "raw" and int(state_k.size(0)) > 1)
             )
         )
         current_state_route_k = None
@@ -1628,20 +1749,14 @@ class TritonLODAttentionCore(nn.Module):
             prepared_identity = (
                 int(state_k.data_ptr()),
                 int(counts.data_ptr()),
-                (
-                    int(key_norm_sums.data_ptr())
-                    if key_norm_sums is not None
-                    else 0
-                ),
+                (int(key_norm_sums.data_ptr()) if key_norm_sums is not None else 0),
                 current_state_len,
                 streaming_geometry,
             )
-            prepare_state_geometry = (
-                maxsim_buffers.get("_prepared_identity")
-                != prepared_identity
-                or ctx_len <= int(
-                    maxsim_buffers.get("_prepared_context_len", -1)
-                )
+            prepare_state_geometry = maxsim_buffers.get(
+                "_prepared_identity"
+            ) != prepared_identity or ctx_len <= int(
+                maxsim_buffers.get("_prepared_context_len", -1)
             )
             (
                 old_route_scores,
@@ -1667,8 +1782,7 @@ class TritonLODAttentionCore(nn.Module):
                 materialize_prepared_scores=(streaming_geometry != "raw"),
                 coherence_single_matmul=(
                     self.coherence_single_matmul
-                    and streaming_geometry
-                    in {"coherence", "spherical_coherence"}
+                    and streaming_geometry in {"coherence", "spherical_coherence"}
                 ),
             )
             append_idx, merge_idx = self._split_append_merge_indices(
@@ -1686,17 +1800,12 @@ class TritonLODAttentionCore(nn.Module):
                     current_state_route_k,
                     purpose="assignment",
                 )
-                invalid_state = (
-                    counts[..., :current_state_len, 0].le(0.5).unsqueeze(-2)
-                )
+                invalid_state = counts[..., :current_state_len, 0].le(0.5).unsqueeze(-2)
                 old_similarity.masked_fill_(invalid_state, float("-inf"))
                 protected_slots = self._protected_state_len(current_state_len)
                 if protected_slots:
                     protected_scores = (
-                        old_similarity[..., :protected_slots]
-                        .float()
-                        .max(dim=-1)
-                        .values
+                        old_similarity[..., :protected_slots].float().max(dim=-1).values
                     )
                     old_similarity[..., :protected_slots] = float("-inf")
                 else:
@@ -1712,18 +1821,19 @@ class TritonLODAttentionCore(nn.Module):
                     self.state_clustering_radial_bias
                 ) and radial_scope in {"all", "assignment"}
                 centroid_scope = self.state_clustering_centroid_rescale_scope
-                use_scoped_coherence = (
-                    self.state_clustering_centroid_rescale
-                    in {"coherence", "spherical_coherence", "rope_coherence"}
-                )
+                use_scoped_coherence = self.state_clustering_centroid_rescale in {
+                    "coherence",
+                    "spherical_coherence",
+                    "rope_coherence",
+                }
                 append_uses_coherence = use_scoped_coherence and centroid_scope in {
                     "all",
                     "append",
                 }
-                assignment_uses_coherence = (
-                    use_scoped_coherence
-                    and centroid_scope in {"all", "assignment"}
-                )
+                assignment_uses_coherence = use_scoped_coherence and centroid_scope in {
+                    "all",
+                    "assignment",
+                }
                 if (
                     append_uses_radial == assignment_uses_radial
                     and append_uses_coherence == assignment_uses_coherence
@@ -1768,11 +1878,15 @@ class TritonLODAttentionCore(nn.Module):
                 current_state_append_route_k,
             )
         elif n_append and self.state_append_subblock_size <= 0:
-            append_select_scores = self._state_clustering_similarity(
-                overflow_route_k,
-                current_state_append_route_k,
-                purpose="append",
-            ).max(dim=-1).values
+            append_select_scores = (
+                self._state_clustering_similarity(
+                    overflow_route_k,
+                    current_state_append_route_k,
+                    purpose="append",
+                )
+                .max(dim=-1)
+                .values
+            )
             append_idx, merge_idx = self._split_append_merge_indices(
                 append_select_scores, n_append
             )
@@ -1781,11 +1895,15 @@ class TritonLODAttentionCore(nn.Module):
             append_idx = merge_idx[..., :0]
         else:
             with torch.no_grad():
-                append_select_scores = self._state_clustering_similarity(
-                    overflow_route_k,
-                    current_state_append_route_k,
-                    purpose="append",
-                ).max(dim=-1).values
+                append_select_scores = (
+                    self._state_clustering_similarity(
+                        overflow_route_k,
+                        current_state_append_route_k,
+                        purpose="append",
+                    )
+                    .max(dim=-1)
+                    .values
+                )
                 append_idx, merge_idx = self._split_append_merge_indices(
                     append_select_scores, n_append
                 )
@@ -1810,24 +1928,18 @@ class TritonLODAttentionCore(nn.Module):
                 slot_indices=changed_slots,
                 prepare_coherence_route=not (
                     self.coherence_single_matmul
-                    and streaming_geometry
-                    in {"coherence", "spherical_coherence"}
+                    and streaming_geometry in {"coherence", "spherical_coherence"}
                 ),
                 prepare_coherence_append=True,
                 prepare_coherence_scale=(
                     self.coherence_single_matmul
-                    and streaming_geometry
-                    in {"coherence", "spherical_coherence"}
+                    and streaming_geometry in {"coherence", "spherical_coherence"}
                 ),
             )
             maxsim_buffers["_prepared_identity"] = (
                 int(state_k.data_ptr()),
                 int(counts.data_ptr()),
-                (
-                    int(key_norm_sums.data_ptr())
-                    if key_norm_sums is not None
-                    else 0
-                ),
+                (int(key_norm_sums.data_ptr()) if key_norm_sums is not None else 0),
                 active_state_len,
                 streaming_geometry,
             )
@@ -1866,13 +1978,11 @@ class TritonLODAttentionCore(nn.Module):
             if not self.state_merge_before_append:
                 state_k[..., current_state_len:desired_state_len, :].copy_(append_k)
                 state_v[..., current_state_len:desired_state_len, :].copy_(append_v)
-                counts[..., current_state_len:desired_state_len, :].copy_(
-                    append_counts
-                )
+                counts[..., current_state_len:desired_state_len, :].copy_(append_counts)
                 if key_norm_sums is not None:
-                    key_norm_sums[
-                        ..., current_state_len:desired_state_len, :
-                    ].copy_(append_key_norm_sums)
+                    key_norm_sums[..., current_state_len:desired_state_len, :].copy_(
+                        append_key_norm_sums
+                    )
                 owners.scatter_(2, append_idx, append_slots)
             merge_k = _gather_by_idx(overflow_k, merge_idx)
             merge_v = _gather_by_idx(overflow_v, merge_idx)
@@ -1894,24 +2004,17 @@ class TritonLODAttentionCore(nn.Module):
             if n_append and self.state_merge_before_append:
                 state_k[..., current_state_len:desired_state_len, :].copy_(append_k)
                 state_v[..., current_state_len:desired_state_len, :].copy_(append_v)
-                counts[..., current_state_len:desired_state_len, :].copy_(
-                    append_counts
-                )
+                counts[..., current_state_len:desired_state_len, :].copy_(append_counts)
                 if key_norm_sums is not None:
-                    key_norm_sums[
-                        ..., current_state_len:desired_state_len, :
-                    ].copy_(append_key_norm_sums)
+                    key_norm_sums[..., current_state_len:desired_state_len, :].copy_(
+                        append_key_norm_sums
+                    )
                 owners.scatter_(2, append_idx, append_slots)
             refresh_prepared_geometry(
-                (
-                    append_slots
-                    if n_append
-                    else owners[..., :0]
-                ),
+                (append_slots if n_append else owners[..., :0]),
                 desired_state_len,
             )
-            if membership is not None:
-                owners = owners.gather(2, membership)
+            owners = expand_premerged_owners(owners)
             return state_k, state_v, counts, desired_state_len, owners, None
 
         with torch.no_grad():
@@ -1959,18 +2062,14 @@ class TritonLODAttentionCore(nn.Module):
                     purpose="assignment",
                 )
                 route_logits.masked_fill_(
-                    counts[..., :route_state_len, 0]
-                    .le(0.5)
-                    .unsqueeze(-2),
+                    counts[..., :route_state_len, 0].le(0.5).unsqueeze(-2),
                     float("-inf"),
                 )
                 route_logits[..., :protected_slots] = float("-inf")
                 destination = route_logits.argmax(dim=-1)
 
         route_state_len = (
-            current_state_len
-            if self.state_merge_before_append
-            else desired_state_len
+            current_state_len if self.state_merge_before_append else desired_state_len
         )
         assignment_t = (
             F.one_hot(destination, num_classes=route_state_len)
@@ -2019,27 +2118,22 @@ class TritonLODAttentionCore(nn.Module):
                 if assignment_t is None or merge_key_norm_sums is None:
                     raise AssertionError("LOD key-norm assignment is missing")
                 key_norm_sums[..., :route_state_len, :].add_(
-                    torch.matmul(
-                        assignment_t.float(), merge_key_norm_sums.float()
-                    )
+                    torch.matmul(assignment_t.float(), merge_key_norm_sums.float())
                 )
         if n_append and self.state_merge_before_append:
             state_k[..., current_state_len:desired_state_len, :].copy_(append_k)
             state_v[..., current_state_len:desired_state_len, :].copy_(append_v)
             counts[..., current_state_len:desired_state_len, :].copy_(append_counts)
             if key_norm_sums is not None:
-                key_norm_sums[
-                    ..., current_state_len:desired_state_len, :
-                ].copy_(append_key_norm_sums)
+                key_norm_sums[..., current_state_len:desired_state_len, :].copy_(
+                    append_key_norm_sums
+                )
             owners.scatter_(2, append_idx, append_slots)
         changed_slots = (
-            torch.cat((destination, append_slots), dim=-1)
-            if n_append
-            else destination
+            torch.cat((destination, append_slots), dim=-1) if n_append else destination
         )
         refresh_prepared_geometry(changed_slots, desired_state_len)
-        if membership is not None:
-            owners = owners.gather(2, membership)
+        owners = expand_premerged_owners(owners)
         return state_k, state_v, counts, desired_state_len, owners, None
 
     def _state_route_logits(
@@ -2069,18 +2163,12 @@ class TritonLODAttentionCore(nn.Module):
             return torch.matmul(grouped_q, grouped_k_t).reshape(
                 batch, query_heads, query_len, state_len
             )
-        return torch.matmul(
-            q.detach(), self._repeat_kv(mean_k).transpose(-1, -2)
-        )
+        return torch.matmul(q.detach(), self._repeat_kv(mean_k).transpose(-1, -2))
 
     @staticmethod
     def _routing_rms_normalize(tensor: torch.Tensor) -> torch.Tensor:
         inverse_rms = torch.rsqrt(
-            tensor.detach()
-            .float()
-            .square()
-            .mean(dim=-1, keepdim=True)
-            .clamp_min(1e-12)
+            tensor.detach().float().square().mean(dim=-1, keepdim=True).clamp_min(1e-12)
         )
         # Keep route logits in the same dtype as the normal fused path.  The
         # normalization statistics themselves are computed in FP32.
@@ -2102,13 +2190,9 @@ class TritonLODAttentionCore(nn.Module):
             )
         rope_fast_pairs = int(self.routing_rope_fast_pairs)
         if normalization == "none" and rope_fast_pairs == 0:
-            return self._state_route_logits(
-                q, state_k, counts, state_len=state_len
-            )
+            return self._state_route_logits(q, state_k, counts, state_len=state_len)
         if normalization not in {"none", "query", "key", "both"}:
-            raise ValueError(
-                "routing normalization must be none, query, key, or both"
-            )
+            raise ValueError("routing normalization must be none, query, key, or both")
         route_q = q.detach()
         # For query-only normalization, ranking
         #   scale * (q / rms(q)) @ mean_k + log(count)
@@ -2140,9 +2224,9 @@ class TritonLODAttentionCore(nn.Module):
         if normalization in {"query", "both"}:
             route_q = self._routing_rms_normalize(route_q)
         elif original_query_rms is not None:
-            route_q = (
-                self._routing_rms_normalize(route_q) * original_query_rms
-            ).to(route_q.dtype)
+            route_q = (self._routing_rms_normalize(route_q) * original_query_rms).to(
+                route_q.dtype
+            )
         if normalization in {"key", "both"}:
             mean_k = self._routing_rms_normalize(mean_k)
         if self.route_gqa_matmul:
@@ -2159,9 +2243,7 @@ class TritonLODAttentionCore(nn.Module):
             return torch.matmul(grouped_q, grouped_k_t).reshape(
                 batch, query_heads, query_len, state_len
             )
-        return torch.matmul(
-            route_q, self._repeat_kv(mean_k).transpose(-1, -2)
-        )
+        return torch.matmul(route_q, self._repeat_kv(mean_k).transpose(-1, -2))
 
     def _apply_routing_variance_correction(
         self,
@@ -2200,17 +2282,18 @@ class TritonLODAttentionCore(nn.Module):
             reference_sum = reference.float().square().sum(dim=-1).sum(dim=-1)
         reference_count = valid_reference_len
         if new_k is not None:
-            reference_sum = reference_sum + new_k.detach().float().square().sum(-1).sum(-1)
+            reference_sum = reference_sum + new_k.detach().float().square().sum(-1).sum(
+                -1
+            )
             reference_count += int(new_k.size(2))
         if reference_count:
             reference_sq = reference_sum / float(reference_count)
         else:
             singleton = state_count.squeeze(-1).eq(1)
             singleton_count = singleton.sum(-1)
-            singleton_mean = (
-                mean_sq.masked_fill(~singleton, 0).sum(-1)
-                / singleton_count.clamp_min(1)
-            )
+            singleton_mean = mean_sq.masked_fill(~singleton, 0).sum(
+                -1
+            ) / singleton_count.clamp_min(1)
             # A max-norm centroid is the least-cancelled available proxy when
             # the state has no singleton and there is no exact local field.
             reference_sq = torch.where(
@@ -2264,12 +2347,8 @@ class TritonLODAttentionCore(nn.Module):
         )
 
         state_count = counts.detach()[..., :state_len, :]
-        mean_k = self._mean(
-            state_k.detach()[..., :state_len, :], state_count
-        ).float()
-        mean_pairs = (
-            mean_k[..., :half].square() + mean_k[..., half:rope_dim].square()
-        )
+        mean_k = self._mean(state_k.detach()[..., :state_len, :], state_count).float()
+        mean_pairs = mean_k[..., :half].square() + mean_k[..., half:rope_dim].square()
         reference_sum = mean_pairs.new_zeros(*mean_pairs.shape[:2], half)
         valid_reference_len = 0
         if reference_k is not None:
@@ -2279,8 +2358,7 @@ class TritonLODAttentionCore(nn.Module):
         if valid_reference_len:
             reference = reference_k.detach()[..., :valid_reference_len, :].float()
             reference_sum = reference_sum + (
-                reference[..., :half].square()
-                + reference[..., half:rope_dim].square()
+                reference[..., :half].square() + reference[..., half:rope_dim].square()
             ).sum(-2)
         reference_count = valid_reference_len
         if new_k is not None:
@@ -2295,10 +2373,9 @@ class TritonLODAttentionCore(nn.Module):
         else:
             singleton = state_count.squeeze(-1).eq(1)
             singleton_count = singleton.sum(-1)
-            singleton_pairs = (
-                mean_pairs.masked_fill(~singleton.unsqueeze(-1), 0).sum(-2)
-                / singleton_count.clamp_min(1).unsqueeze(-1)
-            )
+            singleton_pairs = mean_pairs.masked_fill(~singleton.unsqueeze(-1), 0).sum(
+                -2
+            ) / singleton_count.clamp_min(1).unsqueeze(-1)
             reference_pairs = torch.where(
                 singleton_count.gt(0).unsqueeze(-1),
                 singleton_pairs,
@@ -2310,8 +2387,10 @@ class TritonLODAttentionCore(nn.Module):
         # The attention path multiplies these raw logits by `scaling` later.
         # Within each rotary plane, covariance trace is the pair-energy
         # deficit, so 0.5 Var(score) becomes 0.25 * scaling here.
-        raw_correction = 0.25 * float(self.scaling) * torch.matmul(
-            query_pairs, pair_variance.transpose(-1, -2)
+        raw_correction = (
+            0.25
+            * float(self.scaling)
+            * torch.matmul(query_pairs, pair_variance.transpose(-1, -2))
         )
         return logits + raw_correction.to(logits.dtype)
 
@@ -2328,19 +2407,12 @@ class TritonLODAttentionCore(nn.Module):
         local_len: int | None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Return the all-closed approximation used by output-error routing."""
-        query_counts = self._repeat_kv(
-            counts.detach()[..., :state_len, :]
-        ).squeeze(-1)
-        state_logits = self._state_route_logits(
-            q, state_k, counts, state_len=state_len
-        )
-        state_scores = (
-            state_logits.float() * self.scaling
-            + query_counts.clamp_min(1).log().unsqueeze(2)
-        )
-        state_scores.masked_fill_(
-            query_counts.le(0).unsqueeze(2), float("-inf")
-        )
+        query_counts = self._repeat_kv(counts.detach()[..., :state_len, :]).squeeze(-1)
+        state_logits = self._state_route_logits(q, state_k, counts, state_len=state_len)
+        state_scores = state_logits.float() * self.scaling + query_counts.clamp_min(
+            1
+        ).log().unsqueeze(2)
+        state_scores.masked_fill_(query_counts.le(0).unsqueeze(2), float("-inf"))
         mean_v = self._repeat_kv(
             self._mean(
                 state_v.detach()[..., :state_len, :],
@@ -2359,9 +2431,10 @@ class TritonLODAttentionCore(nn.Module):
             repeated_local_v = self._repeat_kv(
                 local_v.detach()[..., :active_local_len, :]
             ).float()
-            local_scores = torch.matmul(
-                q.detach(), repeated_local_k.transpose(-1, -2)
-            ).float() * self.scaling
+            local_scores = (
+                torch.matmul(q.detach(), repeated_local_k.transpose(-1, -2)).float()
+                * self.scaling
+            )
             if int(q.size(2)) > 1:
                 query_position = torch.arange(
                     int(q.size(2)), device=q.device
@@ -2406,21 +2479,21 @@ class TritonLODAttentionCore(nn.Module):
         new_k: torch.Tensor | None,
     ) -> torch.Tensor:
         """Return the exact local-field LSE used by full-mass route opening."""
-        active_local_len = (
-            int(local_k.size(2)) if local_len is None else int(local_len)
+        active_local_len = int(local_k.size(2)) if local_len is None else int(local_len)
+        local_scores = (
+            torch.matmul(
+                q.detach(),
+                self._repeat_kv(local_k.detach()[..., :active_local_len, :]).transpose(
+                    -1, -2
+                ),
+            ).float()
+            * self.scaling
         )
-        local_scores = torch.matmul(
-            q.detach(),
-            self._repeat_kv(
-                local_k.detach()[..., :active_local_len, :]
-            ).transpose(-1, -2),
-        ).float() * self.scaling
         local_lse = torch.logsumexp(local_scores, dim=-1)
         if new_k is not None:
-            new_score = (
-                q.detach()
-                * self._repeat_kv(new_k.detach())
-            ).sum(dim=-1).float() * self.scaling
+            new_score = (q.detach() * self._repeat_kv(new_k.detach())).sum(
+                dim=-1
+            ).float() * self.scaling
             local_lse = torch.logaddexp(local_lse, new_score)
         return local_lse
 
@@ -2446,11 +2519,12 @@ class TritonLODAttentionCore(nn.Module):
             else self.two_level_topk
         )
         protected_len = (
-            self._protected_route_len(state_len)
-            if self.exclude_sink_from_routes
-            else 0
+            self._protected_route_len(state_len) if self.exclude_sink_from_routes else 0
         )
         route_count = min(configured_topk, state_len - protected_len)
+        seal_capacity = self.leaf_seal_capacity
+        if seal_capacity is not None and seal_capacity <= 0:
+            raise ValueError("leaf seal capacity must be positive")
         dynamic_target = self._dynamic_open_target(int(q.size(2)))
         dynamic_residual = self._dynamic_open_residual(int(q.size(2)))
         if (
@@ -2461,9 +2535,7 @@ class TritonLODAttentionCore(nn.Module):
             or self.routing_variance_bias != 0.0
             or self.routing_page_mass_candidates != 0
             or self.routing_leaf_mass_candidates != 0
-        ) and (
-            dynamic_target is not None or dynamic_residual is not None
-        ):
+        ) and (dynamic_target is not None or dynamic_residual is not None):
             raise ValueError(
                 "routing normalization is not calibrated for dynamic opening"
             )
@@ -2476,9 +2548,7 @@ class TritonLODAttentionCore(nn.Module):
                 and state_len - protected_len > route_count
             ):
                 if not self.recursive_page_lod:
-                    raise ValueError(
-                        "page-mass routing requires recursive page LOD"
-                    )
+                    raise ValueError("page-mass routing requires recursive page LOD")
                 if page_mass_candidates and bool(
                     page_cache.get("summary_quantization_finalized", False)
                 ):
@@ -2526,6 +2596,11 @@ class TritonLODAttentionCore(nn.Module):
                 candidate_scores.masked_fill_(
                     query_counts.le(0).unsqueeze(2), float("-inf")
                 )
+                if seal_capacity is not None:
+                    candidate_scores.masked_fill_(
+                        query_counts.ge(seal_capacity).unsqueeze(2),
+                        float("-inf"),
+                    )
                 candidate_scores[..., :protected_len] = float("-inf")
                 candidate_base_scores, candidates = candidate_scores.topk(
                     candidate_count,
@@ -2537,16 +2612,12 @@ class TritonLODAttentionCore(nn.Module):
                     # exact-attention route count. Blurry coarse routing has a
                     # diffuse mass distribution and therefore causes more
                     # centroids to be inspected by the finer page hierarchy.
-                    complete_coarse_lse = torch.logsumexp(
-                        candidate_scores, dim=-1
-                    )
+                    complete_coarse_lse = torch.logsumexp(candidate_scores, dim=-1)
                     reviewed_fraction = torch.exp(
-                        candidate_base_scores
-                        - complete_coarse_lse.unsqueeze(-1)
+                        candidate_base_scores - complete_coarse_lse.unsqueeze(-1)
                     ).cumsum(dim=-1)
                     review_counts = (
-                        reviewed_fraction
-                        < float(self.routing_leaf_mass_review_top_p)
+                        reviewed_fraction < float(self.routing_leaf_mass_review_top_p)
                     ).sum(dim=-1) + 1
                     review_counts.clamp_(
                         min=route_count,
@@ -2602,11 +2673,7 @@ class TritonLODAttentionCore(nn.Module):
                 refinement_kwargs = {
                     "kv_group_size": self.num_key_value_groups,
                     "scale": self.scaling,
-                    "hash_probes": (
-                        self.leaf_hash_probes
-                        if bool(page_cache.get("overflow_active", False))
-                        else 0
-                    ),
+                    "hash_probes": self._page_lookup_probes(page_cache),
                     "page_size": int(page_cache["page_size"]),
                 }
                 if (
@@ -2679,8 +2746,7 @@ class TritonLODAttentionCore(nn.Module):
                                 route_q = self._routing_rms_normalize(route_q)
                             elif self.routing_normalization != "none":
                                 raise ValueError(
-                                    "unsupported normalization for RoPE Jensen "
-                                    "routing"
+                                    "unsupported normalization for RoPE Jensen routing"
                                 )
                             rope_half = rope_dim // 2
                             jensen_dim = 2 * jensen_pairs
@@ -2691,18 +2757,19 @@ class TritonLODAttentionCore(nn.Module):
                             # cutoffs such as Gemma's 82 dimensions.
                             kernel_dim = 1 << (jensen_dim - 1).bit_length()
 
-                            def select_jensen_pairs(tensor: torch.Tensor) -> torch.Tensor:
+                            def select_jensen_pairs(
+                                tensor: torch.Tensor,
+                            ) -> torch.Tensor:
                                 selected = torch.cat(
                                     (
                                         tensor[
                                             ...,
-                                            jensen_pair_start
-                                            : jensen_pair_start + jensen_pairs,
+                                            jensen_pair_start : jensen_pair_start
+                                            + jensen_pairs,
                                         ],
                                         tensor[
                                             ...,
-                                            rope_half + jensen_pair_start
-                                            : rope_half
+                                            rope_half + jensen_pair_start : rope_half
                                             + jensen_pair_start
                                             + jensen_pairs,
                                         ],
@@ -2731,9 +2798,9 @@ class TritonLODAttentionCore(nn.Module):
                             )
                             jensen_logits = torch.matmul(
                                 jensen_query,
-                                self._repeat_kv(
-                                    select_jensen_pairs(mean_k)
-                                ).transpose(-1, -2),
+                                self._repeat_kv(select_jensen_pairs(mean_k)).transpose(
+                                    -1, -2
+                                ),
                             )
                             jensen_scores = (
                                 jensen_logits.float() * self.scaling
@@ -2821,9 +2888,7 @@ class TritonLODAttentionCore(nn.Module):
                         mass_scores - anchor.unsqueeze(-1)
                     ).sum(dim=-1)
                     corrected_total_mass = (
-                        coarse_mass
-                        - reviewed_coarse_mass
-                        + reviewed_refined_mass
+                        coarse_mass - reviewed_coarse_mass + reviewed_refined_mass
                     ).clamp_min(torch.finfo(torch.float32).tiny)
                     corrected_total_lse = anchor + corrected_total_mass.log()
                     cumulative_fraction = torch.exp(
@@ -2861,48 +2926,68 @@ class TritonLODAttentionCore(nn.Module):
                 and 0 < route_count <= 8
                 and dynamic_target is None
                 and not getattr(self, "_lod_collect_stats", False)
+                and (
+                    self.leaf_layout not in ("aiter_union", "aiter_masked_union")
+                    or getattr(self, "mla_state_key_normalization", "none") == "none"
+                )
             ):
                 if local_k is None or local_v is None:
                     raise AssertionError("fused prefill routing has no local KV")
-                logits = self._state_route_logits(
-                    q,
-                    state_k,
-                    counts,
-                    state_len=state_len,
+                fused_state_qk = bool(
+                    self.prefill_int8_route_mma
+                    and getattr(self, "mla_state_key_normalization", "none") == "none"
+                )
+                logits = (
+                    q
+                    if fused_state_qk
+                    else self._state_route_logits(
+                        q,
+                        state_k,
+                        counts,
+                        state_len=state_len,
+                    )
                 )
                 include_local = not self.split_prefill_local_attention
                 coarse_local_k = local_k if include_local else local_k[..., :0, :]
                 coarse_local_v = local_v if include_local else local_v[..., :0, :]
-                routed, coarse_output, coarse_lse = (
-                    route_logits_topk_coarse_attention(
-                        q,
-                        logits.contiguous(),
-                        state_v.contiguous(),
-                        counts.contiguous(),
-                        coarse_local_k.contiguous(),
-                        coarse_local_v.contiguous(),
-                        state_len=state_len,
-                        kv_group_size=self.num_key_value_groups,
-                        scale=self.scaling,
-                        route_count_bias=self.routing_count_bias,
-                        topk=route_count,
-                        protected_len=protected_len,
-                        max_leaf_tokens=self.prefill_max_leaf_tokens,
-                        residual_local_lse=(
-                            dynamic_local_lse.contiguous()
-                            if dynamic_local_lse is not None
-                            else None
-                        ),
-                        residual_mass=dynamic_residual,
-                        block_m=self.fused_prefill_block_m,
-                        block_n=self.fused_prefill_block_n,
-                        num_warps=self.fused_prefill_num_warps,
-                        stable_recompute=self.fused_prefill_stable_recompute,
-                        route_only=(
-                            self.fused_prefill_stable_recompute
-                            and self.fused_prefill_external_recompute
-                        ),
-                    )
+                routed, coarse_output, coarse_lse = route_logits_topk_coarse_attention(
+                    q,
+                    logits.contiguous(),
+                    state_v.contiguous(),
+                    counts.contiguous(),
+                    coarse_local_k.contiguous(),
+                    coarse_local_v.contiguous(),
+                    state_len=state_len,
+                    kv_group_size=self.num_key_value_groups,
+                    scale=self.scaling,
+                    route_count_bias=self.routing_count_bias,
+                    topk=route_count,
+                    protected_len=protected_len,
+                    max_leaf_tokens=(
+                        min(self.prefill_max_leaf_tokens, seal_capacity - 1)
+                        if self.prefill_max_leaf_tokens is not None
+                        and seal_capacity is not None
+                        else self.prefill_max_leaf_tokens
+                        if seal_capacity is None
+                        else seal_capacity - 1
+                    ),
+                    residual_local_lse=(
+                        dynamic_local_lse.contiguous()
+                        if dynamic_local_lse is not None
+                        else None
+                    ),
+                    residual_mass=dynamic_residual,
+                    block_m=(8 if fused_state_qk else self.fused_prefill_block_m),
+                    block_n=self.fused_prefill_block_n,
+                    num_warps=self.fused_prefill_num_warps,
+                    stable_recompute=self.fused_prefill_stable_recompute,
+                    route_only=(
+                        not fused_state_qk
+                        and self.fused_prefill_stable_recompute
+                        and self.fused_prefill_external_recompute
+                    ),
+                    state_k=(state_k.contiguous() if fused_state_qk else None),
+                    int8_qk=fused_state_qk,
                 )
                 if self.collect_dynamic_open_stats and dynamic_residual is not None:
                     open_counts = (routed >= 0).sum(dim=-1)
@@ -2913,7 +2998,8 @@ class TritonLODAttentionCore(nn.Module):
                         self._lod_dynamic_prefill_histograms = []
                     self._lod_dynamic_prefill_histograms.append(histogram)
                 if (
-                    self.fused_prefill_stable_recompute
+                    not fused_state_qk
+                    and self.fused_prefill_stable_recompute
                     and self.fused_prefill_external_recompute
                 ):
                     # The fused first scan selects routes without temporary
@@ -2930,6 +3016,7 @@ class TritonLODAttentionCore(nn.Module):
                 return routed
             if (
                 self.fused_state_routing
+                and seal_capacity is None
                 and q.is_cuda
                 and route_count <= 8
                 and not getattr(self, "_lod_collect_stats", False)
@@ -2945,11 +3032,9 @@ class TritonLODAttentionCore(nn.Module):
                     or (
                         needs_lse_buffers
                         and (
-                            tuple(buffers["state_lse"].shape[:2])
-                            != tuple(q.shape[:2])
+                            tuple(buffers["state_lse"].shape[:2]) != tuple(q.shape[:2])
                             or int(buffers["state_lse"].size(2)) < int(q.size(2))
-                            or int(buffers["partial_lse"].size(3))
-                            < required_groups
+                            or int(buffers["partial_lse"].size(3)) < required_groups
                         )
                     )
                     or buffers["output"].device != q.device
@@ -2971,10 +3056,7 @@ class TritonLODAttentionCore(nn.Module):
                     and self.routing_variance_bias == 0.0
                     and dynamic_target is None
                     and dynamic_residual is None
-                    and not (
-                        self.reuse_route_logits_for_coarse
-                        and int(q.size(2)) > 1
-                    )
+                    and not (self.reuse_route_logits_for_coarse and int(q.size(2)) > 1)
                 ):
                     routed = route_top8_state_grouped(
                         q.detach(),
@@ -3070,8 +3152,7 @@ class TritonLODAttentionCore(nn.Module):
                     ).squeeze(-1)
                     corrected = (
                         logits * self.scaling
-                        + self.routing_count_bias
-                        * query_counts.log().unsqueeze(2)
+                        + self.routing_count_bias * query_counts.log().unsqueeze(2)
                     )
                     corrected[..., :protected_len] = float("-inf")
                     reference = corrected.topk(
@@ -3133,9 +3214,7 @@ class TritonLODAttentionCore(nn.Module):
                     ).squeeze(-1)
                     selected_logits = torch.gather(logits, -1, routed)
                     selected_counts = torch.gather(
-                        query_counts.unsqueeze(2).expand(
-                            -1, -1, int(q.size(2)), -1
-                        ),
+                        query_counts.unsqueeze(2).expand(-1, -1, int(q.size(2)), -1),
                         -1,
                         routed,
                     )
@@ -3145,7 +3224,9 @@ class TritonLODAttentionCore(nn.Module):
                     full_lse = None
                     if dynamic_residual is not None:
                         if routed_state_lse is None:
-                            raise AssertionError("dynamic routing did not return state LSE")
+                            raise AssertionError(
+                                "dynamic routing did not return state LSE"
+                            )
                         state_lse = routed_state_lse
                         if self.dynamic_open_residual_use_state_bound:
                             full_lse = state_lse
@@ -3229,6 +3310,11 @@ class TritonLODAttentionCore(nn.Module):
             )
             log_counts = query_counts.log()
             logits = logits + self.routing_count_bias * log_counts.unsqueeze(2)
+            if seal_capacity is not None:
+                logits.masked_fill_(
+                    query_counts.ge(seal_capacity).unsqueeze(2),
+                    float("-inf"),
+                )
             logits[..., :protected_len] = float("-inf")
             top_slots = logits.topk(route_count, dim=-1, sorted=False).indices
             if getattr(self, "_lod_collect_stats", False):
@@ -3334,9 +3420,7 @@ class TritonLODAttentionCore(nn.Module):
                 remaining_before = global_mass.sum(dim=-1, keepdim=True) - (
                     cumulative_before
                 )
-                open_sorted = (rank == 0) | (
-                    remaining_before > residual_mass
-                )
+                open_sorted = (rank == 0) | (remaining_before > residual_mass)
                 open_counts = open_sorted.sum(dim=-1)
             open_original = torch.zeros_like(open_sorted).scatter_(
                 -1, order, open_sorted
@@ -3365,9 +3449,7 @@ class TritonLODAttentionCore(nn.Module):
         """Accumulate dynamic route counts on the engine and its HF owner."""
         if not self.collect_dynamic_open_stats:
             return
-        histogram = torch.bincount(
-            open_counts.reshape(-1), minlength=route_count + 1
-        )
+        histogram = torch.bincount(open_counts.reshape(-1), minlength=route_count + 1)
         phase = "decode" if int(open_counts.size(2)) == 1 else "prefill"
         if statistic not in {"open", "review"}:
             raise ValueError("dynamic route statistic must be open or review")
@@ -3400,15 +3482,29 @@ class TritonLODAttentionCore(nn.Module):
         raw_page_key_summaries = bool(
             getattr(self, "mla_recursive_page_key_normalization", False)
         )
+        flat_int8_mma = bool(self.prefill_int8_leaf_mma)
+        if flat_int8_mma:
+            if self.recursive_page_lod:
+                raise ValueError(
+                    "prefill INT8 leaf MMA does not support recursive leaves"
+                )
+            if self.leaf_layout != "expert":
+                raise ValueError("prefill INT8 leaf MMA requires expert leaf layout")
+            if self.leaf_key_quant_bits or self.leaf_value_quant_bits:
+                raise ValueError(
+                    "prefill INT8 leaf MMA is a native storage format and cannot "
+                    "be combined with simulated leaf quantization"
+                )
+            if head_dim % 32 or int(v.size(-1)) % 32:
+                raise ValueError(
+                    "prefill INT8 leaf MMA requires dimensions divisible by 32"
+                )
         if raw_page_key_summaries:
             if not self.recursive_page_lod:
                 raise ValueError(
                     "recursive MLA page normalization requires recursive page LOD"
                 )
-            if (
-                self.leaf_key_quant_bits
-                or self.leaf_value_quant_bits
-            ):
+            if self.leaf_key_quant_bits or self.leaf_value_quant_bits:
                 raise ValueError(
                     "recursive raw MLA page summaries do not yet support quantization"
                 )
@@ -3420,15 +3516,76 @@ class TritonLODAttentionCore(nn.Module):
         page_capacity = (
             sequence_capacity + page_size - 1
         ) // page_size + state_capacity
+        paged_page_directory = bool(self.leaf_paged_directory)
+        if (
+            paged_page_directory
+            and self.leaf_layout
+            in ("aiter_varlen", "aiter_union", "aiter_masked_union")
+            and not self.virtual_page_storage
+        ):
+            raise ValueError(
+                "physical-page AITER varlen attention does not consume the "
+                "two-level page directory; use virtual-page storage"
+            )
         hash_capacity = 1 << max(
             1,
             (page_capacity * self.leaf_overflow_hash_factor - 1).bit_length(),
         )
-        slot_page_dtype = (
-            torch.int16
-            if page_capacity <= torch.iinfo(torch.int16).max
-            else torch.int32
-        )
+        if paged_page_directory:
+            maximum_slot_pages = max(
+                1, (sequence_capacity + page_size - 1) // page_size
+            )
+            slot_page_capacity = max(
+                1,
+                (maximum_slot_pages + _PAGE_DIRECTORY_SIZE - 1) // _PAGE_DIRECTORY_SIZE,
+            )
+            # A root entry uses one of its physical K/V page IDs as the handle
+            # for the corresponding directory page.  Matching the physical
+            # page-pool capacity therefore gives a collision-free hard bound
+            # without a separate directory allocator.
+            directory_page_capacity = max(1, page_capacity)
+            slot_page_dtype = torch.int32
+            overflow_page_keys = torch.full(
+                (batch, kv_heads, 1),
+                -1,
+                dtype=torch.int32,
+                device=k.device,
+            )
+            overflow_page_values = torch.full(
+                (
+                    batch,
+                    kv_heads,
+                    directory_page_capacity,
+                    _PAGE_DIRECTORY_SIZE,
+                ),
+                -1,
+                dtype=torch.int32,
+                device=k.device,
+            )
+            overflow_used = torch.zeros((), dtype=torch.int32, device=k.device)
+        else:
+            slot_page_capacity = self.leaf_inline_pages_per_slot
+            slot_page_dtype = (
+                torch.int16
+                if page_capacity <= torch.iinfo(torch.int16).max
+                else torch.int32
+            )
+            # Most contexts never overflow the compact inline posting lists.
+            # Keep only a sentinel allocation until a slot actually needs the
+            # hash table; kernels with HASH_PROBES=0 never dereference it.
+            overflow_page_keys = torch.full(
+                (batch, kv_heads, 1),
+                -1,
+                dtype=torch.int32,
+                device=k.device,
+            )
+            overflow_page_values = torch.full(
+                (batch, kv_heads, 1),
+                -1,
+                dtype=torch.int32,
+                device=k.device,
+            )
+            overflow_used = torch.zeros((), dtype=torch.int32, device=k.device)
         cache: dict[str, torch.Tensor | int] = {
             # These pages are allocated from per-region postings below.  This
             # is a semantic contract, not a description of the physical flat
@@ -3439,32 +3596,21 @@ class TritonLODAttentionCore(nn.Module):
                     batch,
                     kv_heads,
                     state_capacity,
-                    self.leaf_inline_pages_per_slot,
+                    slot_page_capacity,
                 ),
                 -1,
                 dtype=slot_page_dtype,
                 device=k.device,
             ),
-            # Most contexts never overflow the compact inline posting lists.
-            # Keep only a sentinel allocation until a slot actually needs the
-            # hash table; kernels with HASH_PROBES=0 never dereference it.
-            "overflow_page_keys": torch.full(
-                (batch, kv_heads, 1),
-                -1,
-                dtype=torch.int32,
-                device=k.device,
-            ),
-            "overflow_page_values": torch.full(
-                (batch, kv_heads, 1),
-                -1,
-                dtype=torch.int32,
-                device=k.device,
-            ),
+            "overflow_page_keys": overflow_page_keys,
+            "overflow_page_values": overflow_page_values,
             "overflow_hash_capacity": hash_capacity,
             "overflow_flag": torch.zeros((), dtype=torch.int32, device=k.device),
-            "overflow_used": torch.zeros((), dtype=torch.int32, device=k.device),
+            "overflow_used": overflow_used,
             "overflow_active": False,
-            "overflow_safe_until": self.leaf_inline_pages_per_slot * page_size,
+            "overflow_safe_until": slot_page_capacity * page_size,
+            "paged_page_directory": paged_page_directory,
+            "page_directory_size": _PAGE_DIRECTORY_SIZE,
             "slot_lengths": torch.zeros(
                 batch,
                 kv_heads,
@@ -3481,15 +3627,18 @@ class TritonLODAttentionCore(nn.Module):
             "mla_raw_page_key_summaries": raw_page_key_summaries,
         }
         if self.virtual_page_storage:
-            if not self.recursive_page_lod:
-                raise ValueError("virtual pages require recursive page LOD")
-            virtual_quantized = bool(
-                self.leaf_key_quant_bits or self.leaf_value_quant_bits
+            matching_native_quant = (
+                self.leaf_key_quant_bits in (4, 8)
+                and self.leaf_value_quant_bits == self.leaf_key_quant_bits
             )
-            if virtual_quantized and (
-                self.leaf_key_quant_bits != 4 or self.leaf_value_quant_bits != 4
+            simulate_quantization = bool(
+                getattr(self, "simulate_leaf_quantization", False)
+            )
+            virtual_native_quant = matching_native_quant and not simulate_quantization
+            if self.leaf_key_quant_bits not in (0, 4, 8) or (
+                self.leaf_value_quant_bits not in (0, 4, 8)
             ):
-                raise ValueError("virtual pages currently require INT4 for both K and V")
+                raise ValueError("virtual page quantization supports 0, 4, or 8 bits")
             if virtual_k is None or virtual_v is None:
                 raise ValueError("virtual pages require the original prompt K/V")
             if virtual_k.shape[:3] != virtual_v.shape[:3]:
@@ -3498,10 +3647,26 @@ class TritonLODAttentionCore(nn.Module):
             # leaves remain exact model keys.  Materialize the model's
             # per-token latent normalization once when the virtual backing
             # store is created rather than on every leaf lookup.
-            virtual_k = self._mla_normalize_key(
-                virtual_k, state_centroid=False
-            )
-            if virtual_quantized:
+            virtual_k = self._mla_normalize_key(virtual_k, state_centroid=False)
+            if flat_int8_mma:
+                flat_leaf_k = torch.empty(
+                    batch,
+                    kv_heads,
+                    sequence_capacity,
+                    head_dim,
+                    dtype=torch.int8,
+                    device=k.device,
+                )
+                flat_leaf_v = torch.empty(
+                    batch,
+                    kv_heads,
+                    sequence_capacity,
+                    int(virtual_v.size(-1)),
+                    dtype=torch.int8,
+                    device=v.device,
+                )
+                flat_leaf_capacity = sequence_capacity
+            elif virtual_native_quant:
                 flat_leaf_k = virtual_k.detach()
                 flat_leaf_v = virtual_v.detach()
                 flat_leaf_capacity = sequence_capacity
@@ -3528,28 +3693,55 @@ class TritonLODAttentionCore(nn.Module):
                     device=k.device,
                 ),
                 leaf_capacity=flat_leaf_capacity,
+                leaf_quant_bits=(
+                    self.leaf_key_quant_bits if virtual_native_quant else 0
+                ),
                 quantization_finalized=False,
             )
-            if virtual_quantized:
+            if flat_int8_mma:
+                cache.update(
+                    page_k_token_scales=torch.empty(
+                        batch,
+                        kv_heads,
+                        sequence_capacity,
+                        dtype=k.dtype,
+                        device=k.device,
+                    ),
+                    page_v_token_scales=torch.empty(
+                        batch,
+                        kv_heads,
+                        sequence_capacity,
+                        dtype=v.dtype,
+                        device=v.device,
+                    ),
+                    prefill_int8_leaf_mma=True,
+                )
+            elif virtual_native_quant:
                 group_size = self.leaf_quant_group_size
                 value_dim = int(virtual_v.size(-1))
                 if head_dim % group_size or value_dim % group_size:
-                    raise ValueError("virtual INT4 group size must divide K/V dimensions")
+                    raise ValueError(
+                        "virtual quantization group size must divide K/V dimensions"
+                    )
+                quant_bits = self.leaf_key_quant_bits
+                quant_dtype = torch.uint8 if quant_bits == 4 else torch.int8
+                key_width = head_dim // 2 if quant_bits == 4 else head_dim
+                value_width = value_dim // 2 if quant_bits == 4 else value_dim
                 cache.update(
                     quantized_leaf_k=torch.empty(
                         batch,
                         kv_heads,
                         sequence_capacity,
-                        head_dim // 2,
-                        dtype=torch.uint8,
+                        key_width,
+                        dtype=quant_dtype,
                         device=k.device,
                     ),
                     quantized_leaf_v=torch.empty(
                         batch,
                         kv_heads,
                         sequence_capacity,
-                        value_dim // 2,
-                        dtype=torch.uint8,
+                        value_width,
+                        dtype=quant_dtype,
                         device=v.device,
                     ),
                     page_k_scales=torch.empty(
@@ -3586,7 +3778,7 @@ class TritonLODAttentionCore(nn.Module):
                     page_capacity,
                     page_size,
                     head_dim,
-                    dtype=k.dtype,
+                    dtype=torch.int8 if flat_int8_mma else k.dtype,
                     device=k.device,
                 ),
                 page_v=torch.zeros(
@@ -3595,12 +3787,34 @@ class TritonLODAttentionCore(nn.Module):
                     page_capacity,
                     page_size,
                     int(v.size(-1)),
-                    dtype=v.dtype,
+                    dtype=torch.int8 if flat_int8_mma else v.dtype,
                     device=v.device,
                 ),
             )
-        needs_page_summaries = self.recursive_page_lod or bool(
-            self.leaf_key_quant_bits or self.leaf_value_quant_bits
+            if flat_int8_mma:
+                cache.update(
+                    page_k_token_scales=torch.zeros(
+                        batch,
+                        kv_heads,
+                        page_capacity,
+                        page_size,
+                        dtype=k.dtype,
+                        device=k.device,
+                    ),
+                    page_v_token_scales=torch.zeros(
+                        batch,
+                        kv_heads,
+                        page_capacity,
+                        page_size,
+                        dtype=v.dtype,
+                        device=v.device,
+                    ),
+                    prefill_int8_leaf_mma=True,
+                )
+        needs_page_summaries = (
+            self.virtual_page_storage
+            or self.recursive_page_lod
+            or bool(self.leaf_key_quant_bits or self.leaf_value_quant_bits)
         )
         if needs_page_summaries:
             cache.update(
@@ -3642,6 +3856,43 @@ class TritonLODAttentionCore(nn.Module):
         return cache
 
     @staticmethod
+    def _grow_paged_page_directory(
+        cache: dict[str, torch.Tensor | int],
+        *,
+        required_slots: int,
+        required_pages: int,
+    ) -> None:
+        if not bool(cache.get("paged_page_directory", False)):
+            return
+        slot_pages = cache.get("slot_pages")
+        directory = cache.get("overflow_page_values")
+        if not isinstance(slot_pages, torch.Tensor) or not isinstance(
+            directory, torch.Tensor
+        ):
+            raise TypeError("paged page-directory metadata is missing")
+        if directory.ndim != 4 or int(directory.size(3)) != _PAGE_DIRECTORY_SIZE:
+            raise ValueError("paged page directory has the wrong geometry")
+        required_root_entries = max(
+            1,
+            (required_pages + _PAGE_DIRECTORY_SIZE - 1) // _PAGE_DIRECTORY_SIZE,
+        )
+        missing_root_entries = max(required_root_entries - int(slot_pages.size(3)), 0)
+        if missing_root_entries:
+            cache["slot_pages"] = F.pad(slot_pages, (0, missing_root_entries), value=-1)
+        # Directory-page handles are physical page IDs, so matching the page
+        # pool is an exact collision-free capacity bound.
+        required_directory_pages = max(1, required_pages)
+        missing_directory_pages = max(
+            required_directory_pages - int(directory.size(2)), 0
+        )
+        if missing_directory_pages:
+            cache["overflow_page_values"] = F.pad(
+                directory,
+                (0, 0, 0, missing_directory_pages),
+                value=-1,
+            )
+
+    @staticmethod
     def _grow_page_pool(
         cache: dict[str, torch.Tensor | int], required_pages: int
     ) -> None:
@@ -3661,19 +3912,30 @@ class TritonLODAttentionCore(nn.Module):
         target = max(required_pages, current * 2)
         missing = target - current
         slot_pages = cache.get("slot_pages")
-        if (
+        if bool(cache.get("paged_page_directory", False)):
+            if not isinstance(slot_pages, torch.Tensor):
+                raise TypeError("slot page-directory root is missing")
+            TritonLODAttentionCore._grow_paged_page_directory(
+                cache,
+                required_slots=int(slot_pages.size(2)),
+                required_pages=target,
+            )
+            slot_pages = cache.get("slot_pages")
+        elif (
             isinstance(slot_pages, torch.Tensor)
             and slot_pages.dtype == torch.int16
             and target > torch.iinfo(torch.int16).max
         ):
             cache["slot_pages"] = slot_pages.to(torch.int32)
         if isinstance(page_indices, torch.Tensor):
-            cache["page_indices"] = F.pad(
-                page_indices, (0, 0, 0, missing), value=-1
-            )
+            cache["page_indices"] = F.pad(page_indices, (0, 0, 0, missing), value=-1)
         else:
             cache["page_k"] = F.pad(page_k, (0, 0, 0, 0, 0, missing))
             cache["page_v"] = F.pad(page_v, (0, 0, 0, 0, 0, missing))
+            for name in ("page_k_token_scales", "page_v_token_scales"):
+                tensor = cache.get(name)
+                if isinstance(tensor, torch.Tensor):
+                    cache[name] = F.pad(tensor, (0, 0, 0, missing))
         page_sum_k = cache.get("page_sum_k")
         page_sum_v = cache.get("page_sum_v")
         page_counts = cache.get("page_counts")
@@ -3701,9 +3963,7 @@ class TritonLODAttentionCore(nn.Module):
                 cache[name] = F.pad(tensor, (0, 0, 0, missing))
         page_quantized_counts = cache.get("page_quantized_counts")
         if isinstance(page_quantized_counts, torch.Tensor):
-            cache["page_quantized_counts"] = F.pad(
-                page_quantized_counts, (0, missing)
-            )
+            cache["page_quantized_counts"] = F.pad(page_quantized_counts, (0, missing))
 
     @staticmethod
     def _fake_quantize_page_tensor(
@@ -3790,6 +4050,19 @@ class TritonLODAttentionCore(nn.Module):
             slot_lengths = F.pad(slot_lengths, (0, missing_slots))
         cache["slot_pages"] = slot_pages
         cache["slot_lengths"] = slot_lengths
+        if bool(cache.get("paged_page_directory", False)):
+            page_indices = cache.get("page_indices")
+            page_k = cache.get("page_k")
+            page_storage = (
+                page_indices if isinstance(page_indices, torch.Tensor) else page_k
+            )
+            if not isinstance(page_storage, torch.Tensor):
+                raise TypeError("paged K/V storage is missing")
+            TritonLODAttentionCore._grow_paged_page_directory(
+                cache,
+                required_slots=required_slots,
+                required_pages=int(page_storage.size(2)),
+            )
 
     @staticmethod
     def _ensure_overflow_page_table(
@@ -3822,6 +4095,11 @@ class TritonLODAttentionCore(nn.Module):
             device=overflow_page_values.device,
         )
 
+    def _page_lookup_probes(self, cache: dict[str, torch.Tensor | int]) -> int:
+        if bool(cache.get("paged_page_directory", False)):
+            return -1
+        return self.leaf_hash_probes if bool(cache["overflow_active"]) else 0
+
     def _append_page_cache(
         self,
         cache: dict[str, torch.Tensor | int],
@@ -3833,9 +4111,7 @@ class TritonLODAttentionCore(nn.Module):
         if append_len == 0:
             return
         raw_page_summary_k = (
-            k
-            if bool(cache.get("mla_raw_page_key_summaries", False))
-            else None
+            k if bool(cache.get("mla_raw_page_key_summaries", False)) else None
         )
         # Page leaves are exact tokens.  Only coarse state entries defer MLA
         # normalization until after their raw latent sum is averaged.
@@ -3859,9 +4135,9 @@ class TritonLODAttentionCore(nn.Module):
                 cache,
                 required_slots=required_slots,
             )
-            required_pages = required_slots + (
-                leaf_capacity + page_size - 1
-            ) // page_size
+            required_pages = (
+                required_slots + (leaf_capacity + page_size - 1) // page_size
+            )
             self._grow_page_pool(cache, required_pages)
             if isinstance(cache.get("page_indices"), torch.Tensor):
                 quantized_leaf_k = cache.get("quantized_leaf_k")
@@ -3903,6 +4179,10 @@ class TritonLODAttentionCore(nn.Module):
         overflow_used = cache["overflow_used"]
         overflow_flag = cache["overflow_flag"]
         virtual_pages = isinstance(page_indices, torch.Tensor)
+        if virtual_pages and self.leaf_seal_capacity is not None:
+            raise NotImplementedError(
+                "sealed leaf archival is currently implemented for flat paged leaves"
+            )
         if not virtual_pages and not isinstance(page_k, torch.Tensor):
             raise TypeError("page cache K tensor is missing")
         if not virtual_pages and not isinstance(page_v, torch.Tensor):
@@ -3911,10 +4191,8 @@ class TritonLODAttentionCore(nn.Module):
             raise TypeError("overflow page-used flag is missing")
         if not isinstance(overflow_flag, torch.Tensor):
             raise TypeError("overflow page-table flag is missing")
-        append_hash_probes = 0
-        if bool(cache["overflow_active"]):
-            append_hash_probes = self.leaf_hash_probes
-        elif leaf_count > int(cache["overflow_safe_until"]):
+        append_hash_probes = self._page_lookup_probes(cache)
+        if append_hash_probes == 0 and leaf_count > int(cache["overflow_safe_until"]):
             inline_token_capacity = self.leaf_inline_pages_per_slot * page_size
             additions = torch.zeros_like(slot_lengths).scatter_add_(
                 2,
@@ -3922,6 +4200,8 @@ class TritonLODAttentionCore(nn.Module):
                 torch.ones_like(owners, dtype=slot_lengths.dtype),
             )
             projected_max = int((slot_lengths + additions).max().item())
+            if self.leaf_seal_capacity is not None:
+                projected_max = min(projected_max, self.leaf_seal_capacity)
             cache["overflow_active"] = projected_max > inline_token_capacity
             if bool(cache["overflow_active"]):
                 append_hash_probes = self.leaf_hash_probes
@@ -3929,7 +4209,7 @@ class TritonLODAttentionCore(nn.Module):
                 cache["overflow_safe_until"] = leaf_count + (
                     inline_token_capacity - projected_max
                 )
-        if append_hash_probes:
+        if append_hash_probes > 0:
             self._ensure_overflow_page_table(cache)
         overflow_page_keys = cache["overflow_page_keys"]
         overflow_page_values = cache["overflow_page_values"]
@@ -3948,7 +4228,31 @@ class TritonLODAttentionCore(nn.Module):
                 for value in (leaf_k, leaf_v, page_sum_k, page_sum_v, page_counts)
             ):
                 raise TypeError("virtual page cache tensors are incomplete")
-            if bool(cache.get("quantization_finalized", False)):
+            if bool(cache.get("prefill_int8_leaf_mma", False)):
+                append_virtual_paged_kv(
+                    leaf_k,
+                    leaf_v,
+                    leaf_offset,
+                    owners.contiguous(),
+                    page_indices,
+                    slot_pages,
+                    overflow_page_keys,
+                    overflow_page_values,
+                    overflow_used,
+                    overflow_flag,
+                    slot_lengths,
+                    next_page,
+                    page_sum_k,
+                    page_sum_v,
+                    page_counts,
+                    hash_probes=append_hash_probes,
+                    leaf_k_token_scales=cache.get("page_k_token_scales"),
+                    leaf_v_token_scales=cache.get("page_v_token_scales"),
+                    source_k=k,
+                    source_v=v,
+                    raw_page_summary_k=raw_page_summary_k,
+                )
+            elif bool(cache.get("quantization_finalized", False)):
                 quantized_names = (
                     "quantized_leaf_k",
                     "quantized_leaf_v",
@@ -3960,7 +4264,9 @@ class TritonLODAttentionCore(nn.Module):
                 if not all(
                     isinstance(value, torch.Tensor) for value in quantized_tensors
                 ):
-                    raise RuntimeError("finalized virtual INT4 cache is incomplete")
+                    raise RuntimeError(
+                        "finalized virtual quantized cache is incomplete"
+                    )
                 append_quantized_virtual_paged_kv(
                     k,
                     v,
@@ -3980,16 +4286,13 @@ class TritonLODAttentionCore(nn.Module):
                     *quantized_tensors,
                     hash_probes=append_hash_probes,
                     quant_group_size=self.leaf_quant_group_size,
+                    quant_bits=int(cache.get("leaf_quant_bits", 4)),
                     quantized_page_sum_k=cache.get("quantized_page_sum_k"),
                     quantized_page_sum_v=cache.get("quantized_page_sum_v"),
                     page_sum_k_scales=cache.get("page_sum_k_scales"),
                     page_sum_v_scales=cache.get("page_sum_v_scales"),
-                    optimize_summary_scale=(
-                        self.page_summary_scale_mode == "l2"
-                    ),
-                    optimize_leaf_scale=(
-                        self.leaf_append_quant_scale_mode == "l2"
-                    ),
+                    optimize_summary_scale=(self.page_summary_scale_mode == "l2"),
+                    optimize_leaf_scale=(self.leaf_append_quant_scale_mode == "l2"),
                 )
             else:
                 leaf_k[..., leaf_offset:leaf_count, :].copy_(k)
@@ -4017,34 +4320,85 @@ class TritonLODAttentionCore(nn.Module):
                     page_v_scales=cache.get("page_v_scales"),
                     page_quantized_counts=cache.get("page_quantized_counts"),
                     quant_group_size=self.leaf_quant_group_size,
+                    quant_bits=int(cache.get("leaf_quant_bits", 4)),
                     quantize_touched=False,
                     optimize_scale=(self.leaf_quant_scale_mode == "l2"),
+                    fake_key_quant_bits=(
+                        self.leaf_key_quant_bits
+                        if not isinstance(cache.get("quantized_leaf_k"), torch.Tensor)
+                        else 0
+                    ),
+                    fake_value_quant_bits=(
+                        self.leaf_value_quant_bits
+                        if not isinstance(cache.get("quantized_leaf_v"), torch.Tensor)
+                        else 0
+                    ),
+                    fake_quantize_summaries=(
+                        bool(self.leaf_key_quant_bits or self.leaf_value_quant_bits)
+                        and self.page_summary_quant_bits == 8
+                    ),
+                    optimize_summary_scale=(self.page_summary_scale_mode == "l2"),
                     raw_page_summary_k=raw_page_summary_k,
                 )
         else:
-            append_paged_kv(
-                k,
-                v,
-                owners.contiguous(),
-                page_k,
-                page_v,
-                slot_pages,
-                overflow_page_keys,
-                overflow_page_values,
-                overflow_used,
-                overflow_flag,
-                slot_lengths,
-                next_page,
-                hash_probes=append_hash_probes,
-                page_sum_k=(page_sum_k if isinstance(page_sum_k, torch.Tensor) else None),
-                page_sum_v=(page_sum_v if isinstance(page_sum_v, torch.Tensor) else None),
-                page_counts=(page_counts if isinstance(page_counts, torch.Tensor) else None),
-                raw_page_summary_k=raw_page_summary_k,
-            )
+            if bool(cache.get("prefill_int8_leaf_mma", False)):
+                page_k_token_scales = cache.get("page_k_token_scales")
+                page_v_token_scales = cache.get("page_v_token_scales")
+                if not isinstance(page_k_token_scales, torch.Tensor) or not isinstance(
+                    page_v_token_scales, torch.Tensor
+                ):
+                    raise RuntimeError("INT8 flat page scales are missing")
+                append_paged_int8_kv(
+                    k,
+                    v,
+                    owners.contiguous(),
+                    page_k,
+                    page_v,
+                    page_k_token_scales,
+                    page_v_token_scales,
+                    slot_pages,
+                    overflow_page_keys,
+                    overflow_page_values,
+                    overflow_used,
+                    overflow_flag,
+                    slot_lengths,
+                    next_page,
+                    hash_probes=append_hash_probes,
+                    max_leaf_tokens=self.leaf_seal_capacity,
+                    num_warps=self.prefill_int8_append_num_warps,
+                )
+            else:
+                append_paged_kv(
+                    k,
+                    v,
+                    owners.contiguous(),
+                    page_k,
+                    page_v,
+                    slot_pages,
+                    overflow_page_keys,
+                    overflow_page_values,
+                    overflow_used,
+                    overflow_flag,
+                    slot_lengths,
+                    next_page,
+                    hash_probes=append_hash_probes,
+                    page_sum_k=(
+                        page_sum_k if isinstance(page_sum_k, torch.Tensor) else None
+                    ),
+                    page_sum_v=(
+                        page_sum_v if isinstance(page_sum_v, torch.Tensor) else None
+                    ),
+                    page_counts=(
+                        page_counts if isinstance(page_counts, torch.Tensor) else None
+                    ),
+                    raw_page_summary_k=raw_page_summary_k,
+                    max_leaf_tokens=self.leaf_seal_capacity,
+                )
         if (
             self.leaf_key_quant_bits or self.leaf_value_quant_bits
         ) and not virtual_pages:
             self._fake_quantize_completed_pages(cache)
+
     def _paged_leaf_attention(
         self,
         q: torch.Tensor,
@@ -4053,8 +4407,10 @@ class TritonLODAttentionCore(nn.Module):
     ) -> tuple[torch.Tensor, torch.Tensor]:
         slot_pages = cache["slot_pages"]
         slot_lengths = cache["slot_lengths"]
-        page_k = cache["page_k"]
-        page_v = cache["page_v"]
+        page_indices = cache.get("page_indices")
+        indexed = isinstance(page_indices, torch.Tensor)
+        page_k = cache["leaf_k" if indexed else "page_k"]
+        page_v = cache["leaf_v" if indexed else "page_v"]
         overflow_page_keys = cache["overflow_page_keys"]
         overflow_page_values = cache["overflow_page_values"]
         overflow_used = cache["overflow_used"]
@@ -4071,11 +4427,17 @@ class TritonLODAttentionCore(nn.Module):
             )
         ):
             raise TypeError("paged LOD cache is incomplete")
-        leaf_function = (
-            query_major_paged_leaf_attention
-            if self.leaf_layout == "query"
-            else paged_leaf_attention
-        )
+        leaf_function = {
+            "query": query_major_paged_leaf_attention,
+            "expert": paged_leaf_attention,
+            "expert_tiny": paged_leaf_attention,
+            "aiter_varlen": aiter_varlen_paged_leaf_attention,
+            "aiter_copy": aiter_varlen_paged_leaf_attention,
+            "aiter_union": aiter_query_tile_union_paged_leaf_attention,
+            "aiter_masked_union": aiter_query_tile_union_paged_leaf_attention,
+        }.get(self.leaf_layout)
+        if leaf_function is None:
+            raise ValueError(f"unknown leaf attention layout {self.leaf_layout!r}")
         leaf_kwargs = {}
         if self.leaf_layout == "query":
             leaf_count = int(cache["leaf_count"])
@@ -4086,26 +4448,64 @@ class TritonLODAttentionCore(nn.Module):
             )
             leaf_kwargs = {
                 "block_n": block_n,
-                "hash_probes": (
-                    self.leaf_hash_probes if cache["overflow_active"] else 0
-                ),
+                "hash_probes": self._page_lookup_probes(cache),
                 "num_warps": self.leaf_num_warps,
                 "waves_per_eu": self.leaf_waves_per_eu,
                 "timing_events": getattr(self, "_lod_leaf_timing_events", None),
             }
-        elif self.leaf_layout == "expert":
+        elif self.leaf_layout in (
+            "expert",
+            "expert_tiny",
+            "aiter_varlen",
+            "aiter_copy",
+            "aiter_union",
+            "aiter_masked_union",
+        ):
             leaf_kwargs = {
                 "block_m": self.leaf_block_m,
                 "block_n": self.leaf_block_n,
-                "hash_probes": (
-                    self.leaf_hash_probes if cache["overflow_active"] else 0
-                ),
+                "hash_probes": self._page_lookup_probes(cache),
                 "num_warps": self.leaf_num_warps,
                 "waves_per_eu": self.leaf_waves_per_eu,
                 "timing_events": getattr(self, "_lod_leaf_timing_events", None),
             }
-        else:
-            raise ValueError(f"unknown leaf attention layout {self.leaf_layout!r}")
+            if self.leaf_layout in ("expert", "expert_tiny"):
+                leaf_kwargs["reduce_num_warps"] = self.leaf_reduce_num_warps
+                leaf_kwargs.update(
+                    long_expert_threshold=self.leaf_long_expert_threshold,
+                    long_expert_splits=self.leaf_long_expert_splits,
+                )
+            if self.leaf_layout in ("aiter_union", "aiter_masked_union"):
+                leaf_kwargs["query_tile"] = self.leaf_union_query_tile
+            tiny_expert_eligible = self.leaf_layout == "expert_tiny" and (
+                self.leaf_tiny_max_context is None
+                or int(cache["leaf_count"]) <= self.leaf_tiny_max_context
+            )
+            if tiny_expert_eligible:
+                leaf_kwargs.update(
+                    tiny_expert_max=self.leaf_tiny_expert_max,
+                    tiny_block_m=self.leaf_tiny_block_m,
+                    tiny_num_warps=self.leaf_tiny_num_warps,
+                )
+            if self.leaf_layout == "aiter_copy":
+                leaf_kwargs.update(
+                    copy_indexed_kv=True,
+                    copy_page_size=self.leaf_aiter_copy_page_size,
+                )
+            if self.leaf_layout == "aiter_masked_union":
+                leaf_kwargs["mask_queries"] = True
+            if bool(cache.get("prefill_int8_leaf_mma", False)):
+                if self.leaf_layout not in ("expert", "expert_tiny"):
+                    raise ValueError("INT8 leaf MMA is implemented for expert layout")
+                if self.leaf_layout == "expert_tiny":
+                    raise ValueError("tiny expert specialization currently requires BF16")
+                leaf_kwargs.update(
+                    page_k_scales=cache.get("page_k_token_scales"),
+                    page_v_scales=cache.get("page_v_token_scales"),
+                    int8_pv_mma=self.prefill_int8_pv_mma,
+                )
+        if indexed:
+            leaf_kwargs["page_indices"] = page_indices
         return leaf_function(
             q,
             page_k,
@@ -4145,6 +4545,24 @@ class TritonLODAttentionCore(nn.Module):
             expected_output_shape = (*q.shape[:-1], int(state_v.size(-1)))
             if tuple(coarse_output.shape) != expected_output_shape:
                 raise AssertionError("fused prefill coarse output shape drifted")
+            original_slots = getattr(
+                self, "_lod_prefill_union_original_slots", None
+            )
+            if original_slots is not None:
+                del self._lod_prefill_union_original_slots
+                return remove_query_tile_union_from_coarse(
+                    q,
+                    state_k,
+                    state_v,
+                    counts,
+                    original_slots,
+                    top_slots,
+                    coarse_output,
+                    coarse_lse,
+                    kv_group_size=self.num_key_value_groups,
+                    query_tile=self.leaf_union_query_tile,
+                    scale=self.scaling,
+                )
             return coarse_output, coarse_lse
         route_logits = getattr(self, "_lod_prefill_route_logits", None)
         if route_logits is not None:
@@ -4175,6 +4593,7 @@ class TritonLODAttentionCore(nn.Module):
                     top_slots,
                     state_len=state_len,
                 )
+            int8_state_pv = self.prefill_int8_coarse_mma and query_len > 1
             return route_logits_coarse_attention(
                 q.contiguous(),
                 route_logits.contiguous(),
@@ -4187,9 +4606,18 @@ class TritonLODAttentionCore(nn.Module):
                 kv_group_size=self.num_key_value_groups,
                 scale=self.scaling,
                 block_m=self.coarse_route_block_m,
-                block_n=self.coarse_route_block_n,
-                num_warps=self.coarse_route_num_warps,
+                block_n=(
+                    self.prefill_int8_coarse_block_n
+                    if int8_state_pv
+                    else self.coarse_route_block_n
+                ),
+                num_warps=(
+                    self.prefill_int8_coarse_num_warps
+                    if int8_state_pv
+                    else self.coarse_route_num_warps
+                ),
                 precompute_mean_values=query_len > 1,
+                int8_state_pv=int8_state_pv,
                 max_grouped_rows=self.prefill_coarse_max_grouped_rows,
             )
         decode_route_logits = getattr(self, "_lod_decode_route_logits", None)
@@ -4216,6 +4644,7 @@ class TritonLODAttentionCore(nn.Module):
                     top_slots,
                     state_len=state_len,
                 )
+            int8_state_pv = self.prefill_int8_coarse_mma and query_len > 1
             return route_logits_coarse_attention(
                 q.contiguous(),
                 route_logits.contiguous(),
@@ -4228,9 +4657,18 @@ class TritonLODAttentionCore(nn.Module):
                 kv_group_size=self.num_key_value_groups,
                 scale=self.scaling,
                 block_m=self.coarse_route_block_m,
-                block_n=self.coarse_route_block_n,
-                num_warps=self.coarse_route_num_warps,
+                block_n=(
+                    self.prefill_int8_coarse_block_n
+                    if int8_state_pv
+                    else self.coarse_route_block_n
+                ),
+                num_warps=(
+                    self.prefill_int8_coarse_num_warps
+                    if int8_state_pv
+                    else self.coarse_route_num_warps
+                ),
                 precompute_mean_values=query_len > 1,
+                int8_state_pv=int8_state_pv,
                 max_grouped_rows=self.coarse_max_grouped_rows,
             )
         route_logits = self._state_route_logits(
@@ -4250,6 +4688,7 @@ class TritonLODAttentionCore(nn.Module):
                 top_slots,
                 state_len=state_len,
             )
+        int8_state_pv = self.prefill_int8_coarse_mma and query_len > 1
         coarse_output, coarse_lse = route_logits_coarse_attention(
             q.contiguous(),
             route_logits.contiguous(),
@@ -4262,9 +4701,18 @@ class TritonLODAttentionCore(nn.Module):
             kv_group_size=self.num_key_value_groups,
             scale=self.scaling,
             block_m=self.coarse_route_block_m,
-            block_n=self.coarse_route_block_n,
-            num_warps=self.coarse_route_num_warps,
+            block_n=(
+                self.prefill_int8_coarse_block_n
+                if int8_state_pv
+                else self.coarse_route_block_n
+            ),
+            num_warps=(
+                self.prefill_int8_coarse_num_warps
+                if int8_state_pv
+                else self.coarse_route_num_warps
+            ),
             precompute_mean_values=query_len > 1,
+            int8_state_pv=int8_state_pv,
             max_grouped_rows=self.coarse_max_grouped_rows,
         )
         if not include_local or int(local_k.size(2)) == 0:
@@ -4325,18 +4773,14 @@ class TritonLODAttentionCore(nn.Module):
 
         local_len = int(local_k.size(2))
         if local_len:
-            grouped_q = q.detach().reshape(
-                batch, kv_heads, groups, query_len, head_dim
-            )
+            grouped_q = q.detach().reshape(batch, kv_heads, groups, query_len, head_dim)
             local_scores = torch.matmul(
                 grouped_q,
                 local_k.detach().transpose(-1, -2).unsqueeze(2),
             ).reshape(batch, query_heads, query_len, local_len)
             local_scores = local_scores.float() * self.scaling
             local_offset = local_len - query_len
-            query_positions = local_offset + torch.arange(
-                query_len, device=q.device
-            )
+            query_positions = local_offset + torch.arange(query_len, device=q.device)
             key_positions = torch.arange(local_len, device=q.device)
             visible = key_positions.unsqueeze(0) <= query_positions.unsqueeze(1)
             local_scores.masked_fill_(~visible, float("-inf"))
@@ -4351,9 +4795,7 @@ class TritonLODAttentionCore(nn.Module):
             state_v.detach()[..., :state_len, :].float()
             / state_counts.clamp_min(1).unsqueeze(-1)
         ).to(state_v.dtype)
-        output = torch.matmul(
-            state_probabilities, mean_state_v.unsqueeze(2)
-        )
+        output = torch.matmul(state_probabilities, mean_state_v.unsqueeze(2))
         if local_len:
             local_probabilities = probabilities[..., state_len:].reshape(
                 batch, kv_heads, groups, query_len, local_len
@@ -4385,6 +4827,7 @@ class TritonLODAttentionCore(nn.Module):
         sink_k: torch.Tensor | None = None,
         sink_v: torch.Tensor | None = None,
         output_buffer: torch.Tensor | None = None,
+        context_len: int | None = None,
     ) -> torch.Tensor:
         q = q.contiguous()
         # The persistent MLA key buffers intentionally hold raw compressed
@@ -4396,9 +4839,7 @@ class TritonLODAttentionCore(nn.Module):
         if sink_k is not None:
             sink_k = self._mla_normalize_key(sink_k, state_centroid=False)
         if self.leaf_attention_backend == "packed":
-            exact_k = self._mla_normalize_key(
-                exact_k, state_centroid=False
-            )
+            exact_k = self._mla_normalize_key(exact_k, state_centroid=False)
         if output_buffer is not None and (
             tuple(output_buffer.shape) != tuple(q.shape)
             or output_buffer.dtype != q.dtype
@@ -4431,9 +4872,7 @@ class TritonLODAttentionCore(nn.Module):
                 local_v[..., local_len : local_len + 1, :].copy_(new_v)
                 coarse_local_k = local_k[..., : local_len + 1, :].contiguous()
                 coarse_local_v = local_v[..., : local_len + 1, :].contiguous()
-            no_slots = torch.empty(
-                *q.shape[:3], 0, dtype=torch.long, device=q.device
-            )
+            no_slots = torch.empty(*q.shape[:3], 0, dtype=torch.long, device=q.device)
             coarse_output, coarse_lse = self._coarse_attention(
                 q,
                 coarse_local_k,
@@ -4461,6 +4900,79 @@ class TritonLODAttentionCore(nn.Module):
                 return coarse_output
             output_buffer.copy_(coarse_output)
             return output_buffer
+        if self.dense_page_prefill and self.recursive_page_lod and int(q.size(2)) > 1:
+            if page_cache is None:
+                raise RuntimeError("dense page prefill requires a page cache")
+            if local_branch is None:
+                raise RuntimeError("dense page prefill requires split local attention")
+            if bool(page_cache.get("summary_quantization_finalized", False)):
+                raise RuntimeError(
+                    "dense page prefill currently requires BF16 page summaries"
+                )
+            required = (
+                "leaf_k",
+                "leaf_v",
+                "page_indices",
+                "page_sum_k",
+                "page_sum_v",
+                "page_counts",
+                "next_page",
+            )
+            values = tuple(page_cache.get(name) for name in required)
+            if not all(isinstance(value, torch.Tensor) for value in values):
+                raise RuntimeError("dense page prefill cache is incomplete")
+            (
+                page_residual,
+                page_residual_lse,
+                exact_pages,
+                exact_pages_lse,
+                _selected_pages,
+            ) = dense_page_summary_attention(
+                q,
+                page_cache["leaf_k"],
+                page_cache["leaf_v"],
+                page_cache["page_indices"],
+                page_cache["page_sum_k"],
+                page_cache["page_sum_v"],
+                page_cache["page_counts"],
+                page_cache["next_page"],
+                kv_group_size=self.num_key_value_groups,
+                scale=self.scaling,
+                top_pages=self.dense_page_topk,
+                block_m=self.dense_page_block_m,
+                block_n=self.dense_page_block_n,
+                num_warps=self.dense_page_num_warps,
+                waves_per_eu=self.leaf_waves_per_eu,
+                split_kernels=self.dense_page_split_kernels,
+                indexed_aiter_union=self.dense_page_indexed_aiter_union,
+                union_query_tile=self.dense_page_union_query_tile,
+                timing_events=getattr(self, "_lod_dense_page_timing_events", None),
+            )
+            local_output, local_lse = local_branch
+            if sink_k is not None and sink_v is not None:
+                return merge_attention_branches_with_sink(
+                    q,
+                    sink_k,
+                    sink_v,
+                    page_residual,
+                    page_residual_lse,
+                    exact_pages,
+                    exact_pages_lse,
+                    local_output,
+                    local_lse,
+                    kv_group_size=self.num_key_value_groups,
+                    scale=self.scaling,
+                    output_buffer=output_buffer,
+                )
+            return merge_attention_branches(
+                page_residual,
+                page_residual_lse,
+                exact_pages,
+                exact_pages_lse,
+                local_output,
+                local_lse,
+                output_buffer=output_buffer,
+            )
         dynamic_active = dynamic_target is not None or dynamic_residual is not None
         if dynamic_active:
             if self.leaf_attention_backend != "paged" or self.leaf_layout != "query":
@@ -4474,6 +4986,11 @@ class TritonLODAttentionCore(nn.Module):
         indexed_recursive_decode = bool(
             page_cache is not None
             and self.recursive_page_lod
+            and isinstance(page_cache.get("page_indices"), torch.Tensor)
+        )
+        indexed_flat_decode = bool(
+            page_cache is not None
+            and not self.recursive_page_lod
             and isinstance(page_cache.get("page_indices"), torch.Tensor)
         )
         fuse_decode_route = (
@@ -4492,18 +5009,14 @@ class TritonLODAttentionCore(nn.Module):
             and self.leaf_attention_backend == "paged"
             and (
                 indexed_recursive_decode
+                or indexed_flat_decode
                 or not (
                     page_cache is not None
-                    and isinstance(
-                        page_cache.get("page_indices"), torch.Tensor
-                    )
+                    and isinstance(page_cache.get("page_indices"), torch.Tensor)
                 )
             )
             and self.two_level_topk <= 8
-            and (
-                not dynamic_active
-                or not self.collect_dynamic_open_stats
-            )
+            and (not dynamic_active or not self.collect_dynamic_open_stats)
         )
         top_slots = None
         if not fuse_decode_route:
@@ -4540,14 +5053,10 @@ class TritonLODAttentionCore(nn.Module):
                 dynamic_local_lse=dynamic_local_lse,
             )
             if getattr(self, "_lod_padding_state_reserve", 0):
-                query_counts = self._repeat_kv(
-                    counts[..., :state_len, :]
-                ).squeeze(-1)
+                query_counts = self._repeat_kv(counts[..., :state_len, :]).squeeze(-1)
                 safe_slots = top_slots.clamp_min(0)
                 selected_counts = torch.gather(
-                    query_counts.unsqueeze(2).expand(
-                        -1, -1, int(q.size(2)), -1
-                    ),
+                    query_counts.unsqueeze(2).expand(-1, -1, int(q.size(2)), -1),
                     -1,
                     safe_slots,
                 )
@@ -4556,6 +5065,24 @@ class TritonLODAttentionCore(nn.Module):
                     top_slots,
                     torch.full_like(top_slots, -1),
                 )
+        if self.leaf_layout == "aiter_union" and int(q.size(2)) > 1:
+            if self.recursive_page_lod:
+                raise ValueError("AITER centroid unions require flat two-tier LOD")
+            if top_slots is None or page_cache is None or not isinstance(
+                page_cache.get("page_indices"), torch.Tensor
+            ):
+                raise ValueError("AITER centroid unions require virtual page storage")
+            slot_lengths = page_cache.get("slot_lengths")
+            if not isinstance(slot_lengths, torch.Tensor):
+                raise TypeError("AITER centroid unions require slot lengths")
+            if hasattr(self, "_lod_prefill_fused_coarse"):
+                self._lod_prefill_union_original_slots = top_slots
+            top_slots = query_tile_slot_unions(
+                top_slots,
+                slot_lengths,
+                kv_group_size=self.num_key_value_groups,
+                query_tile=self.leaf_union_query_tile,
+            )
         if (
             self.fused_decode_attention
             and int(state_v.size(-1)) == int(q.size(-1))
@@ -4563,11 +5090,10 @@ class TritonLODAttentionCore(nn.Module):
             and self.leaf_attention_backend == "paged"
             and (
                 indexed_recursive_decode
+                or indexed_flat_decode
                 or not (
                     page_cache is not None
-                    and isinstance(
-                        page_cache.get("page_indices"), torch.Tensor
-                    )
+                    and isinstance(page_cache.get("page_indices"), torch.Tensor)
                 )
             )
             and (sink_k is None or fuse_decode_route)
@@ -4575,11 +5101,18 @@ class TritonLODAttentionCore(nn.Module):
             if page_cache is None:
                 raise RuntimeError("paged LOD attention has no leaf page cache")
             page_k = page_cache[
-                "leaf_k" if indexed_recursive_decode else "page_k"
+                "leaf_k"
+                if indexed_recursive_decode or indexed_flat_decode
+                else "page_k"
             ]
             page_v = page_cache[
-                "leaf_v" if indexed_recursive_decode else "page_v"
+                "leaf_v"
+                if indexed_recursive_decode or indexed_flat_decode
+                else "page_v"
             ]
+            flat_int8_decode = not indexed_recursive_decode and (
+                page_k.dtype == torch.int8 or page_v.dtype == torch.int8
+            )
             slot_pages = page_cache["slot_pages"]
             overflow_page_keys = page_cache["overflow_page_keys"]
             overflow_page_values = page_cache["overflow_page_values"]
@@ -4599,28 +5132,69 @@ class TritonLODAttentionCore(nn.Module):
             ):
                 raise TypeError("paged LOD cache is incomplete")
             decode_buffers = getattr(self, "_lod_decode_attention_buffers", None)
+            cooperative_route_splits = self.decode_gqa_cooperative_route_splits
+            cooperative_leaf = self.decode_gqa_cooperative_leaf
+            cooperative_adaptive_splits = bool(
+                self.decode_gqa_cooperative_adaptive_splits
+                and cooperative_route_splits is None
+            )
+            if cooperative_route_splits is None:
+                # Bound fixed page-list parallelism and its partial workspace
+                # by per-sequence context. Experimental adaptive mode may use
+                # fewer splits for short routes within that bound.
+                split_work = max(1, max(context_len or 0, 1) // 4096)
+                cooperative_route_splits = max(
+                    8,
+                    min(32, 1 << (split_work.bit_length() - 1)),
+                )
+                # Scalar paging already has batch-proportional occupancy. The
+                # cooperative launch pays off only after 32K per sequence and,
+                # beyond batch eight, after roughly 4K tokens per batch row.
+                cooperative_context_threshold = max(32768, 4096 * int(q.size(0)))
+                if (context_len or 0) < cooperative_context_threshold:
+                    cooperative_leaf = False
+            self._last_decode_gqa_cooperative_dispatch = {
+                "enabled": bool(cooperative_leaf),
+                "route_splits": int(cooperative_route_splits),
+                "adaptive_splits": bool(cooperative_adaptive_splits),
+                "fused_reduce": bool(
+                    cooperative_leaf
+                    and self.decode_gqa_cooperative_fused_reduce
+                    and cooperative_route_splits <= 8
+                ),
+            }
             expected_partial = (
                 int(q.size(0)),
                 int(q.size(1)),
                 self.decode_split_kv,
                 int(q.size(-1)),
             )
-            if (
-                self.decode_split_kv > 1
-                and (
-                    decode_buffers is None
-                    or tuple(decode_buffers["partial_out"].shape)
-                    != expected_partial
-                    or decode_buffers["partial_out"].device != q.device
-                    or (
-                        fuse_decode_route
-                        and (
-                            "route_group_lse" not in decode_buffers
-                            or int(decode_buffers["route_group_lse"].size(2))
-                            < math.ceil(
-                                state_capacity / self.decode_route_group_size
-                            )
-                        )
+            expected_gqa_route_partial = (
+                int(q.size(0)),
+                int(q.size(1)),
+                8,
+                cooperative_route_splits,
+                int(q.size(-1)),
+            )
+            if self.decode_split_kv > 1 and (
+                decode_buffers is None
+                or tuple(decode_buffers["partial_out"].shape) != expected_partial
+                or decode_buffers["partial_out"].device != q.device
+                or (
+                    cooperative_leaf
+                    and self.decode_gqa_cooperative_hip
+                    and (
+                        "gqa_route_partial_out" not in decode_buffers
+                        or tuple(decode_buffers["gqa_route_partial_out"].shape)
+                        != expected_gqa_route_partial
+                    )
+                )
+                or (
+                    fuse_decode_route
+                    and (
+                        "route_group_lse" not in decode_buffers
+                        or int(decode_buffers["route_group_lse"].size(2))
+                        < math.ceil(state_capacity / self.decode_route_group_size)
                     )
                 )
             ):
@@ -4629,6 +5203,7 @@ class TritonLODAttentionCore(nn.Module):
                     splits=self.decode_split_kv,
                     state_capacity=(state_capacity if fuse_decode_route else None),
                     route_group_size=self.decode_route_group_size,
+                    gqa_route_splits=cooperative_route_splits,
                 )
                 self._lod_decode_attention_buffers = decode_buffers
             return fused_decode_paged_lod_attention(
@@ -4652,11 +5227,7 @@ class TritonLODAttentionCore(nn.Module):
                 new_v=new_v,
                 kv_group_size=self.num_key_value_groups,
                 scale=self.scaling,
-                hash_probes=(
-                    self.leaf_hash_probes
-                    if page_cache["overflow_active"]
-                    else 0
-                ),
+                hash_probes=self._page_lookup_probes(page_cache),
                 block_n=self.decode_block_n,
                 num_warps=self.decode_num_warps,
                 waves_per_eu=self.leaf_waves_per_eu,
@@ -4671,27 +5242,39 @@ class TritonLODAttentionCore(nn.Module):
                 fuse_final_reduce=self.decode_fuse_final_reduce,
                 route_use_dot=self.decode_route_use_dot,
                 route_gqa_grouped=self.decode_route_gqa_grouped,
+                gqa_cooperative_leaf=cooperative_leaf,
+                gqa_cooperative_hip=self.decode_gqa_cooperative_hip,
+                gqa_cooperative_route_splits=cooperative_route_splits,
+                gqa_cooperative_adaptive_splits=cooperative_adaptive_splits,
+                gqa_cooperative_fused_reduce=(
+                    self.decode_gqa_cooperative_fused_reduce
+                ),
                 protected_len=(
                     self._protected_route_len(state_len)
                     if self.exclude_sink_from_routes
                     else 0
                 ),
+                max_leaf_tokens=self.leaf_seal_capacity,
                 sink_k=sink_k,
                 sink_v=sink_v,
                 route_top_p=(dynamic_target if fuse_decode_route else None),
-                route_residual_mass=(
-                    dynamic_residual if fuse_decode_route else None
-                ),
+                route_residual_mass=(dynamic_residual if fuse_decode_route else None),
                 reuse_residual_local_attention=(
                     self.reuse_dynamic_local_attention and fuse_decode_route
                 ),
                 route_residual_use_state_bound=(
-                    self.dynamic_open_residual_use_state_bound
-                    and fuse_decode_route
+                    self.dynamic_open_residual_use_state_bound and fuse_decode_route
                 ),
                 timing_events=getattr(self, "_lod_decode_timing_events", None),
-                recursive_page_cache=(
-                    page_cache if indexed_recursive_decode else None
+                recursive_page_cache=(page_cache if indexed_recursive_decode else None),
+                flat_page_indices=(
+                    page_cache["page_indices"] if indexed_flat_decode else None
+                ),
+                flat_page_k_scales=(
+                    page_cache.get("page_k_token_scales") if flat_int8_decode else None
+                ),
+                flat_page_v_scales=(
+                    page_cache.get("page_v_token_scales") if flat_int8_decode else None
                 ),
                 recursive_quant_group_size=self.leaf_quant_group_size,
             )
@@ -4757,17 +5340,11 @@ class TritonLODAttentionCore(nn.Module):
                     top_slots,
                     kv_group_size=self.num_key_value_groups,
                     scale=self.scaling,
-                    hash_probes=(
-                        self.leaf_hash_probes
-                        if page_cache["overflow_active"]
-                        else 0
-                    ),
+                    hash_probes=self._page_lookup_probes(page_cache),
                     page_block_n=self.recursive_page_block_n,
                     num_warps=self.leaf_num_warps,
                     waves_per_eu=self.leaf_waves_per_eu,
-                    timing_events=getattr(
-                        self, "_lod_leaf_timing_events", None
-                    ),
+                    timing_events=getattr(self, "_lod_leaf_timing_events", None),
                     quantized_leaf_k=(
                         page_cache.get("quantized_leaf_k")
                         if quantized_attention
@@ -4779,14 +5356,10 @@ class TritonLODAttentionCore(nn.Module):
                         else None
                     ),
                     page_k_scales=(
-                        page_cache.get("page_k_scales")
-                        if quantized_attention
-                        else None
+                        page_cache.get("page_k_scales") if quantized_attention else None
                     ),
                     page_v_scales=(
-                        page_cache.get("page_v_scales")
-                        if quantized_attention
-                        else None
+                        page_cache.get("page_v_scales") if quantized_attention else None
                     ),
                     page_quantized_counts=(
                         page_cache.get("page_quantized_counts")
@@ -4814,15 +5387,12 @@ class TritonLODAttentionCore(nn.Module):
                         else None
                     ),
                     quant_group_size=self.leaf_quant_group_size,
+                    quant_bits=int(page_cache.get("leaf_quant_bits", 4)),
                     mla_norm_weight=(
-                        self.mla_key_norm_weight
-                        if raw_page_key_summaries
-                        else None
+                        self.mla_key_norm_weight if raw_page_key_summaries else None
                     ),
                     mla_norm_epsilon=(
-                        self.mla_key_norm_epsilon
-                        if raw_page_key_summaries
-                        else 0.0
+                        self.mla_key_norm_epsilon if raw_page_key_summaries else 0.0
                     ),
                 )
             else:
@@ -4995,24 +5565,15 @@ class TritonLODAttentionCore(nn.Module):
                 local_end = query_offset + target_end
                 target_q = q[..., local_begin:local_end, :]
                 target_k = k[..., :local_end, :]
-                scores = torch.matmul(
-                    target_q, target_k.transpose(-1, -2)
-                ).float()
+                scores = torch.matmul(target_q, target_k.transpose(-1, -2)).float()
                 scores.mul_(self.scaling)
-                query_positions = torch.arange(
-                    local_begin, local_end, device=q.device
-                )
+                query_positions = torch.arange(local_begin, local_end, device=q.device)
                 key_positions = torch.arange(local_end, device=q.device)
-                visible = (
-                    key_positions.unsqueeze(0)
-                    <= query_positions.unsqueeze(1)
-                )
+                visible = key_positions.unsqueeze(0) <= query_positions.unsqueeze(1)
                 scores.masked_fill_(~visible, float("-inf"))
                 lse_tiles.append(torch.logsumexp(scores, dim=-1))
                 probabilities = torch.softmax(scores, dim=-1).to(v.dtype)
-                output_tiles.append(
-                    torch.matmul(probabilities, v[..., :local_end, :])
-                )
+                output_tiles.append(torch.matmul(probabilities, v[..., :local_end, :]))
             return (
                 torch.cat(output_tiles, dim=2),
                 torch.cat(lse_tiles, dim=2),
@@ -5064,9 +5625,7 @@ class TritonLODAttentionCore(nn.Module):
             finally:
                 sys.setdlopenflags(original_dlopen_flags)
         if self.prefill_local_attention_backend not in ("torch", "aiter"):
-            raise ValueError(
-                "prefill local attention backend must be torch or aiter"
-            )
+            raise ValueError("prefill local attention backend must be torch or aiter")
         output, lse, *_ = torch.ops.aten._scaled_dot_product_flash_attention.default(
             q.contiguous(),
             k.contiguous(),
@@ -5175,9 +5734,7 @@ class TritonLODAttentionCore(nn.Module):
         if prefill_state_update_len <= 0:
             raise ValueError("prefill state update length must be positive")
         prefill_len = (
-            attention_len
-            if logical_prefill_len is None
-            else int(logical_prefill_len)
+            attention_len if logical_prefill_len is None else int(logical_prefill_len)
         )
         if prefill_len <= 0 or prefill_len > attention_len:
             raise ValueError("logical prefill length must fit the attention field")
@@ -5190,10 +5747,9 @@ class TritonLODAttentionCore(nn.Module):
             if tuple(prefill_valid_starts.shape) != (batch_size,):
                 raise ValueError("prefill valid starts must have one entry per row")
             if bool(
-                (
-                    prefill_valid_starts.lt(0)
-                    | prefill_valid_starts.ge(self.chunk_len)
-                ).any().item()
+                (prefill_valid_starts.lt(0) | prefill_valid_starts.ge(self.chunk_len))
+                .any()
+                .item()
             ):
                 raise ValueError(
                     "chunk-aligned padding must fit entirely in the first chunk"
@@ -5202,9 +5758,7 @@ class TritonLODAttentionCore(nn.Module):
                 raise NotImplementedError(
                     "chunk-aligned padding does not yet support a separate sink cache"
                 )
-            self._lod_padding_state_reserve = int(
-                prefill_valid_starts.max().item()
-            )
+            self._lod_padding_state_reserve = int(prefill_valid_starts.max().item())
         else:
             self._lod_padding_state_reserve = 0
         if self.state_clustering_query_metric != "none" and q is None:
@@ -5262,9 +5816,7 @@ class TritonLODAttentionCore(nn.Module):
             initial_state_v = archive_v[..., :initial_state_len, :]
             initial_valid = None
             owners = (
-                torch.arange(
-                    initial_state_len, dtype=torch.long, device=k.device
-                )
+                torch.arange(initial_state_len, dtype=torch.long, device=k.device)
                 .view(1, 1, initial_state_len)
                 .expand(
                     batch_size,
@@ -5303,25 +5855,33 @@ class TritonLODAttentionCore(nn.Module):
                 physical >= prefill_valid_starts.unsqueeze(1),
                 compact_owner,
                 dummy_owner,
-            )[:, None, :].expand(
-                -1, self.config.num_key_value_heads, -1
-            )
+            )[:, None, :].expand(-1, self.config.num_key_value_heads, -1)
         initial_key_norm_sums = (
             self._state_clustering_constituent_rms(initial_state_k)
             if self.state_clustering_centroid_rescale != "none"
             else None
         )
         if self.state_premerge_factor > 1:
-            (
-                initial_state_k,
-                initial_state_v,
-                initial_counts,
-                grouped_owners,
-            ) = _premerge_adjacent_state_inputs(
-                initial_state_k,
-                initial_state_v,
-                self.state_premerge_factor,
-            )
+            if initial_state_k.is_cuda and initial_state_v.is_cuda:
+                initial_state_k, initial_state_v, initial_counts = (
+                    self._premerge_state_inputs_cuda(initial_state_k, initial_state_v)
+                )
+                grouped_owners = torch.div(
+                    owners,
+                    self.state_premerge_factor,
+                    rounding_mode="floor",
+                )
+            else:
+                (
+                    initial_state_k,
+                    initial_state_v,
+                    initial_counts,
+                    grouped_owners,
+                ) = _premerge_adjacent_state_inputs(
+                    initial_state_k,
+                    initial_state_v,
+                    self.state_premerge_factor,
+                )
             if initial_key_norm_sums is not None:
                 initial_key_norm_sums = _sum_adjacent_groups(
                     initial_key_norm_sums,
@@ -5337,9 +5897,7 @@ class TritonLODAttentionCore(nn.Module):
                 initial_counts = torch.where(
                     grouped_counts > 0,
                     grouped_counts,
-                    torch.full_like(
-                        grouped_counts, torch.finfo(torch.float32).tiny
-                    ),
+                    torch.full_like(grouped_counts, torch.finfo(torch.float32).tiny),
                 )
                 grouped_slots = int(initial_state_k.size(2))
                 initial_state_k = torch.cat(
@@ -5396,9 +5954,7 @@ class TritonLODAttentionCore(nn.Module):
                         rounding_mode="floor",
                     ),
                     torch.full_like(physical, grouped_slots),
-                )[:, None, :].expand(
-                    -1, self.config.num_key_value_heads, -1
-                )
+                )[:, None, :].expand(-1, self.config.num_key_value_heads, -1)
             initial_state_len = int(initial_state_k.size(2))
         elif initial_valid is None:
             initial_counts = torch.ones(
@@ -5436,9 +5992,7 @@ class TritonLODAttentionCore(nn.Module):
                 initial_key_norm_sums = initial_key_norm_sums.masked_fill(
                     ~initial_valid[:, None, :, None], 0
                 )
-            key_norm_sums[..., :initial_state_len, :].copy_(
-                initial_key_norm_sums
-            )
+            key_norm_sums[..., :initial_state_len, :].copy_(initial_key_norm_sums)
         state_len = initial_state_len
         state_coverage = initial_len
         page_cache = None
@@ -5476,27 +6030,27 @@ class TritonLODAttentionCore(nn.Module):
                     else None
                 )
                 chunk_output = self._two_level_attention(
-                        q[..., query_begin:query_end, :],
-                        k[..., bswa_begin:query_end, :],
-                        v[..., bswa_begin:query_end, :],
-                        state_k,
-                        state_v,
-                        counts,
-                        owners,
-                        archive_k,
-                        archive_v,
-                        state_len=state_len,
-                        state_capacity=state_capacity,
-                        page_cache=page_cache,
-                        local_branch=local_branch,
-                        sink_k=sink_k,
-                        sink_v=sink_v,
-                        output_buffer=(
-                            output_buffer[..., query_begin:query_end, :]
-                            if output_buffer is not None
-                            else None
-                        ),
-                    )
+                    q[..., query_begin:query_end, :],
+                    k[..., bswa_begin:query_end, :],
+                    v[..., bswa_begin:query_end, :],
+                    state_k,
+                    state_v,
+                    counts,
+                    owners,
+                    archive_k,
+                    archive_v,
+                    state_len=state_len,
+                    state_capacity=state_capacity,
+                    page_cache=page_cache,
+                    local_branch=local_branch,
+                    sink_k=sink_k,
+                    sink_v=sink_v,
+                    output_buffer=(
+                        output_buffer[..., query_begin:query_end, :]
+                        if output_buffer is not None
+                        else None
+                    ),
+                )
                 if output_buffer is None:
                     outputs.append(chunk_output)
 
@@ -5505,6 +6059,8 @@ class TritonLODAttentionCore(nn.Module):
                 if query_end < attention_len
                 else bswa_begin
             )
+            append_begin = state_coverage
+            append_owner_parts = []
             while state_coverage < next_bswa_begin:
                 update_end = min(
                     next_bswa_begin, state_coverage + prefill_state_update_len
@@ -5532,12 +6088,7 @@ class TritonLODAttentionCore(nn.Module):
                 if page_cache is not None:
                     if old_slot_remap is not None:
                         raise AssertionError("paged state remapping is unsupported")
-                    self._append_page_cache(
-                        page_cache,
-                        k[..., state_coverage:update_end, :],
-                        v[..., state_coverage:update_end, :],
-                        new_owners,
-                    )
+                    append_owner_parts.append(new_owners)
                 else:
                     if owners is None:
                         raise AssertionError("packed LOD owner archive is missing")
@@ -5545,6 +6096,17 @@ class TritonLODAttentionCore(nn.Module):
                         owners = torch.gather(old_slot_remap, 2, owners)
                     owners = torch.cat((owners, new_owners), dim=2)
                 state_coverage = update_end
+            if page_cache is not None and append_owner_parts:
+                self._append_page_cache(
+                    page_cache,
+                    k[..., append_begin:state_coverage, :],
+                    v[..., append_begin:state_coverage, :],
+                    (
+                        append_owner_parts[0]
+                        if len(append_owner_parts) == 1
+                        else torch.cat(append_owner_parts, dim=2)
+                    ),
+                )
 
         # Prepare the state boundary required by the first decode token after
         # all prefill outputs have been computed.  Otherwise prompts ending on
@@ -5560,10 +6122,10 @@ class TritonLODAttentionCore(nn.Module):
             )
             next_query_begin = front_len + completed_blocks * prefill_chunk_len
             decode_coverage = max(initial_len, next_query_begin - exact_lookback)
+        append_begin = state_coverage
+        append_owner_parts = []
         while decode_coverage > state_coverage:
-            update_end = min(
-                decode_coverage, state_coverage + prefill_state_update_len
-            )
+            update_end = min(decode_coverage, state_coverage + prefill_state_update_len)
             (
                 state_k,
                 state_v,
@@ -5587,12 +6149,7 @@ class TritonLODAttentionCore(nn.Module):
             if page_cache is not None:
                 if old_slot_remap is not None:
                     raise AssertionError("paged state remapping is unsupported")
-                self._append_page_cache(
-                    page_cache,
-                    k[..., state_coverage:update_end, :],
-                    v[..., state_coverage:update_end, :],
-                    new_owners,
-                )
+                append_owner_parts.append(new_owners)
             else:
                 if owners is None:
                     raise AssertionError("packed LOD owner archive is missing")
@@ -5600,6 +6157,17 @@ class TritonLODAttentionCore(nn.Module):
                     owners = torch.gather(old_slot_remap, 2, owners)
                 owners = torch.cat((owners, new_owners), dim=2)
             state_coverage = update_end
+        if page_cache is not None and append_owner_parts:
+            self._append_page_cache(
+                page_cache,
+                k[..., append_begin:state_coverage, :],
+                v[..., append_begin:state_coverage, :],
+                (
+                    append_owner_parts[0]
+                    if len(append_owner_parts) == 1
+                    else torch.cat(append_owner_parts, dim=2)
+                ),
+            )
         # Right padding exists only to reuse compiled final-chunk shapes. It
         # must never become persistent state or enter the decode-local field.
         recent_k = k[..., state_coverage:prefill_len, :]
@@ -5608,16 +6176,10 @@ class TritonLODAttentionCore(nn.Module):
         if page_cache is not None:
             recent_capacity = max(
                 self.local_len + self.decode_state_update_len,
-                self.prefill_local_len
-                if not finalize_cache_for_decode
-                else 0,
+                self.prefill_local_len if not finalize_cache_for_decode else 0,
             )
-            buffered_k = k.new_empty(
-                *k.shape[:2], recent_capacity, int(k.size(-1))
-            )
-            buffered_v = v.new_empty(
-                *v.shape[:2], recent_capacity, int(v.size(-1))
-            )
+            buffered_k = k.new_empty(*k.shape[:2], recent_capacity, int(k.size(-1)))
+            buffered_v = v.new_empty(*v.shape[:2], recent_capacity, int(v.size(-1)))
             buffered_k[..., :recent_len, :].copy_(recent_k)
             buffered_v[..., :recent_len, :].copy_(recent_v)
             recent_k = buffered_k
@@ -5640,20 +6202,20 @@ class TritonLODAttentionCore(nn.Module):
                     page_cache.get(name) for name in quantization_names
                 )
                 if not all(
-                    isinstance(value, torch.Tensor)
-                    for value in quantization_tensors
+                    isinstance(value, torch.Tensor) for value in quantization_tensors
                 ):
-                    raise RuntimeError("virtual INT4 prefill cache is incomplete")
+                    raise RuntimeError("virtual quantized prefill cache is incomplete")
                 if self.leaf_quant_scale_mode not in ("max", "l2"):
                     raise ValueError("leaf quantization scale mode must be max or l2")
                 if self.leaf_append_quant_scale_mode not in ("max", "l2"):
                     raise ValueError(
                         "leaf append quantization scale mode must be max or l2"
                     )
-                quantize_virtual_paged_kv_int4(
+                quantize_virtual_paged_kv(
                     *quantization_tensors,
                     quantized_counts,
                     quant_group_size=self.leaf_quant_group_size,
+                    quant_bits=int(page_cache.get("leaf_quant_bits", 4)),
                     optimize_scale=self.leaf_quant_scale_mode == "l2",
                 )
                 page_cache["quantization_finalized"] = True
@@ -5680,14 +6242,10 @@ class TritonLODAttentionCore(nn.Module):
                     page_cache["page_sum_v"] = v.new_empty(
                         *v.shape[:2], 1, int(v.size(-1))
                     )
-                # All archived leaves now live in the packed flat tensors.  Keep
+                # All archived leaves now live in quantized flat tensors. Keep
                 # only typed pointer sentinels for the compile-time BF16 fallback.
-                page_cache["leaf_k"] = k.new_empty(
-                    *k.shape[:2], 1, int(k.size(-1))
-                )
-                page_cache["leaf_v"] = v.new_empty(
-                    *v.shape[:2], 1, int(v.size(-1))
-                )
+                page_cache["leaf_k"] = k.new_empty(*k.shape[:2], 1, int(k.size(-1)))
+                page_cache["leaf_v"] = v.new_empty(*v.shape[:2], 1, int(v.size(-1)))
         self._lod_state = {
             "state_k": state_k.detach(),
             "state_v": state_v.detach(),
@@ -5751,13 +6309,10 @@ class TritonLODAttentionCore(nn.Module):
         counts = cache["counts"]
         key_norm_sums = cache.get("key_norm_sums")
         if not all(
-            isinstance(tensor, torch.Tensor)
-            for tensor in (state_k, state_v, counts)
+            isinstance(tensor, torch.Tensor) for tensor in (state_k, state_v, counts)
         ):
             raise TypeError("cached LOD state tensors are missing")
-        if key_norm_sums is not None and not isinstance(
-            key_norm_sums, torch.Tensor
-        ):
+        if key_norm_sums is not None and not isinstance(key_norm_sums, torch.Tensor):
             raise TypeError("LOD key-norm sum cache is invalid")
         state_len = int(cache["state_len"])
         state_coverage = int(cache["coverage"])
@@ -5790,12 +6345,8 @@ class TritonLODAttentionCore(nn.Module):
             state_v = _pad_sequence(state_v, state_capacity).clone()
             counts = _pad_sequence(counts, state_capacity).clone()
             if key_norm_sums is not None:
-                key_norm_sums = _pad_sequence(
-                    key_norm_sums, state_capacity
-                ).clone()
-            self._grow_slot_page_table(
-                page_cache, required_slots=state_capacity
-            )
+                key_norm_sums = _pad_sequence(key_norm_sums, state_capacity).clone()
+            self._grow_slot_page_table(page_cache, required_slots=state_capacity)
 
         sink_k = cache.get("sink_k")
         sink_v = cache.get("sink_v")
@@ -5816,6 +6367,8 @@ class TritonLODAttentionCore(nn.Module):
 
         def update_to(target_coverage: int, *, context_length_for) -> None:
             nonlocal state_k, state_v, counts, state_len, state_coverage, owners
+            append_source_begin = state_coverage - initial_coverage
+            append_owner_parts = []
             while state_coverage < target_coverage:
                 update_end = min(
                     target_coverage,
@@ -5847,10 +6400,20 @@ class TritonLODAttentionCore(nn.Module):
                 )
                 if old_slot_remap is not None:
                     raise AssertionError("paged state remapping is unsupported")
-                self._append_page_cache(
-                    page_cache, overflow_k, overflow_v, new_owners
-                )
+                append_owner_parts.append(new_owners)
                 state_coverage = update_end
+            if append_owner_parts:
+                append_source_end = state_coverage - initial_coverage
+                self._append_page_cache(
+                    page_cache,
+                    working_k[..., append_source_begin:append_source_end, :],
+                    working_v[..., append_source_begin:append_source_end, :],
+                    (
+                        append_owner_parts[0]
+                        if len(append_owner_parts) == 1
+                        else torch.cat(append_owner_parts, dim=2)
+                    ),
+                )
 
         outputs = []
         query_begin = 0
@@ -5865,14 +6428,10 @@ class TritonLODAttentionCore(nn.Module):
             )
             exact_key_parts = []
             exact_value_parts = []
-            if isinstance(sink_k, torch.Tensor) and isinstance(
-                sink_v, torch.Tensor
-            ):
+            if isinstance(sink_k, torch.Tensor) and isinstance(sink_v, torch.Tensor):
                 exact_key_parts.append(sink_k)
                 exact_value_parts.append(sink_v)
-            exact_tail_end = (
-                previous_total_len + front_query_end - initial_coverage
-            )
+            exact_tail_end = previous_total_len + front_query_end - initial_coverage
             exact_key_parts.extend(
                 (initial_state_k, working_k[..., :exact_tail_end, :])
             )
@@ -5887,9 +6446,7 @@ class TritonLODAttentionCore(nn.Module):
                 if self.prefill_local_attention_backend == "aiter"
                 else torch.cat(
                     (
-                        q.new_zeros(
-                            *q.shape[:2], previous_total_len, int(q.size(-1))
-                        ),
+                        q.new_zeros(*q.shape[:2], previous_total_len, int(q.size(-1))),
                         suffix_query,
                     ),
                     dim=2,
@@ -5909,9 +6466,7 @@ class TritonLODAttentionCore(nn.Module):
             query_begin = front_query_end
         while query_begin < turn_len:
             absolute_query_begin = previous_total_len + query_begin
-            block_index = (
-                absolute_query_begin - front_len
-            ) // prefill_chunk_len
+            block_index = (absolute_query_begin - front_len) // prefill_chunk_len
             block_begin = front_len + block_index * prefill_chunk_len
             block_end = block_begin + prefill_chunk_len
             query_end = min(
@@ -5939,9 +6494,7 @@ class TritonLODAttentionCore(nn.Module):
             else:
                 local_query = torch.cat(
                     (
-                        q.new_zeros(
-                            *q.shape[:2], query_prefix_len, int(q.size(-1))
-                        ),
+                        q.new_zeros(*q.shape[:2], query_prefix_len, int(q.size(-1))),
                         suffix_query,
                     ),
                     dim=2,
@@ -6007,9 +6560,7 @@ class TritonLODAttentionCore(nn.Module):
             recent_capacity = max(
                 tail_len,
                 self.local_len + self.decode_state_update_len,
-                self.prefill_local_len
-                if not finalize_cache_for_decode
-                else 0,
+                self.prefill_local_len if not finalize_cache_for_decode else 0,
             )
             recent_k = new_k.new_empty(
                 *new_k.shape[:2], recent_capacity, int(new_k.size(-1))
@@ -6055,9 +6606,7 @@ class TritonLODAttentionCore(nn.Module):
         state_v = cache["state_v"]
         counts = cache["counts"]
         key_norm_sums = cache.get("key_norm_sums")
-        if key_norm_sums is not None and not isinstance(
-            key_norm_sums, torch.Tensor
-        ):
+        if key_norm_sums is not None and not isinstance(key_norm_sums, torch.Tensor):
             raise TypeError("LOD key-norm sum cache is invalid")
         state_len = int(cache["state_len"])
         page_cache = cache.get("page_cache")
@@ -6097,9 +6646,7 @@ class TritonLODAttentionCore(nn.Module):
         # Only tokens from prior calls can move into persistent state.  In
         # particular, a prompt shorter than one chunk has no local tail yet,
         # so archiving the just-arrived decode token would underflow recent_k.
-        target_coverage = max(
-            min(previous_total_len, self.chunk_len), state_coverage
-        )
+        target_coverage = max(min(previous_total_len, self.chunk_len), state_coverage)
         pending_update = total_len - target_coverage - exact_floor
         if pending_update > decode_update_len:
             target_coverage += (
@@ -6181,12 +6728,8 @@ class TritonLODAttentionCore(nn.Module):
                 current_k = recent_k
                 current_v = recent_v
             else:
-                current_k = torch.cat(
-                    (recent_k[..., :recent_len, :], new_k), dim=2
-                )
-                current_v = torch.cat(
-                    (recent_v[..., :recent_len, :], new_v), dim=2
-                )
+                current_k = torch.cat((recent_k[..., :recent_len, :], new_k), dim=2)
+                current_v = torch.cat((recent_v[..., :recent_len, :], new_v), dim=2)
                 recent_k[..., recent_len : recent_len + 1, :].copy_(new_k)
                 recent_v[..., recent_len : recent_len + 1, :].copy_(new_v)
                 recent_len += 1
@@ -6199,6 +6742,7 @@ class TritonLODAttentionCore(nn.Module):
             buffered_decode = (
                 page_cache is not None
                 and self.fused_decode_attention
+                and not self.prefill_int8_leaf_mma
                 and int(new_v.size(-1)) == int(q.size(-1))
                 and not isinstance(page_cache.get("page_indices"), torch.Tensor)
             )
@@ -6217,12 +6761,8 @@ class TritonLODAttentionCore(nn.Module):
                 append_v = new_v
                 active_local_len = recent_len
             else:
-                local_k = torch.cat(
-                    (recent_k[..., :recent_len, :], new_k), dim=2
-                )
-                local_v = torch.cat(
-                    (recent_v[..., :recent_len, :], new_v), dim=2
-                )
+                local_k = torch.cat((recent_k[..., :recent_len, :], new_k), dim=2)
+                local_v = torch.cat((recent_v[..., :recent_len, :], new_v), dim=2)
                 append_k = None
                 append_v = None
                 active_local_len = None
@@ -6244,6 +6784,7 @@ class TritonLODAttentionCore(nn.Module):
                 new_v=append_v,
                 sink_k=sink_k,
                 sink_v=sink_v,
+                context_len=total_len,
             )
             if buffered_decode:
                 recent_len += 1
@@ -6271,5 +6812,6 @@ class TritonLODAttentionCore(nn.Module):
             cache["exact_k"] = exact_k.detach()
             cache["exact_v"] = exact_v.detach()
         return output
+
 
 __all__ = ["TritonLODAttentionCore"]

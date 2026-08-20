@@ -38,8 +38,8 @@ class LODServerConfig:
     left_padding_mode: str = "chunk_aligned"
 
     def __post_init__(self) -> None:
-        if self.kv_bits not in (0, 4):
-            raise ValueError("kv_bits must be 0 (BF16) or 4")
+        if self.kv_bits not in (0, 4, 8):
+            raise ValueError("kv_bits must be 0 (BF16), 4, or 8")
         if not 0 <= self.open_count <= 8:
             raise ValueError("open_count must be in [0, 8]")
         if self.engine_backend not in ("torch", "kernel"):

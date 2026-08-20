@@ -175,11 +175,15 @@ class VLLMLODRuntime:
         self.initialized = True
         logger.info(
             "Initialized LOD pools for %d global attention layers: "
-            "pool_rows=%d max_context=%d kv_bits=%d routing=%s prefill=%s",
+            "levels=%d pool_rows=%d max_context=%d storage_bits=%d key_bits=%d "
+            "value_bits=%d routing=%s prefill=%s",
             len(self.pools),
+            self.settings.levels,
             self.pool_size,
             self.request_capacity,
             self.settings.kv_bits,
+            self.settings.resolved_key_bits,
+            self.settings.resolved_value_bits,
             self.settings.routing_geometry,
             self.settings.prefill_mode,
         )
