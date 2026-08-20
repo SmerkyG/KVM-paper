@@ -12,6 +12,11 @@ schedule, but selects the known older execution choices:
 - cooperative GQA and HIP decode disabled;
 - four-warp leaf-route reduction instead of one warp.
 
+The later kernel audit established that the current profile also used fixed
+eight-way Triton decode on this model: its GQA group is eight, while the HIP
+specialization requires group four. Thus only the leaf-route reduction warp
+count differed in the kernels actually exercised by this comparison.
+
 ## Result
 
 | Mode | Correct | Accuracy |
@@ -39,8 +44,8 @@ numerical variability.
 
 The missing historical score was not recovered. The nine-answer difference is
 entirely in the medium class; compatibility is one answer better on the long
-class. This makes the newer decode machinery an implausible explanation for
-the August 19 quality result.
+class. The newer cooperative decode machinery was not exercised and therefore
+cannot explain the August 19 quality result.
 
 Prediction agreement is 455/503 (90.46%) with the historical August 19 run,
 444/503 (88.27%) with current run 1, and 445/503 (88.47%) with current run 2.
@@ -73,6 +78,7 @@ The compatibility path is 0.11% slower than August 19 by slowest-shard wall,
 - Thinking disabled, guided greedy A-D decoding, at most 32 output tokens
 
 All 503 IDs completed exactly once with exit code zero. Kernel logs confirm
-the older `_split_decode_paged_lod_attention_kernel` and
-`_reduce_routed_split_decode_lod_attention_kernel` path. Raw records and logs
-are in `bf16/`; the machine-readable headline values are in `summary.json`.
+`_split_decode_paged_lod_attention_kernel` and
+`_reduce_routed_split_decode_lod_attention_kernel` in both profiles. Raw
+records and logs are in `bf16/`; the machine-readable headline values are in
+`summary.json`.

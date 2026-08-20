@@ -112,6 +112,12 @@ compatibility preset rather than a byte-exact source restoration. The current
 optimized path remains the default. `VLLM_LOD_LEAF_REDUCE_NUM_WARPS` controls
 the route-reduction warp count directly when the compatibility preset is off.
 
+For the supplied LongBench launcher, the seventh argument selects the profile:
+`current` (default) or `aug19`. On Qwen3.5-35B-A3B both profiles use the generic
+split decoder because its 16 query heads and two KV heads form GQA groups of
+eight. The only exercised kernel difference between those two LongBench
+profiles is therefore the one- versus four-warp prefill leaf-route reduction.
+
 ## Execution contract
 
 - The default authoritative path runs direct LOD prefill. It uses scheduler-only
@@ -140,14 +146,15 @@ the route-reduction warp count directly when the compatibility preset is off.
 - State/page catch-up runs in `ModelState.preprocess_state`, between graph
   replays, in 256-token batches. Decode itself only appends to a fixed local
   tail and advances one integer length per active row.
-- Long-context two-tier decode groups routes across the four GQA heads and
-  loads each union centroid once. The gfx942 HIP kernel and its Triton fallback
-  both consume vLLM's persistent cache-row indirection, so reordered requests
-  and graph-padding rows do not assume query-row/cache-row identity.
-- Flat INT8 currently uses the regular split decode kernel. The cooperative
-  GQA decoder remains enabled for BF16, but is gated for INT8 because its graph
-  capture path faults with physical INT8 pages; this does not affect INT8
-  prefill.
+- Portable two-tier decode uses one fixed eight-way Triton split kernel for
+  exact leaves and local tokens, followed by one stable-LSE reduction. This is
+  the path for GQA-8 Qwen3.5-35B-A3B and for every unsupported geometry.
+- On gfx942 only, H=256/GQA-4 decode may use one specialized HIP kernel that
+  loads a routed leaf tile once for the four query heads sharing its KV head.
+  A small Triton kernel handles the local branch. Both BF16 and signed INT8
+  leaf storage are supported. There is deliberately no second cooperative
+  Triton fallback; disabling or missing this specialization selects the
+  generic split decoder.
 - A direct-prefill mixed batch uses LOD only when every request can advance an
   exact authoritative prefix. In `lod` ownership, a missing prefix is an error:
   bounded staging cannot reconstruct discarded remote history. In `dual`
@@ -166,6 +173,38 @@ Every pure one-token decode batch uses LOD, including short requests, because a
 captured vLLM graph cannot dynamically swap its attention implementation.
 Length-based native/LOD dispatch needs a scheduler-visible graph key and is a
 later integration stage, not a hidden branch in the captured kernel.
+
+## Paper-oriented kernel surface
+
+The primary two-tier implementation has one prefill route and two decode
+backends. Precision changes are compile-time storage specializations, not
+different LOD algorithms.
+
+Prefill processes a 4,096-token chunk in three stages:
+
+1. A fused routing/coarse-attention kernel scores state centroids, retains the
+   top eight routes, and produces the unopened-centroid residual branch.
+2. The expert-major leaf kernel attends each routed query group to the exact
+   posting list of its centroid, without compacting or copying K/V.
+3. A stable-LSE reduction merges the eight exact-route results with the coarse,
+   local-window, and protected-token branches.
+
+Decode first performs the same centroid routing/coarse calculation. It then
+uses either the generic split-8 exact/local kernel or the optional gfx942
+H=256/GQA-4 HIP specialization described above, and finally performs one
+stable-LSE merge with the coarse branch. The compatibility profile does not
+duplicate these algorithms; it only freezes older dispatch/reduction settings.
+
+The paper implementation intentionally removed the unused combined
+cooperative Triton kernel and the slower cooperative Triton fallback. This
+deleted over 900 lines of kernel and fallback-dispatch code. Generic decode
+scratch no longer reserves the
+specialized GQA partial buffers. A 64K, batch-8 Qwen3.5-0.8B validation after
+the deletion produced identical top-1 outputs in both modes; after compilation,
+the specialized and generic full-model decode steps were 14.14 ms and 14.55 ms,
+respectively. The focused numerical verifier matched specialized BF16 output
+to the generic/reference result within 7.4e-4 maximum absolute error and INT8
+within 8.6e-4.
 
 ## Current memory behavior
 

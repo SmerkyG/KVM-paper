@@ -1886,8 +1886,16 @@ def compare_large_gqa_route(device: torch.device) -> dict[str, float]:
         q, splits=8, state_capacity=state_len, route_group_size=64
     )
     gqa_buffers = new_fused_decode_buffers(
-        q, splits=8, state_capacity=state_len, route_group_size=64
+        q,
+        splits=8,
+        state_capacity=state_len,
+        route_group_size=64,
+        gqa_route_splits=4,
     )
+    if any(name.startswith("gqa_") for name in scalar_buffers):
+        raise AssertionError("generic decode allocated cooperative GQA scratch")
+    if "gqa_route_partial_out" not in gqa_buffers:
+        raise AssertionError("cooperative decode did not allocate GQA scratch")
     common = dict(
         state_len=state_len,
         kv_group_size=group_size,
@@ -2462,7 +2470,7 @@ def main() -> None:
             gqa_cooperative_route_splits=cooperative_route_splits,
             gqa_cooperative_fused_reduce=True,
         )
-        int8_route_gqa_triton_decode = fused_decode_paged_lod_attention(
+        int8_route_generic_decode = fused_decode_paged_lod_attention(
             decode_q,
             state_k,
             state_v,
@@ -2736,6 +2744,7 @@ def main() -> None:
             splits=8,
             state_capacity=slots,
             route_group_size=32,
+            gqa_route_splits=4,
         )
         scalar_dot_decode = fused_decode_paged_lod_attention(
             decode_q,
@@ -2975,10 +2984,10 @@ def main() -> None:
             .max()
             .item()
         ),
-        "int8_gqa_hip_vs_triton_max_abs": float(
+        "int8_gqa_hip_vs_generic_max_abs": float(
             (
                 int8_route_gqa_hip_decode.float()
-                - int8_route_gqa_triton_decode.float()
+                - int8_route_generic_decode.float()
             )
             .abs()
             .max()
@@ -3039,8 +3048,8 @@ def main() -> None:
         raise AssertionError("GQA fused route/coarse decode disagrees with reference")
     if result["gqa_combined_reduce_max_abs"] > 0.03:
         raise AssertionError("combined GQA split/final reduction changed decode output")
-    if result["int8_gqa_hip_vs_triton_max_abs"] > 0.03:
-        raise AssertionError("INT8 HIP cooperative decode disagrees with Triton")
+    if result["int8_gqa_hip_vs_generic_max_abs"] > 0.03:
+        raise AssertionError("INT8 HIP cooperative decode disagrees with generic")
     if result["dynamic_fused_route_decode_max_abs"] > 0.03:
         raise AssertionError("dynamic fused routing disagrees with explicit routing")
     if result["dynamic_fused_route_mean_opened"] >= 8.0:

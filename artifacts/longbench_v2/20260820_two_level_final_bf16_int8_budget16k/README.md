@@ -3,9 +3,8 @@
 Run date: 2026-08-20
 
 This evaluates the latest uncapped two-tier LOD vLLM paths on all 503
-LongBench v2 examples. Two complete repeats were run for each precision after
-the final cooperative decode changes because answer-choice decisions show
-material run-to-run numerical sensitivity.
+LongBench v2 examples. Two complete repeats were run for each precision because
+answer-choice decisions show material run-to-run numerical sensitivity.
 
 ## Main result
 
@@ -65,7 +64,9 @@ medium and long requests.
 - Native 262,144-token context; prompts capped at 262,016 tokens
 - Direct 4,096-token-chunk two-tier prefill, raw top-eight routing,
   `16 sqrt(T)` state schedule, and uncapped physical leaf pages
-- Latest GQA-cooperative HIP decode with adaptive route splits
+- Fixed eight-way generic Triton decode. The configured cooperative HIP path
+  was not eligible: this model has 16 query heads and two KV heads (GQA group
+  eight), while that specialization requires group four.
 - BF16 mode stores BF16 K/V leaves
 - INT8 mode stores signed INT8 K/V leaves with per-token scales and uses the
   INT8 leaf/coarse attention paths

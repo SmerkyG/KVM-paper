@@ -5133,7 +5133,16 @@ class TritonLODAttentionCore(nn.Module):
                 raise TypeError("paged LOD cache is incomplete")
             decode_buffers = getattr(self, "_lod_decode_attention_buffers", None)
             cooperative_route_splits = self.decode_gqa_cooperative_route_splits
-            cooperative_leaf = self.decode_gqa_cooperative_leaf
+            # The retained cooperative decoder is the gfx942 HIP specialization:
+            # H=256 with exactly four query heads per KV head.  Other geometries
+            # use the portable split decoder directly; there is no second Triton
+            # cooperative implementation to maintain.
+            cooperative_leaf = bool(
+                self.decode_gqa_cooperative_leaf
+                and self.decode_gqa_cooperative_hip
+                and self.num_key_value_groups == 4
+                and int(q.size(-1)) == 256
+            )
             cooperative_adaptive_splits = bool(
                 self.decode_gqa_cooperative_adaptive_splits
                 and cooperative_route_splits is None
@@ -5203,7 +5212,9 @@ class TritonLODAttentionCore(nn.Module):
                     splits=self.decode_split_kv,
                     state_capacity=(state_capacity if fuse_decode_route else None),
                     route_group_size=self.decode_route_group_size,
-                    gqa_route_splits=cooperative_route_splits,
+                    gqa_route_splits=(
+                        cooperative_route_splits if cooperative_leaf else None
+                    ),
                 )
                 self._lod_decode_attention_buffers = decode_buffers
             return fused_decode_paged_lod_attention(

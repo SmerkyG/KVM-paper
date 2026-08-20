@@ -1519,7 +1519,11 @@ class VLLMLayerLODPool:
                 splits=int(self.engine.decode_split_kv),
                 state_capacity=self.state_capacity,
                 route_group_size=int(self.engine.decode_route_group_size),
-                gqa_route_splits=self._decode_route_splits(),
+                gqa_route_splits=(
+                    self._decode_route_splits()
+                    if self._use_cooperative_decode()
+                    else None
+                ),
             )
             self.decode_buffer_storage = storage
             self.decode_buffers.clear()
@@ -1544,9 +1548,25 @@ class VLLMLayerLODPool:
         return max(8, min(32, 1 << (split_work.bit_length() - 1)))
 
     def _use_cooperative_decode(self) -> bool:
-        if self.settings.levels != 2 or not self.settings.decode_gqa_cooperative:
+        if (
+            self.settings.levels != 2
+            or not self.settings.decode_gqa_cooperative
+            or not self.settings.decode_gqa_cooperative_hip
+            or self.query_heads != self.kv_heads * 4
+            or self.head_dim != 256
+            or self.dtype != torch.bfloat16
+        ):
             return False
-        return self.request_capacity >= max(32768, 4096 * self.max_requests)
+        if self.request_capacity < max(32768, 4096 * self.max_requests):
+            return False
+        from model.kernels.gqa_cooperative_decode import (
+            gqa_cooperative_decode_available,
+        )
+
+        device_index = self.device.index
+        if device_index is None:
+            device_index = torch.cuda.current_device()
+        return gqa_cooperative_decode_available(device_index)
 
     def reserve_decode_buffers(self, rows: int) -> None:
         """Reserve graph scratch before vLLM computes its native cache budget."""

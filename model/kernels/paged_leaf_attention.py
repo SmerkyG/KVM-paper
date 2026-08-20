@@ -8057,348 +8057,6 @@ def _fused_decode_paged_lod_attention_kernel(
 
 
 @triton.jit
-def _gqa_cooperative_route_decode_paged_leaf_attention_kernel(
-    q,
-    cache_indices,
-    page_k,
-    page_v,
-    page_indices,
-    page_k_scales,
-    page_v_scales,
-    slot_pages,
-    overflow_page_keys,
-    overflow_page_values,
-    overflow_used,
-    slot_lengths,
-    top_slots,
-    partial_out,
-    partial_lse,
-    TOP_BATCH_STRIDE,
-    TOP_HEAD_STRIDE,
-    QUERY_HEADS: tl.constexpr,
-    KV_HEADS: tl.constexpr,
-    KV_GROUP_SIZE: tl.constexpr,
-    BLOCK_M: tl.constexpr,
-    CACHE_BATCHES: tl.constexpr,
-    PAGE_CAPACITY: tl.constexpr,
-    LEAF_CAPACITY: tl.constexpr,
-    STATE_CAPACITY: tl.constexpr,
-    INLINE_PAGES_PER_SLOT: tl.constexpr,
-    HASH_CAPACITY: tl.constexpr,
-    HASH_PROBES: tl.constexpr,
-    HEAD_DIM: tl.constexpr,
-    PAGE_SIZE: tl.constexpr,
-    ROUTE_COUNT: tl.constexpr,
-    SCALE_LOG2: tl.constexpr,
-    BLOCK_N: tl.constexpr,
-    INDEXED: tl.constexpr,
-    INT8_STORAGE: tl.constexpr,
-):
-    """Expand one union centroid for all selecting heads in a GQA group."""
-    batch_kv = tl.program_id(0).to(tl.int64)
-    candidate = tl.program_id(1).to(tl.int64)
-    batch = batch_kv // KV_HEADS
-    cache_batch = tl.load(cache_indices + batch).to(tl.int64)
-    cache_valid = (cache_batch >= 0) & (cache_batch < CACHE_BATCHES)
-    cache_batch = tl.where(cache_valid, cache_batch, 0)
-    kv_head = batch_kv - batch * KV_HEADS
-    cache_kv = cache_batch * KV_HEADS + kv_head
-
-    union_offset = tl.arange(0, BLOCK_M * ROUTE_COUNT)
-    union_head = union_offset // ROUTE_COUNT
-    union_rank = union_offset % ROUTE_COUNT
-    union_valid = (union_head < KV_GROUP_SIZE) & cache_valid
-    all_slots = tl.load(
-        top_slots
-        + batch * TOP_BATCH_STRIDE
-        + (kv_head * KV_GROUP_SIZE + union_head) * TOP_HEAD_STRIDE
-        + union_rank,
-        mask=union_valid,
-        other=-2,
-    ).to(tl.int64)
-    candidate_head = candidate // ROUTE_COUNT
-    candidate_rank = candidate % ROUTE_COUNT
-    routed_slot = tl.load(
-        top_slots
-        + batch * TOP_BATCH_STRIDE
-        + (kv_head * KV_GROUP_SIZE + candidate_head) * TOP_HEAD_STRIDE
-        + candidate_rank,
-        mask=(candidate_head < KV_GROUP_SIZE) & cache_valid,
-        other=-1,
-    ).to(tl.int64)
-    slot_valid = (
-        cache_valid
-        & (candidate_head < KV_GROUP_SIZE)
-        & (routed_slot >= 0)
-        & (routed_slot < STATE_CAPACITY)
-    )
-    seen_before = (
-        tl.sum(
-            (union_valid & (union_offset < candidate) & (all_slots == routed_slot)).to(
-                tl.int32
-            ),
-            axis=0,
-        )
-        > 0
-    )
-    union_leader = slot_valid & ~seen_before
-
-    if union_leader:
-        matched = union_valid & (all_slots == routed_slot)
-        matched0 = matched & (union_head == 0)
-        selected0 = tl.sum(matched0.to(tl.int32), axis=0) > 0
-        selected_rank0 = tl.sum(matched0.to(tl.int32) * union_rank, axis=0)
-        if KV_GROUP_SIZE > 1:
-            matched1 = matched & (union_head == 1)
-            selected1 = tl.sum(matched1.to(tl.int32), axis=0) > 0
-            selected_rank1 = tl.sum(matched1.to(tl.int32) * union_rank, axis=0)
-        if KV_GROUP_SIZE > 2:
-            matched2 = matched & (union_head == 2)
-            selected2 = tl.sum(matched2.to(tl.int32), axis=0) > 0
-            selected_rank2 = tl.sum(matched2.to(tl.int32) * union_rank, axis=0)
-        if KV_GROUP_SIZE > 3:
-            matched3 = matched & (union_head == 3)
-            selected3 = tl.sum(matched3.to(tl.int32), axis=0) > 0
-            selected_rank3 = tl.sum(matched3.to(tl.int32) * union_rank, axis=0)
-
-        query_row = batch * QUERY_HEADS + kv_head * KV_GROUP_SIZE
-        dim = tl.arange(0, HEAD_DIM)
-        token_offset = tl.arange(0, BLOCK_N)
-        query0 = tl.load(q + query_row * HEAD_DIM + dim)
-        maximum0 = tl.full((), -float("inf"), tl.float32)
-        denominator0 = tl.zeros((), tl.float32)
-        accumulator0 = tl.zeros((HEAD_DIM,), tl.float32)
-        if KV_GROUP_SIZE > 1:
-            query1 = tl.load(q + (query_row + 1) * HEAD_DIM + dim)
-            maximum1 = tl.full((), -float("inf"), tl.float32)
-            denominator1 = tl.zeros((), tl.float32)
-            accumulator1 = tl.zeros((HEAD_DIM,), tl.float32)
-        if KV_GROUP_SIZE > 2:
-            query2 = tl.load(q + (query_row + 2) * HEAD_DIM + dim)
-            maximum2 = tl.full((), -float("inf"), tl.float32)
-            denominator2 = tl.zeros((), tl.float32)
-            accumulator2 = tl.zeros((HEAD_DIM,), tl.float32)
-        if KV_GROUP_SIZE > 3:
-            query3 = tl.load(q + (query_row + 3) * HEAD_DIM + dim)
-            maximum3 = tl.full((), -float("inf"), tl.float32)
-            denominator3 = tl.zeros((), tl.float32)
-            accumulator3 = tl.zeros((HEAD_DIM,), tl.float32)
-
-        slot = routed_slot
-        key_count = tl.load(slot_lengths + cache_kv * STATE_CAPACITY + slot).to(
-            tl.int32
-        )
-        if HASH_PROBES == 0:
-            page_table = (
-                slot_pages + (cache_kv * STATE_CAPACITY + slot) * INLINE_PAGES_PER_SLOT
-            )
-        for key_begin in tl.range(0, key_count, BLOCK_N, num_stages=1):
-            logical_key = key_begin + token_offset
-            token_valid = logical_key < key_count
-            page_ordinal = logical_key // PAGE_SIZE
-            within_page = logical_key % PAGE_SIZE
-            if HASH_PROBES == 0:
-                page_id = tl.load(
-                    page_table + page_ordinal,
-                    mask=token_valid,
-                    other=0,
-                ).to(tl.int64)
-            else:
-                page_id = _lookup_page_id(
-                    slot_pages,
-                    overflow_page_keys,
-                    overflow_page_values,
-                    overflow_used,
-                    cache_kv,
-                    slot,
-                    page_ordinal,
-                    token_valid,
-                    STATE_CAPACITY,
-                    INLINE_PAGES_PER_SLOT,
-                    PAGE_CAPACITY,
-                    HASH_CAPACITY,
-                    HASH_PROBES,
-                ).to(tl.int64)
-            page_valid = token_valid & (page_id >= 0) & (page_id < PAGE_CAPACITY)
-            page_id = tl.where(page_valid, page_id, 0)
-            physical_token = (
-                cache_kv * PAGE_CAPACITY + page_id
-            ) * PAGE_SIZE + within_page
-            if INDEXED:
-                leaf_index = tl.load(
-                    page_indices + physical_token,
-                    mask=page_valid,
-                    other=0,
-                ).to(tl.int64)
-                token_valid = (
-                    page_valid & (leaf_index >= 0) & (leaf_index < LEAF_CAPACITY)
-                )
-                leaf_index = tl.where(token_valid, leaf_index, 0)
-                storage_token = cache_kv * LEAF_CAPACITY + leaf_index
-            else:
-                token_valid = page_valid
-                storage_token = physical_token
-            keys = tl.load(
-                page_k + storage_token[:, None] * HEAD_DIM + dim[None, :],
-                mask=token_valid[:, None],
-                other=0.0,
-            )
-            values = tl.load(
-                page_v + storage_token[:, None] * HEAD_DIM + dim[None, :],
-                mask=token_valid[:, None],
-                other=0.0,
-            )
-            if INT8_STORAGE:
-                key_scale = tl.load(
-                    page_k_scales + storage_token, mask=token_valid, other=0.0
-                ).to(tl.float32)
-                value_scale = tl.load(
-                    page_v_scales + storage_token, mask=token_valid, other=0.0
-                ).to(tl.float32)
-                keys = keys.to(tl.float32) * key_scale[:, None]
-                values = values.to(tl.float32) * value_scale[:, None]
-            if selected0:
-                scores0 = (
-                    tl.sum(
-                        keys.to(tl.float32) * query0[None, :].to(tl.float32),
-                        axis=1,
-                    )
-                    * SCALE_LOG2
-                )
-                maximum0, denominator0, accumulator0 = _online_softmax_update(
-                    scores0,
-                    values,
-                    token_valid,
-                    maximum0,
-                    denominator0,
-                    accumulator0,
-                    False,
-                )
-            if KV_GROUP_SIZE > 1:
-                if selected1:
-                    scores1 = (
-                        tl.sum(
-                            keys.to(tl.float32) * query1[None, :].to(tl.float32),
-                            axis=1,
-                        )
-                        * SCALE_LOG2
-                    )
-                    maximum1, denominator1, accumulator1 = _online_softmax_update(
-                        scores1,
-                        values,
-                        token_valid,
-                        maximum1,
-                        denominator1,
-                        accumulator1,
-                        False,
-                    )
-            if KV_GROUP_SIZE > 2:
-                if selected2:
-                    scores2 = (
-                        tl.sum(
-                            keys.to(tl.float32) * query2[None, :].to(tl.float32),
-                            axis=1,
-                        )
-                        * SCALE_LOG2
-                    )
-                    maximum2, denominator2, accumulator2 = _online_softmax_update(
-                        scores2,
-                        values,
-                        token_valid,
-                        maximum2,
-                        denominator2,
-                        accumulator2,
-                        False,
-                    )
-            if KV_GROUP_SIZE > 3:
-                if selected3:
-                    scores3 = (
-                        tl.sum(
-                            keys.to(tl.float32) * query3[None, :].to(tl.float32),
-                            axis=1,
-                        )
-                        * SCALE_LOG2
-                    )
-                    maximum3, denominator3, accumulator3 = _online_softmax_update(
-                        scores3,
-                        values,
-                        token_valid,
-                        maximum3,
-                        denominator3,
-                        accumulator3,
-                        False,
-                    )
-
-        partial_row0 = query_row * ROUTE_COUNT + selected_rank0
-        has_mass0 = denominator0 > 0.0
-        tl.store(
-            partial_out + partial_row0 * HEAD_DIM + dim,
-            tl.where(has_mass0, accumulator0 / denominator0, 0.0),
-            mask=selected0,
-        )
-        tl.store(
-            partial_lse + partial_row0,
-            tl.where(
-                has_mass0,
-                (maximum0 + tl.math.log2(denominator0)) * 0.6931471805599453,
-                -float("inf"),
-            ),
-            mask=selected0,
-        )
-        if KV_GROUP_SIZE > 1:
-            partial_row1 = (query_row + 1) * ROUTE_COUNT + selected_rank1
-            has_mass1 = denominator1 > 0.0
-            tl.store(
-                partial_out + partial_row1 * HEAD_DIM + dim,
-                tl.where(has_mass1, accumulator1 / denominator1, 0.0),
-                mask=selected1,
-            )
-            tl.store(
-                partial_lse + partial_row1,
-                tl.where(
-                    has_mass1,
-                    (maximum1 + tl.math.log2(denominator1)) * 0.6931471805599453,
-                    -float("inf"),
-                ),
-                mask=selected1,
-            )
-        if KV_GROUP_SIZE > 2:
-            partial_row2 = (query_row + 2) * ROUTE_COUNT + selected_rank2
-            has_mass2 = denominator2 > 0.0
-            tl.store(
-                partial_out + partial_row2 * HEAD_DIM + dim,
-                tl.where(has_mass2, accumulator2 / denominator2, 0.0),
-                mask=selected2,
-            )
-            tl.store(
-                partial_lse + partial_row2,
-                tl.where(
-                    has_mass2,
-                    (maximum2 + tl.math.log2(denominator2)) * 0.6931471805599453,
-                    -float("inf"),
-                ),
-                mask=selected2,
-            )
-        if KV_GROUP_SIZE > 3:
-            partial_row3 = (query_row + 3) * ROUTE_COUNT + selected_rank3
-            has_mass3 = denominator3 > 0.0
-            tl.store(
-                partial_out + partial_row3 * HEAD_DIM + dim,
-                tl.where(has_mass3, accumulator3 / denominator3, 0.0),
-                mask=selected3,
-            )
-            tl.store(
-                partial_lse + partial_row3,
-                tl.where(
-                    has_mass3,
-                    (maximum3 + tl.math.log2(denominator3)) * 0.6931471805599453,
-                    -float("inf"),
-                ),
-                mask=selected3,
-            )
-
-
-@triton.jit
 def _gqa_cooperative_split_decode_local_attention_kernel(
     q,
     cache_indices,
@@ -8544,531 +8202,6 @@ def _gqa_cooperative_split_decode_local_attention_kernel(
         ),
         mask=query_valid,
     )
-
-
-@triton.jit
-def _gqa_cooperative_split_decode_paged_leaf_attention_kernel(
-    q,
-    cache_indices,
-    local_k,
-    local_v,
-    page_k,
-    page_v,
-    slot_pages,
-    overflow_page_keys,
-    overflow_page_values,
-    overflow_used,
-    slot_lengths,
-    top_slots,
-    new_k,
-    new_v,
-    partial_out,
-    partial_lse,
-    LOCAL_K_BATCH_STRIDE,
-    LOCAL_K_HEAD_STRIDE,
-    LOCAL_K_TOKEN_STRIDE,
-    LOCAL_V_BATCH_STRIDE,
-    LOCAL_V_HEAD_STRIDE,
-    LOCAL_V_TOKEN_STRIDE,
-    TOP_BATCH_STRIDE,
-    TOP_HEAD_STRIDE,
-    NEW_K_BATCH_STRIDE,
-    NEW_K_HEAD_STRIDE,
-    NEW_V_BATCH_STRIDE,
-    NEW_V_HEAD_STRIDE,
-    local_len,
-    QUERY_HEADS: tl.constexpr,
-    KV_HEADS: tl.constexpr,
-    KV_GROUP_SIZE: tl.constexpr,
-    BLOCK_M: tl.constexpr,
-    PAGE_CAPACITY: tl.constexpr,
-    STATE_CAPACITY: tl.constexpr,
-    INLINE_PAGES_PER_SLOT: tl.constexpr,
-    HASH_CAPACITY: tl.constexpr,
-    HASH_PROBES: tl.constexpr,
-    HEAD_DIM: tl.constexpr,
-    PAGE_SIZE: tl.constexpr,
-    ROUTE_COUNT: tl.constexpr,
-    SPLITS: tl.constexpr,
-    SCALE_LOG2: tl.constexpr,
-    BLOCK_N: tl.constexpr,
-    INCLUDE_NEW: tl.constexpr,
-    SEPARATE_LOCAL: tl.constexpr,
-):
-    """Decode exact leaves cooperatively across one small GQA group.
-
-    The four query heads sharing a KV head often select many of the same
-    centroids.  The query-major decode kernel reloads those pages once per
-    query head.  This kernel instead builds the route union inside the GQA
-    group, loads every union member's K/V pages once, and masks its M<=4
-    independent online softmax rows by the heads that selected that member.
-    QK and PV deliberately use vector reductions rather than padding M to a
-    16-row MFMA tile.
-    """
-    batch_kv = tl.program_id(0).to(tl.int64)
-    split = tl.program_id(1).to(tl.int64)
-    batch = batch_kv // KV_HEADS
-    cache_batch = tl.load(cache_indices + batch).to(tl.int64)
-    kv_head = batch_kv - batch * KV_HEADS
-    kv_row = cache_batch * KV_HEADS + kv_head
-
-    query_row = batch * QUERY_HEADS + kv_head * KV_GROUP_SIZE
-    dim = tl.arange(0, HEAD_DIM)
-    token_offset = tl.arange(0, BLOCK_N)
-    query0 = tl.load(q + query_row * HEAD_DIM + dim)
-    maximum0 = tl.full((), -float("inf"), tl.float32)
-    denominator0 = tl.zeros((), tl.float32)
-    accumulator0 = tl.zeros((HEAD_DIM,), tl.float32)
-    if KV_GROUP_SIZE > 1:
-        query1 = tl.load(q + (query_row + 1) * HEAD_DIM + dim)
-        maximum1 = tl.full((), -float("inf"), tl.float32)
-        denominator1 = tl.zeros((), tl.float32)
-        accumulator1 = tl.zeros((HEAD_DIM,), tl.float32)
-    if KV_GROUP_SIZE > 2:
-        query2 = tl.load(q + (query_row + 2) * HEAD_DIM + dim)
-        maximum2 = tl.full((), -float("inf"), tl.float32)
-        denominator2 = tl.zeros((), tl.float32)
-        accumulator2 = tl.zeros((HEAD_DIM,), tl.float32)
-    if KV_GROUP_SIZE > 3:
-        query3 = tl.load(q + (query_row + 3) * HEAD_DIM + dim)
-        maximum3 = tl.full((), -float("inf"), tl.float32)
-        denominator3 = tl.zeros((), tl.float32)
-        accumulator3 = tl.zeros((HEAD_DIM,), tl.float32)
-
-    # Flatten the top-eight lists for this GQA group.  A route is owned by its
-    # first occurrence in this vector, so pages shared at different ranks are
-    # still read exactly once.  The owner's rank assigns it to one split.
-    union_offset = tl.arange(0, BLOCK_M * ROUTE_COUNT)
-    union_head = union_offset // ROUTE_COUNT
-    union_rank = union_offset % ROUTE_COUNT
-    union_valid = union_head < KV_GROUP_SIZE
-    all_slots = tl.load(
-        top_slots
-        + batch * TOP_BATCH_STRIDE
-        + (kv_head * KV_GROUP_SIZE + union_head) * TOP_HEAD_STRIDE
-        + union_rank,
-        mask=union_valid,
-        other=-2,
-    ).to(tl.int64)
-
-    for candidate in tl.range(
-        0, BLOCK_M * ROUTE_COUNT, num_stages=1, loop_unroll_factor=1
-    ):
-        candidate_head = candidate // ROUTE_COUNT
-        candidate_rank = candidate % ROUTE_COUNT
-        routed_slot = tl.load(
-            top_slots
-            + batch * TOP_BATCH_STRIDE
-            + (kv_head * KV_GROUP_SIZE + candidate_head) * TOP_HEAD_STRIDE
-            + candidate_rank,
-            mask=candidate_head < KV_GROUP_SIZE,
-            other=-1,
-        ).to(tl.int64)
-        slot_valid = (candidate_head < KV_GROUP_SIZE) & (routed_slot >= 0)
-        seen_before = (
-            tl.sum(
-                (
-                    union_valid
-                    & (union_offset < candidate)
-                    & (all_slots == routed_slot)
-                ).to(tl.int32),
-                axis=0,
-            )
-            > 0
-        )
-        union_leader = slot_valid & ~seen_before
-        selected0 = slot_valid & (
-            tl.sum(
-                (union_valid & (union_head == 0) & (all_slots == routed_slot)).to(
-                    tl.int32
-                ),
-                axis=0,
-            )
-            > 0
-        )
-        if KV_GROUP_SIZE > 1:
-            selected1 = slot_valid & (
-                tl.sum(
-                    (union_valid & (union_head == 1) & (all_slots == routed_slot)).to(
-                        tl.int32
-                    ),
-                    axis=0,
-                )
-                > 0
-            )
-        if KV_GROUP_SIZE > 2:
-            selected2 = slot_valid & (
-                tl.sum(
-                    (union_valid & (union_head == 2) & (all_slots == routed_slot)).to(
-                        tl.int32
-                    ),
-                    axis=0,
-                )
-                > 0
-            )
-        if KV_GROUP_SIZE > 3:
-            selected3 = slot_valid & (
-                tl.sum(
-                    (union_valid & (union_head == 3) & (all_slots == routed_slot)).to(
-                        tl.int32
-                    ),
-                    axis=0,
-                )
-                > 0
-            )
-
-        slot = tl.where(slot_valid, routed_slot, 0)
-        key_count = tl.load(
-            slot_lengths + kv_row * STATE_CAPACITY + slot,
-            mask=slot_valid,
-            other=0,
-        ).to(tl.int32)
-        key_count = tl.where(union_leader & (split == candidate % SPLITS), key_count, 0)
-        if HASH_PROBES == 0:
-            page_table = (
-                slot_pages + (kv_row * STATE_CAPACITY + slot) * INLINE_PAGES_PER_SLOT
-            )
-
-        for key_begin in tl.range(0, key_count, BLOCK_N, num_stages=1):
-            logical_key = key_begin + token_offset
-            token_valid = logical_key < key_count
-            page_ordinal = logical_key // PAGE_SIZE
-            within_page = logical_key % PAGE_SIZE
-            if HASH_PROBES == 0:
-                page_id = tl.load(
-                    page_table + page_ordinal,
-                    mask=token_valid,
-                    other=0,
-                ).to(tl.int64)
-            else:
-                page_id = _lookup_page_id(
-                    slot_pages,
-                    overflow_page_keys,
-                    overflow_page_values,
-                    overflow_used,
-                    kv_row,
-                    slot,
-                    page_ordinal,
-                    token_valid,
-                    STATE_CAPACITY,
-                    INLINE_PAGES_PER_SLOT,
-                    PAGE_CAPACITY,
-                    HASH_CAPACITY,
-                    HASH_PROBES,
-                ).to(tl.int64)
-            physical_token = (
-                kv_row * PAGE_CAPACITY + page_id
-            ) * PAGE_SIZE + within_page
-            keys = tl.load(
-                page_k + physical_token[:, None] * HEAD_DIM + dim[None, :],
-                mask=token_valid[:, None],
-                other=0.0,
-            )
-            values = tl.load(
-                page_v + physical_token[:, None] * HEAD_DIM + dim[None, :],
-                mask=token_valid[:, None],
-                other=0.0,
-            )
-            if selected0:
-                scores0 = (
-                    tl.sum(
-                        keys.to(tl.float32) * query0[None, :].to(tl.float32),
-                        axis=1,
-                    )
-                    * SCALE_LOG2
-                )
-                maximum0, denominator0, accumulator0 = _online_softmax_update(
-                    scores0,
-                    values,
-                    token_valid,
-                    maximum0,
-                    denominator0,
-                    accumulator0,
-                    False,
-                )
-            if KV_GROUP_SIZE > 1:
-                if selected1:
-                    scores1 = (
-                        tl.sum(
-                            keys.to(tl.float32) * query1[None, :].to(tl.float32),
-                            axis=1,
-                        )
-                        * SCALE_LOG2
-                    )
-                    maximum1, denominator1, accumulator1 = _online_softmax_update(
-                        scores1,
-                        values,
-                        token_valid,
-                        maximum1,
-                        denominator1,
-                        accumulator1,
-                        False,
-                    )
-            if KV_GROUP_SIZE > 2:
-                if selected2:
-                    scores2 = (
-                        tl.sum(
-                            keys.to(tl.float32) * query2[None, :].to(tl.float32),
-                            axis=1,
-                        )
-                        * SCALE_LOG2
-                    )
-                    maximum2, denominator2, accumulator2 = _online_softmax_update(
-                        scores2,
-                        values,
-                        token_valid,
-                        maximum2,
-                        denominator2,
-                        accumulator2,
-                        False,
-                    )
-            if KV_GROUP_SIZE > 3:
-                if selected3:
-                    scores3 = (
-                        tl.sum(
-                            keys.to(tl.float32) * query3[None, :].to(tl.float32),
-                            axis=1,
-                        )
-                        * SCALE_LOG2
-                    )
-                    maximum3, denominator3, accumulator3 = _online_softmax_update(
-                        scores3,
-                        values,
-                        token_valid,
-                        maximum3,
-                        denominator3,
-                        accumulator3,
-                        False,
-                    )
-
-    # The bounded local window is also shared by the same KV head.  Interleave
-    # its tiles over the existing splits and reuse each K/V load across M rows.
-    if not SEPARATE_LOCAL:
-        for local_begin in tl.range(
-            split * BLOCK_N, local_len, SPLITS * BLOCK_N, num_stages=1
-        ):
-            token = local_begin + token_offset
-            token_valid = token < local_len
-            keys = tl.load(
-                local_k
-                + batch * LOCAL_K_BATCH_STRIDE
-                + kv_head * LOCAL_K_HEAD_STRIDE
-                + token[:, None] * LOCAL_K_TOKEN_STRIDE
-                + dim[None, :],
-                mask=token_valid[:, None],
-                other=0.0,
-            )
-            values = tl.load(
-                local_v
-                + batch * LOCAL_V_BATCH_STRIDE
-                + kv_head * LOCAL_V_HEAD_STRIDE
-                + token[:, None] * LOCAL_V_TOKEN_STRIDE
-                + dim[None, :],
-                mask=token_valid[:, None],
-                other=0.0,
-            )
-            scores0 = (
-                tl.sum(
-                    keys.to(tl.float32) * query0[None, :].to(tl.float32),
-                    axis=1,
-                )
-                * SCALE_LOG2
-            )
-            maximum0, denominator0, accumulator0 = _online_softmax_update(
-                scores0,
-                values,
-                token_valid,
-                maximum0,
-                denominator0,
-                accumulator0,
-                False,
-            )
-            if KV_GROUP_SIZE > 1:
-                scores1 = (
-                    tl.sum(
-                        keys.to(tl.float32) * query1[None, :].to(tl.float32),
-                        axis=1,
-                    )
-                    * SCALE_LOG2
-                )
-                maximum1, denominator1, accumulator1 = _online_softmax_update(
-                    scores1,
-                    values,
-                    token_valid,
-                    maximum1,
-                    denominator1,
-                    accumulator1,
-                    False,
-                )
-            if KV_GROUP_SIZE > 2:
-                scores2 = (
-                    tl.sum(
-                        keys.to(tl.float32) * query2[None, :].to(tl.float32),
-                        axis=1,
-                    )
-                    * SCALE_LOG2
-                )
-                maximum2, denominator2, accumulator2 = _online_softmax_update(
-                    scores2,
-                    values,
-                    token_valid,
-                    maximum2,
-                    denominator2,
-                    accumulator2,
-                    False,
-                )
-            if KV_GROUP_SIZE > 3:
-                scores3 = (
-                    tl.sum(
-                        keys.to(tl.float32) * query3[None, :].to(tl.float32),
-                        axis=1,
-                    )
-                    * SCALE_LOG2
-                )
-                maximum3, denominator3, accumulator3 = _online_softmax_update(
-                    scores3,
-                    values,
-                    token_valid,
-                    maximum3,
-                    denominator3,
-                    accumulator3,
-                    False,
-                )
-
-    # Fold the just-produced shared KV into split zero, and append it once for
-    # the whole GQA group rather than once from every query-head program.
-    if INCLUDE_NEW and not SEPARATE_LOCAL:
-        current_key = tl.load(
-            new_k + batch * NEW_K_BATCH_STRIDE + kv_head * NEW_K_HEAD_STRIDE + dim
-        )
-        current_value = tl.load(
-            new_v + batch * NEW_V_BATCH_STRIDE + kv_head * NEW_V_HEAD_STRIDE + dim
-        )
-        if split == 0:
-            current_score0 = SCALE_LOG2 * tl.sum(
-                query0.to(tl.float32) * current_key.to(tl.float32), axis=0
-            )
-            new_maximum0 = tl.maximum(maximum0, current_score0)
-            correction0 = tl.math.exp2(maximum0 - new_maximum0)
-            current_weight0 = tl.math.exp2(current_score0 - new_maximum0)
-            denominator0 = denominator0 * correction0 + current_weight0
-            accumulator0 = (
-                accumulator0 * correction0
-                + current_weight0 * current_value.to(tl.float32)
-            )
-            maximum0 = new_maximum0
-            if KV_GROUP_SIZE > 1:
-                current_score1 = SCALE_LOG2 * tl.sum(
-                    query1.to(tl.float32) * current_key.to(tl.float32), axis=0
-                )
-                new_maximum1 = tl.maximum(maximum1, current_score1)
-                correction1 = tl.math.exp2(maximum1 - new_maximum1)
-                current_weight1 = tl.math.exp2(current_score1 - new_maximum1)
-                denominator1 = denominator1 * correction1 + current_weight1
-                accumulator1 = (
-                    accumulator1 * correction1
-                    + current_weight1 * current_value.to(tl.float32)
-                )
-                maximum1 = new_maximum1
-            if KV_GROUP_SIZE > 2:
-                current_score2 = SCALE_LOG2 * tl.sum(
-                    query2.to(tl.float32) * current_key.to(tl.float32), axis=0
-                )
-                new_maximum2 = tl.maximum(maximum2, current_score2)
-                correction2 = tl.math.exp2(maximum2 - new_maximum2)
-                current_weight2 = tl.math.exp2(current_score2 - new_maximum2)
-                denominator2 = denominator2 * correction2 + current_weight2
-                accumulator2 = (
-                    accumulator2 * correction2
-                    + current_weight2 * current_value.to(tl.float32)
-                )
-                maximum2 = new_maximum2
-            if KV_GROUP_SIZE > 3:
-                current_score3 = SCALE_LOG2 * tl.sum(
-                    query3.to(tl.float32) * current_key.to(tl.float32), axis=0
-                )
-                new_maximum3 = tl.maximum(maximum3, current_score3)
-                correction3 = tl.math.exp2(maximum3 - new_maximum3)
-                current_weight3 = tl.math.exp2(current_score3 - new_maximum3)
-                denominator3 = denominator3 * correction3 + current_weight3
-                accumulator3 = (
-                    accumulator3 * correction3
-                    + current_weight3 * current_value.to(tl.float32)
-                )
-                maximum3 = new_maximum3
-            tl.store(
-                local_k
-                + batch * LOCAL_K_BATCH_STRIDE
-                + kv_head * LOCAL_K_HEAD_STRIDE
-                + local_len * LOCAL_K_TOKEN_STRIDE
-                + dim,
-                current_key,
-            )
-            tl.store(
-                local_v
-                + batch * LOCAL_V_BATCH_STRIDE
-                + kv_head * LOCAL_V_HEAD_STRIDE
-                + local_len * LOCAL_V_TOKEN_STRIDE
-                + dim,
-                current_value,
-            )
-
-    partial_row = query_row * SPLITS + split
-    has_mass0 = denominator0 > 0.0
-    tl.store(
-        partial_out + partial_row * HEAD_DIM + dim,
-        tl.where(has_mass0, accumulator0 / denominator0, 0.0),
-    )
-    tl.store(
-        partial_lse + partial_row,
-        tl.where(
-            has_mass0,
-            (maximum0 + tl.math.log2(denominator0)) * 0.6931471805599453,
-            -float("inf"),
-        ),
-    )
-    if KV_GROUP_SIZE > 1:
-        has_mass1 = denominator1 > 0.0
-        tl.store(
-            partial_out + (partial_row + SPLITS) * HEAD_DIM + dim,
-            tl.where(has_mass1, accumulator1 / denominator1, 0.0),
-        )
-        tl.store(
-            partial_lse + partial_row + SPLITS,
-            tl.where(
-                has_mass1,
-                (maximum1 + tl.math.log2(denominator1)) * 0.6931471805599453,
-                -float("inf"),
-            ),
-        )
-    if KV_GROUP_SIZE > 2:
-        has_mass2 = denominator2 > 0.0
-        tl.store(
-            partial_out + (partial_row + 2 * SPLITS) * HEAD_DIM + dim,
-            tl.where(has_mass2, accumulator2 / denominator2, 0.0),
-        )
-        tl.store(
-            partial_lse + partial_row + 2 * SPLITS,
-            tl.where(
-                has_mass2,
-                (maximum2 + tl.math.log2(denominator2)) * 0.6931471805599453,
-                -float("inf"),
-            ),
-        )
-    if KV_GROUP_SIZE > 3:
-        has_mass3 = denominator3 > 0.0
-        tl.store(
-            partial_out + (partial_row + 3 * SPLITS) * HEAD_DIM + dim,
-            tl.where(has_mass3, accumulator3 / denominator3, 0.0),
-        )
-        tl.store(
-            partial_lse + partial_row + 3 * SPLITS,
-            tl.where(
-                has_mass3,
-                (maximum3 + tl.math.log2(denominator3)) * 0.6931471805599453,
-                -float("inf"),
-            ),
-        )
 
 
 @triton.jit
@@ -9851,10 +8984,10 @@ def new_fused_decode_buffers(
     splits: int,
     state_capacity: int | None = None,
     route_group_size: int = 64,
-    gqa_route_splits: int = 4,
+    gqa_route_splits: int | None = None,
 ) -> dict[str, torch.Tensor]:
     batch, query_heads, _, value_dim = q.shape
-    if gqa_route_splits not in {4, 8, 16, 32}:
+    if gqa_route_splits is not None and gqa_route_splits not in {4, 8, 16, 32}:
         raise ValueError("GQA cooperative route splits must be 4, 8, 16, or 32")
     buffers = {
         "cache_indices": torch.arange(batch, dtype=torch.long, device=q.device),
@@ -9874,40 +9007,43 @@ def new_fused_decode_buffers(
             dtype=torch.float32,
             device=q.device,
         ),
-        "gqa_local_partial_out": torch.empty(
-            batch,
-            query_heads,
-            32,
-            value_dim,
-            dtype=torch.float32,
-            device=q.device,
-        ),
-        "gqa_local_partial_lse": torch.empty(
-            batch,
-            query_heads,
-            32,
-            dtype=torch.float32,
-            device=q.device,
-        ),
-        "gqa_route_partial_out": torch.empty(
-            batch,
-            query_heads,
-            8,
-            gqa_route_splits,
-            value_dim,
-            dtype=torch.float32,
-            device=q.device,
-        ),
-        "gqa_route_partial_lse": torch.empty(
-            batch,
-            query_heads,
-            8,
-            gqa_route_splits,
-            dtype=torch.float32,
-            device=q.device,
-        ),
         "output": torch.empty_like(q),
     }
+    if gqa_route_splits is not None:
+        buffers.update(
+            gqa_local_partial_out=torch.empty(
+                batch,
+                query_heads,
+                32,
+                value_dim,
+                dtype=torch.float32,
+                device=q.device,
+            ),
+            gqa_local_partial_lse=torch.empty(
+                batch,
+                query_heads,
+                32,
+                dtype=torch.float32,
+                device=q.device,
+            ),
+            gqa_route_partial_out=torch.empty(
+                batch,
+                query_heads,
+                8,
+                gqa_route_splits,
+                value_dim,
+                dtype=torch.float32,
+                device=q.device,
+            ),
+            gqa_route_partial_lse=torch.empty(
+                batch,
+                query_heads,
+                8,
+                gqa_route_splits,
+                dtype=torch.float32,
+                device=q.device,
+            ),
+        )
     if state_capacity is not None:
         max_groups = triton.cdiv(state_capacity, route_group_size)
         buffers.update(
@@ -10211,7 +9347,15 @@ def fused_decode_paged_lod_attention(
                 splits=split_kv,
                 state_capacity=(int(state_k.size(2)) if fuse_state_route else None),
                 route_group_size=route_group_size,
-                gqa_route_splits=gqa_cooperative_route_splits,
+                gqa_route_splits=(
+                    gqa_cooperative_route_splits
+                    if gqa_cooperative_leaf
+                    and gqa_cooperative_hip
+                    and kv_group_size == 4
+                    and head_dim == 256
+                    and q.dtype == torch.bfloat16
+                    else None
+                ),
             )
         output = buffers["output"] if output_buffer is None else output_buffer
         partial_out = buffers["partial_out"]
@@ -10607,14 +9751,13 @@ def fused_decode_paged_lod_attention(
             and fuse_state_route
             and not fuse_final_reduce
             and not use_dot
-            and 1 < kv_group_size <= 4
             and int(top_slots.size(-1)) == 8
             and split_kv == 8
             and "gqa_local_partial_out" in buffers
             and "gqa_local_partial_lse" in buffers
             and "gqa_route_partial_out" in buffers
             and "gqa_route_partial_lse" in buffers
-            and (not gqa_cooperative_hip or cooperative_hip_eligible or flat_int8)
+            and cooperative_hip_eligible
         )
         cooperative_separate_local = False
         final_partial_out = partial_out
@@ -10674,103 +9817,53 @@ def fused_decode_paged_lod_attention(
                     num_warps=final_reduce_num_warps,
                     waves_per_eu=waves_per_eu,
                 )
-            use_cooperative_hip = cooperative_hip_eligible
-            if use_cooperative_hip:
-                from model.kernels.gqa_cooperative_decode import (
-                    gqa_cooperative_decode,
-                )
+            from model.kernels.gqa_cooperative_decode import (
+                gqa_cooperative_decode,
+            )
 
-                route_partial_out = buffers["gqa_route_partial_out"]
-                route_partial_lse = buffers["gqa_route_partial_lse"]
-                route_partial_lse.fill_(float("-inf"))
-                gqa_cooperative_decode(
-                    q,
-                    cache_indices,
-                    page_k,
-                    page_v,
-                    slot_pages,
-                    overflow_page_values,
-                    slot_lengths,
-                    top_slots,
-                    route_partial_out,
-                    route_partial_lse,
-                    quantized_q_scratch=buffers["gqa_local_partial_out"],
-                    query_scale_scratch=buffers["gqa_local_partial_lse"],
-                    page_indices=flat_page_indices,
-                    page_k_scales=(flat_page_k_scales if flat_int8 else None),
-                    page_v_scales=(flat_page_v_scales if flat_int8 else None),
-                    scale_log2=float(scale) * math.log2(math.e),
-                    page_lookup_mode=hash_probes,
-                    route_splits=gqa_cooperative_route_splits,
-                    adaptive_splits=gqa_cooperative_adaptive_splits,
-                )
-                if (
-                    gqa_cooperative_fused_reduce
-                    and gqa_cooperative_route_splits <= 8
-                ):
-                    final_partial_out = route_partial_out
-                    final_partial_lse = route_partial_lse
-                    final_route_splits = gqa_cooperative_route_splits
-                else:
-                    partial_lse.fill_(float("-inf"))
-                    _reduce_split_decode_lod_attention_with_lse_kernel[
-                        (batch * query_heads * 8,)
-                    ](
-                        route_partial_out,
-                        route_partial_lse,
-                        partial_out,
-                        partial_lse,
-                        VALUE_DIM=head_dim,
-                        SPLITS=gqa_cooperative_route_splits,
-                        num_warps=final_reduce_num_warps,
-                        waves_per_eu=waves_per_eu,
-                    )
+            route_partial_out = buffers["gqa_route_partial_out"]
+            route_partial_lse = buffers["gqa_route_partial_lse"]
+            route_partial_lse.fill_(float("-inf"))
+            gqa_cooperative_decode(
+                q,
+                cache_indices,
+                page_k,
+                page_v,
+                slot_pages,
+                overflow_page_values,
+                slot_lengths,
+                top_slots,
+                route_partial_out,
+                route_partial_lse,
+                quantized_q_scratch=buffers["gqa_local_partial_out"],
+                query_scale_scratch=buffers["gqa_local_partial_lse"],
+                page_indices=flat_page_indices,
+                page_k_scales=(flat_page_k_scales if flat_int8 else None),
+                page_v_scales=(flat_page_v_scales if flat_int8 else None),
+                scale_log2=float(scale) * math.log2(math.e),
+                page_lookup_mode=hash_probes,
+                route_splits=gqa_cooperative_route_splits,
+                adaptive_splits=gqa_cooperative_adaptive_splits,
+            )
+            if (
+                gqa_cooperative_fused_reduce
+                and gqa_cooperative_route_splits <= 8
+            ):
+                final_partial_out = route_partial_out
+                final_partial_lse = route_partial_lse
+                final_route_splits = gqa_cooperative_route_splits
             else:
                 partial_lse.fill_(float("-inf"))
-                _gqa_cooperative_route_decode_paged_leaf_attention_kernel[
-                    (
-                        batch * kv_heads,
-                        triton.next_power_of_2(kv_group_size) * 8,
-                    )
+                _reduce_split_decode_lod_attention_with_lse_kernel[
+                    (batch * query_heads * 8,)
                 ](
-                    q,
-                    cache_indices,
-                    page_k,
-                    page_v,
-                    flat_page_indices if flat_page_indices is not None else page_k,
-                    flat_page_k_scales if flat_int8 else page_k,
-                    flat_page_v_scales if flat_int8 else page_v,
-                    slot_pages,
-                    overflow_page_keys,
-                    overflow_page_values,
-                    overflow_used,
-                    slot_lengths,
-                    top_slots,
+                    route_partial_out,
+                    route_partial_lse,
                     partial_out,
                     partial_lse,
-                    top_slots.stride(0),
-                    top_slots.stride(1),
-                    QUERY_HEADS=query_heads,
-                    KV_HEADS=kv_heads,
-                    KV_GROUP_SIZE=kv_group_size,
-                    BLOCK_M=triton.next_power_of_2(kv_group_size),
-                    CACHE_BATCHES=int(page_k.size(0)),
-                    PAGE_CAPACITY=int(page_shape.size(2)),
-                    LEAF_CAPACITY=(
-                        int(page_k.size(2)) if flat_page_indices is not None else 1
-                    ),
-                    STATE_CAPACITY=int(slot_pages.size(2)),
-                    INLINE_PAGES_PER_SLOT=int(slot_pages.size(3)),
-                    HASH_CAPACITY=int(overflow_page_values.size(2)),
-                    HASH_PROBES=hash_probes,
-                    HEAD_DIM=head_dim,
-                    PAGE_SIZE=int(page_shape.size(3)),
-                    ROUTE_COUNT=8,
-                    SCALE_LOG2=float(scale) * math.log2(math.e),
-                    BLOCK_N=block_n,
-                    INDEXED=flat_page_indices is not None,
-                    INT8_STORAGE=flat_int8,
-                    num_warps=num_warps,
+                    VALUE_DIM=head_dim,
+                    SPLITS=gqa_cooperative_route_splits,
+                    num_warps=final_reduce_num_warps,
                     waves_per_eu=waves_per_eu,
                 )
             cooperative_separate_local = True
