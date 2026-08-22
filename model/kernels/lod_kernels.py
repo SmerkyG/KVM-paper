@@ -911,136 +911,7 @@ def _aiter_partition_lse_kernel(
 
 
 @triton.jit
-def _remove_state_slots_from_attention_kernel(
-    q,
-    state_k,
-    state_v,
-    counts,
-    slots,
-    cache_indices,
-    attention_out,
-    attention_lse,
-    Q_BATCH_STRIDE,
-    Q_HEAD_STRIDE,
-    STATE_K_BATCH_STRIDE,
-    STATE_K_HEAD_STRIDE,
-    STATE_K_TOKEN_STRIDE,
-    STATE_V_BATCH_STRIDE,
-    STATE_V_HEAD_STRIDE,
-    STATE_V_TOKEN_STRIDE,
-    COUNT_BATCH_STRIDE,
-    COUNT_HEAD_STRIDE,
-    COUNT_TOKEN_STRIDE,
-    SLOT_BATCH_STRIDE,
-    SLOT_HEAD_STRIDE,
-    SLOT_ROUTE_STRIDE,
-    OUT_BATCH_STRIDE,
-    OUT_HEAD_STRIDE,
-    LSE_BATCH_STRIDE,
-    LSE_HEAD_STRIDE,
-    QUERY_HEADS: tl.constexpr,
-    KV_GROUP_SIZE: tl.constexpr,
-    HEAD_DIM: tl.constexpr,
-    BLOCK_DIM: tl.constexpr,
-    ROUTE_COUNT: tl.constexpr,
-    SCALE: tl.constexpr,
-    STATE_IS_NORMALIZED: tl.constexpr,
-    USE_CACHE_INDICES: tl.constexpr,
-):
-    batch = tl.program_id(0).to(tl.int64)
-    cache_batch = batch
-    if USE_CACHE_INDICES:
-        cache_batch = tl.load(cache_indices + batch).to(tl.int64)
-    query_head = tl.program_id(1).to(tl.int64)
-    kv_head = query_head // KV_GROUP_SIZE
-    dim = tl.arange(0, BLOCK_DIM)
-    dim_valid = dim < HEAD_DIM
-    query = tl.load(
-        q + batch * Q_BATCH_STRIDE + query_head * Q_HEAD_STRIDE + dim,
-        mask=dim_valid,
-        other=0.0,
-    ).to(tl.float32)
-    full_lse = tl.load(
-        attention_lse
-        + batch * LSE_BATCH_STRIDE
-        + query_head * LSE_HEAD_STRIDE
-    ).to(tl.float32)
-    remainder = tl.load(
-        attention_out
-        + batch * OUT_BATCH_STRIDE
-        + query_head * OUT_HEAD_STRIDE
-        + dim,
-        mask=dim_valid,
-        other=0.0,
-    ).to(tl.float32)
-    selected_mass = tl.zeros((), tl.float32)
-    selected_value = tl.zeros((BLOCK_DIM,), tl.float32)
-    for route in tl.static_range(0, ROUTE_COUNT):
-        slot = tl.load(
-            slots
-            + batch * SLOT_BATCH_STRIDE
-            + query_head * SLOT_HEAD_STRIDE
-            + route * SLOT_ROUTE_STRIDE
-        ).to(tl.int64)
-        valid_slot = slot >= 0
-        safe_slot = tl.where(valid_slot, slot, 0)
-        count_or_log_mass = tl.load(
-            counts
-            + cache_batch * COUNT_BATCH_STRIDE
-            + kv_head * COUNT_HEAD_STRIDE
-            + safe_slot * COUNT_TOKEN_STRIDE,
-            mask=valid_slot,
-            other=1.0,
-        ).to(tl.float32)
-        key_sum = tl.load(
-            state_k
-            + cache_batch * STATE_K_BATCH_STRIDE
-            + kv_head * STATE_K_HEAD_STRIDE
-            + safe_slot * STATE_K_TOKEN_STRIDE
-            + dim,
-            mask=valid_slot & dim_valid,
-            other=0.0,
-        ).to(tl.float32)
-        value_sum = tl.load(
-            state_v
-            + cache_batch * STATE_V_BATCH_STRIDE
-            + kv_head * STATE_V_HEAD_STRIDE
-            + safe_slot * STATE_V_TOKEN_STRIDE
-            + dim,
-            mask=valid_slot & dim_valid,
-            other=0.0,
-        ).to(tl.float32)
-        if STATE_IS_NORMALIZED:
-            mean_key = key_sum
-            mean_value = value_sum
-            log_mass = count_or_log_mass
-        else:
-            mean_key = key_sum / count_or_log_mass
-            mean_value = value_sum / count_or_log_mass
-            log_mass = tl.log(count_or_log_mass)
-        score = tl.sum(query * mean_key, axis=0) * SCALE + log_mass
-        mass = tl.where(valid_slot, tl.exp(score - full_lse), 0.0)
-        selected_mass += mass
-        selected_value += mass * mean_value
-    remainder_mass = tl.maximum(1.0 - selected_mass, 1.0e-7)
-    tl.store(
-        attention_out
-        + batch * OUT_BATCH_STRIDE
-        + query_head * OUT_HEAD_STRIDE
-        + dim,
-        (remainder - selected_value) / remainder_mass,
-        mask=dim_valid,
-    )
-    tl.store(
-        attention_lse
-        + batch * LSE_BATCH_STRIDE
-        + query_head * LSE_HEAD_STRIDE,
-        full_lse + tl.log(remainder_mass),
-    )
-
-
-@triton.jit
-def _remove_state_slots_gqa_kernel(
+def _remove_state_slots_unified_kernel(
     q,
     state_k,
     state_v,
@@ -1080,133 +951,220 @@ def _remove_state_slots_gqa_kernel(
     SCALE: tl.constexpr,
     STATE_IS_NORMALIZED: tl.constexpr,
     USE_CACHE_INDICES: tl.constexpr,
+    SCALAR_ROUTES: tl.constexpr,
 ):
-    """Remove one shared routed-slot union for an entire GQA group."""
-    batch_group = tl.program_id(0).to(tl.int64)
-    batch = batch_group // LOGICAL_GROUPS
-    logical_group = batch_group - batch * LOGICAL_GROUPS
-    kv_head = logical_group // GROUPS_PER_KV
-    subgroup = logical_group - kv_head * GROUPS_PER_KV
+    """Apply one correction contract with geometry-selected inner math."""
+    batch = tl.program_id(0).to(tl.int64)
+    logical_group = tl.program_id(1).to(tl.int64)
     cache_batch = batch
     if USE_CACHE_INDICES:
         cache_batch = tl.load(cache_indices + batch).to(tl.int64)
-    group = tl.arange(0, BLOCK_G)
-    valid_group = group < ROUTE_GROUP_SIZE
-    first_query_head = (
-        kv_head * KV_GROUP_SIZE + subgroup * ROUTE_GROUP_SIZE
-    )
-    query_head = first_query_head + group
-    dim = tl.arange(0, HEAD_DIM)
-    queries = tl.load(
-        q
-        + batch * Q_BATCH_STRIDE
-        + query_head[:, None] * Q_HEAD_STRIDE
-        + dim[None, :],
-        mask=valid_group[:, None],
-        other=0.0,
-    )
-    full_lse = tl.load(
-        attention_lse
-        + batch * LSE_BATCH_STRIDE
-        + query_head * LSE_HEAD_STRIDE,
-        mask=valid_group,
-        other=-float("inf"),
-    ).to(tl.float32)
-    remainder = tl.load(
-        attention_out
-        + batch * OUT_BATCH_STRIDE
-        + query_head[:, None] * OUT_HEAD_STRIDE
-        + dim[None, :],
-        mask=valid_group[:, None],
-        other=0.0,
-    ).to(tl.float32)
-
-    selected_mass = tl.zeros((BLOCK_G,), tl.float32)
-    selected_value = tl.zeros((BLOCK_G, HEAD_DIM), tl.float32)
-    route_offset = tl.arange(0, ROUTE_TILE)
-    for route_begin in tl.static_range(0, ROUTE_COUNT, ROUTE_TILE):
-        route = route_begin + route_offset
-        slot = tl.load(
-            slots
-            + batch * SLOT_BATCH_STRIDE
-            + first_query_head * SLOT_HEAD_STRIDE
-            + route * SLOT_ROUTE_STRIDE,
-            mask=route < ROUTE_COUNT,
-            other=-1,
-        ).to(tl.int64)
-        valid_slot = (route < ROUTE_COUNT) & (slot >= 0)
-        safe_slot = tl.where(valid_slot, slot, 0)
-        count_or_log_mass = tl.load(
-            counts
-            + cache_batch * COUNT_BATCH_STRIDE
-            + kv_head * COUNT_HEAD_STRIDE
-            + safe_slot * COUNT_TOKEN_STRIDE,
-            mask=valid_slot,
-            other=1.0,
+    if SCALAR_ROUTES:
+        query_head = logical_group
+        kv_head = query_head // KV_GROUP_SIZE
+        dim = tl.arange(0, HEAD_DIM)
+        query = tl.load(
+            q + batch * Q_BATCH_STRIDE + query_head * Q_HEAD_STRIDE + dim
         ).to(tl.float32)
-        key_sum = tl.load(
-            state_k
-            + cache_batch * STATE_K_BATCH_STRIDE
-            + kv_head * STATE_K_HEAD_STRIDE
-            + safe_slot[:, None] * STATE_K_TOKEN_STRIDE
+        full_lse = tl.load(
+            attention_lse
+            + batch * LSE_BATCH_STRIDE
+            + query_head * LSE_HEAD_STRIDE
+        ).to(tl.float32)
+        remainder = tl.load(
+            attention_out
+            + batch * OUT_BATCH_STRIDE
+            + query_head * OUT_HEAD_STRIDE
+            + dim
+        ).to(tl.float32)
+        selected_mass = tl.zeros((), tl.float32)
+        selected_value = tl.zeros((HEAD_DIM,), tl.float32)
+        for route in tl.static_range(0, ROUTE_COUNT):
+            slot = tl.load(
+                slots
+                + batch * SLOT_BATCH_STRIDE
+                + query_head * SLOT_HEAD_STRIDE
+                + route * SLOT_ROUTE_STRIDE
+            ).to(tl.int64)
+            valid_slot = slot >= 0
+            safe_slot = tl.where(valid_slot, slot, 0)
+            count_or_log_mass = tl.load(
+                counts
+                + cache_batch * COUNT_BATCH_STRIDE
+                + kv_head * COUNT_HEAD_STRIDE
+                + safe_slot * COUNT_TOKEN_STRIDE,
+                mask=valid_slot,
+                other=1.0,
+            ).to(tl.float32)
+            key_sum = tl.load(
+                state_k
+                + cache_batch * STATE_K_BATCH_STRIDE
+                + kv_head * STATE_K_HEAD_STRIDE
+                + safe_slot * STATE_K_TOKEN_STRIDE
+                + dim,
+                mask=valid_slot,
+                other=0.0,
+            ).to(tl.float32)
+            value_sum = tl.load(
+                state_v
+                + cache_batch * STATE_V_BATCH_STRIDE
+                + kv_head * STATE_V_HEAD_STRIDE
+                + safe_slot * STATE_V_TOKEN_STRIDE
+                + dim,
+                mask=valid_slot,
+                other=0.0,
+            ).to(tl.float32)
+            if STATE_IS_NORMALIZED:
+                mean_key = key_sum
+                mean_value = value_sum
+                log_mass = count_or_log_mass
+            else:
+                mean_key = key_sum / count_or_log_mass
+                mean_value = value_sum / count_or_log_mass
+                log_mass = tl.log(count_or_log_mass)
+            score = tl.sum(query * mean_key, axis=0) * SCALE + log_mass
+            mass = tl.where(valid_slot, tl.exp(score - full_lse), 0.0)
+            selected_mass += mass
+            selected_value += mass * mean_value
+        remainder_mass = tl.maximum(1.0 - selected_mass, 1.0e-7)
+        tl.store(
+            attention_out
+            + batch * OUT_BATCH_STRIDE
+            + query_head * OUT_HEAD_STRIDE
+            + dim,
+            (remainder - selected_value) / remainder_mass,
+        )
+        tl.store(
+            attention_lse
+            + batch * LSE_BATCH_STRIDE
+            + query_head * LSE_HEAD_STRIDE,
+            full_lse + tl.log(remainder_mass),
+        )
+    else:
+        kv_head = logical_group // GROUPS_PER_KV
+        subgroup = logical_group - kv_head * GROUPS_PER_KV
+        group = tl.arange(0, BLOCK_G)
+        valid_group = group < ROUTE_GROUP_SIZE
+        first_query_head = (
+            kv_head * KV_GROUP_SIZE + subgroup * ROUTE_GROUP_SIZE
+        )
+        query_head = first_query_head + group
+        dim = tl.arange(0, HEAD_DIM)
+        queries = tl.load(
+            q
+            + batch * Q_BATCH_STRIDE
+            + query_head[:, None] * Q_HEAD_STRIDE
             + dim[None, :],
-            mask=valid_slot[:, None],
+            mask=valid_group[:, None],
             other=0.0,
         )
-        value_sum = tl.load(
-            state_v
-            + cache_batch * STATE_V_BATCH_STRIDE
-            + kv_head * STATE_V_HEAD_STRIDE
-            + safe_slot[:, None] * STATE_V_TOKEN_STRIDE
+        full_lse = tl.load(
+            attention_lse
+            + batch * LSE_BATCH_STRIDE
+            + query_head * LSE_HEAD_STRIDE,
+            mask=valid_group,
+            other=-float("inf"),
+        ).to(tl.float32)
+        remainder = tl.load(
+            attention_out
+            + batch * OUT_BATCH_STRIDE
+            + query_head[:, None] * OUT_HEAD_STRIDE
             + dim[None, :],
-            mask=valid_slot[:, None],
+            mask=valid_group[:, None],
             other=0.0,
+        ).to(tl.float32)
+        selected_mass = tl.zeros((BLOCK_G,), tl.float32)
+        selected_value = tl.zeros((BLOCK_G, HEAD_DIM), tl.float32)
+        route_offset = tl.arange(0, ROUTE_TILE)
+        for route_begin in tl.static_range(0, ROUTE_COUNT, ROUTE_TILE):
+            route = route_begin + route_offset
+            slot = tl.load(
+                slots
+                + batch * SLOT_BATCH_STRIDE
+                + first_query_head * SLOT_HEAD_STRIDE
+                + route * SLOT_ROUTE_STRIDE,
+                mask=route < ROUTE_COUNT,
+                other=-1,
+            ).to(tl.int64)
+            valid_slot = (route < ROUTE_COUNT) & (slot >= 0)
+            safe_slot = tl.where(valid_slot, slot, 0)
+            count_or_log_mass = tl.load(
+                counts
+                + cache_batch * COUNT_BATCH_STRIDE
+                + kv_head * COUNT_HEAD_STRIDE
+                + safe_slot * COUNT_TOKEN_STRIDE,
+                mask=valid_slot,
+                other=1.0,
+            ).to(tl.float32)
+            key_sum = tl.load(
+                state_k
+                + cache_batch * STATE_K_BATCH_STRIDE
+                + kv_head * STATE_K_HEAD_STRIDE
+                + safe_slot[:, None] * STATE_K_TOKEN_STRIDE
+                + dim[None, :],
+                mask=valid_slot[:, None],
+                other=0.0,
+            )
+            value_sum = tl.load(
+                state_v
+                + cache_batch * STATE_V_BATCH_STRIDE
+                + kv_head * STATE_V_HEAD_STRIDE
+                + safe_slot[:, None] * STATE_V_TOKEN_STRIDE
+                + dim[None, :],
+                mask=valid_slot[:, None],
+                other=0.0,
+            )
+            if STATE_IS_NORMALIZED:
+                mean_keys = key_sum
+                mean_values = value_sum
+                log_mass = count_or_log_mass
+            else:
+                count_or_log_mass = tl.where(
+                    valid_slot, count_or_log_mass, 1.0
+                )
+                mean_keys = (
+                    key_sum.to(tl.float32) / count_or_log_mass[:, None]
+                ).to(key_sum.dtype)
+                mean_values = (
+                    value_sum.to(tl.float32) / count_or_log_mass[:, None]
+                ).to(value_sum.dtype)
+                log_mass = tl.log(count_or_log_mass)
+            scores = tl.dot(
+                queries, tl.trans(mean_keys), out_dtype=tl.float32
+            )
+            scores = scores * SCALE + log_mass[None, :]
+            scores = tl.where(
+                valid_group[:, None] & valid_slot[None, :],
+                scores,
+                -float("inf"),
+            )
+            mass = tl.where(
+                valid_group[:, None] & valid_slot[None, :],
+                tl.exp(scores - full_lse[:, None]),
+                0.0,
+            )
+            selected_mass += tl.sum(mass, axis=1)
+            selected_value += tl.dot(
+                mass.to(mean_values.dtype),
+                mean_values,
+                out_dtype=tl.float32,
+            )
+        remainder_mass = tl.maximum(1.0 - selected_mass, 1.0e-7)
+        tl.store(
+            attention_out
+            + batch * OUT_BATCH_STRIDE
+            + query_head[:, None] * OUT_HEAD_STRIDE
+            + dim[None, :],
+            (remainder - selected_value) / remainder_mass[:, None],
+            mask=valid_group[:, None],
         )
-        if STATE_IS_NORMALIZED:
-            mean_keys = key_sum
-            mean_values = value_sum
-            log_mass = count_or_log_mass
-        else:
-            count_or_log_mass = tl.where(valid_slot, count_or_log_mass, 1.0)
-            mean_keys = (
-                key_sum.to(tl.float32) / count_or_log_mass[:, None]
-            ).to(key_sum.dtype)
-            mean_values = (
-                value_sum.to(tl.float32) / count_or_log_mass[:, None]
-            ).to(value_sum.dtype)
-            log_mass = tl.log(count_or_log_mass)
-        scores = tl.dot(queries, tl.trans(mean_keys), out_dtype=tl.float32)
-        scores = scores * SCALE + log_mass[None, :]
-        scores = tl.where(
-            valid_group[:, None] & valid_slot[None, :],
-            scores,
-            -float("inf"),
+        tl.store(
+            attention_lse
+            + batch * LSE_BATCH_STRIDE
+            + query_head * LSE_HEAD_STRIDE,
+            full_lse + tl.log(remainder_mass),
+            mask=valid_group,
         )
-        mass = tl.where(
-            valid_group[:, None] & valid_slot[None, :],
-            tl.exp(scores - full_lse[:, None]),
-            0.0,
-        )
-        selected_mass += tl.sum(mass, axis=1)
-        selected_value += tl.dot(
-            mass.to(mean_values.dtype), mean_values, out_dtype=tl.float32
-        )
-    remainder_mass = tl.maximum(1.0 - selected_mass, 1.0e-7)
-    tl.store(
-        attention_out
-        + batch * OUT_BATCH_STRIDE
-        + query_head[:, None] * OUT_HEAD_STRIDE
-        + dim[None, :],
-        (remainder - selected_value) / remainder_mass[:, None],
-        mask=valid_group[:, None],
-    )
-    tl.store(
-        attention_lse
-        + batch * LSE_BATCH_STRIDE
-        + query_head * LSE_HEAD_STRIDE,
-        full_lse + tl.log(remainder_mass),
-        mask=valid_group,
-    )
 
 
 @triton.jit
@@ -6151,11 +6109,10 @@ def remove_state_slots_from_attention(
     kv_group_size: int,
     route_group_size: int | None = None,
     scale: float,
-    gqa_aware: bool = True,
     cache_indices: torch.Tensor | None = None,
     state_is_normalized: bool = False,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """Remove routed centroid summaries from a normalized coarse branch."""
+    """Remove routed summaries using one geometry-adaptive correction kernel."""
     batch, query_heads, query_len, head_dim = q.shape
     if query_len != 1 or query_heads % kv_group_size:
         raise ValueError("state-slot removal requires one complete GQA row")
@@ -6164,8 +6121,14 @@ def remove_state_slots_from_attention(
         route_group_size = kv_group_size
     if route_group_size <= 0 or kv_group_size % route_group_size:
         raise ValueError("route groups must evenly partition each physical KV group")
-    groups_per_kv = kv_group_size // route_group_size
-    logical_groups = query_heads // route_group_size
+    # Narrow heads benefit from sharing K/V loads across each routed GQA group.
+    # Wider heads instead use one query per program so the G x D accumulator
+    # does not spill.  Slots are repeated for every head in a routed group, so
+    # both geometries implement the identical correction.
+    scalar_routes = head_dim > 128
+    correction_group_size = 1 if scalar_routes else route_group_size
+    groups_per_kv = kv_group_size // correction_group_size
+    logical_groups = query_heads // correction_group_size
     cache_batch = int(state_k.size(0))
     if int(state_k.size(1)) != kv_heads or tuple(state_v.shape) != tuple(
         state_k.shape
@@ -6187,51 +6150,7 @@ def remove_state_slots_from_attention(
         attention_lse.shape
     ) != tuple(q.shape[:-1]):
         raise ValueError("state-slot removal has incompatible attention")
-    if gqa_aware:
-        _remove_state_slots_gqa_kernel[(batch * logical_groups,)](
-            q,
-            state_k,
-            state_v,
-            counts,
-            slots,
-            slots if cache_indices is None else cache_indices,
-            attention_out,
-            attention_lse,
-            q.stride(0),
-            q.stride(1),
-            state_k.stride(0),
-            state_k.stride(1),
-            state_k.stride(2),
-            state_v.stride(0),
-            state_v.stride(1),
-            state_v.stride(2),
-            counts.stride(0),
-            counts.stride(1),
-            counts.stride(2),
-            slots.stride(0),
-            slots.stride(1),
-            slots.stride(3),
-            attention_out.stride(0),
-            attention_out.stride(1),
-            attention_lse.stride(0),
-            attention_lse.stride(1),
-            QUERY_HEADS=query_heads,
-            KV_HEADS=kv_heads,
-            KV_GROUP_SIZE=kv_group_size,
-            ROUTE_GROUP_SIZE=route_group_size,
-            GROUPS_PER_KV=groups_per_kv,
-            LOGICAL_GROUPS=logical_groups,
-            HEAD_DIM=head_dim,
-            BLOCK_G=triton.next_power_of_2(route_group_size),
-            ROUTE_COUNT=int(slots.size(-1)),
-            ROUTE_TILE=min(32, triton.next_power_of_2(int(slots.size(-1)))),
-            SCALE=float(scale),
-            STATE_IS_NORMALIZED=state_is_normalized,
-            USE_CACHE_INDICES=cache_indices is not None,
-            **_launch_kwargs(1),
-        )
-        return attention_out, attention_lse
-    _remove_state_slots_from_attention_kernel[(batch, query_heads)](
+    _remove_state_slots_unified_kernel[(batch, logical_groups)](
         q,
         state_k,
         state_v,
@@ -6259,13 +6178,19 @@ def remove_state_slots_from_attention(
         attention_lse.stride(0),
         attention_lse.stride(1),
         QUERY_HEADS=query_heads,
+        KV_HEADS=kv_heads,
         KV_GROUP_SIZE=kv_group_size,
+        ROUTE_GROUP_SIZE=correction_group_size,
+        GROUPS_PER_KV=groups_per_kv,
+        LOGICAL_GROUPS=logical_groups,
         HEAD_DIM=head_dim,
-        BLOCK_DIM=triton.next_power_of_2(head_dim),
+        BLOCK_G=triton.next_power_of_2(correction_group_size),
         ROUTE_COUNT=int(slots.size(-1)),
+        ROUTE_TILE=min(32, triton.next_power_of_2(int(slots.size(-1)))),
         SCALE=float(scale),
         STATE_IS_NORMALIZED=state_is_normalized,
         USE_CACHE_INDICES=cache_indices is not None,
+        SCALAR_ROUTES=scalar_routes,
         **_launch_kwargs(1),
     )
     return attention_out, attention_lse

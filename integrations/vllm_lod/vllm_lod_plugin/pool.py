@@ -1595,10 +1595,6 @@ class VLLMLayerLODPool:
                 route_group_size=union_group_size,
                 scale=float(self.engine.scaling),
                 cache_indices=cache_indices,
-                # A single GQA-wide d=512 correction kernel has extreme
-                # compile time and register pressure on Gemma-4. The
-                # query-major form computes the identical per-head update.
-                gqa_aware=self.head_dim <= 256,
                 state_is_normalized=True,
             )
             if timing_events is not None:

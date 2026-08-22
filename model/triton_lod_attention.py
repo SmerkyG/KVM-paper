@@ -5517,11 +5517,6 @@ class TritonLODAttentionCore(nn.Module):
                     coarse_lse,
                     kv_group_size=self.num_key_value_groups,
                     scale=self.scaling,
-                    # Grouping all wide query heads in one Triton program
-                    # creates a very large d=512 kernel on Gemma-4. The
-                    # query-major kernel performs the same per-head correction
-                    # without the compile-time and register explosion.
-                    gqa_aware=int(q.size(-1)) <= 256,
                 )
                 if timing_events is not None:
                     correction_end = torch.cuda.Event(enable_timing=True)

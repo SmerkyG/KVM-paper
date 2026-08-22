@@ -928,7 +928,6 @@ def main() -> None:
             kv_group_size=groups,
             route_group_size=union_group_size,
             scale=scale,
-            gqa_aware=head_dim <= 256,
         )
         normalized_output, normalized_lse = remove_state_slots_from_attention(
             q,
@@ -941,7 +940,6 @@ def main() -> None:
             kv_group_size=groups,
             route_group_size=union_group_size,
             scale=scale,
-            gqa_aware=head_dim <= 256,
             state_is_normalized=True,
         )
         torch.testing.assert_close(
