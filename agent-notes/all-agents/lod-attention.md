@@ -1,6 +1,6 @@
 # Lod Attention
 
-Topic hints: Separate LOD prefill allocation from decode scan bounds
+Topic hints: Preserve native GQA sharing in AITER prefill
 
 ## Lessons
 
@@ -17,3 +17,5 @@ Topic hints: Separate LOD prefill allocation from decode scan bounds
 - When adding physical prefill padding to generic HF LOD, propagate logical_prefill_len through both the engine wrapper and Triton core, and verify the committed snapshot rather than a dirty development worktree.
 
 - Keep the large prefill lookback allocation separate from the logical LOD decode-local scan bound. Pass the configured decode local length to fused decode and assert state catch-up keeps each active local length within it; passing the backing/prefill capacity makes every layer loop over masked rows and can dominate decode latency.
+
+- For LOD coarse prefill, call AITER CK FMHA with native GQA Q/K/V and a broadcast per-head log-count bias, then subtract routed centroid mass using already-computed route logits; packing each query/head as a pseudo-sequence destroys K/V reuse and is slower.
