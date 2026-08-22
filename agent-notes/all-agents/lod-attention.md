@@ -1,6 +1,6 @@
 # Lod Attention
 
-Topic hints: Preserve native GQA sharing in AITER prefill
+Topic hints: Benchmark GQA-union prefill in the exact serving configuration
 
 ## Lessons
 
@@ -19,3 +19,5 @@ Topic hints: Preserve native GQA sharing in AITER prefill
 - Keep the large prefill lookback allocation separate from the logical LOD decode-local scan bound. Pass the configured decode local length to fused decode and assert state catch-up keeps each active local length within it; passing the backing/prefill capacity makes every layer loop over masked rows and can dominate decode latency.
 
 - For LOD coarse prefill, call AITER CK FMHA with native GQA Q/K/V and a broadcast per-head log-count bias, then subtract routed centroid mass using already-computed route logits; packing each query/head as a pseudo-sequence destroys K/V reuse and is slower.
+
+- Enabling AITER GQA-union is not decode-only in practice: it forces BF16 leaves and can change recursive-prefill dispatch, so benchmark the exact combined serving configuration rather than reusing prefill-only timings.
