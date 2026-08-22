@@ -5,11 +5,35 @@
 
 from __future__ import annotations
 
+from functools import cache
 import math
+from pathlib import Path
 
 import torch
 import triton
 import triton.language as tl
+
+
+@cache
+def _require_wide_head_pa_v1(head_dim: int) -> None:
+    if head_dim <= 256:
+        return
+    from csrc.cpp_itfs.utils import AITER_CORE_DIR
+
+    header = Path(AITER_CORE_DIR) / "csrc/cpp_itfs/pa/pa_kernels.cuh"
+    try:
+        source = header.read_text()
+    except OSError as exc:
+        raise RuntimeError(f"cannot inspect AITER PA-v1 source at {header}") from exc
+    wide_value_layout = (
+        "constexpr int V_SHARED_DEPTH = MAX(4, HEAD_SIZE / 16 / NWARPS);"
+    )
+    if wide_value_layout not in source:
+        raise RuntimeError(
+            "AITER PA-v1 needs the LOD wide-head patch for head dimension "
+            f"{head_dim}; apply integrations/vllm_lod/patches/"
+            "aiter-pa-v1-head-dim-512.patch to the AITER source checkout"
+        )
 
 
 @triton.jit(
@@ -1446,6 +1470,7 @@ def query_routed_aiter_attention(
         leaf_k = leaf_k.flatten(2, 3)
         leaf_v = leaf_v.flatten(2, 3)
     batch, query_heads, _, head_dim = q.shape
+    _require_wide_head_pa_v1(head_dim)
     cache_batch, kv_heads, leaf_capacity, key_dim = leaf_k.shape
     route_count = int(top_slots.size(-1))
     if (
@@ -1817,6 +1842,7 @@ def gqa_union_aiter_attention(
     ):
         raise ValueError("AITER GQA-union inputs must be contiguous CUDA tensors")
     batch, query_heads, _, head_dim = q.shape
+    _require_wide_head_pa_v1(head_dim)
     cache_batch, kv_heads, leaf_capacity, key_dim = leaf_k.shape
     route_count = int(top_slots.size(-1))
     if (cache_indices is None and cache_batch != batch) or key_dim != head_dim:

@@ -29,6 +29,20 @@ Install the plugin editable into the environment that provides vLLM:
 uv add --editable /absolute/path/to/code/integrations/vllm_lod
 ```
 
+Gemma-4's 512-wide global-attention heads require the accompanying PA-v1
+extension in the source AITER checkout. Apply it before AITER compiles its
+paged-attention kernels:
+
+```bash
+git -C /absolute/path/to/aiter apply \
+  /absolute/path/to/code/integrations/vllm_lod/patches/aiter-pa-v1-head-dim-512.patch
+```
+
+The patch gives the QK and value-output phases aliased LDS layouts, so head
+dimension 512 fits the existing PA-v1 kernel without increasing its peak LDS.
+It also changes the generated operator's cache namespace, ensuring an existing
+narrow-head PA-v1 build is not silently reused.
+
 Then select the registered custom backend:
 
 ```bash

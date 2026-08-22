@@ -16,7 +16,7 @@ def _compile(gqa_ratio: int, head_size: int, partition_size: int):
     template_path = Path(__file__).parent / "source" / "aiter_pa_stage1.cpp.jinja"
     return compile_template_op(
         Template(template_path.read_text()),
-        "lod_pa_stage1",
+        "lod_pa_stage1_wide",
         [
             f"{AITER_CORE_DIR}/csrc/cpp_itfs/utils.h",
             f"{AITER_CORE_DIR}/csrc/cpp_itfs/pa/pa_kernels.cuh",

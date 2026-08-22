@@ -8,7 +8,6 @@ from typing import Any
 import torch
 
 from model.kernels.paged_leaf_attention import (
-    append_decode_local_kv,
     fused_decode_paged_lod_attention,
     masked_decode_coarse_local_attention,
     new_fused_decode_buffers,
@@ -18,12 +17,10 @@ from model.kernels.paged_leaf_attention import (
 )
 from model.kernels.gqa_union_leaf_attention import (
     gqa_union_aiter_attention,
-    gqa_union_indexed_attention,
     new_gqa_union_aiter_buffers,
 )
 from model.kernels.lod_kernels import (
     merge_attention_branches_with_aiter_stats,
-    merge_attention_branches_with_sink,
     remove_state_slots_from_attention,
 )
 from model.pytorch_lod_attention_paged import PagedLODConfig
@@ -163,15 +160,6 @@ class VLLMLayerLODPool:
         )
         physical_group_size = self.query_heads // self.kv_heads
         union_group_size = settings.gqa_union_group_size or physical_group_size
-        if (
-            not settings.gqa_union_group_size
-            and self.head_dim > 256
-            and physical_group_size % 4 == 0
-        ):
-            # Keep the wide-head indexed kernel's logical group small enough
-            # to retain useful occupancy. Narrow AITER geometries continue to
-            # share the complete physical GQA group by default.
-            union_group_size = 4
         if physical_group_size % union_group_size:
             raise ValueError(
                 "VLLM_LOD_GQA_UNION_GROUP_SIZE must divide the physical GQA group"
@@ -1449,26 +1437,11 @@ class VLLMLayerLODPool:
             raise ValueError(
                 "GQA union groups must evenly partition each physical KV group"
             )
-        use_triton_exact = self.head_dim > 256
         # The semantic leaf archive reserves the exact recent tail immediately
         # after its compressed leaves. Append the current row before attention
         # so one AITER call covers both the routed remote union and BSWA.
-        # Narrow AITER geometries fuse this write into union metadata and the
-        # length increment into the final reducer. Wide Triton exact attention
-        # retains the standalone append because its fused metadata kernel has
-        # a different parallel decomposition.
-        if use_triton_exact:
-            append_decode_local_kv(
-                cache_indices,
-                self.local_lens,
-                self.state["recent_k"],
-                self.state["recent_v"],
-                k,
-                v,
-                archive_k=page["leaf_k"],
-                archive_v=page["leaf_v"],
-                archive_begins=self.local_leaf_starts,
-            )
+        # AITER fuses this write into union metadata and the length increment
+        # into the final reducer for every supported head width, including 512.
         if persistent_route:
             top_slots, top_scores, coarse_output, coarse_lse = (
                 persistent_decode_route_coarse_gqa(
@@ -1542,78 +1515,40 @@ class VLLMLayerLODPool:
                 state_is_normalized=True,
                 timing_events=timing_events,
             )
-        if use_triton_exact:
-            if fused_correction:
-                raise ValueError(
-                    "wide-head Triton exact attention requires separate coarse correction"
-                )
-            (
-                exact_output,
-                exact_lse,
-                union_top_slots,
-                exact_buffers,
-            ) = gqa_union_indexed_attention(
-                q,
-                page["leaf_k"],
-                page["leaf_v"],
-                top_slots,
-                page["slot_offsets"],
-                page["packed_leaf_indices"],
-                kv_group_size=physical_group_size,
-                union_group_size=union_group_size,
-                scale=float(self.engine.scaling),
-                cache_indices=cache_indices,
-                buffers=self._gqa_buffers(q, rows),
-                local_begins=self.local_leaf_starts,
-                local_lens=self.local_lens,
-                local_capacity=self.local_capacity,
-                max_slot_leaves=int(
-                    getattr(self.engine, "gqa_union_max_slot_leaves", 0)
-                ),
-                # Wide Gemma heads are register-limited at the narrow leaf
-                # tile used by the generic fallback.  A full 128-key tile
-                # with eight warps is both exact and substantially faster on
-                # MI325X for the routed-union sizes seen during decode.
-                block_n=128,
-                num_warps=8,
-                waves_per_eu=int(self.engine.leaf_waves_per_eu),
-                timing_events=timing_events,
-            )
-        else:
-            (
-                exact_output,
-                exact_exp_sums,
-                exact_max_logits,
-                exact_lengths,
-                union_top_slots,
-                exact_buffers,
-            ) = gqa_union_aiter_attention(
-                q,
-                page["leaf_k"],
-                page["leaf_v"],
-                top_slots,
-                page["slot_offsets"],
-                page["packed_leaf_indices"],
-                kv_group_size=physical_group_size,
-                union_group_size=union_group_size,
-                scale=float(self.engine.scaling),
-                cache_indices=cache_indices,
-                buffers=self._gqa_buffers(q, rows),
-                local_begins=self.local_leaf_starts,
-                local_lens=self.local_lens,
-                local_capacity=self.local_capacity,
-                new_k=k,
-                new_v=v,
-                local_k=self.state["recent_k"],
-                local_v=self.state["recent_v"],
-                archive_begins=self.local_leaf_starts,
-                max_slot_leaves=int(
-                    getattr(self.engine, "gqa_union_max_slot_leaves", 0)
-                ),
-                waves_per_eu=int(self.engine.leaf_waves_per_eu),
-                stage1_only=stage1_reduce,
-                timing_events=timing_events,
-            )
+        (
+            exact_output,
+            exact_exp_sums,
+            exact_max_logits,
+            exact_lengths,
+            union_top_slots,
+            exact_buffers,
+        ) = gqa_union_aiter_attention(
+            q,
+            page["leaf_k"],
+            page["leaf_v"],
+            top_slots,
+            page["slot_offsets"],
+            page["packed_leaf_indices"],
+            kv_group_size=physical_group_size,
+            union_group_size=union_group_size,
+            scale=float(self.engine.scaling),
+            cache_indices=cache_indices,
+            buffers=self._gqa_buffers(q, rows),
+            local_begins=self.local_leaf_starts,
+            local_lens=self.local_lens,
+            local_capacity=self.local_capacity,
+            new_k=k,
+            new_v=v,
+            local_k=self.state["recent_k"],
+            local_v=self.state["recent_v"],
+            archive_begins=self.local_leaf_starts,
+            max_slot_leaves=int(
+                getattr(self.engine, "gqa_union_max_slot_leaves", 0)
+            ),
+            waves_per_eu=int(self.engine.leaf_waves_per_eu),
+            stage1_only=stage1_reduce,
+            timing_events=timing_events,
+        )
         if persistent_route:
             pass
         elif route_then_coarse:
@@ -1683,80 +1618,64 @@ class VLLMLayerLODPool:
             final_begin = torch.cuda.Event(enable_timing=True)
             final_begin.record()
         decode_buffers = self._buffers(q, rows)
-        if use_triton_exact:
-            result = merge_attention_branches_with_sink(
-                q,
-                sink_k,
-                sink_v,
-                coarse_output,
-                coarse_lse,
-                exact_output,
-                exact_lse,
-                kv_group_size=physical_group_size,
-                scale=float(self.engine.scaling),
-                output_buffer=output[:rows].unsqueeze(2),
-                num_warps=1,
-                cache_indices=cache_indices,
-            )
-        else:
-            result = merge_attention_branches_with_aiter_stats(
-                q,
-                coarse_output,
-                coarse_lse,
-                exact_output,
-                exact_exp_sums,
-                exact_max_logits,
-                exact_lengths,
-                exact_partial_out=(
-                    exact_buffers["partial_output"] if stage1_reduce else None
-                ),
-                kv_group_size=physical_group_size,
-                exact_group_size=union_group_size,
-                scale=float(self.engine.scaling),
-                sink_k=sink_k,
-                sink_v=sink_v,
-                state_k=(
-                    self.state["decode_state_k"] if fused_correction else None
-                ),
-                state_v=(
-                    self.state["decode_state_v"] if fused_correction else None
-                ),
-                counts=(
-                    self.state["decode_log_counts"]
-                    if fused_correction
-                    else None
-                ),
-                union_top_slots=(
-                    top_slots
-                    if fused_correction and own_route_correction
-                    else union_top_slots if fused_correction else None
-                ),
-                union_top_scores=(
-                    top_scores
-                    if fused_correction and own_route_correction
-                    else None
-                ),
-                primary_group_out=(
-                    decode_buffers["route_group_out"] if route_then_coarse else None
-                ),
-                primary_group_lse=(
-                    decode_buffers["route_group_lse"] if route_then_coarse else None
-                ),
-                active_primary_groups=(
-                    math.ceil(
-                        self.state_capacity
-                        / int(self.engine.decode_route_group_size)
-                    )
-                    if route_then_coarse
-                    else 0
-                ),
-                output_buffer=output[:rows].unsqueeze(2),
-                num_warps=1,
-                cache_indices=cache_indices,
-                local_lens=self.local_lens,
-                advance_local=True,
-                state_is_normalized=fused_correction,
-            )
+        result = merge_attention_branches_with_aiter_stats(
+            q,
+            coarse_output,
+            coarse_lse,
+            exact_output,
+            exact_exp_sums,
+            exact_max_logits,
+            exact_lengths,
+            exact_partial_out=(
+                exact_buffers["partial_output"] if stage1_reduce else None
+            ),
+            kv_group_size=physical_group_size,
+            exact_group_size=union_group_size,
+            scale=float(self.engine.scaling),
+            sink_k=sink_k,
+            sink_v=sink_v,
+            state_k=(
+                self.state["decode_state_k"] if fused_correction else None
+            ),
+            state_v=(
+                self.state["decode_state_v"] if fused_correction else None
+            ),
+            counts=(
+                self.state["decode_log_counts"]
+                if fused_correction
+                else None
+            ),
+            union_top_slots=(
+                top_slots
+                if fused_correction and own_route_correction
+                else union_top_slots if fused_correction else None
+            ),
+            union_top_scores=(
+                top_scores
+                if fused_correction and own_route_correction
+                else None
+            ),
+            primary_group_out=(
+                decode_buffers["route_group_out"] if route_then_coarse else None
+            ),
+            primary_group_lse=(
+                decode_buffers["route_group_lse"] if route_then_coarse else None
+            ),
+            active_primary_groups=(
+                math.ceil(
+                    self.state_capacity
+                    / int(self.engine.decode_route_group_size)
+                )
+                if route_then_coarse
+                else 0
+            ),
+            output_buffer=output[:rows].unsqueeze(2),
+            num_warps=1,
+            cache_indices=cache_indices,
+            local_lens=self.local_lens,
+            advance_local=True,
+            state_is_normalized=fused_correction,
+        )
         if timing_events is not None:
             final_end = torch.cuda.Event(enable_timing=True)
             final_end.record()
