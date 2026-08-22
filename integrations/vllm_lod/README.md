@@ -43,6 +43,18 @@ dimension 512 fits the existing PA-v1 kernel without increasing its peak LDS.
 It also changes the generated operator's cache namespace, ensuring an existing
 narrow-head PA-v1 build is not silently reused.
 
+The optional AITER coarse-prefill path also needs the per-head bias extension:
+
+```bash
+git -C /absolute/path/to/aiter apply \
+  /absolute/path/to/code/integrations/vllm_lod/patches/aiter-mha-per-head-bias.patch
+```
+
+Set `VLLM_LOD_PREFILL_AITER_COARSE=1` to use CK FMHA for the weighted coarse
+state remainder. The patch exposes bias strides already supported by the CK
+kernel, allowing LOD to broadcast each centroid's `log(count)` mass across all
+queries while retaining native GQA K/V sharing.
+
 Then select the registered custom backend:
 
 ```bash

@@ -124,6 +124,7 @@ class VLLMLayerLODPool:
         self.engine.prefill_local_attention_backend = (
             "torch" if self.head_dim > 256 else settings.prefill_local_backend
         )
+        self.engine.prefill_aiter_coarse = settings.prefill_aiter_coarse
         self.engine.fused_prefill_route_coarse = (
             settings.fused_prefill_route_coarse
         )

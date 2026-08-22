@@ -47,6 +47,7 @@ from .kernels.paged_leaf_attention import (
     quantize_page_summaries_int8,
     quantize_virtual_paged_kv_int4,
 )
+from .kernels.aiter_prefill_attention import aiter_prefill_coarse_attention
 from .kernels.lod_kernels import (
     apply_residual_mass_opening,
     aiter_partition_lse,
@@ -239,6 +240,7 @@ class TritonLODAttentionCore(nn.Module):
     coarse_max_grouped_rows = 8
     prefill_coarse_max_grouped_rows = 8
     fused_prefill_route_coarse = False
+    prefill_aiter_coarse = False
     fused_prefill_stable_recompute = True
     fused_prefill_external_recompute = True
     fused_prefill_block_m = 16
@@ -2060,6 +2062,8 @@ class TritonLODAttentionCore(nn.Module):
             counts[..., :state_len, :],
         )
         mean_k = self._mla_normalize_key(mean_k, state_centroid=True)
+        if self.prefill_aiter_coarse and int(q.size(2)) > 1:
+            self._lod_prefill_mean_k = mean_k
         if self.route_gqa_matmul:
             batch, query_heads, query_len, head_dim = q.shape
             kv_heads = int(mean_k.size(1))
@@ -4284,6 +4288,9 @@ class TritonLODAttentionCore(nn.Module):
         include_local: bool = True,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         query_len = int(q.size(2))
+        mean_k = getattr(self, "_lod_prefill_mean_k", None)
+        if mean_k is not None:
+            del self._lod_prefill_mean_k
         fused_prefill = getattr(self, "_lod_prefill_fused_coarse", None)
         if fused_prefill is not None:
             del self._lod_prefill_fused_coarse
@@ -4306,6 +4313,30 @@ class TritonLODAttentionCore(nn.Module):
                 state_len,
             ):
                 raise AssertionError("LOD prefill route-logit shape drifted")
+            if (
+                self.prefill_aiter_coarse
+                and not include_local
+                and mean_k is not None
+                and self.routing_normalization == "none"
+                and self.routing_rope_fast_pairs == 0
+                and not self.routing_rope_jensen
+                and self.routing_variance_bias == 0.0
+                and self.routing_count_bias == 1.0
+                and getattr(self, "mla_key_norm_weight", None) is None
+                and int(q.size(-1)) <= 256
+                and int(state_v.size(-1)) == int(q.size(-1))
+            ):
+                return aiter_prefill_coarse_attention(
+                    q.contiguous(),
+                    mean_k.contiguous(),
+                    state_v.contiguous(),
+                    counts.contiguous(),
+                    top_slots.contiguous(),
+                    route_logits.contiguous(),
+                    state_len=state_len,
+                    kv_group_size=self.num_key_value_groups,
+                    scale=self.scaling,
+                )
             coarse_local_k = (
                 local_k if include_local else local_k[..., :0, :].contiguous()
             )

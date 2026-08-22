@@ -1,0 +1,51 @@
+diff --git a/csrc/py_itfs_ck/mha_fwd_kernels.cu b/csrc/py_itfs_ck/mha_fwd_kernels.cu
+index caa071860..b17a903c1 100644
+--- a/csrc/py_itfs_ck/mha_fwd_kernels.cu
++++ b/csrc/py_itfs_ck/mha_fwd_kernels.cu
+@@ -76,14 +76,26 @@ mha_fwd_args get_ck_fmha_fwd_args(bool has_lse,
+ 
+     void *bias_ptr = nullptr;
+     ck_tile::index_t stride_bias = 0;
++    ck_tile::index_t nhead_stride_bias = 0;
++    ck_tile::index_t batch_stride_bias = 0;
+ 
+     if (bias_.has_value()) {
+         auto bias = bias_.value();
+         CHECK_DEVICE(bias);
+         TORCH_CHECK(bias.stride(-1) == 1, "bias tensor must have contiguous last dimension");
+-        TORCH_CHECK(bias.sizes() == torch::IntArrayRef({seqlen_q, seqlen_k}), "bias shape should be [sq, sk]");
++        TORCH_CHECK(
++            bias.sizes() == torch::IntArrayRef({seqlen_q, seqlen_k}) ||
++                bias.sizes() == torch::IntArrayRef({b, h, seqlen_q, seqlen_k}),
++            "bias shape should be [sq, sk] or [batch, heads, sq, sk]");
+         bias_ptr = bias.data_ptr();
+-        stride_bias = bias.stride(0);
++        if (bias.dim() == 2) {
++            stride_bias = bias.stride(0);
++        }
++        else {
++            stride_bias = bias.stride(2);
++            nhead_stride_bias = bias.stride(1);
++            batch_stride_bias = bias.stride(0);
++        }
+     }
+     else if (alibi_slopes_.has_value()) {
+         auto alibi_slopes = alibi_slopes_.value();
+@@ -148,7 +160,7 @@ mha_fwd_args get_ck_fmha_fwd_args(bool has_lse,
+                         nhead_stride_q,
+                         nhead_stride_k,
+                         nhead_stride_v,
+-                        0, // nhead_stride_bias
++                        nhead_stride_bias,
+                         nhead_stride_randval,
+                         nhead_stride_lse,
+                         nhead_stride_o,
+@@ -158,7 +170,7 @@ mha_fwd_args get_ck_fmha_fwd_args(bool has_lse,
+                         batch_stride_q,
+                         batch_stride_k,
+                         batch_stride_v,
+-                        0, // batch_stride_bias
++                        batch_stride_bias,
+                         batch_stride_randval,
+                         batch_stride_lse,
+                         batch_stride_o,

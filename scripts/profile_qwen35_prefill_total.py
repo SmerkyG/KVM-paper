@@ -167,6 +167,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--coarse-route-block-n", type=int, default=32)
     parser.add_argument("--coarse-route-num-warps", type=int, default=4)
     parser.add_argument("--route-gqa-matmul", action="store_true")
+    parser.add_argument("--aiter-prefill-coarse", action="store_true")
     parser.add_argument("--output", type=Path, required=True)
     return parser.parse_args()
 
@@ -630,6 +631,7 @@ def main() -> None:
                 module.coarse_route_block_n = args.coarse_route_block_n
                 module.coarse_route_num_warps = args.coarse_route_num_warps
                 module.route_gqa_matmul = args.route_gqa_matmul
+                module.prefill_aiter_coarse = args.aiter_prefill_coarse
 
     def prefill():
         microbatch = args.prefill_microbatch_size
@@ -1171,6 +1173,9 @@ def main() -> None:
         ),
         "route_gqa_matmul": (
             args.route_gqa_matmul if args.mode == "two_level" else None
+        ),
+        "aiter_prefill_coarse": (
+            args.aiter_prefill_coarse if args.mode == "two_level" else None
         ),
         "prefill_elapsed_ms": prefill_elapsed_ms,
         "mean_prefill_ms": mean_prefill_ms,

@@ -76,6 +76,7 @@ class VLLMLODSettings:
     native_cache_headroom: float = 1.5
     native_placeholder_cache: bool = True
     prefill_local_backend: str = "aiter"
+    prefill_aiter_coarse: bool = False
     fused_prefill_route_coarse: bool = False
     fused_prefill_stable_recompute: bool = True
     fused_prefill_external_recompute: bool = True
@@ -128,6 +129,9 @@ class VLLMLODSettings:
                 "VLLM_LOD_PREFILL_LOCAL_BACKEND",
                 "aiter",
                 ("torch", "aiter"),
+            ),
+            prefill_aiter_coarse=bool(
+                _integer("VLLM_LOD_PREFILL_AITER_COARSE", 0)
             ),
             fused_prefill_route_coarse=bool(
                 _integer("VLLM_LOD_FUSED_PREFILL_ROUTE_COARSE", 0)
