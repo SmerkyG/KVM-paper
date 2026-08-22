@@ -48,8 +48,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--use-dot", action="store_true")
     parser.add_argument("--sweep-use-dot", action="store_true")
     parser.add_argument("--profile-phases", action="store_true")
+    parser.add_argument("--gqa-union-leaf-attention", action="store_true")
+    parser.add_argument("--gqa-union-aiter-attention", action="store_true")
+    parser.add_argument(
+        "--gqa-union-route-then-coarse",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+    )
+    parser.add_argument(
+        "--gqa-union-aiter-include-local",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
     parser.add_argument("--no-clone-decode-routes", action="store_true")
     parser.add_argument("--disable-fused-decode-state-route", action="store_true")
+    parser.add_argument("--disable-fused-decode-attention", action="store_true")
     parser.add_argument(
         "--decode-route-group-size", type=int, nargs="+", default=(32,)
     )
@@ -123,8 +136,15 @@ def main() -> None:
         module.decode_cache_headroom = args.decode_cache_headroom
         module.clone_decode_routes = not args.no_clone_decode_routes
         module.fused_decode_state_route = not args.disable_fused_decode_state_route
+        module.fused_decode_attention = not args.disable_fused_decode_attention
         module.decode_route_gqa_grouped = args.decode_route_gqa_grouped
         module.decode_fuse_final_reduce = args.decode_fuse_final_reduce
+        module.gqa_union_leaf_attention = args.gqa_union_leaf_attention
+        module.gqa_union_aiter_attention = args.gqa_union_aiter_attention
+        module.gqa_union_route_then_coarse = args.gqa_union_route_then_coarse
+        module.gqa_union_aiter_include_local = (
+            args.gqa_union_aiter_include_local
+        )
 
     phase_events: dict[
         str, list[tuple[torch.cuda.Event, torch.cuda.Event]]
@@ -302,6 +322,28 @@ def main() -> None:
                 float(start.elapsed_time(stop))
                 for start, stop in phase_events["two_level"]
             ) / args.steps
+            union_leaf_lengths = []
+            union_region_counts = []
+            if args.gqa_union_leaf_attention or args.gqa_union_aiter_attention:
+                for module in modules:
+                    buffers = getattr(module, "_lod_gqa_union_buffers", None)
+                    if buffers is None:
+                        raise RuntimeError("GQA-union decode buffers were not created")
+                    union_leaf_lengths.extend(
+                        int(value)
+                        for value in buffers["lengths"].reshape(-1).tolist()
+                    )
+                    group_size = module.num_key_value_groups
+                    union_region_counts.extend(
+                        int(value)
+                        for value in (
+                            buffers["top_slots"][:, ::group_size, 0, :]
+                            .ge(0)
+                            .sum(dim=-1)
+                            .reshape(-1)
+                            .tolist()
+                        )
+                    )
             records.append(
                 {
                     "block_n": block_n,
@@ -332,6 +374,8 @@ def main() -> None:
                     },
                     "profile_phases": args.profile_phases,
                     "logit_finite": bool(torch.isfinite(output.logits).all().item()),
+                    "gqa_union_leaf_lengths": union_leaf_lengths,
+                    "gqa_union_region_counts": union_region_counts,
                 }
             )
             del output
@@ -354,6 +398,7 @@ def main() -> None:
         "qwen35_acceleration": acceleration,
         "clone_decode_routes": not args.no_clone_decode_routes,
         "fused_decode_state_route": not args.disable_fused_decode_state_route,
+        "fused_decode_attention": not args.disable_fused_decode_attention,
         "decode_route_group_sizes": args.decode_route_group_size,
         "decode_route_num_warps": args.decode_route_num_warps,
         "decode_route_reduce_num_warps": args.decode_route_reduce_num_warps,
@@ -361,6 +406,10 @@ def main() -> None:
         "decode_route_use_dot": args.decode_route_use_dot,
         "decode_route_gqa_grouped": args.decode_route_gqa_grouped,
         "decode_fuse_final_reduce": args.decode_fuse_final_reduce,
+        "gqa_union_leaf_attention": args.gqa_union_leaf_attention,
+        "gqa_union_aiter_attention": args.gqa_union_aiter_attention,
+        "gqa_union_route_then_coarse": args.gqa_union_route_then_coarse,
+        "gqa_union_aiter_include_local": args.gqa_union_aiter_include_local,
         "configs": records,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)

@@ -3,7 +3,32 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass, replace
+from typing import Any
+
+
+_LAYER_INDEX = re.compile(r"(?:^|\.)layers\.(\d+)(?:\.|$)")
+
+
+def configured_full_attention_layer(name: str, config: Any) -> bool:
+    """Return whether ``name`` is globally attending in a hybrid model."""
+    text_config = getattr(
+        getattr(config, "model_config", None), "hf_text_config", None
+    )
+    layer_types = getattr(text_config, "layer_types", None)
+    if not layer_types:
+        return True
+    match = _LAYER_INDEX.search(name)
+    if match is None:
+        return True
+    layer_index = int(match.group(1))
+    if layer_index >= len(layer_types):
+        raise ValueError(
+            f"attention layer index {layer_index} exceeds "
+            f"{len(layer_types)} configured layer types"
+        )
+    return layer_types[layer_index] == "full_attention"
 
 
 def _integer(name: str, default: int) -> int:
@@ -49,11 +74,21 @@ class VLLMLODSettings:
     cache_ownership: str = "lod"
     native_staging_chunk: int = 1024
     native_cache_headroom: float = 1.5
+    native_placeholder_cache: bool = True
     prefill_local_backend: str = "aiter"
     fused_prefill_route_coarse: bool = False
     fused_prefill_stable_recompute: bool = True
     fused_prefill_external_recompute: bool = True
     prefill_coarse_max_grouped_rows: int = 64
+    decode_state_update_len: int = 256
+    gqa_union_aiter: bool = False
+    gqa_union_route_then_coarse: bool = False
+    gqa_union_persistent_route: bool = False
+    gqa_union_fused_correction: bool = False
+    gqa_union_own_route_correction: bool = False
+    gqa_union_stage1_reduce: bool = False
+    gqa_union_group_size: int = 0
+    gqa_union_max_slot_leaves: int = 0
 
     @classmethod
     def from_environment(cls) -> VLLMLODSettings:
@@ -86,6 +121,9 @@ class VLLMLODSettings:
             native_cache_headroom=_floating(
                 "VLLM_LOD_NATIVE_CACHE_HEADROOM", 1.5
             ),
+            native_placeholder_cache=bool(
+                _integer("VLLM_LOD_NATIVE_PLACEHOLDER_CACHE", 1)
+            ),
             prefill_local_backend=_choice(
                 "VLLM_LOD_PREFILL_LOCAL_BACKEND",
                 "aiter",
@@ -103,6 +141,33 @@ class VLLMLODSettings:
             prefill_coarse_max_grouped_rows=_integer(
                 "VLLM_LOD_PREFILL_COARSE_GROUPED_ROWS", 64
             ),
+            decode_state_update_len=_integer(
+                "VLLM_LOD_DECODE_STATE_UPDATE_LEN", 256
+            ),
+            gqa_union_aiter=bool(
+                _integer("VLLM_LOD_GQA_UNION_AITER", 0)
+            ),
+            gqa_union_route_then_coarse=bool(
+                _integer("VLLM_LOD_GQA_UNION_ROUTE_THEN_COARSE", 0)
+            ),
+            gqa_union_persistent_route=bool(
+                _integer("VLLM_LOD_GQA_UNION_PERSISTENT_ROUTE", 0)
+            ),
+            gqa_union_fused_correction=bool(
+                _integer("VLLM_LOD_GQA_UNION_FUSED_CORRECTION", 0)
+            ),
+            gqa_union_own_route_correction=bool(
+                _integer("VLLM_LOD_GQA_UNION_OWN_ROUTE_CORRECTION", 0)
+            ),
+            gqa_union_stage1_reduce=bool(
+                _integer("VLLM_LOD_GQA_UNION_STAGE1_REDUCE", 0)
+            ),
+            gqa_union_group_size=_integer(
+                "VLLM_LOD_GQA_UNION_GROUP_SIZE", 0
+            ),
+            gqa_union_max_slot_leaves=_integer(
+                "VLLM_LOD_GQA_MAX_SLOT_LEAVES", 0
+            ),
         )
         if settings.kv_bits not in (0, 4):
             raise ValueError("VLLM_LOD_KV_BITS must be zero or four")
@@ -117,6 +182,25 @@ class VLLMLODSettings:
         if settings.prefill_coarse_max_grouped_rows <= 0:
             raise ValueError(
                 "VLLM_LOD_PREFILL_COARSE_GROUPED_ROWS must be positive"
+            )
+        if settings.decode_state_update_len <= 0:
+            raise ValueError("VLLM_LOD_DECODE_STATE_UPDATE_LEN must be positive")
+        if settings.gqa_union_group_size < 0:
+            raise ValueError("VLLM_LOD_GQA_UNION_GROUP_SIZE must be nonnegative")
+        if settings.gqa_union_max_slot_leaves < 0:
+            raise ValueError("VLLM_LOD_GQA_MAX_SLOT_LEAVES must be nonnegative")
+        if (
+            settings.gqa_union_own_route_correction
+            and not settings.gqa_union_fused_correction
+        ):
+            raise ValueError(
+                "VLLM_LOD_GQA_UNION_OWN_ROUTE_CORRECTION requires "
+                "VLLM_LOD_GQA_UNION_FUSED_CORRECTION=1"
+            )
+        if settings.gqa_union_aiter and settings.kv_bits != 0:
+            raise ValueError(
+                "VLLM_LOD_GQA_UNION_AITER currently requires "
+                "VLLM_LOD_KV_BITS=0"
             )
         if settings.cache_ownership == "lod" and settings.prefill_mode != "direct":
             settings = replace(settings, prefill_mode="direct")

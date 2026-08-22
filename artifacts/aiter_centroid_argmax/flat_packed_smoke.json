@@ -1,0 +1,30 @@
+{
+  "device": "AMD Instinct MI325X",
+  "query_heads": 8,
+  "kv_heads": 2,
+  "head_dim": 256,
+  "state_multiplier": 16.0,
+  "leaf_distribution": "balanced",
+  "zipf_exponent": 0.7,
+  "shuffle_counts": false,
+  "block_k": 128,
+  "block_n": 32,
+  "centroids_per_block": 8,
+  "results": [
+    {
+      "batch": 1,
+      "context": 8192,
+      "centroids": 1449,
+      "mean_leaves_per_centroid": 5.653554175293306,
+      "max_leaves_per_centroid": 6,
+      "winner_table_kib": 45.28125,
+      "score_workspace_mib": 0.25,
+      "qk_ms": 0.01763180047273636,
+      "reduce_ms": 0.019139699637889862,
+      "sum_of_passes_ms": 0.03677150011062622,
+      "argmax_ms": 0.03631550073623657,
+      "aiter_full_ms": 0.05404729843139648,
+      "argmax_over_aiter": 0.6719207396153704
+    }
+  ]
+}

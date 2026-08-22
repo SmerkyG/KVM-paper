@@ -8,9 +8,23 @@ from typing import Any
 import torch
 
 from model.kernels.paged_leaf_attention import (
+    append_decode_local_kv,
     fused_decode_paged_lod_attention,
+    masked_decode_coarse_local_attention,
     new_fused_decode_buffers,
+    persistent_decode_route_coarse_gqa,
+    prepare_decode_state_summaries,
     rehash_overflow_pages,
+)
+from model.kernels.gqa_union_leaf_attention import (
+    gqa_union_aiter_attention,
+    gqa_union_indexed_attention,
+    new_gqa_union_aiter_buffers,
+)
+from model.kernels.lod_kernels import (
+    merge_attention_branches_with_aiter_stats,
+    merge_attention_branches_with_sink,
+    remove_state_slots_from_attention,
 )
 from model.pytorch_lod_attention_paged import PagedLODConfig
 from model.triton_lod_engines import (
@@ -106,7 +120,13 @@ class VLLMLayerLODPool:
             scale=float(layer.impl.scale),
             default_open_count=settings.open_count,
         )
-        self.engine.prefill_local_attention_backend = settings.prefill_local_backend
+        self.engine.decode_state_update_len = settings.decode_state_update_len
+        # AITER's varlen local-attention kernel does not accept Gemma-4's
+        # 512-wide global heads.  The Torch path is already the supported
+        # fallback for geometries outside AITER's kernel table.
+        self.engine.prefill_local_attention_backend = (
+            "torch" if self.head_dim > 256 else settings.prefill_local_backend
+        )
         self.engine.fused_prefill_route_coarse = (
             settings.fused_prefill_route_coarse
         )
@@ -136,6 +156,42 @@ class VLLMLayerLODPool:
         # matches the standalone kernel architecture and folds the side cache
         # into the existing final decode reduction.
         self.engine.separate_sink_cache = True
+        self.engine.gqa_union_aiter_attention = settings.gqa_union_aiter
+        self.engine.gqa_union_aiter_include_local = settings.gqa_union_aiter
+        self.engine.gqa_union_route_then_coarse = (
+            settings.gqa_union_route_then_coarse
+        )
+        physical_group_size = self.query_heads // self.kv_heads
+        union_group_size = settings.gqa_union_group_size or physical_group_size
+        if (
+            not settings.gqa_union_group_size
+            and self.head_dim > 256
+            and physical_group_size % 4 == 0
+        ):
+            # Keep the wide-head indexed kernel's logical group small enough
+            # to retain useful occupancy. Narrow AITER geometries continue to
+            # share the complete physical GQA group by default.
+            union_group_size = 4
+        if physical_group_size % union_group_size:
+            raise ValueError(
+                "VLLM_LOD_GQA_UNION_GROUP_SIZE must divide the physical GQA group"
+            )
+        self.engine.gqa_union_persistent_route = (
+            settings.gqa_union_persistent_route
+        )
+        self.engine.gqa_union_fused_correction = (
+            settings.gqa_union_fused_correction
+        )
+        self.engine.gqa_union_own_route_correction = (
+            settings.gqa_union_own_route_correction
+        )
+        self.engine.gqa_union_stage1_reduce = (
+            settings.gqa_union_stage1_reduce
+        )
+        self.engine.gqa_union_group_size = union_group_size
+        self.engine.gqa_union_max_slot_leaves = (
+            settings.gqa_union_max_slot_leaves
+        )
         self.state_capacity = self.engine._state_capacity(
             request_capacity, min(request_capacity, settings.chunk_size)
         )
@@ -157,10 +213,14 @@ class VLLMLayerLODPool:
         self.local_lens = torch.zeros(
             max_requests, dtype=torch.int32, device=self.device
         )
+        self.local_leaf_starts = torch.zeros(
+            max_requests, dtype=torch.int32, device=self.device
+        )
         self.ready = [False] * max_requests
         self.clean = [True] * max_requests
         self.metadata = [dict[str, int | bool]() for _ in range(max_requests)]
         self.decode_buffers: dict[int, dict[str, torch.Tensor]] = {}
+        self.gqa_union_buffers: dict[int, dict[str, torch.Tensor]] = {}
         self.decode_enabled = False
         self.direct_prefill_plan: tuple[tuple[int, int, int, int], ...] | None = None
         self.native_append_plan: tuple[tuple[int, int, int, int], ...] | None = None
@@ -206,6 +266,12 @@ class VLLMLayerLODPool:
             "recent_len": 0,
             "total_len": 0,
         }
+        if self.settings.gqa_union_aiter:
+            state.update(
+                decode_state_k=torch.empty_like(state["state_k"]),
+                decode_state_v=torch.empty_like(state["state_v"]),
+                decode_log_counts=torch.empty_like(state["counts"]),
+            )
         if self.settings.protected_prefix:
             state["sink_k"] = torch.empty(
                 r,
@@ -268,6 +334,26 @@ class VLLMLayerLODPool:
                 r, h, self.page_capacity, dtype=torch.int32, device=self.device
             ),
         }
+        if self.settings.gqa_union_aiter:
+            page.update(
+                slot_offsets=torch.zeros(
+                    r, h, s + 1, dtype=torch.int32, device=self.device
+                ),
+                packed_leaf_indices=torch.empty(
+                    r,
+                    h,
+                    self.leaf_capacity,
+                    dtype=torch.int32,
+                    device=self.device,
+                ),
+                packed_leaf_slots=torch.empty(
+                    r,
+                    h,
+                    self.leaf_capacity,
+                    dtype=torch.int32,
+                    device=self.device,
+                ),
+            )
         groups = d // self.settings.quant_group_size
         if self.settings.kv_bits == 4:
             page.update(
@@ -400,6 +486,7 @@ class VLLMLayerLODPool:
         self.clean[slot] = True
         self.metadata[slot].clear()
         self.local_lens[slot].zero_()
+        self.local_leaf_starts[slot].zero_()
         self.state["counts"][slot].zero_()
         if "sink_k" in self.state:
             self.state["sink_k"][slot].zero_()
@@ -412,6 +499,8 @@ class VLLMLayerLODPool:
         page["next_page"][slot].zero_()
         page["page_indices"][slot].fill_(-1)
         page["page_counts"][slot].zero_()
+        if "slot_offsets" in page:
+            page["slot_offsets"][slot].zero_()
         page["overflow_page_keys"][slot].fill_(-1)
         page["overflow_page_values"][slot].fill_(-1)
         if "page_quantized_counts" in page:
@@ -426,6 +515,7 @@ class VLLMLayerLODPool:
             self.clean[slot] = True
             self.metadata[slot].clear()
         self.local_lens[start:stop].zero_()
+        self.local_leaf_starts[start:stop].zero_()
         self.state["counts"][start:stop].zero_()
         if "sink_k" in self.state:
             self.state["sink_k"][start:stop].zero_()
@@ -438,6 +528,8 @@ class VLLMLayerLODPool:
         page["next_page"][start:stop].zero_()
         page["page_indices"][start:stop].fill_(-1)
         page["page_counts"][start:stop].zero_()
+        if "slot_offsets" in page:
+            page["slot_offsets"][start:stop].zero_()
         page["overflow_page_keys"][start:stop].fill_(-1)
         page["overflow_page_values"][start:stop].fill_(-1)
         if "page_quantized_counts" in page:
@@ -479,6 +571,42 @@ class VLLMLayerLODPool:
             return
         slices = tuple(slice(0, min(a, b)) for a, b in zip(target.shape, source.shape))
         target[slices].copy_(source[slices])
+
+    def _stage_local_archive(self, slots: tuple[int, ...]) -> None:
+        """Mirror each exact recent tail after its compressed leaf archive."""
+        if not self.settings.gqa_union_aiter:
+            return
+        page = self.state["page_cache"]
+        leaf_k = page.get("leaf_k")
+        leaf_v = page.get("leaf_v")
+        if not isinstance(leaf_k, torch.Tensor) or not isinstance(
+            leaf_v, torch.Tensor
+        ):
+            raise RuntimeError("AITER GQA local staging requires BF16 leaf storage")
+        row_indices = torch.tensor(slots, dtype=torch.int64, device=self.device)
+        prepare_decode_state_summaries(
+            self.state["state_k"],
+            self.state["state_v"],
+            self.state["counts"],
+            row_indices,
+            self.state["decode_state_k"],
+            self.state["decode_state_v"],
+            self.state["decode_log_counts"],
+            state_len=self.state_capacity,
+        )
+        for slot in slots:
+            begin = int(self.metadata[slot]["leaf_count"])
+            length = int(self.metadata[slot]["recent_len"])
+            if begin + length > int(leaf_k.size(2)):
+                raise RuntimeError("AITER GQA local staging exceeds the leaf archive")
+            self.local_leaf_starts[slot].fill_(begin)
+            if length:
+                leaf_k[slot, :, begin : begin + length].copy_(
+                    self.state["recent_k"][slot, :, :length]
+                )
+                leaf_v[slot, :, begin : begin + length].copy_(
+                    self.state["recent_v"][slot, :, :length]
+                )
 
     @staticmethod
     def _copy_range(
@@ -617,6 +745,7 @@ class VLLMLayerLODPool:
             self.ready[slot] = True
             self.clean[slot] = False
             self.install_count += 1
+        self._stage_local_archive(slots)
 
     def install(
         self, slot: int, converted: KernelLODCache, *, source_slot: int = 0
@@ -697,6 +826,7 @@ class VLLMLayerLODPool:
         self.ready[slot] = True
         self.clean[slot] = False
         self.install_count += 1
+        self._stage_local_archive((slot,))
 
     def _synchronize_row(self, slot: int, cache: KernelLODCache) -> None:
         """Persist metadata and any reallocated tensors after cached prefill."""
@@ -756,6 +886,7 @@ class VLLMLayerLODPool:
                 overflow_safe_until=int(source_page["overflow_safe_until"]),
             )
             self.ready[slot] = True
+        self._stage_local_archive(slots)
 
     def _direct_cached_prefill_group(
         self,
@@ -1162,6 +1293,7 @@ class VLLMLayerLODPool:
             overflow_safe_until=int(page["overflow_safe_until"]),
         )
         self.local_lens[slot].fill_(int(row.state["recent_len"]))
+        self._stage_local_archive((slot,))
 
     def catch_up_many(self, requests: list[tuple[int, int]]) -> None:
         """Batch equal-metadata contiguous rows at a state-update boundary."""
@@ -1219,6 +1351,7 @@ class VLLMLayerLODPool:
                 self.local_lens[start_slot:stop_slot].fill_(
                     int(row.state["recent_len"])
                 )
+                self._stage_local_archive(tuple(range(start_slot, stop_slot)))
                 begin = end
 
     def _buffers(self, query: torch.Tensor, rows: int) -> dict[str, torch.Tensor]:
@@ -1231,6 +1364,28 @@ class VLLMLayerLODPool:
                 route_group_size=int(self.engine.decode_route_group_size),
             )
             self.decode_buffers[rows] = buffers
+        return buffers
+
+    def _gqa_buffers(
+        self, query: torch.Tensor, rows: int
+    ) -> dict[str, torch.Tensor]:
+        union_group_size = int(self.engine.gqa_union_group_size)
+        logical_groups = self.query_heads // union_group_size
+        buffers = self.gqa_union_buffers.get(rows)
+        expected = (rows, logical_groups, self.leaf_capacity)
+        if (
+            buffers is None
+            or tuple(buffers["leaf_indices"].shape) != expected
+            or buffers["leaf_indices"].device != query.device
+        ):
+            buffers = new_gqa_union_aiter_buffers(
+                query,
+                kv_heads=self.kv_heads,
+                leaf_capacity=self.leaf_capacity,
+                route_count=8,
+                union_group_size=union_group_size,
+            )
+            self.gqa_union_buffers[rows] = buffers
         return buffers
 
     def reserve_decode_buffers(self, rows: int) -> None:
@@ -1246,6 +1401,371 @@ class VLLMLayerLODPool:
             device=self.device,
         )
         self._buffers(query, rows)
+        if self.settings.gqa_union_aiter:
+            self._gqa_buffers(query, rows)
+
+    def _decode_gqa_union_aiter(
+        self,
+        q: torch.Tensor,
+        k: torch.Tensor,
+        v: torch.Tensor,
+        output: torch.Tensor,
+        rows: int,
+    ) -> torch.Tensor:
+        page = self.state["page_cache"]
+        timing_events = getattr(self.engine, "_lod_decode_timing_events", None)
+        required_page = (
+            "leaf_k",
+            "leaf_v",
+            "slot_pages",
+            "overflow_page_keys",
+            "overflow_page_values",
+            "overflow_used",
+            "slot_lengths",
+            "slot_offsets",
+            "packed_leaf_indices",
+        )
+        if any(not isinstance(page.get(name), torch.Tensor) for name in required_page):
+            raise RuntimeError("GQA-union decode metadata is incomplete")
+        cache_indices = self.active_indices[:rows]
+        route_then_coarse = bool(self.engine.gqa_union_route_then_coarse)
+        persistent_route = bool(self.engine.gqa_union_persistent_route)
+        fused_correction = bool(self.engine.gqa_union_fused_correction)
+        own_route_correction = bool(
+            self.engine.gqa_union_own_route_correction
+        )
+        stage1_reduce = bool(self.engine.gqa_union_stage1_reduce)
+        if persistent_route and route_then_coarse:
+            raise ValueError(
+                "persistent GQA routing and route-then-coarse are mutually exclusive"
+            )
+        if fused_correction and (persistent_route or route_then_coarse):
+            raise ValueError(
+                "fused GQA correction requires the ordinary route/coarse path"
+            )
+        physical_group_size = self.query_heads // self.kv_heads
+        union_group_size = int(self.engine.gqa_union_group_size)
+        if union_group_size <= 0 or physical_group_size % union_group_size:
+            raise ValueError(
+                "GQA union groups must evenly partition each physical KV group"
+            )
+        use_triton_exact = self.head_dim > 256
+        # The semantic leaf archive reserves the exact recent tail immediately
+        # after its compressed leaves. Append the current row before attention
+        # so one AITER call covers both the routed remote union and BSWA.
+        # Narrow AITER geometries fuse this write into union metadata and the
+        # length increment into the final reducer. Wide Triton exact attention
+        # retains the standalone append because its fused metadata kernel has
+        # a different parallel decomposition.
+        if use_triton_exact:
+            append_decode_local_kv(
+                cache_indices,
+                self.local_lens,
+                self.state["recent_k"],
+                self.state["recent_v"],
+                k,
+                v,
+                archive_k=page["leaf_k"],
+                archive_v=page["leaf_v"],
+                archive_begins=self.local_leaf_starts,
+            )
+        if persistent_route:
+            top_slots, top_scores, coarse_output, coarse_lse = (
+                persistent_decode_route_coarse_gqa(
+                    q,
+                    self.state["decode_state_k"],
+                    self.state["decode_state_v"],
+                    self.state["decode_log_counts"],
+                    state_len=self.state_capacity,
+                    kv_group_size=physical_group_size,
+                    route_group_size=union_group_size,
+                    scale=float(self.engine.scaling),
+                    buffers=self._buffers(q, rows),
+                    cache_indices=cache_indices,
+                    protected_len=self.engine._protected_state_len(
+                        self.state_capacity
+                    ),
+                    num_warps=int(self.engine.decode_route_num_warps),
+                    waves_per_eu=int(self.engine.leaf_waves_per_eu),
+                    state_is_normalized=True,
+                    timing_events=timing_events,
+                )
+            )
+        else:
+            (
+                top_slots,
+                top_scores,
+                coarse_output,
+                coarse_lse,
+                _,
+                _,
+            ) = fused_decode_paged_lod_attention(
+                q,
+                self.state["decode_state_k"],
+                self.state["decode_state_v"],
+                self.state["decode_log_counts"],
+                self.state["recent_k"],
+                self.state["recent_v"],
+                page["leaf_k"],
+                page["leaf_v"],
+                page["slot_pages"],
+                page["overflow_page_keys"],
+                page["overflow_page_values"],
+                page["overflow_used"],
+                page["slot_lengths"],
+                None,
+                state_len=self.state_capacity,
+                local_len=int(self.engine.local_len),
+                cache_indices=cache_indices,
+                local_lens=self.local_lens,
+                new_k=None,
+                new_v=None,
+                kv_group_size=physical_group_size,
+                scale=float(self.engine.scaling),
+                split_kv=int(self.engine.decode_split_kv),
+                buffers=self._buffers(q, rows),
+                fuse_state_route=True,
+                route_group_size=int(self.engine.decode_route_group_size),
+                route_num_warps=int(self.engine.decode_route_num_warps),
+                route_reduce_num_warps=int(
+                    self.engine.decode_route_reduce_num_warps
+                ),
+                route_use_dot=bool(self.engine.decode_route_use_dot),
+                route_gqa_grouped=bool(self.engine.decode_route_gqa_grouped),
+                protected_len=self.engine._protected_state_len(
+                    self.state_capacity
+                ),
+                recursive_page_cache=page,
+                route_coarse_only=True,
+                route_coarse_compute_local=False,
+                route_only_scan=route_then_coarse,
+                state_is_normalized=True,
+                timing_events=timing_events,
+            )
+        if use_triton_exact:
+            if fused_correction:
+                raise ValueError(
+                    "wide-head Triton exact attention requires separate coarse correction"
+                )
+            (
+                exact_output,
+                exact_lse,
+                union_top_slots,
+                exact_buffers,
+            ) = gqa_union_indexed_attention(
+                q,
+                page["leaf_k"],
+                page["leaf_v"],
+                top_slots,
+                page["slot_offsets"],
+                page["packed_leaf_indices"],
+                kv_group_size=physical_group_size,
+                union_group_size=union_group_size,
+                scale=float(self.engine.scaling),
+                cache_indices=cache_indices,
+                buffers=self._gqa_buffers(q, rows),
+                local_begins=self.local_leaf_starts,
+                local_lens=self.local_lens,
+                local_capacity=self.local_capacity,
+                max_slot_leaves=int(
+                    getattr(self.engine, "gqa_union_max_slot_leaves", 0)
+                ),
+                # Wide Gemma heads are register-limited at the narrow leaf
+                # tile used by the generic fallback.  A full 128-key tile
+                # with eight warps is both exact and substantially faster on
+                # MI325X for the routed-union sizes seen during decode.
+                block_n=128,
+                num_warps=8,
+                waves_per_eu=int(self.engine.leaf_waves_per_eu),
+                timing_events=timing_events,
+            )
+        else:
+            (
+                exact_output,
+                exact_exp_sums,
+                exact_max_logits,
+                exact_lengths,
+                union_top_slots,
+                exact_buffers,
+            ) = gqa_union_aiter_attention(
+                q,
+                page["leaf_k"],
+                page["leaf_v"],
+                top_slots,
+                page["slot_offsets"],
+                page["packed_leaf_indices"],
+                kv_group_size=physical_group_size,
+                union_group_size=union_group_size,
+                scale=float(self.engine.scaling),
+                cache_indices=cache_indices,
+                buffers=self._gqa_buffers(q, rows),
+                local_begins=self.local_leaf_starts,
+                local_lens=self.local_lens,
+                local_capacity=self.local_capacity,
+                new_k=k,
+                new_v=v,
+                local_k=self.state["recent_k"],
+                local_v=self.state["recent_v"],
+                archive_begins=self.local_leaf_starts,
+                max_slot_leaves=int(
+                    getattr(self.engine, "gqa_union_max_slot_leaves", 0)
+                ),
+                waves_per_eu=int(self.engine.leaf_waves_per_eu),
+                stage1_only=stage1_reduce,
+                timing_events=timing_events,
+            )
+        if persistent_route:
+            pass
+        elif route_then_coarse:
+            coarse_output, coarse_lse, _, _ = (
+                masked_decode_coarse_local_attention(
+                    q,
+                    self.state["state_k"],
+                    self.state["state_v"],
+                    self.state["counts"],
+                    self.state["recent_k"],
+                    self.state["recent_v"],
+                    union_top_slots,
+                    state_len=self.state_capacity,
+                    local_len=int(self.engine.local_len),
+                    kv_group_size=physical_group_size,
+                    scale=float(self.engine.scaling),
+                    buffers=self._buffers(q, rows),
+                    cache_indices=cache_indices,
+                    group_size=int(self.engine.decode_route_group_size),
+                    num_warps=int(self.engine.decode_route_num_warps),
+                    reduce_num_warps=int(
+                        self.engine.decode_route_reduce_num_warps
+                    ),
+                    waves_per_eu=int(self.engine.leaf_waves_per_eu),
+                    timing_events=timing_events,
+                    compute_local=False,
+                    reduce_groups=False,
+                )
+            )
+        elif not fused_correction:
+            correction_begin = None
+            if timing_events is not None:
+                correction_begin = torch.cuda.Event(enable_timing=True)
+                correction_begin.record()
+            coarse_output, coarse_lse = remove_state_slots_from_attention(
+                q,
+                self.state["decode_state_k"],
+                self.state["decode_state_v"],
+                self.state["decode_log_counts"],
+                union_top_slots,
+                coarse_output,
+                coarse_lse,
+                kv_group_size=physical_group_size,
+                route_group_size=union_group_size,
+                scale=float(self.engine.scaling),
+                cache_indices=cache_indices,
+                # A single GQA-wide d=512 correction kernel has extreme
+                # compile time and register pressure on Gemma-4. The
+                # query-major form computes the identical per-head update.
+                gqa_aware=self.head_dim <= 256,
+                state_is_normalized=True,
+            )
+            if timing_events is not None:
+                correction_end = torch.cuda.Event(enable_timing=True)
+                correction_end.record()
+                timing_events.setdefault("gqa_union_correction", []).append(
+                    (correction_begin, correction_end)
+                )
+        sink_k = self.state.get("sink_k")
+        sink_v = self.state.get("sink_v")
+        if not isinstance(sink_k, torch.Tensor) or not isinstance(
+            sink_v, torch.Tensor
+        ):
+            raise RuntimeError("GQA-union decode requires the separate sink cache")
+        final_begin = None
+        if timing_events is not None:
+            final_begin = torch.cuda.Event(enable_timing=True)
+            final_begin.record()
+        decode_buffers = self._buffers(q, rows)
+        if use_triton_exact:
+            result = merge_attention_branches_with_sink(
+                q,
+                sink_k,
+                sink_v,
+                coarse_output,
+                coarse_lse,
+                exact_output,
+                exact_lse,
+                kv_group_size=physical_group_size,
+                scale=float(self.engine.scaling),
+                output_buffer=output[:rows].unsqueeze(2),
+                num_warps=1,
+                cache_indices=cache_indices,
+            )
+        else:
+            result = merge_attention_branches_with_aiter_stats(
+                q,
+                coarse_output,
+                coarse_lse,
+                exact_output,
+                exact_exp_sums,
+                exact_max_logits,
+                exact_lengths,
+                exact_partial_out=(
+                    exact_buffers["partial_output"] if stage1_reduce else None
+                ),
+                kv_group_size=physical_group_size,
+                exact_group_size=union_group_size,
+                scale=float(self.engine.scaling),
+                sink_k=sink_k,
+                sink_v=sink_v,
+                state_k=(
+                    self.state["decode_state_k"] if fused_correction else None
+                ),
+                state_v=(
+                    self.state["decode_state_v"] if fused_correction else None
+                ),
+                counts=(
+                    self.state["decode_log_counts"]
+                    if fused_correction
+                    else None
+                ),
+                union_top_slots=(
+                    top_slots
+                    if fused_correction and own_route_correction
+                    else union_top_slots if fused_correction else None
+                ),
+                union_top_scores=(
+                    top_scores
+                    if fused_correction and own_route_correction
+                    else None
+                ),
+                primary_group_out=(
+                    decode_buffers["route_group_out"] if route_then_coarse else None
+                ),
+                primary_group_lse=(
+                    decode_buffers["route_group_lse"] if route_then_coarse else None
+                ),
+                active_primary_groups=(
+                    math.ceil(
+                        self.state_capacity
+                        / int(self.engine.decode_route_group_size)
+                    )
+                    if route_then_coarse
+                    else 0
+                ),
+                output_buffer=output[:rows].unsqueeze(2),
+                num_warps=1,
+                cache_indices=cache_indices,
+                local_lens=self.local_lens,
+                advance_local=True,
+                state_is_normalized=fused_correction,
+            )
+        if timing_events is not None:
+            final_end = torch.cuda.Event(enable_timing=True)
+            final_end.record()
+            timing_events.setdefault("gqa_union_final", []).append(
+                (final_begin, final_end)
+            )
+        if result.data_ptr() != output.data_ptr():
+            raise AssertionError("GQA-union decode did not use the vLLM output buffer")
+        return output
 
     def decode(
         self,
@@ -1262,6 +1782,8 @@ class VLLMLayerLODPool:
         q = query[:rows].unsqueeze(2)
         k = key[:rows].unsqueeze(2)
         v = value[:rows].unsqueeze(2)
+        if self.settings.gqa_union_aiter:
+            return self._decode_gqa_union_aiter(q, k, v, output, rows)
         page = self.state["page_cache"]
         result = fused_decode_paged_lod_attention(
             q,

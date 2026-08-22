@@ -1,0 +1,65 @@
+{"device": "AMD Instinct MI325X", "torch": "2.11.0+gitd0c8b1f", "batch": 8, "kv_heads": 2, "group_size": 16, "head_dim": 128}
+{"aiter_ms": 0.051034917831420896, "context": 16384, "lse_max_abs": 9.5367431640625e-07, "max_context": 131072, "output_max_abs": 0.00016206130385398865, "output_mean_abs": 2.9222912417026237e-05, "partitions": 512, "pytorch_lse_ms": 0.07661299228668213, "query_heads": 256, "sequences": 16, "triton_ms": 0.64451904296875, "triton_over_aiter": 12.628981692450889}
+{"aiter_ms": 0.07446381092071533, "context": 32768, "lse_max_abs": 1.9073486328125e-06, "max_context": 131072, "output_max_abs": 0.00011887960135936737, "output_mean_abs": 2.0463809050852433e-05, "partitions": 512, "pytorch_lse_ms": 0.07878855228424073, "query_heads": 256, "sequences": 16, "triton_ms": 1.3127613830566407, "triton_over_aiter": 17.629521868742273}
+{"aiter_ms": 0.16222944259643554, "context": 65536, "lse_max_abs": 9.5367431640625e-07, "max_context": 131072, "output_max_abs": 7.389858365058899e-05, "output_mean_abs": 1.4398526218428742e-05, "partitions": 512, "pytorch_lse_ms": 0.08068532943725586, "query_heads": 256, "sequences": 16, "triton_ms": 2.833489990234375, "triton_over_aiter": 17.465941723556362}
+{"aiter_ms": 0.28972936630249024, "context": 131072, "lse_max_abs": 1.9073486328125e-06, "max_context": 131072, "output_max_abs": 4.8862770199775696e-05, "output_mean_abs": 1.0084759196615778e-05, "partitions": 512, "pytorch_lse_ms": 0.08208810806274414, "query_heads": 256, "sequences": 16, "triton_ms": 5.665789794921875, "triton_over_aiter": 19.555455724866153}
+{
+  "results": [
+    {
+      "context": 16384,
+      "max_context": 131072,
+      "sequences": 16,
+      "query_heads": 256,
+      "partitions": 512,
+      "aiter_ms": 0.051034917831420896,
+      "triton_ms": 0.64451904296875,
+      "triton_over_aiter": 12.628981692450889,
+      "pytorch_lse_ms": 0.07661299228668213,
+      "output_max_abs": 0.00016206130385398865,
+      "output_mean_abs": 2.9222912417026237e-05,
+      "lse_max_abs": 9.5367431640625e-07
+    },
+    {
+      "context": 32768,
+      "max_context": 131072,
+      "sequences": 16,
+      "query_heads": 256,
+      "partitions": 512,
+      "aiter_ms": 0.07446381092071533,
+      "triton_ms": 1.3127613830566407,
+      "triton_over_aiter": 17.629521868742273,
+      "pytorch_lse_ms": 0.07878855228424073,
+      "output_max_abs": 0.00011887960135936737,
+      "output_mean_abs": 2.0463809050852433e-05,
+      "lse_max_abs": 1.9073486328125e-06
+    },
+    {
+      "context": 65536,
+      "max_context": 131072,
+      "sequences": 16,
+      "query_heads": 256,
+      "partitions": 512,
+      "aiter_ms": 0.16222944259643554,
+      "triton_ms": 2.833489990234375,
+      "triton_over_aiter": 17.465941723556362,
+      "pytorch_lse_ms": 0.08068532943725586,
+      "output_max_abs": 7.389858365058899e-05,
+      "output_mean_abs": 1.4398526218428742e-05,
+      "lse_max_abs": 9.5367431640625e-07
+    },
+    {
+      "context": 131072,
+      "max_context": 131072,
+      "sequences": 16,
+      "query_heads": 256,
+      "partitions": 512,
+      "aiter_ms": 0.28972936630249024,
+      "triton_ms": 5.665789794921875,
+      "triton_over_aiter": 19.555455724866153,
+      "pytorch_lse_ms": 0.08208810806274414,
+      "output_max_abs": 4.8862770199775696e-05,
+      "output_mean_abs": 1.0084759196615778e-05,
+      "lse_max_abs": 1.9073486328125e-06
+    }
+  ]
+}

@@ -1,0 +1,151 @@
+{
+  "attention_backend": null,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 113598529536,
+    "device_used_bytes_before_reclaim": 116878475264,
+    "lod_cache_bytes": 12726440544,
+    "lod_decode_scratch_bytes": 2970062784,
+    "native_cache_bytes": 0,
+    "torch_allocated_bytes": 105495612928,
+    "torch_reclaimable_cached_bytes": 3279945728,
+    "torch_reserved_bytes_after_reclaim": 106910711808,
+    "torch_reserved_bytes_before_reclaim": 110190657536
+  },
+  "batch_size": 8,
+  "checkpoint": "meta-models/Muse-Glimmer-30B",
+  "decode_interval_tokens": 256,
+  "decode_timings_seconds": [
+    15.693835774436593
+  ],
+  "decode_tokens": 257,
+  "enforce_eager": true,
+  "jit_monitor_verbose": false,
+  "length": 16384,
+  "lengths": [
+    16384,
+    16384,
+    16384,
+    16384,
+    16384,
+    16384,
+    16384,
+    16384
+  ],
+  "lod_decode_block_n": null,
+  "lod_decode_final_reduce_num_warps": null,
+  "lod_decode_num_warps": null,
+  "lod_decode_route_group_size": null,
+  "lod_decode_route_num_warps": null,
+  "lod_decode_route_reduce_num_warps": null,
+  "lod_decode_use_dot": null,
+  "lod_diagnostics": {
+    "batched_cached_prefill_rows": 0,
+    "batched_cached_prefills": 0,
+    "batched_install_calls": 884,
+    "cached_prefill_candidate_calls": 832,
+    "cached_prefill_candidate_rows": 3744,
+    "cached_prefill_noncontiguous": 624,
+    "cached_prefill_nonpacked_calls": 0,
+    "cached_prefill_nonuniform_lengths": 624,
+    "cached_prefill_nonuniform_previous": 728,
+    "cached_prefill_packed_calls": 3744,
+    "cached_prefill_unready": 0,
+    "catch_up_batches": 208,
+    "catch_up_rows": 260,
+    "decode_calls": 26780,
+    "direct_prefills": 988,
+    "gqa_union_leaves": 9316645,
+    "gqa_union_max_leaves": 8838,
+    "gqa_union_regions": 193269,
+    "gqa_union_sequences": 3744,
+    "installs": 1248,
+    "layers": 52
+  },
+  "lod_direct_prefill_route": false,
+  "lod_gqa_union_aiter": true,
+  "lod_leaf_num_warps": null,
+  "lod_phase_profile": {
+    "coarse": {
+      "calls": 3536,
+      "milliseconds": 7677.811483934522
+    },
+    "exact_leaf": {
+      "calls": 1976,
+      "milliseconds": 2779.43057589978
+    },
+    "gqa_union_branch_merge": {
+      "calls": 1560,
+      "milliseconds": 9.756624043919146
+    },
+    "gqa_union_exact": {
+      "calls": 14872,
+      "milliseconds": 986.4852446848527
+    },
+    "gqa_union_lse": {
+      "calls": 1560,
+      "milliseconds": 9.644406048115343
+    },
+    "gqa_union_merge": {
+      "calls": 1560,
+      "milliseconds": 43.383442018181086
+    },
+    "gqa_union_pack": {
+      "calls": 14872,
+      "milliseconds": 687.327847443521
+    },
+    "local": {
+      "calls": 1976,
+      "milliseconds": 656.4561738073826
+    },
+    "page_append": {
+      "calls": 5876,
+      "milliseconds": 2385.5611497163773
+    },
+    "route": {
+      "calls": 3536,
+      "milliseconds": 1864.4599597677588
+    },
+    "route_groups": {
+      "calls": 13312,
+      "milliseconds": 791.8474273094907
+    },
+    "route_local": {
+      "calls": 13312,
+      "milliseconds": 536.1778209786862
+    },
+    "route_reduce": {
+      "calls": 13312,
+      "milliseconds": 456.45084096863866
+    },
+    "state_update": {
+      "calls": 5460,
+      "milliseconds": 3618.9955520033836
+    },
+    "two_level": {
+      "calls": 3536,
+      "milliseconds": 12874.684818178415
+    }
+  },
+  "lod_prefill_chunk_len": null,
+  "lod_prefill_state_update_len": null,
+  "lod_recursive_page_block_n": null,
+  "long_prefill_token_threshold": 0,
+  "marginal_decode_ms_per_batch_step": 61.30404599389294,
+  "marginal_decode_ms_per_token": 7.663005749236618,
+  "marginal_decode_tokens_per_second": 130.4970964036689,
+  "max_num_batched_tokens": 16384,
+  "mode": "lod",
+  "num_gpu_blocks_override": null,
+  "prefill_plus_decode_seconds": 49.19359044730663,
+  "prefill_prompt_tokens_per_second": 3913.0120225145456,
+  "prefill_seconds": 33.496447045356035,
+  "prefill_timings_seconds": [
+    33.496447045356035
+  ],
+  "prompt_tokens": 131072,
+  "repeats": 1,
+  "torch_profile_dir": null,
+  "total_timings_seconds": [
+    49.19359044730663
+  ]
+}

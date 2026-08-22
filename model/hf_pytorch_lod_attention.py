@@ -36,6 +36,10 @@ from .pytorch_lod_attention_paged import (
     PagedLODConfig,
     PagedTwoLevelLODAttention,
 )
+from .slabbed_lod_attention import (
+    SlabbedLODConfig,
+    SlabbedTwoLevelLODAttention,
+)
 from .triton_lod_engines import (
     KernelCoarseLODAttention,
     KernelLODCache,
@@ -48,7 +52,7 @@ from .triton_lod_engines import (
 class HFLODSettings:
     """Configuration installed on each compatible HF attention module."""
 
-    config: LODConfig | PagedLODConfig
+    config: LODConfig | PagedLODConfig | SlabbedLODConfig
     open_count: int
     engine_backend: str
     backend_name: str
@@ -57,6 +61,13 @@ class HFLODSettings:
     def __post_init__(self) -> None:
         if self.engine_backend not in ("torch", "kernel"):
             raise ValueError("engine_backend must be 'torch' or 'kernel'")
+        if (
+            isinstance(self.config, SlabbedLODConfig)
+            and self.engine_backend != "torch"
+        ):
+            raise ValueError(
+                "slabbed LOD is currently available only in the torch backend"
+            )
         if self.left_padding_mode not in ("exact", "chunk_aligned"):
             raise ValueError(
                 "left_padding_mode must be 'exact' or 'chunk_aligned'"
@@ -138,7 +149,11 @@ def _build_engine(
         return engine
 
     if settings.engine_backend == "torch":
-        if settings.open_count == 0:
+        if isinstance(config, SlabbedLODConfig):
+            engine = SlabbedTwoLevelLODAttention(
+                config, default_open_count=settings.open_count
+            )
+        elif settings.open_count == 0:
             engine = FastCoarseLODAttention(config)
         elif isinstance(config, PagedLODConfig):
             engine = PagedTwoLevelLODAttention(
@@ -896,7 +911,7 @@ def _compatible_attention_modules(model: nn.Module):
 def install_hf_lod_attention(
     model: nn.Module,
     *,
-    config: LODConfig | PagedLODConfig | None = None,
+    config: LODConfig | PagedLODConfig | SlabbedLODConfig | None = None,
     open_count: int = 8,
     leaf_dtype: torch.dtype | None = None,
     engine_backend: str = "torch",

@@ -6,12 +6,62 @@ from __future__ import annotations
 import argparse
 import functools
 import json
+import os
 import statistics
 import time
 from pathlib import Path
 from typing import Any
 
 from transformers import AutoTokenizer
+
+
+def muse_native_text_config(config):
+    """Select the native vLLM adapter for Muse-Glimmer's text tower."""
+    text_config = getattr(config, "text_config", config)
+    text_config.architectures = ["MuseGlimmerForCausalLM"]
+    return text_config
+
+
+def allow_heterogeneous_global_config(config):
+    """Expose Gemma 4's nested text model as a heterogeneous causal LM."""
+    text_config = getattr(config, "text_config", config)
+    # vLLM probes this callback once with a skeletal config while resolving
+    # the architecture.
+    if not hasattr(text_config, "layer_types"):
+        return config
+    text_config.allow_global_per_layer_attribute_access = True
+    full_layers = [
+        text_config.per_layer_config[index]
+        for index, layer_type in enumerate(text_config.layer_types)
+        if layer_type == "full_attention"
+    ]
+    if full_layers:
+        text_config.global_head_dim = max(
+            int(layer.head_dim) for layer in full_layers
+        )
+        text_config.num_global_key_value_heads = min(
+            int(layer.num_key_value_heads) for layer in full_layers
+        )
+    if getattr(text_config, "top_k", None) is None:
+        top_k_experts = getattr(text_config, "top_k_experts", None)
+        if top_k_experts is not None:
+            text_config.top_k = int(top_k_experts)
+    text_config.architectures = ["Gemma4ForCausalLM"]
+    return text_config
+
+
+def _iter_lod_pools(model):
+    """Yield pools even when the HF modeling backend hides attention modules."""
+    seen: set[int] = set()
+    runtime = getattr(model, "_vllm_lod_runtime", None)
+    for pool in getattr(runtime, "pools", {}).values():
+        seen.add(id(pool))
+        yield pool
+    for module in model.modules():
+        pool = getattr(module, "_vllm_lod_pool", None)
+        if pool is not None and id(pool) not in seen:
+            seen.add(id(pool))
+            yield pool
 
 
 def _collect_cuda_storages(
@@ -42,9 +92,7 @@ def inspect_attention_memory(model) -> dict[str, int]:
     scratch: dict[tuple[str, int | None, int], int] = {}
     for module in model.modules():
         _collect_cuda_storages(getattr(module, "kv_cache", None), native)
-        pool = getattr(module, "_vllm_lod_pool", None)
-        if pool is None:
-            continue
+    for pool in _iter_lod_pools(model):
         _collect_cuda_storages(pool.state, lod)
         _collect_cuda_storages(pool.local_lens, lod)
         _collect_cuda_storages(pool.active_indices, lod)
@@ -70,6 +118,61 @@ def inspect_attention_memory(model) -> dict[str, int]:
     }
 
 
+def inspect_native_cache_layouts(model) -> list[dict[str, Any]]:
+    """Report physical cache layouts used by native ROCm attention layers."""
+    import torch
+    from vllm.v1.attention.ops.chunked_prefill_paged_decode import (
+        has_native_kv_cache_layout,
+    )
+    from vllm.v1.attention.ops.paged_attn import PagedAttention
+
+    layouts = []
+    for module in model.modules():
+        impl = getattr(module, "impl", None)
+        caches = getattr(module, "kv_cache", None)
+        if impl is None or caches is None:
+            continue
+        if isinstance(caches, (list, tuple)):
+            if not caches:
+                continue
+            cache = caches[0]
+        else:
+            cache = caches
+        if not isinstance(cache, torch.Tensor) or cache.numel() == 0:
+            continue
+        try:
+            split = getattr(impl, "_split_kv_cache", None)
+            if split is not None:
+                key_cache, value_cache = split(cache)
+            else:
+                key_cache, value_cache = PagedAttention.split_kv_cache(
+                    cache,
+                    int(impl.num_kv_heads),
+                    int(impl.head_size),
+                )
+        except (AssertionError, RuntimeError, ValueError):
+            continue
+        layouts.append(
+            {
+                "layer": str(getattr(module, "layer_name", "")),
+                "impl": type(impl).__name__,
+                "head_size": int(impl.head_size),
+                "num_kv_heads": int(impl.num_kv_heads),
+                "sliding_window": getattr(impl, "sliding_window", None),
+                "cache_shape": list(cache.shape),
+                "cache_stride": list(cache.stride()),
+                "key_shape": list(key_cache.shape),
+                "key_stride": list(key_cache.stride()),
+                "value_shape": list(value_cache.shape),
+                "value_stride": list(value_cache.stride()),
+                "native_layout": bool(
+                    has_native_kv_cache_layout(key_cache, value_cache)
+                ),
+            }
+        )
+    return layouts
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkpoint", default="Qwen/Qwen3.5-0.8B")
@@ -90,21 +193,38 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--enforce-eager", action="store_true")
     parser.add_argument("--jit-monitor-verbose", action="store_true")
     parser.add_argument("--attention-backend")
+    parser.add_argument("--muse-native-text-config", action="store_true")
+    parser.add_argument("--tensor-parallel-size", type=int, default=1)
+    parser.add_argument("--language-model-only", action="store_true")
+    parser.add_argument(
+        "--allow-heterogeneous-global-config", action="store_true"
+    )
     parser.add_argument("--lod-leaf-num-warps", type=int)
     parser.add_argument("--lod-recursive-page-block-n", type=int)
     parser.add_argument("--lod-prefill-chunk-len", type=int)
     parser.add_argument("--lod-prefill-state-update-len", type=int)
     parser.add_argument("--lod-direct-prefill-route", action="store_true")
     parser.add_argument("--lod-decode-route-group-size", type=int)
+    parser.add_argument("--lod-decode-state-update-len", type=int)
     parser.add_argument("--lod-decode-route-num-warps", type=int)
     parser.add_argument("--lod-decode-route-reduce-num-warps", type=int)
     parser.add_argument("--lod-decode-final-reduce-num-warps", type=int)
     parser.add_argument("--lod-decode-block-n", type=int)
     parser.add_argument("--lod-decode-num-warps", type=int)
+    parser.add_argument("--lod-gqa-union-aiter", action="store_true")
+    parser.add_argument("--lod-gqa-union-group-size", type=int)
+    parser.add_argument("--lod-gqa-max-slot-leaves", type=int)
+    parser.add_argument(
+        "--lod-gqa-route-then-coarse", action="store_true"
+    )
+    parser.add_argument("--lod-gqa-persistent-route", action="store_true")
+    parser.add_argument("--lod-gqa-fused-correction", action="store_true")
+    parser.add_argument("--lod-gqa-stage1-reduce", action="store_true")
     parser.add_argument(
         "--lod-decode-use-dot", action=argparse.BooleanOptionalAction, default=None
     )
     parser.add_argument("--profile-lod-phases", action="store_true")
+    parser.add_argument("--inspect-cache-layouts", action="store_true")
     parser.add_argument("--torch-profile-dir", type=Path)
     parser.add_argument("--torch-profile-delay-iterations", type=int, default=0)
     parser.add_argument("--torch-profile-max-iterations", type=int, default=0)
@@ -129,6 +249,8 @@ def timed_generate(llm, prompts, params) -> tuple[float, float, float]:
 
 
 def inspect_lod_model(model) -> dict[str, int]:
+    import torch
+
     diagnostics = {
         "layers": 0,
         "installs": 0,
@@ -147,11 +269,28 @@ def inspect_lod_model(model) -> dict[str, int]:
         "decode_calls": 0,
         "catch_up_batches": 0,
         "catch_up_rows": 0,
+        "gqa_union_sequences": 0,
+        "gqa_union_regions": 0,
+        "gqa_union_leaves": 0,
+        "gqa_union_max_leaves": 0,
+        "gqa_union_stage1_reduce": False,
+        "gqa_union_fused_correction": False,
+        "gqa_union_own_route_correction": False,
+        "gqa_union_group_size": 0,
     }
-    for module in model.modules():
-        pool = getattr(module, "_vllm_lod_pool", None)
-        if pool is None:
-            continue
+    for pool in _iter_lod_pools(model):
+        diagnostics["gqa_union_stage1_reduce"] = bool(
+            pool.engine.gqa_union_stage1_reduce
+        )
+        diagnostics["gqa_union_fused_correction"] = bool(
+            pool.engine.gqa_union_fused_correction
+        )
+        diagnostics["gqa_union_own_route_correction"] = bool(
+            pool.engine.gqa_union_own_route_correction
+        )
+        diagnostics["gqa_union_group_size"] = int(
+            pool.engine.gqa_union_group_size
+        )
         diagnostics["layers"] += 1
         diagnostics["installs"] += int(pool.install_count)
         diagnostics["batched_install_calls"] += int(pool.batched_install_calls)
@@ -187,6 +326,23 @@ def inspect_lod_model(model) -> dict[str, int]:
         diagnostics["decode_calls"] += int(pool.decode_calls)
         diagnostics["catch_up_batches"] += int(pool.catch_up_batches)
         diagnostics["catch_up_rows"] += int(pool.catch_up_rows)
+        for buffers in pool.gqa_union_buffers.values():
+            lengths = buffers.get("lengths")
+            top_slots = buffers.get("top_slots")
+            if not isinstance(lengths, torch.Tensor) or not isinstance(
+                top_slots, torch.Tensor
+            ):
+                continue
+            diagnostics["gqa_union_sequences"] += int(lengths.numel())
+            diagnostics["gqa_union_leaves"] += int(lengths.sum().item())
+            diagnostics["gqa_union_max_leaves"] = max(
+                diagnostics["gqa_union_max_leaves"],
+                int(lengths.max().item()),
+            )
+            group_size = int(pool.engine.gqa_union_group_size)
+            diagnostics["gqa_union_regions"] += int(
+                top_slots[:, ::group_size, 0, :].ge(0).sum().item()
+            )
     return diagnostics
 
 
@@ -204,10 +360,27 @@ def install_lod_phase_timers(model) -> int:
         "local": "_prefill_local_attention",
     }
     installed = 0
+    native_events: list[tuple[torch.cuda.Event, torch.cuda.Event]] = []
+    model._lod_native_phase_timing_events = native_events
     for module in model.modules():
-        pool = getattr(module, "_vllm_lod_pool", None)
-        if pool is None:
+        impl = getattr(module, "impl", None)
+        native = getattr(impl, "_triton_swa", None)
+        if native is None or getattr(native, "_lod_phase_timed", False):
             continue
+        original = native.forward
+
+        def timed_native(*args, __original=original, **kwargs):
+            begin = torch.cuda.Event(enable_timing=True)
+            end = torch.cuda.Event(enable_timing=True)
+            begin.record()
+            result = __original(*args, **kwargs)
+            end.record()
+            native_events.append((begin, end))
+            return result
+
+        native.forward = timed_native
+        native._lod_phase_timed = True
+    for pool in _iter_lod_pools(model):
         engine = pool.engine
         if hasattr(engine, "_lod_phase_timing_events"):
             continue
@@ -251,10 +424,13 @@ def summarize_lod_phase_timers(model) -> dict[str, dict[str, float | int]]:
     torch.cuda.synchronize()
     totals: dict[str, float] = {}
     calls: dict[str, int] = {}
-    for module in model.modules():
-        pool = getattr(module, "_vllm_lod_pool", None)
-        if pool is None:
-            continue
+    native_pairs = getattr(model, "_lod_native_phase_timing_events", ())
+    if native_pairs:
+        totals["native_fallthrough"] = sum(
+            float(begin.elapsed_time(end)) for begin, end in native_pairs
+        )
+        calls["native_fallthrough"] = len(native_pairs)
+    for pool in _iter_lod_pools(model):
         events = getattr(pool.engine, "_lod_phase_timing_events", {})
         for phase, pairs in events.items():
             totals[phase] = totals.get(phase, 0.0) + sum(
@@ -282,13 +458,15 @@ def configure_lod_model(
     decode_block_n: int | None,
     decode_num_warps: int | None,
     decode_use_dot: bool | None,
+    gqa_route_then_coarse: bool,
+    gqa_persistent_route: bool,
+    gqa_fused_correction: bool,
+    gqa_union_group_size: int | None,
+    gqa_max_slot_leaves: int | None,
 ) -> int:
     """Apply benchmark-only kernel tuning before the warmup request."""
     configured = 0
-    for module in model.modules():
-        pool = getattr(module, "_vllm_lod_pool", None)
-        if pool is None:
-            continue
+    for pool in _iter_lod_pools(model):
         if leaf_num_warps is not None:
             pool.engine.leaf_num_warps = int(leaf_num_warps)
         if recursive_page_block_n is not None:
@@ -324,12 +502,74 @@ def configure_lod_model(
             pool.engine.decode_num_warps = int(decode_num_warps)
         if decode_use_dot is not None:
             pool.engine.decode_use_dot = bool(decode_use_dot)
+        if gqa_route_then_coarse:
+            pool.engine.gqa_union_route_then_coarse = True
+        if gqa_persistent_route:
+            pool.engine.gqa_union_persistent_route = True
+        if gqa_fused_correction:
+            pool.engine.gqa_union_fused_correction = True
+        if gqa_union_group_size is not None:
+            pool.engine.gqa_union_group_size = int(gqa_union_group_size)
+        if gqa_max_slot_leaves is not None:
+            pool.engine.gqa_union_max_slot_leaves = int(gqa_max_slot_leaves)
         configured += 1
     return configured
 
 
 def main() -> None:
     args = parse_args()
+    # This benchmark intentionally sends its local diagnostic callbacks to
+    # the colocated worker process after each run.
+    os.environ.setdefault("VLLM_ALLOW_INSECURE_SERIALIZATION", "1")
+    if args.lod_gqa_union_aiter:
+        if args.mode != "lod":
+            raise ValueError("--lod-gqa-union-aiter requires --mode lod")
+        os.environ["VLLM_LOD_GQA_UNION_AITER"] = "1"
+        os.environ["VLLM_LOD_KV_BITS"] = "0"
+    if args.lod_gqa_persistent_route:
+        if not args.lod_gqa_union_aiter:
+            raise ValueError(
+                "--lod-gqa-persistent-route requires --lod-gqa-union-aiter"
+            )
+        os.environ["VLLM_LOD_GQA_UNION_PERSISTENT_ROUTE"] = "1"
+    if args.lod_gqa_route_then_coarse:
+        if not args.lod_gqa_union_aiter:
+            raise ValueError(
+                "--lod-gqa-route-then-coarse requires --lod-gqa-union-aiter"
+            )
+        os.environ["VLLM_LOD_GQA_UNION_ROUTE_THEN_COARSE"] = "1"
+    if args.lod_gqa_fused_correction:
+        if not args.lod_gqa_union_aiter:
+            raise ValueError(
+                "--lod-gqa-fused-correction requires --lod-gqa-union-aiter"
+            )
+        os.environ["VLLM_LOD_GQA_UNION_FUSED_CORRECTION"] = "1"
+    if args.lod_gqa_stage1_reduce:
+        if not args.lod_gqa_union_aiter:
+            raise ValueError(
+                "--lod-gqa-stage1-reduce requires --lod-gqa-union-aiter"
+            )
+        os.environ["VLLM_LOD_GQA_UNION_STAGE1_REDUCE"] = "1"
+    if args.lod_gqa_union_group_size is not None:
+        if args.lod_gqa_union_group_size <= 0:
+            raise ValueError("--lod-gqa-union-group-size must be positive")
+        os.environ["VLLM_LOD_GQA_UNION_GROUP_SIZE"] = str(
+            args.lod_gqa_union_group_size
+        )
+    if args.lod_gqa_max_slot_leaves is not None:
+        if args.lod_gqa_max_slot_leaves < 0:
+            raise ValueError("--lod-gqa-max-slot-leaves must be nonnegative")
+        os.environ["VLLM_LOD_GQA_MAX_SLOT_LEAVES"] = str(
+            args.lod_gqa_max_slot_leaves
+        )
+    if args.lod_decode_state_update_len is not None:
+        if args.mode != "lod" or args.lod_decode_state_update_len <= 0:
+            raise ValueError(
+                "--lod-decode-state-update-len requires LOD mode and a positive value"
+            )
+        os.environ["VLLM_LOD_DECODE_STATE_UPDATE_LEN"] = str(
+            args.lod_decode_state_update_len
+        )
     prompt_lengths = args.lengths or [args.length] * args.batch_size
     if (
         args.batch_size < 1
@@ -371,7 +611,13 @@ def main() -> None:
         "jit_monitor_verbose": args.jit_monitor_verbose,
         "enable_prefix_caching": False,
         "disable_log_stats": False,
+        "tensor_parallel_size": args.tensor_parallel_size,
+        "language_model_only": args.language_model_only,
     }
+    if args.muse_native_text_config:
+        kwargs["hf_overrides"] = muse_native_text_config
+    elif args.allow_heterogeneous_global_config:
+        kwargs["hf_overrides"] = allow_heterogeneous_global_config
     if args.num_gpu_blocks_override is not None:
         kwargs["num_gpu_blocks_override"] = args.num_gpu_blocks_override
     if args.attention_backend is not None:
@@ -407,6 +653,9 @@ def main() -> None:
             args.lod_decode_block_n,
             args.lod_decode_num_warps,
             args.lod_decode_use_dot,
+            # GQA-union options above are constructor settings supplied via
+            # environment variables. Avoid an unnecessary apply_model call,
+            # which is especially important for tensor-parallel workers.
         )
     ):
         configured = llm.apply_model(
@@ -428,6 +677,11 @@ def main() -> None:
                 decode_block_n=args.lod_decode_block_n,
                 decode_num_warps=args.lod_decode_num_warps,
                 decode_use_dot=args.lod_decode_use_dot,
+                gqa_route_then_coarse=args.lod_gqa_route_then_coarse,
+                gqa_persistent_route=args.lod_gqa_persistent_route,
+                gqa_fused_correction=args.lod_gqa_fused_correction,
+                gqa_union_group_size=args.lod_gqa_union_group_size,
+                gqa_max_slot_leaves=None,
             )
         )
         if not configured or not all(value > 0 for value in configured):
@@ -483,12 +737,19 @@ def main() -> None:
         "jit_monitor_verbose": args.jit_monitor_verbose,
         "num_gpu_blocks_override": args.num_gpu_blocks_override,
         "attention_backend": args.attention_backend,
+        "muse_native_text_config": args.muse_native_text_config,
+        "tensor_parallel_size": args.tensor_parallel_size,
+        "language_model_only": args.language_model_only,
+        "allow_heterogeneous_global_config": (
+            args.allow_heterogeneous_global_config
+        ),
         "lod_leaf_num_warps": args.lod_leaf_num_warps,
         "lod_recursive_page_block_n": args.lod_recursive_page_block_n,
         "lod_prefill_chunk_len": args.lod_prefill_chunk_len,
         "lod_prefill_state_update_len": args.lod_prefill_state_update_len,
         "lod_direct_prefill_route": args.lod_direct_prefill_route,
         "lod_decode_route_group_size": args.lod_decode_route_group_size,
+        "lod_decode_state_update_len": args.lod_decode_state_update_len,
         "lod_decode_route_num_warps": args.lod_decode_route_num_warps,
         "lod_decode_route_reduce_num_warps": (
             args.lod_decode_route_reduce_num_warps
@@ -498,6 +759,12 @@ def main() -> None:
         ),
         "lod_decode_block_n": args.lod_decode_block_n,
         "lod_decode_num_warps": args.lod_decode_num_warps,
+        "lod_gqa_union_aiter": args.lod_gqa_union_aiter,
+        "lod_gqa_union_group_size": args.lod_gqa_union_group_size,
+        "lod_gqa_stage1_reduce": args.lod_gqa_stage1_reduce,
+        "lod_gqa_max_slot_leaves": args.lod_gqa_max_slot_leaves,
+        "lod_gqa_route_then_coarse": args.lod_gqa_route_then_coarse,
+        "lod_gqa_persistent_route": args.lod_gqa_persistent_route,
         "lod_decode_use_dot": args.lod_decode_use_dot,
         "torch_profile_dir": (
             str(args.torch_profile_dir.resolve())
@@ -520,13 +787,22 @@ def main() -> None:
             marginal_tokens / marginal_decode if marginal_decode else None
         ),
     }
-    if args.mode == "lod":
+    # vLLM's TP worker RPC pickles callbacks. Functions from an executed
+    # __main__ module are not reliably importable in worker subprocesses, so
+    # keep these optional diagnostics out of multi-rank timing runs.
+    collect_worker_diagnostics = args.tensor_parallel_size == 1
+    if args.mode == "lod" and collect_worker_diagnostics:
         result["lod_diagnostics"] = llm.apply_model(inspect_lod_model)[0]
-    if args.profile_lod_phases:
+    if args.profile_lod_phases and collect_worker_diagnostics:
         result["lod_phase_profile"] = llm.apply_model(
             summarize_lod_phase_timers
         )[0]
-    result["attention_memory"] = llm.apply_model(inspect_attention_memory)[0]
+    if collect_worker_diagnostics:
+        result["attention_memory"] = llm.apply_model(inspect_attention_memory)[0]
+    if args.inspect_cache_layouts and collect_worker_diagnostics:
+        result["native_cache_layouts"] = llm.apply_model(
+            inspect_native_cache_layouts
+        )[0]
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
     print(json.dumps(result, sort_keys=True))

@@ -1,0 +1,145 @@
+{
+  "acceleration": {
+    "causal_conv1d_decode": true,
+    "causal_conv1d_prefill": true,
+    "fla_fused_rms_norm_gated": true,
+    "fla_gated_delta_rule": true,
+    "fla_recurrent_gated_delta_rule": true,
+    "linear_layer_count": 18
+  },
+  "attention_layers": [
+    "model.layers.3.self_attn",
+    "model.layers.7.self_attn",
+    "model.layers.11.self_attn",
+    "model.layers.15.self_attn",
+    "model.layers.19.self_attn",
+    "model.layers.23.self_attn"
+  ],
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "dataset": "Seerkfang/prolong-64k-512-new",
+  "lod": {
+    "chunk_size": 256,
+    "dynamic_open_statistics": {},
+    "engine_backend": "torch",
+    "kv_bits": 0,
+    "local_window": 512,
+    "open_count": 8,
+    "protected_prefix": 1,
+    "recursive_pages": false,
+    "routing_count_bias": 1.0,
+    "routing_leaf_mass_candidates": 0,
+    "routing_leaf_mass_min_routes": 1,
+    "routing_leaf_mass_objective": "exact",
+    "routing_leaf_mass_review_top_p": null,
+    "routing_leaf_mass_top_p": null,
+    "routing_normalization": "none",
+    "routing_rope_cutoff_factor": 1.0,
+    "routing_rope_filter": "none",
+    "routing_rope_jensen": false,
+    "routing_variance_bias": 0.0,
+    "slab_coarse_variance_bias": 0.0,
+    "slab_exact_closed_mass_oracle": false,
+    "slab_local_slabs": 2,
+    "slab_merge_budget_growth_factor": 0.0,
+    "slab_merge_group_slabs": 0,
+    "slab_merged_slots_per_group": 0,
+    "slab_query_chunk_size": 4096,
+    "slab_region_statistics": {
+      "model.layers.11.self_attn": {
+        "max": 84.0,
+        "mean": 16.0,
+        "median": 14.0,
+        "p95": 32.0,
+        "p99": 45.0
+      },
+      "model.layers.15.self_attn": {
+        "max": 69.0,
+        "mean": 16.0,
+        "median": 14.0,
+        "p95": 32.0,
+        "p99": 42.530029296875
+      },
+      "model.layers.19.self_attn": {
+        "max": 102.0,
+        "mean": 16.0,
+        "median": 14.0,
+        "p95": 34.0,
+        "p99": 51.0
+      },
+      "model.layers.23.self_attn": {
+        "max": 88.0,
+        "mean": 16.0,
+        "median": 14.0,
+        "p95": 35.0,
+        "p99": 50.0
+      },
+      "model.layers.3.self_attn": {
+        "max": 117.0,
+        "mean": 16.0,
+        "median": 13.0,
+        "p95": 36.0,
+        "p99": 53.530029296875
+      },
+      "model.layers.7.self_attn": {
+        "max": 75.0,
+        "mean": 16.0,
+        "median": 14.0,
+        "p95": 32.0,
+        "p99": 47.530029296875
+      }
+    },
+    "slab_routing_chunk_size": 512,
+    "slab_seed_selection": "strided",
+    "slab_size": 4096,
+    "slabbed": true,
+    "slots_per_slab": 256,
+    "state_clustering_centroid_rescale": "none",
+    "state_clustering_centroid_rescale_scope": "all",
+    "state_clustering_normalization": "none",
+    "state_clustering_policy": "manual",
+    "state_clustering_query_metric": "none",
+    "state_clustering_radial_bias": 0.0,
+    "state_clustering_radial_scope": "all",
+    "state_clustering_rope_filter": "none",
+    "state_growth_factor": 16.0,
+    "state_min_size": 256
+  },
+  "loss": 3.139499545097351,
+  "mode": "lod",
+  "peak_memory_gib": 120.48092269897461,
+  "perplexity": 23.092307308040755,
+  "prediction_tokens": 65532,
+  "records": [
+    {
+      "elapsed_seconds": 5.580044217407703,
+      "loss": 3.3325791358947754,
+      "perplexity": 28.010491485215397,
+      "prediction_tokens": 16383,
+      "sample": 0
+    },
+    {
+      "elapsed_seconds": 2.0579753946512938,
+      "loss": 2.827888011932373,
+      "perplexity": 16.909709979447136,
+      "prediction_tokens": 16383,
+      "sample": 1
+    },
+    {
+      "elapsed_seconds": 1.198834558017552,
+      "loss": 3.448237180709839,
+      "perplexity": 31.44491172502734,
+      "prediction_tokens": 16383,
+      "sample": 2
+    },
+    {
+      "elapsed_seconds": 1.06818628590554,
+      "loss": 2.949293851852417,
+      "perplexity": 19.092466856823712,
+      "prediction_tokens": 16383,
+      "sample": 3
+    }
+  ],
+  "samples": 4,
+  "sequence_length": 16384,
+  "use_upstream_code": false
+}

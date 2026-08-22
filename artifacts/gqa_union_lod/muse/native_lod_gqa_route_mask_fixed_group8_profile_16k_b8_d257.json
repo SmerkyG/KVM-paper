@@ -1,0 +1,161 @@
+{
+  "attention_backend": null,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 78615937024,
+    "device_used_bytes_before_reclaim": 81507909632,
+    "lod_cache_bytes": 3183527112,
+    "lod_decode_scratch_bytes": 309381540,
+    "native_cache_bytes": 8818081792,
+    "torch_allocated_bytes": 74869057536,
+    "torch_reclaimable_cached_bytes": 2891972608,
+    "torch_reserved_bytes_after_reclaim": 76302778368,
+    "torch_reserved_bytes_before_reclaim": 79194750976
+  },
+  "batch_size": 8,
+  "checkpoint": "meta-models/Muse-Glimmer-30B",
+  "decode_interval_tokens": 256,
+  "decode_timings_seconds": [
+    5.619112819433212
+  ],
+  "decode_tokens": 257,
+  "enforce_eager": false,
+  "jit_monitor_verbose": false,
+  "length": 16384,
+  "lengths": [
+    16384,
+    16384,
+    16384,
+    16384,
+    16384,
+    16384,
+    16384,
+    16384
+  ],
+  "lod_decode_block_n": null,
+  "lod_decode_final_reduce_num_warps": null,
+  "lod_decode_num_warps": null,
+  "lod_decode_route_group_size": null,
+  "lod_decode_route_num_warps": null,
+  "lod_decode_route_reduce_num_warps": null,
+  "lod_decode_state_update_len": null,
+  "lod_decode_use_dot": null,
+  "lod_diagnostics": {
+    "batched_cached_prefill_rows": 0,
+    "batched_cached_prefills": 0,
+    "batched_install_calls": 221,
+    "cached_prefill_candidate_calls": 208,
+    "cached_prefill_candidate_rows": 936,
+    "cached_prefill_noncontiguous": 130,
+    "cached_prefill_nonpacked_calls": 0,
+    "cached_prefill_nonuniform_lengths": 156,
+    "cached_prefill_nonuniform_previous": 182,
+    "cached_prefill_packed_calls": 936,
+    "cached_prefill_unready": 0,
+    "catch_up_batches": 52,
+    "catch_up_rows": 65,
+    "decode_calls": 104,
+    "direct_prefills": 247,
+    "gqa_union_leaves": 2220423,
+    "gqa_union_max_leaves": 10643,
+    "gqa_union_regions": 16301,
+    "gqa_union_sequences": 780,
+    "installs": 312,
+    "layers": 13
+  },
+  "lod_direct_prefill_route": false,
+  "lod_gqa_max_slot_leaves": null,
+  "lod_gqa_persistent_route": false,
+  "lod_gqa_route_then_coarse": true,
+  "lod_gqa_union_aiter": true,
+  "lod_gqa_union_group_size": 8,
+  "lod_leaf_num_warps": null,
+  "lod_phase_profile": {
+    "coarse": {
+      "calls": 494,
+      "milliseconds": 331.94463658332825
+    },
+    "exact_leaf": {
+      "calls": 494,
+      "milliseconds": 585.9983070362359
+    },
+    "gqa_union_branch_merge": {
+      "calls": 390,
+      "milliseconds": 7.430314004421234
+    },
+    "gqa_union_exact": {
+      "calls": 390,
+      "milliseconds": 10.103896985761821
+    },
+    "gqa_union_lse": {
+      "calls": 390,
+      "milliseconds": 4.1809460134245455
+    },
+    "gqa_union_merge": {
+      "calls": 390,
+      "milliseconds": 18.241677973419428
+    },
+    "gqa_union_pack": {
+      "calls": 390,
+      "milliseconds": 10.937673969194293
+    },
+    "local": {
+      "calls": 494,
+      "milliseconds": 162.87821596860886
+    },
+    "masked_coarse_groups": {
+      "calls": 390,
+      "milliseconds": 7.423074995167553
+    },
+    "masked_coarse_reduce": {
+      "calls": 390,
+      "milliseconds": 8.137103997170925
+    },
+    "page_append": {
+      "calls": 1469,
+      "milliseconds": 485.2393399775028
+    },
+    "route": {
+      "calls": 494,
+      "milliseconds": 346.0649150311947
+    },
+    "route_groups": {
+      "calls": 390,
+      "milliseconds": 5.618353992700577
+    },
+    "route_reduce": {
+      "calls": 390,
+      "milliseconds": 4.633491018321365
+    },
+    "state_update": {
+      "calls": 1365,
+      "milliseconds": 1035.4844228327274
+    },
+    "two_level": {
+      "calls": 884,
+      "milliseconds": 1464.0995056182146
+    }
+  },
+  "lod_prefill_chunk_len": null,
+  "lod_prefill_state_update_len": null,
+  "lod_recursive_page_block_n": null,
+  "long_prefill_token_threshold": 0,
+  "marginal_decode_ms_per_batch_step": 21.949659450910985,
+  "marginal_decode_ms_per_token": 2.743707431363873,
+  "marginal_decode_tokens_per_second": 364.4703471546559,
+  "max_num_batched_tokens": 16384,
+  "mode": "lod",
+  "muse_native_text_config": true,
+  "num_gpu_blocks_override": null,
+  "prefill_plus_decode_seconds": 19.9935374641791,
+  "prefill_prompt_tokens_per_second": 9119.413542666134,
+  "prefill_seconds": 14.3728540642187,
+  "prefill_timings_seconds": [
+    14.3728540642187
+  ],
+  "prompt_tokens": 131072,
+  "repeats": 1,
+  "torch_profile_dir": null,
+  "total_timings_seconds": [
+    19.9935374641791
+  ]
+}

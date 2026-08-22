@@ -1,0 +1,44 @@
+{
+  "device": "MI325X",
+  "shape": {
+    "batch_size": 1,
+    "query_heads": 8,
+    "kv_heads": 2,
+    "query_length": 4096,
+    "state_length": 2048,
+    "leaves_per_state": 6,
+    "head_dimension": 256
+  },
+  "full_attention_ms": 1.2362327516078948,
+  "index_only": {
+    "cluster_job": 9357,
+    "top1_ms": 4.732934951782227,
+    "combine_ms": 54.93128967285156,
+    "total_ms": 59.55198287963867,
+    "intermediate_bytes": 268435456
+  },
+  "index_and_score": {
+    "cluster_job": 9363,
+    "top1_ms": 4.791453838348389,
+    "combine_ms": 4.5704169273376465,
+    "total_ms": 9.301550229390463,
+    "intermediate_bytes": 536870912,
+    "selection_centroids_per_program": 8,
+    "selection_leaves_per_centroid_step": 16,
+    "combine_centroids_per_program": 16,
+    "combine_leaves_per_centroid_step": 8
+  },
+  "combine_centroid_sweep_ms": {
+    "16": 4.5704169273376465,
+    "32": 5.199925899505615,
+    "64": 7.293178081512451
+  },
+  "parity": {
+    "cluster_job": 9367,
+    "winner_mismatches": 0,
+    "disjoint_max_lse_error": 4.76837158203125e-7,
+    "disjoint_max_output_error": 0.0028117895126342773,
+    "mean_max_lse_error": 4.76837158203125e-7,
+    "mean_max_output_error": 0.001734614372253418
+  }
+}

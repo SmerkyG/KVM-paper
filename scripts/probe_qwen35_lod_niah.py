@@ -217,6 +217,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--reuse-dynamic-local-attention", action="store_true")
     parser.add_argument("--dynamic-open-residual-state-bound", action="store_true")
     parser.add_argument("--recursive-page-lod", action="store_true")
+    parser.add_argument("--gqa-union-leaf-attention", action="store_true")
+    parser.add_argument("--gqa-union-aiter-attention", action="store_true")
+    parser.add_argument(
+        "--gqa-union-route-then-coarse",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+    )
+    parser.add_argument(
+        "--gqa-union-aiter-include-local",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
     parser.add_argument("--recursive-page-block-n", type=int, default=4)
     parser.add_argument("--leaf-num-warps", type=int, default=1)
     parser.add_argument("--leaf-key-quant-bits", type=int, choices=(0, 4, 8), default=0)
@@ -281,6 +293,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--disable-fused-state-routing", action="store_true")
     parser.add_argument("--no-clone-decode-routes", action="store_true")
     parser.add_argument("--disable-fused-decode-state-route", action="store_true")
+    parser.add_argument("--disable-fused-decode-attention", action="store_true")
     parser.add_argument("--decode-route-group-size", type=int, default=32)
     parser.add_argument("--decode-route-num-warps", type=int, default=2)
     parser.add_argument("--decode-split-kv", type=int)
@@ -361,6 +374,14 @@ def main() -> None:
                 module.separate_sink_cache = args.separate_sink_cache
                 module.prefill_max_leaf_tokens = args.prefill_max_leaf_tokens
                 module.recursive_page_lod = args.recursive_page_lod
+                module.gqa_union_leaf_attention = args.gqa_union_leaf_attention
+                module.gqa_union_aiter_attention = args.gqa_union_aiter_attention
+                module.gqa_union_route_then_coarse = (
+                    args.gqa_union_route_then_coarse
+                )
+                module.gqa_union_aiter_include_local = (
+                    args.gqa_union_aiter_include_local
+                )
                 module.recursive_page_block_n = args.recursive_page_block_n
                 module.leaf_num_warps = args.leaf_num_warps
                 module.leaf_key_quant_bits = args.leaf_key_quant_bits
@@ -443,6 +464,9 @@ def main() -> None:
                 module.clone_decode_routes = not args.no_clone_decode_routes
                 module.fused_decode_state_route = (
                     not args.disable_fused_decode_state_route
+                )
+                module.fused_decode_attention = (
+                    not args.disable_fused_decode_attention
                 )
                 module.decode_route_group_size = args.decode_route_group_size
                 module.decode_route_num_warps = args.decode_route_num_warps

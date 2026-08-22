@@ -1,0 +1,103 @@
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+                                                   Name    Self CPU %      Self CPU   CPU total %     CPU total  CPU time avg     Self CUDA   Self CUDA %    CUDA total  CUDA time avg    # of Calls  
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+                   execute_context_0(0)_generation_8(8)         0.00%       0.000us         0.00%       0.000us       0.000us      33.262ms        97.81%      33.262ms      33.262ms             1  
+                            kernel_unified_attention_2d         0.00%       0.000us         0.00%       0.000us       0.000us      11.742ms        34.53%      11.742ms     244.626us            48  
+Cijk_Alik_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT32x16...         0.00%       0.000us         0.00%       0.000us       0.000us       8.592ms        25.27%       8.592ms     134.255us            64  
+Cijk_Alik_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT128x1...         0.00%       0.000us         0.00%       0.000us       0.000us       6.247ms        18.37%       6.247ms      48.808us           128  
+Cijk_Alik_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT64x16...         0.00%       0.000us         0.00%       0.000us       0.000us       1.157ms         3.40%       1.157ms      18.073us            64  
+                 _decode_route_coarse_gqa_groups_kernel         0.00%       0.000us         0.00%       0.000us       0.000us       1.002ms         2.95%       1.002ms      62.628us            16  
+                     _reduce_decode_route_coarse_kernel         0.00%       0.000us         0.00%       0.000us       0.000us     930.933us         2.74%     930.933us      58.183us            16  
+                          _copy_gqa_union_leaves_kernel         0.00%       0.000us         0.00%       0.000us       0.000us     607.257us         1.79%     607.257us      37.954us            16  
+                                               aten::mm         0.10%     568.132us         0.12%     683.431us      42.714us     487.872us         1.43%     487.872us      30.492us            16  
+Cijk_Alik_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT384x1...         0.00%       0.000us         0.00%       0.000us       0.000us     487.872us         1.43%     487.872us     243.936us             2  
+                        triton_red_fused_add_rms_norm_2         0.00%       0.000us         0.00%       0.000us       0.000us     332.651us         0.98%     332.651us       5.198us            64  
+                        triton_red_fused_add_rms_norm_0         0.00%       0.000us         0.00%       0.000us       0.000us     318.929us         0.94%     318.929us       4.983us            64  
+      _merge_attention_branches_with_aiter_stats_kernel         0.00%       0.000us         0.00%       0.000us       0.000us     315.380us         0.93%     315.380us      19.711us            16  
+                      triton_poi_fused_mul_silu_slice_1         0.00%       0.000us         0.00%       0.000us       0.000us     315.372us         0.93%     315.372us       4.928us            64  
+                                     triton_per_fused_3         0.00%       0.000us         0.00%       0.000us       0.000us     298.093us         0.88%     298.093us       4.732us            63  
+                                     triton_poi_fused_5         0.00%       0.000us         0.00%       0.000us       0.000us     292.615us         0.86%     292.615us       4.645us            63  
+                                     triton_red_fused_4         0.00%       0.000us         0.00%       0.000us       0.000us     291.055us         0.86%     291.055us       4.620us            63  
+void paged_attention_ll4mi_QKV_mfma16_kernel<__hip_b...         0.00%       0.000us         0.00%       0.000us       0.000us     283.218us         0.83%     283.218us      17.701us            16  
+void vllm::reshape_and_cache_flash_kernel<__hip_bflo...         0.00%       0.000us         0.00%       0.000us       0.000us     264.429us         0.78%     264.429us       5.509us            48  
+                                            aten::copy_         0.04%     213.606us         0.10%     544.563us       5.501us     160.324us         0.47%     160.324us       1.619us            99  
+                         Memcpy DtoD (Device -> Device)         0.00%       0.000us         0.00%       0.000us       0.000us     160.324us         0.47%     160.324us       4.715us            34  
+void paged_attention_ll4mi_reduce_kernel<__hip_bfloa...         0.00%       0.000us         0.00%       0.000us       0.000us      95.864us         0.28%      95.864us       5.992us            16  
+                     _compute_gqa_union_metadata_kernel         0.00%       0.000us         0.00%       0.000us       0.000us      92.342us         0.27%      92.342us       5.771us            16  
+                                  _gumbel_sample_kernel         0.00%       0.000us         0.00%       0.000us       0.000us      35.718us         0.11%      35.718us      17.859us             2  
+                                 hipPointerGetAttribute         0.03%     142.426us         0.03%     142.426us       0.181us      34.312us         0.10%      34.312us       0.043us           789  
+                                            aten::index         0.06%     330.426us         0.11%     591.303us      12.319us      30.512us         0.09%      30.512us       0.636us            48  
+                                  hipModuleLaunchKernel         0.08%     460.253us         0.08%     460.253us       4.002us      30.353us         0.09%      30.353us       0.264us           115  
+                                            aten::fill_         0.03%     149.638us         0.07%     375.004us       4.688us      20.236us         0.06%      20.236us       0.253us            80  
+void at::native::vectorized_elementwise_kernel<4, at...         0.00%       0.000us         0.00%       0.000us       0.000us      15.837us         0.05%      15.837us       5.279us             3  
+                                           aten::argmax         0.02%     102.439us         0.03%     164.109us      10.257us      14.318us         0.04%      14.318us       0.895us            16  
+void at::native::reduce_kernel<512, 1, at::native::R...         0.00%       0.000us         0.00%       0.000us       0.000us      14.318us         0.04%      14.318us       7.159us             2  
+void at::native::vectorized_gather_kernel<16, long>(...         0.00%       0.000us         0.00%       0.000us       0.000us      11.797us         0.03%      11.797us       5.899us             2  
+                                    _post_update_kernel         0.00%       0.000us         0.00%       0.000us       0.000us      11.038us         0.03%      11.038us       5.519us             2  
+void at::native::index_elementwise_kernel<128, 4, at...         0.00%       0.000us         0.00%       0.000us       0.000us       9.677us         0.03%       9.677us       4.838us             2  
+                                        hipEventDestroy         0.00%      14.569us         0.00%      14.569us       0.455us       9.238us         0.03%       9.238us       0.289us            32  
+void at::native::index_elementwise_kernel<128, 4, at...         0.00%       0.000us         0.00%       0.000us       0.000us       9.038us         0.03%       9.038us       4.519us             2  
+                                           aten::gather         0.02%      83.407us         0.03%     160.627us      10.039us       8.958us         0.03%       8.958us       0.560us            16  
+void at::native::_scatter_gather_elementwise_kernel<...         0.00%       0.000us         0.00%       0.000us       0.000us       8.958us         0.03%       8.958us       4.479us             2  
+                   _get_num_sampled_and_rejected_kernel         0.00%       0.000us         0.00%       0.000us       0.000us       8.518us         0.03%       8.518us       4.259us             2  
+                            _gather_block_tables_kernel         0.00%       0.000us         0.00%       0.000us       0.000us       7.439us         0.02%       7.439us       7.439us             1  
+                           _prepare_pos_seq_lens_kernel         0.00%       0.000us         0.00%       0.000us       0.000us       5.839us         0.02%       5.839us       5.839us             1  
+               _combine_sampled_and_draft_tokens_kernel         0.00%       0.000us         0.00%       0.000us       0.000us       5.399us         0.02%       5.399us       5.399us             1  
+                          _compute_slot_mappings_kernel         0.00%       0.000us         0.00%       0.000us       0.000us       5.359us         0.02%       5.359us       5.359us             1  
+                                     triton_red_fused_2         0.00%       0.000us         0.00%       0.000us       0.000us       5.279us         0.02%       5.279us       5.279us             1  
+                                           aten::arange         0.01%      62.010us         0.05%     283.108us       8.847us       4.639us         0.01%       9.278us       0.290us            32  
+void (anonymous namespace)::elementwise_kernel_with_...         0.00%       0.000us         0.00%       0.000us       0.000us       4.639us         0.01%       4.639us       4.639us             1  
+                                     triton_per_fused_1         0.00%       0.000us         0.00%       0.000us       0.000us       4.639us         0.01%       4.639us       4.639us             1  
+                                     triton_poi_fused_3         0.00%       0.000us         0.00%       0.000us       0.000us       4.639us         0.01%       4.639us       4.639us             1  
+                  triton_poi_fused__to_copy_embedding_0         0.00%       0.000us         0.00%       0.000us       0.000us       4.519us         0.01%       4.519us       4.519us             1  
+void at::native::vectorized_elementwise_kernel<16, a...         0.00%       0.000us         0.00%       0.000us       0.000us       4.399us         0.01%       4.399us       4.399us             1  
+                                __amd_rocclr_copyBuffer         0.00%       0.000us         0.00%       0.000us       0.000us       4.119us         0.01%       4.119us       4.119us             1  
+                   execute_context_0(0)_generation_8(8)         0.95%       5.230ms         2.23%      12.286ms     767.854us       0.000us         0.00%      76.543us       4.784us            16  
+                                            aten::slice         0.06%     331.746us         0.08%     460.155us       0.852us       0.000us         0.00%       0.000us       0.000us           540  
+                                       aten::as_strided         0.04%     195.458us         0.04%     195.458us       0.256us       0.000us         0.00%       0.000us       0.000us           764  
+                                        hipLaunchKernel         0.11%     602.222us         0.11%     602.222us       4.182us       0.000us         0.00%       0.000us       0.000us           144  
+                                       aten::lift_fresh         0.00%       5.900us         0.00%       5.900us       0.071us       0.000us         0.00%       0.000us       0.000us            83  
+                                       aten::empty_like         0.00%      25.710us         0.02%      99.429us       3.107us       0.000us         0.00%       0.000us       0.000us            32  
+                                    aten::empty_strided         0.02%     125.598us         0.02%     125.598us       1.875us       0.000us         0.00%       0.000us       0.000us            67  
+                                       aten::pin_memory         0.00%      25.510us         0.05%     280.859us       8.777us       0.000us         0.00%       0.000us       0.000us            32  
+                                        aten::is_pinned         0.01%      41.159us         0.01%      81.169us       2.537us       0.000us         0.00%       0.000us       0.000us            32  
+                                hipPointerGetAttributes         0.01%      40.010us         0.01%      40.010us       1.250us       0.000us         0.00%       0.000us       0.000us            32  
+                                      aten::_pin_memory         0.02%     108.050us         0.03%     174.180us       5.443us       0.000us         0.00%       0.000us       0.000us            32  
+                                             aten::set_         0.00%      27.060us         0.00%      27.060us       0.846us       0.000us         0.00%       0.000us       0.000us            32  
+                                   hipStreamIsCapturing         0.00%      19.750us         0.00%      19.750us       0.238us       0.000us         0.00%       0.000us       0.000us            83  
+                                         hipMemcpyAsync         0.06%     315.297us         0.06%     315.297us       4.706us       0.000us         0.00%       0.000us       0.000us            67  
+                                         hipEventRecord         0.04%     220.962us         0.04%     220.962us       2.232us       0.000us         0.00%       0.000us       0.000us            99  
+                                            aten::empty         0.03%     148.870us         0.03%     148.870us       1.295us       0.000us         0.00%       0.000us       0.000us           115  
+                                          aten::resize_         0.01%      28.180us         0.01%      28.180us       1.761us       0.000us         0.00%       0.000us       0.000us            16  
+                                            aten::zeros         0.00%      22.519us         0.02%     127.737us       7.984us       0.000us         0.00%       4.999us       0.312us            16  
+                                            aten::zero_         0.00%       8.359us         0.02%      85.978us       5.374us       0.000us         0.00%       4.999us       0.312us            16  
+                                           aten::unbind         0.01%      53.350us         0.02%     106.158us       6.635us       0.000us         0.00%       0.000us       0.000us            16  
+                                           aten::select         0.02%      88.988us         0.02%     112.237us       0.877us       0.000us         0.00%       0.000us       0.000us           128  
+                                              aten::max         0.01%      28.960us         0.01%      61.860us       3.866us       0.000us         0.00%       0.000us       0.000us            16  
+                                             aten::item         0.00%       9.909us         0.00%      13.349us       0.834us       0.000us         0.00%       0.000us       0.000us            16  
+                              aten::_local_scalar_dense         0.00%       3.440us         0.00%       3.440us       0.215us       0.000us         0.00%       0.000us       0.000us            16  
+                                         hipGraphLaunch         0.88%       4.869ms         0.88%       4.869ms     304.287us       0.000us         0.00%       0.000us       0.000us            16  
+                                          aten::reshape         0.01%      28.090us         0.01%      51.800us       0.809us       0.000us         0.00%       0.000us       0.000us            64  
+                                             aten::view         0.01%      32.420us         0.01%      32.420us       0.338us       0.000us         0.00%       0.000us       0.000us            96  
+                            vllm::rocm_unquantized_gemm         0.05%     263.748us         0.19%       1.044ms      65.277us       0.000us         0.00%     487.872us      30.492us            16  
+                                           aten::linear         0.01%      29.269us         0.14%     769.149us      48.072us       0.000us         0.00%     487.872us      30.492us            16  
+                                                aten::t         0.00%      21.909us         0.01%      38.729us       2.421us       0.000us         0.00%       0.000us       0.000us            16  
+                                        aten::transpose         0.00%      12.610us         0.00%      16.820us       1.051us       0.000us         0.00%       0.000us       0.000us            16  
+                                           aten::matmul         0.00%      17.720us         0.13%     701.151us      43.822us       0.000us         0.00%     487.872us      30.492us            16  
+                            hipGetDevicePropertiesR0600         0.00%      20.460us         0.00%      20.460us       0.426us       0.000us         0.00%       0.000us       0.000us            48  
+                               hipExtModuleLaunchKernel         0.02%      94.839us         0.02%      94.839us       5.927us       0.000us         0.00%       0.000us       0.000us            16  
+                                        aten::new_empty         0.00%      17.740us         0.01%      73.000us       1.521us       0.000us         0.00%       0.000us       0.000us            48  
+                                         aten::new_ones         0.00%      13.920us         0.03%     143.389us       8.962us       0.000us         0.00%      10.838us       0.677us            16  
+                                     hipStreamWaitEvent         0.02%      91.439us         0.02%      91.439us       5.715us       0.000us         0.00%       0.000us       0.000us            16  
+                                               aten::to         0.00%      24.780us         0.08%     415.095us       5.930us       0.000us         0.00%     152.406us       2.177us            70  
+                                         aten::_to_copy         0.01%      44.379us         0.07%     390.315us      11.152us       0.000us         0.00%     152.406us       4.354us            35  
+                                           aten::detach         0.00%      11.950us         0.00%      11.950us       0.373us       0.000us         0.00%       0.000us       0.000us            32  
+                                     aten::resolve_conj         0.00%       2.200us         0.00%       2.200us       0.069us       0.000us         0.00%       0.000us       0.000us            32  
+                                      aten::resolve_neg         0.00%       1.980us         0.00%       1.980us       0.062us       0.000us         0.00%       0.000us       0.000us            32  
+                                    hipEventSynchronize        91.69%     504.850ms        91.69%     504.850ms      31.553ms       0.000us         0.00%       0.000us       0.000us            16  
+                                          aten::detach_         0.00%       0.500us         0.00%       0.500us       0.167us       0.000us         0.00%       0.000us       0.000us             3  
+                                   hipDeviceSynchronize         5.50%      30.306ms         5.50%      30.306ms      30.306ms       0.000us         0.00%       0.000us       0.000us             1  
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+Self CPU time total: 550.589ms
+Self CUDA time total: 34.008ms
+

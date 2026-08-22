@@ -44,9 +44,16 @@ def register() -> None:
         AttentionBackendEnum.CUSTOM,
         "vllm_lod_plugin.backend.LODAttentionBackend",
     )
-    from .cache_ownership import install_cache_ownership_hooks
-    from .runtime import install_model_state_hooks
+    from vllm import ModelRegistry
 
+    ModelRegistry.register_model(
+        "MuseGlimmerForCausalLM",
+        "vllm_lod_plugin.muse_glimmer:MuseGlimmerForCausalLM",
+    )
+    from .cache_ownership import install_cache_ownership_hooks
+    from .runtime import install_model_state_hooks, install_tp_safe_vocab_padding
+
+    install_tp_safe_vocab_padding()
     install_cache_ownership_hooks()
     install_model_state_hooks()
     _REGISTERED = True

@@ -1,0 +1,145 @@
+{
+  "acceleration": {
+    "causal_conv1d_decode": true,
+    "causal_conv1d_prefill": true,
+    "fla_fused_rms_norm_gated": true,
+    "fla_gated_delta_rule": true,
+    "fla_recurrent_gated_delta_rule": true,
+    "linear_layer_count": 18
+  },
+  "attention_layers": [
+    "model.layers.3.self_attn",
+    "model.layers.7.self_attn",
+    "model.layers.11.self_attn",
+    "model.layers.15.self_attn",
+    "model.layers.19.self_attn",
+    "model.layers.23.self_attn"
+  ],
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "dataset": "Seerkfang/prolong-64k-512-new",
+  "lod": {
+    "chunk_size": 256,
+    "dynamic_open_statistics": {},
+    "engine_backend": "torch",
+    "kv_bits": 0,
+    "local_window": 512,
+    "open_count": 8,
+    "protected_prefix": 1,
+    "recursive_pages": false,
+    "routing_count_bias": 1.0,
+    "routing_leaf_mass_candidates": 0,
+    "routing_leaf_mass_min_routes": 1,
+    "routing_leaf_mass_objective": "exact",
+    "routing_leaf_mass_review_top_p": null,
+    "routing_leaf_mass_top_p": null,
+    "routing_normalization": "none",
+    "routing_rope_cutoff_factor": 1.0,
+    "routing_rope_filter": "none",
+    "routing_rope_jensen": false,
+    "routing_variance_bias": 0.0,
+    "slab_coarse_variance_bias": 0.0,
+    "slab_exact_closed_mass_oracle": false,
+    "slab_local_slabs": 2,
+    "slab_merge_budget_growth_factor": 0.0,
+    "slab_merge_group_slabs": 0,
+    "slab_merged_slots_per_group": 0,
+    "slab_query_chunk_size": 32,
+    "slab_region_statistics": {
+      "model.layers.11.self_attn": {
+        "max": 69.0,
+        "mean": 16.0,
+        "median": 15.0,
+        "p95": 29.0,
+        "p99": 38.0
+      },
+      "model.layers.15.self_attn": {
+        "max": 79.0,
+        "mean": 16.0,
+        "median": 15.0,
+        "p95": 31.0,
+        "p99": 43.0
+      },
+      "model.layers.19.self_attn": {
+        "max": 58.0,
+        "mean": 16.0,
+        "median": 14.0,
+        "p95": 33.0,
+        "p99": 44.530029296875
+      },
+      "model.layers.23.self_attn": {
+        "max": 57.0,
+        "mean": 16.0,
+        "median": 14.0,
+        "p95": 32.0,
+        "p99": 43.0
+      },
+      "model.layers.3.self_attn": {
+        "max": 103.0,
+        "mean": 16.0,
+        "median": 14.0,
+        "p95": 35.0,
+        "p99": 50.0
+      },
+      "model.layers.7.self_attn": {
+        "max": 51.0,
+        "mean": 16.0,
+        "median": 15.0,
+        "p95": 30.0,
+        "p99": 38.0
+      }
+    },
+    "slab_routing_chunk_size": 256,
+    "slab_seed_selection": "strided",
+    "slab_size": 512,
+    "slabbed": true,
+    "slots_per_slab": 32,
+    "state_clustering_centroid_rescale": "none",
+    "state_clustering_centroid_rescale_scope": "all",
+    "state_clustering_normalization": "none",
+    "state_clustering_policy": "manual",
+    "state_clustering_query_metric": "none",
+    "state_clustering_radial_bias": 0.0,
+    "state_clustering_radial_scope": "all",
+    "state_clustering_rope_filter": "none",
+    "state_growth_factor": 16.0,
+    "state_min_size": 256
+  },
+  "loss": 3.1625267267227173,
+  "mode": "lod",
+  "peak_memory_gib": 39.421239376068115,
+  "perplexity": 23.630227688526723,
+  "prediction_tokens": 65532,
+  "records": [
+    {
+      "elapsed_seconds": 10.354060526937246,
+      "loss": 3.3468759059906006,
+      "perplexity": 28.41382737242428,
+      "prediction_tokens": 16383,
+      "sample": 0
+    },
+    {
+      "elapsed_seconds": 6.103890998288989,
+      "loss": 2.8493282794952393,
+      "perplexity": 17.276173182346874,
+      "prediction_tokens": 16383,
+      "sample": 1
+    },
+    {
+      "elapsed_seconds": 5.893125930801034,
+      "loss": 3.4698925018310547,
+      "perplexity": 32.13328798946161,
+      "prediction_tokens": 16383,
+      "sample": 2
+    },
+    {
+      "elapsed_seconds": 5.900740555487573,
+      "loss": 2.9840102195739746,
+      "perplexity": 19.766927632635127,
+      "prediction_tokens": 16383,
+      "sample": 3
+    }
+  ],
+  "samples": 4,
+  "sequence_length": 16384,
+  "use_upstream_code": false
+}

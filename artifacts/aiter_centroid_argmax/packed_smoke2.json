@@ -1,0 +1,22 @@
+{
+  "device": "AMD Instinct MI325X",
+  "query_heads": 8,
+  "kv_heads": 2,
+  "head_dim": 256,
+  "state_multiplier": 16.0,
+  "block_k": 16,
+  "centroids_per_tile": 8,
+  "target_programs": 1024,
+  "results": [
+    {
+      "batch": 1,
+      "context": 8192,
+      "centroids": 1449,
+      "mean_leaves_per_centroid": 5.653554175293306,
+      "winner_table_kib": 45.28125,
+      "argmax_ms": 0.02745549976825714,
+      "aiter_full_ms": 0.05389930009841919,
+      "argmax_over_aiter": 0.5093850888253442
+    }
+  ]
+}

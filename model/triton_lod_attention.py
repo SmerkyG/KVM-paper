@@ -21,11 +21,20 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from .kernels.all_centroid_lod_attention import (
+    all_centroid_top1_attention,
+    build_all_centroid_leaf_stream,
+)
+from .kernels.gqa_union_leaf_attention import (
+    gqa_union_aiter_attention,
+    gqa_union_indexed_attention,
+)
 from .kernels.paged_leaf_attention import (
     append_paged_kv,
     append_quantized_virtual_paged_kv,
     append_virtual_paged_kv,
     fused_decode_paged_lod_attention,
+    masked_decode_coarse_local_attention,
     new_fused_decode_buffers,
     paged_leaf_attention,
     query_major_paged_leaf_attention,
@@ -40,6 +49,7 @@ from .kernels.paged_leaf_attention import (
 )
 from .kernels.lod_kernels import (
     apply_residual_mass_opening,
+    aiter_partition_lse,
     bipartite_reduce_overflow,
     constituent_rms,
     merge_attention_branches,
@@ -49,6 +59,7 @@ from .kernels.lod_kernels import (
     new_state_delta_buffers,
     new_state_maxsim_buffers,
     prepare_state_clustering_keys,
+    remove_state_slots_from_attention,
     route_logits_coarse_attention,
     route_logits_topk_coarse_attention,
     route_top8_scores_grouped,
@@ -128,6 +139,41 @@ class TritonLODAttentionCore(nn.Module):
     page_summary_scale_mode = "l2"
     virtual_page_storage = False
     recursive_page_lod = False
+    # Experimental uniform three-tier path: every state centroid contributes
+    # one exact best leaf plus a count-corrected residual centroid.
+    all_centroid_top1 = False
+    # Experimental decode path: all query heads sharing a KV head attend once
+    # to the deduplicated union of their routed centroid leaves.
+    gqa_union_leaf_attention = False
+    # The same GQA-union path backed by AITER PA-v1. Its partition statistics
+    # are consumed directly by the final Triton branch reducer.
+    gqa_union_aiter_attention = False
+    # Route before the coarse scan so union centroids are never accumulated.
+    # Disabling this retains the one-scan coarse-plus-correction experiment.
+    # Route-first produces disjoint branches directly, but requires a second
+    # centroid scan.  Keep it available for parity/experiments; correction is
+    # faster at long context on the current MI325X implementation.
+    gqa_union_route_then_coarse = False
+    # The virtual archive already contains the exact local-window K/V. Append
+    # their indices to AITER's block table and avoid a separate local branch.
+    gqa_union_aiter_include_local = True
+    all_centroid_winner_block_m = 64
+    all_centroid_winner_block_n = 16
+    all_centroid_winner_block_d = 128
+    all_centroid_centroids_per_program = 8
+    all_centroid_combine_centroids_per_program = 16
+    all_centroid_attention_block_m = 64
+    all_centroid_attention_block_n = 16
+    all_centroid_attention_block_d = 128
+    all_centroid_winner_num_warps = 4
+    all_centroid_attention_num_warps = 8
+    all_centroid_disjoint_residual = False
+    all_centroid_fused = True
+    all_centroid_fused_block_m = 16
+    all_centroid_fused_leaf_block_n = 4
+    all_centroid_fused_block_d = 128
+    all_centroid_fused_centroids_per_program = 32
+    all_centroid_fused_num_warps = 8
     recursive_page_block_n = 16
     dynamic_open_prefill_top_p: float | None = None
     dynamic_open_decode_top_p: float | None = None
@@ -2889,6 +2935,13 @@ class TritonLODAttentionCore(nn.Module):
                 return routed
             if (
                 self.fused_state_routing
+                and not (
+                    int(q.size(2)) == 1
+                    and (
+                        self.gqa_union_leaf_attention
+                        or self.gqa_union_aiter_attention
+                    )
+                )
                 and q.is_cuda
                 and route_count <= 8
                 and not getattr(self, "_lod_collect_stats", False)
@@ -3664,6 +3717,83 @@ class TritonLODAttentionCore(nn.Module):
                 page_quantized_counts, (0, missing)
             )
 
+    def _stage_aiter_local_pages(
+        self,
+        cache: dict[str, torch.Tensor | int],
+        local_k: torch.Tensor,
+        local_v: torch.Tensor,
+        *,
+        new_k: torch.Tensor | None,
+        new_v: torch.Tensor | None,
+    ) -> tuple[torch.Tensor, torch.Tensor, int]:
+        """Mirror the active local tail into unowned physical AITER pages."""
+        page_k = cache.get("page_k")
+        page_v = cache.get("page_v")
+        next_page = cache.get("next_page")
+        if not all(
+            isinstance(value, torch.Tensor)
+            for value in (page_k, page_v, next_page)
+        ):
+            raise TypeError("AITER local staging requires physical BF16 pages")
+        page_size = int(cache["page_size"])
+        active_len = int(local_k.size(2))
+        reserve_tokens = max(
+            active_len,
+            self.local_len + self.decode_state_update_len,
+        )
+        reserve_pages = math.ceil(reserve_tokens / page_size)
+        leaf_count = int(cache["leaf_count"])
+        staged_leaf_count = int(cache.get("aiter_local_leaf_count", -1))
+        base_page = int(cache.get("aiter_local_page_begin", -1))
+        refresh = staged_leaf_count != leaf_count or base_page < 0
+        if refresh:
+            next_free_page = int(next_page.max().item())
+            page_capacity = int(page_k.size(2))
+            if base_page < next_free_page or base_page < 0:
+                if next_free_page + reserve_pages > page_capacity:
+                    self._grow_page_pool(
+                        cache, next_free_page + reserve_pages
+                    )
+                    page_k = cache["page_k"]
+                    page_v = cache["page_v"]
+                    if not isinstance(page_k, torch.Tensor) or not isinstance(
+                        page_v, torch.Tensor
+                    ):
+                        raise TypeError("grown AITER page storage is missing")
+                    page_capacity = int(page_k.size(2))
+                    flat_capacity = page_capacity * page_size
+                    for name in ("packed_leaf_indices", "packed_leaf_slots"):
+                        packed = cache.get(name)
+                        if isinstance(packed, torch.Tensor):
+                            missing = flat_capacity - int(packed.size(2))
+                            if missing > 0:
+                                cache[name] = F.pad(
+                                    packed, (0, missing), value=-1
+                                )
+                base_page = page_capacity - reserve_pages
+                if base_page < next_free_page:
+                    raise RuntimeError("AITER local page reserve overlaps leaf pages")
+                cache["aiter_local_page_begin"] = base_page
+            local_begin = base_page * page_size
+            page_k.flatten(2, 3)[
+                ..., local_begin : local_begin + active_len, :
+            ].copy_(local_k)
+            page_v.flatten(2, 3)[
+                ..., local_begin : local_begin + active_len, :
+            ].copy_(local_v)
+            cache["aiter_local_leaf_count"] = leaf_count
+            return page_k, page_v, local_begin
+
+        local_begin = base_page * page_size
+        if new_k is not None and new_v is not None:
+            page_k.flatten(2, 3)[
+                ..., local_begin + active_len - 1 : local_begin + active_len, :
+            ].copy_(new_k)
+            page_v.flatten(2, 3)[
+                ..., local_begin + active_len - 1 : local_begin + active_len, :
+            ].copy_(new_v)
+        return page_k, page_v, local_begin
+
     @staticmethod
     def _fake_quantize_page_tensor(
         tensor: torch.Tensor,
@@ -3749,6 +3879,11 @@ class TritonLODAttentionCore(nn.Module):
             slot_lengths = F.pad(slot_lengths, (0, missing_slots))
         cache["slot_pages"] = slot_pages
         cache["slot_lengths"] = slot_lengths
+        if "slot_offsets" in cache:
+            cache["slot_offsets"] = F.pad(
+                torch.cumsum(slot_lengths, dim=-1, dtype=torch.int32),
+                (1, 0),
+            )
 
     @staticmethod
     def _ensure_overflow_page_table(
@@ -4004,6 +4139,60 @@ class TritonLODAttentionCore(nn.Module):
             self.leaf_key_quant_bits or self.leaf_value_quant_bits
         ) and not virtual_pages:
             self._fake_quantize_completed_pages(cache)
+        # Logical leaves form a compact stream in centroid order.  Attention
+        # consumes these offsets directly and resolves each logical position
+        # through the existing page table, so no K/V repacking is required.
+        if (
+            self.all_centroid_top1
+            or self.gqa_union_leaf_attention
+            or self.gqa_union_aiter_attention
+        ):
+            slot_offsets = cache.get("slot_offsets")
+            expected_offsets = (*slot_lengths.shape[:2], slot_lengths.size(2) + 1)
+            if not isinstance(slot_offsets, torch.Tensor) or tuple(
+                slot_offsets.shape
+            ) != expected_offsets:
+                slot_offsets = torch.empty(
+                    expected_offsets,
+                    dtype=torch.int32,
+                    device=slot_lengths.device,
+                )
+                cache["slot_offsets"] = slot_offsets
+            slot_offsets[..., 0].zero_()
+            torch.cumsum(
+                slot_lengths,
+                dim=-1,
+                dtype=torch.int32,
+                out=slot_offsets[..., 1:],
+            )
+        if (
+            (self.all_centroid_top1 and self.all_centroid_fused)
+            or self.gqa_union_leaf_attention
+            or self.gqa_union_aiter_attention
+        ):
+            page_k = cache.get("page_k")
+            if virtual_pages:
+                leaf_capacity = int(cache["leaf_capacity"])
+            elif isinstance(page_k, torch.Tensor):
+                leaf_capacity = int(page_k.size(2) * page_k.size(3))
+            else:
+                raise TypeError("all-centroid page backing is missing")
+            (
+                cache["packed_leaf_indices"],
+                cache["packed_leaf_slots"],
+            ) = build_all_centroid_leaf_stream(
+                page_indices if virtual_pages else None,
+                slot_pages,
+                overflow_page_keys,
+                overflow_page_values,
+                overflow_used,
+                slot_lengths,
+                cache["slot_offsets"],
+                leaf_capacity=leaf_capacity,
+                hash_probes=append_hash_probes,
+                packed_leaf_indices=cache.get("packed_leaf_indices"),
+                packed_leaf_slots=cache.get("packed_leaf_slots"),
+            )
     def _paged_leaf_attention(
         self,
         q: torch.Tensor,
@@ -4249,6 +4438,148 @@ class TritonLODAttentionCore(nn.Module):
             torch.logaddexp(coarse_lse, local_lse),
         )
 
+    def _all_centroid_top1_attention(
+        self,
+        q: torch.Tensor,
+        local_k: torch.Tensor,
+        local_v: torch.Tensor,
+        state_k: torch.Tensor,
+        state_v: torch.Tensor,
+        counts: torch.Tensor,
+        *,
+        state_len: int,
+        page_cache: dict[str, torch.Tensor | int] | None,
+        local_len: int | None,
+        new_k: torch.Tensor | None,
+        new_v: torch.Tensor | None,
+        local_branch: tuple[torch.Tensor, torch.Tensor] | None,
+        sink_k: torch.Tensor | None,
+        sink_v: torch.Tensor | None,
+        output_buffer: torch.Tensor | None,
+    ) -> torch.Tensor:
+        """Uniform exact-winner/residual attention over every state slot."""
+        if page_cache is None:
+            raise ValueError("all-centroid top-1 attention requires paged leaves")
+        if getattr(self, "mla_key_norm_weight", None) is not None:
+            raise NotImplementedError(
+                "all-centroid top-1 does not yet implement MLA residual normalization"
+            )
+        page_indices = page_cache.get("page_indices")
+        if isinstance(page_indices, torch.Tensor):
+            leaf_k = page_cache.get("leaf_k")
+            leaf_v = page_cache.get("leaf_v")
+        else:
+            leaf_k = page_cache.get("page_k")
+            leaf_v = page_cache.get("page_v")
+            page_indices = None
+        metadata_names = (
+            "slot_pages",
+            "overflow_page_keys",
+            "overflow_page_values",
+            "overflow_used",
+            "slot_lengths",
+            "slot_offsets",
+        )
+        metadata = tuple(page_cache.get(name) for name in metadata_names)
+        if not isinstance(leaf_k, torch.Tensor) or not isinstance(
+            leaf_v, torch.Tensor
+        ):
+            raise TypeError("all-centroid leaf K/V cache is incomplete")
+        if not all(isinstance(value, torch.Tensor) for value in metadata):
+            raise TypeError("all-centroid page metadata is incomplete")
+        if bool(page_cache.get("quantization_finalized", False)):
+            raise NotImplementedError(
+                "all-centroid top-1 initially supports BF16 leaf pages only"
+            )
+
+        if local_branch is None:
+            if new_k is not None or new_v is not None:
+                if new_k is None or new_v is None or local_len is None:
+                    raise ValueError("buffered all-centroid decode requires current K/V")
+                local_k[..., local_len : local_len + 1, :].copy_(new_k)
+                local_v[..., local_len : local_len + 1, :].copy_(new_v)
+                local_k = local_k[..., : local_len + 1, :]
+                local_v = local_v[..., : local_len + 1, :]
+            if int(q.size(2)) != 1:
+                raise ValueError(
+                    "all-centroid prefill requires separately computed local attention"
+                )
+            local_output, local_lse, *_ = (
+                torch.ops.aten._scaled_dot_product_flash_attention.default(
+                    q.contiguous(),
+                    local_k.contiguous(),
+                    local_v.contiguous(),
+                    0.0,
+                    False,
+                    False,
+                    scale=self.scaling,
+                )
+            )
+            local_branch = (local_output, local_lse)
+
+        # Leave the final destination untouched until the sink is incorporated;
+        # the branch-merge kernel is not required to support aliased input/output.
+        direct_output = output_buffer if sink_k is None else None
+        output, lse, _, _, _ = all_centroid_top1_attention(
+            q,
+            state_k,
+            state_v,
+            counts,
+            leaf_k,
+            leaf_v,
+            page_indices,
+            page_cache["slot_pages"],
+            page_cache["overflow_page_keys"],
+            page_cache["overflow_page_values"],
+            page_cache["overflow_used"],
+            page_cache["slot_lengths"],
+            page_cache["slot_offsets"],
+            page_cache.get("packed_leaf_indices"),
+            page_cache.get("packed_leaf_slots"),
+            state_len=state_len,
+            kv_group_size=self.num_key_value_groups,
+            scale=self.scaling,
+            local_branch=local_branch,
+            hash_probes=(
+                self.leaf_hash_probes if page_cache["overflow_active"] else 0
+            ),
+            winner_block_m=self.all_centroid_winner_block_m,
+            winner_block_n=self.all_centroid_winner_block_n,
+            winner_block_d=self.all_centroid_winner_block_d,
+            centroids_per_program=self.all_centroid_centroids_per_program,
+            combine_centroids_per_program=(
+                self.all_centroid_combine_centroids_per_program
+            ),
+            attention_block_m=self.all_centroid_attention_block_m,
+            attention_block_n=self.all_centroid_attention_block_n,
+            attention_block_d=self.all_centroid_attention_block_d,
+            winner_num_warps=self.all_centroid_winner_num_warps,
+            attention_num_warps=self.all_centroid_attention_num_warps,
+            waves_per_eu=self.leaf_waves_per_eu,
+            fused_prefill=self.all_centroid_fused,
+            fused_block_m=self.all_centroid_fused_block_m,
+            fused_leaf_block_n=self.all_centroid_fused_leaf_block_n,
+            fused_block_d=self.all_centroid_fused_block_d,
+            fused_centroids_per_program=(
+                self.all_centroid_fused_centroids_per_program
+            ),
+            fused_num_warps=self.all_centroid_fused_num_warps,
+            disjoint_residual=self.all_centroid_disjoint_residual,
+            output_buffer=direct_output,
+        )
+        if sink_k is None or sink_v is None:
+            return output
+        return merge_attention_branches_with_sink(
+            q,
+            sink_k,
+            sink_v,
+            output,
+            lse,
+            kv_group_size=self.num_key_value_groups,
+            scale=self.scaling,
+            output_buffer=output_buffer,
+        )
+
     def _gemm_coarse_attention(
         self,
         q: torch.Tensor,
@@ -4367,6 +4698,24 @@ class TritonLODAttentionCore(nn.Module):
             raise ValueError("LOD output buffer has incompatible geometry")
         if (sink_k is None) != (sink_v is None):
             raise ValueError("separate sink K and V must be provided together")
+        if self.all_centroid_top1:
+            return self._all_centroid_top1_attention(
+                q,
+                local_k,
+                local_v,
+                state_k,
+                state_v,
+                counts,
+                state_len=state_len,
+                page_cache=page_cache,
+                local_len=local_len,
+                new_k=new_k,
+                new_v=new_v,
+                local_branch=local_branch,
+                sink_k=sink_k,
+                sink_v=sink_v,
+                output_buffer=output_buffer,
+            )
         configured_topk = (
             self.prefill_two_level_topk
             if int(q.size(2)) > 1 and self.prefill_two_level_topk is not None
@@ -4437,6 +4786,11 @@ class TritonLODAttentionCore(nn.Module):
         )
         fuse_decode_route = (
             self.fused_decode_attention
+            and not self.gqa_union_leaf_attention
+            and (
+                not self.gqa_union_aiter_attention
+                or dynamic_residual is None
+            )
             and int(state_v.size(-1)) == int(q.size(-1))
             and self.fused_decode_state_route
             and self.routing_normalization == "none"
@@ -4465,6 +4819,14 @@ class TritonLODAttentionCore(nn.Module):
             )
         )
         top_slots = None
+        fused_union_branches = None
+        fused_union_route_buffers = None
+        aiter_union_includes_local = bool(
+            self.gqa_union_aiter_attention
+            and self.gqa_union_aiter_include_local
+            and int(q.size(2)) == 1
+            and local_branch is None
+        )
         if not fuse_decode_route:
             dynamic_local_lse = None
             if (
@@ -4517,6 +4879,8 @@ class TritonLODAttentionCore(nn.Module):
                 )
         if (
             self.fused_decode_attention
+            and not self.gqa_union_leaf_attention
+            and not self.gqa_union_aiter_attention
             and int(state_v.size(-1)) == int(q.size(-1))
             and int(q.size(2)) == 1
             and self.leaf_attention_backend == "paged"
@@ -4654,9 +5018,237 @@ class TritonLODAttentionCore(nn.Module):
                 ),
                 recursive_quant_group_size=self.leaf_quant_group_size,
             )
+        if self.gqa_union_aiter_attention and fuse_decode_route:
+            if page_cache is None:
+                raise RuntimeError("AITER GQA-union decode has no leaf page cache")
+            page_k = page_cache[
+                "leaf_k" if indexed_recursive_decode else "page_k"
+            ]
+            page_v = page_cache[
+                "leaf_v" if indexed_recursive_decode else "page_v"
+            ]
+            page_metadata = tuple(
+                page_cache[name]
+                for name in (
+                    "slot_pages",
+                    "overflow_page_keys",
+                    "overflow_page_values",
+                    "overflow_used",
+                    "slot_lengths",
+                )
+            )
+            if not all(
+                isinstance(value, torch.Tensor)
+                for value in (page_k, page_v, *page_metadata)
+            ):
+                raise TypeError("AITER GQA-union page metadata is incomplete")
+            decode_buffers = getattr(self, "_lod_decode_attention_buffers", None)
+            expected_partial = (
+                int(q.size(0)),
+                int(q.size(1)),
+                self.decode_split_kv,
+                int(q.size(-1)),
+            )
+            if (
+                decode_buffers is None
+                or tuple(decode_buffers["partial_out"].shape) != expected_partial
+                or decode_buffers["partial_out"].device != q.device
+                or "route_group_lse" not in decode_buffers
+                or int(decode_buffers["route_group_lse"].size(2))
+                < math.ceil(state_capacity / self.decode_route_group_size)
+            ):
+                decode_buffers = new_fused_decode_buffers(
+                    q,
+                    splits=self.decode_split_kv,
+                    state_capacity=state_capacity,
+                    route_group_size=self.decode_route_group_size,
+                )
+                self._lod_decode_attention_buffers = decode_buffers
+            (
+                top_slots,
+                fused_top_scores,
+                fused_coarse_output,
+                fused_coarse_lse,
+                fused_local_output,
+                fused_local_lse,
+            ) = fused_decode_paged_lod_attention(
+                q,
+                state_k,
+                state_v,
+                counts,
+                local_k,
+                local_v,
+                page_k,
+                page_v,
+                *page_metadata,
+                None,
+                state_len=state_len,
+                local_len=local_len,
+                new_k=new_k,
+                new_v=new_v,
+                kv_group_size=self.num_key_value_groups,
+                scale=self.scaling,
+                split_kv=self.decode_split_kv,
+                buffers=decode_buffers,
+                fuse_state_route=True,
+                route_group_size=self.decode_route_group_size,
+                route_num_warps=self.decode_route_num_warps,
+                route_reduce_num_warps=self.decode_route_reduce_num_warps,
+                route_use_dot=self.decode_route_use_dot,
+                route_gqa_grouped=self.decode_route_gqa_grouped,
+                protected_len=(
+                    self._protected_state_len(state_len)
+                    if self.exclude_sink_from_routes
+                    else 0
+                ),
+                route_top_p=dynamic_target,
+                sink_k=sink_k,
+                sink_v=sink_v,
+                timing_events=getattr(self, "_lod_decode_timing_events", None),
+                recursive_page_cache=(
+                    page_cache if indexed_recursive_decode else None
+                ),
+                route_coarse_only=True,
+                route_only_scan=self.gqa_union_route_then_coarse,
+                route_coarse_compute_local=not aiter_union_includes_local,
+            )
+            if not self.gqa_union_route_then_coarse:
+                fused_union_branches = (
+                    fused_top_scores,
+                    fused_coarse_output,
+                    fused_coarse_lse,
+                    (
+                        None
+                        if aiter_union_includes_local
+                        else fused_local_output
+                    ),
+                    None if aiter_union_includes_local else fused_local_lse,
+                )
+            fused_union_route_buffers = decode_buffers
         if top_slots is None:
             raise AssertionError("LOD routing did not produce slots")
-        if self.leaf_attention_backend == "paged":
+        aiter_union_stats = None
+        if (
+            self.gqa_union_leaf_attention or self.gqa_union_aiter_attention
+        ) and int(q.size(2)) == 1:
+            if self.leaf_attention_backend != "paged" or page_cache is None:
+                raise ValueError("GQA-union leaf attention requires paged leaves")
+            if new_k is not None or new_v is not None:
+                if new_k is None or new_v is None or local_len is None:
+                    raise ValueError("buffered GQA-union decode requires current K/V")
+                local_k[..., local_len : local_len + 1, :].copy_(new_k)
+                local_v[..., local_len : local_len + 1, :].copy_(new_v)
+                local_k = local_k[..., : local_len + 1, :].contiguous()
+                local_v = local_v[..., : local_len + 1, :].contiguous()
+            if bool(page_cache.get("quantization_finalized", False)):
+                raise NotImplementedError(
+                    "GQA-union leaf attention initially supports BF16 leaves only"
+                )
+            page_indices = page_cache.get("page_indices")
+            if isinstance(page_indices, torch.Tensor):
+                leaf_k = page_cache.get("leaf_k")
+                leaf_v = page_cache.get("leaf_v")
+            else:
+                leaf_k = page_cache.get("page_k")
+                leaf_v = page_cache.get("page_v")
+            slot_offsets = page_cache.get("slot_offsets")
+            packed_leaf_indices = page_cache.get("packed_leaf_indices")
+            if not all(
+                isinstance(value, torch.Tensor)
+                for value in (
+                    leaf_k,
+                    leaf_v,
+                    slot_offsets,
+                    packed_leaf_indices,
+                )
+            ):
+                raise TypeError("GQA-union leaf cache metadata is incomplete")
+            union_buffers = getattr(self, "_lod_gqa_union_buffers", None)
+            if self.gqa_union_aiter_attention:
+                local_leaf_begin = 0
+                local_leaf_len = 0
+                if aiter_union_includes_local:
+                    local_leaf_len = int(local_k.size(2))
+                    if isinstance(page_indices, torch.Tensor):
+                        local_leaf_begin = int(page_cache["leaf_count"])
+                        if local_leaf_begin + local_leaf_len > int(leaf_k.size(2)):
+                            raise RuntimeError(
+                                "AITER local range exceeds the virtual leaf cache"
+                            )
+                        if new_k is not None and new_v is not None:
+                            leaf_position = local_leaf_begin + int(local_len)
+                            leaf_k[
+                                ..., leaf_position : leaf_position + 1, :
+                            ].copy_(new_k)
+                            leaf_v[
+                                ..., leaf_position : leaf_position + 1, :
+                            ].copy_(new_v)
+                    else:
+                        leaf_k, leaf_v, local_leaf_begin = (
+                            self._stage_aiter_local_pages(
+                                page_cache,
+                                local_k,
+                                local_v,
+                                new_k=new_k,
+                                new_v=new_v,
+                            )
+                        )
+                        packed_leaf_indices = page_cache["packed_leaf_indices"]
+                (
+                    exact_output,
+                    exact_exp_sums,
+                    exact_max_logits,
+                    exact_lengths,
+                    top_slots,
+                    union_buffers,
+                ) = gqa_union_aiter_attention(
+                    q,
+                    leaf_k,
+                    leaf_v,
+                    top_slots,
+                    slot_offsets,
+                    packed_leaf_indices,
+                    kv_group_size=self.num_key_value_groups,
+                    scale=self.scaling,
+                    buffers=union_buffers,
+                    local_begin=local_leaf_begin,
+                    local_len=local_leaf_len,
+                    waves_per_eu=self.leaf_waves_per_eu,
+                    timing_events=getattr(
+                        self, "_lod_decode_timing_events", None
+                    ),
+                )
+                aiter_union_stats = (
+                    exact_exp_sums,
+                    exact_max_logits,
+                    exact_lengths,
+                )
+                exact_lse = None
+            else:
+                (
+                    exact_output,
+                    exact_lse,
+                    top_slots,
+                    union_buffers,
+                ) = gqa_union_indexed_attention(
+                    q,
+                    leaf_k,
+                    leaf_v,
+                    top_slots,
+                    slot_offsets,
+                    packed_leaf_indices,
+                    kv_group_size=self.num_key_value_groups,
+                    scale=self.scaling,
+                    buffers=union_buffers,
+                    block_n=128,
+                    num_warps=4,
+                    waves_per_eu=self.leaf_waves_per_eu,
+                    timing_events=getattr(
+                        self, "_lod_decode_timing_events", None
+                    ),
+                )
+            self._lod_gqa_union_buffers = union_buffers
+        elif self.leaf_attention_backend == "paged":
             if page_cache is None:
                 raise RuntimeError("paged LOD attention has no leaf page cache")
             if self.recursive_page_lod:
@@ -4808,7 +5400,7 @@ class TritonLODAttentionCore(nn.Module):
             raise ValueError(
                 f"unknown LOD leaf backend {self.leaf_attention_backend!r}"
             )
-        if top_slots is not None:
+        if top_slots is not None and aiter_union_stats is None:
             has_exact = top_slots.ge(0).any(dim=-1)
             exact_output = torch.where(
                 has_exact.unsqueeze(-1),
@@ -4820,18 +5412,172 @@ class TritonLODAttentionCore(nn.Module):
                 exact_lse,
                 torch.full_like(exact_lse, float("-inf")),
             )
-        coarse_output, coarse_lse = self._coarse_attention(
-            q,
-            local_k,
-            local_v,
-            state_k,
-            state_v,
-            counts,
-            top_slots,
-            state_len=state_len,
-            state_capacity=state_capacity,
-            include_local=local_branch is None,
-        )
+        if (
+            self.gqa_union_aiter_attention
+            and self.gqa_union_route_then_coarse
+            and fused_union_route_buffers is not None
+        ):
+            if local_branch is not None:
+                raise AssertionError(
+                    "masked AITER GQA routing received a duplicate local branch"
+                )
+            (
+                coarse_output,
+                coarse_lse,
+                masked_local_output,
+                masked_local_lse,
+            ) = masked_decode_coarse_local_attention(
+                q,
+                state_k,
+                state_v,
+                counts,
+                local_k,
+                local_v,
+                top_slots,
+                state_len=state_len,
+                local_len=int(local_k.size(2)),
+                kv_group_size=self.num_key_value_groups,
+                scale=self.scaling,
+                buffers=fused_union_route_buffers,
+                group_size=self.decode_route_group_size,
+                num_warps=self.decode_route_num_warps,
+                reduce_num_warps=self.decode_route_reduce_num_warps,
+                waves_per_eu=self.leaf_waves_per_eu,
+                timing_events=getattr(self, "_lod_decode_timing_events", None),
+                compute_local=not aiter_union_includes_local,
+            )
+            if masked_local_output is not None and masked_local_lse is not None:
+                local_branch = (masked_local_output, masked_local_lse)
+        elif fused_union_branches is not None:
+            if local_branch is not None:
+                raise AssertionError(
+                    "fused AITER GQA routing received a duplicate local branch"
+                )
+            (
+                fused_top_scores,
+                coarse_output,
+                coarse_lse,
+                fused_local_output,
+                fused_local_lse,
+            ) = fused_union_branches
+            if fused_local_output is not None and fused_local_lse is not None:
+                local_branch = (fused_local_output, fused_local_lse)
+        else:
+            coarse_output, coarse_lse = self._coarse_attention(
+                q,
+                local_k,
+                local_v,
+                state_k,
+                state_v,
+                counts,
+                top_slots,
+                state_len=state_len,
+                state_capacity=state_capacity,
+                include_local=local_branch is None,
+            )
+        if aiter_union_stats is not None:
+            exact_exp_sums, exact_max_logits, exact_lengths = aiter_union_stats
+            local_output = local_lse = None
+            if local_branch is not None:
+                local_output, local_lse = local_branch
+            merge_begin = None
+            timing_events = getattr(self, "_lod_decode_timing_events", None)
+            if timing_events is not None:
+                merge_begin = torch.cuda.Event(enable_timing=True)
+                merge_begin.record()
+            lse_begin = None
+            if timing_events is not None:
+                lse_begin = torch.cuda.Event(enable_timing=True)
+                lse_begin.record()
+            exact_lse = aiter_partition_lse(
+                exact_output,
+                exact_exp_sums,
+                exact_max_logits,
+                exact_lengths,
+                kv_group_size=self.num_key_value_groups,
+            )
+            if timing_events is not None:
+                lse_end = torch.cuda.Event(enable_timing=True)
+                lse_end.record()
+                timing_events.setdefault("gqa_union_lse", []).append(
+                    (lse_begin, lse_end)
+                )
+            if fused_union_branches is not None:
+                correction_begin = None
+                if timing_events is not None:
+                    correction_begin = torch.cuda.Event(enable_timing=True)
+                    correction_begin.record()
+                coarse_output, coarse_lse = remove_state_slots_from_attention(
+                    q,
+                    state_k,
+                    state_v,
+                    counts,
+                    top_slots,
+                    coarse_output,
+                    coarse_lse,
+                    kv_group_size=self.num_key_value_groups,
+                    scale=self.scaling,
+                    # Grouping all wide query heads in one Triton program
+                    # creates a very large d=512 kernel on Gemma-4. The
+                    # query-major kernel performs the same per-head correction
+                    # without the compile-time and register explosion.
+                    gqa_aware=int(q.size(-1)) <= 256,
+                )
+                if timing_events is not None:
+                    correction_end = torch.cuda.Event(enable_timing=True)
+                    correction_end.record()
+                    timing_events.setdefault("gqa_union_correction", []).append(
+                        (correction_begin, correction_end)
+                    )
+            merge_output = (
+                torch.empty_like(q) if output_buffer is None else output_buffer
+            )
+            branch_merge_begin = None
+            if timing_events is not None:
+                branch_merge_begin = torch.cuda.Event(enable_timing=True)
+                branch_merge_begin.record()
+            if sink_k is not None and sink_v is not None:
+                output = merge_attention_branches_with_sink(
+                    q,
+                    sink_k,
+                    sink_v,
+                    coarse_output,
+                    coarse_lse,
+                    exact_output,
+                    exact_lse,
+                    local_output,
+                    local_lse,
+                    kv_group_size=self.num_key_value_groups,
+                    scale=self.scaling,
+                    output_buffer=merge_output,
+                    block_m=1,
+                    num_warps=1,
+                )
+            else:
+                output = merge_attention_branches(
+                    coarse_output,
+                    coarse_lse,
+                    exact_output,
+                    exact_lse,
+                    local_output,
+                    local_lse,
+                    output_buffer=merge_output,
+                    block_m=1,
+                    num_warps=1,
+                )
+            if timing_events is not None:
+                branch_merge_end = torch.cuda.Event(enable_timing=True)
+                branch_merge_end.record()
+                timing_events.setdefault("gqa_union_branch_merge", []).append(
+                    (branch_merge_begin, branch_merge_end)
+                )
+            if timing_events is not None:
+                merge_end = torch.cuda.Event(enable_timing=True)
+                merge_end.record()
+                timing_events.setdefault("gqa_union_merge", []).append(
+                    (merge_begin, merge_end)
+                )
+            return output
         if local_branch is not None:
             local_output, local_lse = local_branch
             if sink_k is not None and sink_v is not None:

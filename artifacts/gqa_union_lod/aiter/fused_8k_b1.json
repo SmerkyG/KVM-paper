@@ -1,0 +1,119 @@
+{
+  "attention_layers": 6,
+  "batch_size": 1,
+  "clone_decode_routes": true,
+  "config_order_seed": null,
+  "configs": [
+    {
+      "block_n": 16,
+      "decode_state_update_length": 256,
+      "final_reduce_num_warps": 4,
+      "fuse_final_reduce": false,
+      "fused_attention_ms_per_step": 2.5945353677961975,
+      "gqa_union_leaf_lengths": [
+        583,
+        1295,
+        465,
+        450,
+        403,
+        394,
+        624,
+        588,
+        1017,
+        1062,
+        1182,
+        756
+      ],
+      "gqa_union_region_counts": [
+        24,
+        22,
+        18,
+        27,
+        22,
+        15,
+        15,
+        24,
+        27,
+        17,
+        22,
+        32
+      ],
+      "kernel_ms_per_step": {
+        "gqa_union_exact": 0.44814504651003517,
+        "gqa_union_merge": 0.5852094685833436,
+        "gqa_union_pack": 0.12458800780768797,
+        "page_append": 0.014292969135567546,
+        "route_groups": 0.2969845778134186,
+        "route_local": 0.4476439847057918,
+        "route_reduce": 0.16758319542714162,
+        "state_update": 0.015233113430440426
+      },
+      "logit_finite": true,
+      "mean_decode_step_ms": 15.683919906616211,
+      "num_warps": 2,
+      "profile_phases": true,
+      "route_group_size": 32,
+      "route_ms_per_step": 0.0,
+      "route_num_warps": 2,
+      "route_reduce_num_warps": 4,
+      "route_use_dot": false,
+      "split_kv": 8,
+      "state_update_intervals_per_layer": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "state_update_tokens_per_layer": [
+        256,
+        256,
+        256,
+        256,
+        256,
+        256
+      ],
+      "two_level_ms_per_step": 2.5945353677961975,
+      "use_dot": false
+    }
+  ],
+  "decode_cache_headroom": 256,
+  "decode_final_reduce_num_warps": [
+    4
+  ],
+  "decode_fuse_final_reduce": false,
+  "decode_route_gqa_grouped": false,
+  "decode_route_group_sizes": [
+    32
+  ],
+  "decode_route_num_warps": [
+    2
+  ],
+  "decode_route_reduce_num_warps": [
+    4
+  ],
+  "decode_route_use_dot": false,
+  "decode_state_update_lengths": [
+    256
+  ],
+  "dynamic_open_decode_residual_mass": null,
+  "exclude_sink_from_routes": true,
+  "fused_decode_attention": true,
+  "fused_decode_state_route": true,
+  "gqa_union_aiter_attention": true,
+  "gqa_union_leaf_attention": false,
+  "qwen35_acceleration": {
+    "causal_conv1d_decode": true,
+    "causal_conv1d_prefill": true,
+    "fla_fused_rms_norm_gated": true,
+    "fla_gated_delta_rule": true,
+    "fla_recurrent_gated_delta_rule": true,
+    "linear_layer_count": 18
+  },
+  "separate_sink_cache": false,
+  "sequence_length": 8192,
+  "state_growth_factor": 8.0,
+  "steps": 256,
+  "warmup_steps": 8
+}

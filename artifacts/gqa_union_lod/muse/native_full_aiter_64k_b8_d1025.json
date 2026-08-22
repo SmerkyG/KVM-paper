@@ -1,0 +1,68 @@
+{
+  "attention_backend": "ROCM_AITER_UNIFIED_ATTN",
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 232421064704,
+    "device_used_bytes_before_reclaim": 236772655104,
+    "lod_cache_bytes": 0,
+    "lod_decode_scratch_bytes": 0,
+    "native_cache_bytes": 173877297152,
+    "torch_allocated_bytes": 229964090368,
+    "torch_reclaimable_cached_bytes": 4351590400,
+    "torch_reserved_bytes_after_reclaim": 230175014912,
+    "torch_reserved_bytes_before_reclaim": 234526605312
+  },
+  "batch_size": 8,
+  "checkpoint": "meta-models/Muse-Glimmer-30B",
+  "decode_interval_tokens": 1024,
+  "decode_timings_seconds": [
+    20.482265742495656
+  ],
+  "decode_tokens": 1025,
+  "enforce_eager": false,
+  "jit_monitor_verbose": false,
+  "length": 65536,
+  "lengths": [
+    65536,
+    65536,
+    65536,
+    65536,
+    65536,
+    65536,
+    65536,
+    65536
+  ],
+  "lod_decode_block_n": null,
+  "lod_decode_final_reduce_num_warps": null,
+  "lod_decode_num_warps": null,
+  "lod_decode_route_group_size": null,
+  "lod_decode_route_num_warps": null,
+  "lod_decode_route_reduce_num_warps": null,
+  "lod_decode_use_dot": null,
+  "lod_direct_prefill_route": false,
+  "lod_gqa_route_then_coarse": false,
+  "lod_gqa_union_aiter": false,
+  "lod_leaf_num_warps": null,
+  "lod_prefill_chunk_len": null,
+  "lod_prefill_state_update_len": null,
+  "lod_recursive_page_block_n": null,
+  "long_prefill_token_threshold": 0,
+  "marginal_decode_ms_per_batch_step": 20.002212639155914,
+  "marginal_decode_ms_per_token": 2.5002765798944893,
+  "marginal_decode_tokens_per_second": 399.9557521121122,
+  "max_num_batched_tokens": 16384,
+  "mode": "full",
+  "muse_native_text_config": true,
+  "num_gpu_blocks_override": null,
+  "prefill_plus_decode_seconds": 72.43951337132603,
+  "prefill_prompt_tokens_per_second": 10092.30286292901,
+  "prefill_seconds": 51.94929315149784,
+  "prefill_timings_seconds": [
+    51.94929315149784
+  ],
+  "prompt_tokens": 524288,
+  "repeats": 1,
+  "torch_profile_dir": null,
+  "total_timings_seconds": [
+    72.43951337132603
+  ]
+}

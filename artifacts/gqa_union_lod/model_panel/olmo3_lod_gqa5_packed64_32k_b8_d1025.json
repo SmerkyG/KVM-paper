@@ -1,0 +1,2361 @@
+{
+  "allow_heterogeneous_global_config": false,
+  "attention_backend": null,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 142914617344,
+    "device_used_bytes_before_reclaim": 148497235968,
+    "lod_cache_bytes": 28272632512,
+    "lod_decode_scratch_bytes": 616975680,
+    "native_cache_bytes": 29057089536,
+    "torch_allocated_bytes": 136721060352,
+    "torch_reclaimable_cached_bytes": 5582618624,
+    "torch_reserved_bytes_after_reclaim": 139907301376,
+    "torch_reserved_bytes_before_reclaim": 145489920000
+  },
+  "batch_size": 8,
+  "checkpoint": "allenai/Olmo-3-1125-32B",
+  "decode_interval_tokens": 1024,
+  "decode_timings_seconds": [
+    34.177439889870584
+  ],
+  "decode_tokens": 1025,
+  "enforce_eager": false,
+  "jit_monitor_verbose": false,
+  "language_model_only": true,
+  "length": 32768,
+  "lengths": [
+    32768,
+    32768,
+    32768,
+    32768,
+    32768,
+    32768,
+    32768,
+    32768
+  ],
+  "lod_decode_block_n": null,
+  "lod_decode_final_reduce_num_warps": null,
+  "lod_decode_num_warps": null,
+  "lod_decode_route_group_size": null,
+  "lod_decode_route_num_warps": null,
+  "lod_decode_route_reduce_num_warps": null,
+  "lod_decode_state_update_len": null,
+  "lod_decode_use_dot": null,
+  "lod_diagnostics": {
+    "batched_cached_prefill_rows": 0,
+    "batched_cached_prefills": 0,
+    "batched_install_calls": 272,
+    "cached_prefill_candidate_calls": 2048,
+    "cached_prefill_candidate_rows": 9216,
+    "cached_prefill_noncontiguous": 1280,
+    "cached_prefill_nonpacked_calls": 0,
+    "cached_prefill_nonuniform_lengths": 1792,
+    "cached_prefill_nonuniform_previous": 1792,
+    "cached_prefill_packed_calls": 9216,
+    "cached_prefill_unready": 0,
+    "catch_up_batches": 832,
+    "catch_up_rows": 848,
+    "decode_calls": 128,
+    "direct_prefills": 2096,
+    "gqa_union_fused_correction": true,
+    "gqa_union_group_size": 5,
+    "gqa_union_leaves": 2133991,
+    "gqa_union_max_leaves": 4124,
+    "gqa_union_own_route_correction": false,
+    "gqa_union_regions": 26809,
+    "gqa_union_sequences": 1920,
+    "gqa_union_stage1_reduce": false,
+    "installs": 384,
+    "layers": 16
+  },
+  "lod_direct_prefill_route": false,
+  "lod_gqa_max_slot_leaves": 256,
+  "lod_gqa_persistent_route": false,
+  "lod_gqa_route_then_coarse": false,
+  "lod_gqa_stage1_reduce": false,
+  "lod_gqa_union_aiter": true,
+  "lod_gqa_union_group_size": 5,
+  "lod_leaf_num_warps": null,
+  "lod_prefill_chunk_len": null,
+  "lod_prefill_state_update_len": null,
+  "lod_recursive_page_block_n": null,
+  "long_prefill_token_threshold": 0,
+  "marginal_decode_ms_per_batch_step": 33.37640614245174,
+  "marginal_decode_ms_per_token": 4.172050767806468,
+  "marginal_decode_tokens_per_second": 239.69027599483607,
+  "max_num_batched_tokens": 4096,
+  "mode": "lod",
+  "muse_native_text_config": false,
+  "native_cache_layouts": [
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.0.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.1.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.2.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.4.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.5.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.6.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.8.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.9.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.10.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.12.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.13.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.14.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.16.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.17.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.18.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.20.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.21.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.22.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.24.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.25.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.26.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.28.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.29.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.30.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.32.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.33.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.34.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.36.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.37.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.38.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.40.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.41.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.42.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.44.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.45.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.46.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.48.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.49.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.50.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.52.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.53.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.54.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.56.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.57.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.58.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.60.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.61.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    },
+    {
+      "cache_shape": [
+        27711,
+        8,
+        16,
+        256
+      ],
+      "cache_stride": [
+        32768,
+        4096,
+        256,
+        1
+      ],
+      "head_size": 128,
+      "impl": "LODAttentionImpl",
+      "key_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "key_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ],
+      "layer": "model.layers.62.self_attn.attn",
+      "native_layout": false,
+      "num_kv_heads": 8,
+      "sliding_window": [
+        4095,
+        0
+      ],
+      "value_shape": [
+        27711,
+        16,
+        8,
+        128
+      ],
+      "value_stride": [
+        32768,
+        256,
+        4096,
+        1
+      ]
+    }
+  ],
+  "num_gpu_blocks_override": null,
+  "prefill_plus_decode_seconds": 89.81752450205386,
+  "prefill_prompt_tokens_per_second": 4711.705913718596,
+  "prefill_seconds": 55.636749152094126,
+  "prefill_timings_seconds": [
+    55.636749152094126
+  ],
+  "prompt_tokens": 262144,
+  "repeats": 1,
+  "tensor_parallel_size": 1,
+  "torch_profile_dir": null,
+  "total_timings_seconds": [
+    89.81752450205386
+  ]
+}

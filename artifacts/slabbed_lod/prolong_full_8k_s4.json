@@ -1,0 +1,88 @@
+{
+  "acceleration": {
+    "causal_conv1d_decode": true,
+    "causal_conv1d_prefill": true,
+    "fla_fused_rms_norm_gated": true,
+    "fla_gated_delta_rule": true,
+    "fla_recurrent_gated_delta_rule": true,
+    "linear_layer_count": 18
+  },
+  "attention_layers": [],
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "dataset": "Seerkfang/prolong-64k-512-new",
+  "lod": {
+    "chunk_size": 256,
+    "dynamic_open_statistics": {},
+    "engine_backend": "kernel",
+    "kv_bits": 0,
+    "local_window": 512,
+    "open_count": 8,
+    "protected_prefix": 1,
+    "recursive_pages": false,
+    "routing_count_bias": 1.0,
+    "routing_leaf_mass_candidates": 0,
+    "routing_leaf_mass_min_routes": 1,
+    "routing_leaf_mass_objective": "exact",
+    "routing_leaf_mass_review_top_p": null,
+    "routing_leaf_mass_top_p": null,
+    "routing_normalization": "none",
+    "routing_rope_cutoff_factor": 1.0,
+    "routing_rope_filter": "none",
+    "routing_rope_jensen": false,
+    "routing_variance_bias": 0.0,
+    "slab_query_chunk_size": null,
+    "slab_region_statistics": {},
+    "slab_routing_chunk_size": null,
+    "slab_size": null,
+    "slabbed": false,
+    "slots_per_slab": null,
+    "state_clustering_centroid_rescale": "none",
+    "state_clustering_centroid_rescale_scope": "all",
+    "state_clustering_normalization": "none",
+    "state_clustering_policy": "manual",
+    "state_clustering_query_metric": "none",
+    "state_clustering_radial_bias": 0.0,
+    "state_clustering_radial_scope": "all",
+    "state_clustering_rope_filter": "none",
+    "state_growth_factor": 16.0,
+    "state_min_size": 256
+  },
+  "loss": 3.0821948051452637,
+  "mode": "full",
+  "peak_memory_gib": 20.460179805755615,
+  "perplexity": 21.806210295048597,
+  "prediction_tokens": 32764,
+  "records": [
+    {
+      "elapsed_seconds": 1.904344830662012,
+      "loss": 3.3044188022613525,
+      "perplexity": 27.23270939931027,
+      "prediction_tokens": 8191,
+      "sample": 0
+    },
+    {
+      "elapsed_seconds": 0.0750645762309432,
+      "loss": 2.9144699573516846,
+      "perplexity": 18.439036336457608,
+      "prediction_tokens": 8191,
+      "sample": 1
+    },
+    {
+      "elapsed_seconds": 0.07393864914774895,
+      "loss": 3.3842504024505615,
+      "perplexity": 29.49587439210356,
+      "prediction_tokens": 8191,
+      "sample": 2
+    },
+    {
+      "elapsed_seconds": 0.07377724070101976,
+      "loss": 2.725640058517456,
+      "perplexity": 15.2661820502907,
+      "prediction_tokens": 8191,
+      "sample": 3
+    }
+  ],
+  "samples": 4,
+  "sequence_length": 8192,
+  "use_upstream_code": false
+}

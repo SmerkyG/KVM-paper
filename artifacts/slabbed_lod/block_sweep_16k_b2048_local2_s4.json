@@ -1,0 +1,145 @@
+{
+  "acceleration": {
+    "causal_conv1d_decode": true,
+    "causal_conv1d_prefill": true,
+    "fla_fused_rms_norm_gated": true,
+    "fla_gated_delta_rule": true,
+    "fla_recurrent_gated_delta_rule": true,
+    "linear_layer_count": 18
+  },
+  "attention_layers": [
+    "model.layers.3.self_attn",
+    "model.layers.7.self_attn",
+    "model.layers.11.self_attn",
+    "model.layers.15.self_attn",
+    "model.layers.19.self_attn",
+    "model.layers.23.self_attn"
+  ],
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "dataset": "Seerkfang/prolong-64k-512-new",
+  "lod": {
+    "chunk_size": 256,
+    "dynamic_open_statistics": {},
+    "engine_backend": "torch",
+    "kv_bits": 0,
+    "local_window": 512,
+    "open_count": 8,
+    "protected_prefix": 1,
+    "recursive_pages": false,
+    "routing_count_bias": 1.0,
+    "routing_leaf_mass_candidates": 0,
+    "routing_leaf_mass_min_routes": 1,
+    "routing_leaf_mass_objective": "exact",
+    "routing_leaf_mass_review_top_p": null,
+    "routing_leaf_mass_top_p": null,
+    "routing_normalization": "none",
+    "routing_rope_cutoff_factor": 1.0,
+    "routing_rope_filter": "none",
+    "routing_rope_jensen": false,
+    "routing_variance_bias": 0.0,
+    "slab_coarse_variance_bias": 0.0,
+    "slab_exact_closed_mass_oracle": false,
+    "slab_local_slabs": 2,
+    "slab_merge_budget_growth_factor": 0.0,
+    "slab_merge_group_slabs": 0,
+    "slab_merged_slots_per_group": 0,
+    "slab_query_chunk_size": 32,
+    "slab_region_statistics": {
+      "model.layers.11.self_attn": {
+        "max": 69.0,
+        "mean": 16.0,
+        "median": 14.0,
+        "p95": 31.0,
+        "p99": 42.0
+      },
+      "model.layers.15.self_attn": {
+        "max": 85.0,
+        "mean": 16.0,
+        "median": 14.0,
+        "p95": 32.0,
+        "p99": 43.0
+      },
+      "model.layers.19.self_attn": {
+        "max": 86.0,
+        "mean": 16.0,
+        "median": 14.0,
+        "p95": 33.0,
+        "p99": 49.530029296875
+      },
+      "model.layers.23.self_attn": {
+        "max": 77.0,
+        "mean": 16.0,
+        "median": 14.0,
+        "p95": 34.0,
+        "p99": 48.0
+      },
+      "model.layers.3.self_attn": {
+        "max": 106.0,
+        "mean": 16.0,
+        "median": 14.0,
+        "p95": 34.6500244140625,
+        "p99": 49.530029296875
+      },
+      "model.layers.7.self_attn": {
+        "max": 53.0,
+        "mean": 16.0,
+        "median": 14.0,
+        "p95": 31.0,
+        "p99": 42.0
+      }
+    },
+    "slab_routing_chunk_size": 256,
+    "slab_seed_selection": "strided",
+    "slab_size": 2048,
+    "slabbed": true,
+    "slots_per_slab": 128,
+    "state_clustering_centroid_rescale": "none",
+    "state_clustering_centroid_rescale_scope": "all",
+    "state_clustering_normalization": "none",
+    "state_clustering_policy": "manual",
+    "state_clustering_query_metric": "none",
+    "state_clustering_radial_bias": 0.0,
+    "state_clustering_radial_scope": "all",
+    "state_clustering_rope_filter": "none",
+    "state_growth_factor": 16.0,
+    "state_min_size": 256
+  },
+  "loss": 3.1443857550621033,
+  "mode": "lod",
+  "peak_memory_gib": 39.421239376068115,
+  "perplexity": 23.205417284623685,
+  "prediction_tokens": 65532,
+  "records": [
+    {
+      "elapsed_seconds": 10.04286993574351,
+      "loss": 3.3344712257385254,
+      "perplexity": 28.063540022145833,
+      "prediction_tokens": 16383,
+      "sample": 0
+    },
+    {
+      "elapsed_seconds": 5.720158425159752,
+      "loss": 2.8335869312286377,
+      "perplexity": 17.006352168401605,
+      "prediction_tokens": 16383,
+      "sample": 1
+    },
+    {
+      "elapsed_seconds": 5.676038064062595,
+      "loss": 3.452960252761841,
+      "perplexity": 31.593779588859107,
+      "prediction_tokens": 16383,
+      "sample": 2
+    },
+    {
+      "elapsed_seconds": 5.613306304439902,
+      "loss": 2.956524610519409,
+      "perplexity": 19.231020196227934,
+      "prediction_tokens": 16383,
+      "sample": 3
+    }
+  ],
+  "samples": 4,
+  "sequence_length": 16384,
+  "use_upstream_code": false
+}

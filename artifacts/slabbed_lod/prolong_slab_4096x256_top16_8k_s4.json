@@ -1,0 +1,138 @@
+{
+  "acceleration": {
+    "causal_conv1d_decode": true,
+    "causal_conv1d_prefill": true,
+    "fla_fused_rms_norm_gated": true,
+    "fla_gated_delta_rule": true,
+    "fla_recurrent_gated_delta_rule": true,
+    "linear_layer_count": 18
+  },
+  "attention_layers": [
+    "model.layers.3.self_attn",
+    "model.layers.7.self_attn",
+    "model.layers.11.self_attn",
+    "model.layers.15.self_attn",
+    "model.layers.19.self_attn",
+    "model.layers.23.self_attn"
+  ],
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "dataset": "Seerkfang/prolong-64k-512-new",
+  "lod": {
+    "chunk_size": 256,
+    "dynamic_open_statistics": {},
+    "engine_backend": "torch",
+    "kv_bits": 0,
+    "local_window": 512,
+    "open_count": 16,
+    "protected_prefix": 1,
+    "recursive_pages": false,
+    "routing_count_bias": 1.0,
+    "routing_leaf_mass_candidates": 0,
+    "routing_leaf_mass_min_routes": 1,
+    "routing_leaf_mass_objective": "exact",
+    "routing_leaf_mass_review_top_p": null,
+    "routing_leaf_mass_top_p": null,
+    "routing_normalization": "none",
+    "routing_rope_cutoff_factor": 1.0,
+    "routing_rope_filter": "none",
+    "routing_rope_jensen": false,
+    "routing_variance_bias": 0.0,
+    "slab_query_chunk_size": 32,
+    "slab_region_statistics": {
+      "model.layers.11.self_attn": {
+        "max": 443.0,
+        "mean": 16.0,
+        "median": 8.0,
+        "p95": 55.0,
+        "p99": 122.7001953125
+      },
+      "model.layers.15.self_attn": {
+        "max": 314.0,
+        "mean": 16.0,
+        "median": 8.0,
+        "p95": 57.699951171875,
+        "p99": 116.39013671875
+      },
+      "model.layers.19.self_attn": {
+        "max": 185.0,
+        "mean": 16.0,
+        "median": 10.0,
+        "p95": 58.0,
+        "p99": 97.0
+      },
+      "model.layers.23.self_attn": {
+        "max": 281.0,
+        "mean": 16.0,
+        "median": 10.0,
+        "p95": 51.8499755859375,
+        "p99": 107.0
+      },
+      "model.layers.3.self_attn": {
+        "max": 259.0,
+        "mean": 16.0,
+        "median": 9.0,
+        "p95": 52.0,
+        "p99": 125.77001953125
+      },
+      "model.layers.7.self_attn": {
+        "max": 194.0,
+        "mean": 16.0,
+        "median": 9.0,
+        "p95": 60.0,
+        "p99": 96.93017578125
+      }
+    },
+    "slab_routing_chunk_size": 256,
+    "slab_size": 4096,
+    "slabbed": true,
+    "slots_per_slab": 256,
+    "state_clustering_centroid_rescale": "none",
+    "state_clustering_centroid_rescale_scope": "all",
+    "state_clustering_normalization": "none",
+    "state_clustering_policy": "manual",
+    "state_clustering_query_metric": "none",
+    "state_clustering_radial_bias": 0.0,
+    "state_clustering_radial_scope": "all",
+    "state_clustering_rope_filter": "none",
+    "state_growth_factor": 16.0,
+    "state_min_size": 256
+  },
+  "loss": 3.084864854812622,
+  "mode": "lod",
+  "peak_memory_gib": 20.460179805755615,
+  "perplexity": 21.86451175885854,
+  "prediction_tokens": 32764,
+  "records": [
+    {
+      "elapsed_seconds": 7.570265490561724,
+      "loss": 3.308699607849121,
+      "perplexity": 27.349537214049345,
+      "prediction_tokens": 8191,
+      "sample": 0
+    },
+    {
+      "elapsed_seconds": 3.386344315484166,
+      "loss": 2.9162416458129883,
+      "perplexity": 18.471733520431542,
+      "prediction_tokens": 8191,
+      "sample": 1
+    },
+    {
+      "elapsed_seconds": 3.765853905119002,
+      "loss": 3.3866043090820312,
+      "perplexity": 29.565386707089143,
+      "prediction_tokens": 8191,
+      "sample": 2
+    },
+    {
+      "elapsed_seconds": 4.555957415141165,
+      "loss": 2.7279138565063477,
+      "perplexity": 15.300933758544224,
+      "prediction_tokens": 8191,
+      "sample": 3
+    }
+  ],
+  "samples": 4,
+  "sequence_length": 8192,
+  "use_upstream_code": false
+}

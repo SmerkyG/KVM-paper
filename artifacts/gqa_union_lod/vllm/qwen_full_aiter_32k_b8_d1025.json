@@ -1,0 +1,72 @@
+{
+  "attention_backend": "ROCM_AITER_UNIFIED_ATTN",
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 192321421312,
+    "device_used_bytes_before_reclaim": 194047377408,
+    "lod_cache_bytes": 0,
+    "lod_decode_scratch_bytes": 0,
+    "native_cache_bytes": 187118125056,
+    "torch_allocated_bytes": 189251883008,
+    "torch_reclaimable_cached_bytes": 1725956096,
+    "torch_reserved_bytes_after_reclaim": 189431545856,
+    "torch_reserved_bytes_before_reclaim": 191157501952
+  },
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "decode_interval_tokens": 1024,
+  "decode_timings_seconds": [
+    4.964023826643825,
+    5.529219549149275,
+    4.973544109612703
+  ],
+  "decode_tokens": 1025,
+  "enforce_eager": false,
+  "jit_monitor_verbose": false,
+  "length": 32768,
+  "lengths": [
+    32768,
+    32768,
+    32768,
+    32768,
+    32768,
+    32768,
+    32768,
+    32768
+  ],
+  "lod_decode_block_n": null,
+  "lod_decode_final_reduce_num_warps": null,
+  "lod_decode_num_warps": null,
+  "lod_decode_route_group_size": null,
+  "lod_decode_route_num_warps": null,
+  "lod_decode_route_reduce_num_warps": null,
+  "lod_decode_use_dot": null,
+  "lod_direct_prefill_route": false,
+  "lod_gqa_union_aiter": false,
+  "lod_leaf_num_warps": null,
+  "lod_prefill_chunk_len": null,
+  "lod_prefill_state_update_len": null,
+  "lod_recursive_page_block_n": null,
+  "long_prefill_token_threshold": 0,
+  "marginal_decode_ms_per_batch_step": 4.856976669543656,
+  "marginal_decode_ms_per_token": 0.607122083692957,
+  "marginal_decode_tokens_per_second": 1647.115179730038,
+  "max_num_batched_tokens": 16384,
+  "mode": "full",
+  "num_gpu_blocks_override": null,
+  "prefill_plus_decode_seconds": 8.734236900694668,
+  "prefill_prompt_tokens_per_second": 78322.10085209711,
+  "prefill_seconds": 3.3469990864396095,
+  "prefill_timings_seconds": [
+    3.3469990864396095,
+    3.323316623456776,
+    3.7544752554968
+  ],
+  "prompt_tokens": 262144,
+  "repeats": 3,
+  "torch_profile_dir": null,
+  "total_timings_seconds": [
+    8.315476473420858,
+    8.856751286424696,
+    8.734236900694668
+  ]
+}

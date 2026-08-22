@@ -10,7 +10,7 @@ import numpy as np
 import torch
 
 from .backend import NATIVE_LAYOUT, LODAttentionImpl
-from .config import VLLMLODSettings
+from .config import VLLMLODSettings, configured_full_attention_layer
 from .pool import VLLMLayerLODPool
 
 logger = logging.getLogger(__name__)
@@ -30,6 +30,19 @@ class VLLMLODRuntime:
     def __init__(self, model_state: Any) -> None:
         self.model_state = model_state
         self.settings = VLLMLODSettings.from_environment()
+        logger.info(
+            "LOD decode configuration: GQA union=%s group=%d stage1=%s "
+            "fused_correction=%s own_route_correction=%s max_slot_leaves=%d "
+            "cache=%s placeholder=%s",
+            self.settings.gqa_union_aiter,
+            self.settings.gqa_union_group_size,
+            self.settings.gqa_union_stage1_reduce,
+            self.settings.gqa_union_fused_correction,
+            self.settings.gqa_union_own_route_correction,
+            self.settings.gqa_union_max_slot_leaves,
+            self.settings.cache_ownership,
+            self.settings.native_placeholder_cache,
+        )
         config = model_state.vllm_config
         if config.parallel_config.decode_context_parallel_size != 1:
             raise NotImplementedError("vLLM LOD does not yet support DCP")
@@ -52,6 +65,7 @@ class VLLMLODRuntime:
             for name, layer in context.items()
             if isinstance(getattr(layer, "impl", None), LODAttentionImpl)
             and bool(layer.impl.lod_eligible)
+            and configured_full_attention_layer(name, config)
         }
         self.pools: dict[str, VLLMLayerLODPool] = {}
         self.group_by_layer: dict[str, int] = {}
@@ -68,6 +82,11 @@ class VLLMLODRuntime:
         self._active_decode_rows: tuple[int, ...] | None = None
         self.initialized = False
         self.allocate_pools()
+        model = getattr(model_state, "model", None)
+        if model is None:
+            model = getattr(model_state, "get_model", lambda: None)()
+        if model is not None:
+            model._vllm_lod_runtime = self
 
     @property
     def enabled(self) -> bool:
@@ -480,7 +499,7 @@ class VLLMLODRuntime:
                 pool.catch_up_many(requests)
         for row, length in requests:
             recent_length = length - int(reference_pool.metadata[row]["coverage"])
-            if recent_length > int(reference_pool.engine.local_len):
+            if recent_length > int(reference_pool.decode_local_capacity):
                 raise RuntimeError(
                     "LOD catch-up left more live tokens than the decode-local field"
                 )
@@ -680,7 +699,10 @@ class VLLMLODRuntime:
         if not for_capture:
             return
         rows = int(input_batch.num_tokens_after_padding)
-        self._prepare_dummy_batch(rows, int(input_batch.max_query_len or 1))
+        max_query_len = getattr(input_batch, "max_query_len", None)
+        if max_query_len is None:
+            max_query_len = input_batch.num_scheduled_tokens.max().item()
+        self._prepare_dummy_batch(rows, int(max_query_len or 1))
 
     def _gather_native_prefix(
         self,
@@ -824,9 +846,12 @@ class VLLMLODRuntime:
         for req_id, slot in zip(input_batch.req_ids, input_batch.idx_mapping_np):
             self.req_to_slot[req_id] = int(slot)
 
+        max_query_len = getattr(input_batch, "max_query_len", None)
+        if max_query_len is None:
+            max_query_len = input_batch.num_scheduled_tokens.max().item()
         pure_decode = (
             not bool(np.asarray(input_batch.is_prefilling_np).any())
-            and int(input_batch.max_query_len or 1) == 1
+            and int(max_query_len or 1) == 1
         )
         if not pure_decode:
             slots = list(map(int, input_batch.idx_mapping_np))
@@ -973,6 +998,50 @@ def install_model_state_hooks() -> None:
     ModelState._vllm_lod_hooks_installed = True
     install_gpu_runner_hooks()
     install_legacy_runner_hooks()
+
+
+def install_tp_safe_vocab_padding() -> None:
+    """Keep vLLM's padded vocabulary divisible by unusual TP sizes."""
+    import math
+
+    from vllm.distributed import get_tensor_model_parallel_world_size
+    from vllm.model_executor.layers.vocab_parallel_embedding import (
+        VocabParallelEmbedding,
+    )
+
+    if getattr(VocabParallelEmbedding, "_vllm_lod_tp_padding_installed", False):
+        return
+    original_init = VocabParallelEmbedding.__init__
+
+    def initialize_vocab_embedding(
+        self: Any,
+        num_embeddings: int,
+        embedding_dim: int,
+        params_dtype: torch.dtype | None = None,
+        org_num_embeddings: int | None = None,
+        padding_size: int = 64,
+        quant_config: Any = None,
+        prefix: str = "",
+        *,
+        disable_tp: bool = False,
+    ) -> None:
+        if not disable_tp:
+            tp_size = int(get_tensor_model_parallel_world_size())
+            padding_size = math.lcm(int(padding_size), tp_size)
+        original_init(
+            self,
+            num_embeddings,
+            embedding_dim,
+            params_dtype,
+            org_num_embeddings,
+            padding_size,
+            quant_config,
+            prefix,
+            disable_tp=disable_tp,
+        )
+
+    VocabParallelEmbedding.__init__ = initialize_vocab_embedding
+    VocabParallelEmbedding._vllm_lod_tp_padding_installed = True
 
 
 def install_gpu_runner_hooks() -> None:

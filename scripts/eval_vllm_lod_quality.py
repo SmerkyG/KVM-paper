@@ -19,6 +19,32 @@ from datasets import load_dataset
 from transformers import AutoTokenizer
 
 
+def allow_heterogeneous_global_config(config):
+    """Expose Gemma 4's nested text model as a heterogeneous causal LM."""
+    text_config = getattr(config, "text_config", config)
+    if not hasattr(text_config, "layer_types"):
+        return config
+    text_config.allow_global_per_layer_attribute_access = True
+    full_layers = [
+        text_config.per_layer_config[index]
+        for index, layer_type in enumerate(text_config.layer_types)
+        if layer_type == "full_attention"
+    ]
+    if full_layers:
+        text_config.global_head_dim = max(
+            int(layer.head_dim) for layer in full_layers
+        )
+        text_config.num_global_key_value_heads = min(
+            int(layer.num_key_value_heads) for layer in full_layers
+        )
+    if getattr(text_config, "top_k", None) is None:
+        top_k_experts = getattr(text_config, "top_k_experts", None)
+        if top_k_experts is not None:
+            text_config.top_k = int(top_k_experts)
+    text_config.architectures = ["Gemma4ForCausalLM"]
+    return text_config
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkpoint", default="Qwen/Qwen3.5-0.8B")
@@ -32,9 +58,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--long-prefill-token-threshold", type=int, default=0)
     parser.add_argument("--gpu-memory-utilization", type=float, default=0.8)
     parser.add_argument("--enforce-eager", action="store_true")
+    parser.add_argument("--attention-backend")
+    parser.add_argument("--tensor-parallel-size", type=int, default=1)
+    parser.add_argument("--language-model-only", action="store_true")
+    parser.add_argument("--allow-heterogeneous-global-config", action="store_true")
     parser.add_argument("--lod-prefill-route-block-m", type=int)
     parser.add_argument("--lod-prefill-route-num-warps", type=int)
     parser.add_argument("--lod-recursive-page-block-n", type=int)
+    parser.add_argument("--lod-gqa-union-aiter", action="store_true")
+    parser.add_argument("--lod-gqa-union-group-size", type=int)
+    parser.add_argument("--lod-gqa-max-slot-leaves", type=int)
+    parser.add_argument("--lod-gqa-fused-correction", action="store_true")
+    parser.add_argument("--lod-decode-state-update-len", type=int)
+    parser.add_argument("--lod-gqa-persistent-route", action="store_true")
     parser.add_argument("--output", type=Path, required=True)
     return parser.parse_args()
 
@@ -146,15 +182,22 @@ def make_llm(args: argparse.Namespace):
         "gpu_memory_utilization": args.gpu_memory_utilization,
         "enforce_eager": args.enforce_eager,
         "enable_prefix_caching": False,
+        "tensor_parallel_size": args.tensor_parallel_size,
+        "language_model_only": args.language_model_only,
     }
+    if args.allow_heterogeneous_global_config:
+        kwargs["hf_overrides"] = allow_heterogeneous_global_config
     if args.mode == "lod":
         kwargs["attention_config"] = {"backend": "CUSTOM"}
+    elif args.attention_backend is not None:
+        kwargs["attention_config"] = {"backend": args.attention_backend}
     return LLM(**kwargs)
 
 
 def inspect_lod_model(model) -> dict[str, object]:
     """Run in the vLLM worker and prove that LOD pools are attached."""
     custom_layers = []
+    eligible_layers = []
     pooled_layers = []
     install_count = 0
     direct_prefill_calls = 0
@@ -170,6 +213,8 @@ def inspect_lod_model(model) -> dict[str, object]:
         if type(impl).__module__ != "vllm_lod_plugin.backend":
             continue
         custom_layers.append(name)
+        if bool(getattr(impl, "lod_eligible", False)):
+            eligible_layers.append(name)
         pool = getattr(module, "_vllm_lod_pool", None)
         if pool is not None:
             pooled_layers.append(name)
@@ -191,6 +236,7 @@ def inspect_lod_model(model) -> dict[str, object]:
             )
     return {
         "custom_layers": custom_layers,
+        "eligible_layers": eligible_layers,
         "pooled_layers": pooled_layers,
         "install_count": install_count,
         "direct_prefill_calls": direct_prefill_calls,
@@ -210,6 +256,8 @@ def configure_lod_model(
     route_block_m: int | None,
     route_num_warps: int | None,
     page_block_n: int | None,
+    gqa_persistent_route: bool,
+    gqa_union_group_size: int | None,
 ) -> int:
     """Apply evaluation-only kernel ablations to installed LOD engines."""
     configured = 0
@@ -223,6 +271,10 @@ def configure_lod_model(
             pool.engine.prefill_route_num_warps = route_num_warps
         if page_block_n is not None:
             pool.engine.recursive_page_block_n = page_block_n
+        if gqa_persistent_route:
+            pool.engine.gqa_union_persistent_route = True
+        if gqa_union_group_size is not None:
+            pool.engine.gqa_union_group_size = gqa_union_group_size
         configured += 1
     return configured
 
@@ -332,6 +384,46 @@ def evaluate_niah_s3(args: argparse.Namespace, tokenizer, llm) -> dict:
 
 def main() -> None:
     args = parse_args()
+    os.environ.setdefault("VLLM_ALLOW_INSECURE_SERIALIZATION", "1")
+    if args.lod_gqa_union_aiter:
+        if args.mode != "lod":
+            raise ValueError("--lod-gqa-union-aiter requires --mode lod")
+        os.environ["VLLM_LOD_GQA_UNION_AITER"] = "1"
+        os.environ["VLLM_LOD_KV_BITS"] = "0"
+    if args.lod_gqa_persistent_route:
+        if not args.lod_gqa_union_aiter:
+            raise ValueError(
+                "--lod-gqa-persistent-route requires --lod-gqa-union-aiter"
+            )
+        os.environ["VLLM_LOD_GQA_UNION_PERSISTENT_ROUTE"] = "1"
+    if args.lod_gqa_union_group_size is not None:
+        if args.lod_gqa_union_group_size <= 0:
+            raise ValueError("--lod-gqa-union-group-size must be positive")
+        os.environ["VLLM_LOD_GQA_UNION_GROUP_SIZE"] = str(
+            args.lod_gqa_union_group_size
+        )
+    if args.lod_gqa_max_slot_leaves is not None:
+        if args.lod_gqa_max_slot_leaves < 0:
+            raise ValueError("--lod-gqa-max-slot-leaves must be nonnegative")
+        os.environ["VLLM_LOD_GQA_MAX_SLOT_LEAVES"] = str(
+            args.lod_gqa_max_slot_leaves
+        )
+    if args.lod_gqa_fused_correction:
+        if not args.lod_gqa_union_aiter:
+            raise ValueError(
+                "--lod-gqa-fused-correction requires --lod-gqa-union-aiter"
+            )
+        os.environ["VLLM_LOD_GQA_UNION_FUSED_CORRECTION"] = "1"
+    if args.lod_decode_state_update_len is not None:
+        if args.mode != "lod" or args.lod_decode_state_update_len <= 0:
+            raise ValueError(
+                "--lod-decode-state-update-len requires LOD mode and a positive value"
+            )
+        os.environ["VLLM_LOD_DECODE_STATE_UPDATE_LEN"] = str(
+            args.lod_decode_state_update_len
+        )
+    if args.attention_backend is not None and args.mode != "full":
+        raise ValueError("--attention-backend is only valid in full mode")
     if args.samples < 1 or args.batch_size < 1:
         raise ValueError("samples and batch size must be positive")
     if args.mode == "lod" and args.batch_size > int(
@@ -346,6 +438,8 @@ def main() -> None:
             args.lod_prefill_route_block_m,
             args.lod_prefill_route_num_warps,
             args.lod_recursive_page_block_n,
+            args.lod_gqa_persistent_route or None,
+            args.lod_gqa_union_group_size,
         )
     )
     if args.mode == "lod" and tuning_requested:
@@ -355,6 +449,8 @@ def main() -> None:
                 route_block_m=args.lod_prefill_route_block_m,
                 route_num_warps=args.lod_prefill_route_num_warps,
                 page_block_n=args.lod_recursive_page_block_n,
+                gqa_persistent_route=args.lod_gqa_persistent_route,
+                gqa_union_group_size=args.lod_gqa_union_group_size,
             )
         )
         if not configured or not all(value > 0 for value in configured):
@@ -367,7 +463,7 @@ def main() -> None:
             raise RuntimeError("vLLM did not construct any CUSTOM attention layers")
         if (
             lod_diagnostics_before["pooled_layers"]
-            != lod_diagnostics_before["custom_layers"]
+            != lod_diagnostics_before["eligible_layers"]
         ):
             raise RuntimeError(
                 "LOD pools are not attached to every CUSTOM attention layer: "
@@ -408,6 +504,18 @@ def main() -> None:
         lod_prefill_route_block_m=args.lod_prefill_route_block_m,
         lod_prefill_route_num_warps=args.lod_prefill_route_num_warps,
         lod_recursive_page_block_n=args.lod_recursive_page_block_n,
+        lod_gqa_union_aiter=args.lod_gqa_union_aiter,
+        lod_gqa_persistent_route=args.lod_gqa_persistent_route,
+        lod_gqa_union_group_size=args.lod_gqa_union_group_size,
+        lod_gqa_max_slot_leaves=args.lod_gqa_max_slot_leaves,
+        lod_gqa_fused_correction=args.lod_gqa_fused_correction,
+        lod_decode_state_update_len=args.lod_decode_state_update_len,
+        attention_backend=args.attention_backend,
+        tensor_parallel_size=args.tensor_parallel_size,
+        language_model_only=args.language_model_only,
+        allow_heterogeneous_global_config=(
+            args.allow_heterogeneous_global_config
+        ),
         lod_diagnostics_before=lod_diagnostics_before,
         lod_diagnostics_after=lod_diagnostics_after,
     )

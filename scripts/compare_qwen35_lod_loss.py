@@ -44,6 +44,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dynamic-open-prefill-residual-mass", type=float)
     parser.add_argument("--dynamic-open-decode-top-p", type=float)
     parser.add_argument("--recursive-page-lod", action="store_true")
+    parser.add_argument(
+        "--all-centroid-top1",
+        action="store_true",
+        help="Use the experimental uniform exact-winner/residual path.",
+    )
+    parser.add_argument("--all-centroid-mean-residual", action="store_true")
     parser.add_argument("--recursive-page-block-n", type=int, default=4)
     parser.add_argument("--leaf-num-warps", type=int, default=1)
     parser.add_argument("--leaf-key-quant-bits", type=int, choices=(0, 4, 8), default=0)
@@ -190,6 +196,10 @@ def main() -> None:
                 module.separate_sink_cache = args.separate_sink_cache
                 module.prefill_max_leaf_tokens = args.prefill_max_leaf_tokens
                 module.recursive_page_lod = args.recursive_page_lod
+                module.all_centroid_top1 = args.all_centroid_top1
+                module.all_centroid_disjoint_residual = not (
+                    args.all_centroid_mean_residual
+                )
                 module.recursive_page_block_n = args.recursive_page_block_n
                 module.leaf_num_warps = args.leaf_num_warps
                 module.leaf_key_quant_bits = args.leaf_key_quant_bits
@@ -338,6 +348,9 @@ def main() -> None:
                 "page_quantization_statistics": page_quantization_statistics,
                 "recursive_page_lod": (
                     args.recursive_page_lod if args.mode == "two_level" else None
+                ),
+                "all_centroid_top1": (
+                    args.all_centroid_top1 if args.mode == "two_level" else None
                 ),
                 "recursive_page_block_n": (
                     args.recursive_page_block_n

@@ -4023,6 +4023,104 @@ def _pack_route_score_index(scores, indices):
 
 
 @triton.jit
+def _prepare_decode_state_summaries_kernel(
+    state_k,
+    state_v,
+    counts,
+    row_indices,
+    mean_k,
+    mean_v,
+    log_counts,
+    STATE_K_BATCH_STRIDE: tl.constexpr,
+    STATE_K_HEAD_STRIDE: tl.constexpr,
+    STATE_K_TOKEN_STRIDE: tl.constexpr,
+    STATE_V_BATCH_STRIDE: tl.constexpr,
+    STATE_V_HEAD_STRIDE: tl.constexpr,
+    STATE_V_TOKEN_STRIDE: tl.constexpr,
+    COUNT_BATCH_STRIDE: tl.constexpr,
+    COUNT_HEAD_STRIDE: tl.constexpr,
+    COUNT_TOKEN_STRIDE: tl.constexpr,
+    MEAN_K_BATCH_STRIDE: tl.constexpr,
+    MEAN_K_HEAD_STRIDE: tl.constexpr,
+    MEAN_K_TOKEN_STRIDE: tl.constexpr,
+    MEAN_V_BATCH_STRIDE: tl.constexpr,
+    MEAN_V_HEAD_STRIDE: tl.constexpr,
+    MEAN_V_TOKEN_STRIDE: tl.constexpr,
+    LOG_BATCH_STRIDE: tl.constexpr,
+    LOG_HEAD_STRIDE: tl.constexpr,
+    LOG_TOKEN_STRIDE: tl.constexpr,
+    state_len,
+    KV_HEADS: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    BLOCK_N: tl.constexpr,
+    BLOCK_D: tl.constexpr,
+):
+    selected_head = tl.program_id(0).to(tl.int64)
+    selected_row = selected_head // KV_HEADS
+    kv_head = selected_head - selected_row * KV_HEADS
+    cache_row = tl.load(row_indices + selected_row).to(tl.int64)
+    token = tl.program_id(1) * BLOCK_N + tl.arange(0, BLOCK_N)
+    dim_block = tl.program_id(2)
+    dim = dim_block * BLOCK_D + tl.arange(0, BLOCK_D)
+    valid_token = token < state_len
+    valid_dim = dim < HEAD_DIM
+    count = tl.load(
+        counts
+        + cache_row * COUNT_BATCH_STRIDE
+        + kv_head * COUNT_HEAD_STRIDE
+        + token * COUNT_TOKEN_STRIDE,
+        mask=valid_token,
+        other=0.0,
+    ).to(tl.float32)
+    valid_state = valid_token & (count > 0.0)
+    denominator = tl.where(valid_state, count, 1.0)
+    key_sum = tl.load(
+        state_k
+        + cache_row * STATE_K_BATCH_STRIDE
+        + kv_head * STATE_K_HEAD_STRIDE
+        + token[:, None] * STATE_K_TOKEN_STRIDE
+        + dim[None, :],
+        mask=valid_state[:, None] & valid_dim[None, :],
+        other=0.0,
+    )
+    value_sum = tl.load(
+        state_v
+        + cache_row * STATE_V_BATCH_STRIDE
+        + kv_head * STATE_V_HEAD_STRIDE
+        + token[:, None] * STATE_V_TOKEN_STRIDE
+        + dim[None, :],
+        mask=valid_state[:, None] & valid_dim[None, :],
+        other=0.0,
+    )
+    tl.store(
+        mean_k
+        + cache_row * MEAN_K_BATCH_STRIDE
+        + kv_head * MEAN_K_HEAD_STRIDE
+        + token[:, None] * MEAN_K_TOKEN_STRIDE
+        + dim[None, :],
+        (key_sum.to(tl.float32) / denominator[:, None]).to(key_sum.dtype),
+        mask=valid_token[:, None] & valid_dim[None, :],
+    )
+    tl.store(
+        mean_v
+        + cache_row * MEAN_V_BATCH_STRIDE
+        + kv_head * MEAN_V_HEAD_STRIDE
+        + token[:, None] * MEAN_V_TOKEN_STRIDE
+        + dim[None, :],
+        (value_sum.to(tl.float32) / denominator[:, None]).to(value_sum.dtype),
+        mask=valid_token[:, None] & valid_dim[None, :],
+    )
+    tl.store(
+        log_counts
+        + cache_row * LOG_BATCH_STRIDE
+        + kv_head * LOG_HEAD_STRIDE
+        + token * LOG_TOKEN_STRIDE,
+        tl.where(valid_state, tl.log(denominator), -float("inf")),
+        mask=valid_token & (dim_block == 0),
+    )
+
+
+@triton.jit
 def _unpack_route_score_index(packed):
     inverse_index = packed & 0xFFFFFFFF
     indices = (4294967295 - inverse_index).to(tl.int64)
@@ -4068,6 +4166,8 @@ def _decode_route_coarse_groups_kernel(
     MAX_GROUPS: tl.constexpr,
     PROTECTED_LEN: tl.constexpr,
     USE_DOT: tl.constexpr,
+    COMPUTE_COARSE: tl.constexpr,
+    STATE_IS_NORMALIZED: tl.constexpr,
 ):
     """Compute routing candidates and coarse attention from one state read."""
     query_row = tl.program_id(0).to(tl.int64)
@@ -4080,7 +4180,7 @@ def _decode_route_coarse_groups_kernel(
     valid = slot < state_len
     dim = tl.arange(0, HEAD_DIM)
     query = tl.load(q + query_row * HEAD_DIM + dim)
-    count = tl.load(
+    count_or_log_mass = tl.load(
         counts
         + cache_batch * COUNT_BATCH_STRIDE
         + kv_head * COUNT_HEAD_STRIDE
@@ -4088,8 +4188,13 @@ def _decode_route_coarse_groups_kernel(
         mask=valid,
         other=1.0,
     ).to(tl.float32)
-    valid &= count > 0.0
-    count = tl.where(valid, count, 1.0)
+    if STATE_IS_NORMALIZED:
+        valid &= count_or_log_mass > -float("inf")
+        log_mass = tl.where(valid, count_or_log_mass, 0.0)
+    else:
+        valid &= count_or_log_mass > 0.0
+        count = tl.where(valid, count_or_log_mass, 1.0)
+        log_mass = tl.log(count)
     keys = tl.load(
         state_k
         + cache_batch * STATE_BATCH_STRIDE
@@ -4099,17 +4204,24 @@ def _decode_route_coarse_groups_kernel(
         mask=valid[:, None],
         other=0.0,
     )
-    values = tl.load(
-        state_v
-        + cache_batch * STATE_V_BATCH_STRIDE
-        + kv_head * STATE_V_HEAD_STRIDE
-        + slot[:, None] * STATE_V_TOKEN_STRIDE
-        + dim[None, :],
-        mask=valid[:, None],
-        other=0.0,
-    )
-    mean_keys = (keys.to(tl.float32) / count[:, None]).to(keys.dtype)
-    mean_values = (values.to(tl.float32) / count[:, None]).to(values.dtype)
+    if STATE_IS_NORMALIZED:
+        mean_keys = keys
+    else:
+        mean_keys = (keys.to(tl.float32) / count[:, None]).to(keys.dtype)
+    if COMPUTE_COARSE:
+        values = tl.load(
+            state_v
+            + cache_batch * STATE_V_BATCH_STRIDE
+            + kv_head * STATE_V_HEAD_STRIDE
+            + slot[:, None] * STATE_V_TOKEN_STRIDE
+            + dim[None, :],
+            mask=valid[:, None],
+            other=0.0,
+        )
+        if STATE_IS_NORMALIZED:
+            mean_values = values
+        else:
+            mean_values = (values.to(tl.float32) / count[:, None]).to(values.dtype)
     if USE_DOT:
         scores = tl.dot(
             query[None, :], tl.trans(mean_keys), out_dtype=tl.float32
@@ -4120,7 +4232,7 @@ def _decode_route_coarse_groups_kernel(
             mean_keys.to(tl.float32) * query[None, :].to(tl.float32), axis=1
         )
     scores *= SCALE
-    scores += tl.log(count)
+    scores += log_mass
     scores = tl.where(valid, scores, -float("inf"))
     route_scores = tl.where(slot >= PROTECTED_LEN, scores, -float("inf"))
 
@@ -4142,25 +4254,30 @@ def _decode_route_coarse_groups_kernel(
         tl.store(candidate_scores + candidate_base + rank, block_scores)
         tl.store(candidate_indices + candidate_base + rank, block_indices)
 
-    maximum = tl.max(scores, axis=0)
-    weights = tl.exp(scores - maximum)
-    weights = tl.where(valid, weights, 0.0)
-    denominator = tl.sum(weights, axis=0)
-    weighted_values = tl.dot(
-        weights[None, :].to(mean_values.dtype),
-        mean_values,
-        out_dtype=tl.float32,
-    )
-    weighted_values = tl.reshape(weighted_values, (HEAD_DIM,))
-    group_row = query_row * MAX_GROUPS + group
-    tl.store(
-        group_out + group_row * HEAD_DIM + dim,
-        tl.where(denominator > 0.0, weighted_values / denominator, 0.0),
-    )
-    tl.store(
-        group_lse + group_row,
-        tl.where(denominator > 0.0, maximum + tl.log(denominator), -float("inf")),
-    )
+    if COMPUTE_COARSE:
+        maximum = tl.max(scores, axis=0)
+        weights = tl.exp(scores - maximum)
+        weights = tl.where(valid, weights, 0.0)
+        denominator = tl.sum(weights, axis=0)
+        weighted_values = tl.dot(
+            weights[None, :].to(mean_values.dtype),
+            mean_values,
+            out_dtype=tl.float32,
+        )
+        weighted_values = tl.reshape(weighted_values, (HEAD_DIM,))
+        group_row = query_row * MAX_GROUPS + group
+        tl.store(
+            group_out + group_row * HEAD_DIM + dim,
+            tl.where(denominator > 0.0, weighted_values / denominator, 0.0),
+        )
+        tl.store(
+            group_lse + group_row,
+            tl.where(
+                denominator > 0.0,
+                maximum + tl.log(denominator),
+                -float("inf"),
+            ),
+        )
 
 
 @triton.jit
@@ -4193,6 +4310,8 @@ def _decode_route_coarse_gqa_groups_kernel(
     MAX_GROUPS: tl.constexpr,
     PROTECTED_LEN: tl.constexpr,
     USE_DOT: tl.constexpr,
+    COMPUTE_COARSE: tl.constexpr,
+    STATE_IS_NORMALIZED: tl.constexpr,
 ):
     """Share each state K/V tile across all query heads in one GQA group."""
     batch_kv = tl.program_id(0).to(tl.int64)
@@ -4200,15 +4319,681 @@ def _decode_route_coarse_gqa_groups_kernel(
     batch = batch_kv // KV_HEADS
     cache_batch = tl.load(cache_indices + batch).to(tl.int64)
     kv_head = batch_kv - batch * KV_HEADS
-    # Pad the four GQA rows to a native MFMA M tile. Short-M value matmuls use
-    # a different reduction order on MI325X and perturb decode enough to hurt
-    # exact string continuation.
+    # Pad the GQA rows to a native MFMA M tile. Short-M value matmuls use a
+    # less efficient reduction on MI325X even when fewer lanes are logical.
     q_offset = tl.arange(0, 16)
     query_valid = q_offset < KV_GROUP_SIZE
     query_head = kv_head * KV_GROUP_SIZE + q_offset
     query_row = batch * QUERY_HEADS + query_head
     slot = group * GROUP_N + tl.arange(0, GROUP_N)
     valid = slot < state_len
+    dim = tl.arange(0, HEAD_DIM)
+    queries = tl.load(
+        q + query_row[:, None] * HEAD_DIM + dim[None, :],
+        mask=query_valid[:, None],
+        other=0.0,
+    )
+    count_or_log_mass = tl.load(
+        counts
+        + cache_batch * COUNT_BATCH_STRIDE
+        + kv_head * COUNT_HEAD_STRIDE
+        + slot * COUNT_TOKEN_STRIDE,
+        mask=valid,
+        other=1.0,
+    ).to(tl.float32)
+    if STATE_IS_NORMALIZED:
+        valid &= count_or_log_mass > -float("inf")
+        log_mass = tl.where(valid, count_or_log_mass, 0.0)
+    else:
+        valid &= count_or_log_mass > 0.0
+        count = tl.where(valid, count_or_log_mass, 1.0)
+        log_mass = tl.log(count)
+    keys = tl.load(
+        state_k
+        + cache_batch * STATE_BATCH_STRIDE
+        + kv_head * STATE_HEAD_STRIDE
+        + slot[:, None] * STATE_TOKEN_STRIDE
+        + dim[None, :],
+        mask=valid[:, None],
+        other=0.0,
+    )
+    if STATE_IS_NORMALIZED:
+        mean_keys = keys
+    else:
+        mean_keys = (keys.to(tl.float32) / count[:, None]).to(keys.dtype)
+    if COMPUTE_COARSE:
+        values = tl.load(
+            state_v
+            + cache_batch * STATE_V_BATCH_STRIDE
+            + kv_head * STATE_V_HEAD_STRIDE
+            + slot[:, None] * STATE_V_TOKEN_STRIDE
+            + dim[None, :],
+            mask=valid[:, None],
+            other=0.0,
+        )
+        if STATE_IS_NORMALIZED:
+            mean_values = values
+        else:
+            mean_values = (values.to(tl.float32) / count[:, None]).to(values.dtype)
+    scores = tl.dot(queries, tl.trans(mean_keys), out_dtype=tl.float32)
+    scores = scores * SCALE + log_mass[None, :]
+    scores = tl.where(
+        query_valid[:, None] & valid[None, :], scores, -float("inf")
+    )
+    route_scores = tl.where(
+        slot[None, :] >= PROTECTED_LEN, scores, -float("inf")
+    )
+
+    candidate_base = (query_row * MAX_GROUPS + group) * 8
+    packed = _pack_route_score_index(route_scores, slot[None, :])
+    block_top = tl.topk(packed, 8, dim=1)
+    block_scores, block_indices = _unpack_route_score_index(block_top)
+    rank = tl.arange(0, 8)
+    tl.store(
+        candidate_scores + candidate_base[:, None] + rank[None, :],
+        block_scores,
+        mask=query_valid[:, None],
+    )
+    tl.store(
+        candidate_indices + candidate_base[:, None] + rank[None, :],
+        block_indices,
+        mask=query_valid[:, None],
+    )
+
+    if COMPUTE_COARSE:
+        maximum = tl.max(scores, axis=1)
+        weights = tl.exp(scores - maximum[:, None])
+        weights = tl.where(query_valid[:, None] & valid[None, :], weights, 0.0)
+        denominator = tl.sum(weights, axis=1)
+        weighted_values = tl.dot(
+            weights.to(mean_values.dtype), mean_values, out_dtype=tl.float32
+        )
+        group_row = query_row * MAX_GROUPS + group
+        tl.store(
+            group_out
+            + group_row[:, None] * HEAD_DIM
+            + dim[None, :],
+            tl.where(
+                denominator[:, None] > 0.0,
+                weighted_values / denominator[:, None],
+                0.0,
+            ),
+            mask=query_valid[:, None],
+        )
+        tl.store(
+            group_lse + group_row,
+            tl.where(
+                denominator > 0.0,
+                maximum + tl.log(denominator),
+                -float("inf"),
+            ),
+            mask=query_valid,
+        )
+
+
+@triton.jit
+def _decode_route_coarse_scalar_gqa_groups_kernel(
+    q,
+    state_k,
+    state_v,
+    counts,
+    cache_indices,
+    candidate_scores,
+    candidate_indices,
+    group_out,
+    group_lse,
+    STATE_BATCH_STRIDE,
+    STATE_HEAD_STRIDE,
+    STATE_TOKEN_STRIDE,
+    STATE_V_BATCH_STRIDE,
+    STATE_V_HEAD_STRIDE,
+    STATE_V_TOKEN_STRIDE,
+    COUNT_BATCH_STRIDE,
+    COUNT_HEAD_STRIDE,
+    COUNT_TOKEN_STRIDE,
+    state_len,
+    QUERY_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    KV_GROUP_SIZE: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    SCALE: tl.constexpr,
+    GROUP_N: tl.constexpr,
+    MAX_GROUPS: tl.constexpr,
+    PROTECTED_LEN: tl.constexpr,
+    USE_DOT: tl.constexpr,
+    COMPUTE_COARSE: tl.constexpr,
+    STATE_IS_NORMALIZED: tl.constexpr,
+):
+    """Reuse one state tile while preserving scalar per-query routing math."""
+    batch_kv = tl.program_id(0).to(tl.int64)
+    group = tl.program_id(1).to(tl.int64)
+    batch = batch_kv // KV_HEADS
+    cache_batch = tl.load(cache_indices + batch).to(tl.int64)
+    kv_head = batch_kv - batch * KV_HEADS
+    slot = group * GROUP_N + tl.arange(0, GROUP_N)
+    valid = slot < state_len
+    dim = tl.arange(0, HEAD_DIM)
+    count_or_log_mass = tl.load(
+        counts
+        + cache_batch * COUNT_BATCH_STRIDE
+        + kv_head * COUNT_HEAD_STRIDE
+        + slot * COUNT_TOKEN_STRIDE,
+        mask=valid,
+        other=1.0,
+    ).to(tl.float32)
+    if STATE_IS_NORMALIZED:
+        valid &= count_or_log_mass > -float("inf")
+        log_mass = tl.where(valid, count_or_log_mass, 0.0)
+    else:
+        valid &= count_or_log_mass > 0.0
+        count = tl.where(valid, count_or_log_mass, 1.0)
+        log_mass = tl.log(count)
+    keys = tl.load(
+        state_k
+        + cache_batch * STATE_BATCH_STRIDE
+        + kv_head * STATE_HEAD_STRIDE
+        + slot[:, None] * STATE_TOKEN_STRIDE
+        + dim[None, :],
+        mask=valid[:, None],
+        other=0.0,
+    )
+    if STATE_IS_NORMALIZED:
+        mean_keys = keys
+    else:
+        mean_keys = (keys.to(tl.float32) / count[:, None]).to(keys.dtype)
+    if COMPUTE_COARSE:
+        values = tl.load(
+            state_v
+            + cache_batch * STATE_V_BATCH_STRIDE
+            + kv_head * STATE_V_HEAD_STRIDE
+            + slot[:, None] * STATE_V_TOKEN_STRIDE
+            + dim[None, :],
+            mask=valid[:, None],
+            other=0.0,
+        )
+        if STATE_IS_NORMALIZED:
+            mean_values = values
+        else:
+            mean_values = (values.to(tl.float32) / count[:, None]).to(values.dtype)
+    position = tl.arange(0, GROUP_N)
+
+    for query_group in tl.static_range(0, KV_GROUP_SIZE):
+        query_head = kv_head * KV_GROUP_SIZE + query_group
+        query_row = batch * QUERY_HEADS + query_head
+        query = tl.load(q + query_row * HEAD_DIM + dim)
+        scores = tl.sum(
+            mean_keys.to(tl.float32) * query[None, :].to(tl.float32), axis=1
+        )
+        scores = scores * SCALE + log_mass
+        scores = tl.where(valid, scores, -float("inf"))
+        route_scores = tl.where(slot >= PROTECTED_LEN, scores, -float("inf"))
+
+        candidate_base = (query_row * MAX_GROUPS + group) * 8
+        if GROUP_N == 8:
+            tl.store(candidate_scores + candidate_base + position, route_scores)
+            tl.store(
+                candidate_indices + candidate_base + position,
+                group * GROUP_N + position,
+            )
+        else:
+            packed = _pack_route_score_index(route_scores, slot)
+            block_top = tl.topk(packed, 8, dim=0)
+            block_scores, block_indices = _unpack_route_score_index(block_top)
+            rank = tl.arange(0, 8)
+            tl.store(candidate_scores + candidate_base + rank, block_scores)
+            tl.store(candidate_indices + candidate_base + rank, block_indices)
+
+        if COMPUTE_COARSE:
+            maximum = tl.max(scores, axis=0)
+            weights = tl.exp(scores - maximum)
+            weights = tl.where(valid, weights, 0.0)
+            denominator = tl.sum(weights, axis=0)
+            weighted_values = tl.dot(
+                weights[None, :].to(mean_values.dtype),
+                mean_values,
+                out_dtype=tl.float32,
+            )
+            weighted_values = tl.reshape(weighted_values, (HEAD_DIM,))
+            group_row = query_row * MAX_GROUPS + group
+            tl.store(
+                group_out + group_row * HEAD_DIM + dim,
+                tl.where(denominator > 0.0, weighted_values / denominator, 0.0),
+            )
+            tl.store(
+                group_lse + group_row,
+                tl.where(
+                    denominator > 0.0,
+                    maximum + tl.log(denominator),
+                    -float("inf"),
+                ),
+            )
+
+
+@triton.jit
+def _reduce_decode_route_coarse_kernel(
+    candidate_scores,
+    candidate_indices,
+    group_out,
+    group_lse,
+    top_slots,
+    top_scores,
+    coarse_out,
+    coarse_lse,
+    active_groups,
+    HEAD_DIM: tl.constexpr,
+    ROUTE_COUNT: tl.constexpr,
+    MAX_GROUPS: tl.constexpr,
+    CANDIDATE_TILE: tl.constexpr,
+    COMPUTE_COARSE: tl.constexpr,
+):
+    query_row = tl.program_id(0).to(tl.int64)
+    candidate_offset = tl.arange(0, CANDIDATE_TILE)
+    best_packed = tl.full((8,), -9223372036854775807, tl.int64)
+    for candidate_begin in tl.range(
+        0, active_groups * 8, CANDIDATE_TILE, num_stages=1
+    ):
+        candidate = candidate_begin + candidate_offset
+        valid_candidate = candidate < active_groups * 8
+        scores = tl.load(
+            candidate_scores + query_row * MAX_GROUPS * 8 + candidate,
+            mask=valid_candidate,
+            other=-float("inf"),
+        )
+        indices = tl.load(
+            candidate_indices + query_row * MAX_GROUPS * 8 + candidate,
+            mask=valid_candidate,
+            other=0,
+        )
+        packed = _pack_route_score_index(scores, indices)
+        block_top = tl.topk(packed, 8, dim=0)
+        best_packed = tl.topk(
+            tl.interleave(best_packed, block_top), 8, dim=0
+        )
+    best_scores, best_indices = _unpack_route_score_index(best_packed)
+    rank = tl.arange(0, 8)
+    if ROUTE_COUNT == 8:
+        tl.store(top_slots + query_row * ROUTE_COUNT + rank, best_indices)
+        tl.store(top_scores + query_row * ROUTE_COUNT + rank, best_scores)
+
+    if COMPUTE_COARSE:
+        dim = tl.arange(0, HEAD_DIM)
+        maximum = tl.full((), -float("inf"), tl.float32)
+        denominator = tl.zeros((), tl.float32)
+        accumulator = tl.zeros((HEAD_DIM,), tl.float32)
+        for group in tl.range(0, active_groups):
+            row = query_row * MAX_GROUPS + group
+            current_lse = tl.load(group_lse + row)
+            current_out = tl.load(group_out + row * HEAD_DIM + dim)
+            new_maximum = tl.maximum(maximum, current_lse)
+            old_weight = tl.exp(maximum - new_maximum)
+            current_weight = tl.exp(current_lse - new_maximum)
+            denominator = denominator * old_weight + current_weight
+            accumulator = (
+                accumulator * old_weight + current_out * current_weight
+            )
+            maximum = new_maximum
+        tl.store(coarse_out + query_row * HEAD_DIM + dim, accumulator / denominator)
+        tl.store(
+            coarse_lse + query_row,
+            maximum + tl.log(denominator),
+        )
+
+
+@triton.jit(
+    do_not_specialize=["state_len"],
+    do_not_specialize_on_alignment=["state_len"],
+)
+def _persistent_decode_route_coarse_gqa_kernel(
+    q,
+    state_k,
+    state_v,
+    counts,
+    cache_indices,
+    top_slots,
+    top_scores,
+    coarse_out,
+    coarse_lse,
+    Q_BATCH_STRIDE,
+    Q_HEAD_STRIDE,
+    Q_TOKEN_STRIDE,
+    STATE_BATCH_STRIDE,
+    STATE_HEAD_STRIDE,
+    STATE_TOKEN_STRIDE,
+    STATE_V_BATCH_STRIDE,
+    STATE_V_HEAD_STRIDE,
+    STATE_V_TOKEN_STRIDE,
+    COUNT_BATCH_STRIDE,
+    COUNT_HEAD_STRIDE,
+    COUNT_TOKEN_STRIDE,
+    TOP_BATCH_STRIDE,
+    TOP_HEAD_STRIDE,
+    TOP_TOKEN_STRIDE,
+    TOP_ROUTE_STRIDE,
+    OUT_BATCH_STRIDE,
+    OUT_HEAD_STRIDE,
+    LSE_BATCH_STRIDE,
+    LSE_HEAD_STRIDE,
+    state_len,
+    QUERY_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    KV_GROUP_SIZE: tl.constexpr,
+    ROUTE_GROUP_SIZE: tl.constexpr,
+    GROUPS_PER_KV: tl.constexpr,
+    LOGICAL_GROUPS: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    SCALE: tl.constexpr,
+    GROUP_N: tl.constexpr,
+    BLOCK_G: tl.constexpr,
+    BLOCK_UNION: tl.constexpr,
+    PROTECTED_LEN: tl.constexpr,
+    STATE_IS_NORMALIZED: tl.constexpr,
+):
+    """Route and form disjoint coarse attention in one persistent GQA scan."""
+    batch_group = tl.program_id(0).to(tl.int64)
+    batch = batch_group // LOGICAL_GROUPS
+    logical_group = batch_group - batch * LOGICAL_GROUPS
+    kv_head = logical_group // GROUPS_PER_KV
+    subgroup = logical_group - kv_head * GROUPS_PER_KV
+    cache_batch = tl.load(cache_indices + batch).to(tl.int64)
+
+    query_offset = tl.arange(0, BLOCK_G)
+    valid_group = query_offset < ROUTE_GROUP_SIZE
+    first_query_head = (
+        kv_head * KV_GROUP_SIZE + subgroup * ROUTE_GROUP_SIZE
+    )
+    query_head = first_query_head + query_offset
+    dim = tl.arange(0, HEAD_DIM)
+    queries = tl.load(
+        q
+        + batch * Q_BATCH_STRIDE
+        + query_head[:, None] * Q_HEAD_STRIDE
+        + dim[None, :],
+        mask=valid_group[:, None],
+        other=0.0,
+    )
+
+    maximum = tl.full((BLOCK_G,), -float("inf"), tl.float32)
+    denominator = tl.zeros((BLOCK_G,), tl.float32)
+    accumulator = tl.zeros((BLOCK_G, HEAD_DIM), tl.float32)
+    best_packed = tl.full(
+        (BLOCK_G, 8), -9223372036854775807, tl.int64
+    )
+    for state_begin in tl.range(0, state_len, GROUP_N, num_stages=1):
+        slot = state_begin + tl.arange(0, GROUP_N)
+        valid_slot = slot < state_len
+        count_or_log_mass = tl.load(
+            counts
+            + cache_batch * COUNT_BATCH_STRIDE
+            + kv_head * COUNT_HEAD_STRIDE
+            + slot * COUNT_TOKEN_STRIDE,
+            mask=valid_slot,
+            other=1.0,
+        ).to(tl.float32)
+        if STATE_IS_NORMALIZED:
+            valid_slot &= count_or_log_mass > -float("inf")
+            log_mass = count_or_log_mass
+        else:
+            valid_slot &= count_or_log_mass > 0.0
+            count_or_log_mass = tl.where(valid_slot, count_or_log_mass, 1.0)
+            log_mass = tl.log(count_or_log_mass)
+        key_sum = tl.load(
+            state_k
+            + cache_batch * STATE_BATCH_STRIDE
+            + kv_head * STATE_HEAD_STRIDE
+            + slot[:, None] * STATE_TOKEN_STRIDE
+            + dim[None, :],
+            mask=valid_slot[:, None],
+            other=0.0,
+        )
+        value_sum = tl.load(
+            state_v
+            + cache_batch * STATE_V_BATCH_STRIDE
+            + kv_head * STATE_V_HEAD_STRIDE
+            + slot[:, None] * STATE_V_TOKEN_STRIDE
+            + dim[None, :],
+            mask=valid_slot[:, None],
+            other=0.0,
+        )
+        if STATE_IS_NORMALIZED:
+            mean_keys = key_sum
+            mean_values = value_sum
+        else:
+            mean_keys = (
+                key_sum.to(tl.float32) / count_or_log_mass[:, None]
+            ).to(key_sum.dtype)
+            mean_values = (
+                value_sum.to(tl.float32) / count_or_log_mass[:, None]
+            ).to(value_sum.dtype)
+        scores = tl.dot(queries, tl.trans(mean_keys), out_dtype=tl.float32)
+        scores = scores * SCALE + log_mass[None, :]
+        scores = tl.where(
+            valid_group[:, None] & valid_slot[None, :],
+            scores,
+            -float("inf"),
+        )
+
+        route_scores = tl.where(
+            valid_group[:, None] & (slot[None, :] >= PROTECTED_LEN),
+            scores,
+            -float("inf"),
+        )
+        packed = _pack_route_score_index(route_scores, slot[None, :])
+        block_top = tl.topk(packed, 8, dim=1)
+        best_packed = tl.topk(
+            tl.interleave(best_packed, block_top), 8, dim=1
+        )
+
+        block_maximum = tl.max(scores, axis=1)
+        weights = tl.where(
+            valid_group[:, None] & valid_slot[None, :],
+            tl.exp(scores - block_maximum[:, None]),
+            0.0,
+        )
+        block_denominator = tl.sum(weights, axis=1)
+        block_accumulator = tl.dot(
+            weights.to(mean_values.dtype),
+            mean_values,
+            out_dtype=tl.float32,
+        )
+        new_maximum = tl.maximum(maximum, block_maximum)
+        old_scale = tl.exp(maximum - new_maximum)
+        block_scale = tl.exp(block_maximum - new_maximum)
+        denominator = (
+            denominator * old_scale + block_denominator * block_scale
+        )
+        accumulator = (
+            accumulator * old_scale[:, None]
+            + block_accumulator * block_scale[:, None]
+        )
+        maximum = new_maximum
+
+    best_scores, best_indices = _unpack_route_score_index(best_packed)
+    route = tl.arange(0, 8)
+    tl.store(
+        top_slots
+        + batch * TOP_BATCH_STRIDE
+        + query_head[:, None] * TOP_HEAD_STRIDE
+        + route[None, :] * TOP_ROUTE_STRIDE,
+        best_indices,
+        mask=valid_group[:, None],
+    )
+    tl.store(
+        top_scores
+        + batch * TOP_BATCH_STRIDE
+        + query_head[:, None] * TOP_HEAD_STRIDE
+        + route[None, :] * TOP_ROUTE_STRIDE,
+        best_scores,
+        mask=valid_group[:, None],
+    )
+
+    # The exact branch opens the union of all subgroup routes. Remove those
+    # same summaries now, while queries and the full coarse statistics remain
+    # resident, instead of launching a later centroid-correction pass.
+    union_lane = tl.arange(0, BLOCK_UNION)
+    union_slot = tl.reshape(best_indices, (BLOCK_UNION,))
+    union_valid = (
+        (union_lane < ROUTE_GROUP_SIZE * 8)
+        & (union_slot >= PROTECTED_LEN)
+    )
+    earlier = union_lane[None, :] < union_lane[:, None]
+    duplicate = tl.sum(
+        tl.where(
+            earlier
+            & (union_slot[:, None] == union_slot[None, :])
+            & union_valid[None, :],
+            1,
+            0,
+        ),
+        axis=1,
+    ) > 0
+    union_valid &= ~duplicate
+    safe_union_slot = tl.where(union_valid, union_slot, 0)
+    union_count_or_log_mass = tl.load(
+        counts
+        + cache_batch * COUNT_BATCH_STRIDE
+        + kv_head * COUNT_HEAD_STRIDE
+        + safe_union_slot * COUNT_TOKEN_STRIDE,
+        mask=union_valid,
+        other=1.0,
+    ).to(tl.float32)
+    if STATE_IS_NORMALIZED:
+        union_log_mass = union_count_or_log_mass
+    else:
+        union_count_or_log_mass = tl.where(
+            union_valid, union_count_or_log_mass, 1.0
+        )
+        union_log_mass = tl.log(union_count_or_log_mass)
+    union_key_sum = tl.load(
+        state_k
+        + cache_batch * STATE_BATCH_STRIDE
+        + kv_head * STATE_HEAD_STRIDE
+        + safe_union_slot[:, None] * STATE_TOKEN_STRIDE
+        + dim[None, :],
+        mask=union_valid[:, None],
+        other=0.0,
+    )
+    union_value_sum = tl.load(
+        state_v
+        + cache_batch * STATE_V_BATCH_STRIDE
+        + kv_head * STATE_V_HEAD_STRIDE
+        + safe_union_slot[:, None] * STATE_V_TOKEN_STRIDE
+        + dim[None, :],
+        mask=union_valid[:, None],
+        other=0.0,
+    )
+    if STATE_IS_NORMALIZED:
+        union_keys = union_key_sum
+        union_values = union_value_sum
+    else:
+        union_keys = (
+            union_key_sum.to(tl.float32) / union_count_or_log_mass[:, None]
+        ).to(union_key_sum.dtype)
+        union_values = (
+            union_value_sum.to(tl.float32) / union_count_or_log_mass[:, None]
+        ).to(union_value_sum.dtype)
+    union_scores = tl.dot(
+        queries, tl.trans(union_keys), out_dtype=tl.float32
+    )
+    union_scores = union_scores * SCALE + union_log_mass[None, :]
+    full_lse = maximum + tl.log(denominator)
+    selected_mass = tl.where(
+        valid_group[:, None] & union_valid[None, :],
+        tl.exp(union_scores - full_lse[:, None]),
+        0.0,
+    )
+    removed_mass = tl.sum(selected_mass, axis=1)
+    removed_value = tl.dot(
+        selected_mass.to(union_values.dtype),
+        union_values,
+        out_dtype=tl.float32,
+    )
+    full_output = accumulator / denominator[:, None]
+    remainder_mass = tl.maximum(1.0 - removed_mass, 1.0e-7)
+    disjoint_output = (
+        full_output - removed_value
+    ) / remainder_mass[:, None]
+    disjoint_lse = full_lse + tl.log(remainder_mass)
+    tl.store(
+        coarse_out
+        + batch * OUT_BATCH_STRIDE
+        + query_head[:, None] * OUT_HEAD_STRIDE
+        + dim[None, :],
+        disjoint_output,
+        mask=valid_group[:, None],
+    )
+    tl.store(
+        coarse_lse
+        + batch * LSE_BATCH_STRIDE
+        + query_head * LSE_HEAD_STRIDE,
+        disjoint_lse,
+        mask=valid_group,
+    )
+
+
+@triton.jit
+def _decode_masked_coarse_gqa_groups_kernel(
+    q,
+    state_k,
+    state_v,
+    counts,
+    cache_indices,
+    top_slots,
+    group_out,
+    group_lse,
+    STATE_BATCH_STRIDE,
+    STATE_HEAD_STRIDE,
+    STATE_TOKEN_STRIDE,
+    STATE_V_BATCH_STRIDE,
+    STATE_V_HEAD_STRIDE,
+    STATE_V_TOKEN_STRIDE,
+    COUNT_BATCH_STRIDE,
+    COUNT_HEAD_STRIDE,
+    COUNT_TOKEN_STRIDE,
+    TOP_BATCH_STRIDE,
+    TOP_HEAD_STRIDE,
+    TOP_ROUTE_STRIDE,
+    state_len,
+    QUERY_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    KV_GROUP_SIZE: tl.constexpr,
+    ROUTE_GROUP_SIZE: tl.constexpr,
+    GROUPS_PER_KV: tl.constexpr,
+    LOGICAL_GROUPS: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    SCALE: tl.constexpr,
+    GROUP_N: tl.constexpr,
+    MAX_GROUPS: tl.constexpr,
+    ROUTE_COUNT: tl.constexpr,
+    ROUTE_BLOCK: tl.constexpr,
+):
+    """Compute disjoint coarse attention after the GQA union is known."""
+    batch_group = tl.program_id(0).to(tl.int64)
+    group = tl.program_id(1).to(tl.int64)
+    batch = batch_group // LOGICAL_GROUPS
+    cache_batch = tl.load(cache_indices + batch).to(tl.int64)
+    logical_group = batch_group - batch * LOGICAL_GROUPS
+    kv_head = logical_group // GROUPS_PER_KV
+    subgroup = logical_group - kv_head * GROUPS_PER_KV
+    q_offset = tl.arange(0, 16)
+    query_valid = q_offset < ROUTE_GROUP_SIZE
+    first_query_head = (
+        kv_head * KV_GROUP_SIZE + subgroup * ROUTE_GROUP_SIZE
+    )
+    query_head = first_query_head + q_offset
+    query_row = batch * QUERY_HEADS + query_head
+    slot = group * GROUP_N + tl.arange(0, GROUP_N)
+    valid = slot < state_len
+    route = tl.arange(0, ROUTE_BLOCK)
+    routed_slots = tl.load(
+        top_slots
+        + batch * TOP_BATCH_STRIDE
+        + first_query_head * TOP_HEAD_STRIDE
+        + route * TOP_ROUTE_STRIDE,
+        mask=route < ROUTE_COUNT,
+        other=-1,
+    ).to(tl.int32)
+    routed = tl.sum(slot[:, None] == routed_slots[None, :], axis=1) > 0
+    valid &= ~routed
     dim = tl.arange(0, HEAD_DIM)
     queries = tl.load(
         q + query_row[:, None] * HEAD_DIM + dim[None, :],
@@ -4250,26 +5035,6 @@ def _decode_route_coarse_gqa_groups_kernel(
     scores = tl.where(
         query_valid[:, None] & valid[None, :], scores, -float("inf")
     )
-    route_scores = tl.where(
-        slot[None, :] >= PROTECTED_LEN, scores, -float("inf")
-    )
-
-    candidate_base = (query_row * MAX_GROUPS + group) * 8
-    packed = _pack_route_score_index(route_scores, slot[None, :])
-    block_top = tl.topk(packed, 8, dim=1)
-    block_scores, block_indices = _unpack_route_score_index(block_top)
-    rank = tl.arange(0, 8)
-    tl.store(
-        candidate_scores + candidate_base[:, None] + rank[None, :],
-        block_scores,
-        mask=query_valid[:, None],
-    )
-    tl.store(
-        candidate_indices + candidate_base[:, None] + rank[None, :],
-        block_indices,
-        mask=query_valid[:, None],
-    )
-
     maximum = tl.max(scores, axis=1)
     weights = tl.exp(scores - maximum[:, None])
     weights = tl.where(query_valid[:, None] & valid[None, :], weights, 0.0)
@@ -4279,9 +5044,7 @@ def _decode_route_coarse_gqa_groups_kernel(
     )
     group_row = query_row * MAX_GROUPS + group
     tl.store(
-        group_out
-        + group_row[:, None] * HEAD_DIM
-        + dim[None, :],
+        group_out + group_row[:, None] * HEAD_DIM + dim[None, :],
         tl.where(
             denominator[:, None] > 0.0,
             weighted_values / denominator[:, None],
@@ -4301,173 +5064,16 @@ def _decode_route_coarse_gqa_groups_kernel(
 
 
 @triton.jit
-def _decode_route_coarse_scalar_gqa_groups_kernel(
-    q,
-    state_k,
-    state_v,
-    counts,
-    cache_indices,
-    candidate_scores,
-    candidate_indices,
+def _reduce_decode_coarse_groups_kernel(
     group_out,
     group_lse,
-    STATE_BATCH_STRIDE,
-    STATE_HEAD_STRIDE,
-    STATE_TOKEN_STRIDE,
-    STATE_V_BATCH_STRIDE,
-    STATE_V_HEAD_STRIDE,
-    STATE_V_TOKEN_STRIDE,
-    COUNT_BATCH_STRIDE,
-    COUNT_HEAD_STRIDE,
-    COUNT_TOKEN_STRIDE,
-    state_len,
-    QUERY_HEADS: tl.constexpr,
-    KV_HEADS: tl.constexpr,
-    KV_GROUP_SIZE: tl.constexpr,
-    HEAD_DIM: tl.constexpr,
-    SCALE: tl.constexpr,
-    GROUP_N: tl.constexpr,
-    MAX_GROUPS: tl.constexpr,
-    PROTECTED_LEN: tl.constexpr,
-    USE_DOT: tl.constexpr,
-):
-    """Reuse one state tile while preserving scalar per-query routing math."""
-    batch_kv = tl.program_id(0).to(tl.int64)
-    group = tl.program_id(1).to(tl.int64)
-    batch = batch_kv // KV_HEADS
-    cache_batch = tl.load(cache_indices + batch).to(tl.int64)
-    kv_head = batch_kv - batch * KV_HEADS
-    slot = group * GROUP_N + tl.arange(0, GROUP_N)
-    valid = slot < state_len
-    dim = tl.arange(0, HEAD_DIM)
-    count = tl.load(
-        counts
-        + cache_batch * COUNT_BATCH_STRIDE
-        + kv_head * COUNT_HEAD_STRIDE
-        + slot * COUNT_TOKEN_STRIDE,
-        mask=valid,
-        other=1.0,
-    ).to(tl.float32)
-    valid &= count > 0.0
-    count = tl.where(valid, count, 1.0)
-    keys = tl.load(
-        state_k
-        + cache_batch * STATE_BATCH_STRIDE
-        + kv_head * STATE_HEAD_STRIDE
-        + slot[:, None] * STATE_TOKEN_STRIDE
-        + dim[None, :],
-        mask=valid[:, None],
-        other=0.0,
-    )
-    values = tl.load(
-        state_v
-        + cache_batch * STATE_V_BATCH_STRIDE
-        + kv_head * STATE_V_HEAD_STRIDE
-        + slot[:, None] * STATE_V_TOKEN_STRIDE
-        + dim[None, :],
-        mask=valid[:, None],
-        other=0.0,
-    )
-    mean_keys = (keys.to(tl.float32) / count[:, None]).to(keys.dtype)
-    mean_values = (values.to(tl.float32) / count[:, None]).to(values.dtype)
-    position = tl.arange(0, GROUP_N)
-
-    for query_group in tl.static_range(0, KV_GROUP_SIZE):
-        query_head = kv_head * KV_GROUP_SIZE + query_group
-        query_row = batch * QUERY_HEADS + query_head
-        query = tl.load(q + query_row * HEAD_DIM + dim)
-        scores = tl.sum(
-            mean_keys.to(tl.float32) * query[None, :].to(tl.float32), axis=1
-        )
-        scores = scores * SCALE + tl.log(count)
-        scores = tl.where(valid, scores, -float("inf"))
-        route_scores = tl.where(slot >= PROTECTED_LEN, scores, -float("inf"))
-
-        candidate_base = (query_row * MAX_GROUPS + group) * 8
-        if GROUP_N == 8:
-            tl.store(candidate_scores + candidate_base + position, route_scores)
-            tl.store(
-                candidate_indices + candidate_base + position,
-                group * GROUP_N + position,
-            )
-        else:
-            packed = _pack_route_score_index(route_scores, slot)
-            block_top = tl.topk(packed, 8, dim=0)
-            block_scores, block_indices = _unpack_route_score_index(block_top)
-            rank = tl.arange(0, 8)
-            tl.store(candidate_scores + candidate_base + rank, block_scores)
-            tl.store(candidate_indices + candidate_base + rank, block_indices)
-
-        maximum = tl.max(scores, axis=0)
-        weights = tl.exp(scores - maximum)
-        weights = tl.where(valid, weights, 0.0)
-        denominator = tl.sum(weights, axis=0)
-        weighted_values = tl.dot(
-            weights[None, :].to(mean_values.dtype),
-            mean_values,
-            out_dtype=tl.float32,
-        )
-        weighted_values = tl.reshape(weighted_values, (HEAD_DIM,))
-        group_row = query_row * MAX_GROUPS + group
-        tl.store(
-            group_out + group_row * HEAD_DIM + dim,
-            tl.where(denominator > 0.0, weighted_values / denominator, 0.0),
-        )
-        tl.store(
-            group_lse + group_row,
-            tl.where(
-                denominator > 0.0,
-                maximum + tl.log(denominator),
-                -float("inf"),
-            ),
-        )
-
-
-@triton.jit
-def _reduce_decode_route_coarse_kernel(
-    candidate_scores,
-    candidate_indices,
-    group_out,
-    group_lse,
-    top_slots,
-    top_scores,
     coarse_out,
     coarse_lse,
     active_groups,
     HEAD_DIM: tl.constexpr,
-    ROUTE_COUNT: tl.constexpr,
     MAX_GROUPS: tl.constexpr,
-    CANDIDATE_TILE: tl.constexpr,
 ):
     query_row = tl.program_id(0).to(tl.int64)
-    candidate_offset = tl.arange(0, CANDIDATE_TILE)
-    best_packed = tl.full((8,), -9223372036854775807, tl.int64)
-    for candidate_begin in tl.range(
-        0, active_groups * 8, CANDIDATE_TILE, num_stages=1
-    ):
-        candidate = candidate_begin + candidate_offset
-        valid_candidate = candidate < active_groups * 8
-        scores = tl.load(
-            candidate_scores + query_row * MAX_GROUPS * 8 + candidate,
-            mask=valid_candidate,
-            other=-float("inf"),
-        )
-        indices = tl.load(
-            candidate_indices + query_row * MAX_GROUPS * 8 + candidate,
-            mask=valid_candidate,
-            other=0,
-        )
-        packed = _pack_route_score_index(scores, indices)
-        block_top = tl.topk(packed, 8, dim=0)
-        best_packed = tl.topk(
-            tl.interleave(best_packed, block_top), 8, dim=0
-        )
-    best_scores, best_indices = _unpack_route_score_index(best_packed)
-    rank = tl.arange(0, 8)
-    if ROUTE_COUNT == 8:
-        tl.store(top_slots + query_row * ROUTE_COUNT + rank, best_indices)
-        tl.store(top_scores + query_row * ROUTE_COUNT + rank, best_scores)
-
     dim = tl.arange(0, HEAD_DIM)
     maximum = tl.full((), -float("inf"), tl.float32)
     denominator = tl.zeros((), tl.float32)
@@ -4480,15 +5086,10 @@ def _reduce_decode_route_coarse_kernel(
         old_weight = tl.exp(maximum - new_maximum)
         current_weight = tl.exp(current_lse - new_maximum)
         denominator = denominator * old_weight + current_weight
-        accumulator = (
-            accumulator * old_weight + current_out * current_weight
-        )
+        accumulator = accumulator * old_weight + current_out * current_weight
         maximum = new_maximum
     tl.store(coarse_out + query_row * HEAD_DIM + dim, accumulator / denominator)
-    tl.store(
-        coarse_lse + query_row,
-        maximum + tl.log(denominator),
-    )
+    tl.store(coarse_lse + query_row, maximum + tl.log(denominator))
 
 
 @triton.jit
@@ -5737,6 +6338,180 @@ def advance_decode_cache_lengths(
         )
 
 
+@triton.jit
+def _append_decode_local_kv_kernel(
+    cache_indices,
+    local_lens,
+    local_k,
+    local_v,
+    new_k,
+    new_v,
+    archive_k,
+    archive_v,
+    archive_begins,
+    LOCAL_K_BATCH_STRIDE: tl.constexpr,
+    LOCAL_K_HEAD_STRIDE: tl.constexpr,
+    LOCAL_K_TOKEN_STRIDE: tl.constexpr,
+    LOCAL_V_BATCH_STRIDE: tl.constexpr,
+    LOCAL_V_HEAD_STRIDE: tl.constexpr,
+    LOCAL_V_TOKEN_STRIDE: tl.constexpr,
+    NEW_K_BATCH_STRIDE: tl.constexpr,
+    NEW_K_HEAD_STRIDE: tl.constexpr,
+    NEW_V_BATCH_STRIDE: tl.constexpr,
+    NEW_V_HEAD_STRIDE: tl.constexpr,
+    ARCHIVE_K_BATCH_STRIDE: tl.constexpr,
+    ARCHIVE_K_HEAD_STRIDE: tl.constexpr,
+    ARCHIVE_K_TOKEN_STRIDE: tl.constexpr,
+    ARCHIVE_V_BATCH_STRIDE: tl.constexpr,
+    ARCHIVE_V_HEAD_STRIDE: tl.constexpr,
+    ARCHIVE_V_TOKEN_STRIDE: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    BLOCK_H: tl.constexpr,
+    BLOCK_D: tl.constexpr,
+    WRITE_ARCHIVE: tl.constexpr,
+):
+    batch = tl.program_id(0).to(tl.int64)
+    cache_batch = tl.load(cache_indices + batch).to(tl.int64)
+    local_len = tl.load(local_lens + cache_batch).to(tl.int64)
+    head = tl.arange(0, BLOCK_H)
+    dim = tl.arange(0, BLOCK_D)
+    valid = (head[:, None] < KV_HEADS) & (dim[None, :] < HEAD_DIM)
+    key = tl.load(
+        new_k
+        + batch * NEW_K_BATCH_STRIDE
+        + head[:, None] * NEW_K_HEAD_STRIDE
+        + dim[None, :],
+        mask=valid,
+        other=0.0,
+    )
+    value = tl.load(
+        new_v
+        + batch * NEW_V_BATCH_STRIDE
+        + head[:, None] * NEW_V_HEAD_STRIDE
+        + dim[None, :],
+        mask=valid,
+        other=0.0,
+    )
+    tl.store(
+        local_k
+        + cache_batch * LOCAL_K_BATCH_STRIDE
+        + head[:, None] * LOCAL_K_HEAD_STRIDE
+        + local_len * LOCAL_K_TOKEN_STRIDE
+        + dim[None, :],
+        key,
+        mask=valid,
+    )
+    tl.store(
+        local_v
+        + cache_batch * LOCAL_V_BATCH_STRIDE
+        + head[:, None] * LOCAL_V_HEAD_STRIDE
+        + local_len * LOCAL_V_TOKEN_STRIDE
+        + dim[None, :],
+        value,
+        mask=valid,
+    )
+    if WRITE_ARCHIVE:
+        archive_begin = tl.load(archive_begins + cache_batch).to(tl.int64)
+        archive_position = archive_begin + local_len
+        tl.store(
+            archive_k
+            + cache_batch * ARCHIVE_K_BATCH_STRIDE
+            + head[:, None] * ARCHIVE_K_HEAD_STRIDE
+            + archive_position * ARCHIVE_K_TOKEN_STRIDE
+            + dim[None, :],
+            key,
+            mask=valid,
+        )
+        tl.store(
+            archive_v
+            + cache_batch * ARCHIVE_V_BATCH_STRIDE
+            + head[:, None] * ARCHIVE_V_HEAD_STRIDE
+            + archive_position * ARCHIVE_V_TOKEN_STRIDE
+            + dim[None, :],
+            value,
+            mask=valid,
+        )
+    tl.store(local_lens + cache_batch, local_len + 1)
+
+
+def append_decode_local_kv(
+    cache_indices: torch.Tensor,
+    local_lens: torch.Tensor,
+    local_k: torch.Tensor,
+    local_v: torch.Tensor,
+    new_k: torch.Tensor,
+    new_v: torch.Tensor,
+    *,
+    archive_k: torch.Tensor | None = None,
+    archive_v: torch.Tensor | None = None,
+    archive_begins: torch.Tensor | None = None,
+) -> None:
+    """Append one decode K/V row to a graph-stable fixed cache pool."""
+    batch, kv_heads, query_len, head_dim = new_k.shape
+    if query_len != 1 or tuple(new_v.shape) != tuple(new_k.shape):
+        raise ValueError("decode-local append requires one matching K/V row")
+    if tuple(cache_indices.shape) != (batch,) or local_lens.ndim != 1:
+        raise ValueError("decode-local append indices and lengths are incompatible")
+    if tuple(local_k.shape[:2]) != tuple(local_v.shape[:2]) or tuple(
+        local_k.shape[:2]
+    ) != (int(local_lens.numel()), kv_heads):
+        raise ValueError("decode-local append cache geometry is incompatible")
+    if int(local_k.size(-1)) != head_dim or int(local_v.size(-1)) != head_dim:
+        raise ValueError("decode-local append head dimensions differ")
+    write_archive = any(
+        tensor is not None for tensor in (archive_k, archive_v, archive_begins)
+    )
+    if write_archive and not all(
+        isinstance(tensor, torch.Tensor)
+        for tensor in (archive_k, archive_v, archive_begins)
+    ):
+        raise ValueError("decode archive K, V, and begins must be supplied together")
+    if write_archive and (
+        tuple(archive_k.shape[:2]) != tuple(local_k.shape[:2])
+        or tuple(archive_v.shape) != tuple(archive_k.shape)
+        or int(archive_k.size(-1)) != head_dim
+        or tuple(archive_begins.shape) != tuple(local_lens.shape)
+    ):
+        raise ValueError("decode archive geometry is incompatible")
+    archive_k = local_k if archive_k is None else archive_k
+    archive_v = local_v if archive_v is None else archive_v
+    archive_begins = local_lens if archive_begins is None else archive_begins
+    _append_decode_local_kv_kernel[(batch,)](
+        cache_indices,
+        local_lens,
+        local_k,
+        local_v,
+        new_k,
+        new_v,
+        archive_k,
+        archive_v,
+        archive_begins,
+        local_k.stride(0),
+        local_k.stride(1),
+        local_k.stride(2),
+        local_v.stride(0),
+        local_v.stride(1),
+        local_v.stride(2),
+        new_k.stride(0),
+        new_k.stride(1),
+        new_v.stride(0),
+        new_v.stride(1),
+        archive_k.stride(0),
+        archive_k.stride(1),
+        archive_k.stride(2),
+        archive_v.stride(0),
+        archive_v.stride(1),
+        archive_v.stride(2),
+        KV_HEADS=kv_heads,
+        HEAD_DIM=head_dim,
+        BLOCK_H=triton.next_power_of_2(kv_heads),
+        BLOCK_D=triton.next_power_of_2(head_dim),
+        WRITE_ARCHIVE=write_archive,
+        num_warps=4,
+    )
+
+
 def new_fused_decode_buffers(
     q: torch.Tensor,
     *,
@@ -5851,6 +6626,366 @@ def new_fused_decode_buffers(
     return buffers
 
 
+def persistent_decode_route_coarse_gqa(
+    q: torch.Tensor,
+    state_k: torch.Tensor,
+    state_v: torch.Tensor,
+    counts: torch.Tensor,
+    *,
+    state_len: int,
+    kv_group_size: int,
+    route_group_size: int,
+    scale: float,
+    buffers: dict[str, torch.Tensor],
+    cache_indices: torch.Tensor | None = None,
+    group_size: int = 128,
+    protected_len: int = 0,
+    num_warps: int = 8,
+    waves_per_eu: int = 1,
+    state_is_normalized: bool = False,
+    timing_events: dict[
+        str, list[tuple[torch.cuda.Event, torch.cuda.Event]]
+    ]
+    | None = None,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Route top-8 and compute a disjoint coarse branch in one GQA scan."""
+    batch, query_heads, query_len, head_dim = q.shape
+    kv_heads = int(state_k.size(1))
+    if query_len != 1 or query_heads != kv_heads * kv_group_size:
+        raise ValueError("persistent GQA routing requires one complete query row")
+    if route_group_size not in {4, 5, 8, 16} or kv_group_size % route_group_size:
+        raise ValueError("persistent GQA route groups must be 4, 5, 8, or 16")
+    if group_size not in {64, 128}:
+        raise ValueError("persistent GQA state tiles must contain 64 or 128 slots")
+    if tuple(state_v.shape) != tuple(state_k.shape) or tuple(counts.shape) != (
+        *state_k.shape[:3],
+        1,
+    ):
+        raise ValueError("persistent GQA state tensors are incompatible")
+    required = (
+        "route_top_slots",
+        "route_top_scores",
+        "coarse_out",
+        "coarse_lse",
+        "cache_indices",
+    )
+    if any(name not in buffers for name in required):
+        raise ValueError("persistent GQA decode buffers are incomplete")
+    if cache_indices is None:
+        cache_indices = buffers["cache_indices"]
+    if tuple(cache_indices.shape) != (batch,):
+        raise ValueError("persistent GQA cache indices are incompatible")
+    logical_groups = query_heads // route_group_size
+    groups_per_kv = kv_group_size // route_group_size
+    block_g = triton.next_power_of_2(route_group_size)
+    begin = None
+    if timing_events is not None:
+        begin = torch.cuda.Event(enable_timing=True)
+        begin.record()
+    _persistent_decode_route_coarse_gqa_kernel[(batch * logical_groups,)](
+        q,
+        state_k,
+        state_v,
+        counts,
+        cache_indices,
+        buffers["route_top_slots"],
+        buffers["route_top_scores"],
+        buffers["coarse_out"],
+        buffers["coarse_lse"],
+        q.stride(0),
+        q.stride(1),
+        q.stride(2),
+        state_k.stride(0),
+        state_k.stride(1),
+        state_k.stride(2),
+        state_v.stride(0),
+        state_v.stride(1),
+        state_v.stride(2),
+        counts.stride(0),
+        counts.stride(1),
+        counts.stride(2),
+        buffers["route_top_slots"].stride(0),
+        buffers["route_top_slots"].stride(1),
+        buffers["route_top_slots"].stride(2),
+        buffers["route_top_slots"].stride(3),
+        buffers["coarse_out"].stride(0),
+        buffers["coarse_out"].stride(1),
+        buffers["coarse_lse"].stride(0),
+        buffers["coarse_lse"].stride(1),
+        state_len,
+        QUERY_HEADS=query_heads,
+        KV_HEADS=kv_heads,
+        KV_GROUP_SIZE=kv_group_size,
+        ROUTE_GROUP_SIZE=route_group_size,
+        GROUPS_PER_KV=groups_per_kv,
+        LOGICAL_GROUPS=logical_groups,
+        HEAD_DIM=head_dim,
+        SCALE=float(scale),
+        GROUP_N=group_size,
+        BLOCK_G=block_g,
+        BLOCK_UNION=block_g * 8,
+        PROTECTED_LEN=protected_len,
+        STATE_IS_NORMALIZED=state_is_normalized,
+        num_warps=num_warps,
+        waves_per_eu=waves_per_eu,
+    )
+    if begin is not None and timing_events is not None:
+        end = torch.cuda.Event(enable_timing=True)
+        end.record()
+        timing_events.setdefault("persistent_route_coarse", []).append(
+            (begin, end)
+        )
+    return (
+        buffers["route_top_slots"],
+        buffers["route_top_scores"],
+        buffers["coarse_out"].unsqueeze(2),
+        buffers["coarse_lse"].unsqueeze(2),
+    )
+
+
+def masked_decode_coarse_local_attention(
+    q: torch.Tensor,
+    state_k: torch.Tensor,
+    state_v: torch.Tensor,
+    counts: torch.Tensor,
+    local_k: torch.Tensor,
+    local_v: torch.Tensor,
+    top_slots: torch.Tensor,
+    *,
+    state_len: int,
+    local_len: int,
+    kv_group_size: int,
+    scale: float,
+    buffers: dict[str, torch.Tensor],
+    cache_indices: torch.Tensor | None = None,
+    group_size: int = 32,
+    num_warps: int = 2,
+    reduce_num_warps: int = 4,
+    waves_per_eu: int = 1,
+    timing_events: dict[
+        str, list[tuple[torch.cuda.Event, torch.cuda.Event]]
+    ]
+    | None = None,
+    compute_local: bool = True,
+    reduce_groups: bool = True,
+) -> tuple[
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor | None,
+    torch.Tensor | None,
+]:
+    """Compute union-masked coarse and local branches without route logits."""
+    batch, query_heads, query_len, head_dim = q.shape
+    kv_heads = int(state_k.size(1))
+    if query_len != 1 or query_heads != kv_heads * kv_group_size:
+        raise ValueError("masked decode coarse attention requires one GQA query")
+    if group_size not in {8, 16, 32, 64}:
+        raise ValueError("masked decode coarse group size is unsupported")
+    required = (
+        "route_group_out",
+        "route_group_lse",
+        "coarse_out",
+        "coarse_lse",
+        "route_local_out",
+        "route_local_lse",
+        "route_top_scores",
+        "cache_indices",
+        "local_lens",
+    )
+    if any(name not in buffers for name in required):
+        raise ValueError("masked decode coarse buffers are incomplete")
+    active_groups = triton.cdiv(state_len, group_size)
+    max_groups = int(buffers["route_group_lse"].size(2))
+    if active_groups > max_groups:
+        raise ValueError("masked decode coarse buffers are too small")
+    if cache_indices is None:
+        cache_indices = buffers["cache_indices"]
+    route_count = int(top_slots.size(-1))
+    if route_count % 8:
+        raise ValueError("masked GQA union must contain eight routes per head")
+    route_group_size = route_count // 8
+    if route_group_size <= 0 or kv_group_size % route_group_size:
+        raise ValueError("masked GQA route groups must partition the KV group")
+    groups_per_kv = kv_group_size // route_group_size
+    logical_groups = query_heads // route_group_size
+
+    def begin() -> torch.cuda.Event | None:
+        if timing_events is None:
+            return None
+        event = torch.cuda.Event(enable_timing=True)
+        event.record()
+        return event
+
+    def end(name: str, start: torch.cuda.Event | None) -> None:
+        if start is None or timing_events is None:
+            return
+        stop = torch.cuda.Event(enable_timing=True)
+        stop.record()
+        timing_events.setdefault(name, []).append((start, stop))
+
+    coarse_begin = begin()
+    _decode_masked_coarse_gqa_groups_kernel[
+        (batch * logical_groups, active_groups)
+    ](
+        q,
+        state_k,
+        state_v,
+        counts,
+        cache_indices,
+        top_slots,
+        buffers["route_group_out"],
+        buffers["route_group_lse"],
+        state_k.stride(0),
+        state_k.stride(1),
+        state_k.stride(2),
+        state_v.stride(0),
+        state_v.stride(1),
+        state_v.stride(2),
+        counts.stride(0),
+        counts.stride(1),
+        counts.stride(2),
+        top_slots.stride(0),
+        top_slots.stride(1),
+        top_slots.stride(3),
+        state_len,
+        QUERY_HEADS=query_heads,
+        KV_HEADS=kv_heads,
+        KV_GROUP_SIZE=kv_group_size,
+        ROUTE_GROUP_SIZE=route_group_size,
+        GROUPS_PER_KV=groups_per_kv,
+        LOGICAL_GROUPS=logical_groups,
+        HEAD_DIM=head_dim,
+        SCALE=float(scale),
+        GROUP_N=group_size,
+        MAX_GROUPS=max_groups,
+        ROUTE_COUNT=route_count,
+        ROUTE_BLOCK=triton.next_power_of_2(route_count),
+        num_warps=num_warps,
+        waves_per_eu=waves_per_eu,
+    )
+    end("masked_coarse_groups", coarse_begin)
+    if reduce_groups:
+        reduce_begin = begin()
+        _reduce_decode_coarse_groups_kernel[(batch * query_heads,)](
+            buffers["route_group_out"],
+            buffers["route_group_lse"],
+            buffers["coarse_out"],
+            buffers["coarse_lse"],
+            active_groups,
+            HEAD_DIM=head_dim,
+            MAX_GROUPS=max_groups,
+            num_warps=reduce_num_warps,
+            waves_per_eu=waves_per_eu,
+        )
+        end("masked_coarse_reduce", reduce_begin)
+
+    local_output = local_lse = None
+    if compute_local:
+        local_begin = begin()
+        local_output, local_lse, *_ = (
+            torch.ops.aten._scaled_dot_product_flash_attention.default(
+                q.contiguous(),
+                local_k[..., :local_len, :].contiguous(),
+                local_v[..., :local_len, :].contiguous(),
+                0.0,
+                False,
+                False,
+                scale=float(scale),
+            )
+        )
+        end("masked_local", local_begin)
+    return (
+        buffers["coarse_out"].unsqueeze(2),
+        buffers["coarse_lse"].unsqueeze(2),
+        local_output,
+        local_lse,
+    )
+
+
+def prepare_decode_state_summaries(
+    state_k: torch.Tensor,
+    state_v: torch.Tensor,
+    counts: torch.Tensor,
+    row_indices: torch.Tensor,
+    mean_k: torch.Tensor,
+    mean_v: torch.Tensor,
+    log_counts: torch.Tensor,
+    *,
+    state_len: int,
+) -> None:
+    """Cache the exact BF16 means and FP32 log mass used by decode routing."""
+    if (
+        state_k.ndim != 4
+        or tuple(state_v.shape) != tuple(state_k.shape)
+        or tuple(counts.shape) != (*state_k.shape[:3], 1)
+        or tuple(mean_k.shape) != tuple(state_k.shape)
+        or tuple(mean_v.shape) != tuple(state_v.shape)
+        or tuple(log_counts.shape) != tuple(counts.shape)
+    ):
+        raise ValueError("decode state summary tensors have incompatible shapes")
+    if not all(
+        tensor.is_cuda and tensor.is_contiguous()
+        for tensor in (
+            state_k,
+            state_v,
+            counts,
+            row_indices,
+            mean_k,
+            mean_v,
+            log_counts,
+        )
+    ):
+        raise ValueError("decode state summary tensors must be contiguous CUDA tensors")
+    if row_indices.ndim != 1 or row_indices.dtype not in (torch.int32, torch.int64):
+        raise ValueError("decode state rows must be a one-dimensional integer tensor")
+    if not 0 <= state_len <= int(state_k.size(2)):
+        raise ValueError("decode state summary length exceeds its cache")
+    if not int(row_indices.numel()) or not state_len:
+        return
+    kv_heads = int(state_k.size(1))
+    head_dim = int(state_k.size(3))
+    block_n = 16 if head_dim <= 256 else 4
+    block_d = 64
+    grid = (
+        int(row_indices.numel()) * kv_heads,
+        triton.cdiv(state_len, block_n),
+        triton.cdiv(head_dim, block_d),
+    )
+    _prepare_decode_state_summaries_kernel[grid](
+        state_k,
+        state_v,
+        counts,
+        row_indices,
+        mean_k,
+        mean_v,
+        log_counts,
+        state_k.stride(0),
+        state_k.stride(1),
+        state_k.stride(2),
+        state_v.stride(0),
+        state_v.stride(1),
+        state_v.stride(2),
+        counts.stride(0),
+        counts.stride(1),
+        counts.stride(2),
+        mean_k.stride(0),
+        mean_k.stride(1),
+        mean_k.stride(2),
+        mean_v.stride(0),
+        mean_v.stride(1),
+        mean_v.stride(2),
+        log_counts.stride(0),
+        log_counts.stride(1),
+        log_counts.stride(2),
+        state_len,
+        KV_HEADS=kv_heads,
+        HEAD_DIM=head_dim,
+        BLOCK_N=block_n,
+        BLOCK_D=block_d,
+        num_warps=4,
+    )
+
+
 def fused_decode_paged_lod_attention(
     q: torch.Tensor,
     state_k: torch.Tensor,
@@ -5903,7 +7038,18 @@ def fused_decode_paged_lod_attention(
     recursive_page_cache: dict[str, torch.Tensor | int] | None = None,
     recursive_quant_group_size: int = 32,
     output_buffer: torch.Tensor | None = None,
-) -> torch.Tensor:
+    route_coarse_only: bool = False,
+    route_only_scan: bool = False,
+    route_coarse_compute_local: bool = True,
+    state_is_normalized: bool = False,
+) -> torch.Tensor | tuple[
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+]:
     """Fuse coarse, exact-leaf, local, and branch-merge decode attention."""
     batch, query_heads, query_len, head_dim = q.shape
     if query_len != 1:
@@ -6027,6 +7173,14 @@ def fused_decode_paged_lod_attention(
         raise ValueError("state-bound routing requires residual-mass routing")
     if route_residual_use_state_bound and reuse_residual_local_attention:
         raise ValueError("state-bound routing cannot reuse uncomputed local attention")
+    if route_coarse_only and not fuse_state_route:
+        raise ValueError("route/coarse-only decode requires fused state routing")
+    if route_only_scan and not route_coarse_only:
+        raise ValueError("route-only state scan requires route/coarse-only decode")
+    if route_coarse_only and route_residual_mass is not None:
+        raise ValueError(
+            "route/coarse-only decode does not support residual-mass routing"
+        )
     expected_output = (batch, query_heads, 1, head_dim)
     if output_buffer is not None and (
         tuple(output_buffer.shape) != expected_output
@@ -6118,6 +7272,8 @@ def fused_decode_paged_lod_attention(
                 MAX_GROUPS=max_groups,
                 PROTECTED_LEN=protected_len,
                 USE_DOT=score_use_dot,
+                COMPUTE_COARSE=not route_only_scan,
+                STATE_IS_NORMALIZED=state_is_normalized,
                 num_warps=route_num_warps,
                 waves_per_eu=waves_per_eu,
             )
@@ -6137,6 +7293,7 @@ def fused_decode_paged_lod_attention(
                 ROUTE_COUNT=8,
                 MAX_GROUPS=max_groups,
                 CANDIDATE_TILE=1024,
+                COMPUTE_COARSE=not route_only_scan,
                 num_warps=route_reduce_num_warps,
                 waves_per_eu=waves_per_eu,
             )
@@ -6208,6 +7365,57 @@ def fused_decode_paged_lod_attention(
                     waves_per_eu=waves_per_eu,
                 )
                 timing_end("route_mask", route_mask_begin)
+        if route_coarse_only:
+            if route_coarse_compute_local:
+                local_begin = timing_begin()
+                _mask_decode_routes_residual_mass_kernel[
+                    (batch * query_heads,)
+                ](
+                    q,
+                    local_k,
+                    local_v,
+                    cache_indices,
+                    local_lens,
+                    new_k,
+                    new_v,
+                    top_slots,
+                    buffers["route_top_scores"],
+                    buffers["coarse_lse"],
+                    buffers["route_local_out"],
+                    buffers["route_local_lse"],
+                    1.0,
+                    local_k.stride(0),
+                    local_k.stride(1),
+                    local_k.stride(2),
+                    local_v.stride(0),
+                    local_v.stride(1),
+                    local_v.stride(2),
+                    new_k.stride(0),
+                    new_k.stride(1),
+                    new_v.stride(0),
+                    new_v.stride(1),
+                    local_len,
+                    QUERY_HEADS=query_heads,
+                    KV_GROUP_SIZE=kv_group_size,
+                    HEAD_DIM=head_dim,
+                    ROUTE_COUNT=8,
+                    LOCAL_BLOCK_N=32,
+                    SCALE=float(scale),
+                    INCLUDE_NEW=include_new,
+                    COMPUTE_LOCAL_OUTPUT=True,
+                    APPLY_ROUTE_MASK=False,
+                    num_warps=1,
+                    waves_per_eu=waves_per_eu,
+                )
+                timing_end("route_local", local_begin)
+            return (
+                top_slots,
+                buffers["route_top_scores"],
+                buffers["coarse_out"].unsqueeze(2),
+                buffers["coarse_lse"].unsqueeze(2),
+                buffers["route_local_out"].unsqueeze(2),
+                buffers["route_local_lse"].unsqueeze(2),
+            )
         if recursive_page_cache is not None:
             if not fuse_state_route:
                 raise ValueError(
@@ -7573,10 +8781,13 @@ def append_quantized_virtual_paged_kv(
 
 __all__ = [
     "advance_decode_cache_lengths",
+    "append_decode_local_kv",
     "append_paged_kv",
     "append_quantized_virtual_paged_kv",
     "append_virtual_paged_kv",
+    "masked_decode_coarse_local_attention",
     "paged_leaf_attention",
+    "prepare_decode_state_summaries",
     "query_major_paged_leaf_attention",
     "refine_route_candidates_by_leaf_mass",
     "refine_route_candidates_by_page_mass",

@@ -1,0 +1,50 @@
+{"device": "AMD Instinct MI325X", "torch": "2.11.0+gitd0c8b1f", "batch": 8, "kv_heads": 2, "group_size": 8, "head_dim": 512}
+{"aiter_ms": 0.07224523544311523, "context": 512, "lse_max_abs": 4.76837158203125e-07, "max_context": 4096, "output_max_abs": 0.3852352201938629, "output_mean_abs": 0.03055967204272747, "partitions": 16, "pytorch_lse_ms": 0.07944016456604004, "query_heads": 128, "sequences": 16, "triton_ms": null, "triton_over_aiter": null}
+{"aiter_ms": 0.0853732967376709, "context": 1024, "lse_max_abs": 9.5367431640625e-07, "max_context": 4096, "output_max_abs": 0.2854379415512085, "output_mean_abs": 0.02226271480321884, "partitions": 16, "pytorch_lse_ms": 0.08258272171020507, "query_heads": 128, "sequences": 16, "triton_ms": null, "triton_over_aiter": null}
+{"aiter_ms": 0.13950672149658203, "context": 4096, "lse_max_abs": 9.5367431640625e-07, "max_context": 4096, "output_max_abs": 0.12330052256584167, "output_mean_abs": 0.010765930637717247, "partitions": 16, "pytorch_lse_ms": 0.0793665599822998, "query_heads": 128, "sequences": 16, "triton_ms": null, "triton_over_aiter": null}
+{
+  "results": [
+    {
+      "context": 512,
+      "max_context": 4096,
+      "sequences": 16,
+      "query_heads": 128,
+      "partitions": 16,
+      "aiter_ms": 0.07224523544311523,
+      "triton_ms": null,
+      "triton_over_aiter": null,
+      "pytorch_lse_ms": 0.07944016456604004,
+      "output_max_abs": 0.3852352201938629,
+      "output_mean_abs": 0.03055967204272747,
+      "lse_max_abs": 4.76837158203125e-07
+    },
+    {
+      "context": 1024,
+      "max_context": 4096,
+      "sequences": 16,
+      "query_heads": 128,
+      "partitions": 16,
+      "aiter_ms": 0.0853732967376709,
+      "triton_ms": null,
+      "triton_over_aiter": null,
+      "pytorch_lse_ms": 0.08258272171020507,
+      "output_max_abs": 0.2854379415512085,
+      "output_mean_abs": 0.02226271480321884,
+      "lse_max_abs": 9.5367431640625e-07
+    },
+    {
+      "context": 4096,
+      "max_context": 4096,
+      "sequences": 16,
+      "query_heads": 128,
+      "partitions": 16,
+      "aiter_ms": 0.13950672149658203,
+      "triton_ms": null,
+      "triton_over_aiter": null,
+      "pytorch_lse_ms": 0.0793665599822998,
+      "output_max_abs": 0.12330052256584167,
+      "output_mean_abs": 0.010765930637717247,
+      "lse_max_abs": 9.5367431640625e-07
+    }
+  ]
+}

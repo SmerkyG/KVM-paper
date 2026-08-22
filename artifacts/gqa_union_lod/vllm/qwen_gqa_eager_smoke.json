@@ -1,0 +1,83 @@
+{
+  "attention_backend": null,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 6526337024,
+    "device_used_bytes_before_reclaim": 7723810816,
+    "lod_cache_bytes": 440577328,
+    "lod_decode_scratch_bytes": 9337752,
+    "native_cache_bytes": 741998592,
+    "torch_allocated_bytes": 4218471424,
+    "torch_reclaimable_cached_bytes": 1197473792,
+    "torch_reserved_bytes_after_reclaim": 4812963840,
+    "torch_reserved_bytes_before_reclaim": 6010437632
+  },
+  "batch_size": 2,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "decode_interval_tokens": 32,
+  "decode_timings_seconds": [
+    0.43939803075045347
+  ],
+  "decode_tokens": 33,
+  "enforce_eager": true,
+  "jit_monitor_verbose": false,
+  "length": 8192,
+  "lengths": [
+    8192,
+    8192
+  ],
+  "lod_decode_block_n": null,
+  "lod_decode_final_reduce_num_warps": null,
+  "lod_decode_num_warps": null,
+  "lod_decode_route_group_size": null,
+  "lod_decode_route_num_warps": null,
+  "lod_decode_route_reduce_num_warps": null,
+  "lod_decode_use_dot": null,
+  "lod_diagnostics": {
+    "batched_cached_prefill_rows": 0,
+    "batched_cached_prefills": 0,
+    "batched_install_calls": 18,
+    "cached_prefill_candidate_calls": 6,
+    "cached_prefill_candidate_rows": 6,
+    "cached_prefill_noncontiguous": 0,
+    "cached_prefill_nonpacked_calls": 0,
+    "cached_prefill_nonuniform_lengths": 0,
+    "cached_prefill_nonuniform_previous": 0,
+    "cached_prefill_packed_calls": 6,
+    "cached_prefill_unready": 0,
+    "catch_up_batches": 12,
+    "catch_up_rows": 18,
+    "decode_calls": 384,
+    "direct_prefills": 18,
+    "gqa_union_leaves": 20644,
+    "gqa_union_max_leaves": 1434,
+    "gqa_union_regions": 681,
+    "gqa_union_sequences": 36,
+    "installs": 24,
+    "layers": 6
+  },
+  "lod_direct_prefill_route": false,
+  "lod_gqa_union_aiter": true,
+  "lod_leaf_num_warps": null,
+  "lod_prefill_chunk_len": null,
+  "lod_prefill_state_update_len": null,
+  "lod_recursive_page_block_n": null,
+  "long_prefill_token_threshold": 0,
+  "marginal_decode_ms_per_batch_step": 13.731188460951671,
+  "marginal_decode_ms_per_token": 6.8655942304758355,
+  "marginal_decode_tokens_per_second": 145.65381617822362,
+  "max_num_batched_tokens": 16384,
+  "mode": "lod",
+  "num_gpu_blocks_override": 111,
+  "prefill_plus_decode_seconds": 1.0376972872763872,
+  "prefill_prompt_tokens_per_second": 27478.73829635908,
+  "prefill_seconds": 0.5962428050115705,
+  "prefill_timings_seconds": [
+    0.5962428050115705
+  ],
+  "prompt_tokens": 16384,
+  "repeats": 1,
+  "torch_profile_dir": null,
+  "total_timings_seconds": [
+    1.0376972872763872
+  ]
+}

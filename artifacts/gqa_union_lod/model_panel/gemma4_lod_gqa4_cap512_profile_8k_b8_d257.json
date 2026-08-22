@@ -1,0 +1,165 @@
+{
+  "allow_heterogeneous_global_config": true,
+  "attention_backend": null,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 95378472960,
+    "device_used_bytes_before_reclaim": 98478063616,
+    "lod_cache_bytes": 2921201544,
+    "lod_decode_scratch_bytes": 149698500,
+    "native_cache_bytes": 20888289280,
+    "torch_allocated_bytes": 78305508864,
+    "torch_reclaimable_cached_bytes": 3099590656,
+    "torch_reserved_bytes_after_reclaim": 80318824448,
+    "torch_reserved_bytes_before_reclaim": 83418415104
+  },
+  "batch_size": 8,
+  "checkpoint": "google/gemma-4-26B-A4B-it",
+  "decode_interval_tokens": 256,
+  "decode_timings_seconds": [
+    10.491016483865678
+  ],
+  "decode_tokens": 257,
+  "enforce_eager": false,
+  "jit_monitor_verbose": false,
+  "language_model_only": true,
+  "length": 8192,
+  "lengths": [
+    8192,
+    8192,
+    8192,
+    8192,
+    8192,
+    8192,
+    8192,
+    8192
+  ],
+  "lod_decode_block_n": null,
+  "lod_decode_final_reduce_num_warps": null,
+  "lod_decode_num_warps": null,
+  "lod_decode_route_group_size": null,
+  "lod_decode_route_num_warps": null,
+  "lod_decode_route_reduce_num_warps": null,
+  "lod_decode_state_update_len": null,
+  "lod_decode_use_dot": null,
+  "lod_diagnostics": {
+    "batched_cached_prefill_rows": 80,
+    "batched_cached_prefills": 40,
+    "batched_install_calls": 75,
+    "cached_prefill_candidate_calls": 85,
+    "cached_prefill_candidate_rows": 420,
+    "cached_prefill_noncontiguous": 0,
+    "cached_prefill_nonpacked_calls": 0,
+    "cached_prefill_nonuniform_lengths": 70,
+    "cached_prefill_nonuniform_previous": 70,
+    "cached_prefill_packed_calls": 380,
+    "cached_prefill_unready": 0,
+    "catch_up_batches": 10,
+    "catch_up_rows": 10,
+    "decode_calls": 40,
+    "direct_prefills": 95,
+    "gqa_union_fused_correction": false,
+    "gqa_union_group_size": 4,
+    "gqa_union_leaves": 416260,
+    "gqa_union_max_leaves": 3478,
+    "gqa_union_own_route_correction": false,
+    "gqa_union_regions": 5596,
+    "gqa_union_sequences": 300,
+    "gqa_union_stage1_reduce": false,
+    "installs": 80,
+    "layers": 5
+  },
+  "lod_direct_prefill_route": false,
+  "lod_gqa_max_slot_leaves": 512,
+  "lod_gqa_persistent_route": false,
+  "lod_gqa_route_then_coarse": false,
+  "lod_gqa_stage1_reduce": false,
+  "lod_gqa_union_aiter": true,
+  "lod_gqa_union_group_size": 4,
+  "lod_leaf_num_warps": null,
+  "lod_phase_profile": {
+    "coarse": {
+      "calls": 145,
+      "milliseconds": 89.07316581904888
+    },
+    "exact_leaf": {
+      "calls": 145,
+      "milliseconds": 79.9813800547272
+    },
+    "gqa_union_branch_merge": {
+      "calls": 155,
+      "milliseconds": 1.1091439994052052
+    },
+    "gqa_union_correction": {
+      "calls": 155,
+      "milliseconds": 108.51071697473526
+    },
+    "gqa_union_exact": {
+      "calls": 155,
+      "milliseconds": 14.929759979248047
+    },
+    "gqa_union_lse": {
+      "calls": 155,
+      "milliseconds": 1.0998249966651201
+    },
+    "gqa_union_merge": {
+      "calls": 155,
+      "milliseconds": 114.39175570011139
+    },
+    "gqa_union_pack": {
+      "calls": 155,
+      "milliseconds": 1.904815997928381
+    },
+    "local": {
+      "calls": 145,
+      "milliseconds": 325.83210277557373
+    },
+    "page_append": {
+      "calls": 245,
+      "milliseconds": 52.11103303730488
+    },
+    "route": {
+      "calls": 145,
+      "milliseconds": 37.454693004488945
+    },
+    "route_groups": {
+      "calls": 155,
+      "milliseconds": 4.236107999458909
+    },
+    "route_reduce": {
+      "calls": 155,
+      "milliseconds": 3.930949991568923
+    },
+    "state_update": {
+      "calls": 205,
+      "milliseconds": 131.83848825097084
+    },
+    "two_level": {
+      "calls": 300,
+      "milliseconds": 378.1780563890934
+    }
+  },
+  "lod_prefill_chunk_len": null,
+  "lod_prefill_state_update_len": null,
+  "lod_recursive_page_block_n": null,
+  "long_prefill_token_threshold": 4096,
+  "marginal_decode_ms_per_batch_step": 40.980533140100306,
+  "marginal_decode_ms_per_token": 5.122566642512538,
+  "marginal_decode_tokens_per_second": 195.21463941550905,
+  "max_num_batched_tokens": 8192,
+  "mode": "lod",
+  "muse_native_text_config": false,
+  "num_gpu_blocks_override": null,
+  "prefill_plus_decode_seconds": 14.504506296478212,
+  "prefill_prompt_tokens_per_second": 16332.425894178286,
+  "prefill_seconds": 4.0126310950145125,
+  "prefill_timings_seconds": [
+    4.0126310950145125
+  ],
+  "prompt_tokens": 65536,
+  "repeats": 1,
+  "tensor_parallel_size": 1,
+  "torch_profile_dir": null,
+  "total_timings_seconds": [
+    14.504506296478212
+  ]
+}

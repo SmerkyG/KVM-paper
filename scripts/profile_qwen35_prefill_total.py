@@ -48,6 +48,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dynamic-open-residual-state-bound", action="store_true")
     parser.add_argument("--recursive-page-lod", action="store_true")
     parser.add_argument(
+        "--all-centroid-top1",
+        action="store_true",
+        help="Use the experimental uniform exact-winner/residual path.",
+    )
+    parser.add_argument("--all-centroid-mean-residual", action="store_true")
+    parser.add_argument(
+        "--all-centroid-fused",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument("--all-centroid-fused-block-m", type=int, default=16)
+    parser.add_argument(
+        "--all-centroid-fused-centroids", type=int, default=32
+    )
+    parser.add_argument(
         "--leaf-attention-backend",
         choices=("packed", "paged"),
         default="paged",
@@ -237,10 +252,12 @@ def cache_memory_breakdown(model: torch.nn.Module, past_key_values) -> dict[str,
     return breakdown
 
 
-def lod_cache_statistics(model: torch.nn.Module) -> dict[str, int]:
+def lod_cache_statistics(model: torch.nn.Module) -> dict[str, int | float]:
     max_slot_tokens = 0
     max_used_pages = 0
     overflow_failures = 0
+    maximum_count_length_error = 0.0
+    positive_count_empty_slots = 0
     for module in model.modules():
         if not isinstance(module, Qwen3_5TwoLevelAttention):
             continue
@@ -250,6 +267,19 @@ def lod_cache_statistics(model: torch.nn.Module) -> dict[str, int]:
         overflow_flag = cache.get("overflow_flag")
         if isinstance(slot_lengths, torch.Tensor):
             max_slot_tokens = max(max_slot_tokens, int(slot_lengths.max().item()))
+            state = getattr(module, "_lod_state", {})
+            counts = state.get("counts")
+            state_len = int(state.get("state_len", 0))
+            if isinstance(counts, torch.Tensor) and state_len:
+                active_counts = counts[..., :state_len, 0].float()
+                active_lengths = slot_lengths[..., :state_len].float()
+                maximum_count_length_error = max(
+                    maximum_count_length_error,
+                    float((active_counts - active_lengths).abs().max().item()),
+                )
+                positive_count_empty_slots += int(
+                    ((active_counts > 0.5) & (active_lengths == 0)).sum().item()
+                )
         if isinstance(next_page, torch.Tensor):
             max_used_pages = max(max_used_pages, int(next_page.max().item()))
         if isinstance(overflow_flag, torch.Tensor):
@@ -258,6 +288,8 @@ def lod_cache_statistics(model: torch.nn.Module) -> dict[str, int]:
         "max_slot_tokens": max_slot_tokens,
         "max_used_pages_per_batch_head": max_used_pages,
         "overflow_hash_failures": overflow_failures,
+        "maximum_count_length_error": maximum_count_length_error,
+        "positive_count_empty_slots": positive_count_empty_slots,
     }
 
 
@@ -476,6 +508,20 @@ def main() -> None:
                 module.decode_cache_headroom = args.decode_cache_headroom
                 module.fused_decode_attention = not args.disable_fused_decode
                 module.recursive_page_lod = args.recursive_page_lod
+                module.all_centroid_top1 = args.all_centroid_top1
+                module.all_centroid_disjoint_residual = not (
+                    args.all_centroid_mean_residual
+                )
+                module.all_centroid_fused = args.all_centroid_fused
+                module.all_centroid_fused_block_m = (
+                    args.all_centroid_fused_block_m
+                )
+                module.all_centroid_fused_centroids_per_program = (
+                    args.all_centroid_fused_centroids
+                )
+                module.all_centroid_fused_leaf_block_n = (
+                    128 // args.all_centroid_fused_centroids
+                )
                 module.virtual_page_storage = args.virtual_page_storage
                 module.recursive_page_block_n = args.recursive_page_block_n
                 module.leaf_num_warps = args.leaf_num_warps
@@ -891,6 +937,22 @@ def main() -> None:
         ),
         "recursive_page_lod": (
             args.recursive_page_lod if args.mode == "two_level" else None
+        ),
+        "all_centroid_top1": (
+            args.all_centroid_top1 if args.mode == "two_level" else None
+        ),
+        "all_centroid_fused": (
+            args.all_centroid_fused if args.mode == "two_level" else None
+        ),
+        "all_centroid_fused_block_m": (
+            args.all_centroid_fused_block_m
+            if args.mode == "two_level"
+            else None
+        ),
+        "all_centroid_fused_centroids": (
+            args.all_centroid_fused_centroids
+            if args.mode == "two_level"
+            else None
         ),
         "leaf_attention_backend": (
             args.leaf_attention_backend if args.mode == "two_level" else None

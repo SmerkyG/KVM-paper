@@ -1,0 +1,109 @@
+{
+  "attention_layers": 6,
+  "batch_size": 1,
+  "clone_decode_routes": true,
+  "config_order_seed": null,
+  "configs": [
+    {
+      "block_n": 16,
+      "decode_state_update_length": 256,
+      "final_reduce_num_warps": 4,
+      "fuse_final_reduce": false,
+      "fused_attention_ms_per_step": 0.0,
+      "gqa_union_leaf_lengths": [
+        596,
+        1242,
+        525,
+        416,
+        268,
+        125,
+        185,
+        353,
+        1195,
+        1456,
+        1317,
+        305
+      ],
+      "gqa_union_region_counts": [
+        27,
+        22,
+        23,
+        30,
+        27,
+        14,
+        15,
+        24,
+        22,
+        20,
+        24,
+        25
+      ],
+      "kernel_ms_per_step": {},
+      "logit_finite": true,
+      "mean_decode_step_ms": 16.202129364013672,
+      "num_warps": 2,
+      "profile_phases": false,
+      "route_group_size": 32,
+      "route_ms_per_step": 0.0,
+      "route_num_warps": 2,
+      "route_reduce_num_warps": 4,
+      "route_use_dot": false,
+      "split_kv": 8,
+      "state_update_intervals_per_layer": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "state_update_tokens_per_layer": [
+        256,
+        256,
+        256,
+        256,
+        256,
+        256
+      ],
+      "two_level_ms_per_step": 0.0,
+      "use_dot": false
+    }
+  ],
+  "decode_cache_headroom": 256,
+  "decode_final_reduce_num_warps": [
+    4
+  ],
+  "decode_fuse_final_reduce": false,
+  "decode_route_gqa_grouped": true,
+  "decode_route_group_sizes": [
+    32
+  ],
+  "decode_route_num_warps": [
+    2
+  ],
+  "decode_route_reduce_num_warps": [
+    4
+  ],
+  "decode_route_use_dot": false,
+  "decode_state_update_lengths": [
+    256
+  ],
+  "dynamic_open_decode_residual_mass": null,
+  "exclude_sink_from_routes": true,
+  "fused_decode_attention": true,
+  "fused_decode_state_route": true,
+  "gqa_union_leaf_attention": true,
+  "qwen35_acceleration": {
+    "causal_conv1d_decode": true,
+    "causal_conv1d_prefill": true,
+    "fla_fused_rms_norm_gated": true,
+    "fla_gated_delta_rule": true,
+    "fla_recurrent_gated_delta_rule": true,
+    "linear_layer_count": 18
+  },
+  "separate_sink_cache": false,
+  "sequence_length": 16384,
+  "state_growth_factor": 16.0,
+  "steps": 256,
+  "warmup_steps": 2
+}

@@ -1,0 +1,91 @@
+{
+  "device": "AMD Instinct MI325X",
+  "query_heads": 8,
+  "kv_heads": 2,
+  "head_dim": 256,
+  "state_multiplier": 16.0,
+  "block_k": 16,
+  "target_programs": 512,
+  "results": [
+    {
+      "batch": 1,
+      "context": 8192,
+      "centroids": 1449,
+      "mean_leaves_per_centroid": 5.653554175293306,
+      "winner_table_kib": 45.28125,
+      "argmax_ms": 0.039766249656677244,
+      "aiter_full_ms": 0.04854053020477295,
+      "argmax_over_aiter": 0.8192380571229744
+    },
+    {
+      "batch": 1,
+      "context": 16384,
+      "centroids": 2048,
+      "mean_leaves_per_centroid": 8.0,
+      "winner_table_kib": 64.0,
+      "argmax_ms": 0.05108809947967529,
+      "aiter_full_ms": 0.04738656044006348,
+      "argmax_over_aiter": 1.0781136888864022
+    },
+    {
+      "batch": 1,
+      "context": 32768,
+      "centroids": 2897,
+      "mean_leaves_per_centroid": 11.311011391094235,
+      "winner_table_kib": 90.53125,
+      "argmax_ms": 0.08090168952941895,
+      "aiter_full_ms": 0.04733136177062988,
+      "argmax_over_aiter": 1.709261819287443
+    },
+    {
+      "batch": 1,
+      "context": 65536,
+      "centroids": 4096,
+      "mean_leaves_per_centroid": 16.0,
+      "winner_table_kib": 128.0,
+      "argmax_ms": 0.1086501121520996,
+      "aiter_full_ms": 0.07184062004089356,
+      "argmax_over_aiter": 1.5123771494490599
+    },
+    {
+      "batch": 8,
+      "context": 8192,
+      "centroids": 1449,
+      "mean_leaves_per_centroid": 5.653554175293306,
+      "winner_table_kib": 362.25,
+      "argmax_ms": 0.30687744140625,
+      "aiter_full_ms": 0.04818655014038086,
+      "argmax_over_aiter": 6.368528988114535
+    },
+    {
+      "batch": 8,
+      "context": 16384,
+      "centroids": 2048,
+      "mean_leaves_per_centroid": 8.0,
+      "winner_table_kib": 512.0,
+      "argmax_ms": 0.4186631011962891,
+      "aiter_full_ms": 0.07687856197357178,
+      "argmax_over_aiter": 5.4457717528614955
+    },
+    {
+      "batch": 8,
+      "context": 32768,
+      "centroids": 2897,
+      "mean_leaves_per_centroid": 11.311011391094235,
+      "winner_table_kib": 724.25,
+      "argmax_ms": 0.6234347152709961,
+      "aiter_full_ms": 0.14147366523742677,
+      "argmax_over_aiter": 4.406719188512739
+    },
+    {
+      "batch": 8,
+      "context": 65536,
+      "centroids": 4096,
+      "mean_leaves_per_centroid": 16.0,
+      "winner_table_kib": 1024.0,
+      "argmax_ms": 0.9742376708984375,
+      "aiter_full_ms": 0.2769938468933105,
+      "argmax_over_aiter": 3.517181633546119
+    }
+  ]
+}

@@ -8,7 +8,7 @@ import sys
 from copy import deepcopy
 from typing import Any
 
-from .config import VLLMLODSettings
+from .config import VLLMLODSettings, configured_full_attention_layer
 
 logger = logging.getLogger(__name__)
 
@@ -28,9 +28,24 @@ def _install_attention_spec_hook() -> None:
         spec = original(self, vllm_config)
         settings = VLLMLODSettings.from_environment()
         impl = getattr(self, "impl", None)
+        text_config = getattr(vllm_config.model_config, "hf_text_config", None)
+        layer_types = getattr(text_config, "layer_types", ())
+        narrow_sliding_model = (
+            int(self.head_size) <= 128 and "sliding_attention" in layer_types
+        )
+        if (
+            settings.cache_ownership == "lod"
+            and hasattr(impl, "lod_eligible")
+            and narrow_sliding_model
+        ):
+            # Unlike the native AITER backend, CUSTOM defaults to 16-token
+            # blocks. Force the complete hybrid cache group to AITER's faster
+            # 64-token physical layout, not just the LOD placeholder layers.
+            spec = spec.copy_with_new_block_size(max(spec.block_size, 64))
         if (
             settings.cache_ownership != "lod"
             or not bool(getattr(impl, "lod_eligible", False))
+            or not configured_full_attention_layer(self.layer_name, vllm_config)
             or not isinstance(spec, FullAttentionSpec)
         ):
             return spec
@@ -38,15 +53,33 @@ def _install_attention_spec_hook() -> None:
             raise NotImplementedError(
                 "authoritative LOD cache requires equal key and value widths"
             )
+        prefix_caching = bool(vllm_config.cache_config.enable_prefix_caching)
+        placeholder = settings.native_placeholder_cache and not prefix_caching
+        self._vllm_lod_native_placeholder_cache = placeholder
+        block_size = spec.block_size
+        if (
+            placeholder
+            and narrow_sliding_model
+        ):
+            # The authoritative placeholder is constructed before vLLM applies
+            # the backend's preferred 64-token block size. Keeping its initial
+            # 16-token block forces every cache group in a hybrid SWA model
+            # (notably OLMo-3) back to 16-token physical pages. AITER's 4096-
+            # token SWA decode is substantially faster with 64-token pages.
+            block_size = max(block_size, 64)
         return ChunkedLocalAttentionSpec(
-            block_size=spec.block_size,
-            num_kv_heads=spec.num_kv_heads,
-            head_size=spec.head_size,
+            block_size=block_size,
+            num_kv_heads=1 if placeholder else spec.num_kv_heads,
+            head_size=1 if placeholder else spec.head_size,
             dtype=spec.dtype,
             kv_quant_mode=spec.kv_quant_mode,
-            page_size_padded=spec.page_size_padded,
-            indexes_kv_by_block_stride=spec.indexes_kv_by_block_stride,
-            attention_chunk_size=settings.native_staging_chunk,
+            page_size_padded=None if placeholder else spec.page_size_padded,
+            indexes_kv_by_block_stride=(
+                True if placeholder else spec.indexes_kv_by_block_stride
+            ),
+            attention_chunk_size=(
+                1 if placeholder else settings.native_staging_chunk
+            ),
         )
 
     Attention.get_kv_cache_spec = get_kv_cache_spec
@@ -82,6 +115,9 @@ def _native_block_cap(vllm_config: Any, kv_cache_specs: list[dict[str, Any]]) ->
             # per request; newly scheduled tokens are global. One extra block
             # per request covers partial-block fragmentation between the two.
             block_size = int(group_spec.block_size)
+            if block_size >= int(vllm_config.model_config.max_model_len):
+                required += active
+                continue
             retained = active * max(
                 math.ceil(int(spec.attention_chunk_size) / block_size)
                 for spec in specs

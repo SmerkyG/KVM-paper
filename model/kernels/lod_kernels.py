@@ -211,6 +211,7 @@ def _merge_attention_branches_with_sink_kernel(
     q,
     sink_k,
     sink_v,
+    cache_indices,
     primary_out,
     primary_lse,
     secondary_out,
@@ -258,9 +259,13 @@ def _merge_attention_branches_with_sink_kernel(
     INCLUDE_TERTIARY: tl.constexpr,
     SCALE: tl.constexpr,
     BLOCK_M: tl.constexpr,
+    USE_CACHE_INDICES: tl.constexpr,
 ):
     """Merge materialized attention branches and an exact side sink once."""
     batch = tl.program_id(0).to(tl.int64)
+    cache_batch = batch
+    if USE_CACHE_INDICES:
+        cache_batch = tl.load(cache_indices + batch).to(tl.int64)
     query_head = tl.program_id(1).to(tl.int64)
     query = tl.program_id(2).to(tl.int64) * BLOCK_M + tl.arange(0, BLOCK_M)
     query_valid = query < QUERY_LEN
@@ -280,7 +285,7 @@ def _merge_attention_branches_with_sink_kernel(
     if SINK_LEN == 1:
         key = tl.load(
             sink_k
-            + batch * SINK_K_BATCH_STRIDE
+            + cache_batch * SINK_K_BATCH_STRIDE
             + kv_head * SINK_K_HEAD_STRIDE
             + dim,
             mask=dim_valid,
@@ -288,7 +293,7 @@ def _merge_attention_branches_with_sink_kernel(
         ).to(tl.float32)
         sink_output = tl.load(
             sink_v
-            + batch * SINK_V_BATCH_STRIDE
+            + cache_batch * SINK_V_BATCH_STRIDE
             + kv_head * SINK_V_HEAD_STRIDE
             + dim,
             mask=dim_valid,
@@ -302,7 +307,7 @@ def _merge_attention_branches_with_sink_kernel(
         for sink_index in tl.static_range(0, SINK_LEN):
             key = tl.load(
                 sink_k
-                + batch * SINK_K_BATCH_STRIDE
+                + cache_batch * SINK_K_BATCH_STRIDE
                 + kv_head * SINK_K_HEAD_STRIDE
                 + sink_index * SINK_K_TOKEN_STRIDE
                 + dim,
@@ -311,7 +316,7 @@ def _merge_attention_branches_with_sink_kernel(
             ).to(tl.float32)
             value = tl.load(
                 sink_v
-                + batch * SINK_V_BATCH_STRIDE
+                + cache_batch * SINK_V_BATCH_STRIDE
                 + kv_head * SINK_V_HEAD_STRIDE
                 + sink_index * SINK_V_TOKEN_STRIDE
                 + dim,
@@ -417,6 +422,790 @@ def _merge_attention_branches_with_sink_kernel(
         output + output_offset,
         numerator / denominator[:, None],
         mask=query_valid[:, None] & dim_valid[None, :],
+    )
+
+
+@triton.jit(
+    do_not_specialize=["active_primary_groups"],
+    do_not_specialize_on_alignment=["active_primary_groups"],
+)
+def _merge_attention_branches_with_aiter_stats_kernel(
+    q,
+    cache_indices,
+    local_lens,
+    sink_k,
+    sink_v,
+    state_k,
+    state_v,
+    counts,
+    union_top_slots,
+    union_top_scores,
+    primary_out,
+    primary_lse,
+    primary_group_out,
+    primary_group_lse,
+    exact_out,
+    exact_partial_out,
+    exact_exp_sums,
+    exact_max_logits,
+    exact_lengths,
+    tertiary_out,
+    tertiary_lse,
+    output,
+    Q_BATCH_STRIDE,
+    Q_HEAD_STRIDE,
+    SINK_K_BATCH_STRIDE,
+    SINK_K_HEAD_STRIDE,
+    SINK_K_TOKEN_STRIDE,
+    SINK_V_BATCH_STRIDE,
+    SINK_V_HEAD_STRIDE,
+    SINK_V_TOKEN_STRIDE,
+    STATE_K_BATCH_STRIDE,
+    STATE_K_HEAD_STRIDE,
+    STATE_K_TOKEN_STRIDE,
+    STATE_V_BATCH_STRIDE,
+    STATE_V_HEAD_STRIDE,
+    STATE_V_TOKEN_STRIDE,
+    COUNT_BATCH_STRIDE,
+    COUNT_HEAD_STRIDE,
+    COUNT_TOKEN_STRIDE,
+    UNION_BATCH_STRIDE,
+    UNION_HEAD_STRIDE,
+    UNION_ROUTE_STRIDE,
+    UNION_SCORE_BATCH_STRIDE,
+    UNION_SCORE_HEAD_STRIDE,
+    UNION_SCORE_ROUTE_STRIDE,
+    PRIMARY_BATCH_STRIDE,
+    PRIMARY_HEAD_STRIDE,
+    PRIMARY_LSE_BATCH_STRIDE,
+    PRIMARY_LSE_HEAD_STRIDE,
+    PRIMARY_GROUP_OUT_BATCH_STRIDE,
+    PRIMARY_GROUP_OUT_HEAD_STRIDE,
+    PRIMARY_GROUP_OUT_GROUP_STRIDE,
+    PRIMARY_GROUP_LSE_BATCH_STRIDE,
+    PRIMARY_GROUP_LSE_HEAD_STRIDE,
+    PRIMARY_GROUP_LSE_GROUP_STRIDE,
+    EXACT_BATCH_STRIDE,
+    EXACT_HEAD_STRIDE,
+    EXACT_PARTIAL_SEQUENCE_STRIDE,
+    EXACT_PARTIAL_HEAD_STRIDE,
+    EXACT_PARTIAL_PARTITION_STRIDE,
+    EXACT_PARTIAL_DIM_STRIDE,
+    EXP_SEQUENCE_STRIDE,
+    EXP_HEAD_STRIDE,
+    EXP_PARTITION_STRIDE,
+    MAX_SEQUENCE_STRIDE,
+    MAX_HEAD_STRIDE,
+    MAX_PARTITION_STRIDE,
+    TERTIARY_BATCH_STRIDE,
+    TERTIARY_HEAD_STRIDE,
+    TERTIARY_LSE_BATCH_STRIDE,
+    TERTIARY_LSE_HEAD_STRIDE,
+    OUTPUT_BATCH_STRIDE,
+    OUTPUT_HEAD_STRIDE,
+    active_primary_groups,
+    QUERY_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    KV_GROUP_SIZE: tl.constexpr,
+    EXACT_GROUP_SIZE: tl.constexpr,
+    EXACT_GROUPS: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    BLOCK_DIM: tl.constexpr,
+    PARTITIONS: tl.constexpr,
+    PARTITION_BLOCK: tl.constexpr,
+    PARTITION_SIZE: tl.constexpr,
+    UNION_COUNT: tl.constexpr,
+    REDUCE_PRIMARY_GROUPS: tl.constexpr,
+    REMOVE_PRIMARY_SLOTS: tl.constexpr,
+    USE_PRIMARY_SLOT_SCORES: tl.constexpr,
+    REDUCE_EXACT_PARTITIONS: tl.constexpr,
+    INCLUDE_TERTIARY: tl.constexpr,
+    INCLUDE_SINK: tl.constexpr,
+    SINK_LEN: tl.constexpr,
+    SCALE: tl.constexpr,
+    STATE_IS_NORMALIZED: tl.constexpr,
+    USE_CACHE_INDICES: tl.constexpr,
+    ADVANCE_LOCAL: tl.constexpr,
+):
+    """Form AITER's exact LSE in registers while merging every LOD branch."""
+    batch = tl.program_id(0).to(tl.int64)
+    cache_batch = batch
+    if USE_CACHE_INDICES:
+        cache_batch = tl.load(cache_indices + batch).to(tl.int64)
+    query_head = tl.program_id(1).to(tl.int64)
+    kv_head = query_head // KV_GROUP_SIZE
+    exact_group = query_head // EXACT_GROUP_SIZE
+    group_head = query_head - exact_group * EXACT_GROUP_SIZE
+    sequence = batch * EXACT_GROUPS + exact_group
+    dim = tl.arange(0, BLOCK_DIM)
+    dim_valid = dim < HEAD_DIM
+    query_value = tl.load(
+        q
+        + batch * Q_BATCH_STRIDE
+        + query_head * Q_HEAD_STRIDE
+        + dim,
+        mask=dim_valid,
+        other=0.0,
+    ).to(tl.float32)
+
+    union_length = tl.load(exact_lengths + sequence).to(tl.int32)
+    partition = tl.arange(0, PARTITION_BLOCK)
+    valid_partition = (
+        (partition < PARTITIONS)
+        & (partition * PARTITION_SIZE < union_length)
+    )
+    partial_maximum = tl.load(
+        exact_max_logits
+        + sequence * MAX_SEQUENCE_STRIDE
+        + group_head * MAX_HEAD_STRIDE
+        + partition * MAX_PARTITION_STRIDE,
+        mask=valid_partition,
+        other=-float("inf"),
+    ).to(tl.float32)
+    exact_maximum = tl.max(partial_maximum, axis=0)
+    partial_sum = tl.load(
+        exact_exp_sums
+        + sequence * EXP_SEQUENCE_STRIDE
+        + group_head * EXP_HEAD_STRIDE
+        + partition * EXP_PARTITION_STRIDE,
+        mask=valid_partition,
+        other=0.0,
+    ).to(tl.float32)
+    exact_denominator = tl.sum(
+        tl.where(
+            valid_partition,
+            partial_sum * tl.exp(partial_maximum - exact_maximum),
+            0.0,
+        ),
+        axis=0,
+    )
+    has_exact = union_length > 0
+    exact_lse = tl.where(
+        has_exact,
+        exact_maximum + tl.log(exact_denominator),
+        -float("inf"),
+    )
+
+    if REDUCE_PRIMARY_GROUPS:
+        primary_maximum = tl.full((), -float("inf"), tl.float32)
+        primary_denominator = tl.zeros((), tl.float32)
+        primary_accumulator = tl.zeros((BLOCK_DIM,), tl.float32)
+        for group in tl.range(0, active_primary_groups):
+            group_score = tl.load(
+                primary_group_lse
+                + batch * PRIMARY_GROUP_LSE_BATCH_STRIDE
+                + query_head * PRIMARY_GROUP_LSE_HEAD_STRIDE
+                + group * PRIMARY_GROUP_LSE_GROUP_STRIDE
+            ).to(tl.float32)
+            group_value = tl.load(
+                primary_group_out
+                + batch * PRIMARY_GROUP_OUT_BATCH_STRIDE
+                + query_head * PRIMARY_GROUP_OUT_HEAD_STRIDE
+                + group * PRIMARY_GROUP_OUT_GROUP_STRIDE
+                + dim,
+                mask=dim_valid,
+                other=0.0,
+            ).to(tl.float32)
+            new_maximum = tl.maximum(primary_maximum, group_score)
+            old_weight = tl.exp(primary_maximum - new_maximum)
+            group_weight = tl.exp(group_score - new_maximum)
+            primary_denominator = (
+                primary_denominator * old_weight + group_weight
+            )
+            primary_accumulator = (
+                primary_accumulator * old_weight + group_value * group_weight
+            )
+            primary_maximum = new_maximum
+        primary_score = primary_maximum + tl.log(primary_denominator)
+        primary_value = primary_accumulator / primary_denominator
+    else:
+        primary_score = tl.load(
+            primary_lse
+            + batch * PRIMARY_LSE_BATCH_STRIDE
+            + query_head * PRIMARY_LSE_HEAD_STRIDE
+        ).to(tl.float32)
+        primary_value = tl.load(
+            primary_out
+            + batch * PRIMARY_BATCH_STRIDE
+            + query_head * PRIMARY_HEAD_STRIDE
+            + dim,
+            mask=dim_valid,
+            other=0.0,
+        ).to(tl.float32)
+    if REMOVE_PRIMARY_SLOTS:
+        selected_mass = tl.zeros((), tl.float32)
+        selected_value = tl.zeros((BLOCK_DIM,), tl.float32)
+        for route in tl.static_range(0, UNION_COUNT):
+            slot = tl.load(
+                union_top_slots
+                + batch * UNION_BATCH_STRIDE
+                + query_head * UNION_HEAD_STRIDE
+                + route * UNION_ROUTE_STRIDE
+            ).to(tl.int64)
+            valid_slot = slot >= 0
+            safe_slot = tl.where(valid_slot, slot, 0)
+            count_or_log_mass = tl.load(
+                counts
+                    + cache_batch * COUNT_BATCH_STRIDE
+                + kv_head * COUNT_HEAD_STRIDE
+                + safe_slot * COUNT_TOKEN_STRIDE,
+                mask=valid_slot,
+                other=1.0,
+            ).to(tl.float32)
+            value_sum = tl.load(
+                state_v
+                    + cache_batch * STATE_V_BATCH_STRIDE
+                + kv_head * STATE_V_HEAD_STRIDE
+                + safe_slot * STATE_V_TOKEN_STRIDE
+                + dim,
+                mask=valid_slot & dim_valid,
+                other=0.0,
+            ).to(tl.float32)
+            if STATE_IS_NORMALIZED:
+                mean_value = value_sum
+                log_mass = count_or_log_mass
+            else:
+                mean_value = value_sum / count_or_log_mass
+                log_mass = tl.log(count_or_log_mass)
+            if USE_PRIMARY_SLOT_SCORES:
+                slot_score = tl.load(
+                    union_top_scores
+                    + batch * UNION_SCORE_BATCH_STRIDE
+                    + query_head * UNION_SCORE_HEAD_STRIDE
+                    + route * UNION_SCORE_ROUTE_STRIDE,
+                    mask=valid_slot,
+                    other=-float("inf"),
+                ).to(tl.float32)
+            else:
+                key_sum = tl.load(
+                    state_k
+                        + cache_batch * STATE_K_BATCH_STRIDE
+                    + kv_head * STATE_K_HEAD_STRIDE
+                    + safe_slot * STATE_K_TOKEN_STRIDE
+                    + dim,
+                    mask=valid_slot & dim_valid,
+                    other=0.0,
+                ).to(tl.float32)
+                if STATE_IS_NORMALIZED:
+                    mean_key = key_sum
+                else:
+                    mean_key = key_sum / count_or_log_mass
+                slot_score = (
+                    tl.sum(query_value * mean_key, axis=0) * SCALE
+                    + log_mass
+                )
+            mass = tl.where(
+                valid_slot, tl.exp(slot_score - primary_score), 0.0
+            )
+            selected_mass += mass
+            selected_value += mass * mean_value
+        remainder_mass = tl.maximum(1.0 - selected_mass, 1.0e-7)
+        primary_value = (primary_value - selected_value) / remainder_mass
+        primary_score += tl.log(remainder_mass)
+    tertiary_score = tl.full((), -float("inf"), tl.float32)
+    if INCLUDE_TERTIARY:
+        tertiary_score = tl.load(
+            tertiary_lse
+            + batch * TERTIARY_LSE_BATCH_STRIDE
+            + query_head * TERTIARY_LSE_HEAD_STRIDE
+        ).to(tl.float32)
+
+    sink_lse = tl.full((), -float("inf"), tl.float32)
+    sink_output = tl.zeros((BLOCK_DIM,), tl.float32)
+    if INCLUDE_SINK:
+        if SINK_LEN == 1:
+            sink_key = tl.load(
+                sink_k
+                + cache_batch * SINK_K_BATCH_STRIDE
+                + kv_head * SINK_K_HEAD_STRIDE
+                + dim,
+                mask=dim_valid,
+                other=0.0,
+            ).to(tl.float32)
+            sink_output = tl.load(
+                sink_v
+                + cache_batch * SINK_V_BATCH_STRIDE
+                + kv_head * SINK_V_HEAD_STRIDE
+                + dim,
+                mask=dim_valid,
+                other=0.0,
+            ).to(tl.float32)
+            sink_lse = tl.sum(query_value * sink_key, axis=0) * SCALE
+        else:
+            sink_maximum = tl.full((), -float("inf"), tl.float32)
+            sink_denominator = tl.zeros((), tl.float32)
+            sink_accumulator = tl.zeros((BLOCK_DIM,), tl.float32)
+            for sink_index in tl.static_range(0, SINK_LEN):
+                sink_key = tl.load(
+                    sink_k
+                    + cache_batch * SINK_K_BATCH_STRIDE
+                    + kv_head * SINK_K_HEAD_STRIDE
+                    + sink_index * SINK_K_TOKEN_STRIDE
+                    + dim,
+                    mask=dim_valid,
+                    other=0.0,
+                ).to(tl.float32)
+                sink_value = tl.load(
+                    sink_v
+                    + cache_batch * SINK_V_BATCH_STRIDE
+                    + kv_head * SINK_V_HEAD_STRIDE
+                    + sink_index * SINK_V_TOKEN_STRIDE
+                    + dim,
+                    mask=dim_valid,
+                    other=0.0,
+                ).to(tl.float32)
+                sink_score = tl.sum(query_value * sink_key, axis=0) * SCALE
+                new_maximum = tl.maximum(sink_maximum, sink_score)
+                old_weight = tl.exp(sink_maximum - new_maximum)
+                new_weight = tl.exp(sink_score - new_maximum)
+                sink_denominator = sink_denominator * old_weight + new_weight
+                sink_accumulator = (
+                    sink_accumulator * old_weight + sink_value * new_weight
+                )
+                sink_maximum = new_maximum
+            sink_lse = sink_maximum + tl.log(sink_denominator)
+            sink_output = sink_accumulator / sink_denominator
+
+    if REDUCE_EXACT_PARTITIONS:
+        exact_accumulator = tl.zeros((BLOCK_DIM,), tl.float32)
+        active_partitions = tl.cdiv(union_length, PARTITION_SIZE)
+        for exact_partition in tl.range(0, active_partitions):
+            partition_maximum = tl.load(
+                exact_max_logits
+                + sequence * MAX_SEQUENCE_STRIDE
+                + group_head * MAX_HEAD_STRIDE
+                + exact_partition * MAX_PARTITION_STRIDE
+            ).to(tl.float32)
+            partition_sum = tl.load(
+                exact_exp_sums
+                + sequence * EXP_SEQUENCE_STRIDE
+                + group_head * EXP_HEAD_STRIDE
+                + exact_partition * EXP_PARTITION_STRIDE
+            ).to(tl.float32)
+            partition_value = tl.load(
+                exact_partial_out
+                + sequence * EXACT_PARTIAL_SEQUENCE_STRIDE
+                + group_head * EXACT_PARTIAL_HEAD_STRIDE
+                + exact_partition * EXACT_PARTIAL_PARTITION_STRIDE
+                + dim * EXACT_PARTIAL_DIM_STRIDE,
+                mask=dim_valid,
+                other=0.0,
+            ).to(tl.float32)
+            partition_weight = partition_sum * tl.exp(
+                partition_maximum - exact_maximum
+            )
+            exact_accumulator += partition_weight * partition_value
+        exact_value = tl.where(
+            has_exact,
+            exact_accumulator / tl.maximum(exact_denominator, 1.0e-20),
+            0.0,
+        )
+    else:
+        exact_value = tl.load(
+            exact_out
+            + batch * EXACT_BATCH_STRIDE
+            + query_head * EXACT_HEAD_STRIDE
+            + dim,
+            mask=dim_valid & has_exact,
+            other=0.0,
+        ).to(tl.float32)
+    maximum = tl.maximum(
+        primary_score,
+        tl.where(has_exact, exact_lse, -float("inf")),
+    )
+    maximum = tl.maximum(maximum, tertiary_score)
+    maximum = tl.maximum(maximum, sink_lse)
+    primary_weight = tl.exp(primary_score - maximum)
+    exact_weight = tl.where(has_exact, tl.exp(exact_lse - maximum), 0.0)
+    denominator = primary_weight + exact_weight
+    numerator = primary_weight * primary_value + exact_weight * exact_value
+    if INCLUDE_TERTIARY:
+        tertiary_value = tl.load(
+            tertiary_out
+            + batch * TERTIARY_BATCH_STRIDE
+            + query_head * TERTIARY_HEAD_STRIDE
+            + dim,
+            mask=dim_valid,
+            other=0.0,
+        ).to(tl.float32)
+        tertiary_weight = tl.exp(tertiary_score - maximum)
+        denominator += tertiary_weight
+        numerator += tertiary_weight * tertiary_value
+    if INCLUDE_SINK:
+        sink_weight = tl.exp(sink_lse - maximum)
+        denominator += sink_weight
+        numerator += sink_weight * sink_output
+    tl.store(
+        output
+        + batch * OUTPUT_BATCH_STRIDE
+        + query_head * OUTPUT_HEAD_STRIDE
+        + dim,
+        numerator / denominator,
+        mask=dim_valid,
+    )
+    if ADVANCE_LOCAL and query_head == 0:
+        local_length = tl.load(local_lens + cache_batch)
+        tl.store(local_lens + cache_batch, local_length + 1)
+
+
+@triton.jit
+def _aiter_partition_lse_kernel(
+    exp_sums,
+    max_logits,
+    lengths,
+    output_lse,
+    EXP_SEQUENCE_STRIDE,
+    EXP_HEAD_STRIDE,
+    EXP_PARTITION_STRIDE,
+    MAX_SEQUENCE_STRIDE,
+    MAX_HEAD_STRIDE,
+    MAX_PARTITION_STRIDE,
+    QUERY_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    KV_GROUP_SIZE: tl.constexpr,
+    PARTITIONS: tl.constexpr,
+    PARTITION_BLOCK: tl.constexpr,
+    PARTITION_SIZE: tl.constexpr,
+):
+    query_row = tl.program_id(0).to(tl.int64)
+    batch = query_row // QUERY_HEADS
+    query_head = query_row - batch * QUERY_HEADS
+    kv_head = query_head // KV_GROUP_SIZE
+    group_head = query_head - kv_head * KV_GROUP_SIZE
+    sequence = batch * KV_HEADS + kv_head
+    length = tl.load(lengths + sequence).to(tl.int32)
+    partition = tl.arange(0, PARTITION_BLOCK)
+    valid = (
+        (partition < PARTITIONS)
+        & (partition * PARTITION_SIZE < length)
+    )
+    partial_maximum = tl.load(
+        max_logits
+        + sequence * MAX_SEQUENCE_STRIDE
+        + group_head * MAX_HEAD_STRIDE
+        + partition * MAX_PARTITION_STRIDE,
+        mask=valid,
+        other=-float("inf"),
+    ).to(tl.float32)
+    maximum = tl.max(partial_maximum, axis=0)
+    partial_sum = tl.load(
+        exp_sums
+        + sequence * EXP_SEQUENCE_STRIDE
+        + group_head * EXP_HEAD_STRIDE
+        + partition * EXP_PARTITION_STRIDE,
+        mask=valid,
+        other=0.0,
+    ).to(tl.float32)
+    denominator = tl.sum(
+        tl.where(valid, partial_sum * tl.exp(partial_maximum - maximum), 0.0),
+        axis=0,
+    )
+    tl.store(
+        output_lse + query_row,
+        tl.where(
+            length > 0,
+            maximum + tl.log(denominator),
+            -float("inf"),
+        ),
+    )
+
+
+@triton.jit
+def _remove_state_slots_from_attention_kernel(
+    q,
+    state_k,
+    state_v,
+    counts,
+    slots,
+    cache_indices,
+    attention_out,
+    attention_lse,
+    Q_BATCH_STRIDE,
+    Q_HEAD_STRIDE,
+    STATE_K_BATCH_STRIDE,
+    STATE_K_HEAD_STRIDE,
+    STATE_K_TOKEN_STRIDE,
+    STATE_V_BATCH_STRIDE,
+    STATE_V_HEAD_STRIDE,
+    STATE_V_TOKEN_STRIDE,
+    COUNT_BATCH_STRIDE,
+    COUNT_HEAD_STRIDE,
+    COUNT_TOKEN_STRIDE,
+    SLOT_BATCH_STRIDE,
+    SLOT_HEAD_STRIDE,
+    SLOT_ROUTE_STRIDE,
+    OUT_BATCH_STRIDE,
+    OUT_HEAD_STRIDE,
+    LSE_BATCH_STRIDE,
+    LSE_HEAD_STRIDE,
+    QUERY_HEADS: tl.constexpr,
+    KV_GROUP_SIZE: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    BLOCK_DIM: tl.constexpr,
+    ROUTE_COUNT: tl.constexpr,
+    SCALE: tl.constexpr,
+    STATE_IS_NORMALIZED: tl.constexpr,
+    USE_CACHE_INDICES: tl.constexpr,
+):
+    batch = tl.program_id(0).to(tl.int64)
+    cache_batch = batch
+    if USE_CACHE_INDICES:
+        cache_batch = tl.load(cache_indices + batch).to(tl.int64)
+    query_head = tl.program_id(1).to(tl.int64)
+    kv_head = query_head // KV_GROUP_SIZE
+    dim = tl.arange(0, BLOCK_DIM)
+    dim_valid = dim < HEAD_DIM
+    query = tl.load(
+        q + batch * Q_BATCH_STRIDE + query_head * Q_HEAD_STRIDE + dim,
+        mask=dim_valid,
+        other=0.0,
+    ).to(tl.float32)
+    full_lse = tl.load(
+        attention_lse
+        + batch * LSE_BATCH_STRIDE
+        + query_head * LSE_HEAD_STRIDE
+    ).to(tl.float32)
+    remainder = tl.load(
+        attention_out
+        + batch * OUT_BATCH_STRIDE
+        + query_head * OUT_HEAD_STRIDE
+        + dim,
+        mask=dim_valid,
+        other=0.0,
+    ).to(tl.float32)
+    selected_mass = tl.zeros((), tl.float32)
+    selected_value = tl.zeros((BLOCK_DIM,), tl.float32)
+    for route in tl.static_range(0, ROUTE_COUNT):
+        slot = tl.load(
+            slots
+            + batch * SLOT_BATCH_STRIDE
+            + query_head * SLOT_HEAD_STRIDE
+            + route * SLOT_ROUTE_STRIDE
+        ).to(tl.int64)
+        valid_slot = slot >= 0
+        safe_slot = tl.where(valid_slot, slot, 0)
+        count_or_log_mass = tl.load(
+            counts
+            + cache_batch * COUNT_BATCH_STRIDE
+            + kv_head * COUNT_HEAD_STRIDE
+            + safe_slot * COUNT_TOKEN_STRIDE,
+            mask=valid_slot,
+            other=1.0,
+        ).to(tl.float32)
+        key_sum = tl.load(
+            state_k
+            + cache_batch * STATE_K_BATCH_STRIDE
+            + kv_head * STATE_K_HEAD_STRIDE
+            + safe_slot * STATE_K_TOKEN_STRIDE
+            + dim,
+            mask=valid_slot & dim_valid,
+            other=0.0,
+        ).to(tl.float32)
+        value_sum = tl.load(
+            state_v
+            + cache_batch * STATE_V_BATCH_STRIDE
+            + kv_head * STATE_V_HEAD_STRIDE
+            + safe_slot * STATE_V_TOKEN_STRIDE
+            + dim,
+            mask=valid_slot & dim_valid,
+            other=0.0,
+        ).to(tl.float32)
+        if STATE_IS_NORMALIZED:
+            mean_key = key_sum
+            mean_value = value_sum
+            log_mass = count_or_log_mass
+        else:
+            mean_key = key_sum / count_or_log_mass
+            mean_value = value_sum / count_or_log_mass
+            log_mass = tl.log(count_or_log_mass)
+        score = tl.sum(query * mean_key, axis=0) * SCALE + log_mass
+        mass = tl.where(valid_slot, tl.exp(score - full_lse), 0.0)
+        selected_mass += mass
+        selected_value += mass * mean_value
+    remainder_mass = tl.maximum(1.0 - selected_mass, 1.0e-7)
+    tl.store(
+        attention_out
+        + batch * OUT_BATCH_STRIDE
+        + query_head * OUT_HEAD_STRIDE
+        + dim,
+        (remainder - selected_value) / remainder_mass,
+        mask=dim_valid,
+    )
+    tl.store(
+        attention_lse
+        + batch * LSE_BATCH_STRIDE
+        + query_head * LSE_HEAD_STRIDE,
+        full_lse + tl.log(remainder_mass),
+    )
+
+
+@triton.jit
+def _remove_state_slots_gqa_kernel(
+    q,
+    state_k,
+    state_v,
+    counts,
+    slots,
+    cache_indices,
+    attention_out,
+    attention_lse,
+    Q_BATCH_STRIDE,
+    Q_HEAD_STRIDE,
+    STATE_K_BATCH_STRIDE,
+    STATE_K_HEAD_STRIDE,
+    STATE_K_TOKEN_STRIDE,
+    STATE_V_BATCH_STRIDE,
+    STATE_V_HEAD_STRIDE,
+    STATE_V_TOKEN_STRIDE,
+    COUNT_BATCH_STRIDE,
+    COUNT_HEAD_STRIDE,
+    COUNT_TOKEN_STRIDE,
+    SLOT_BATCH_STRIDE,
+    SLOT_HEAD_STRIDE,
+    SLOT_ROUTE_STRIDE,
+    OUT_BATCH_STRIDE,
+    OUT_HEAD_STRIDE,
+    LSE_BATCH_STRIDE,
+    LSE_HEAD_STRIDE,
+    QUERY_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    KV_GROUP_SIZE: tl.constexpr,
+    ROUTE_GROUP_SIZE: tl.constexpr,
+    GROUPS_PER_KV: tl.constexpr,
+    LOGICAL_GROUPS: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    BLOCK_G: tl.constexpr,
+    ROUTE_COUNT: tl.constexpr,
+    ROUTE_TILE: tl.constexpr,
+    SCALE: tl.constexpr,
+    STATE_IS_NORMALIZED: tl.constexpr,
+    USE_CACHE_INDICES: tl.constexpr,
+):
+    """Remove one shared routed-slot union for an entire GQA group."""
+    batch_group = tl.program_id(0).to(tl.int64)
+    batch = batch_group // LOGICAL_GROUPS
+    logical_group = batch_group - batch * LOGICAL_GROUPS
+    kv_head = logical_group // GROUPS_PER_KV
+    subgroup = logical_group - kv_head * GROUPS_PER_KV
+    cache_batch = batch
+    if USE_CACHE_INDICES:
+        cache_batch = tl.load(cache_indices + batch).to(tl.int64)
+    group = tl.arange(0, BLOCK_G)
+    valid_group = group < ROUTE_GROUP_SIZE
+    first_query_head = (
+        kv_head * KV_GROUP_SIZE + subgroup * ROUTE_GROUP_SIZE
+    )
+    query_head = first_query_head + group
+    dim = tl.arange(0, HEAD_DIM)
+    queries = tl.load(
+        q
+        + batch * Q_BATCH_STRIDE
+        + query_head[:, None] * Q_HEAD_STRIDE
+        + dim[None, :],
+        mask=valid_group[:, None],
+        other=0.0,
+    )
+    full_lse = tl.load(
+        attention_lse
+        + batch * LSE_BATCH_STRIDE
+        + query_head * LSE_HEAD_STRIDE,
+        mask=valid_group,
+        other=-float("inf"),
+    ).to(tl.float32)
+    remainder = tl.load(
+        attention_out
+        + batch * OUT_BATCH_STRIDE
+        + query_head[:, None] * OUT_HEAD_STRIDE
+        + dim[None, :],
+        mask=valid_group[:, None],
+        other=0.0,
+    ).to(tl.float32)
+
+    selected_mass = tl.zeros((BLOCK_G,), tl.float32)
+    selected_value = tl.zeros((BLOCK_G, HEAD_DIM), tl.float32)
+    route_offset = tl.arange(0, ROUTE_TILE)
+    for route_begin in tl.static_range(0, ROUTE_COUNT, ROUTE_TILE):
+        route = route_begin + route_offset
+        slot = tl.load(
+            slots
+            + batch * SLOT_BATCH_STRIDE
+            + first_query_head * SLOT_HEAD_STRIDE
+            + route * SLOT_ROUTE_STRIDE,
+            mask=route < ROUTE_COUNT,
+            other=-1,
+        ).to(tl.int64)
+        valid_slot = (route < ROUTE_COUNT) & (slot >= 0)
+        safe_slot = tl.where(valid_slot, slot, 0)
+        count_or_log_mass = tl.load(
+            counts
+            + cache_batch * COUNT_BATCH_STRIDE
+            + kv_head * COUNT_HEAD_STRIDE
+            + safe_slot * COUNT_TOKEN_STRIDE,
+            mask=valid_slot,
+            other=1.0,
+        ).to(tl.float32)
+        key_sum = tl.load(
+            state_k
+            + cache_batch * STATE_K_BATCH_STRIDE
+            + kv_head * STATE_K_HEAD_STRIDE
+            + safe_slot[:, None] * STATE_K_TOKEN_STRIDE
+            + dim[None, :],
+            mask=valid_slot[:, None],
+            other=0.0,
+        )
+        value_sum = tl.load(
+            state_v
+            + cache_batch * STATE_V_BATCH_STRIDE
+            + kv_head * STATE_V_HEAD_STRIDE
+            + safe_slot[:, None] * STATE_V_TOKEN_STRIDE
+            + dim[None, :],
+            mask=valid_slot[:, None],
+            other=0.0,
+        )
+        if STATE_IS_NORMALIZED:
+            mean_keys = key_sum
+            mean_values = value_sum
+            log_mass = count_or_log_mass
+        else:
+            count_or_log_mass = tl.where(valid_slot, count_or_log_mass, 1.0)
+            mean_keys = (
+                key_sum.to(tl.float32) / count_or_log_mass[:, None]
+            ).to(key_sum.dtype)
+            mean_values = (
+                value_sum.to(tl.float32) / count_or_log_mass[:, None]
+            ).to(value_sum.dtype)
+            log_mass = tl.log(count_or_log_mass)
+        scores = tl.dot(queries, tl.trans(mean_keys), out_dtype=tl.float32)
+        scores = scores * SCALE + log_mass[None, :]
+        scores = tl.where(
+            valid_group[:, None] & valid_slot[None, :],
+            scores,
+            -float("inf"),
+        )
+        mass = tl.where(
+            valid_group[:, None] & valid_slot[None, :],
+            tl.exp(scores - full_lse[:, None]),
+            0.0,
+        )
+        selected_mass += tl.sum(mass, axis=1)
+        selected_value += tl.dot(
+            mass.to(mean_values.dtype), mean_values, out_dtype=tl.float32
+        )
+    remainder_mass = tl.maximum(1.0 - selected_mass, 1.0e-7)
+    tl.store(
+        attention_out
+        + batch * OUT_BATCH_STRIDE
+        + query_head[:, None] * OUT_HEAD_STRIDE
+        + dim[None, :],
+        (remainder - selected_value) / remainder_mass[:, None],
+        mask=valid_group[:, None],
+    )
+    tl.store(
+        attention_lse
+        + batch * LSE_BATCH_STRIDE
+        + query_head * LSE_HEAD_STRIDE,
+        full_lse + tl.log(remainder_mass),
+        mask=valid_group,
     )
 
 
@@ -5111,7 +5900,6 @@ def merge_attention_branches(
     output = torch.empty_like(primary_out) if output_buffer is None else output_buffer
     if (
         tuple(output.shape) != expected_output_shape
-        or output.dtype != primary_out.dtype
         or output.device != primary_out.device
         or int(output.stride(-1)) != 1
         or _output_has_internal_overlap(output)
@@ -5175,6 +5963,7 @@ def merge_attention_branches_with_sink(
     output_buffer: torch.Tensor | None = None,
     block_m: int = 8,
     num_warps: int = 4,
+    cache_indices: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """Fuse the final LSE reduction with exact side-sink attention."""
     if not q.is_cuda:
@@ -5184,8 +5973,14 @@ def merge_attention_branches_with_sink(
         raise ValueError("query heads do not match the side sink's GQA grouping")
     if tuple(sink_v.shape[:3]) != tuple(sink_k.shape[:3]):
         raise ValueError("side sink K/V shapes differ")
-    if int(sink_k.size(0)) != batch:
+    if cache_indices is None and int(sink_k.size(0)) != batch:
         raise ValueError("side sink and query batch sizes differ")
+    if cache_indices is not None and (
+        tuple(cache_indices.shape) != (batch,)
+        or cache_indices.dtype not in (torch.int32, torch.int64)
+        or cache_indices.device != q.device
+    ):
+        raise ValueError("side-sink cache indices are incompatible")
     if int(sink_k.size(2)) <= 0:
         raise ValueError("the side sink must contain at least one token")
     if int(sink_k.size(-1)) != head_dim or int(sink_v.size(-1)) != head_dim:
@@ -5240,6 +6035,7 @@ def merge_attention_branches_with_sink(
         q,
         sink_k,
         sink_v,
+        primary_lse if cache_indices is None else cache_indices,
         primary_out,
         primary_lse,
         secondary_out,
@@ -5287,6 +6083,493 @@ def merge_attention_branches_with_sink(
         INCLUDE_TERTIARY=include_tertiary,
         SCALE=scale,
         BLOCK_M=block_m,
+        USE_CACHE_INDICES=cache_indices is not None,
+        **_launch_kwargs(num_warps),
+    )
+    return output
+
+
+def aiter_partition_lse(
+    exact_out: torch.Tensor,
+    exp_sums: torch.Tensor,
+    max_logits: torch.Tensor,
+    lengths: torch.Tensor,
+    *,
+    kv_group_size: int,
+    partition_size: int = 256,
+) -> torch.Tensor:
+    """Materialize AITER PA-v1's natural-log LSE without touching values."""
+    batch, query_heads, query_len, _ = exact_out.shape
+    if query_len != 1 or query_heads % kv_group_size:
+        raise ValueError("AITER LSE reduction requires one complete GQA row")
+    kv_heads = query_heads // kv_group_size
+    if tuple(exp_sums.shape[:2]) != (batch * kv_heads, kv_group_size):
+        raise ValueError("AITER LSE statistics do not match the output")
+    if tuple(max_logits.shape) != tuple(exp_sums.shape) or tuple(
+        lengths.shape
+    ) != (batch * kv_heads,):
+        raise ValueError("AITER LSE statistics have incompatible shapes")
+    output = torch.empty(
+        batch,
+        query_heads,
+        1,
+        dtype=torch.float32,
+        device=exact_out.device,
+    )
+    partitions = int(exp_sums.size(2))
+    _aiter_partition_lse_kernel[(batch * query_heads,)](
+        exp_sums,
+        max_logits,
+        lengths,
+        output,
+        exp_sums.stride(0),
+        exp_sums.stride(1),
+        exp_sums.stride(2),
+        max_logits.stride(0),
+        max_logits.stride(1),
+        max_logits.stride(2),
+        QUERY_HEADS=query_heads,
+        KV_HEADS=kv_heads,
+        KV_GROUP_SIZE=kv_group_size,
+        PARTITIONS=partitions,
+        PARTITION_BLOCK=triton.next_power_of_2(partitions),
+        PARTITION_SIZE=partition_size,
+        **_launch_kwargs(1),
+    )
+    return output
+
+
+def remove_state_slots_from_attention(
+    q: torch.Tensor,
+    state_k: torch.Tensor,
+    state_v: torch.Tensor,
+    counts: torch.Tensor,
+    slots: torch.Tensor,
+    attention_out: torch.Tensor,
+    attention_lse: torch.Tensor,
+    *,
+    kv_group_size: int,
+    route_group_size: int | None = None,
+    scale: float,
+    gqa_aware: bool = True,
+    cache_indices: torch.Tensor | None = None,
+    state_is_normalized: bool = False,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Remove routed centroid summaries from a normalized coarse branch."""
+    batch, query_heads, query_len, head_dim = q.shape
+    if query_len != 1 or query_heads % kv_group_size:
+        raise ValueError("state-slot removal requires one complete GQA row")
+    kv_heads = query_heads // kv_group_size
+    if route_group_size is None:
+        route_group_size = kv_group_size
+    if route_group_size <= 0 or kv_group_size % route_group_size:
+        raise ValueError("route groups must evenly partition each physical KV group")
+    groups_per_kv = kv_group_size // route_group_size
+    logical_groups = query_heads // route_group_size
+    cache_batch = int(state_k.size(0))
+    if int(state_k.size(1)) != kv_heads or tuple(state_v.shape) != tuple(
+        state_k.shape
+    ):
+        raise ValueError("state-slot removal has incompatible K/V geometry")
+    if cache_indices is None and cache_batch != batch:
+        raise ValueError("state-slot removal cache batch differs from query batch")
+    if cache_indices is not None and (
+        tuple(cache_indices.shape) != (batch,)
+        or cache_indices.dtype not in (torch.int32, torch.int64)
+        or cache_indices.device != q.device
+    ):
+        raise ValueError("state-slot removal cache indices are incompatible")
+    if tuple(counts.shape) != (*state_k.shape[:3], 1):
+        raise ValueError("state-slot removal has incompatible counts")
+    if tuple(slots.shape[:3]) != (batch, query_heads, 1):
+        raise ValueError("state-slot removal has incompatible routes")
+    if tuple(attention_out.shape) != tuple(q.shape) or tuple(
+        attention_lse.shape
+    ) != tuple(q.shape[:-1]):
+        raise ValueError("state-slot removal has incompatible attention")
+    if gqa_aware:
+        _remove_state_slots_gqa_kernel[(batch * logical_groups,)](
+            q,
+            state_k,
+            state_v,
+            counts,
+            slots,
+            slots if cache_indices is None else cache_indices,
+            attention_out,
+            attention_lse,
+            q.stride(0),
+            q.stride(1),
+            state_k.stride(0),
+            state_k.stride(1),
+            state_k.stride(2),
+            state_v.stride(0),
+            state_v.stride(1),
+            state_v.stride(2),
+            counts.stride(0),
+            counts.stride(1),
+            counts.stride(2),
+            slots.stride(0),
+            slots.stride(1),
+            slots.stride(3),
+            attention_out.stride(0),
+            attention_out.stride(1),
+            attention_lse.stride(0),
+            attention_lse.stride(1),
+            QUERY_HEADS=query_heads,
+            KV_HEADS=kv_heads,
+            KV_GROUP_SIZE=kv_group_size,
+            ROUTE_GROUP_SIZE=route_group_size,
+            GROUPS_PER_KV=groups_per_kv,
+            LOGICAL_GROUPS=logical_groups,
+            HEAD_DIM=head_dim,
+            BLOCK_G=triton.next_power_of_2(route_group_size),
+            ROUTE_COUNT=int(slots.size(-1)),
+            ROUTE_TILE=min(32, triton.next_power_of_2(int(slots.size(-1)))),
+            SCALE=float(scale),
+            STATE_IS_NORMALIZED=state_is_normalized,
+            USE_CACHE_INDICES=cache_indices is not None,
+            **_launch_kwargs(1),
+        )
+        return attention_out, attention_lse
+    _remove_state_slots_from_attention_kernel[(batch, query_heads)](
+        q,
+        state_k,
+        state_v,
+        counts,
+        slots,
+        slots if cache_indices is None else cache_indices,
+        attention_out,
+        attention_lse,
+        q.stride(0),
+        q.stride(1),
+        state_k.stride(0),
+        state_k.stride(1),
+        state_k.stride(2),
+        state_v.stride(0),
+        state_v.stride(1),
+        state_v.stride(2),
+        counts.stride(0),
+        counts.stride(1),
+        counts.stride(2),
+        slots.stride(0),
+        slots.stride(1),
+        slots.stride(3),
+        attention_out.stride(0),
+        attention_out.stride(1),
+        attention_lse.stride(0),
+        attention_lse.stride(1),
+        QUERY_HEADS=query_heads,
+        KV_GROUP_SIZE=kv_group_size,
+        HEAD_DIM=head_dim,
+        BLOCK_DIM=triton.next_power_of_2(head_dim),
+        ROUTE_COUNT=int(slots.size(-1)),
+        SCALE=float(scale),
+        STATE_IS_NORMALIZED=state_is_normalized,
+        USE_CACHE_INDICES=cache_indices is not None,
+        **_launch_kwargs(1),
+    )
+    return attention_out, attention_lse
+
+
+def merge_attention_branches_with_aiter_stats(
+    q: torch.Tensor,
+    primary_out: torch.Tensor,
+    primary_lse: torch.Tensor,
+    exact_out: torch.Tensor,
+    exact_exp_sums: torch.Tensor,
+    exact_max_logits: torch.Tensor,
+    exact_lengths: torch.Tensor,
+    tertiary_out: torch.Tensor | None = None,
+    tertiary_lse: torch.Tensor | None = None,
+    *,
+    exact_partial_out: torch.Tensor | None = None,
+    kv_group_size: int,
+    exact_group_size: int | None = None,
+    scale: float,
+    sink_k: torch.Tensor | None = None,
+    sink_v: torch.Tensor | None = None,
+    state_k: torch.Tensor | None = None,
+    state_v: torch.Tensor | None = None,
+    counts: torch.Tensor | None = None,
+    union_top_slots: torch.Tensor | None = None,
+    union_top_scores: torch.Tensor | None = None,
+    primary_group_out: torch.Tensor | None = None,
+    primary_group_lse: torch.Tensor | None = None,
+    active_primary_groups: int = 0,
+    partition_size: int = 256,
+    output_buffer: torch.Tensor | None = None,
+    num_warps: int = 4,
+    cache_indices: torch.Tensor | None = None,
+    local_lens: torch.Tensor | None = None,
+    advance_local: bool = False,
+    state_is_normalized: bool = False,
+) -> torch.Tensor:
+    """Merge AITER PA-v1 output while reducing its exposed stats in-kernel."""
+    if q.ndim != 4 or int(q.size(2)) != 1:
+        raise ValueError("AITER-stat branch reduction supports decode only")
+    if (sink_k is None) != (sink_v is None):
+        raise ValueError("AITER-stat sink K and V must be provided together")
+    if (tertiary_out is None) != (tertiary_lse is None):
+        raise ValueError("AITER-stat tertiary output and LSE must be paired")
+    if (primary_group_out is None) != (primary_group_lse is None):
+        raise ValueError("AITER-stat primary group output and LSE must be paired")
+    reduce_primary_groups = primary_group_out is not None
+    removal_inputs = (state_k, state_v, counts, union_top_slots, union_top_scores)
+    remove_primary_slots = any(value is not None for value in removal_inputs)
+    use_primary_slot_scores = union_top_scores is not None
+    if remove_primary_slots and not all(
+        isinstance(value, torch.Tensor)
+        for value in (state_v, counts, union_top_slots)
+    ):
+        raise ValueError(
+            "AITER-stat primary-slot removal requires state V, counts, and routes"
+        )
+    if remove_primary_slots and state_k is None and union_top_scores is None:
+        raise ValueError(
+            "AITER-stat primary-slot removal requires state K or route scores"
+        )
+    expected_output_shape = tuple(q.shape)
+    expected_lse_shape = tuple(q.shape[:-1])
+    if tuple(primary_out.shape) != expected_output_shape or tuple(exact_out.shape) != expected_output_shape:
+        raise ValueError("AITER-stat branch outputs do not match the query")
+    if tuple(primary_lse.shape) != expected_lse_shape:
+        raise ValueError("AITER-stat primary LSE does not match the query")
+    if reduce_primary_groups and (
+        primary_group_out.ndim != 4
+        or tuple(primary_group_out.shape[:2]) != tuple(q.shape[:2])
+        or int(primary_group_out.size(-1)) != int(q.size(-1))
+        or tuple(primary_group_lse.shape) != tuple(primary_group_out.shape[:3])
+        or not 0 < active_primary_groups <= int(primary_group_out.size(2))
+    ):
+        raise ValueError("AITER-stat primary groups have incompatible geometry")
+    if tertiary_out is not None and (
+        tuple(tertiary_out.shape) != expected_output_shape
+        or tuple(tertiary_lse.shape) != expected_lse_shape
+    ):
+        raise ValueError("AITER-stat tertiary branch has incompatible geometry")
+    if exact_exp_sums.ndim != 3 or tuple(exact_max_logits.shape) != tuple(
+        exact_exp_sums.shape
+    ):
+        raise ValueError("AITER partition statistics have incompatible geometry")
+    batch, query_heads, _, head_dim = q.shape
+    if query_heads % kv_group_size:
+        raise ValueError("AITER-stat query heads do not form complete GQA groups")
+    kv_heads = query_heads // kv_group_size
+    if exact_group_size is None:
+        exact_group_size = kv_group_size
+    if exact_group_size <= 0 or kv_group_size % exact_group_size:
+        raise ValueError(
+            "AITER-stat exact groups must evenly partition each KV group"
+        )
+    exact_groups = query_heads // exact_group_size
+    if cache_indices is not None and (
+        tuple(cache_indices.shape) != (batch,)
+        or cache_indices.dtype not in (torch.int32, torch.int64)
+        or cache_indices.device != q.device
+    ):
+        raise ValueError("AITER-stat cache indices are incompatible")
+    if advance_local and (
+        cache_indices is None
+        or local_lens is None
+        or local_lens.ndim != 1
+        or local_lens.device != q.device
+    ):
+        raise ValueError(
+            "advancing AITER local lengths requires cache indices and a length vector"
+        )
+    if tuple(exact_exp_sums.shape[:2]) != (
+        batch * exact_groups,
+        exact_group_size,
+    ) or tuple(exact_lengths.shape) != (batch * exact_groups,):
+        raise ValueError("AITER partition statistics do not match query GQA")
+    reduce_exact_partitions = exact_partial_out is not None
+    if reduce_exact_partitions and tuple(exact_partial_out.shape) != (
+        batch * exact_groups,
+        exact_group_size,
+        int(exact_exp_sums.size(2)),
+        head_dim,
+    ):
+        raise ValueError("AITER partial outputs do not match query GQA")
+    include_sink = sink_k is not None
+    union_count = 0
+    if remove_primary_slots:
+        if (
+            (cache_indices is None and tuple(state_v.shape[:2]) != (batch, kv_heads))
+            or int(state_v.size(1)) != kv_heads
+            or tuple(counts.shape) != (*state_v.shape[:3], 1)
+            or int(state_v.size(-1)) != head_dim
+            or tuple(union_top_slots.shape[:3]) != (batch, query_heads, 1)
+        ):
+            raise ValueError(
+                "AITER-stat primary-slot removal has incompatible geometry"
+            )
+        union_count = int(union_top_slots.size(-1))
+        if state_k is not None and (
+            tuple(state_k.shape[:3]) != tuple(state_v.shape[:3])
+            or int(state_k.size(-1)) != head_dim
+        ):
+            raise ValueError("AITER-stat primary state K has incompatible geometry")
+        if union_top_scores is not None and tuple(union_top_scores.shape) != tuple(
+            union_top_slots.shape
+        ):
+            raise ValueError("AITER-stat route scores do not match routed slots")
+    if include_sink:
+        if (
+            (cache_indices is None and tuple(sink_k.shape[:2]) != (batch, kv_heads))
+            or int(sink_k.size(1)) != kv_heads
+            or tuple(sink_v.shape) != tuple(sink_k.shape)
+            or int(sink_k.size(-1)) != head_dim
+        ):
+            raise ValueError("AITER-stat sink has incompatible geometry")
+    if not all(
+        tensor.is_cuda
+        for tensor in (
+            q,
+            primary_out,
+            primary_lse,
+            exact_out,
+            exact_exp_sums,
+            exact_max_logits,
+            exact_lengths,
+        )
+    ):
+        raise ValueError("AITER-stat reduction requires CUDA tensors")
+    if reduce_exact_partitions and not exact_partial_out.is_cuda:
+        raise ValueError("AITER partial-output reduction requires a CUDA tensor")
+    output = torch.empty_like(q) if output_buffer is None else output_buffer
+    if (
+        tuple(output.shape) != expected_output_shape
+        or output.dtype != q.dtype
+        or output.device != q.device
+        or int(output.stride(-1)) != 1
+        or _output_has_internal_overlap(output)
+    ):
+        raise ValueError("AITER-stat output buffer has incompatible geometry")
+
+    include_tertiary = tertiary_out is not None
+    tertiary_out = primary_out if tertiary_out is None else tertiary_out
+    tertiary_lse = primary_lse if tertiary_lse is None else tertiary_lse
+    sink_k = q if sink_k is None else sink_k
+    sink_v = q if sink_v is None else sink_v
+    state_k = q if state_k is None else state_k
+    state_v = q if state_v is None else state_v
+    counts = q[..., :1] if counts is None else counts
+    union_top_slots = (
+        torch.empty(1, dtype=torch.long, device=q.device)
+        if union_top_slots is None
+        else union_top_slots
+    )
+    union_top_scores = (
+        torch.empty(1, dtype=torch.float32, device=q.device)
+        if union_top_scores is None
+        else union_top_scores
+    )
+    primary_group_out = (
+        primary_out if primary_group_out is None else primary_group_out
+    )
+    primary_group_lse = (
+        primary_lse if primary_group_lse is None else primary_group_lse
+    )
+    exact_partial_out = exact_out if exact_partial_out is None else exact_partial_out
+    local_lens = q if local_lens is None else local_lens
+    partitions = int(exact_exp_sums.size(2))
+    _merge_attention_branches_with_aiter_stats_kernel[(batch, query_heads)](
+        q,
+        q if cache_indices is None else cache_indices,
+        local_lens,
+        sink_k,
+        sink_v,
+        state_k,
+        state_v,
+        counts,
+        union_top_slots,
+        union_top_scores,
+        primary_out,
+        primary_lse,
+        primary_group_out,
+        primary_group_lse,
+        exact_out,
+        exact_partial_out,
+        exact_exp_sums,
+        exact_max_logits,
+        exact_lengths,
+        tertiary_out,
+        tertiary_lse,
+        output,
+        q.stride(0),
+        q.stride(1),
+        sink_k.stride(0),
+        sink_k.stride(1),
+        sink_k.stride(2),
+        sink_v.stride(0),
+        sink_v.stride(1),
+        sink_v.stride(2),
+        state_k.stride(0),
+        state_k.stride(1),
+        state_k.stride(2),
+        state_v.stride(0),
+        state_v.stride(1),
+        state_v.stride(2),
+        counts.stride(0),
+        counts.stride(1),
+        counts.stride(2),
+        union_top_slots.stride(0),
+        union_top_slots.stride(1) if union_top_slots.ndim == 4 else 0,
+        union_top_slots.stride(3) if union_top_slots.ndim == 4 else 0,
+        union_top_scores.stride(0),
+        union_top_scores.stride(1) if union_top_scores.ndim == 4 else 0,
+        union_top_scores.stride(3) if union_top_scores.ndim == 4 else 0,
+        primary_out.stride(0),
+        primary_out.stride(1),
+        primary_lse.stride(0),
+        primary_lse.stride(1),
+        primary_group_out.stride(0),
+        primary_group_out.stride(1),
+        primary_group_out.stride(2),
+        primary_group_lse.stride(0),
+        primary_group_lse.stride(1),
+        primary_group_lse.stride(2),
+        exact_out.stride(0),
+        exact_out.stride(1),
+        exact_partial_out.stride(0),
+        exact_partial_out.stride(1),
+        exact_partial_out.stride(2) if exact_partial_out.ndim == 4 else 0,
+        exact_partial_out.stride(3) if exact_partial_out.ndim == 4 else 1,
+        exact_exp_sums.stride(0),
+        exact_exp_sums.stride(1),
+        exact_exp_sums.stride(2),
+        exact_max_logits.stride(0),
+        exact_max_logits.stride(1),
+        exact_max_logits.stride(2),
+        tertiary_out.stride(0),
+        tertiary_out.stride(1),
+        tertiary_lse.stride(0),
+        tertiary_lse.stride(1),
+        output.stride(0),
+        output.stride(1),
+        active_primary_groups,
+        QUERY_HEADS=query_heads,
+        KV_HEADS=kv_heads,
+        KV_GROUP_SIZE=kv_group_size,
+        EXACT_GROUP_SIZE=exact_group_size,
+        EXACT_GROUPS=exact_groups,
+        HEAD_DIM=head_dim,
+        BLOCK_DIM=triton.next_power_of_2(head_dim),
+        PARTITIONS=partitions,
+        PARTITION_BLOCK=triton.next_power_of_2(partitions),
+        PARTITION_SIZE=partition_size,
+        UNION_COUNT=union_count,
+        REDUCE_PRIMARY_GROUPS=reduce_primary_groups,
+        REMOVE_PRIMARY_SLOTS=remove_primary_slots,
+        USE_PRIMARY_SLOT_SCORES=use_primary_slot_scores,
+        REDUCE_EXACT_PARTITIONS=reduce_exact_partitions,
+        INCLUDE_TERTIARY=include_tertiary,
+        INCLUDE_SINK=include_sink,
+        SINK_LEN=(int(sink_k.size(2)) if include_sink else 0),
+        SCALE=float(scale),
+        STATE_IS_NORMALIZED=state_is_normalized,
+        USE_CACHE_INDICES=cache_indices is not None,
+        ADVANCE_LOCAL=advance_local,
         **_launch_kwargs(num_warps),
     )
     return output
@@ -5294,15 +6577,18 @@ def merge_attention_branches_with_sink(
 
 __all__ = [
     "apply_residual_mass_opening",
+    "aiter_partition_lse",
     "balanced_bipartite_reduce_2to1",
     "constituent_rms",
     "merge_attention_branches",
+    "merge_attention_branches_with_aiter_stats",
     "merge_attention_branches_with_sink",
     "merge_state_in_place",
     "new_route_buffers",
     "new_state_delta_buffers",
     "new_state_maxsim_buffers",
     "prepare_state_clustering_keys",
+    "remove_state_slots_from_attention",
     "route_top8_scores_grouped",
     "route_top8_state_grouped",
     "route_logits_coarse_attention",

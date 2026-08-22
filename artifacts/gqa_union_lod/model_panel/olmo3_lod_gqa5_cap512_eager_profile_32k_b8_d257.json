@@ -1,0 +1,169 @@
+{
+  "allow_heterogeneous_global_config": false,
+  "attention_backend": null,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 139406082048,
+    "device_used_bytes_before_reclaim": 144764305408,
+    "lod_cache_bytes": 26211984064,
+    "lod_decode_scratch_bytes": 1480741632,
+    "native_cache_bytes": 29057089536,
+    "torch_allocated_bytes": 136180648448,
+    "torch_reclaimable_cached_bytes": 5358223360,
+    "torch_reserved_bytes_after_reclaim": 137118089216,
+    "torch_reserved_bytes_before_reclaim": 142476312576
+  },
+  "batch_size": 8,
+  "checkpoint": "allenai/Olmo-3-1125-32B",
+  "decode_interval_tokens": 256,
+  "decode_timings_seconds": [
+    9.183292326517403
+  ],
+  "decode_tokens": 257,
+  "enforce_eager": true,
+  "jit_monitor_verbose": false,
+  "language_model_only": false,
+  "length": 32768,
+  "lengths": [
+    32768,
+    32768,
+    32768,
+    32768,
+    32768,
+    32768,
+    32768,
+    32768
+  ],
+  "lod_decode_block_n": null,
+  "lod_decode_final_reduce_num_warps": null,
+  "lod_decode_num_warps": null,
+  "lod_decode_route_group_size": null,
+  "lod_decode_route_num_warps": null,
+  "lod_decode_route_reduce_num_warps": null,
+  "lod_decode_state_update_len": null,
+  "lod_decode_use_dot": null,
+  "lod_diagnostics": {
+    "batched_cached_prefill_rows": 0,
+    "batched_cached_prefills": 0,
+    "batched_install_calls": 272,
+    "cached_prefill_candidate_calls": 2048,
+    "cached_prefill_candidate_rows": 9216,
+    "cached_prefill_noncontiguous": 1536,
+    "cached_prefill_nonpacked_calls": 0,
+    "cached_prefill_nonuniform_lengths": 1792,
+    "cached_prefill_nonuniform_previous": 1792,
+    "cached_prefill_packed_calls": 9216,
+    "cached_prefill_unready": 0,
+    "catch_up_batches": 64,
+    "catch_up_rows": 80,
+    "decode_calls": 8240,
+    "direct_prefills": 2096,
+    "gqa_union_fused_correction": true,
+    "gqa_union_group_size": 5,
+    "gqa_union_leaves": 7083491,
+    "gqa_union_max_leaves": 6336,
+    "gqa_union_own_route_correction": false,
+    "gqa_union_regions": 72465,
+    "gqa_union_sequences": 4608,
+    "gqa_union_stage1_reduce": false,
+    "installs": 384,
+    "layers": 16
+  },
+  "lod_direct_prefill_route": false,
+  "lod_gqa_max_slot_leaves": 512,
+  "lod_gqa_persistent_route": false,
+  "lod_gqa_route_then_coarse": false,
+  "lod_gqa_stage1_reduce": false,
+  "lod_gqa_union_aiter": true,
+  "lod_gqa_union_group_size": 5,
+  "lod_leaf_num_warps": null,
+  "lod_phase_profile": {
+    "coarse": {
+      "calls": 2032,
+      "milliseconds": 13513.061124876142
+    },
+    "exact_leaf": {
+      "calls": 2032,
+      "milliseconds": 3263.7965110614896
+    },
+    "gqa_union_branch_merge": {
+      "calls": 3600,
+      "milliseconds": 25.395145037211478
+    },
+    "gqa_union_correction": {
+      "calls": 3600,
+      "milliseconds": 110.88427400402725
+    },
+    "gqa_union_exact": {
+      "calls": 7696,
+      "milliseconds": 204.12113008834422
+    },
+    "gqa_union_final": {
+      "calls": 4096,
+      "milliseconds": 116.81516012363136
+    },
+    "gqa_union_lse": {
+      "calls": 3600,
+      "milliseconds": 25.94184202514589
+    },
+    "gqa_union_merge": {
+      "calls": 3600,
+      "milliseconds": 246.53157795965672
+    },
+    "gqa_union_pack": {
+      "calls": 7696,
+      "milliseconds": 261.1436020936817
+    },
+    "local": {
+      "calls": 2032,
+      "milliseconds": 703.7556569427252
+    },
+    "page_append": {
+      "calls": 3840,
+      "milliseconds": 983.4095091372728
+    },
+    "route": {
+      "calls": 2032,
+      "milliseconds": 2461.675192654133
+    },
+    "route_groups": {
+      "calls": 7696,
+      "milliseconds": 445.03374894335866
+    },
+    "route_reduce": {
+      "calls": 7696,
+      "milliseconds": 346.0465929750353
+    },
+    "state_update": {
+      "calls": 3712,
+      "milliseconds": 3362.9823924303055
+    },
+    "two_level": {
+      "calls": 5632,
+      "milliseconds": 20353.701419100165
+    }
+  },
+  "lod_prefill_chunk_len": null,
+  "lod_prefill_state_update_len": null,
+  "lod_recursive_page_block_n": null,
+  "long_prefill_token_threshold": 0,
+  "marginal_decode_ms_per_batch_step": 35.872235650458606,
+  "marginal_decode_ms_per_token": 4.484029456307326,
+  "marginal_decode_tokens_per_second": 223.0137000089016,
+  "max_num_batched_tokens": 4096,
+  "mode": "lod",
+  "muse_native_text_config": false,
+  "num_gpu_blocks_override": null,
+  "prefill_plus_decode_seconds": 64.17611749935895,
+  "prefill_prompt_tokens_per_second": 4767.037145362714,
+  "prefill_seconds": 54.99097070284188,
+  "prefill_timings_seconds": [
+    54.99097070284188
+  ],
+  "prompt_tokens": 262144,
+  "repeats": 1,
+  "tensor_parallel_size": 1,
+  "torch_profile_dir": null,
+  "total_timings_seconds": [
+    64.17611749935895
+  ]
+}
