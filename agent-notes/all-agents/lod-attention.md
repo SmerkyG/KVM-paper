@@ -1,6 +1,6 @@
 # Lod Attention
 
-Topic hints: Benchmark GQA-union prefill in the exact serving configuration
+Topic hints: Use natural text for MoE long-context speed tests
 
 ## Lessons
 
@@ -21,3 +21,5 @@ Topic hints: Benchmark GQA-union prefill in the exact serving configuration
 - For LOD coarse prefill, call AITER CK FMHA with native GQA Q/K/V and a broadcast per-head log-count bias, then subtract routed centroid mass using already-computed route logits; packing each query/head as a pseudo-sequence destroys K/V reuse and is slower.
 
 - Enabling AITER GQA-union is not decode-only in practice: it forces BF16 leaves and can change recursive-prefill dispatch, so benchmark the exact combined serving configuration rather than reusing prefill-only timings.
+
+- For long-context speed sweeps on MoE models, use deterministic natural-text prompts such as concatenated 64K ProLong documents; repeating a short sentence can distort expert routing and make the timing unrepresentative.
