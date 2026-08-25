@@ -56,6 +56,9 @@ def register() -> None:
     install_tp_safe_vocab_padding()
     install_cache_ownership_hooks()
     install_model_state_hooks()
+    from .weight_cache_loader import register_weight_cache_loader
+
+    register_weight_cache_loader()
     _REGISTERED = True
 
 
