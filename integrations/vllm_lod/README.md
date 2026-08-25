@@ -35,6 +35,71 @@ Install the plugin editable into the environment that provides vLLM:
 uv add --editable /absolute/path/to/code/integrations/vllm_lod
 ```
 
+### Reuse loaded weights while developing
+
+The package also registers an `ipc_cache` model loader. A long-lived, GPU-light
+broker loads and post-processes each exact model/TP/PP configuration on its
+first request, then fresh vLLM workers map the retained final parameters,
+buffers, and tensor attributes through CUDA/HIP IPC. The client constructs the
+module tree on `meta`, so it neither rereads the checkpoint nor briefly
+allocates a second copy of the weights.
+
+The first vLLM process using `--load-format ipc_cache` automatically starts the
+broker if it is not already running. Startup is serialized by an owner-only
+filesystem lock, so concurrent TP ranks share one broker. The broker then stays
+alive for subsequent vLLM processes on that node and GPU allocation. To choose
+non-default eviction limits up front, it can still be started manually:
+
+```bash
+VLLM_PLUGINS=lod_attention \
+vllm-weight-cache --cache-id dev
+```
+
+Fresh LOD or ordinary vLLM processes on the same node and physical GPUs can
+then use it as follows:
+
+```bash
+VLLM_PLUGINS=lod_attention \
+VLLM_WEIGHT_CACHE_ID=dev \
+vllm serve MODEL \
+  --tensor-parallel-size 8 \
+  --load-format ipc_cache \
+  --attention-backend CUSTOM
+```
+
+Use `VLLM_PLUGINS=weight_cache` instead when testing normal attention without
+installing the LOD hooks. `VLLM_WEIGHT_CACHE_DIR` selects a non-default
+owner-only socket directory. Equivalent per-run settings can be passed through
+`--model-loader-extra-config '{"cache_id":"dev","cache_dir":"..."}'`. The
+`auto_start` setting defaults to true; set it to false or export
+`VLLM_WEIGHT_CACHE_AUTO_START=0` when an absent broker should be an error. Broker
+startup logs are written to `broker.log` in the selected cache namespace. The
+client sends its exact vLLM configuration to the broker; the backing load
+defaults to `auto` and can be changed with `backing_load_format` and
+`backing_loader_extra_config` in that same object. A fingerprint mismatch or an
+incomplete meta mapping is a hard error rather than a silent disk fallback.
+
+The broker tracks live vLLM worker PIDs as leases. Its default cache budget is
+60% of each GPU's memory; after a miss it LRU-evicts only resident models whose
+workers have exited. Use `--max-cache-fraction` or
+`--max-cache-gb-per-gpu` to change that budget. If an uncached model hits OOM
+while inactive models are resident, the broker evicts them and retries once.
+
+The daemon must remain alive for the lifetime of every mapped engine. Check or
+stop one cache namespace with:
+
+```bash
+vllm-weight-cache status --cache-id dev
+vllm-weight-cache stop --cache-id dev
+```
+
+On `cluster-run`, keep the daemon as a detached job and use `--overlap-own` for
+development jobs that must share its allocated GPUs. The `ipc_cache` plugin
+accounts for weights that were resident before vLLM's normal memory snapshot,
+so ordinary `--gpu-memory-utilization` settings continue to include the mapped
+model weights. The broker is single-node and DP=1; TP and PP are supported and
+discovered from each requesting vLLM engine.
+
 Then select the registered custom backend:
 
 ```bash

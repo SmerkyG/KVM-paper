@@ -11,6 +11,10 @@ dependencies = []
 
 [project.entry-points."vllm.general_plugins"]
 lod_attention = "vllm_lod_plugin.plugin:register"
+weight_cache = "vllm_lod_plugin.weight_cache_loader:register"
+
+[project.scripts]
+vllm-weight-cache = "vllm_lod_plugin.weight_cache_daemon:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["vllm_lod_plugin"]
