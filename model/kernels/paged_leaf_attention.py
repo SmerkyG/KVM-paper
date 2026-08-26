@@ -9188,11 +9188,11 @@ def _decode_route_coarse_gqa_segments_kernel(
 ):
     """Route and attend over several moderate MFMA tiles per output segment.
 
-    Keeping ``GROUP_N`` at the native N=64 width avoids the register pressure
-    of one M16xN128 score tensor.  The query, online-softmax state, value
-    accumulator, and running top eight remain resident while the program
-    advances across successive state tiles, matching the segmentation used by
-    long-context dense decode kernels.
+    Keeping ``GROUP_N`` at the geometry's efficient native width avoids the
+    register pressure of one very wide score tensor.  The query,
+    online-softmax state, value accumulator, and running top eight remain
+    resident while the program advances across successive state tiles,
+    matching the segmentation used by long-context dense decode kernels.
     """
     batch_kv = tl.program_id(0).to(tl.int64)
     segment = tl.program_id(1).to(tl.int64)
@@ -15439,14 +15439,8 @@ def fused_decode_paged_lod_attention(
         raise ValueError("decode route group size must be 8, 16, 32, or 64")
     if route_segment_tiles not in {1, 2, 3, 4}:
         raise ValueError("decode route segment tiles must be 1, 2, 3, or 4")
-    if route_segment_tiles > 1 and (
-        not route_gqa_grouped or route_group_size != 64 or head_dim != 128
-    ):
-        raise ValueError(
-            "segmented decode routing requires grouped GQA with N=64 and D=128"
-        )
-    if route_parallel_reduce and route_segment_tiles == 1:
-        raise ValueError("parallel route reduction requires segmented routing")
+    if route_segment_tiles > 1 and not route_gqa_grouped:
+        raise ValueError("segmented decode routing requires grouped GQA")
     if recursive_state_route_backend not in ("fused", "resplit"):
         raise ValueError("recursive state-route backend must be fused or resplit")
     if recursive_state_route_backend == "resplit" and recursive_page_cache is None:

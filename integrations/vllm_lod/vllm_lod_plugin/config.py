@@ -80,7 +80,10 @@ class VLLMLODSettings:
     fused_prefill_route_coarse: bool = True
     fused_prefill_stable_recompute: bool = True
     fused_prefill_external_recompute: bool = True
+    prefill_hierarchical_route: bool | None = None
     prefill_coarse_max_grouped_rows: int = 64
+    prefill_overlap_coarse_leaf: bool | None = None
+    prefill_overlap_local_lod: bool | None = None
     prefill_int8_route_mma: bool = False
     prefill_int8_coarse_mma: bool = True
     prefill_int8_coarse_block_n: int = 64
@@ -105,6 +108,7 @@ class VLLMLODSettings:
     prefill_leaf_visit_cap: int | None = None
     decode_split_kv: int = 8
     decode_geometry_tuning: bool = True
+    decode_hierarchical_route: bool | None = None
     decode_gqa_cooperative: bool = True
     decode_gqa_cooperative_hip: bool = True
     decode_gqa_union: bool = False
@@ -188,8 +192,23 @@ class VLLMLODSettings:
             fused_prefill_external_recompute=bool(
                 _integer("VLLM_LOD_FUSED_PREFILL_EXTERNAL_RECOMPUTE", 1)
             ),
+            prefill_hierarchical_route=(
+                _boolean("VLLM_LOD_PREFILL_HIERARCHICAL_ROUTE", False)
+                if os.getenv("VLLM_LOD_PREFILL_HIERARCHICAL_ROUTE") is not None
+                else None
+            ),
             prefill_coarse_max_grouped_rows=_integer(
                 "VLLM_LOD_PREFILL_COARSE_GROUPED_ROWS", 64
+            ),
+            prefill_overlap_coarse_leaf=(
+                _boolean("VLLM_LOD_PREFILL_OVERLAP_COARSE_LEAF", False)
+                if os.getenv("VLLM_LOD_PREFILL_OVERLAP_COARSE_LEAF") is not None
+                else None
+            ),
+            prefill_overlap_local_lod=(
+                _boolean("VLLM_LOD_PREFILL_OVERLAP_LOCAL_LOD", False)
+                if os.getenv("VLLM_LOD_PREFILL_OVERLAP_LOCAL_LOD") is not None
+                else None
             ),
             prefill_int8_route_mma=_boolean(
                 "VLLM_LOD_PREFILL_INT8_ROUTE_MMA", False
@@ -249,6 +268,11 @@ class VLLMLODSettings:
             decode_split_kv=_integer("VLLM_LOD_DECODE_SPLIT_KV", 8),
             decode_geometry_tuning=_boolean(
                 "VLLM_LOD_DECODE_GEOMETRY_TUNING", True
+            ),
+            decode_hierarchical_route=(
+                _boolean("VLLM_LOD_DECODE_HIERARCHICAL_ROUTE", False)
+                if os.getenv("VLLM_LOD_DECODE_HIERARCHICAL_ROUTE") is not None
+                else None
             ),
             decode_gqa_cooperative=_boolean(
                 "VLLM_LOD_DECODE_GQA_COOPERATIVE", True

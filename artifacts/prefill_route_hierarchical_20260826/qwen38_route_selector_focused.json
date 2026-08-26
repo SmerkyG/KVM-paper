@@ -1,0 +1,109 @@
+{
+  "geometry": {
+    "batch": 8,
+    "focused": true,
+    "head_dim": 256,
+    "hier_only": true,
+    "kv_heads": 4,
+    "max_leaf_tokens": null,
+    "output": "artifacts/prefill_route_hierarchical_20260826/qwen38_route_selector_focused.json",
+    "query_heads": 24,
+    "query_len": 512,
+    "repeats": 50,
+    "seed": 17,
+    "state_len": 4352,
+    "topk": 3,
+    "warmup": 5
+  },
+  "results": [
+    {
+      "block_m": 8,
+      "block_n": 1024,
+      "centroid_tiles": 5,
+      "label": "hier_m8_n1024_tw2_rw2",
+      "max_us": 1337.8620147705078,
+      "median_us": 1200.2639770507812,
+      "min_us": 1193.7429904937744,
+      "reduce_num_warps": 2,
+      "route_order_exact": true,
+      "route_set_exact": true,
+      "tile_num_warps": 2
+    },
+    {
+      "block_m": 8,
+      "block_n": 512,
+      "centroid_tiles": 9,
+      "label": "hier_m8_n512_tw2_rw2",
+      "max_us": 1585.3379964828491,
+      "median_us": 1554.1985034942627,
+      "min_us": 1546.059012413025,
+      "reduce_num_warps": 2,
+      "route_order_exact": true,
+      "route_set_exact": true,
+      "tile_num_warps": 2
+    },
+    {
+      "block_m": 16,
+      "block_n": 256,
+      "centroid_tiles": 17,
+      "label": "hier_m16_n256_tw2_rw2",
+      "max_us": 1995.9330558776855,
+      "median_us": 1970.0329899787903,
+      "min_us": 1960.2129459381104,
+      "reduce_num_warps": 2,
+      "route_order_exact": true,
+      "route_set_exact": true,
+      "tile_num_warps": 2
+    },
+    {
+      "block_m": 16,
+      "block_n": 32,
+      "head_major": true,
+      "label": "production_auto_m16_n32_w8",
+      "logical_rows_per_program": 16,
+      "max_us": 2140.489101409912,
+      "median_us": 1979.752004146576,
+      "min_us": 1964.7330045700073,
+      "num_warps": 8,
+      "route_order_exact": true,
+      "route_set_exact": true
+    },
+    {
+      "block_m": 8,
+      "block_n": 256,
+      "centroid_tiles": 17,
+      "label": "hier_m8_n256_tw2_rw2",
+      "max_us": 2401.966094970703,
+      "median_us": 2383.0270767211914,
+      "min_us": 2372.5669384002686,
+      "reduce_num_warps": 2,
+      "route_order_exact": true,
+      "route_set_exact": true,
+      "tile_num_warps": 2
+    },
+    {
+      "block_m": 8,
+      "block_n": 512,
+      "centroid_tiles": 9,
+      "label": "hier_m8_n512_tw4_rw4",
+      "max_us": 2663.522958755493,
+      "median_us": 2636.6634368896484,
+      "min_us": 2634.1640949249268,
+      "reduce_num_warps": 4,
+      "route_order_exact": true,
+      "route_set_exact": true,
+      "tile_num_warps": 4
+    },
+    {
+      "block_m": 16,
+      "block_n": 64,
+      "label": "production_grouped_m16_n64_w4",
+      "max_us": 4250.980854034424,
+      "median_us": 4227.622032165527,
+      "min_us": 4217.422008514404,
+      "num_warps": 4,
+      "route_order_exact": true,
+      "route_set_exact": true
+    }
+  ]
+}

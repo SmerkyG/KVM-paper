@@ -147,7 +147,7 @@ def main() -> None:
             sweep: dict[str, float] = {}
             for block_n in (32, 64, 128):
                 for max_grouped_rows in (8, 16, 32, 64):
-                    for num_warps in (2, 4):
+                    for num_warps in (2, 4, 8):
                         name = (
                             f"n{block_n}_rows{max_grouped_rows}_w{num_warps}"
                         )
@@ -182,6 +182,30 @@ def main() -> None:
                             repeats=args.repeats,
                         )
             results[label]["sweep_ms"] = sweep
+            tuned_output, tuned_lse = route_logits_coarse_attention(
+                q,
+                route_logits,
+                state_v,
+                counts,
+                empty,
+                empty,
+                top_slots,
+                state_len=args.state_len,
+                kv_group_size=group_size,
+                scale=head_dim**-0.5,
+                block_m=16,
+                block_n=64,
+                num_warps=8,
+                precompute_mean_values=True,
+                max_grouped_rows=16,
+                head_major=False,
+            )
+            results[label]["tuned_output_max_abs"] = float(
+                (grouped_output.float() - tuned_output.float()).abs().max().item()
+            )
+            results[label]["tuned_lse_max_abs"] = float(
+                (grouped_lse - tuned_lse).abs().max().item()
+            )
         del q, route_logits, state_v, counts, empty, top_slots
         torch.cuda.empty_cache()
 

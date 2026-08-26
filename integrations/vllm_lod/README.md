@@ -197,6 +197,21 @@ prefill state updates, expert-layout BF16 leaf attention, and the two-level
 page directory. These are configurable with `VLLM_LOD_PREFILL_CHUNK_SIZE`,
 `VLLM_LOD_PREFILL_LOCAL_WINDOW`, `VLLM_LOD_PREFILL_STATE_UPDATE_SIZE`,
 `VLLM_LOD_LEAF_LAYOUT`, and `VLLM_LOD_LEAF_PAGED_DIRECTORY`.
+Two-level D=128/GQA=16 prefill automatically overlaps its independent coarse,
+exact-leaf, and exact-local branches on separate GPU streams after routing.
+`VLLM_LOD_PREFILL_OVERLAP_COARSE_LEAF=0` and
+`VLLM_LOD_PREFILL_OVERLAP_LOCAL_LOD=0` disable the respective overlaps for
+diagnostics; setting either to `1` enables it on other supported geometries.
+Top-three prefill routing uses an exact two-stage selector on the measured
+large-model geometries where it improves or preserves end-to-end speed:
+independent wide centroid tiles emit their local candidates, then a small
+reduction selects and orders the global three. The automatic geometry set is
+D128/GQA16/KV2, D128/GQA5/KV8, D128/GQA4/KV2, D256/GQA6/KV4, and
+D512/GQA8/KV2. The former selector remains automatic elsewhere; notably, the
+extra launch loses on Qwen3.5-0.8B. Set
+`VLLM_LOD_PREFILL_HIERARCHICAL_ROUTE={0,1}` to override automatic dispatch.
+`VLLM_LOD_PREFILL_HIERARCHICAL_ROUTE=0` or `1` overrides geometry selection;
+both selectors use the same scores and return the same ordered routes.
 `VLLM_LOD_PREFILL_STATIC_LEAF_AITER=1` replaces query-dependent prefill top-k
 with the static small-centroid cohort. After each 4,096-token state catch-up it
 rebuilds one page-size-one AITER list per KV head containing every leaf whose
@@ -245,6 +260,18 @@ the corresponding semantic LOD row before accepting a prefix hit.
 `auto` selects coherence-aware state routing for
 attention modules with normalized keys and spherical routing for unnormalized
 keys. `raw`, `spherical`, and `coherence` are explicit diagnostic overrides.
+
+At 32K and above, two-tier decode also groups one or more efficient native-width
+centroid tiles behind each program and reduces the shorter candidate and
+online-softmax fields in parallel. The number of tiles is selected from head
+dimension, GQA ratio, and KV-head count. This is the decode form of the same
+hierarchical routing idea; it preserves the top-eight route set and retains
+the established BF16-rounded centroid-mean arithmetic.
+`VLLM_LOD_DECODE_HIERARCHICAL_ROUTE={0,1}` force-disables/enables only this
+route schedule for matched diagnostics. The older
+`VLLM_LOD_DECODE_GEOMETRY_TUNING=0` setting disables all decode geometry
+tuning, including unrelated leaf and dot-product choices, and therefore must
+not be used as a route-only A/B control.
 
 For recursive three-tier decode,
 `VLLM_LOD_RECURSIVE_STATE_ROUTE_BACKEND=fused` retains the existing grouped

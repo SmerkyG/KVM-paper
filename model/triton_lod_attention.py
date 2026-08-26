@@ -62,6 +62,7 @@ from .kernels.lod_kernels import (
     route_mass_fraction_scores,
     route_mass_fraction_state_decode,
     route_logits_coarse_attention,
+    route_logits_hierarchical_topk,
     route_logits_topk_coarse_attention,
     route_top8_scores_grouped,
     route_top8_state_grouped,
@@ -329,6 +330,10 @@ class TritonLODAttentionCore(nn.Module):
     fused_prefill_route_coarse = False
     fused_prefill_stable_recompute = True
     fused_prefill_external_recompute = True
+    # VLLM's pool enables the exact two-stage selector only for measured
+    # geometries. Standalone/HF callers retain the established selector unless
+    # they opt in explicitly.
+    prefill_hierarchical_route = False
     fused_prefill_block_m = 16
     fused_prefill_block_n = 32
     fused_prefill_num_warps = 8
@@ -3537,6 +3542,13 @@ class TritonLODAttentionCore(nn.Module):
                     ),
                     state_k=(state_k.contiguous() if fused_state_qk else None),
                     int8_qk=fused_state_qk,
+                    hierarchical_route_only=(
+                        self.prefill_hierarchical_route
+                        and not fused_state_qk
+                        and self.fused_prefill_stable_recompute
+                        and self.fused_prefill_external_recompute
+                        and route_count == 3
+                    ),
                 )
                 if route_select_begin is not None:
                     route_select_end = torch.cuda.Event(enable_timing=True)
@@ -3663,31 +3675,59 @@ class TritonLODAttentionCore(nn.Module):
                         and int(q.size(2)) > 1
                     ):
                         self._lod_prefill_route_logits = logits
-                    route_result = route_top8_scores_grouped(
-                        logits,
-                        counts.detach(),
-                        buffers,
-                        kv_group_size=self.num_key_value_groups,
-                        scale=self.scaling,
-                        count_bias=self.routing_count_bias,
-                        topk=route_count,
-                        state_len=state_len,
-                        protected_len=protected_len,
-                        return_lse=dynamic_residual is not None,
-                        block_m=(
-                            int(getattr(self, "prefill_route_block_m", 16))
-                            if int(q.size(2)) > 1
-                            else 1
-                        ),
-                        num_warps=(
-                            int(getattr(self, "prefill_route_num_warps", 4))
-                            if int(q.size(2)) > 1
-                            else 4
-                        ),
-                        # Prefill may open fewer than the returned route count,
-                        # so the selected prefix must remain score ordered.
-                        reorder_like_torch=True,
-                    )
+                    if (
+                        self.prefill_hierarchical_route
+                        and int(q.size(2)) > 1
+                        and route_count == 3
+                        and dynamic_residual is None
+                    ):
+                        hierarchical_block_n = min(
+                            1024,
+                            max(256, 1 << (state_len - 1).bit_length()),
+                        )
+                        route_result = route_logits_hierarchical_topk(
+                            logits.contiguous(),
+                            counts.detach().contiguous(),
+                            state_len=state_len,
+                            kv_group_size=self.num_key_value_groups,
+                            scale=self.scaling,
+                            route_count_bias=self.routing_count_bias,
+                            topk=route_count,
+                            protected_len=protected_len,
+                            # Match the established grouped fallback, which
+                            # applies no per-centroid leaf cap during routing.
+                            max_leaf_tokens=None,
+                            block_m=8,
+                            block_n=hierarchical_block_n,
+                            tile_num_warps=2,
+                            reduce_num_warps=2,
+                        )
+                    else:
+                        route_result = route_top8_scores_grouped(
+                            logits,
+                            counts.detach(),
+                            buffers,
+                            kv_group_size=self.num_key_value_groups,
+                            scale=self.scaling,
+                            count_bias=self.routing_count_bias,
+                            topk=route_count,
+                            state_len=state_len,
+                            protected_len=protected_len,
+                            return_lse=dynamic_residual is not None,
+                            block_m=(
+                                int(getattr(self, "prefill_route_block_m", 16))
+                                if int(q.size(2)) > 1
+                                else 1
+                            ),
+                            num_warps=(
+                                int(getattr(self, "prefill_route_num_warps", 4))
+                                if int(q.size(2)) > 1
+                                else 4
+                            ),
+                            # Prefill may open fewer than the returned route count,
+                            # so the selected prefix must remain score ordered.
+                            reorder_like_torch=True,
+                        )
                     if dynamic_residual is not None:
                         routed, routed_state_lse = route_result
                     else:

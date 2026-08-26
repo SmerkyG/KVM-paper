@@ -49,7 +49,7 @@ args=(
   --speed-repeats "$speed_repeats"
   --max-num-batched-tokens "${VLLM_LOD_PANEL_MAX_BATCHED_TOKENS:-16384}"
   --long-prefill-token-threshold "${VLLM_LOD_PANEL_LONG_PREFILL_THRESHOLD:-4096}"
-  --gpu-memory-utilization 0.8
+  --gpu-memory-utilization "${VLLM_LOD_PANEL_GPU_MEMORY_UTILIZATION:-0.8}"
   --tensor-parallel-size "$tensor_parallel_size"
   --output "$output"
 )

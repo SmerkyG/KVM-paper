@@ -5735,13 +5735,12 @@ def route_logits_topk_coarse_attention(
         route_only
         and not fused_state_qk
         and topk == 3
-        and kv_group_size >= 16
         and hierarchical_route_only is not False
     )
     if hierarchical_route_only is True and not use_hierarchical_route_only:
         raise ValueError(
             "forced hierarchical routing requires materialized top-3 "
-            "route-only execution with GQA of at least sixteen"
+            "route-only execution"
         )
     if use_hierarchical_route_only:
         # Independent wide centroid tiles expose the state axis to the GPU and

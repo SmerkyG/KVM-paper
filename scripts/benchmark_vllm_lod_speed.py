@@ -522,7 +522,11 @@ def inspect_lod_dispatch(model) -> dict[str, object]:
                     (
                         "_reduce_decode_route_topk_kernel"
                         if gqa_union_aiter_final
-                        else "_reduce_decode_route_coarse_kernel"
+                        else (
+                            "_reduce_decode_route_coarse_vector_topk_kernel"
+                            if engine.decode_route_parallel_reduce
+                            else "_reduce_decode_route_coarse_kernel"
+                        )
                     ),
                 ]
             # The grouped kernel keeps USE_DOT in its API, but its current
@@ -647,8 +651,8 @@ def inspect_lod_dispatch(model) -> dict[str, object]:
             hierarchical_prefill_route = bool(
                 engine.fused_prefill_stable_recompute
                 and engine.fused_prefill_external_recompute
+                and engine.prefill_hierarchical_route
                 and effective_prefill_topk == 3
-                and kv_group_size >= 16
             )
             prefill_route_kernels = (
                 [
@@ -664,11 +668,25 @@ def inspect_lod_dispatch(model) -> dict[str, object]:
             ):
                 prefill_route_kernels.append("_route_logits_coarse_attention_kernel")
         else:
-            prefill_route_kernels = [
-                "_route_score_group_candidates_kernel",
-                "_reduce_route_group_candidates_kernel",
-                "_reorder_topk_like_torch_kernel",
-            ]
+            effective_prefill_topk = int(
+                engine.prefill_two_level_topk
+                if engine.prefill_two_level_topk is not None
+                else engine.two_level_topk
+            )
+            if (
+                engine.prefill_hierarchical_route
+                and effective_prefill_topk == 3
+            ):
+                prefill_route_kernels = [
+                    "_route_logits_tile_topk_kernel",
+                    "_reduce_route_logits_tile_topk_kernel",
+                ]
+            else:
+                prefill_route_kernels = [
+                    "_route_score_group_candidates_kernel",
+                    "_reduce_route_group_candidates_kernel",
+                    "_reorder_topk_like_torch_kernel",
+                ]
             prefill_route_kernels.append(
                 "torch.matmul/softmax/matmul coarse path"
                 if int(pool.value_dim) > 256
@@ -705,6 +723,15 @@ def inspect_lod_dispatch(model) -> dict[str, object]:
             "configured_route_use_dot": bool(engine.decode_route_use_dot),
             "configured_route_parallel_reduce": bool(
                 engine.decode_route_parallel_reduce
+            ),
+            "configured_decode_hierarchical_route": bool(
+                engine.decode_route_parallel_reduce
+            ),
+            "requested_decode_hierarchical_route": getattr(
+                pool.settings, "decode_hierarchical_route", None
+            ),
+            "configured_decode_geometry_tuning": bool(
+                pool.settings.decode_geometry_tuning
             ),
             "configured_gqa_union_decode": bool(
                 getattr(pool.settings, "decode_gqa_union", False)
@@ -756,6 +783,27 @@ def inspect_lod_dispatch(model) -> dict[str, object]:
                 engine.prefill_two_level_topk
                 if engine.prefill_two_level_topk is not None
                 else engine.two_level_topk
+            ),
+            "configured_prefill_coarse_block_m": int(
+                engine.coarse_route_block_m
+            ),
+            "configured_prefill_coarse_block_n": int(
+                engine.coarse_route_block_n
+            ),
+            "configured_prefill_coarse_num_warps": int(
+                engine.coarse_route_num_warps
+            ),
+            "configured_prefill_coarse_max_grouped_rows": int(
+                engine.prefill_coarse_max_grouped_rows
+            ),
+            "configured_prefill_overlap_coarse_leaf": bool(
+                engine.prefill_overlap_coarse_leaf
+            ),
+            "configured_prefill_overlap_local_lod": bool(
+                engine.prefill_overlap_local_lod
+            ),
+            "configured_prefill_hierarchical_route": bool(
+                engine.prefill_hierarchical_route
             ),
             "configured_prefill_leaf_visit_cap": getattr(
                 pool.settings, "prefill_leaf_visit_cap", None

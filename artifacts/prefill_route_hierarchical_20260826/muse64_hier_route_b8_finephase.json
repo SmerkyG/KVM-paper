@@ -1,0 +1,1176 @@
+{
+  "allow_heterogeneous_global_config": false,
+  "apply_chat_template": true,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 220110782464,
+    "device_used_bytes_before_reclaim": 256146145280,
+    "external_lod_layers": 13,
+    "external_lod_layers_with_native_cache": 0,
+    "external_lod_native_cache_bytes": 0,
+    "lod_cache_bytes": 9732485320,
+    "lod_decode_scratch_bytes": 94436576,
+    "native_cache_bytes": 140045647872,
+    "torch_allocated_bytes": 150495162880,
+    "torch_reclaimable_cached_bytes": 36035362816,
+    "torch_reserved_bytes_after_reclaim": 150822977536,
+    "torch_reserved_bytes_before_reclaim": 186858340352
+  },
+  "batch_size": 8,
+  "checkpoint": "meta-models/Muse-Glimmer-30B",
+  "diagnostic_external_empty_attention": null,
+  "disable_thinking": true,
+  "enable_prefix_caching": false,
+  "full_attention_backend": null,
+  "language_model_only": false,
+  "lengths": [
+    65536
+  ],
+  "load_format": "ipc_cache",
+  "lod_diagnostics_after": {
+    "batched_cached_prefill_rows": 2496,
+    "batched_cached_prefills": 832,
+    "catch_up_batches": 52,
+    "catch_up_rows": 65,
+    "custom_impl_sliding_windows": {
+      "(-1, -1)": 13,
+      "(2047, 0)": 39
+    },
+    "custom_layers": [
+      "model.layers.0.self_attn.attn",
+      "model.layers.1.self_attn.attn",
+      "model.layers.2.self_attn.attn",
+      "model.layers.3.self_attn.attn",
+      "model.layers.4.self_attn.attn",
+      "model.layers.5.self_attn.attn",
+      "model.layers.6.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.8.self_attn.attn",
+      "model.layers.9.self_attn.attn",
+      "model.layers.10.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.12.self_attn.attn",
+      "model.layers.13.self_attn.attn",
+      "model.layers.14.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.16.self_attn.attn",
+      "model.layers.17.self_attn.attn",
+      "model.layers.18.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.20.self_attn.attn",
+      "model.layers.21.self_attn.attn",
+      "model.layers.22.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.24.self_attn.attn",
+      "model.layers.25.self_attn.attn",
+      "model.layers.26.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.28.self_attn.attn",
+      "model.layers.29.self_attn.attn",
+      "model.layers.30.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.32.self_attn.attn",
+      "model.layers.33.self_attn.attn",
+      "model.layers.34.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.36.self_attn.attn",
+      "model.layers.37.self_attn.attn",
+      "model.layers.38.self_attn.attn",
+      "model.layers.39.self_attn.attn",
+      "model.layers.40.self_attn.attn",
+      "model.layers.41.self_attn.attn",
+      "model.layers.42.self_attn.attn",
+      "model.layers.43.self_attn.attn",
+      "model.layers.44.self_attn.attn",
+      "model.layers.45.self_attn.attn",
+      "model.layers.46.self_attn.attn",
+      "model.layers.47.self_attn.attn",
+      "model.layers.48.self_attn.attn",
+      "model.layers.49.self_attn.attn",
+      "model.layers.50.self_attn.attn",
+      "model.layers.51.self_attn.attn"
+    ],
+    "decode_calls": 104,
+    "decode_gqa_fixed_mask_configured": [
+      false
+    ],
+    "decode_gqa_fixed_mask_executed": [],
+    "decode_gqa_staged_fixed_configured": [
+      false
+    ],
+    "decode_gqa_staged_fixed_executed": [],
+    "decode_gqa_static_leaf_aiter_configured": [
+      false
+    ],
+    "decode_gqa_static_leaf_aiter_executed": [],
+    "decode_gqa_static_leaf_caps": [
+      null
+    ],
+    "decode_gqa_union_aiter_final": [
+      false
+    ],
+    "decode_gqa_union_configured": [
+      false
+    ],
+    "decode_gqa_union_eligible": [
+      false
+    ],
+    "decode_gqa_union_hip_configured": [
+      false
+    ],
+    "decode_gqa_union_hip_executed": [
+      false
+    ],
+    "decode_gqa_union_predicted_mass": [
+      false
+    ],
+    "decode_gqa_union_requested": [
+      false
+    ],
+    "decode_gqa_union_score_only": [
+      false
+    ],
+    "decode_max_open_leaves": [
+      1024
+    ],
+    "decode_open_counts": [
+      8
+    ],
+    "decode_route_cohort": [
+      false
+    ],
+    "direct_prefill_calls": 884,
+    "effective_decode_route_leaf_limits": [
+      1024
+    ],
+    "eligible_layers": [
+      "model.layers.3.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.39.self_attn.attn",
+      "model.layers.43.self_attn.attn",
+      "model.layers.47.self_attn.attn",
+      "model.layers.51.self_attn.attn"
+    ],
+    "gqa_route_mass_threshold_hits": {
+      "16": 0,
+      "32": 0,
+      "64": 0,
+      "128": 0,
+      "256": 0
+    },
+    "gqa_route_max_mass": null,
+    "gqa_union_centroid_count_max": 0,
+    "gqa_union_centroid_count_mean": 0.0,
+    "gqa_union_epoch_max": 0,
+    "gqa_union_exact_token_count_max": 0,
+    "gqa_union_exact_token_count_mean": 0.0,
+    "gqa_union_nonempty_sequences": 0,
+    "gqa_union_sequence_count": 0,
+    "gqa_union_token_count_max": 0,
+    "gqa_union_token_count_mean": 0.0,
+    "install_count": 312,
+    "pooled_layers": [
+      "model.layers.3.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.39.self_attn.attn",
+      "model.layers.43.self_attn.attn",
+      "model.layers.47.self_attn.attn",
+      "model.layers.51.self_attn.attn"
+    ],
+    "recursive_state_route_backends": [
+      "fused"
+    ],
+    "routing_geometries": [
+      [
+        "none",
+        "none",
+        "none"
+      ]
+    ],
+    "selected_route_count_max": 0.0,
+    "state_centroids_at_or_above_open_limit": 0,
+    "state_count_max": 0.0,
+    "state_v_abs_max": 13248.0,
+    "state_v_nonfinite": 0,
+    "static_leaf_count_distribution": [
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "1",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "2",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "3-4",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "5-8",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "9-16",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "17-32",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "33-64",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "65-128",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "129-256",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "257-512",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "513-1024",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": ">1024",
+        "leaf_fraction": 0.0
+      }
+    ],
+    "static_opened_centroid_fraction": 0.0,
+    "static_opened_centroids": 0,
+    "static_opened_leaf_fraction": 0.0,
+    "static_opened_leaves": 0.0,
+    "static_total_centroids": 0,
+    "static_total_leaves": 0.0
+  },
+  "lod_diagnostics_before": {
+    "batched_cached_prefill_rows": 0,
+    "batched_cached_prefills": 0,
+    "catch_up_batches": 26,
+    "catch_up_rows": 39,
+    "custom_impl_sliding_windows": {
+      "(-1, -1)": 13,
+      "(2047, 0)": 39
+    },
+    "custom_layers": [
+      "model.layers.0.self_attn.attn",
+      "model.layers.1.self_attn.attn",
+      "model.layers.2.self_attn.attn",
+      "model.layers.3.self_attn.attn",
+      "model.layers.4.self_attn.attn",
+      "model.layers.5.self_attn.attn",
+      "model.layers.6.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.8.self_attn.attn",
+      "model.layers.9.self_attn.attn",
+      "model.layers.10.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.12.self_attn.attn",
+      "model.layers.13.self_attn.attn",
+      "model.layers.14.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.16.self_attn.attn",
+      "model.layers.17.self_attn.attn",
+      "model.layers.18.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.20.self_attn.attn",
+      "model.layers.21.self_attn.attn",
+      "model.layers.22.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.24.self_attn.attn",
+      "model.layers.25.self_attn.attn",
+      "model.layers.26.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.28.self_attn.attn",
+      "model.layers.29.self_attn.attn",
+      "model.layers.30.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.32.self_attn.attn",
+      "model.layers.33.self_attn.attn",
+      "model.layers.34.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.36.self_attn.attn",
+      "model.layers.37.self_attn.attn",
+      "model.layers.38.self_attn.attn",
+      "model.layers.39.self_attn.attn",
+      "model.layers.40.self_attn.attn",
+      "model.layers.41.self_attn.attn",
+      "model.layers.42.self_attn.attn",
+      "model.layers.43.self_attn.attn",
+      "model.layers.44.self_attn.attn",
+      "model.layers.45.self_attn.attn",
+      "model.layers.46.self_attn.attn",
+      "model.layers.47.self_attn.attn",
+      "model.layers.48.self_attn.attn",
+      "model.layers.49.self_attn.attn",
+      "model.layers.50.self_attn.attn",
+      "model.layers.51.self_attn.attn"
+    ],
+    "decode_calls": 104,
+    "decode_gqa_fixed_mask_configured": [
+      false
+    ],
+    "decode_gqa_fixed_mask_executed": [],
+    "decode_gqa_staged_fixed_configured": [
+      false
+    ],
+    "decode_gqa_staged_fixed_executed": [],
+    "decode_gqa_static_leaf_aiter_configured": [
+      false
+    ],
+    "decode_gqa_static_leaf_aiter_executed": [],
+    "decode_gqa_static_leaf_caps": [
+      null
+    ],
+    "decode_gqa_union_aiter_final": [
+      false
+    ],
+    "decode_gqa_union_configured": [
+      false
+    ],
+    "decode_gqa_union_eligible": [
+      false
+    ],
+    "decode_gqa_union_hip_configured": [
+      false
+    ],
+    "decode_gqa_union_hip_executed": [
+      false
+    ],
+    "decode_gqa_union_predicted_mass": [
+      false
+    ],
+    "decode_gqa_union_requested": [
+      false
+    ],
+    "decode_gqa_union_score_only": [
+      false
+    ],
+    "decode_max_open_leaves": [
+      1024
+    ],
+    "decode_open_counts": [
+      8
+    ],
+    "decode_route_cohort": [
+      false
+    ],
+    "direct_prefill_calls": 13,
+    "effective_decode_route_leaf_limits": [
+      1024
+    ],
+    "eligible_layers": [
+      "model.layers.3.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.39.self_attn.attn",
+      "model.layers.43.self_attn.attn",
+      "model.layers.47.self_attn.attn",
+      "model.layers.51.self_attn.attn"
+    ],
+    "gqa_route_mass_threshold_hits": {
+      "16": 0,
+      "32": 0,
+      "64": 0,
+      "128": 0,
+      "256": 0
+    },
+    "gqa_route_max_mass": null,
+    "gqa_union_centroid_count_max": 0,
+    "gqa_union_centroid_count_mean": 0.0,
+    "gqa_union_epoch_max": 0,
+    "gqa_union_exact_token_count_max": 0,
+    "gqa_union_exact_token_count_mean": 0.0,
+    "gqa_union_nonempty_sequences": 0,
+    "gqa_union_sequence_count": 0,
+    "gqa_union_token_count_max": 0,
+    "gqa_union_token_count_mean": 0.0,
+    "install_count": 104,
+    "pooled_layers": [
+      "model.layers.3.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.39.self_attn.attn",
+      "model.layers.43.self_attn.attn",
+      "model.layers.47.self_attn.attn",
+      "model.layers.51.self_attn.attn"
+    ],
+    "recursive_state_route_backends": [
+      "fused"
+    ],
+    "routing_geometries": [
+      [
+        "none",
+        "none",
+        "none"
+      ]
+    ],
+    "selected_route_count_max": 0.0,
+    "state_centroids_at_or_above_open_limit": 0,
+    "state_count_max": 0.0,
+    "state_v_abs_max": 10.5,
+    "state_v_nonfinite": 0,
+    "static_leaf_count_distribution": [
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "1",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "2",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "3-4",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "5-8",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "9-16",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "17-32",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "33-64",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "65-128",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "129-256",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "257-512",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "513-1024",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": ">1024",
+        "leaf_fraction": 0.0
+      }
+    ],
+    "static_opened_centroid_fraction": 0.0,
+    "static_opened_centroids": 0,
+    "static_opened_leaf_fraction": 0.0,
+    "static_opened_leaves": 0.0,
+    "static_total_centroids": 0,
+    "static_total_leaves": 0.0
+  },
+  "lod_dispatch": {
+    "records": [
+      {
+        "configured_decode_max_open_leaves": 1024,
+        "configured_decode_route_cohort": false,
+        "configured_diagnostic_static_preselected": false,
+        "configured_gqa_fixed_mask_aiter": false,
+        "configured_gqa_fixed_mask_block_n": 64,
+        "configured_gqa_fixed_mask_segments": 128,
+        "configured_gqa_mass_fraction": null,
+        "configured_gqa_predicted_mass": false,
+        "configured_gqa_staged_fixed_aiter": false,
+        "configured_gqa_static_leaf_aiter": false,
+        "configured_gqa_union_decode": false,
+        "configured_gqa_union_hip": false,
+        "configured_leaf_block_n": 16,
+        "configured_open_count": 8,
+        "configured_prefill_leaf_visit_cap": null,
+        "configured_prefill_local_backend": "aiter",
+        "configured_prefill_static_leaf_aiter": false,
+        "configured_prefill_static_leaf_cap_min": 16,
+        "configured_route_group_size": 64,
+        "configured_route_num_warps": 2,
+        "configured_route_parallel_reduce": true,
+        "configured_route_post_dot_normalize": false,
+        "configured_route_post_pv_normalize": false,
+        "configured_route_reduce_num_warps": 2,
+        "configured_route_segment_tiles": 2,
+        "configured_route_use_dot": true,
+        "decode_split_kv": 8,
+        "effective_decode_route_leaf_limit": 1024,
+        "effective_leaf_page_block_n": 16,
+        "effective_prefill_local_kernel": "aiter.ops.mha.flash_attn_func (CK FMHA v3)",
+        "effective_prefill_open_count": 3,
+        "effective_route_group_size": 64,
+        "effective_route_num_warps": 2,
+        "effective_route_reduce_num_warps": 2,
+        "effective_route_segment_tiles": 2,
+        "effective_route_segment_width": 128,
+        "effective_route_use_dot": true,
+        "engine_long_d128_override_bypassed_by_vllm_pool": true,
+        "engine_long_d128_override_exists": true,
+        "exact_leaf_kernel": "flat two-tier leaf dispatch",
+        "final_reduce_kernel": "_reduce_routed_split_decode_lod_attention_kernel",
+        "final_reduce_num_warps": 4,
+        "hash_probes": -1,
+        "head_dim": 128,
+        "kv_group_size": 16,
+        "kv_heads": 2,
+        "layers": 13,
+        "leaf_dtype": "torch.bfloat16",
+        "leaf_num_warps": 2,
+        "levels": 2,
+        "local_capacity": 4864,
+        "local_kernels": [
+          "_mask_decode_routes_residual_mass_kernel"
+        ],
+        "local_score_block_m": 16,
+        "local_score_block_n": 32,
+        "local_score_num_warps": 4,
+        "local_value_block_d": 32,
+        "local_value_block_k": 32,
+        "local_value_block_m": 16,
+        "local_value_num_warps": 4,
+        "local_window": 512,
+        "materialize_page_scores": false,
+        "observed_context_len": 0,
+        "page_capacity": 8480,
+        "page_route_kernels": [
+          "inline page-summary scoring in exact-leaf kernel"
+        ],
+        "page_score_block_n": 16,
+        "page_score_num_warps": 2,
+        "page_select_block_n": 64,
+        "pool_request_capacity": 65554,
+        "prefill_chunk_len": 4096,
+        "prefill_fused_route_eligible": true,
+        "prefill_leaf_kernel": "expert",
+        "prefill_leaf_num_warps": 2,
+        "prefill_leaf_page_block_n": 32,
+        "prefill_mode": "direct",
+        "prefill_route_kernels": [
+          "_route_logits_tile_topk_kernel",
+          "_reduce_route_logits_tile_topk_kernel",
+          "_route_logits_coarse_attention_kernel"
+        ],
+        "prefill_schedule_source": "VLLM_LOD_PREFILL_* settings",
+        "prefill_state_update_len": 4096,
+        "query_heads": 32,
+        "route_gqa_grouped": true,
+        "state_capacity": 4352,
+        "state_pv_block_d": 128,
+        "state_pv_block_n": 64,
+        "state_pv_splits": 8,
+        "state_route_backend": "fused",
+        "state_route_kernels": [
+          "_decode_route_coarse_gqa_segments_kernel",
+          "_reduce_decode_route_coarse_vector_topk_kernel"
+        ],
+        "state_route_math": "mfma_m16",
+        "state_score_block_n": 64,
+        "state_score_num_stages": 3,
+        "state_score_num_warps": 2,
+        "state_topk_block_n": 128,
+        "state_topk_num_warps": 2
+      }
+    ],
+    "schema_version": 6
+  },
+  "lod_speed_diagnostics": {
+    "batched_cached_prefill_rows": 2496,
+    "batched_cached_prefills": 832,
+    "batched_install_calls": 117,
+    "cached_prefill_candidate_calls": 845,
+    "cached_prefill_candidate_rows": 3341,
+    "cached_prefill_noncontiguous": 0,
+    "cached_prefill_nonpacked_calls": 0,
+    "cached_prefill_nonuniform_lengths": 65,
+    "cached_prefill_nonuniform_previous": 624,
+    "cached_prefill_packed_calls": 1677,
+    "cached_prefill_unready": 0,
+    "catch_up_batches": 52,
+    "catch_up_rows": 65,
+    "decode_calls": 104,
+    "decode_gqa_cooperative": false,
+    "decode_route_cohort": false,
+    "dense_leaf_storage": true,
+    "direct_prefills": 884,
+    "effective_decode_route_leaf_limit": 1024,
+    "external_kv_cache": true,
+    "installs": 312,
+    "kv_bits": 0,
+    "layers": 13,
+    "leaf_num_warps": 2,
+    "leaf_seal_capacity": null,
+    "levels": 2,
+    "open_count": 8,
+    "page_summary_quant_bits": 8,
+    "prefill_chunk_len": 4096,
+    "prefill_int8_coarse_mma": false,
+    "prefill_int8_leaf_mma": false,
+    "prefill_int8_pv_mma": false,
+    "prefill_state_update_len": 4096,
+    "prefill_static_leaf_aiter": false,
+    "prefill_static_leaf_cap_min": 16,
+    "recursive_materialize_page_scores": false,
+    "recursive_page_score_block_n": 16,
+    "recursive_page_score_num_warps": 2,
+    "recursive_page_select_block_n": 64,
+    "recursive_state_route_backend": "fused",
+    "retained_prefix_reuses": 0,
+    "retained_restore_attempts": 0,
+    "retained_restore_fail_coverage": 0,
+    "retained_restore_fail_no_row": 0,
+    "retained_restore_fail_short": 0,
+    "retained_restore_fail_tokens": 0,
+    "retained_restore_last_coverage": 0,
+    "retained_restore_last_prefix": 0,
+    "retained_restore_last_total": 0,
+    "retained_restore_rebuild_tokens": 0,
+    "retained_restore_rebuilds": 0,
+    "static_prefill_calls": 0,
+    "static_prefill_cap_max_observed": null,
+    "static_prefill_cap_min_observed": null,
+    "static_prefill_exact_tokens_max": null,
+    "static_prefill_exact_tokens_min": null,
+    "static_prefill_layers_executed": 0
+  },
+  "long_prefill_token_threshold": 4096,
+  "max_new_tokens": 2,
+  "max_num_batched_tokens": 16384,
+  "mode": "lod",
+  "model_impl": null,
+  "muse_native_text_config": true,
+  "results": {
+    "65536": {
+      "speed": {
+        "decode_timings_seconds": [
+          0.016760368831455708
+        ],
+        "lod_decode_execution_audit": {
+          "decode_gqa_fixed_mask_configured": [
+            false
+          ],
+          "decode_gqa_fixed_mask_executed": [],
+          "decode_gqa_staged_fixed_configured": [
+            false
+          ],
+          "decode_gqa_staged_fixed_executed": [],
+          "decode_gqa_static_leaf_aiter_configured": [
+            false
+          ],
+          "decode_gqa_static_leaf_aiter_executed": [],
+          "decode_gqa_union_aiter_final": [
+            false
+          ],
+          "decode_gqa_union_configured": [
+            false
+          ],
+          "decode_gqa_union_eligible": [
+            false
+          ],
+          "decode_gqa_union_hip_configured": [
+            false
+          ],
+          "decode_gqa_union_hip_executed": [
+            false
+          ],
+          "decode_gqa_union_predicted_mass": [
+            false
+          ],
+          "decode_gqa_union_requested": [
+            false
+          ],
+          "decode_gqa_union_score_only": [
+            false
+          ],
+          "decode_max_open_leaves": [
+            1024
+          ],
+          "decode_open_counts": [
+            8
+          ],
+          "decode_route_cohort": [
+            false
+          ],
+          "effective_decode_route_leaf_limits": [
+            1024
+          ],
+          "gqa_union_centroid_count_max": 0,
+          "gqa_union_centroid_count_mean": 0.0,
+          "gqa_union_epoch_max": 0,
+          "gqa_union_exact_token_count_max": 0,
+          "gqa_union_exact_token_count_mean": 0.0,
+          "gqa_union_nonempty_sequences": 0,
+          "gqa_union_sequence_count": 0,
+          "gqa_union_token_count_max": 0,
+          "gqa_union_token_count_mean": 0.0
+        },
+        "lod_phase_profile": {
+          "coarse": {
+            "calls": 2028,
+            "milliseconds": 2499.201594531536
+          },
+          "coarse_decode": {
+            "calls": 0,
+            "milliseconds": 0.0
+          },
+          "coarse_kernel": {
+            "calls": 2028,
+            "milliseconds": 2422.6959202364087
+          },
+          "coarse_mean_v": {
+            "calls": 2028,
+            "milliseconds": 50.96277099661529
+          },
+          "coarse_prefill": {
+            "calls": 2028,
+            "milliseconds": 2499.201594531536
+          },
+          "exact_leaf": {
+            "calls": 2028,
+            "milliseconds": 1785.910121947527
+          },
+          "exact_leaf_decode": {
+            "calls": 0,
+            "milliseconds": 0.0
+          },
+          "exact_leaf_dispatch": {
+            "calls": 2028,
+            "milliseconds": 822.2268173098564
+          },
+          "exact_leaf_dispatch_blocks": {
+            "calls": 2028,
+            "milliseconds": 236.88731288164854
+          },
+          "exact_leaf_dispatch_group": {
+            "calls": 2028,
+            "milliseconds": 211.92068003118038
+          },
+          "exact_leaf_dispatch_prepare": {
+            "calls": 2028,
+            "milliseconds": 74.64364299550653
+          },
+          "exact_leaf_dispatch_sort": {
+            "calls": 2028,
+            "milliseconds": 284.0277610346675
+          },
+          "exact_leaf_kernel": {
+            "calls": 2028,
+            "milliseconds": 786.2753521502018
+          },
+          "exact_leaf_pack": {
+            "calls": 2028,
+            "milliseconds": 23.07929390342906
+          },
+          "exact_leaf_prefill": {
+            "calls": 2028,
+            "milliseconds": 1785.910121947527
+          },
+          "exact_leaf_reduce": {
+            "calls": 2028,
+            "milliseconds": 132.9172660158947
+          },
+          "exact_leaf_total": {
+            "calls": 2028,
+            "milliseconds": 1764.4987288415432
+          },
+          "final_reduce": {
+            "calls": 65,
+            "milliseconds": 0.7566719953902066
+          },
+          "final_reduce_b1": {
+            "calls": 39,
+            "milliseconds": 0.44831499736756086
+          },
+          "final_reduce_b2": {
+            "calls": 13,
+            "milliseconds": 0.22539799893274903
+          },
+          "final_reduce_b3": {
+            "calls": 13,
+            "milliseconds": 0.08295899908989668
+          },
+          "leaf_local": {
+            "calls": 65,
+            "milliseconds": 5.819718021899462
+          },
+          "leaf_local_b1": {
+            "calls": 39,
+            "milliseconds": 3.053156014531851
+          },
+          "leaf_local_b2": {
+            "calls": 13,
+            "milliseconds": 1.5187810063362122
+          },
+          "leaf_local_b3": {
+            "calls": 13,
+            "milliseconds": 1.2477810010313988
+          },
+          "local": {
+            "calls": 2028,
+            "milliseconds": 851.7897678911686
+          },
+          "local_decode": {
+            "calls": 0,
+            "milliseconds": 0.0
+          },
+          "local_prefill": {
+            "calls": 2028,
+            "milliseconds": 851.7897678911686
+          },
+          "page_append": {
+            "calls": 1118,
+            "milliseconds": 250.90243391692638
+          },
+          "page_append_decode": {
+            "calls": 0,
+            "milliseconds": 0.0
+          },
+          "page_append_prefill": {
+            "calls": 1118,
+            "milliseconds": 250.90243391692638
+          },
+          "route": {
+            "calls": 2028,
+            "milliseconds": 2621.2257301062346
+          },
+          "route_decode": {
+            "calls": 0,
+            "milliseconds": 0.0
+          },
+          "route_groups": {
+            "calls": 65,
+            "milliseconds": 4.090548988431692
+          },
+          "route_groups_b1": {
+            "calls": 39,
+            "milliseconds": 2.47928698733449
+          },
+          "route_groups_b2": {
+            "calls": 13,
+            "milliseconds": 0.9622669965028763
+          },
+          "route_groups_b3": {
+            "calls": 13,
+            "milliseconds": 0.648995004594326
+          },
+          "route_mean_k": {
+            "calls": 2028,
+            "milliseconds": 41.05422801245004
+          },
+          "route_prefill": {
+            "calls": 2028,
+            "milliseconds": 2621.2257301062346
+          },
+          "route_qk": {
+            "calls": 2028,
+            "milliseconds": 769.4662809222937
+          },
+          "route_reduce": {
+            "calls": 65,
+            "milliseconds": 0.47935100039467216
+          },
+          "route_reduce_b1": {
+            "calls": 39,
+            "milliseconds": 0.2915540006943047
+          },
+          "route_reduce_b2": {
+            "calls": 13,
+            "milliseconds": 0.09295800002291799
+          },
+          "route_reduce_b3": {
+            "calls": 13,
+            "milliseconds": 0.09483899967744946
+          },
+          "route_select": {
+            "calls": 2028,
+            "milliseconds": 1779.1759315412492
+          },
+          "state_update": {
+            "calls": 1053,
+            "milliseconds": 677.4432476758957
+          },
+          "state_update_decode": {
+            "calls": 0,
+            "milliseconds": 0.0
+          },
+          "state_update_prefill": {
+            "calls": 1053,
+            "milliseconds": 677.4432476758957
+          },
+          "two_level": {
+            "calls": 2093,
+            "milliseconds": 7248.646147429943
+          },
+          "two_level_decode": {
+            "calls": 65,
+            "milliseconds": 15.093044936656952
+          },
+          "two_level_prefill": {
+            "calls": 2028,
+            "milliseconds": 7233.55310177803
+          }
+        },
+        "marginal_decode_ms_per_batch_step": 16.760368831455708,
+        "marginal_decode_tokens_per_second": 477.3164648373175,
+        "prefill_prompt_tokens_per_second": 9847.175251551815,
+        "prefill_seconds": 53.24247681256384,
+        "prefill_timings_seconds": [
+          53.24247681256384
+        ],
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 65536,
+          "prompts": [
+            {
+              "decoded_prefix": "For Josephine # CONTENTS 1. Title Page 2. Dedication 3. Epigraph 4. Prologue: 'Daughter of England' 5. Chapter 1: 'The Brunswick Bride' 6. Chapter 2: Warwick House 7. Chapter 3: 'The Delicate Investigation' 8. Chapter 4: First Love 9. Chapter 5: The Radical Princess 10. Chapter 6: 'Protracted Childhood' 11. Chapter 7:",
+              "request_index": 0,
+              "sha256": "aab19c561b502c4fd74fccc16ce501aed48d28c17652dcd92c7887b0e8b7ba3c",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "65805",
+                  "stream_index": 0
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4096,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4096
+              }
+            },
+            {
+              "decoded_prefix": ". Desperately, he threw up an energy barrier between himself and the particle and felt it lift, buoyed by the repulsion forces. He shifted his consciousness to sense thousands of them, millions perhaps, hovering in the breeze. The breeze, he repeated bitterly to himself, which he'd been unable to stop. He wondered if his own death were a fitting payment for that failure. But he still wanted very much to live. He had not finished all that he wanted to accomplish. In fact, he had just begun to figure out what those things were. Somehow, he had to find a way to survive. Rumail drew his",
+              "request_index": 1,
+              "sha256": "b94c0d294b725d43b1eedfd526cc32c3fd71656548c3c795c59ea05201096586",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "65300",
+                  "stream_index": 1
+                },
+                {
+                  "length": "603",
+                  "stream_index": 2
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4096,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4096
+              }
+            },
+            {
+              "decoded_prefix": "Repo: arolleston/webpagetest ======================= File: agent/wptdriver/wpt_settings.h ======================= <reponame>arolleston/webpagetest<gh_stars>0 /****************************************************************************** Copyright (c) 2010, Google Inc. All rights reserved. Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met: * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer. * Redistributions in binary form must reproduce the",
+              "request_index": 2,
+              "sha256": "63b71a3c4d2d840bde9269070c1df14f2a0ad51dbdba8dc7390b2adb4a7e2324",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "65684",
+                  "stream_index": 3
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4096,
+                "max_identical_block_occurrences": 4,
+                "unique_block_ratio": 0.98193359375,
+                "unique_blocks": 4022
+              }
+            },
+            {
+              "decoded_prefix": "What is Better for Infant Psychological Development: Breast or Bottle? The heated debate around the dilemma of whether to bottle-feed or breastfeed infants continues for almost a century. Concerned parents and specialists in baby development keep on raising a number of serious questions connected with infant feeding. One of those questions is about the effect that the type of feeding has on cognitive and psychological development of a baby. The opponents of breastfeeding support their position by providing evidence that for mothers who feel inconvenience during breastfeeding, a better option is to use bottles. This is explained by the fact that babies are able to sense when their mothers experience negative emotions. As a result of being",
+              "request_index": 3,
+              "sha256": "dfebb0616e44c6383230a8c27ebb8790f45856da1aeb514c8a5628db13039ace",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "1835",
+                  "stream_index": 4
+                },
+                {
+                  "length": "70885",
+                  "stream_index": 5
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4096,
+                "max_identical_block_occurrences": 2,
+                "unique_block_ratio": 0.9912109375,
+                "unique_blocks": 4060
+              }
+            },
+            {
+              "decoded_prefix": "Lokenath Debnath and Firdous Ahmad Shah Wavelet Transforms and Their Applications2nd ed. 2015 Lokenath Debnath Department of Mathematics, University of Texas, Pan American, Edinburg, TX, USA Firdous Ahmad Shah Department of Mathematics, University of Kashmir, Anantnag, Jammu and Kashmir, India ISBN 978-0-8176-8417-4e-ISBN 978-0-8176-8418-1 DOI 10.1007/978-0-8176-8418-1 Springer New",
+              "request_index": 4,
+              "sha256": "b215492782e21f934fb8ec36f59f31f99a7387ea7d4bb5995ea877ba86e59637",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "69271",
+                  "stream_index": 6
+                },
+                {
+                  "length": "65722",
+                  "stream_index": 7
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4096,
+                "max_identical_block_occurrences": 6,
+                "unique_block_ratio": 0.986083984375,
+                "unique_blocks": 4039
+              }
+            },
+            {
+              "decoded_prefix": "-shaped filters, with a tap--and a larger or smaller spoonful of the admixture in a glass of water supplies an effervescing draught for 1_d._ or 1/2_d._ \"There's sometimes shocking roguishness in the trade,\" said one man, \"and there is in a many trades--some uses vitriol!\" Lemonade, made after the recipe I have given, is sometimes bottled by the street-sellers, and sold in the same way as ginger-beer. It is bought, also, for street sale of the ginger-beer manufacturers--",
+              "request_index": 5,
+              "sha256": "9508e01416de44ece31160dac3bbcdbc2cdafbe4bfac343c9ae54e16e4a20689",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "66611",
+                  "stream_index": 8
+                },
+                {
+                  "length": "87281",
+                  "stream_index": 9
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4096,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4096
+              }
+            },
+            {
+              "decoded_prefix": "In the guide Note: although the United Kingdom has left the European Union (EU), certain pieces of legislation (formally known as'retained EU law') will still apply until such time as they are replaced by new UK legislation; this means that you will still see references to EU regulations in our guidance. This guidance is for England, Scotland and Wales There are a number of labelling requirements for toys, including the name and address of the manufacturer / importer, the type, batch, model or serial number, the UKCA mark, and warnings and instructions. The Toys (Safety) Regulations 2011 set out the legal requirements",
+              "request_index": 6,
+              "sha256": "7728880dbd35baae13d23ec06a47c062ee76128549de97ae66c7b4dc8a15b6c4",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "1256",
+                  "stream_index": 10
+                },
+                {
+                  "length": "66391",
+                  "stream_index": 11
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4096,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4096
+              }
+            },
+            {
+              "decoded_prefix": "Sethusamudram Shipping Canal Project |Type||Government of India| |Headquarters||Chennai, Tamil Nadu, India| |Area served||Tamil Nadu, India| Sethusamudram Shipping Canal Project (Tamil: \u0b9a\u0bc7\u0ba4\u0bc1\u0b95\u0bcd\u0b95\u0bbe\u0bb2\u0bcd\u0bb5\u0bbe\u0baf\u0bcd \u0ba4\u0bbf\u0b9f\u0bcd\u0b9f\u0bae\u0bcd, C\u0113tukk\u0101lw\u0101i Ti\u1e6d\u1e6dam?) is a proposed project that would link Palk Bay and the Gulf of Mannar between India and Sri Lanka by creating a shipping channel through the shallow sea called Sethusamudram and through a chain of islands collectively called Adam's Bridge,",
+              "request_index": 7,
+              "sha256": "b2aa49690155ea96f344103f17504ed3c08654a0e20e613a44a64eda82af63c4",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "3019",
+                  "stream_index": 12
+                },
+                {
+                  "length": "65536",
+                  "stream_index": 13
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4096,
+                "max_identical_block_occurrences": 2,
+                "unique_block_ratio": 0.999755859375,
+                "unique_blocks": 4095
+              }
+            }
+          ],
+          "rejected_candidate_count": 0,
+          "rejected_candidates": []
+        },
+        "prompt_length": 65536,
+        "total_timings_seconds": [
+          53.26288519613445
+        ]
+      }
+    }
+  },
+  "sample_offset": 0,
+  "samples_per_length": 8,
+  "speed_decode_tokens": 2,
+  "speed_prompt_reserve": 0,
+  "speed_repeats": 1,
+  "tensor_parallel_size": 1
+}

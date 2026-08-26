@@ -148,25 +148,40 @@ class VLLMLayerLODPool:
             scale=float(layer.impl.scale),
             default_open_count=settings.open_count,
         )
-        if (
+        hierarchical_decode_route = (
             settings.decode_geometry_tuning
-            and request_capacity >= 32_768
-            and self.head_dim == 128
-            and self.query_heads == self.kv_heads * 16
-        ):
-            # Muse's GQA-16 rows exactly fill a native M=16 tile.  Process two
-            # successive N=64 state tiles while Q and the online-softmax state
-            # remain resident, then reduce the 32-48 segment field in parallel.
-            self.engine.decode_route_group_size = 64
-            self.engine.decode_route_segment_tiles = 2
-            self.engine.decode_route_num_warps = 2
-            self.engine.decode_route_reduce_num_warps = 2
-            self.engine.decode_route_parallel_reduce = True
-            # Preserve the established fused route's BF16-rounded centroid
-            # means.  Post-MFMA division is algebraically cleaner, but changes
-            # enough near-tied Muse routes to destabilize greedy decoding.
-            self.engine.decode_route_post_dot_normalize = False
-            self.engine.decode_route_post_pv_normalize = False
+            if settings.decode_hierarchical_route is None
+            else settings.decode_hierarchical_route
+        )
+        if hierarchical_decode_route and request_capacity >= 32_768:
+            gqa = self.query_heads // self.kv_heads
+            # Keep several native state tiles behind each independent program,
+            # emit only its local top eight, then reduce the much shorter
+            # candidate/online-softmax field in parallel.  The schedules below
+            # are selected by attention geometry rather than model name and
+            # preserve the exact route set on both equal- and variable-count
+            # controls at the production 64K/B8 state size.
+            route_geometry = {
+                # D, GQA, KV heads: (N, tiles per segment)
+                (128, 16, 2): (64, 2),
+                (128, 5, 8): (64, 1),
+                (128, 4, 2): (64, 2),
+                (256, 6, 4): (32, 2),
+                (512, 8, 2): (32, 4),
+            }.get((self.head_dim, gqa, self.kv_heads))
+            if route_geometry is not None:
+                (
+                    self.engine.decode_route_group_size,
+                    self.engine.decode_route_segment_tiles,
+                ) = route_geometry
+                self.engine.decode_route_num_warps = 2
+                self.engine.decode_route_reduce_num_warps = 2
+                self.engine.decode_route_parallel_reduce = True
+                # Preserve the established BF16-rounded centroid means.
+                # Post-MFMA normalization is faster for some geometries but
+                # changes near-tied routes, so it remains a separate option.
+                self.engine.decode_route_post_dot_normalize = False
+                self.engine.decode_route_post_pv_normalize = False
         flat_int8 = settings.levels == 2 and settings.kv_bits == 8
         self.engine.leaf_key_quant_bits = (
             0 if flat_int8 else settings.resolved_key_bits
@@ -266,6 +281,28 @@ class VLLMLayerLODPool:
         self.engine.fused_prefill_external_recompute = (
             settings.fused_prefill_external_recompute
         )
+        gqa = self.query_heads // self.kv_heads
+        # Wide tile-local top-three followed by a tiny global reduction is an
+        # exact selector replacement, but the extra launch only pays for the
+        # geometries where the former selector is a meaningful end-to-end
+        # fraction. The explicit environment setting remains a force-on/off
+        # override for diagnostics and new architectures.
+        hierarchical_prefill_geometry = (
+            settings.levels == 2
+            and (self.head_dim, gqa, self.kv_heads)
+            in {
+                (128, 16, 2),  # Muse-Glimmer TP1
+                (128, 5, 8),   # OLMo-3-32B TP1
+                (128, 4, 2),   # Phi-4 TP5
+                (256, 6, 4),   # Qwen3.8-27B TP1 (neutral/slightly positive)
+                (512, 8, 2),   # Gemma-4-26B-A4B TP1
+            }
+        )
+        self.engine.prefill_hierarchical_route = (
+            hierarchical_prefill_geometry
+            if settings.prefill_hierarchical_route is None
+            else settings.prefill_hierarchical_route
+        )
         if (
             settings.fused_prefill_route_coarse
             and settings.fused_prefill_stable_recompute
@@ -281,6 +318,26 @@ class VLLMLayerLODPool:
         ):
             self.engine.prefill_coarse_max_grouped_rows = (
                 settings.prefill_coarse_max_grouped_rows
+            )
+            if (
+                settings.levels == 2
+                and self.head_dim == 128
+                and self.query_heads == self.kv_heads * 16
+            ):
+                # Muse's GQA-16 coarse, exact-leaf, and exact-local branches
+                # are independent after route selection. Queue them on three
+                # streams and synchronize only at the final LSE merge. This
+                # removes two serial gaps while retaining the established
+                # N=32 coarse arithmetic and route choices.
+                self.engine.prefill_overlap_coarse_leaf = True
+                self.engine.prefill_overlap_local_lod = True
+        if settings.prefill_overlap_coarse_leaf is not None:
+            self.engine.prefill_overlap_coarse_leaf = (
+                settings.prefill_overlap_coarse_leaf
+            )
+        if settings.prefill_overlap_local_lod is not None:
+            self.engine.prefill_overlap_local_lod = (
+                settings.prefill_overlap_local_lod
             )
         # The current flat two-tier path keeps the protected token in state,
         # exactly matching the HF benchmark. Retain the older recursive side

@@ -333,6 +333,7 @@ def benchmark(geometry: Geometry, args: argparse.Namespace) -> dict[str, object]
             groups,
             HEAD_DIM=dim,
             ROUTE_COUNT=args.routes,
+            OPEN_COUNT=args.routes,
             MAX_GROUPS=groups,
             CANDIDATE_TILE=1024,
             APPLY_MASS_CUTOFF=False,
@@ -357,8 +358,6 @@ def benchmark(geometry: Geometry, args: argparse.Namespace) -> dict[str, object]
         post_dot_normalize: bool = False,
         post_pv_normalize: bool = False,
     ) -> dict[str, float]:
-        if group_n != 64:
-            raise ValueError("segmented route control requires N=64 state tiles")
         segment_width = group_n * segment_tiles
         segments = triton.cdiv(state_len, segment_width)
         segment_buffers = new_fused_decode_buffers(
@@ -457,9 +456,12 @@ def benchmark(geometry: Geometry, args: argparse.Namespace) -> dict[str, object]
                 candidate_groups,
                 HEAD_DIM=dim,
                 ROUTE_COUNT=args.routes,
+                OPEN_COUNT=args.routes,
                 MAX_SEGMENTS=max_segments,
                 CANDIDATE_BLOCK=candidate_tile,
                 SEGMENT_BLOCK=triton.next_power_of_2(segments),
+                APPLY_MASS_CUTOFF=False,
+                LOG_MASS_FRACTION=0.0,
                 num_warps=2,
                 waves_per_eu=1,
             )
@@ -1759,7 +1761,9 @@ def benchmark(geometry: Geometry, args: argparse.Namespace) -> dict[str, object]
                 )
             )
             for segment_tiles, warps, waves, stages, bypass_l1, merge_tile_topk, post_dot_normalize, post_pv_normalize in (
+                (1, 2, 1, 3, False, True, False, False),
                 (2, 2, 1, 3, False, True, False, False),
+                (4, 2, 1, 3, False, True, False, False),
                 (2, 2, 1, 3, False, True, False, True),
                 (2, 2, 1, 3, False, True, True, False),
                 (2, 2, 1, 3, False, True, True, True),

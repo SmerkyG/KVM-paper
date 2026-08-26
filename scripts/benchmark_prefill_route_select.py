@@ -6,11 +6,14 @@ from __future__ import annotations
 import argparse
 import json
 import statistics
+from pathlib import Path
 
 import torch
 
 from model.kernels.lod_kernels import (
+    new_route_buffers,
     route_logits_hierarchical_topk,
+    route_top8_scores_grouped,
     route_logits_topk_coarse_attention,
 )
 
@@ -30,6 +33,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=17)
     parser.add_argument("--hier-only", action="store_true")
     parser.add_argument("--focused", action="store_true")
+    parser.add_argument("--output", type=Path)
     return parser.parse_args()
 
 
@@ -43,7 +47,7 @@ def _run(
     block_m: int,
     block_n: int,
     num_warps: int,
-    head_major: bool,
+    head_major: bool | None,
     warmup: int,
     repeats: int,
     max_leaf_tokens: int | None,
@@ -88,6 +92,54 @@ def _run(
     return slots, [start.elapsed_time(end) * 1_000.0 for start, end in zip(starts, ends, strict=True)]
 
 
+def _run_grouped(
+    logits: torch.Tensor,
+    counts: torch.Tensor,
+    *,
+    scale: float,
+    topk: int,
+    warmup: int,
+    repeats: int,
+    max_leaf_tokens: int | None,
+) -> tuple[torch.Tensor, list[float]]:
+    if max_leaf_tokens is not None:
+        raise ValueError("the production grouped selector benchmark has no leaf cap")
+    buffers = new_route_buffers(
+        logits[..., :1],
+        state_capacity=int(logits.size(-1)),
+        query_capacity=int(logits.size(2)),
+    )
+
+    def invoke() -> torch.Tensor:
+        return route_top8_scores_grouped(
+            logits,
+            counts,
+            buffers,
+            kv_group_size=int(logits.size(1) // counts.size(1)),
+            scale=scale,
+            topk=topk,
+            state_len=int(logits.size(-1)),
+            protected_len=1,
+            reorder_like_torch=True,
+        )
+
+    slots = invoke()
+    for _ in range(warmup - 1):
+        slots = invoke()
+    torch.cuda.synchronize()
+    starts = [torch.cuda.Event(enable_timing=True) for _ in range(repeats)]
+    ends = [torch.cuda.Event(enable_timing=True) for _ in range(repeats)]
+    for start, end in zip(starts, ends, strict=True):
+        start.record()
+        slots = invoke()
+        end.record()
+    torch.cuda.synchronize()
+    return slots, [
+        start.elapsed_time(end) * 1_000.0
+        for start, end in zip(starts, ends, strict=True)
+    ]
+
+
 def main() -> None:
     args = _parse_args()
     if args.query_heads % args.kv_heads:
@@ -127,7 +179,7 @@ def main() -> None:
     ).to(torch.float32).contiguous()
 
     configs = [
-        ("group_m16_n32_w8", 16, 32, 8, False),
+        ("production_auto_m16_n32_w8", 16, 32, 8, None),
         ("group_m8_n32_w4", 8, 32, 4, False),
         ("group_m8_n32_w8", 8, 32, 8, False),
         ("group_m4_n32_w2", 4, 32, 2, False),
@@ -152,20 +204,26 @@ def main() -> None:
     for label, block_m, block_n, num_warps, head_major in (
         configs[:1] if args.hier_only else configs
     ):
-        slots, times_us = _run(
-            q,
-            logits,
-            state_v,
-            counts,
-            topk=args.topk,
-            block_m=block_m,
-            block_n=block_n,
-            num_warps=num_warps,
-            head_major=head_major,
-            warmup=args.warmup,
-            repeats=args.repeats,
-            max_leaf_tokens=args.max_leaf_tokens,
-        )
+        try:
+            slots, times_us = _run(
+                q,
+                logits,
+                state_v,
+                counts,
+                topk=args.topk,
+                block_m=block_m,
+                block_n=block_n,
+                num_warps=num_warps,
+                head_major=head_major,
+                warmup=args.warmup,
+                repeats=args.repeats,
+                max_leaf_tokens=args.max_leaf_tokens,
+            )
+        except ValueError as error:
+            result = {"label": label, "unsupported": str(error)}
+            results.append(result)
+            print(json.dumps(result), flush=True)
+            continue
         normalized = slots.sort(dim=-1).values
         if reference is None:
             reference = normalized
@@ -176,9 +234,25 @@ def main() -> None:
             "block_m": block_m,
             "block_n": block_n,
             "num_warps": num_warps,
-            "head_major": head_major,
+            "head_major": (
+                head_major
+                if head_major is not None
+                else bool(
+                    (block_m * (args.query_heads // args.kv_heads))
+                    & (block_m * (args.query_heads // args.kv_heads) - 1)
+                )
+            ),
             "logical_rows_per_program": (
-                block_m if head_major else block_m * (args.query_heads // args.kv_heads)
+                block_m
+                if head_major
+                or (
+                    head_major is None
+                    and (
+                        block_m * (args.query_heads // args.kv_heads)
+                        & (block_m * (args.query_heads // args.kv_heads) - 1)
+                    )
+                )
+                else block_m * (args.query_heads // args.kv_heads)
             ),
             "median_us": statistics.median(times_us),
             "min_us": min(times_us),
@@ -188,6 +262,30 @@ def main() -> None:
         }
         results.append(result)
         print(json.dumps(result), flush=True)
+    grouped_slots, grouped_times_us = _run_grouped(
+        logits,
+        counts,
+        scale=float(args.head_dim**-0.5),
+        topk=args.topk,
+        warmup=args.warmup,
+        repeats=args.repeats,
+        max_leaf_tokens=args.max_leaf_tokens,
+    )
+    grouped_result = {
+        "label": "production_grouped_m16_n64_w4",
+        "block_m": 16,
+        "block_n": 64,
+        "num_warps": 4,
+        "median_us": statistics.median(grouped_times_us),
+        "min_us": min(grouped_times_us),
+        "max_us": max(grouped_times_us),
+        "route_set_exact": bool(
+            torch.equal(grouped_slots.sort(dim=-1).values, reference)
+        ),
+        "route_order_exact": bool(torch.equal(grouped_slots, reference_order)),
+    }
+    results.append(grouped_result)
+    print(json.dumps(grouped_result), flush=True)
     hierarchical_configs = (
         (8, 64, 4, 4),
         (16, 64, 4, 4),
@@ -278,16 +376,21 @@ def main() -> None:
         }
         results.append(result)
         print(json.dumps(result), flush=True)
-    print(
-        json.dumps(
-            {
-                "geometry": vars(args),
-                "results": sorted(results, key=lambda item: float(item["median_us"])),
-            },
-            indent=2,
-            sort_keys=True,
-        )
-    )
+    summary = {
+        "geometry": {
+            key: str(value) if isinstance(value, Path) else value
+            for key, value in vars(args).items()
+        },
+        "results": sorted(
+            results,
+            key=lambda item: float(item.get("median_us", float("inf"))),
+        ),
+    }
+    serialized = json.dumps(summary, indent=2, sort_keys=True) + "\n"
+    print(serialized, end="")
+    if args.output is not None:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(serialized)
 
 
 if __name__ == "__main__":
