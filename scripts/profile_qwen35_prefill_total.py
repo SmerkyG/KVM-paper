@@ -45,9 +45,31 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dynamic-open-prefill-residual-mass", type=float)
     parser.add_argument("--dynamic-open-decode-top-p", type=float)
     parser.add_argument("--dynamic-open-decode-residual-mass", type=float)
+    parser.add_argument("--decode-route-mass-fraction", type=float)
+    parser.add_argument("--decode-mass-top8-filter", action="store_true")
+    parser.add_argument("--decode-route-mass-max-routes", type=int, default=16)
+    parser.add_argument(
+        "--decode-route-mass-block-n", type=int, choices=(16, 32, 64, 128), default=64
+    )
+    parser.add_argument(
+        "--decode-route-mass-num-warps", type=int, choices=(1, 2, 4, 8), default=4
+    )
     parser.add_argument("--reuse-dynamic-local-attention", action="store_true")
     parser.add_argument("--dynamic-open-residual-state-bound", action="store_true")
     parser.add_argument("--recursive-page-lod", action="store_true")
+    parser.add_argument("--recursive-materialize-page-scores", action="store_true")
+    parser.add_argument(
+        "--recursive-page-score-block-n", type=int, choices=(16, 32, 64, 128), default=16
+    )
+    parser.add_argument(
+        "--recursive-page-score-num-warps", type=int, choices=(1, 2, 4, 8), default=2
+    )
+    parser.add_argument(
+        "--recursive-page-select-block-n",
+        type=int,
+        choices=(16, 32, 64, 128),
+        default=64,
+    )
     parser.add_argument("--dense-page-prefill", action="store_true")
     parser.add_argument("--dense-page-split-kernels", action="store_true")
     parser.add_argument("--profile-dense-page-phases", action="store_true")
@@ -425,6 +447,146 @@ def decode_route_union_statistics(model: torch.nn.Module) -> dict[str, float]:
     }
 
 
+def decode_mass_route_statistics(model: torch.nn.Module) -> dict[str, float] | None:
+    selected = []
+    overflow = []
+    for module in model.modules():
+        if not isinstance(module, Qwen3_5TwoLevelAttention):
+            continue
+        stats = getattr(module, "_lod_decode_mass_fraction_stats", None)
+        if not (
+            isinstance(stats, tuple)
+            and len(stats) == 2
+            and all(isinstance(value, torch.Tensor) for value in stats)
+        ):
+            continue
+        selected.append(stats[0].detach().float().reshape(-1))
+        overflow.append(stats[1].detach().float().reshape(-1))
+    if not selected:
+        return None
+    selected_tensor = torch.cat(selected)
+    overflow_tensor = torch.cat(overflow)
+    return {
+        "rows": float(selected_tensor.numel()),
+        "mean_selected": float(selected_tensor.mean().item()),
+        "max_selected": float(selected_tensor.max().item()),
+        "overflow_rows": float(overflow_tensor.gt(0).sum().item()),
+        "overflow_candidates": float(overflow_tensor.sum().item()),
+    }
+
+
+def decode_route_score_precision_statistics(model: torch.nn.Module) -> dict[str, object]:
+    """Compare the final decode route boundary after FP16/BF16 score storage.
+
+    The fused router retains eight FP32 candidates per score group.  A global
+    top-eight candidate must normally be in this field; the only unobserved
+    failure mode is a rounding-induced swap between local ranks eight and nine
+    inside one group.  The report calls out that limitation explicitly.
+    """
+    formats = {"fp16": torch.float16, "bf16": torch.bfloat16}
+    totals = {
+        name: {"rows": 0, "set_mismatch_rows": 0, "missing_routes": 0, "top1_mismatch_rows": 0}
+        for name in formats
+    }
+    margins: list[torch.Tensor] = []
+    margin_in_ulps: dict[str, list[torch.Tensor]] = {name: [] for name in formats}
+    score_magnitudes: list[torch.Tensor] = []
+    modules = 0
+    for module in model.modules():
+        if not isinstance(module, Qwen3_5TwoLevelAttention):
+            continue
+        buffers = getattr(module, "_lod_decode_attention_buffers", None)
+        state = getattr(module, "_lod_state", {})
+        candidates = buffers.get("route_candidate_scores") if isinstance(buffers, dict) else None
+        state_len = state.get("state_len") if isinstance(state, dict) else None
+        if not isinstance(candidates, torch.Tensor) or state_len is None:
+            continue
+        active_groups = math.ceil(int(state_len) / int(module.decode_route_group_size))
+        candidate_rows = candidates[:, :, :active_groups, :].reshape(
+            int(candidates.size(0)) * int(candidates.size(1)), -1
+        )
+        if int(candidate_rows.size(1)) < 9:
+            continue
+        reference_values, reference_indices = torch.topk(
+            candidate_rows, 9, dim=-1, sorted=True
+        )
+        finite = torch.isfinite(reference_values[:, 8])
+        if not bool(finite.any()):
+            continue
+        candidate_rows = candidate_rows[finite]
+        reference_values = reference_values[finite]
+        reference_indices = reference_indices[finite]
+        boundary_margin = reference_values[:, 7] - reference_values[:, 8]
+        margins.append(boundary_margin.float())
+        score_magnitudes.append(reference_values[:, 7].abs().float())
+        reference_set = reference_indices[:, :8].sort(dim=-1).values
+        reference_top1 = reference_indices[:, 0]
+        for name, dtype in formats.items():
+            rounded = candidate_rows.to(dtype).float()
+            _, rounded_indices = torch.topk(rounded, 8, dim=-1, sorted=True)
+            rounded_set = rounded_indices.sort(dim=-1).values
+            shared = (
+                rounded_indices[:, :, None]
+                == reference_indices[:, None, :8]
+            ).any(dim=-1).sum(dim=-1)
+            set_mismatch = (rounded_set != reference_set).any(dim=-1)
+            totals[name]["rows"] += int(candidate_rows.size(0))
+            totals[name]["set_mismatch_rows"] += int(set_mismatch.sum().item())
+            totals[name]["missing_routes"] += int((8 - shared).sum().item())
+            totals[name]["top1_mismatch_rows"] += int(
+                (rounded_indices[:, 0] != reference_top1).sum().item()
+            )
+            boundary = reference_values[:, 7].to(dtype)
+            next_boundary = torch.nextafter(
+                boundary,
+                torch.full_like(boundary, float("inf")),
+            )
+            ulp = (next_boundary.float() - boundary.float()).abs().clamp_min_(
+                torch.finfo(torch.float32).tiny
+            )
+            margin_in_ulps[name].append(boundary_margin.float() / ulp)
+        modules += 1
+
+    def quantiles(values: list[torch.Tensor]) -> dict[str, float] | None:
+        if not values:
+            return None
+        merged = torch.cat(values)
+        points = torch.tensor(
+            [0.0, 0.01, 0.05, 0.1, 0.5, 0.9, 0.99, 1.0],
+            device=merged.device,
+        )
+        result = torch.quantile(merged, points).cpu().tolist()
+        return {
+            label: float(value)
+            for label, value in zip(
+                ("min", "p01", "p05", "p10", "p50", "p90", "p99", "max"),
+                result,
+                strict=True,
+            )
+        }
+
+    for name, values in totals.items():
+        rows = int(values["rows"])
+        values["set_mismatch_fraction"] = (
+            values["set_mismatch_rows"] / rows if rows else None
+        )
+        values["missing_route_fraction"] = (
+            values["missing_routes"] / (8 * rows) if rows else None
+        )
+        values["top1_mismatch_fraction"] = (
+            values["top1_mismatch_rows"] / rows if rows else None
+        )
+        values["boundary_margin_in_ulps"] = quantiles(margin_in_ulps[name])
+    return {
+        "modules": modules,
+        "candidate_scope": "eight FP32 candidates per route group",
+        "limitation": "does not observe local rank 9 within each route group",
+        "boundary_margin": quantiles(margins),
+        "boundary_score_absolute": quantiles(score_magnitudes),
+        "formats": totals,
+    }
+
+
 def snapshot_lod_states(
     model: torch.nn.Module,
 ) -> dict[Qwen3_5TwoLevelAttention, dict]:
@@ -653,6 +815,20 @@ def main() -> None:
         raise ValueError(
             "decode top-p and full-mass residual opening are mutually exclusive"
         )
+    if args.decode_route_mass_fraction is not None:
+        if not 0.0 < args.decode_route_mass_fraction < 1.0:
+            raise ValueError("decode route mass fraction must be in (0, 1)")
+        if (
+            dynamic_decode_top_p is not None
+            or args.dynamic_open_decode_residual_mass is not None
+        ):
+            raise ValueError("decode mass cutoff cannot use dynamic opening")
+        if (
+            args.decode_route_mass_max_routes <= 0
+            or args.decode_route_mass_max_routes
+            & (args.decode_route_mass_max_routes - 1)
+        ):
+            raise ValueError("decode mass route cap must be a power of two")
     if (
         dynamic_prefill_top_p is not None
         and args.dynamic_open_prefill_residual_mass is not None
@@ -672,6 +848,16 @@ def main() -> None:
                 module.decode_cache_headroom = args.decode_cache_headroom
                 module.fused_decode_attention = not args.disable_fused_decode
                 module.recursive_page_lod = args.recursive_page_lod
+                module.recursive_materialize_page_scores = (
+                    args.recursive_materialize_page_scores
+                )
+                module.recursive_page_score_block_n = args.recursive_page_score_block_n
+                module.recursive_page_score_num_warps = (
+                    args.recursive_page_score_num_warps
+                )
+                module.recursive_page_select_block_n = (
+                    args.recursive_page_select_block_n
+                )
                 module.dense_page_prefill = args.dense_page_prefill
                 module.dense_page_split_kernels = args.dense_page_split_kernels
                 module.dense_page_topk = args.dense_page_topk
@@ -750,6 +936,15 @@ def main() -> None:
                 module.dynamic_open_decode_top_p = dynamic_decode_top_p
                 module.dynamic_open_decode_residual_mass = (
                     args.dynamic_open_decode_residual_mass
+                )
+                module.decode_route_mass_fraction = args.decode_route_mass_fraction
+                module.decode_mass_top8_filter = args.decode_mass_top8_filter
+                module.decode_route_mass_max_routes = (
+                    args.decode_route_mass_max_routes
+                )
+                module.decode_route_mass_block_n = args.decode_route_mass_block_n
+                module.decode_route_mass_num_warps = (
+                    args.decode_route_mass_num_warps
                 )
                 module.reuse_dynamic_local_attention = (
                     args.reuse_dynamic_local_attention
@@ -1160,6 +1355,27 @@ def main() -> None:
         "dynamic_open_decode_residual_mass": (
             args.dynamic_open_decode_residual_mass if args.mode == "two_level" else None
         ),
+        "decode_route_mass_fraction": (
+            args.decode_route_mass_fraction if args.mode == "two_level" else None
+        ),
+        "decode_mass_top8_filter": (
+            args.decode_mass_top8_filter if args.mode == "two_level" else None
+        ),
+        "decode_route_mass_max_routes": (
+            args.decode_route_mass_max_routes
+            if args.mode == "two_level" and args.decode_route_mass_fraction is not None
+            else None
+        ),
+        "decode_route_mass_block_n": (
+            args.decode_route_mass_block_n
+            if args.mode == "two_level" and args.decode_route_mass_fraction is not None
+            else None
+        ),
+        "decode_route_mass_num_warps": (
+            args.decode_route_mass_num_warps
+            if args.mode == "two_level" and args.decode_route_mass_fraction is not None
+            else None
+        ),
         "reuse_dynamic_local_attention": (
             args.reuse_dynamic_local_attention if args.mode == "two_level" else None
         ),
@@ -1168,6 +1384,20 @@ def main() -> None:
         ),
         "recursive_page_lod": (
             args.recursive_page_lod if args.mode == "two_level" else None
+        ),
+        "recursive_materialize_page_scores": (
+            args.recursive_materialize_page_scores
+            if args.mode == "two_level"
+            else None
+        ),
+        "recursive_page_score_block_n": (
+            args.recursive_page_score_block_n if args.mode == "two_level" else None
+        ),
+        "recursive_page_score_num_warps": (
+            args.recursive_page_score_num_warps if args.mode == "two_level" else None
+        ),
+        "recursive_page_select_block_n": (
+            args.recursive_page_select_block_n if args.mode == "two_level" else None
         ),
         "dense_page_prefill": (
             args.dense_page_prefill if args.mode == "two_level" else None
@@ -1506,6 +1736,10 @@ def main() -> None:
         "cache_memory_gib": cache_memory_gib,
         "cache_statistics": cache_statistics,
         "decode_route_union_statistics": decode_route_union_statistics(model),
+        "decode_mass_route_statistics": decode_mass_route_statistics(model),
+        "decode_route_score_precision_statistics": (
+            decode_route_score_precision_statistics(model)
+        ),
         "peak_memory_gib": torch.cuda.max_memory_allocated(device) / (1024**3),
         "logit_finite": finite,
         "decode_top1": decode_top1,

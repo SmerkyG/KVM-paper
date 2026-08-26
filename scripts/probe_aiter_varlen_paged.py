@@ -17,6 +17,7 @@ def main() -> None:
         default="public",
     )
     parser.add_argument("--page-size", type=int, default=16)
+    parser.add_argument("--head-dim", type=int, default=128)
     args = parser.parse_args()
     from aiter.ops.mha import flash_attn_varlen_func, mha_varlen_fwd
 
@@ -24,7 +25,7 @@ def main() -> None:
     device = torch.device("cuda")
     dtype = torch.bfloat16
     page_size = args.page_size
-    head_dim = 128
+    head_dim = args.head_dim
     q_lengths = torch.tensor([7, 3, 19], device=device, dtype=torch.int32)
     k_lengths = torch.tensor([5, 22, 31], device=device, dtype=torch.int32)
     block_table = torch.tensor(

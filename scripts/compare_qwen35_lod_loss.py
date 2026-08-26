@@ -43,6 +43,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dynamic-open-top-p", type=float)
     parser.add_argument("--dynamic-open-prefill-top-p", type=float)
     parser.add_argument("--dynamic-open-prefill-residual-mass", type=float)
+    parser.add_argument("--prefill-route-mass-fraction", type=float)
+    parser.add_argument("--prefill-route-mass-max-routes", type=int, default=16)
+    parser.add_argument(
+        "--prefill-mass-include-local-lse",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument("--prefill-mass-previous-chunk-lse", action="store_true")
+    parser.add_argument("--prefill-coarse-max-grouped-rows", type=int, default=8)
     parser.add_argument("--dynamic-open-decode-top-p", type=float)
     parser.add_argument("--recursive-page-lod", action="store_true")
     parser.add_argument("--dense-page-prefill", action="store_true")
@@ -213,6 +222,19 @@ def main() -> None:
         for module in model.modules():
             if isinstance(module, Qwen3_5TwoLevelAttention):
                 module.prefill_two_level_topk = args.prefill_two_level_topk
+                module.prefill_route_mass_fraction = args.prefill_route_mass_fraction
+                module.prefill_route_mass_max_routes = (
+                    args.prefill_route_mass_max_routes
+                )
+                module.prefill_mass_include_local_lse = (
+                    args.prefill_mass_include_local_lse
+                )
+                module.prefill_mass_previous_chunk_lse = (
+                    args.prefill_mass_previous_chunk_lse
+                )
+                module.prefill_coarse_max_grouped_rows = (
+                    args.prefill_coarse_max_grouped_rows
+                )
                 module.exclude_sink_from_routes = args.exclude_sink_from_routes
                 module.separate_sink_cache = args.separate_sink_cache
                 module.prefill_max_leaf_tokens = args.prefill_max_leaf_tokens
@@ -339,6 +361,31 @@ def main() -> None:
                 ),
                 "prefill_two_level_topk": (
                     args.prefill_two_level_topk if args.mode == "two_level" else None
+                ),
+                "prefill_route_mass_fraction": (
+                    args.prefill_route_mass_fraction
+                    if args.mode == "two_level"
+                    else None
+                ),
+                "prefill_route_mass_max_routes": (
+                    args.prefill_route_mass_max_routes
+                    if args.mode == "two_level"
+                    else None
+                ),
+                "prefill_mass_include_local_lse": (
+                    args.prefill_mass_include_local_lse
+                    if args.mode == "two_level"
+                    else None
+                ),
+                "prefill_mass_previous_chunk_lse": (
+                    args.prefill_mass_previous_chunk_lse
+                    if args.mode == "two_level"
+                    else None
+                ),
+                "prefill_coarse_max_grouped_rows": (
+                    args.prefill_coarse_max_grouped_rows
+                    if args.mode == "two_level"
+                    else None
                 ),
                 "prefill_max_leaf_tokens": (
                     args.prefill_max_leaf_tokens if args.mode == "two_level" else None

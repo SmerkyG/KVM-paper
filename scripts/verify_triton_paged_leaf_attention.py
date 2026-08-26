@@ -15,6 +15,7 @@ from model.kernels.paged_leaf_attention import (
     append_virtual_paged_kv,
     dense_page_summary_attention,
     fused_decode_paged_lod_attention,
+    materialize_page_summary_scores_gqa,
     new_fused_decode_buffers,
     paged_leaf_attention,
     query_major_paged_leaf_attention,
@@ -1592,6 +1593,47 @@ def verify_residual_page_attention(
     )
     torch.testing.assert_close(indexed_out.float(), expected_out, rtol=2e-2, atol=8e-3)
     torch.testing.assert_close(indexed_lse, expected_lse, rtol=2e-4, atol=2e-4)
+    decode_q = q[..., :1, :].contiguous()
+    decode_slots = top_slots[..., :1, :].contiguous()
+    materialized_scores = materialize_page_summary_scores_gqa(
+        decode_q,
+        page_sum_k,
+        page_counts,
+        kv_group_size=query_heads // kv_heads,
+        scale=scale,
+        page_block_n=16,
+    )
+    materialized_out, materialized_lse = (
+        query_major_indexed_residual_page_attention(
+            decode_q,
+            state_k,
+            state_v,
+            state_counts,
+            leaf_k,
+            leaf_v,
+            page_indices,
+            page_sum_k,
+            page_sum_v,
+            page_counts,
+            slot_pages,
+            overflow_page_keys,
+            overflow_page_values,
+            overflow_used,
+            slot_lengths,
+            decode_slots,
+            kv_group_size=query_heads // kv_heads,
+            scale=scale,
+            hash_probes=0,
+            page_block_n=16,
+            materialized_page_scores=materialized_scores,
+        )
+    )
+    torch.testing.assert_close(
+        materialized_out.float(), indexed_out[..., :1, :].float(), rtol=2e-2, atol=8e-3
+    )
+    torch.testing.assert_close(
+        materialized_lse, indexed_lse[..., :1], rtol=2e-4, atol=2e-4
+    )
     indexed_quantized_out, indexed_quantized_lse = (
         query_major_indexed_residual_page_attention(
             q,
@@ -2142,6 +2184,22 @@ def main() -> None:
             kv_group_size=group_size,
             scale=scale,
             hash_probes=0,
+        )
+        dynamic_compact_out, dynamic_compact_lse = paged_leaf_attention(
+            q,
+            page_k,
+            page_v,
+            slot_pages,
+            overflow_page_keys,
+            overflow_page_values,
+            overflow_used,
+            slot_lengths,
+            dynamic_top_slots,
+            kv_group_size=group_size,
+            scale=scale,
+            block_n=16,
+            num_warps=2,
+            compact_invalid_routes=True,
         )
 
         decode_q = q[..., :1, :].contiguous()
@@ -2873,6 +2931,12 @@ def main() -> None:
         "dynamic_query_lse_max_abs": float(
             (dynamic_query_lse.float() - expected_dynamic_lse).abs().max().item()
         ),
+        "dynamic_compact_output_max_abs": float(
+            (dynamic_compact_out.float() - expected_dynamic_out).abs().max().item()
+        ),
+        "dynamic_compact_lse_max_abs": float(
+            (dynamic_compact_lse.float() - expected_dynamic_lse).abs().max().item()
+        ),
         "fused_decode_max_abs": float(
             (fused_decode.float() - expected_decode.float()).abs().max().item()
         ),
@@ -3026,6 +3090,11 @@ def main() -> None:
         or result["dynamic_query_lse_max_abs"] > 0.03
     ):
         raise AssertionError("masked query-major attention disagrees with reference")
+    if (
+        result["dynamic_compact_output_max_abs"] > 0.03
+        or result["dynamic_compact_lse_max_abs"] > 0.03
+    ):
+        raise AssertionError("compacted expert attention disagrees with reference")
     if result["fused_decode_max_abs"] > 0.03:
         raise AssertionError("fused decode attention disagrees with two branches")
     if result["split_fused_decode_max_abs"] > 0.03:

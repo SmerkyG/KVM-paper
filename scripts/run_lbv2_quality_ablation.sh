@@ -16,7 +16,6 @@ env \
   VLLM_ALLOW_INSECURE_SERIALIZATION=1 \
   VLLM_PLUGINS=lod_attention \
   PYTHONPATH="$repo/integrations/vllm_lod:$repo" \
-  VLLM_LOD_CACHE_OWNERSHIP=lod \
   VLLM_LOD_POOL_SIZE=8 \
   VLLM_LOD_KV_BITS=4 \
   VLLM_LOD_MAX_CONTEXT=131200 \

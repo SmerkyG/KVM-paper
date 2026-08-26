@@ -29,8 +29,8 @@ mkdir -p "$(dirname "$output")"
 env \
   VLLM_ALLOW_INSECURE_SERIALIZATION=1 \
   VLLM_PLUGINS=lod_attention \
+  VLLM_WEIGHT_CACHE_ID="${VLLM_WEIGHT_CACHE_ID:-dev}" \
   PYTHONPATH="$repo/integrations/vllm_lod:$repo" \
-  VLLM_LOD_CACHE_OWNERSHIP=lod \
   VLLM_LOD_POOL_SIZE=8 \
   VLLM_LOD_KV_BITS="$kv_bits" \
   VLLM_LOD_KEY_BITS="${LOD_MARGIN_KEY_BITS:-$kv_bits}" \
@@ -38,6 +38,7 @@ env \
   VLLM_LOD_MAX_CONTEXT="$max_context" \
   "$vllm_root/bin/vllm" serve \
     "$checkpoint" \
+    --load-format ipc_cache \
     --attention-config '{"backend":"CUSTOM"}' \
     --dtype bfloat16 \
     --kv-cache-dtype bfloat16 \

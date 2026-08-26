@@ -21,6 +21,7 @@ from model.qwen35_two_level_attention import (
     Qwen3_5TwoLevelAttention,
     graft_qwen35_two_level_attention,
     pop_qwen35_dynamic_open_statistics,
+    pop_qwen35_static_leaf_cap_statistics,
     qwen35_page_quantization_statistics,
 )
 
@@ -208,12 +209,52 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dynamic-open-top-p", type=float)
     parser.add_argument("--dynamic-open-prefill-top-p", type=float)
     parser.add_argument("--dynamic-open-prefill-residual-mass", type=float)
+    parser.add_argument("--prefill-route-mass-fraction", type=float)
+    parser.add_argument("--prefill-route-mass-max-routes", type=int, default=16)
+    parser.add_argument(
+        "--prefill-mass-include-local-lse",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument("--prefill-overlap-local-lod", action="store_true")
+    parser.add_argument("--prefill-mass-previous-chunk-lse", action="store_true")
+    parser.add_argument("--prefill-coarse-max-grouped-rows", type=int, default=8)
     parser.add_argument("--dynamic-open-decode-top-p", type=float)
     parser.add_argument("--dynamic-open-decode-residual-mass", type=float)
+    parser.add_argument("--decode-route-mass-fraction", type=float)
+    parser.add_argument(
+        "--decode-open-all-under-leaf-cap",
+        type=int,
+        help=(
+            "Diagnostic policy: open every non-protected decode centroid with "
+            "at most this many leaves, and keep larger centroids coarse."
+        ),
+    )
+    parser.add_argument("--decode-mass-top8-filter", action="store_true")
+    parser.add_argument("--decode-route-mass-max-routes", type=int, default=16)
+    parser.add_argument(
+        "--decode-route-mass-block-n", type=int, choices=(16, 32, 64, 128), default=64
+    )
+    parser.add_argument(
+        "--decode-route-mass-num-warps", type=int, choices=(1, 2, 4, 8), default=4
+    )
     parser.add_argument("--disable-dynamic-open-stats", action="store_true")
     parser.add_argument("--reuse-dynamic-local-attention", action="store_true")
     parser.add_argument("--dynamic-open-residual-state-bound", action="store_true")
     parser.add_argument("--recursive-page-lod", action="store_true")
+    parser.add_argument("--recursive-materialize-page-scores", action="store_true")
+    parser.add_argument(
+        "--recursive-page-score-block-n", type=int, choices=(16, 32, 64, 128), default=16
+    )
+    parser.add_argument(
+        "--recursive-page-score-num-warps", type=int, choices=(1, 2, 4, 8), default=2
+    )
+    parser.add_argument(
+        "--recursive-page-select-block-n",
+        type=int,
+        choices=(16, 32, 64, 128),
+        default=64,
+    )
     parser.add_argument("--dense-page-prefill", action="store_true")
     parser.add_argument("--dense-page-topk", type=int, choices=(1, 2, 4, 8), default=8)
     parser.add_argument("--dense-page-block-m", type=int, default=64)
@@ -349,6 +390,11 @@ def main() -> None:
         raise ValueError("maximum prefill leaf count must be positive")
     if args.leaf_seal_capacity is not None and args.leaf_seal_capacity <= 0:
         raise ValueError("leaf seal capacity must be positive")
+    if (
+        args.decode_open_all_under_leaf_cap is not None
+        and args.decode_open_all_under_leaf_cap <= 0
+    ):
+        raise ValueError("static decode leaf cap must be positive")
     local_rank = int(os.environ.get("LOCAL_RANK", "0"))
     rank = int(os.environ.get("RANK", "0"))
     world_size = int(os.environ.get("WORLD_SIZE", "1"))
@@ -392,12 +438,48 @@ def main() -> None:
         for module in model.modules():
             if isinstance(module, Qwen3_5TwoLevelAttention):
                 module.prefill_two_level_topk = args.prefill_two_level_topk
+                module.prefill_route_mass_fraction = args.prefill_route_mass_fraction
+                module.prefill_route_mass_max_routes = (
+                    args.prefill_route_mass_max_routes
+                )
+                module.prefill_mass_include_local_lse = (
+                    args.prefill_mass_include_local_lse
+                )
+                module.prefill_overlap_local_lod = args.prefill_overlap_local_lod
+                module.prefill_mass_previous_chunk_lse = (
+                    args.prefill_mass_previous_chunk_lse
+                )
+                module.decode_route_mass_fraction = args.decode_route_mass_fraction
+                module.decode_open_all_under_leaf_cap = (
+                    args.decode_open_all_under_leaf_cap
+                )
+                module.decode_mass_top8_filter = args.decode_mass_top8_filter
+                module.decode_route_mass_max_routes = (
+                    args.decode_route_mass_max_routes
+                )
+                module.decode_route_mass_block_n = args.decode_route_mass_block_n
+                module.decode_route_mass_num_warps = (
+                    args.decode_route_mass_num_warps
+                )
+                module.prefill_coarse_max_grouped_rows = (
+                    args.prefill_coarse_max_grouped_rows
+                )
                 module.exclude_sink_from_routes = args.exclude_sink_from_routes
                 module.separate_sink_cache = args.separate_sink_cache
                 module.prefill_max_leaf_tokens = args.prefill_max_leaf_tokens
                 module.leaf_seal_capacity = args.leaf_seal_capacity
                 module.leaf_paged_directory = args.leaf_paged_directory
                 module.recursive_page_lod = args.recursive_page_lod
+                module.recursive_materialize_page_scores = (
+                    args.recursive_materialize_page_scores
+                )
+                module.recursive_page_score_block_n = args.recursive_page_score_block_n
+                module.recursive_page_score_num_warps = (
+                    args.recursive_page_score_num_warps
+                )
+                module.recursive_page_select_block_n = (
+                    args.recursive_page_select_block_n
+                )
                 module.dense_page_prefill = args.dense_page_prefill
                 module.dense_page_topk = args.dense_page_topk
                 module.dense_page_block_m = args.dense_page_block_m
@@ -531,6 +613,7 @@ def main() -> None:
                     )
             for doc in selected_documents[rank::world_size]:
                 pop_qwen35_dynamic_open_statistics(model)
+                pop_qwen35_static_leaf_cap_statistics(model)
                 prompt = doc["input"] + " " + doc["gen_prefix"]
                 input_ids = tokenizer(
                     prompt,
@@ -550,6 +633,9 @@ def main() -> None:
                 )
                 target = str(doc["outputs"][0])
                 dynamic_open_statistics = pop_qwen35_dynamic_open_statistics(model)
+                static_leaf_cap_statistics = (
+                    pop_qwen35_static_leaf_cap_statistics(model)
+                )
                 page_quantization_statistics = qwen35_page_quantization_statistics(
                     model
                 )
@@ -573,6 +659,52 @@ def main() -> None:
                     ),
                     "prefill_two_level_topk": (
                         args.prefill_two_level_topk
+                        if args.mode == "two_level"
+                        else None
+                    ),
+                    "prefill_route_mass_fraction": (
+                        args.prefill_route_mass_fraction
+                        if args.mode == "two_level"
+                        else None
+                    ),
+                    "prefill_route_mass_max_routes": (
+                        args.prefill_route_mass_max_routes
+                        if args.mode == "two_level"
+                        else None
+                    ),
+                    "prefill_mass_include_local_lse": (
+                        args.prefill_mass_include_local_lse
+                        if args.mode == "two_level"
+                        else None
+                    ),
+                    "prefill_mass_previous_chunk_lse": (
+                        args.prefill_mass_previous_chunk_lse
+                        if args.mode == "two_level"
+                        else None
+                    ),
+                    "decode_route_mass_fraction": (
+                        args.decode_route_mass_fraction
+                        if args.mode == "two_level"
+                        else None
+                    ),
+                    "decode_open_all_under_leaf_cap": (
+                        args.decode_open_all_under_leaf_cap
+                        if args.mode == "two_level"
+                        else None
+                    ),
+                    "decode_mass_top8_filter": (
+                        args.decode_mass_top8_filter
+                        if args.mode == "two_level"
+                        else None
+                    ),
+                    "decode_route_mass_max_routes": (
+                        args.decode_route_mass_max_routes
+                        if args.mode == "two_level"
+                        and args.decode_route_mass_fraction is not None
+                        else None
+                    ),
+                    "prefill_coarse_max_grouped_rows": (
+                        args.prefill_coarse_max_grouped_rows
                         if args.mode == "two_level"
                         else None
                     ),
@@ -612,6 +744,7 @@ def main() -> None:
                         else None
                     ),
                     "dynamic_open_statistics": dynamic_open_statistics,
+                    "static_leaf_cap_statistics": static_leaf_cap_statistics,
                     "page_quantization_statistics": page_quantization_statistics,
                     "dynamic_open_stats_enabled": (
                         not args.disable_dynamic_open_stats
@@ -630,6 +763,26 @@ def main() -> None:
                     ),
                     "recursive_page_lod": (
                         args.recursive_page_lod if args.mode == "two_level" else None
+                    ),
+                    "recursive_materialize_page_scores": (
+                        args.recursive_materialize_page_scores
+                        if args.mode == "two_level"
+                        else None
+                    ),
+                    "recursive_page_score_block_n": (
+                        args.recursive_page_score_block_n
+                        if args.mode == "two_level"
+                        else None
+                    ),
+                    "recursive_page_score_num_warps": (
+                        args.recursive_page_score_num_warps
+                        if args.mode == "two_level"
+                        else None
+                    ),
+                    "recursive_page_select_block_n": (
+                        args.recursive_page_select_block_n
+                        if args.mode == "two_level"
+                        else None
                     ),
                     "dense_page_prefill": (
                         args.dense_page_prefill if args.mode == "two_level" else None

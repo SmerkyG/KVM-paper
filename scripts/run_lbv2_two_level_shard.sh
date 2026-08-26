@@ -48,8 +48,8 @@ rm -f "$output" "$warm_output"
 env \
   VLLM_ALLOW_INSECURE_SERIALIZATION=1 \
   VLLM_PLUGINS=lod_attention \
+  VLLM_WEIGHT_CACHE_ID="${VLLM_WEIGHT_CACHE_ID:-dev}" \
   PYTHONPATH="$repo/integrations/vllm_lod:$repo" \
-  VLLM_LOD_CACHE_OWNERSHIP=lod \
   VLLM_LOD_AUG19_COMPAT="$aug19_compat" \
   VLLM_LOD_POOL_SIZE=8 \
   VLLM_LOD_LEVELS=2 \
@@ -65,6 +65,7 @@ env \
   VLLM_LOD_PREFILL_INT8_COARSE_NUM_WARPS=8 \
   "$vllm_root/bin/vllm" serve \
     Qwen/Qwen3.5-35B-A3B \
+    --load-format ipc_cache \
     --attention-config '{"backend":"CUSTOM"}' \
     --dtype bfloat16 \
     --kv-cache-dtype bfloat16 \

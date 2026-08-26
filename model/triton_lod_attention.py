@@ -30,6 +30,7 @@ from .kernels.paged_leaf_attention import (
     aiter_varlen_paged_leaf_attention,
     dense_page_summary_attention,
     fused_decode_paged_lod_attention,
+    materialize_page_summary_scores_gqa,
     new_fused_decode_buffers,
     paged_leaf_attention,
     query_major_paged_leaf_attention,
@@ -37,6 +38,7 @@ from .kernels.paged_leaf_attention import (
     query_major_residual_page_attention,
     query_tile_slot_unions,
     remove_query_tile_union_from_coarse,
+    static_cap_aiter_paged_leaf_attention,
     refine_route_candidates_by_leaf_mass,
     refine_route_candidates_by_page_mass,
     refine_route_candidates_by_virtual_leaf_mass,
@@ -57,11 +59,14 @@ from .kernels.lod_kernels import (
     new_state_maxsim_buffers,
     prepare_state_clustering_keys,
     premerge_adjacent_kv,
+    route_mass_fraction_scores,
+    route_mass_fraction_state_decode,
     route_logits_coarse_attention,
     route_logits_topk_coarse_attention,
     route_top8_scores_grouped,
     route_top8_state_grouped,
     streaming_state_maxsim,
+    subtract_selected_coarse_from_full,
 )
 from .kvm_mixer import _all_idx, _gather_by_idx, _split_append_merge_idx_by_maxsim
 from .pytorch_lod_attention import (
@@ -105,6 +110,11 @@ class TritonLODAttentionCore(nn.Module):
     prefill_chunk_len = 256
     prefill_local_len = 512
     prefill_state_update_len = 256
+    # Query-independent prefill alternative: every 4K catch-up rebuild opens
+    # all exact leaves of centroids in the scheduled small-posting cohort and
+    # leaves larger centroids in the count-corrected coarse branch.
+    prefill_static_leaf_aiter = False
+    prefill_static_leaf_cap_min = 16
     prefill_local_attention_backend = "torch"
     decode_state_update_len = 256
     decode_cache_headroom = 256
@@ -122,6 +132,16 @@ class TritonLODAttentionCore(nn.Module):
     two_level_topk = 8
     prefill_two_level_topk: int | None = None
     prefill_max_leaf_tokens: int | None = None
+    # Speed diagnostic: leave routing unchanged, but truncate each selected
+    # expert's exact posting-list scan.  This intentionally does not restore
+    # the unvisited leaves to the coarse branch and is therefore not a
+    # quality-valid attention mode.
+    prefill_leaf_visit_cap: int | None = None
+    # Quality diagnostic: during decode, open every non-protected centroid
+    # whose exact posting list is no larger than this cap. Larger centroids
+    # remain represented by their coarse mean/count entry. This deliberately
+    # bypasses query-dependent routing and is not a speed-optimized path.
+    decode_open_all_under_leaf_cap: int | None = None
     # Stop archiving exact leaves once a centroid reaches this many members.
     # Its K/V sums and count still receive every assignment, so a sealed
     # centroid remains available as coarse residual mass.
@@ -138,6 +158,11 @@ class TritonLODAttentionCore(nn.Module):
     leaf_hash_probes = 8
     leaf_block_m = 16
     leaf_block_n = 32
+    # The gfx942 BF16 expert kernel has a materially better D=128 operating
+    # point at M64/N64.  Apply it only to the untouched legacy defaults so
+    # explicit experiment settings keep their exact meaning; D=256 and D=512
+    # retain the established M16/N32 path.
+    leaf_geometry_tuning = True
     leaf_short_block_n = 16
     leaf_short_context = 16384
     leaf_num_warps = 2
@@ -183,6 +208,11 @@ class TritonLODAttentionCore(nn.Module):
     virtual_page_storage = False
     recursive_page_lod = False
     recursive_page_block_n = 16
+    recursive_materialize_page_scores = False
+    recursive_page_score_block_n = 16
+    recursive_page_score_num_warps = 2
+    recursive_page_select_block_n = 64
+    recursive_state_route_backend = "fused"
     # Prefill-only quadratic/constant-factor alternative: scan every physical
     # page summary as one dense field and exactly replace its best pages.
     # Decode retains ordinary recursive centroid->page routing.
@@ -198,6 +228,29 @@ class TritonLODAttentionCore(nn.Module):
     dynamic_open_decode_top_p: float | None = None
     dynamic_open_prefill_residual_mass: float | None = None
     dynamic_open_decode_residual_mass: float | None = None
+    # Open every centroid above this share of the estimated attention
+    # partition.  Decode uses the preceding token's observed state LSE as its
+    # steady-state threshold, allowing one state scan to route and form the
+    # complete coarse branch without an ordered top-k reduction.
+    prefill_route_mass_fraction: float | None = None
+    prefill_route_mass_max_routes = 16
+    prefill_route_block_m = 16
+    prefill_route_num_warps = 4
+    prefill_mass_group_gqa = False
+    prefill_mass_full_coarse_first = False
+    prefill_mass_previous_chunk_lse = False
+    prefill_mass_include_local_lse = True
+    prefill_overlap_local_lod = False
+    prefill_overlap_coarse_leaf = False
+    prefill_mass_streaming_coarse = False
+    decode_route_mass_fraction: float | None = None
+    decode_route_mass_max_routes = 16
+    decode_route_mass_block_n = 64
+    decode_route_mass_num_warps = 4
+    decode_mass_overlap_coarse = False
+    decode_mass_top8_filter = False
+    decode_gqa_union_mass_fraction: float | None = None
+    decode_gqa_union_predicted_mass = False
     dynamic_open_residual_use_state_bound = False
     reuse_dynamic_local_attention = False
     collect_dynamic_open_stats = False
@@ -208,11 +261,18 @@ class TritonLODAttentionCore(nn.Module):
     decode_block_n = 16
     decode_num_warps = 2
     decode_route_group_size = 32
+    decode_route_segment_tiles = 1
     decode_route_num_warps = 2
     decode_route_reduce_num_warps = 4
+    decode_route_parallel_reduce = False
+    decode_route_post_dot_normalize = False
+    decode_route_post_pv_normalize = False
     decode_final_reduce_num_warps = 4
     decode_fuse_final_reduce = False
     decode_route_use_dot = True
+    # D=512 route tiles are faster with the scalar accumulation path on
+    # gfx942; D=128/256 retain MFMA routing.
+    decode_geometry_tuning = True
     decode_route_gqa_grouped = True
     decode_gqa_cooperative_leaf = True
     decode_gqa_cooperative_hip = True
@@ -2144,11 +2204,24 @@ class TritonLODAttentionCore(nn.Module):
         *,
         state_len: int,
     ) -> torch.Tensor:
+        timing_events = getattr(self, "_lod_phase_timing_events", None)
+        profile_prefill = bool(
+            isinstance(timing_events, dict) and q.is_cuda and int(q.size(2)) > 1
+        )
+        mean_begin = None
+        mean_end = None
+        if profile_prefill:
+            mean_begin = torch.cuda.Event(enable_timing=True)
+            mean_end = torch.cuda.Event(enable_timing=True)
+            mean_begin.record()
         mean_k = self._mean(
             state_k.detach()[..., :state_len, :],
             counts[..., :state_len, :],
         )
         mean_k = self._mla_normalize_key(mean_k, state_centroid=True)
+        if mean_end is not None:
+            mean_end.record()
+        qk_end = None
         if self.route_gqa_matmul:
             batch, query_heads, query_len, head_dim = q.shape
             kv_heads = int(mean_k.size(1))
@@ -2160,10 +2233,21 @@ class TritonLODAttentionCore(nn.Module):
                 head_dim,
             )
             grouped_k_t = mean_k.transpose(-1, -2).unsqueeze(2)
-            return torch.matmul(grouped_q, grouped_k_t).reshape(
+            logits = torch.matmul(grouped_q, grouped_k_t).reshape(
                 batch, query_heads, query_len, state_len
             )
-        return torch.matmul(q.detach(), self._repeat_kv(mean_k).transpose(-1, -2))
+        else:
+            logits = torch.matmul(
+                q.detach(), self._repeat_kv(mean_k).transpose(-1, -2)
+            )
+        if mean_end is not None:
+            qk_end = torch.cuda.Event(enable_timing=True)
+            qk_end.record()
+            timing_events.setdefault("route_mean_k", []).append(
+                (mean_begin, mean_end)
+            )
+            timing_events.setdefault("route_qk", []).append((mean_end, qk_end))
+        return logits
 
     @staticmethod
     def _routing_rms_normalize(tensor: torch.Tensor) -> torch.Tensor:
@@ -2514,7 +2598,11 @@ class TritonLODAttentionCore(nn.Module):
         dynamic_local_lse: torch.Tensor | None = None,
     ) -> torch.Tensor:
         configured_topk = (
-            self.prefill_two_level_topk
+            self.prefill_route_mass_max_routes
+            if int(q.size(2)) > 1 and self.prefill_route_mass_fraction is not None
+            else self.decode_route_mass_max_routes
+            if int(q.size(2)) == 1 and self.decode_route_mass_fraction is not None
+            else self.prefill_two_level_topk
             if int(q.size(2)) > 1 and self.prefill_two_level_topk is not None
             else self.two_level_topk
         )
@@ -2540,6 +2628,462 @@ class TritonLODAttentionCore(nn.Module):
                 "routing normalization is not calibrated for dynamic opening"
             )
         with torch.no_grad():
+            static_leaf_cap = (
+                self.decode_open_all_under_leaf_cap
+                if int(q.size(2)) == 1
+                else None
+            )
+            if static_leaf_cap is not None:
+                if static_leaf_cap <= 0:
+                    raise ValueError("static decode leaf cap must be positive")
+                if page_cache is None or not isinstance(
+                    page_cache.get("slot_lengths"), torch.Tensor
+                ):
+                    raise ValueError(
+                        "static decode leaf-cap routing requires paged slot lengths"
+                    )
+                route_lengths = page_cache["slot_lengths"].detach()[
+                    ..., :state_len
+                ]
+                if tuple(route_lengths.shape) != (
+                    int(counts.size(0)),
+                    int(counts.size(1)),
+                    state_len,
+                ):
+                    raise ValueError(
+                        "static decode leaf-cap routing has mismatched slot lengths"
+                    )
+                query_lengths = self._repeat_kv(route_lengths).to(torch.float32)
+                active = query_lengths.gt(0)
+                if protected_len:
+                    active[..., :protected_len] = False
+                opened = active & query_lengths.le(float(static_leaf_cap))
+                slots = torch.arange(
+                    state_len, device=q.device, dtype=torch.long
+                ).view(1, 1, 1, state_len)
+                routed = torch.where(
+                    opened.unsqueeze(2),
+                    slots,
+                    torch.full_like(slots, -1),
+                ).expand(
+                    int(q.size(0)), int(q.size(1)), int(q.size(2)), state_len
+                ).contiguous()
+
+                # Measure the ordinary mass-corrected coarse distribution for
+                # the same query, without using it to choose routes. Keeping
+                # these reductions on-device avoids a synchronization per
+                # layer/token; the probe drains them once per generated sample.
+                logits = self._state_routing_logits(
+                    q,
+                    state_k,
+                    counts,
+                    state_len=state_len,
+                )
+                logits = self._apply_routing_variance_correction(
+                    logits,
+                    q,
+                    state_k,
+                    counts,
+                    local_k,
+                    state_len=state_len,
+                    reference_len=local_len,
+                    new_k=new_k,
+                )
+                logits = self._apply_routing_rope_jensen_correction(
+                    logits,
+                    q,
+                    state_k,
+                    counts,
+                    local_k,
+                    state_len=state_len,
+                    reference_len=local_len,
+                    new_k=new_k,
+                )
+                scores = logits.float() * self.scaling
+                scores = scores + self.routing_count_bias * query_lengths.clamp_min(
+                    1
+                ).log().unsqueeze(2)
+                scores.masked_fill_(~active.unsqueeze(2), float("-inf"))
+                probabilities = torch.softmax(scores, dim=-1)
+                # Bins are 1, 2, 3-4, 5-8, ..., 513-1024, and >1024 leaves.
+                upper_bounds = (1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024)
+                mass_parts = []
+                centroid_parts = []
+                leaf_parts = []
+                lower = 0
+                for upper in upper_bounds:
+                    in_bin = active & query_lengths.gt(lower) & query_lengths.le(upper)
+                    mass_parts.append(
+                        (probabilities * in_bin.unsqueeze(2)).sum(dim=-1)
+                    )
+                    centroid_parts.append(in_bin.sum(dim=-1))
+                    leaf_parts.append((query_lengths * in_bin).sum(dim=-1))
+                    lower = upper
+                in_bin = active & query_lengths.gt(upper_bounds[-1])
+                mass_parts.append((probabilities * in_bin.unsqueeze(2)).sum(dim=-1))
+                centroid_parts.append(in_bin.sum(dim=-1))
+                leaf_parts.append((query_lengths * in_bin).sum(dim=-1))
+                statistic = {
+                    "mass": torch.stack(mass_parts, dim=-1).sum(dim=(0, 1, 2)),
+                    "mass_rows": probabilities.new_tensor(
+                        int(q.size(0)) * int(q.size(1)) * int(q.size(2))
+                    ),
+                    "centroids": torch.stack(centroid_parts, dim=-1).sum(dim=(0, 1)),
+                    "leaves": torch.stack(leaf_parts, dim=-1).sum(dim=(0, 1)),
+                    "opened_leaves": (query_lengths * opened).sum(),
+                    "total_leaves": (query_lengths * active).sum(),
+                    "opened_centroids": opened.sum(),
+                    "total_centroids": active.sum(),
+                }
+                statistics = getattr(self, "_lod_static_leaf_cap_stats", None)
+                if statistics is None:
+                    statistics = []
+                    self._lod_static_leaf_cap_stats = statistics
+                statistics.append(statistic)
+                return routed
+            if int(q.size(2)) == 1 and self.decode_route_mass_fraction is not None:
+                if self.leaf_attention_backend != "paged":
+                    raise ValueError(
+                        "decode mass-fraction routing requires paged leaf attention"
+                    )
+                if dynamic_target is not None or dynamic_residual is not None:
+                    raise ValueError(
+                        "decode mass-fraction routing cannot use dynamic opening"
+                    )
+                if not 0.0 < float(self.decode_route_mass_fraction) < 1.0:
+                    raise ValueError("decode route mass fraction must be in (0, 1)")
+                if route_count <= 0 or route_count & (route_count - 1):
+                    raise ValueError(
+                        "decode mass-fraction routing requires a power-of-two route cap"
+                    )
+                if (
+                    self.routing_normalization != "none"
+                    or self.routing_rope_fast_pairs != 0
+                    or self.routing_rope_jensen
+                    or self.routing_count_bias != 1.0
+                    or self.routing_variance_bias != 0.0
+                    or self.routing_page_mass_candidates != 0
+                    or self.routing_leaf_mass_candidates != 0
+                ):
+                    raise ValueError(
+                        "decode mass-fraction routing supports ordinary centroid scores"
+                    )
+                state = getattr(self, "_lod_state", None)
+                if not isinstance(state, dict):
+                    raise RuntimeError("decode mass routing requires an initialized cache")
+                buffers = state.get("decode_mass_route_buffers")
+                if not isinstance(buffers, dict):
+                    buffers = {}
+                    state["decode_mass_route_buffers"] = buffers
+                predicted_lse = (
+                    buffers.get("partition_lse")
+                    if bool(state.get("decode_mass_route_seeded", False))
+                    else None
+                )
+                coarse_stream = None
+                if self.decode_mass_overlap_coarse and predicted_lse is not None:
+                    candidate_stream = state.get("decode_mass_coarse_stream")
+                    if not isinstance(candidate_stream, torch.cuda.Stream):
+                        candidate_stream = torch.cuda.Stream(device=q.device)
+                        state["decode_mass_coarse_stream"] = candidate_stream
+                    coarse_stream = candidate_stream
+                route_lengths = (
+                    page_cache.get("slot_lengths")
+                    if page_cache is not None
+                    and isinstance(page_cache.get("slot_lengths"), torch.Tensor)
+                    else None
+                )
+                timing_events = getattr(self, "_lod_decode_timing_events", None)
+                route_begin = None
+                if isinstance(timing_events, dict):
+                    route_begin = torch.cuda.Event(enable_timing=True)
+                    route_begin.record()
+                (
+                    routed,
+                    route_scores,
+                    selected_counts,
+                    overflow_counts,
+                    observed_lse,
+                    coarse_out,
+                ) = route_mass_fraction_state_decode(
+                    q.contiguous(),
+                    state_k.contiguous(),
+                    state_v.contiguous(),
+                    counts.detach().contiguous(),
+                    route_lengths=(
+                        route_lengths.detach().contiguous()
+                        if isinstance(route_lengths, torch.Tensor)
+                        else None
+                    ),
+                    predicted_lse=(
+                        predicted_lse
+                        if isinstance(predicted_lse, torch.Tensor)
+                        else None
+                    ),
+                    kv_group_size=self.num_key_value_groups,
+                    scale=self.scaling,
+                    count_bias=self.routing_count_bias,
+                    mass_fraction=float(self.decode_route_mass_fraction),
+                    max_routes=route_count,
+                    state_len=state_len,
+                    protected_len=protected_len,
+                    max_leaf_tokens=(
+                        seal_capacity - 1 if seal_capacity is not None else None
+                    ),
+                    block_n=int(self.decode_route_mass_block_n),
+                    num_warps=int(self.decode_route_mass_num_warps),
+                    buffers=buffers,
+                    timing_events=(
+                        timing_events if isinstance(timing_events, dict) else None
+                    ),
+                    coarse_stream=coarse_stream,
+                )
+                if route_begin is not None:
+                    route_end = torch.cuda.Event(enable_timing=True)
+                    route_end.record()
+                    timing_events.setdefault("mass_route_coarse", []).append(
+                        (route_begin, route_end)
+                    )
+                    timing_events.setdefault(
+                        f"mass_route_coarse_b{int(q.size(0))}", []
+                    ).append((route_begin, route_end))
+                state["decode_mass_route_seeded"] = True
+                self._lod_decode_mass_route_data = (
+                    route_scores,
+                    coarse_out,
+                    observed_lse,
+                    coarse_stream,
+                )
+                self._lod_decode_mass_fraction_stats = (
+                    selected_counts,
+                    overflow_counts,
+                )
+                return routed
+            mass_fraction = (
+                self.prefill_route_mass_fraction if int(q.size(2)) > 1 else None
+            )
+            if mass_fraction is not None:
+                if dynamic_target is not None or dynamic_residual is not None:
+                    raise ValueError(
+                        "mass-fraction routing cannot be combined with dynamic opening"
+                    )
+                if not 0.0 < float(mass_fraction) < 1.0:
+                    raise ValueError("prefill route mass fraction must be in (0, 1)")
+                if route_count <= 0 or route_count & (route_count - 1):
+                    raise ValueError(
+                        "mass-fraction routing currently requires a power-of-two route cap"
+                    )
+                if (
+                    self.routing_normalization != "none"
+                    or self.routing_rope_fast_pairs != 0
+                    or self.routing_rope_jensen
+                    or self.routing_variance_bias != 0.0
+                    or self.routing_page_mass_candidates != 0
+                    or self.routing_leaf_mass_candidates != 0
+                ):
+                    raise ValueError(
+                        "the first mass-fraction prefill path supports ordinary centroid scores"
+                    )
+                logits = self._state_route_logits(
+                    q,
+                    state_k,
+                    counts,
+                    state_len=state_len,
+                ).contiguous()
+                precomputed_state_lse = None
+                current_state_log_mass = None
+                if self.prefill_mass_previous_chunk_lse:
+                    current_state_log_mass = (
+                        counts.detach()[..., :state_len, 0]
+                        .sum(dim=2)
+                        .clamp_min(1.0)
+                        .log()
+                    )
+                    previous_lse = getattr(
+                        self, "_lod_prefill_previous_partition_lse", None
+                    )
+                    previous_state_log_mass = getattr(
+                        self, "_lod_prefill_previous_state_log_mass", None
+                    )
+                    if (
+                        isinstance(previous_lse, torch.Tensor)
+                        and isinstance(previous_state_log_mass, torch.Tensor)
+                        and tuple(previous_lse.shape[:2]) == tuple(q.shape[:2])
+                        and int(previous_lse.size(2)) >= int(q.size(2))
+                    ):
+                        log_mass_growth = self._repeat_kv(
+                            current_state_log_mass - previous_state_log_mass
+                        ).unsqueeze(-1)
+                        precomputed_state_lse = previous_lse[
+                            ..., : int(q.size(2))
+                        ].add(log_mass_growth).contiguous()
+                if self.prefill_mass_full_coarse_first:
+                    if self.prefill_mass_previous_chunk_lse:
+                        raise ValueError(
+                            "previous-LSE routing cannot use full-coarse-first"
+                        )
+                    if self.prefill_overlap_coarse_leaf:
+                        raise ValueError(
+                            "full-coarse-first mass routing is a serial diagnostic"
+                        )
+                    if not self.split_prefill_local_attention:
+                        raise ValueError(
+                            "full-coarse-first routing requires split local attention"
+                        )
+                    no_slots = torch.empty(
+                        *q.shape[:3], 0, dtype=torch.long, device=q.device
+                    )
+                    full_output, precomputed_state_lse = (
+                        route_logits_coarse_attention(
+                            q.contiguous(),
+                            logits,
+                            state_v.contiguous(),
+                            counts.contiguous(),
+                            local_k[..., :0, :].contiguous(),
+                            local_v[..., :0, :].contiguous(),
+                            no_slots,
+                            state_len=state_len,
+                            kv_group_size=self.num_key_value_groups,
+                            scale=self.scaling,
+                            block_m=self.coarse_route_block_m,
+                            block_n=self.coarse_route_block_n,
+                            num_warps=self.coarse_route_num_warps,
+                            precompute_mean_values=True,
+                            max_grouped_rows=self.prefill_coarse_max_grouped_rows,
+                        )
+                    )
+                    self._lod_prefill_full_coarse = (
+                        full_output,
+                        precomputed_state_lse,
+                        logits,
+                        None,
+                    )
+                elif (
+                    self.prefill_overlap_coarse_leaf
+                    and self.prefill_mass_streaming_coarse
+                ):
+                    if not self.split_prefill_local_attention:
+                        raise ValueError(
+                            "streaming mass routing requires split local attention"
+                        )
+                    coarse_stream = getattr(
+                        self, "_lod_prefill_coarse_stream", None
+                    )
+                    if coarse_stream is None:
+                        coarse_stream = torch.cuda.Stream(device=q.device)
+                        self._lod_prefill_coarse_stream = coarse_stream
+                    foreground_stream = torch.cuda.current_stream(q.device)
+                    coarse_stream.wait_stream(foreground_stream)
+                    no_slots = torch.empty(
+                        *q.shape[:3], 0, dtype=torch.long, device=q.device
+                    )
+                    with torch.cuda.stream(coarse_stream):
+                        full_coarse = route_logits_coarse_attention(
+                            q.contiguous(),
+                            logits,
+                            state_v.contiguous(),
+                            counts.contiguous(),
+                            local_k[..., :0, :].contiguous(),
+                            local_v[..., :0, :].contiguous(),
+                            no_slots,
+                            state_len=state_len,
+                            kv_group_size=self.num_key_value_groups,
+                            scale=self.scaling,
+                            block_m=self.coarse_route_block_m,
+                            block_n=self.coarse_route_block_n,
+                            num_warps=self.coarse_route_num_warps,
+                            precompute_mean_values=True,
+                            max_grouped_rows=self.prefill_coarse_max_grouped_rows,
+                        )
+                    self._lod_prefill_full_coarse = (
+                        *full_coarse,
+                        logits,
+                        coarse_stream,
+                    )
+                mass_result = route_mass_fraction_scores(
+                    logits,
+                    counts.detach().contiguous(),
+                    route_lengths=(
+                        page_cache["slot_lengths"].detach().contiguous()
+                        if page_cache is not None
+                        and isinstance(page_cache.get("slot_lengths"), torch.Tensor)
+                        and tuple(page_cache["slot_lengths"].shape[:3])
+                        == tuple(counts.shape[:3])
+                        else None
+                    ),
+                    state_lse=(
+                        precomputed_state_lse.contiguous()
+                        if precomputed_state_lse is not None
+                        else None
+                    ),
+                    kv_group_size=self.num_key_value_groups,
+                    scale=self.scaling,
+                    count_bias=self.routing_count_bias,
+                    mass_fraction=float(mass_fraction),
+                    max_routes=route_count,
+                    state_len=state_len,
+                    protected_len=protected_len,
+                    max_leaf_tokens=(
+                        min(self.prefill_max_leaf_tokens, seal_capacity - 1)
+                        if self.prefill_max_leaf_tokens is not None
+                        and seal_capacity is not None
+                        else self.prefill_max_leaf_tokens
+                        if seal_capacity is None
+                        else seal_capacity - 1
+                    ),
+                    local_lse=(
+                        dynamic_local_lse.contiguous()
+                        if dynamic_local_lse is not None
+                        and not self.prefill_mass_previous_chunk_lse
+                        else None
+                    ),
+                    block_m=int(getattr(self, "prefill_route_block_m", 16)),
+                    block_n=128,
+                    num_warps=int(getattr(self, "prefill_route_num_warps", 4)),
+                    mask_selected_logits=not self.prefill_mass_full_coarse_first,
+                    group_gqa=self.prefill_mass_group_gqa,
+                    return_partition_lse=(
+                        self.prefill_mass_previous_chunk_lse
+                        and precomputed_state_lse is None
+                    ),
+                )
+                if (
+                    self.prefill_mass_previous_chunk_lse
+                    and precomputed_state_lse is None
+                ):
+                    (
+                        routed,
+                        selected_counts,
+                        overflow_counts,
+                        observed_partition_lse,
+                    ) = mass_result
+                    self._lod_prefill_previous_partition_lse = (
+                        observed_partition_lse.detach()
+                    )
+                    if current_state_log_mass is None:
+                        raise AssertionError("state mass predictor was not initialized")
+                    self._lod_prefill_previous_state_log_mass = (
+                        current_state_log_mass.detach()
+                    )
+                else:
+                    routed, selected_counts, overflow_counts = mass_result
+                # The coarse branch consumes the same dense scores, avoiding a
+                # second centroid QK pass. The tensors stay on-device so stats
+                # collection introduces no synchronization in the timed path.
+                if (
+                    not self.prefill_mass_full_coarse_first
+                    and not (
+                        self.prefill_overlap_coarse_leaf
+                        and self.prefill_mass_streaming_coarse
+                    )
+                ):
+                    self._lod_prefill_route_logits = logits
+                    self._lod_prefill_route_logits_masked = True
+                self._lod_mass_fraction_stats = (
+                    selected_counts,
+                    overflow_counts,
+                )
+                return routed
             page_mass_candidates = int(self.routing_page_mass_candidates)
             leaf_mass_candidates = int(self.routing_leaf_mass_candidates)
             if (
@@ -2950,6 +3494,11 @@ class TritonLODAttentionCore(nn.Module):
                 include_local = not self.split_prefill_local_attention
                 coarse_local_k = local_k if include_local else local_k[..., :0, :]
                 coarse_local_v = local_v if include_local else local_v[..., :0, :]
+                route_select_begin = None
+                timing_events = getattr(self, "_lod_phase_timing_events", None)
+                if isinstance(timing_events, dict):
+                    route_select_begin = torch.cuda.Event(enable_timing=True)
+                    route_select_begin.record()
                 routed, coarse_output, coarse_lse = route_logits_topk_coarse_attention(
                     q,
                     logits.contiguous(),
@@ -2989,6 +3538,12 @@ class TritonLODAttentionCore(nn.Module):
                     state_k=(state_k.contiguous() if fused_state_qk else None),
                     int8_qk=fused_state_qk,
                 )
+                if route_select_begin is not None:
+                    route_select_end = torch.cuda.Event(enable_timing=True)
+                    route_select_end.record()
+                    timing_events.setdefault("route_select", []).append(
+                        (route_select_begin, route_select_end)
+                    )
                 if self.collect_dynamic_open_stats and dynamic_residual is not None:
                     open_counts = (routed >= 0).sum(dim=-1)
                     histogram = torch.bincount(
@@ -4461,16 +5016,38 @@ class TritonLODAttentionCore(nn.Module):
             "aiter_union",
             "aiter_masked_union",
         ):
+            block_m = self.leaf_block_m
+            block_n = self.leaf_block_n
+            num_warps = self.leaf_num_warps
+            if (
+                self.leaf_geometry_tuning
+                and int(q.size(-1)) == 128
+                and int(q.size(2)) > 1
+                and page_k.dtype != torch.int8
+                and (block_m, block_n, num_warps) == (16, 32, 2)
+            ):
+                block_m, block_n, num_warps = 64, 64, 4
             leaf_kwargs = {
-                "block_m": self.leaf_block_m,
-                "block_n": self.leaf_block_n,
+                "block_m": block_m,
+                "block_n": block_n,
                 "hash_probes": self._page_lookup_probes(cache),
-                "num_warps": self.leaf_num_warps,
+                "num_warps": num_warps,
                 "waves_per_eu": self.leaf_waves_per_eu,
                 "timing_events": getattr(self, "_lod_leaf_timing_events", None),
             }
             if self.leaf_layout in ("expert", "expert_tiny"):
                 leaf_kwargs["reduce_num_warps"] = self.leaf_reduce_num_warps
+                if (
+                    int(q.size(2)) > 1
+                    and self.prefill_leaf_visit_cap is not None
+                ):
+                    leaf_kwargs["max_leaves_per_expert"] = int(
+                        self.prefill_leaf_visit_cap
+                    )
+                leaf_kwargs["compact_invalid_routes"] = bool(
+                    self.prefill_route_mass_fraction is not None
+                    and int(q.size(2)) > 1
+                )
                 leaf_kwargs.update(
                     long_expert_threshold=self.leaf_long_expert_threshold,
                     long_expert_splits=self.leaf_long_expert_splits,
@@ -4536,6 +5113,25 @@ class TritonLODAttentionCore(nn.Module):
         include_local: bool = True,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         query_len = int(q.size(2))
+        full_coarse = getattr(self, "_lod_prefill_full_coarse", None)
+        if full_coarse is not None:
+            del self._lod_prefill_full_coarse
+            if include_local:
+                raise AssertionError("streamed coarse attention requires split local")
+            full_output, full_lse, route_logits, producer_stream = full_coarse
+            if producer_stream is not None:
+                torch.cuda.current_stream(q.device).wait_stream(producer_stream)
+            return subtract_selected_coarse_from_full(
+                route_logits,
+                state_v,
+                counts,
+                top_slots,
+                full_output,
+                full_lse,
+                state_len=state_len,
+                kv_group_size=self.num_key_value_groups,
+                scale=self.scaling,
+            )
         fused_prefill = getattr(self, "_lod_prefill_fused_coarse", None)
         if fused_prefill is not None:
             del self._lod_prefill_fused_coarse
@@ -4567,7 +5163,15 @@ class TritonLODAttentionCore(nn.Module):
         route_logits = getattr(self, "_lod_prefill_route_logits", None)
         if route_logits is not None:
             del self._lod_prefill_route_logits
-            if not self.reuse_route_logits_for_coarse:
+            logits_already_masked = bool(
+                getattr(self, "_lod_prefill_route_logits_masked", False)
+            )
+            if hasattr(self, "_lod_prefill_route_logits_masked"):
+                del self._lod_prefill_route_logits_masked
+            if (
+                not self.reuse_route_logits_for_coarse
+                and self.prefill_route_mass_fraction is None
+            ):
                 raise AssertionError("stale LOD prefill route logits")
             if tuple(route_logits.shape) != (
                 int(q.size(0)),
@@ -4582,6 +5186,16 @@ class TritonLODAttentionCore(nn.Module):
             coarse_local_v = (
                 local_v if include_local else local_v[..., :0, :].contiguous()
             )
+            coarse_top_slots = (
+                torch.empty(
+                    *top_slots.shape[:3],
+                    0,
+                    dtype=torch.long,
+                    device=top_slots.device,
+                )
+                if logits_already_masked
+                else top_slots
+            )
             if int(q.size(-1)) > 512 or int(state_v.size(-1)) > 256:
                 return self._gemm_coarse_attention(
                     q,
@@ -4590,7 +5204,7 @@ class TritonLODAttentionCore(nn.Module):
                     counts,
                     coarse_local_k,
                     coarse_local_v,
-                    top_slots,
+                    coarse_top_slots,
                     state_len=state_len,
                 )
             int8_state_pv = self.prefill_int8_coarse_mma and query_len > 1
@@ -4601,7 +5215,7 @@ class TritonLODAttentionCore(nn.Module):
                 counts.contiguous(),
                 coarse_local_k.contiguous(),
                 coarse_local_v.contiguous(),
-                top_slots.contiguous(),
+                coarse_top_slots.contiguous(),
                 state_len=state_len,
                 kv_group_size=self.num_key_value_groups,
                 scale=self.scaling,
@@ -4619,6 +5233,7 @@ class TritonLODAttentionCore(nn.Module):
                 precompute_mean_values=query_len > 1,
                 int8_state_pv=int8_state_pv,
                 max_grouped_rows=self.prefill_coarse_max_grouped_rows,
+                timing_events=getattr(self, "_lod_phase_timing_events", None),
             )
         decode_route_logits = getattr(self, "_lod_decode_route_logits", None)
         if decode_route_logits is not None:
@@ -4805,6 +5420,181 @@ class TritonLODAttentionCore(nn.Module):
             )
         return output.reshape(batch, query_heads, query_len, -1), lse
 
+    def _record_decode_previous_total_lse(
+        self,
+        page_cache: dict[str, torch.Tensor | int] | None,
+        q: torch.Tensor,
+        *branch_lse: torch.Tensor,
+        sink_k: torch.Tensor | None = None,
+    ) -> None:
+        """Seed retained-mass decode routing from the final prefill query."""
+        if not self.decode_gqa_union_predicted_mass or page_cache is None:
+            return
+        if not branch_lse:
+            raise ValueError("retained-mass decode requires an attention LSE")
+        total_lse = branch_lse[0].float()
+        for current_lse in branch_lse[1:]:
+            total_lse = torch.logaddexp(total_lse, current_lse.float())
+        if sink_k is not None:
+            batch, query_heads, query_len, head_dim = q.shape
+            kv_heads = int(sink_k.size(1))
+            if query_heads != kv_heads * self.num_key_value_groups:
+                raise ValueError("retained-mass sink GQA geometry is inconsistent")
+            grouped_q = q.float().reshape(
+                batch,
+                kv_heads,
+                self.num_key_value_groups,
+                query_len,
+                head_dim,
+            )
+            sink_scores = torch.matmul(
+                grouped_q,
+                sink_k.float().transpose(-1, -2).unsqueeze(2),
+            )
+            sink_lse = torch.logsumexp(sink_scores * self.scaling, dim=-1)
+            sink_lse = sink_lse.reshape(batch, query_heads, query_len)
+            total_lse = torch.logaddexp(total_lse, sink_lse)
+        page_cache["decode_previous_total_lse"] = (
+            total_lse[..., -1].contiguous().detach()
+        )
+
+    def _static_two_level_prefill(
+        self,
+        q: torch.Tensor,
+        local_branch: tuple[torch.Tensor, torch.Tensor] | None,
+        state_k: torch.Tensor,
+        state_v: torch.Tensor,
+        counts: torch.Tensor,
+        page_cache: dict[str, torch.Tensor | int] | None,
+        *,
+        state_len: int,
+        context_len: int,
+        sink_k: torch.Tensor | None,
+        sink_v: torch.Tensor | None,
+        output_buffer: torch.Tensor | None,
+    ) -> torch.Tensor:
+        """Run one 4K catch-up block with query-independent static routing."""
+        if local_branch is None:
+            raise ValueError("static prefill requires split local attention")
+        if page_cache is None:
+            raise ValueError("static prefill requires a paged leaf archive")
+        required = (
+            "leaf_k",
+            "leaf_v",
+            "page_indices",
+            "slot_pages",
+            "overflow_page_keys",
+            "overflow_page_values",
+            "overflow_used",
+            "slot_lengths",
+        )
+        if not all(isinstance(page_cache.get(name), torch.Tensor) for name in required):
+            raise ValueError("static prefill page archive is incomplete")
+        minimum = int(self.prefill_static_leaf_cap_min)
+        if minimum < 1 or context_len < 1:
+            raise ValueError("static prefill schedule requires positive lengths")
+        cap = max(minimum, math.isqrt(context_len - 1) // 16 + 1)
+        static_buffers = getattr(self, "_lod_static_prefill_buffers", None)
+        if not isinstance(static_buffers, dict):
+            static_buffers = {}
+            self._lod_static_prefill_buffers = static_buffers
+        exact_output, exact_lse, exact_token_counts = (
+            static_cap_aiter_paged_leaf_attention(
+                q,
+                page_cache["leaf_k"],
+                page_cache["leaf_v"],
+                page_cache["page_indices"],
+                page_cache["slot_pages"],
+                page_cache["overflow_page_keys"],
+                page_cache["overflow_page_values"],
+                page_cache["overflow_used"],
+                page_cache["slot_lengths"],
+                kv_group_size=self.num_key_value_groups,
+                scale=self.scaling,
+                max_exact_leaves=cap,
+                hash_probes=self._page_lookup_probes(page_cache),
+                buffers=static_buffers,
+                timing_events=getattr(self, "_lod_leaf_timing_events", None),
+            )
+        )
+
+        route_logits = self._state_route_logits(
+            q,
+            state_k,
+            counts,
+            state_len=state_len,
+        ).contiguous()
+        query_counts = self._repeat_kv(
+            counts.detach()[..., :state_len, 0]
+        )
+        route_logits.masked_fill_(
+            query_counts.le(cap).unsqueeze(2),
+            float("-inf"),
+        )
+        no_slots = torch.empty(
+            *q.shape[:3], 0, dtype=torch.long, device=q.device
+        )
+        empty_local_k = page_cache["leaf_k"][..., :0, :].contiguous()
+        empty_local_v = page_cache["leaf_v"][..., :0, :].contiguous()
+        coarse_output, coarse_lse = route_logits_coarse_attention(
+            q,
+            route_logits,
+            state_v.contiguous(),
+            counts.contiguous(),
+            empty_local_k,
+            empty_local_v,
+            no_slots,
+            state_len=state_len,
+            kv_group_size=self.num_key_value_groups,
+            scale=self.scaling,
+            block_m=self.coarse_route_block_m,
+            block_n=self.coarse_route_block_n,
+            num_warps=self.coarse_route_num_warps,
+            precompute_mean_values=True,
+            max_grouped_rows=self.prefill_coarse_max_grouped_rows,
+        )
+        local_output, local_lse = local_branch
+        self._lod_prefill_static_leaf_cap_executed = True
+        self._lod_prefill_static_leaf_cap = cap
+        self._lod_prefill_static_exact_token_counts = exact_token_counts
+        history = getattr(self, "_lod_prefill_static_leaf_cap_history", None)
+        if history is None:
+            history = []
+            self._lod_prefill_static_leaf_cap_history = history
+        history.append(cap)
+        self._record_decode_previous_total_lse(
+            page_cache,
+            q,
+            coarse_lse,
+            exact_lse,
+            local_lse,
+            sink_k=sink_k,
+        )
+        if sink_k is not None and sink_v is not None:
+            return merge_attention_branches_with_sink(
+                q,
+                sink_k,
+                sink_v,
+                coarse_output,
+                coarse_lse,
+                exact_output,
+                exact_lse,
+                local_output,
+                local_lse,
+                kv_group_size=self.num_key_value_groups,
+                scale=self.scaling,
+                output_buffer=output_buffer,
+            )
+        return merge_attention_branches(
+            coarse_output,
+            coarse_lse,
+            exact_output,
+            exact_lse,
+            local_output,
+            local_lse,
+            output_buffer=output_buffer,
+        )
+
     def _two_level_attention(
         self,
         q: torch.Tensor,
@@ -4859,6 +5649,26 @@ class TritonLODAttentionCore(nn.Module):
         if dynamic_target is not None and dynamic_residual is not None:
             raise ValueError(
                 "decode top-p and full-mass residual opening are mutually exclusive"
+            )
+        if self.prefill_static_leaf_aiter and int(q.size(2)) > 1:
+            if dynamic_target is not None or dynamic_residual is not None:
+                raise ValueError(
+                    "static prefill cannot be combined with dynamic opening"
+                )
+            if context_len is None:
+                raise ValueError("static prefill requires its logical context length")
+            return self._static_two_level_prefill(
+                q,
+                local_branch,
+                state_k,
+                state_v,
+                counts,
+                page_cache,
+                state_len=state_len,
+                context_len=context_len,
+                sink_k=sink_k,
+                sink_v=sink_v,
+                output_buffer=output_buffer,
             )
         if configured_topk == 0:
             if dynamic_target is not None or dynamic_residual is not None:
@@ -4949,6 +5759,14 @@ class TritonLODAttentionCore(nn.Module):
                 timing_events=getattr(self, "_lod_dense_page_timing_events", None),
             )
             local_output, local_lse = local_branch
+            self._record_decode_previous_total_lse(
+                page_cache,
+                q,
+                page_residual_lse,
+                exact_pages_lse,
+                local_lse,
+                sink_k=sink_k,
+            )
             if sink_k is not None and sink_v is not None:
                 return merge_attention_branches_with_sink(
                     q,
@@ -5006,6 +5824,7 @@ class TritonLODAttentionCore(nn.Module):
             and self.routing_page_mass_candidates == 0
             and self.routing_leaf_mass_candidates == 0
             and int(q.size(2)) == 1
+            and self.decode_open_all_under_leaf_cap is None
             and self.leaf_attention_backend == "paged"
             and (
                 indexed_recursive_decode
@@ -5016,12 +5835,24 @@ class TritonLODAttentionCore(nn.Module):
                 )
             )
             and self.two_level_topk <= 8
+            and (
+                self.decode_route_mass_fraction is None
+                or self.decode_mass_top8_filter
+            )
             and (not dynamic_active or not self.collect_dynamic_open_stats)
         )
         top_slots = None
+        decode_mass_route_data = None
         if not fuse_decode_route:
             dynamic_local_lse = None
-            if (
+            if self.prefill_route_mass_fraction is not None and int(q.size(2)) > 1:
+                if local_branch is None:
+                    raise ValueError(
+                        "mass-fraction prefill routing requires split local attention"
+                    )
+                if self.prefill_mass_include_local_lse:
+                    dynamic_local_lse = local_branch[1]
+            elif (
                 dynamic_residual is not None
                 and not self.dynamic_open_residual_use_state_bound
             ):
@@ -5052,6 +5883,20 @@ class TritonLODAttentionCore(nn.Module):
                 page_cache=page_cache,
                 dynamic_local_lse=dynamic_local_lse,
             )
+            if (
+                int(q.size(2)) == 1
+                and self.decode_route_mass_fraction is not None
+            ):
+                decode_mass_route_data = getattr(
+                    self, "_lod_decode_mass_route_data", None
+                )
+                if hasattr(self, "_lod_decode_mass_route_data"):
+                    delattr(self, "_lod_decode_mass_route_data")
+                if not (
+                    isinstance(decode_mass_route_data, tuple)
+                    and len(decode_mass_route_data) == 4
+                ):
+                    raise AssertionError("decode mass routing did not form coarse data")
             if getattr(self, "_lod_padding_state_reserve", 0):
                 query_counts = self._repeat_kv(counts[..., :state_len, :]).squeeze(-1)
                 safe_slots = top_slots.clamp_min(0)
@@ -5134,9 +5979,8 @@ class TritonLODAttentionCore(nn.Module):
             decode_buffers = getattr(self, "_lod_decode_attention_buffers", None)
             cooperative_route_splits = self.decode_gqa_cooperative_route_splits
             # The retained cooperative decoder is the gfx942 HIP specialization:
-            # H=256 with exactly four query heads per KV head.  Other geometries
-            # use the portable split decoder directly; there is no second Triton
-            # cooperative implementation to maintain.
+            # H=256 with exactly four query heads per KV head. Other geometries
+            # use the portable split decoder directly.
             cooperative_leaf = bool(
                 self.decode_gqa_cooperative_leaf
                 and self.decode_gqa_cooperative_hip
@@ -5185,10 +6029,38 @@ class TritonLODAttentionCore(nn.Module):
                 cooperative_route_splits,
                 int(q.size(-1)),
             )
+            wide_local_required = bool(
+                int(q.size(-1)) in (128, 256, 512)
+                and 1 < self.num_key_value_groups <= 16
+            )
+            wide_local_len = (
+                int(local_k.size(2)) if local_len is None else int(local_len)
+            )
             if self.decode_split_kv > 1 and (
                 decode_buffers is None
                 or tuple(decode_buffers["partial_out"].shape) != expected_partial
                 or decode_buffers["partial_out"].device != q.device
+                or (
+                    wide_local_required
+                    and not (
+                        (
+                            "wide_gqa_local_scores" in decode_buffers
+                            and int(
+                                decode_buffers["wide_gqa_local_scores"].size(-1)
+                            )
+                            >= wide_local_len + 1
+                        )
+                        or (
+                            indexed_recursive_decode
+                            and self.recursive_materialize_page_scores
+                            and "recursive_page_scores" in decode_buffers
+                            and int(
+                                decode_buffers["recursive_page_scores"].size(-1)
+                            )
+                            >= wide_local_len + 1
+                        )
+                    )
+                )
                 or (
                     cooperative_leaf
                     and self.decode_gqa_cooperative_hip
@@ -5203,7 +6075,13 @@ class TritonLODAttentionCore(nn.Module):
                     and (
                         "route_group_lse" not in decode_buffers
                         or int(decode_buffers["route_group_lse"].size(2))
-                        < math.ceil(state_capacity / self.decode_route_group_size)
+                        < math.ceil(
+                            state_capacity
+                            / (
+                                self.decode_route_group_size
+                                * self.decode_route_segment_tiles
+                            )
+                        )
                     )
                 )
             ):
@@ -5212,11 +6090,44 @@ class TritonLODAttentionCore(nn.Module):
                     splits=self.decode_split_kv,
                     state_capacity=(state_capacity if fuse_decode_route else None),
                     route_group_size=self.decode_route_group_size,
+                    route_segment_tiles=self.decode_route_segment_tiles,
                     gqa_route_splits=(
                         cooperative_route_splits if cooperative_leaf else None
                     ),
+                    materialized_state_route=(
+                        self.recursive_state_route_backend == "resplit"
+                    ),
                 )
+                if wide_local_required:
+                    if (
+                        indexed_recursive_decode
+                        and self.recursive_materialize_page_scores
+                    ):
+                        decode_buffers["recursive_page_scores"] = torch.empty(
+                            int(q.size(0)),
+                            int(q.size(1)),
+                            1,
+                            int(page_cache["page_counts"].size(2)),
+                            dtype=torch.float32,
+                            device=q.device,
+                        )
+                    else:
+                        decode_buffers["wide_gqa_local_scores"] = torch.empty(
+                            int(q.size(0)),
+                            int(q.size(1)),
+                            wide_local_len + 1,
+                            dtype=torch.float32,
+                            device=q.device,
+                        )
                 self._lod_decode_attention_buffers = decode_buffers
+            # Real 32K posting lists favor wider scalar tiles and fewer route
+            # reduction groups for every D=128 family tested. Keep the legacy
+            # geometry below 32K, where the extra width only adds tail work.
+            long_d128_decode = bool(
+                self.decode_geometry_tuning
+                and int(q.size(-1)) == 128
+                and (context_len or 0) >= 32768
+            )
             return fused_decode_paged_lod_attention(
                 q,
                 state_k,
@@ -5239,19 +6150,34 @@ class TritonLODAttentionCore(nn.Module):
                 kv_group_size=self.num_key_value_groups,
                 scale=self.scaling,
                 hash_probes=self._page_lookup_probes(page_cache),
-                block_n=self.decode_block_n,
+                block_n=(32 if long_d128_decode else self.decode_block_n),
                 num_warps=self.decode_num_warps,
                 waves_per_eu=self.leaf_waves_per_eu,
                 split_kv=self.decode_split_kv,
                 buffers=decode_buffers,
                 use_dot=self.decode_use_dot,
                 fuse_state_route=fuse_decode_route,
-                route_group_size=self.decode_route_group_size,
-                route_num_warps=self.decode_route_num_warps,
-                route_reduce_num_warps=self.decode_route_reduce_num_warps,
+                route_group_size=(
+                    64 if long_d128_decode else self.decode_route_group_size
+                ),
+                route_segment_tiles=self.decode_route_segment_tiles,
+                route_num_warps=(
+                    1 if long_d128_decode else self.decode_route_num_warps
+                ),
+                route_reduce_num_warps=(
+                    2 if long_d128_decode else self.decode_route_reduce_num_warps
+                ),
+                route_parallel_reduce=self.decode_route_parallel_reduce,
+                route_post_dot_normalize=self.decode_route_post_dot_normalize,
+                route_post_pv_normalize=self.decode_route_post_pv_normalize,
                 final_reduce_num_warps=self.decode_final_reduce_num_warps,
                 fuse_final_reduce=self.decode_fuse_final_reduce,
-                route_use_dot=self.decode_route_use_dot,
+                route_use_dot=(
+                    False
+                    if self.decode_geometry_tuning
+                    and (int(q.size(-1)) == 512 or long_d128_decode)
+                    else self.decode_route_use_dot
+                ),
                 route_gqa_grouped=self.decode_route_gqa_grouped,
                 gqa_cooperative_leaf=cooperative_leaf,
                 gqa_cooperative_hip=self.decode_gqa_cooperative_hip,
@@ -5260,16 +6186,25 @@ class TritonLODAttentionCore(nn.Module):
                 gqa_cooperative_fused_reduce=(
                     self.decode_gqa_cooperative_fused_reduce
                 ),
+                gqa_union_mass_fraction=self.decode_gqa_union_mass_fraction,
                 protected_len=(
                     self._protected_route_len(state_len)
                     if self.exclude_sink_from_routes
                     else 0
                 ),
                 max_leaf_tokens=self.leaf_seal_capacity,
+                open_count=int(self.two_level_topk),
                 sink_k=sink_k,
                 sink_v=sink_v,
                 route_top_p=(dynamic_target if fuse_decode_route else None),
                 route_residual_mass=(dynamic_residual if fuse_decode_route else None),
+                route_mass_fraction=(
+                    float(self.decode_route_mass_fraction)
+                    if fuse_decode_route
+                    and self.decode_mass_top8_filter
+                    and self.decode_route_mass_fraction is not None
+                    else None
+                ),
                 reuse_residual_local_attention=(
                     self.reuse_dynamic_local_attention and fuse_decode_route
                 ),
@@ -5288,9 +6223,67 @@ class TritonLODAttentionCore(nn.Module):
                     page_cache.get("page_v_token_scales") if flat_int8_decode else None
                 ),
                 recursive_quant_group_size=self.leaf_quant_group_size,
+                recursive_materialize_page_scores=(
+                    self.recursive_materialize_page_scores
+                ),
+                recursive_page_score_block_n=self.recursive_page_score_block_n,
+                recursive_page_score_num_warps=self.recursive_page_score_num_warps,
+                recursive_page_select_block_n=self.recursive_page_select_block_n,
+                recursive_state_route_backend=(
+                    self.recursive_state_route_backend
+                ),
+                precomputed_route_scores=(
+                    decode_mass_route_data[0]
+                    if decode_mass_route_data is not None
+                    else None
+                ),
+                precomputed_coarse_out=(
+                    decode_mass_route_data[1]
+                    if decode_mass_route_data is not None
+                    else None
+                ),
+                precomputed_coarse_lse=(
+                    decode_mass_route_data[2]
+                    if decode_mass_route_data is not None
+                    else None
+                ),
+                precomputed_coarse_stream=(
+                    decode_mass_route_data[3]
+                    if decode_mass_route_data is not None
+                    else None
+                ),
             )
         if top_slots is None:
             raise AssertionError("LOD routing did not produce slots")
+        overlapped_coarse: tuple[torch.Tensor, torch.Tensor] | None = None
+        coarse_stream: torch.cuda.Stream | None = None
+        foreground_stream: torch.cuda.Stream | None = None
+        if (
+            self.prefill_overlap_coarse_leaf
+            and int(q.size(2)) > 1
+            and local_branch is not None
+            and self.leaf_attention_backend == "paged"
+            and not self.recursive_page_lod
+        ):
+            coarse_stream = getattr(self, "_lod_prefill_coarse_stream", None)
+            if coarse_stream is None:
+                coarse_stream = torch.cuda.Stream(device=q.device)
+                self._lod_prefill_coarse_stream = coarse_stream
+            foreground_stream = torch.cuda.current_stream(q.device)
+            coarse_stream.wait_stream(foreground_stream)
+            with torch.cuda.stream(coarse_stream):
+                overlapped_coarse = self._coarse_attention(
+                    q,
+                    local_k,
+                    local_v,
+                    state_k,
+                    state_v,
+                    counts,
+                    top_slots,
+                    state_len=state_len,
+                    state_capacity=state_capacity,
+                    include_local=False,
+                )
         if self.leaf_attention_backend == "paged":
             if page_cache is None:
                 raise RuntimeError("paged LOD attention has no leaf page cache")
@@ -5325,6 +6318,43 @@ class TritonLODAttentionCore(nn.Module):
                 raw_page_key_summaries = bool(
                     page_cache.get("mla_raw_page_key_summaries", False)
                 )
+                materialized_page_scores = None
+                if self.recursive_materialize_page_scores and int(q.size(2)) == 1:
+                    if quantized_summaries:
+                        raise ValueError(
+                            "GQA page-score materialization requires BF16 summaries"
+                        )
+                    if raw_page_key_summaries:
+                        raise ValueError(
+                            "GQA page-score materialization does not yet support MLA"
+                        )
+                    score_shape = (
+                        int(q.size(0)),
+                        int(q.size(1)),
+                        1,
+                        int(page_cache["page_counts"].size(2)),
+                    )
+                    score_buffer = getattr(self, "_lod_page_score_buffer", None)
+                    if (
+                        not isinstance(score_buffer, torch.Tensor)
+                        or tuple(score_buffer.shape) != score_shape
+                        or score_buffer.device != q.device
+                    ):
+                        score_buffer = torch.empty(
+                            score_shape, dtype=torch.float32, device=q.device
+                        )
+                        self._lod_page_score_buffer = score_buffer
+                    materialized_page_scores = materialize_page_summary_scores_gqa(
+                        q,
+                        page_cache["page_sum_k"],
+                        page_cache["page_counts"],
+                        kv_group_size=self.num_key_value_groups,
+                        scale=self.scaling,
+                        page_block_n=self.recursive_page_score_block_n,
+                        num_warps=self.recursive_page_score_num_warps,
+                        waves_per_eu=self.leaf_waves_per_eu,
+                        output=score_buffer,
+                    )
                 recursive_state_k = (
                     state_k
                     if raw_page_key_summaries
@@ -5352,7 +6382,11 @@ class TritonLODAttentionCore(nn.Module):
                     kv_group_size=self.num_key_value_groups,
                     scale=self.scaling,
                     hash_probes=self._page_lookup_probes(page_cache),
-                    page_block_n=self.recursive_page_block_n,
+                    page_block_n=(
+                        self.recursive_page_select_block_n
+                        if materialized_page_scores is not None
+                        else self.recursive_page_block_n
+                    ),
                     num_warps=self.leaf_num_warps,
                     waves_per_eu=self.leaf_waves_per_eu,
                     timing_events=getattr(self, "_lod_leaf_timing_events", None),
@@ -5405,6 +6439,7 @@ class TritonLODAttentionCore(nn.Module):
                     mla_norm_epsilon=(
                         self.mla_key_norm_epsilon if raw_page_key_summaries else 0.0
                     ),
+                    materialized_page_scores=materialized_page_scores,
                 )
             else:
                 exact_output, exact_lse = self._paged_leaf_attention(
@@ -5442,20 +6477,38 @@ class TritonLODAttentionCore(nn.Module):
                 exact_lse,
                 torch.full_like(exact_lse, float("-inf")),
             )
-        coarse_output, coarse_lse = self._coarse_attention(
-            q,
-            local_k,
-            local_v,
-            state_k,
-            state_v,
-            counts,
-            top_slots,
-            state_len=state_len,
-            state_capacity=state_capacity,
-            include_local=local_branch is None,
-        )
+        if overlapped_coarse is None:
+            coarse_output, coarse_lse = self._coarse_attention(
+                q,
+                local_k,
+                local_v,
+                state_k,
+                state_v,
+                counts,
+                top_slots,
+                state_len=state_len,
+                state_capacity=state_capacity,
+                include_local=local_branch is None,
+            )
+        else:
+            if coarse_stream is None or foreground_stream is None:
+                raise AssertionError("coarse/leaf overlap stream state is incomplete")
+            foreground_stream.wait_stream(coarse_stream)
+            coarse_output, coarse_lse = overlapped_coarse
         if local_branch is not None:
+            local_stream = getattr(self, "_lod_prefill_local_stream_pending", None)
+            if local_stream is not None:
+                del self._lod_prefill_local_stream_pending
+                torch.cuda.current_stream(q.device).wait_stream(local_stream)
             local_output, local_lse = local_branch
+            self._record_decode_previous_total_lse(
+                page_cache,
+                q,
+                coarse_lse,
+                exact_lse,
+                local_lse,
+                sink_k=sink_k,
+            )
             if sink_k is not None and sink_v is not None:
                 return merge_attention_branches_with_sink(
                     q,
@@ -5480,6 +6533,13 @@ class TritonLODAttentionCore(nn.Module):
                 local_lse,
                 output_buffer=output_buffer,
             )
+        self._record_decode_previous_total_lse(
+            page_cache,
+            q,
+            coarse_lse,
+            exact_lse,
+            sink_k=sink_k,
+        )
         output = merge_attention_branches(
             coarse_output,
             coarse_lse,
@@ -5554,15 +6614,38 @@ class TritonLODAttentionCore(nn.Module):
         query_offset: int,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         k = self._mla_normalize_key(k, state_centroid=False)
-        if int(q.size(-1)) > 512:
-            # Platform FlashAttention caps Q/K width at 512, while absorbed
-            # DeepSeek-style MLA is 512 latent + 64 RoPE dimensions.  The
+        if int(q.size(-1)) >= 512:
+            # The practical AITER path rejects 512-wide Q/K (and wider), while
+            # absorbed DeepSeek-style MLA is 512 latent + 64 RoPE dimensions. The
             # generic coarse kernel can represent this geometry, but its
             # 512-wide value accumulator forces a four-row tile and is much
             # slower than GEMM for the dense exact-local branch.  Materialize
             # only the target-chunk score tile (not lookback-query rows), then
             # use optimized GEMMs on either side of the softmax.
-            target_len = int(q.size(2)) - query_offset
+            key_len = int(k.size(2))
+            target_len = key_len - query_offset
+            supplied_query_len = int(q.size(2))
+            if supplied_query_len == key_len:
+                actual_q = q[..., query_offset:, :]
+            elif supplied_query_len == target_len:
+                actual_q = q
+            else:
+                raise ValueError(
+                    "wide local-attention query length must equal either the "
+                    f"key length ({key_len}) or target length ({target_len}), got "
+                    f"{supplied_query_len}"
+                )
+            if target_len <= 0:
+                return (
+                    v.new_empty(int(q.size(0)), int(q.size(1)), 0, int(v.size(-1))),
+                    torch.empty(
+                        int(q.size(0)),
+                        int(q.size(1)),
+                        0,
+                        dtype=torch.float32,
+                        device=q.device,
+                    ),
+                )
             # A single large causal GEMM computes the entire upper triangle
             # only to mask it away.  Tile target queries and stop each key
             # field at that tile's end.  This preserves the exact factor-16
@@ -5574,8 +6657,9 @@ class TritonLODAttentionCore(nn.Module):
                 target_end = min(target_len, target_begin + target_tile)
                 local_begin = query_offset + target_begin
                 local_end = query_offset + target_end
-                target_q = q[..., local_begin:local_end, :]
-                target_k = k[..., :local_end, :]
+                target_q = actual_q[..., target_begin:target_end, :]
+                target_k = self._repeat_kv(k[..., :local_end, :])
+                target_v = self._repeat_kv(v[..., :local_end, :])
                 scores = torch.matmul(target_q, target_k.transpose(-1, -2)).float()
                 scores.mul_(self.scaling)
                 query_positions = torch.arange(local_begin, local_end, device=q.device)
@@ -5584,7 +6668,7 @@ class TritonLODAttentionCore(nn.Module):
                 scores.masked_fill_(~visible, float("-inf"))
                 lse_tiles.append(torch.logsumexp(scores, dim=-1))
                 probabilities = torch.softmax(scores, dim=-1).to(v.dtype)
-                output_tiles.append(torch.matmul(probabilities, v[..., :local_end, :]))
+                output_tiles.append(torch.matmul(probabilities, target_v))
             return (
                 torch.cat(output_tiles, dim=2),
                 torch.cat(lse_tiles, dim=2),
@@ -5740,6 +6824,10 @@ class TritonLODAttentionCore(nn.Module):
         prefill_chunk_len = self.prefill_chunk_len
         prefill_local_len = self.prefill_local_len
         prefill_state_update_len = self.prefill_state_update_len
+        if hasattr(self, "_lod_prefill_previous_partition_lse"):
+            del self._lod_prefill_previous_partition_lse
+        if hasattr(self, "_lod_prefill_previous_state_log_mass"):
+            del self._lod_prefill_previous_state_log_mass
         if prefill_chunk_len > prefill_local_len:
             raise ValueError("prefill chunk length cannot exceed its local field")
         if prefill_state_update_len <= 0:
@@ -6030,16 +7118,41 @@ class TritonLODAttentionCore(nn.Module):
             if not build_cache_only:
                 if q is None:
                     raise AssertionError("attention prefill query is missing")
-                local_branch = (
-                    self._prefill_local_attention(
+                if self.split_prefill_local_attention:
+                    local_args = (
                         q[..., bswa_begin:query_end, :],
                         k[..., bswa_begin:query_end, :],
                         v[..., bswa_begin:query_end, :],
-                        query_offset=query_begin - bswa_begin,
                     )
-                    if self.split_prefill_local_attention
-                    else None
-                )
+                    if self.prefill_overlap_local_lod:
+                        if (
+                            self.prefill_route_mass_fraction is not None
+                            and self.prefill_mass_include_local_lse
+                        ):
+                            raise ValueError(
+                                "local/LOD overlap requires a remote-state mass cutoff"
+                            )
+                        local_stream = getattr(
+                            self, "_lod_prefill_local_stream", None
+                        )
+                        if local_stream is None:
+                            local_stream = torch.cuda.Stream(device=k.device)
+                            self._lod_prefill_local_stream = local_stream
+                        foreground_stream = torch.cuda.current_stream(k.device)
+                        local_stream.wait_stream(foreground_stream)
+                        with torch.cuda.stream(local_stream):
+                            local_branch = self._prefill_local_attention(
+                                *local_args,
+                                query_offset=query_begin - bswa_begin,
+                            )
+                        self._lod_prefill_local_stream_pending = local_stream
+                    else:
+                        local_branch = self._prefill_local_attention(
+                            *local_args,
+                            query_offset=query_begin - bswa_begin,
+                        )
+                else:
+                    local_branch = None
                 chunk_output = self._two_level_attention(
                     q[..., query_begin:query_end, :],
                     k[..., bswa_begin:query_end, :],
@@ -6056,6 +7169,7 @@ class TritonLODAttentionCore(nn.Module):
                     local_branch=local_branch,
                     sink_k=sink_k,
                     sink_v=sink_v,
+                    context_len=query_end,
                     output_buffer=(
                         output_buffer[..., query_begin:query_end, :]
                         if output_buffer is not None
@@ -6533,6 +7647,7 @@ class TritonLODAttentionCore(nn.Module):
                     local_branch=local_branch,
                     sink_k=sink_k,
                     sink_v=sink_v,
+                    context_len=previous_total_len + query_end,
                     output_buffer=(
                         output_buffer[..., query_begin:query_end, :]
                         if output_buffer is not None
