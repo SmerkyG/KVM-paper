@@ -1,25 +1,44 @@
-"""vLLM lifecycle hooks and native-paged-cache to LOD conversion."""
+"""vLLM lifecycle hooks for externally owned LOD attention state."""
 
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
 import torch
 
-from .backend import NATIVE_LAYOUT, LODAttentionImpl
+from .backend import LODAttentionImpl
 from .config import VLLMLODSettings
 from .pool import VLLMLayerLODPool
 
 logger = logging.getLogger(__name__)
 
 
+def _input_batch_max_query_len(input_batch: Any) -> int:
+    """Read the largest scheduled query across old and new vLLM batches."""
+    legacy = getattr(input_batch, "max_query_len", None)
+    if legacy is not None:
+        return max(int(legacy), 1)
+    scheduled = getattr(input_batch, "num_scheduled_tokens", None)
+    if scheduled is not None:
+        values = np.asarray(scheduled)
+        if values.size:
+            return max(int(values.max()), 1)
+    starts = getattr(input_batch, "query_start_loc_np", None)
+    if starts is not None:
+        values = np.diff(np.asarray(starts))
+        if values.size:
+            return max(int(values.max()), 1)
+    return 1
+
+
 @dataclass
 class _CachedLODRow:
     row: int
-    token_ids: tuple[int, ...]
+    token_ids: np.ndarray
     total_length: int
     last_used: int
 
@@ -54,12 +73,18 @@ class VLLMLODRuntime:
             self.max_requests, dtype=torch.long, device=model_state.device
         )
         context = config.compilation_config.static_forward_context
-        self.layers: dict[str, Any] = {
+        diagnostic_external_empty = os.getenv(
+            "VLLM_LOD_DIAGNOSTIC_EXTERNAL_EMPTY_ATTENTION"
+        ) in ("skip", "eligible")
+        self._eligible_layers: dict[str, Any] = {
             name: layer
             for name, layer in context.items()
             if isinstance(getattr(layer, "impl", None), LODAttentionImpl)
             and bool(layer.impl.lod_eligible)
         }
+        self.layers: dict[str, Any] = (
+            {} if diagnostic_external_empty else self._eligible_layers
+        )
         self.pools: dict[str, VLLMLayerLODPool] = {}
         self.group_by_layer: dict[str, int] = {}
         self.block_size_by_group: dict[int, int] = {}
@@ -80,6 +105,17 @@ class VLLMLODRuntime:
     def enabled(self) -> bool:
         return bool(self.layers)
 
+    def _prefix_rollback_tokens(self) -> int:
+        cache_config = getattr(self.model_state.vllm_config, "cache_config", None)
+        if not bool(getattr(cache_config, "enable_prefix_caching", False)):
+            return 0
+        # Keep the established small exact rollback field. Hybrid-cache prefix
+        # boundaries can be much older than this (Muse commonly resumes one
+        # 4K chunk back), so growing the decode-local field does not solve the
+        # general case; restore_prefix() reconstructs those older boundaries
+        # from the chronological LoD leaf archive instead.
+        return int(self.settings.prefix_rollback_tokens)
+
     def allocate_pools(self) -> None:
         """Reserve LOD memory before vLLM profiles its native block budget."""
         if self.pools or not self.enabled:
@@ -97,6 +133,7 @@ class VLLMLODRuntime:
         if not decode_sizes:
             decode_sizes.add(self.pool_size)
         norm_flags = self._attention_norm_flags()
+        prefix_rollback_tokens = self._prefix_rollback_tokens()
         for name, layer in self.layers.items():
             has_query_norm, has_key_norm = norm_flags.get(name, (False, False))
             pool = VLLMLayerLODPool(
@@ -109,15 +146,7 @@ class VLLMLODRuntime:
                 device=self.model_state.device,
                 has_query_norm=has_query_norm,
                 has_key_norm=has_key_norm,
-                retain_prefix_rollback=bool(
-                    getattr(
-                        getattr(
-                            self.model_state.vllm_config, "cache_config", None
-                        ),
-                        "enable_prefix_caching",
-                        False,
-                    )
-                ),
+                prefix_rollback_tokens=prefix_rollback_tokens,
             )
             for rows in sorted(decode_sizes):
                 pool.reserve_decode_buffers(rows)
@@ -151,6 +180,19 @@ class VLLMLODRuntime:
     def initialize(self, kv_cache_config: Any) -> None:
         if self.initialized or not self.enabled:
             return
+        # Cache specs are collected after model-state construction, so this is
+        # the earliest lifecycle point at which every eligible Attention layer
+        # must carry the marker installed by get_kv_cache_spec().
+        missing_external = sorted(
+            name
+            for name, layer in self._eligible_layers.items()
+            if not bool(getattr(layer, "_vllm_lod_external_kv_cache", False))
+        )
+        if missing_external:
+            raise RuntimeError(
+                "LOD-eligible custom layers were not externalized by the cache "
+                f"ownership hook: {missing_external}"
+            )
         self.allocate_pools()
         for group_id, group in enumerate(kv_cache_config.kv_cache_groups):
             for name in group.layer_names:
@@ -158,7 +200,11 @@ class VLLMLODRuntime:
                 layer = self.layers.get(name)
                 if layer is not None:
                     cache = getattr(layer, "kv_cache", None)
-                    if cache is None:
+                    if bool(
+                        getattr(layer, "_vllm_lod_external_kv_cache", False)
+                    ):
+                        block_size = int(group.kv_cache_spec.block_size)
+                    elif cache is None:
                         block_size = int(group.kv_cache_spec.block_size)
                     else:
                         if cache.ndim not in (4, 5):
@@ -167,6 +213,26 @@ class VLLMLODRuntime:
                     prior = self.block_size_by_group.setdefault(group_id, block_size)
                     if prior != block_size:
                         raise ValueError("a vLLM KV group has mixed block sizes")
+        # V2 leaves externally owned layers out of physical KV groups and
+        # attaches their metadata builders to an existing native group. Record
+        # that metadata mapping without creating a native cache or block table.
+        for name, layer in self.layers.items():
+            if name in self.group_by_layer:
+                continue
+            group_id = getattr(layer, "_vllm_lod_external_metadata_group", None)
+            if group_id is None:
+                continue
+            group_id = int(group_id)
+            if group_id >= len(kv_cache_config.kv_cache_groups):
+                raise RuntimeError(
+                    f"external LOD metadata group {group_id} is out of range"
+                )
+            group = kv_cache_config.kv_cache_groups[group_id]
+            self.group_by_layer[name] = group_id
+            block_size = int(group.kv_cache_spec.block_size)
+            prior = self.block_size_by_group.setdefault(group_id, block_size)
+            if prior != block_size:
+                raise ValueError("a vLLM KV group has mixed block sizes")
         missing = self.layers.keys() - self.group_by_layer.keys()
         if missing:
             raise RuntimeError(
@@ -228,7 +294,7 @@ class VLLMLODRuntime:
             if req_id in self.req_to_slot:
                 continue
             self.req_to_slot[req_id] = req_id
-            if self.settings.cache_ownership != "lod" or int(computed[row]) <= 0:
+            if int(computed[row]) <= 0:
                 continue
             token_ids = self._legacy_token_ids(runner.requests[req_id])
             if token_ids is not None:
@@ -240,7 +306,7 @@ class VLLMLODRuntime:
             )
             if self._prepare_direct_prefill(req_ids, computed, query_starts):
                 return
-            self._prepare_native_attention(req_ids, computed, query_starts)
+            self._use_native_attention(req_ids)
             return
 
         if num_reqs_padded > self.pool_size:
@@ -251,37 +317,29 @@ class VLLMLODRuntime:
         for pool in self.pools.values():
             pool.decode_enabled = True
             pool.direct_prefill_plan = None
-            pool.native_append_plan = None
 
         lod_rows = []
         for req_id in req_ids:
             lod_rows.append(self._lod_row(req_id))
         mapped_rows = self._pad_decode_rows(lod_rows, num_reqs_padded)
         self._set_active_decode_rows(mapped_rows)
-        block_tables = tuple(
-            input_batch.block_table[group_id].get_device_tensor(num_reqs)
-            for group_id in range(len(runner.kv_cache_config.kv_cache_groups))
-        )
-        conversions: list[tuple[int, int, int]] = []
+        missing_rows: list[str] = []
         catch_ups: list[tuple[int, int]] = []
         reference_pool = next(iter(self.pools.values()))
         for row, req_id in enumerate(req_ids):
             lod_row = self.lod_row_by_slot[req_id]
             length = int(computed[row])
             if not reference_pool.ready[lod_row]:
-                conversions.append((row, lod_row, length))
+                missing_rows.append(req_id)
             else:
                 catch_ups.append((lod_row, length))
         self._catch_up_decode_rows(catch_ups)
-        self._convert_requests(conversions, block_tables)
-        for _, lod_row, length in conversions:
-            self.logical_lengths[lod_row] = length
+        if missing_rows:
+            self._use_native_attention(missing_rows)
 
     def add_request(self, slot: int, data: Any) -> None:
         self._release_lod_row(slot)
         self.req_to_slot[data.req_id] = slot
-        if self.settings.cache_ownership != "lod":
-            return
         token_ids = data.prefill_token_ids or data.prompt_token_ids
         if token_ids is None or int(data.num_computed_tokens) <= 0:
             return
@@ -307,19 +365,15 @@ class VLLMLODRuntime:
         row = self.lod_row_by_slot.pop(slot, None)
         if row is None:
             return
-        if (
-            self.settings.cache_ownership == "lod"
-            and self.prefix_caching
-            and self._cache_row(
-                req_id, slot, row, token_ids=token_ids
-            )
+        if self.prefix_caching and self._cache_row(
+            req_id, slot, row, token_ids=token_ids
         ):
             return
         self._free_lod_row(row)
 
     def _request_token_ids(
         self, req_id: str, slot: int | str, length: int
-    ) -> tuple[int, ...] | None:
+    ) -> np.ndarray | None:
         states = self.request_states
         if states is None or not isinstance(slot, int):
             return None
@@ -329,7 +383,10 @@ class VLLMLODRuntime:
         storage = getattr(getattr(states.all_token_ids, "_uva_buf", None), "cpu", None)
         if storage is None:
             return None
-        return tuple(map(int, storage[req_index, :length].tolist()))
+        values = storage[req_index, :length]
+        if isinstance(values, torch.Tensor):
+            return values.numpy().astype(np.int64, copy=True)
+        return np.asarray(values, dtype=np.int64).copy()
 
     def _cache_row(
         self,
@@ -355,7 +412,7 @@ class VLLMLODRuntime:
         if total_length <= 0:
             return False
         cached_tokens = (
-            tuple(map(int, token_ids[:total_length]))
+            np.asarray(token_ids[:total_length], dtype=np.int64).copy()
             if token_ids is not None
             else self._request_token_ids(req_id, slot, total_length)
         )
@@ -373,31 +430,50 @@ class VLLMLODRuntime:
     def _restore_cached_prefix(
         self, slot: int | str, token_ids: list[int], prefix_length: int
     ) -> bool:
-        prefix = tuple(map(int, token_ids[:prefix_length]))
+        for pool in self.pools.values():
+            pool.retained_restore_attempts += 1
+            pool.retained_restore_last_prefix = prefix_length
+        if not self.cached_rows:
+            for pool in self.pools.values():
+                pool.retained_restore_fail_no_row += 1
+            return False
+        prefix = np.asarray(token_ids[:prefix_length], dtype=np.int64)
         candidates = sorted(
             self.cached_rows.values(),
             key=lambda entry: entry.last_used,
             reverse=True,
         )
+        saw_long_enough = False
+        saw_token_match = False
         for entry in candidates:
             if entry.total_length < prefix_length:
                 continue
-            if entry.token_ids[:prefix_length] != prefix:
+            saw_long_enough = True
+            if not np.array_equal(entry.token_ids[:prefix_length], prefix):
                 continue
-            if any(
+            saw_token_match = True
+            coverages = [
                 int(pool.metadata[entry.row].get("coverage", prefix_length + 1))
-                > prefix_length
                 for pool in self.pools.values()
-            ):
-                continue
-            self.cached_rows.pop(entry.row)
+            ]
+            for pool, coverage in zip(self.pools.values(), coverages, strict=True):
+                pool.retained_restore_last_coverage = coverage
+                pool.retained_restore_last_total = entry.total_length
             for pool in self.pools.values():
-                pool.truncate_recent(entry.row, prefix_length)
+                pool.restore_prefix(entry.row, prefix_length)
                 pool.retained_reuse_count += 1
+            self.cached_rows.pop(entry.row)
             self.lod_row_by_slot[slot] = entry.row
             self.logical_lengths[entry.row] = prefix_length
             self.cache_clock += 1
             return True
+        for pool in self.pools.values():
+            if not saw_long_enough:
+                pool.retained_restore_fail_short += 1
+            elif not saw_token_match:
+                pool.retained_restore_fail_tokens += 1
+            else:
+                pool.retained_restore_fail_coverage += 1
         return False
 
     def _free_lod_row(self, row: int) -> None:
@@ -415,14 +491,34 @@ class VLLMLODRuntime:
             self.free_lod_rows.sort(reverse=True)
 
     def _evict_cached_row(self) -> int | None:
-        if not self.cached_rows:
-            return None
-        entry = min(self.cached_rows.values(), key=lambda item: item.last_used)
-        self.cached_rows.pop(entry.row)
-        for pool in self.pools.values():
-            pool.reset(entry.row)
-        self.logical_lengths[entry.row] = 0
-        return entry.row
+        rows = self._evict_cached_rows(1)
+        return rows[0] if rows else None
+
+    def _evict_cached_rows(self, count: int) -> list[int]:
+        """Evict retained rows with range-coalesced device resets."""
+        if count <= 0 or not self.cached_rows:
+            return []
+        entries = sorted(
+            self.cached_rows.values(), key=lambda item: item.last_used
+        )[:count]
+        rows = sorted(entry.row for entry in entries)
+        for row in rows:
+            self.cached_rows.pop(row)
+
+        begin = 0
+        while begin < len(rows):
+            end = begin + 1
+            while end < len(rows) and rows[end] == rows[end - 1] + 1:
+                end += 1
+            start_row = rows[begin]
+            stop_row = rows[end - 1] + 1
+            for pool in self.pools.values():
+                pool._reset_range(start_row, stop_row)
+            begin = end
+
+        for row in rows:
+            self.logical_lengths[row] = 0
+        return rows
 
     def _release_lod_row(self, slot: int | str) -> None:
         row = self.lod_row_by_slot.pop(slot, None)
@@ -451,7 +547,6 @@ class VLLMLODRuntime:
         for pool in self.pools.values():
             pool.decode_enabled = decode_capture
             pool.direct_prefill_plan = None
-            pool.native_append_plan = None
         if not decode_capture:
             return
         if rows > self.pool_size:
@@ -484,6 +579,12 @@ class VLLMLODRuntime:
         """Skip layer-by-layer host work between state-update boundaries."""
         if not requests:
             return
+        if self.settings.diagnostic_static_preselected:
+            # Timing-only upper bound: the prefill-selected compact tables and
+            # their local suffix remain immutable for the entire decode.
+            for row, length in requests:
+                self.logical_lengths[row] = length
+            return
         reference_pool = next(iter(self.pools.values()))
         update_due = any(
             int(reference_pool.metadata[row]["coverage"])
@@ -502,63 +603,45 @@ class VLLMLODRuntime:
             self.logical_lengths[row] = length
 
     def _use_native_attention(self, slots: list[int | str]) -> None:
-        """Disable LOD for a legacy dual-cache batch."""
-        if self.settings.cache_ownership == "lod":
-            raise RuntimeError(
-                "authoritative LOD cache cannot fall back to native remote "
-                "attention; the request needs a matching retained LOD prefix"
-            )
-        for pool in self.pools.values():
-            pool.decode_enabled = False
-            pool.direct_prefill_plan = None
-            pool.native_append_plan = None
+        """Report a missing semantic row; native fallback no longer exists."""
+        reference_pool = next(iter(self.pools.values()))
+        active = []
         for slot in slots:
-            lod_row = self.lod_row_by_slot.get(slot)
-            if lod_row is None:
-                continue
-            for pool in self.pools.values():
-                pool.ready[lod_row] = False
-
-    def _prepare_native_attention(
-        self,
-        slots: list[int | str],
-        computed_lengths: np.ndarray,
-        query_starts: np.ndarray,
-    ) -> None:
-        """Use dual-cache native attention while preserving exact LOD copies."""
-        if len(query_starts) != len(slots) + 1:
-            raise ValueError("vLLM query boundaries do not match the request batch")
-        plan: list[tuple[int, int, int, int]] = []
-        stale: list[int | str] = []
-        for request_row, slot in enumerate(slots):
-            lod_row = self.lod_row_by_slot.get(slot)
-            begin = int(query_starts[request_row])
-            end = int(query_starts[request_row + 1])
-            previous_length = int(computed_lengths[request_row])
-            compatible = (
-                lod_row is not None
-                and end - begin == 1
-                and all(pool.ready[lod_row] for pool in self.pools.values())
-                and all(
-                    int(pool.metadata[lod_row].get("total_len", -1))
-                    == previous_length
-                    for pool in self.pools.values()
+            row = self.lod_row_by_slot.get(slot)
+            metadata = reference_pool.metadata[row] if row is not None else {}
+            active.append(
+                (
+                    slot,
+                    row,
+                    bool(row is not None and reference_pool.ready[row]),
+                    int(metadata.get("coverage", -1)),
+                    int(metadata.get("total_len", -1)),
                 )
             )
-            if compatible:
-                plan.append((lod_row, begin, end, previous_length))
-            else:
-                stale.append(slot)
-
-        catch_ups = [(lod_row, length) for lod_row, _, _, length in plan]
-        for pool in self.pools.values():
-            pool.catch_up_many(catch_ups)
-        self._use_native_attention(stale)
-        prepared = tuple(plan)
-        for pool in self.pools.values():
-            pool.decode_enabled = False
-            pool.direct_prefill_plan = None
-            pool.native_append_plan = prepared
+        retained = [
+            (
+                entry.row,
+                entry.total_length,
+                int(reference_pool.metadata[entry.row].get("coverage", -1)),
+            )
+            for entry in self.cached_rows.values()
+        ]
+        raise RuntimeError(
+            "external LOD attention has no native remote K/V fallback; the "
+            "request needs a matching retained semantic prefix; "
+            f"active(slot,row,ready,coverage,total)={active}, "
+            f"retained(row,total,coverage)={retained}, "
+            "restore(attempts,no_row,short,tokens,coverage,last_prefix,"
+            "last_coverage,last_total)="
+            f"({reference_pool.retained_restore_attempts},"
+            f"{reference_pool.retained_restore_fail_no_row},"
+            f"{reference_pool.retained_restore_fail_short},"
+            f"{reference_pool.retained_restore_fail_tokens},"
+            f"{reference_pool.retained_restore_fail_coverage},"
+            f"{reference_pool.retained_restore_last_prefix},"
+            f"{reference_pool.retained_restore_last_coverage},"
+            f"{reference_pool.retained_restore_last_total})"
+        )
 
     def _prepare_direct_prefill(
         self,
@@ -573,6 +656,14 @@ class VLLMLODRuntime:
             raise ValueError("vLLM query boundaries do not match the request batch")
 
         if slots and bool(np.all(computed_lengths == 0)):
+            unassigned = sum(slot not in self.lod_row_by_slot for slot in slots)
+            missing = max(0, unassigned - len(self.free_lod_rows))
+            if missing:
+                evicted = self._evict_cached_rows(missing)
+                if len(evicted) != missing:
+                    return False
+                self.free_lod_rows.extend(evicted)
+                self.free_lod_rows.sort(reverse=True)
             rows = [self._lod_row(slot) for slot in slots]
             first, last = min(rows), max(rows)
             contiguous = (
@@ -609,9 +700,6 @@ class VLLMLODRuntime:
                     for pool in self.pools.values()
                 )
             if not compatible:
-                # In dual mode this permits a native fallback. Authoritative
-                # mode turns the failed plan into an actionable error because
-                # no complete native remote cache exists to reconstruct from.
                 return False
             plan.append((lod_row, begin, end, previous_length))
 
@@ -619,7 +707,6 @@ class VLLMLODRuntime:
         for pool in self.pools.values():
             pool.decode_enabled = False
             pool.direct_prefill_plan = prepared
-            pool.native_append_plan = None
         return True
 
     def _pad_decode_rows(self, lod_rows: list[int], padded_rows: int) -> list[int]:
@@ -695,140 +782,12 @@ class VLLMLODRuntime:
         if not for_capture:
             return
         rows = int(input_batch.num_tokens_after_padding)
-        self._prepare_dummy_batch(rows, int(input_batch.max_query_len or 1))
-
-    def _gather_native_prefix(
-        self,
-        layer: Any,
-        block_table: torch.Tensor,
-        *,
-        length: int,
-        block_size: int,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        key, value = self._gather_native_prefix_batch(
-            layer,
-            block_table.unsqueeze(0),
-            length=length,
-            block_size=block_size,
-        )
-        return key, value
-
-    def _gather_native_prefix_batch(
-        self,
-        layer: Any,
-        block_tables: torch.Tensor,
-        *,
-        length: int,
-        block_size: int,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        if length <= 0:
-            raise ValueError("cannot convert an empty native KV prefix")
-        if block_tables.ndim != 2:
-            raise ValueError("native block tables must have one row per request")
-        batch = int(block_tables.size(0))
-        blocks = math_ceil_div(length, block_size)
-        block_ids = block_tables[:, :blocks].long()
-        if bool((block_ids < 0).any().item()):
-            raise RuntimeError("native vLLM block table is incomplete for conversion")
-        flat_ids = block_ids.flatten()
-        cache = layer.kv_cache
-        if NATIVE_LAYOUT == "flash":
-            pages = cache.index_select(0, flat_ids)
-            if pages.ndim != 4 or int(pages.size(-1)) != 2 * int(layer.head_size):
-                raise ValueError("unexpected FlashAttention KV cache layout")
-            key, value = pages.split(int(layer.head_size), dim=-1)
-            key = key.view(batch, blocks, *key.shape[1:]).permute(0, 2, 1, 3, 4)
-            value = value.view(batch, blocks, *value.shape[1:]).permute(
-                0, 2, 1, 3, 4
-            )
-            key = key.reshape(
-                batch, int(layer.num_kv_heads), -1, int(layer.head_size)
-            )
-            value = value.reshape(
-                batch, int(layer.num_kv_heads), -1, int(layer.head_size_v)
-            )
-        else:
-            if cache.ndim != 5 or int(cache.size(0)) != 2:
-                raise ValueError("unexpected ROCm attention KV cache layout")
-            # The raw allocation's nominal shape is
-            # [2, blocks, block_size, heads, dim], but ROCm paged attention
-            # writes it through head-major K/V views.  Reusing vLLM's
-            # canonical split is essential: indexing the raw allocation as a
-            # token-major tensor silently scrambles both caches.
-            from vllm.v1.attention.ops.paged_attn import PagedAttention
-
-            key_cache, value_cache = PagedAttention.split_kv_cache(
-                cache, int(layer.num_kv_heads), int(layer.head_size)
-            )
-            key_pages = key_cache.index_select(0, flat_ids)
-            value_pages = value_cache.index_select(0, flat_ids)
-            key = key_pages.view(batch, blocks, *key_pages.shape[1:]).permute(
-                0, 2, 1, 4, 3, 5
-            )
-            value = value_pages.view(batch, blocks, *value_pages.shape[1:]).permute(
-                0, 2, 1, 4, 3
-            )
-            key = key.reshape(
-                batch, int(layer.num_kv_heads), -1, int(layer.head_size)
-            )
-            value = value.reshape(
-                batch, int(layer.num_kv_heads), -1, int(layer.head_size_v)
-            )
-        return key[..., :length, :].contiguous(), value[..., :length, :].contiguous()
-
-    def _convert_requests(
-        self,
-        requests: list[tuple[int, int, int]],
-        block_tables: tuple[torch.Tensor, ...],
-    ) -> None:
-        """Convert equal-length native prefixes together, retaining the source KV."""
-        if not requests:
-            return
-        by_length: dict[int, list[tuple[int, int]]] = {}
-        for row, lod_row, length in requests:
-            if length > self.request_capacity:
-                raise ValueError(
-                    f"request length {length} exceeds LOD capacity "
-                    f"{self.request_capacity}; raise VLLM_LOD_MAX_CONTEXT"
-                )
-            by_length.setdefault(length, []).append((row, lod_row))
-
-        try:
-            for length, rows in by_length.items():
-                for name, layer in self.layers.items():
-                    group_id = self.group_by_layer[name]
-                    source_rows = torch.tensor(
-                        [row for row, _ in rows],
-                        dtype=torch.long,
-                        device=block_tables[group_id].device,
-                    )
-                    source_tables = block_tables[group_id].index_select(
-                        0, source_rows
-                    )
-                    key, value = self._gather_native_prefix_batch(
-                        layer,
-                        source_tables,
-                        length=length,
-                        block_size=self.block_size_by_group[group_id],
-                    )
-                    converted = self.pools[name].engine.build_cache_from_bf16(
-                        key, value
-                    )
-                    for source_slot, (_, lod_row) in enumerate(rows):
-                        self.pools[name].install(
-                            lod_row, converted, source_slot=source_slot
-                        )
-                    self.pools[name].engine.reset_runtime_cache()
-        except Exception:
-            for _, lod_row, _ in requests:
-                for pool in self.pools.values():
-                    pool.reset(lod_row)
-            raise
+        self._prepare_dummy_batch(rows, _input_batch_max_query_len(input_batch))
 
     def preprocess(
         self,
         input_batch: Any,
-        block_tables: tuple[torch.Tensor, ...],
+        _block_tables: tuple[torch.Tensor, ...],
         kv_cache_config: Any,
     ) -> None:
         self.initialize(kv_cache_config)
@@ -841,7 +800,7 @@ class VLLMLODRuntime:
 
         pure_decode = (
             not bool(np.asarray(input_batch.is_prefilling_np).any())
-            and int(input_batch.max_query_len or 1) == 1
+            and _input_batch_max_query_len(input_batch) == 1
         )
         if not pure_decode:
             slots = list(map(int, input_batch.idx_mapping_np))
@@ -852,19 +811,13 @@ class VLLMLODRuntime:
                 slots, input_batch.num_computed_tokens_np, query_starts
             ):
                 return
-            # This is the legacy dual-cache fallback. Authoritative mode raises
-            # rather than silently using its bounded native staging as remote
-            # attention or pretending it can reconstruct a discarded prefix.
-            self._prepare_native_attention(
-                slots, input_batch.num_computed_tokens_np, query_starts
-            )
+            self._use_native_attention(slots)
             return
 
         lengths = input_batch.num_computed_tokens_np
         for pool in self.pools.values():
             pool.decode_enabled = True
             pool.direct_prefill_plan = None
-            pool.native_append_plan = None
         lod_rows = [self._lod_row(int(slot)) for slot in input_batch.idx_mapping_np]
         padded_rows = int(input_batch.num_tokens_after_padding)
         if padded_rows > self.pool_size:
@@ -874,7 +827,7 @@ class VLLMLODRuntime:
             )
         mapped_rows = self._pad_decode_rows(lod_rows, padded_rows)
         self._set_active_decode_rows(mapped_rows)
-        conversions: list[tuple[int, int, int]] = []
+        missing_slots: list[int] = []
         catch_ups: list[tuple[int, int]] = []
         reference_pool = next(iter(self.pools.values()))
         for row, raw_slot in enumerate(input_batch.idx_mapping_np):
@@ -882,17 +835,12 @@ class VLLMLODRuntime:
             lod_row = self.lod_row_by_slot[slot]
             length = int(lengths[row])
             if not reference_pool.ready[lod_row]:
-                conversions.append((row, lod_row, length))
+                missing_slots.append(slot)
             else:
                 catch_ups.append((lod_row, length))
         self._catch_up_decode_rows(catch_ups)
-        self._convert_requests(conversions, block_tables)
-        for _, lod_row, length in conversions:
-            self.logical_lengths[lod_row] = length
-
-
-def math_ceil_div(value: int, divisor: int) -> int:
-    return (value + divisor - 1) // divisor
+        if missing_slots:
+            self._use_native_attention(missing_slots)
 
 
 def _runtime(model_state: Any) -> VLLMLODRuntime | None:
@@ -990,6 +938,58 @@ def install_model_state_hooks() -> None:
     install_legacy_runner_hooks()
 
 
+def install_tp_safe_vocab_padding() -> None:
+    """Keep vLLM's padded vocabulary divisible by unusual TP sizes.
+
+    vLLM pads vocabularies to a fixed multiple of 64, then assumes that
+    padded size is divisible by tensor parallelism.  That fails for otherwise
+    valid model geometries such as Phi-4 at TP=5 (its ten KV heads require a
+    divisor of five, while 100352 is not divisible by five).  Expanding the
+    padding multiple to ``lcm(64, TP)`` preserves the original vocabulary and
+    weight-loader semantics while making the physical shards regular.
+    """
+    import math
+
+    from vllm.distributed import get_tensor_model_parallel_world_size
+    from vllm.model_executor.layers.vocab_parallel_embedding import (
+        VocabParallelEmbedding,
+    )
+
+    if getattr(VocabParallelEmbedding, "_vllm_lod_tp_padding_installed", False):
+        return
+    original_init = VocabParallelEmbedding.__init__
+
+    def initialize_vocab_embedding(
+        self: Any,
+        num_embeddings: int,
+        embedding_dim: int,
+        params_dtype: torch.dtype | None = None,
+        org_num_embeddings: int | None = None,
+        padding_size: int = 64,
+        quant_config: Any = None,
+        prefix: str = "",
+        *,
+        disable_tp: bool = False,
+    ) -> None:
+        if not disable_tp:
+            tp_size = int(get_tensor_model_parallel_world_size())
+            padding_size = math.lcm(int(padding_size), tp_size)
+        original_init(
+            self,
+            num_embeddings,
+            embedding_dim,
+            params_dtype,
+            org_num_embeddings,
+            padding_size,
+            quant_config,
+            prefix,
+            disable_tp=disable_tp,
+        )
+
+    VocabParallelEmbedding.__init__ = initialize_vocab_embedding
+    VocabParallelEmbedding._vllm_lod_tp_padding_installed = True
+
+
 def install_gpu_runner_hooks() -> None:
     """Expose modern runner token state to persistent LOD cache ownership."""
     try:
@@ -1039,10 +1039,13 @@ def install_legacy_runner_hooks() -> None:
         )
         if is_profiling:
             return
-        kv_cache_config = args[0] if args else kwargs["kv_cache_config"]
         runtime = getattr(self, "_vllm_lod_runtime", None)
         if runtime is not None:
-            runtime.initialize(kv_cache_config)
+            # The runner deep-copies the scheduler config and then appends
+            # worker-only metadata groups (including external LOD layers).
+            # Initialize from that final worker view, not the unmodified RPC
+            # argument passed into this wrapper.
+            runtime.initialize(self.kv_cache_config)
 
     def build_attention_metadata(
         self: Any, *args: Any, **kwargs: Any

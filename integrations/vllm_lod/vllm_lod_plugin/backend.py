@@ -2,22 +2,20 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 import torch
 from vllm.v1.attention.backend import AttentionType
 
-from .config import VLLMLODSettings
-
 if torch.version.hip:
-    from vllm.v1.attention.backends.rocm_attn import (
-        RocmAttentionBackend as _NativeBackend,
+    from vllm.v1.attention.backends.rocm_aiter_unified_attn import (
+        RocmAiterUnifiedAttentionBackend as _NativeBackend,
     )
-    from vllm.v1.attention.backends.rocm_attn import (
-        RocmAttentionImpl as _NativeImpl,
+    from vllm.v1.attention.backends.rocm_aiter_unified_attn import (
+        RocmAiterUnifiedAttentionImpl as _NativeImpl,
     )
 
-    NATIVE_LAYOUT = "rocm"
 else:
     from vllm.v1.attention.backends.flash_attn import (
         FlashAttentionBackend as _NativeBackend,
@@ -25,9 +23,6 @@ else:
     from vllm.v1.attention.backends.flash_attn import (
         FlashAttentionImpl as _NativeImpl,
     )
-
-    NATIVE_LAYOUT = "flash"
-
 
 class LODAttentionImpl(_NativeImpl):
     """Delegate native attention except for eligible one-token decode batches."""
@@ -76,25 +71,9 @@ class LODAttentionImpl(_NativeImpl):
             and not logits_soft_cap
             and kv_cache_dtype in ("auto", "float16", "bfloat16")
         )
-        self.lod_authoritative = (
-            VLLMLODSettings.from_environment().cache_ownership == "lod"
-        )
-
     @staticmethod
-    def _uses_authoritative_lod(layer: torch.nn.Module) -> bool:
-        pool = getattr(layer, "_vllm_lod_pool", None)
-        return (
-            pool is not None
-            and pool.settings.cache_ownership == "lod"
-            and (
-                getattr(pool, "direct_prefill_plan", None) is not None
-                or bool(getattr(pool, "decode_enabled", False))
-            )
-        )
-
-    @staticmethod
-    def _uses_placeholder_cache(layer: torch.nn.Module) -> bool:
-        return bool(getattr(layer, "_vllm_lod_native_placeholder_cache", False))
+    def _uses_external_kv_cache(layer: torch.nn.Module) -> bool:
+        return bool(getattr(layer, "_vllm_lod_external_kv_cache", False))
 
     def do_kv_cache_update(
         self,
@@ -104,10 +83,12 @@ class LODAttentionImpl(_NativeImpl):
         kv_cache: torch.Tensor,
         slot_mapping: torch.Tensor,
     ) -> None:
-        if self.lod_eligible and (
-            self._uses_authoritative_lod(layer)
-            or self._uses_placeholder_cache(layer)
-        ):
+        if self.lod_eligible:
+            if not self._uses_external_kv_cache(layer):
+                raise RuntimeError(
+                    "eligible LOD attention was not externalized; refusing to "
+                    "write a native chronological K/V cache"
+                )
             return
         super().do_kv_cache_update(layer, key, value, kv_cache, slot_mapping)
 
@@ -115,11 +96,7 @@ class LODAttentionImpl(_NativeImpl):
         # The platform fusion cannot independently suppress its chronological
         # cache write. Keep RoPE separate so authoritative LOD can skip that
         # redundant write while native-only layers retain the normal updater.
-        return (
-            False
-            if self.lod_eligible and self.lod_authoritative
-            else super().fused_rope_kvcache_supported()
-        )
+        return False if self.lod_eligible else super().fused_rope_kvcache_supported()
 
     def forward(
         self,
@@ -134,16 +111,31 @@ class LODAttentionImpl(_NativeImpl):
         output_block_scale: torch.Tensor | None = None,
     ) -> torch.Tensor:
         pool = getattr(layer, "_vllm_lod_pool", None)
+        if self.lod_eligible and not self._uses_external_kv_cache(layer):
+            raise RuntimeError(
+                "eligible LOD attention was not externalized; native K/V "
+                "fallback is unsupported"
+            )
+        if (
+            os.getenv("VLLM_LOD_DIAGNOSTIC_EXTERNAL_EMPTY_ATTENTION")
+            in ("skip", "eligible")
+            and self.lod_eligible
+            and self._uses_external_kv_cache(layer)
+        ):
+            # Benchmark-only control: exercise CUSTOM dispatch and externally
+            # owned metadata with eligible attention arithmetic held at zero.
+            # ``skip`` also zeros native layers through the plugin hook, while
+            # ``eligible`` preserves them to isolate the unchanged local path.
+            return output.zero_()
         if (
             pool is not None
             and self.lod_eligible
-            and self._uses_placeholder_cache(layer)
+            and self._uses_external_kv_cache(layer)
             and getattr(pool, "direct_prefill_plan", None) is None
             and not pool.decode_enabled
         ):
             # Uncaptured/capture warmups have no logical request. Their output
-            # is discarded, and the tiny scheduler placeholder is deliberately
-            # not shaped for native remote attention.
+            # is discarded. External layers intentionally have no native K/V.
             return output.zero_()
         if (
             pool is not None
@@ -179,8 +171,6 @@ class LODAttentionImpl(_NativeImpl):
             output_scale=output_scale,
             output_block_scale=output_block_scale,
         )
-        if pool is not None:
-            pool.record_native_appends(key, value)
         return result
 
 
@@ -188,6 +178,13 @@ class LODAttentionBackend(_NativeBackend):
     """Retain the platform-native cache layout and metadata builder."""
 
     forward_includes_kv_cache_update = False
+
+    @classmethod
+    def get_supported_head_sizes(cls) -> list[int]:
+        # LOD handles wide global heads without entering ROCmAttention's
+        # paged-attention kernel. Gemma-4 uses 512-wide heads only on those
+        # global layers; its 256-wide sliding layers retain the native path.
+        return sorted(set(super().get_supported_head_sizes()) | {512})
 
     @staticmethod
     def get_name() -> str:
@@ -198,4 +195,4 @@ class LODAttentionBackend(_NativeBackend):
         return LODAttentionImpl
 
 
-__all__ = ["NATIVE_LAYOUT", "LODAttentionBackend", "LODAttentionImpl"]
+__all__ = ["LODAttentionBackend", "LODAttentionImpl"]

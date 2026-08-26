@@ -2,22 +2,23 @@
 
 This out-of-tree plugin makes semantic LOD state the authoritative cache for
 eligible global-attention layers. Initial and cached prefill build that state
-directly, and decode advances the same fixed-address rows. With vLLM prefix
-caching disabled, the scheduler sees only a tiny logical placeholder and no
-chronological attention K/V is written. Prefix caching instead keeps a bounded
-chronological staging window so its block hashes remain usable. Recurrent/Mamba
-state and attention layers that are not LOD-compatible remain native.
+directly, and decode advances the same fixed-address rows. Authoritative LOD
+layers bind no chronological native attention K/V, including when vLLM prefix
+caching is enabled. Prefix hashes come from token/block metadata; a hit resumes
+an exactly matched retained LOD row. Recurrent/Mamba state and attention layers
+that are not LOD-compatible remain native.
 
 Completed LOD rows remain available for content-matched prefix reuse. When
 vLLM resumes a prompt at a physical block boundary, the plugin verifies the
-exact token prefix and rolls the retained row back only within its unclustered
-exact tail. It never tries to undo clustered history. The bounded native
-staging cache is not a lossless remote-attention fallback.
+exact token prefix. A hit inside the unclustered tail is a metadata-only
+rollback. For an older shared-prefix boundary, two-level LOD rebuilds its
+semantic centroids from the row's chronological exact-leaf archive; it never
+tries to invert clustered history. No native attention-cache fallback is used
+for an external LOD layer.
 
-`VLLM_LOD_CACHE_OWNERSHIP=dual` retains the earlier diagnostic design: native
-FP16/BF16 K/V remains authoritative, prefill can run natively, and LOD is a
-rebuildable decode shadow. This mode is useful for comparisons but does not
-provide the authoritative mode's memory saving.
+External semantic ownership is the only supported cache mode. The plugin does
+not expose the older dual-cache, bounded-staging, or 1x1/1x1x1 placeholder
+paths, so a CUSTOM attention run cannot silently select their slower geometry.
 
 The default `VLLM_LOD_LEVELS=2` path is the current flat BF16 implementation
 shared with the Hugging Face benchmark. Exact leaves are stored once in a
@@ -26,6 +27,60 @@ It opens all exact pages in each of the top-eight centroids. Set
 `VLLM_LOD_DENSE_LEAF_STORAGE=0` only for matched comparisons with the older
 region-owned physical-page layout. `VLLM_LOD_LEVELS=3` retains the older
 recursive page-summary implementation and its INT4/INT8 storage modes.
+
+When GQA-union decode and its AITER path are enabled, one indexed M16/N64
+attention call consumes exact leaves, the local window, protected sinks, and
+unopened coarse entries from a shared page-size-one arena. Coarse entries carry
+an FP16 logit bias. Every centroid occupies a fixed suffix position: opened or
+inactive entries receive `-inf`, while unopened entries receive `log(count)`.
+This preserves represented token mass without compacting a per-query centroid
+list, a separate coarse value pass, or a final branch merge.
+
+`VLLM_LOD_DECODE_GQA_FIXED_MASK_AITER=1` selects the fixed-list variant. At
+each 256-token state-update boundary it stores one persistent list per KV head:
+local positions, sinks, every coarse position, then all valid leaves in
+centroid-major order. Decode changes only an epoch-stamped opened-centroid mask.
+A parallel mask-preparation kernel resolves owners and route epochs into one
+byte per list entry and one byte per 64-entry block. The M16/N64 page-size-one
+kernel first reads the block byte; a fully inactive tile exits without loading
+its lane mask or K/V and without issuing QK or PV MFMA. Partially active tiles
+retain the ordinary AITER-shaped online softmax, including `log(count)` on
+unopened coarse entries. The default long fixed scan uses 128 independent
+segments at the measured batch-8 geometry. The route-dependent compact leaf-list
+construction and coarse/leaf correction merge are therefore absent. This
+option requires two-level BF16 GQA-union decode with
+`VLLM_LOD_DECODE_GQA_UNION_HIP=1` and is mutually exclusive with
+`VLLM_LOD_DECODE_GQA_STAGED_FIXED_AITER=1`.
+`VLLM_LOD_DECODE_GQA_FIXED_MASK_BLOCK_N` selects the experimental fast-fail
+tile width (16, 64, or 128; default 64), and
+`VLLM_LOD_DECODE_GQA_FIXED_MASK_SEGMENTS` selects 8--512 split segments
+(default 128).
+
+`VLLM_LOD_DECODE_ROUTE_COHORT=1` restricts dynamic top-k or mass-cutoff
+routing to centroids in the same small-posting-list cohort used by the static
+variant: an inclusive `max(16, ceil(sqrt(T) / 16))` leaf cap.  This policy
+replaces `VLLM_LOD_DECODE_MAX_OPEN_LEAVES`; it is not intersected with that
+legacy guard.  `VLLM_LOD_DECODE_GQA_STATIC_LEAF_CAP` remains an optional fixed
+override for controlled single-length experiments.  `VLLM_LOD_OPEN_COUNT`
+selects one through eight routes for top-k experiments.  Predicted-mass decode
+instead uses `VLLM_LOD_DECODE_GQA_PREDICTED_MASS=1` and
+`VLLM_LOD_DECODE_GQA_MASS_FRACTION`; it applies the current query to the
+eligible centroids while reusing only the preceding token's total mass as the
+cutoff denominator.
+
+`VLLM_LOD_DECODE_GQA_STATIC_LEAF_AITER=1` selects the routing-free compact
+variant. At a state update it builds one persistent page-size-one list per KV
+head: sinks, every leaf whose centroid count is at most
+the active cap, one `log(count)`-biased coarse entry for each larger centroid,
+and the fixed local-window suffix. By default the inclusive cap for a request
+of length `T` is `max(16, ceil(sqrt(T) / 16))`. Set
+`VLLM_LOD_DECODE_GQA_STATIC_LEAF_CAP` to use a fixed experimental override, or
+`VLLM_LOD_DECODE_GQA_STATIC_LEAF_CAP_MIN` to change the default floor. Decode
+then performs a single indexed attention scan over that list; it has no
+coarse-score, top-k, union, or mask-construction dependency. It shares the
+split count selected by `VLLM_LOD_DECODE_GQA_FIXED_MASK_SEGMENTS` and requires
+two-level BF16 GQA-union decode with
+`VLLM_LOD_DECODE_GQA_UNION_HIP=1`.
 
 ## Install and run
 
@@ -100,24 +155,28 @@ so ordinary `--gpu-memory-utilization` settings continue to include the mapped
 model weights. The broker is single-node and DP=1; TP and PP are supported and
 discovered from each requesting vLLM engine.
 
+The repository's current vLLM benchmark, quality, prefix-cache, chat-batch, and
+NIAH panel entry points select `ipc_cache` by default. They share the namespace
+from `VLLM_WEIGHT_CACHE_ID` (`dev` in the shell launchers). Set
+`VLLM_WEIGHT_CACHE_LOAD_FORMAT=auto` only for an explicit uncached control.
+
 Then select the registered custom backend:
 
 ```bash
 VLLM_PLUGINS=lod_attention \
-VLLM_LOD_CACHE_OWNERSHIP=lod \
 VLLM_LOD_POOL_SIZE=8 \
 VLLM_LOD_LEVELS=2 \
 VLLM_LOD_KV_BITS=0 \
 vllm serve MODEL \
   --attention-backend CUSTOM \
   --kv-cache-dtype bfloat16 \
-  --no-enable-prefix-caching \
+  --enable-prefix-caching \
   --max-num-seqs 8
 ```
 
-The `--no-enable-prefix-caching` form gives the smallest cache. Omit that flag
-when cross-request vLLM prefix reuse is more important; LOD then retains only
-the bounded native staging needed to validate and resume hashed prefixes.
+Prefix caching does not allocate chronological K/V for authoritative LOD
+layers. The retained LOD-row pool must be large enough for the live requests
+and prefixes that should remain reusable.
 
 `VLLM_LOD_POOL_SIZE` is the number of simultaneous or retained request rows on
 each worker. It defaults to 8 and must be at least `--max-num-seqs`. The pool is
@@ -138,6 +197,13 @@ prefill state updates, expert-layout BF16 leaf attention, and the two-level
 page directory. These are configurable with `VLLM_LOD_PREFILL_CHUNK_SIZE`,
 `VLLM_LOD_PREFILL_LOCAL_WINDOW`, `VLLM_LOD_PREFILL_STATE_UPDATE_SIZE`,
 `VLLM_LOD_LEAF_LAYOUT`, and `VLLM_LOD_LEAF_PAGED_DIRECTORY`.
+`VLLM_LOD_PREFILL_STATIC_LEAF_AITER=1` replaces query-dependent prefill top-k
+with the static small-centroid cohort. After each 4,096-token state catch-up it
+rebuilds one page-size-one AITER list per KV head containing every leaf whose
+centroid has at most `max(16, ceil(sqrt(T) / 16))` leaves; the list stays fixed
+for that query chunk. Larger centroids remain represented by their biased
+coarse entries. `VLLM_LOD_PREFILL_STATIC_LEAF_CAP_MIN` changes the floor. This
+experimental prefill mode requires two-level BF16 dense leaf storage.
 `VLLM_LOD_LEAF_SEAL_CAPACITY` is an opt-in diagnostic; it is unset by default,
 and the reported two-tier benchmarks retain every leaf. The two-tier cache accepts
 `VLLM_LOD_KV_BITS=0` (BF16) or `8` (signed INT8 K/V with one BF16 scale per
@@ -157,17 +223,44 @@ that fixed work. `VLLM_LOD_PREFILL_INT8_PV_MMA=0` or `1` overrides this
 automatic crossover. Batch-8 INT8 leaf kernels use two warps by default; one
 warp under-occupies the true batched workload.
 Recursive three-tier storage accepts 0, 4, or 8 bits;
-quantized storage requires the same precision for K and V. Authoritative ownership forces
-`VLLM_LOD_PREFILL_MODE=direct`. `VLLM_LOD_NATIVE_STAGING_CHUNK` (1024) controls
-the exact chronological window retained when prefix caching is enabled.
-`VLLM_LOD_NATIVE_PLACEHOLDER_CACHE` defaults to true and removes chronological
-attention K/V when prefix caching is disabled. `VLLM_LOD_NATIVE_CACHE_HEADROOM`
-defaults to 1.0; prefix caching enforces a 2.0 minimum for dormant hashed
-blocks.
+quantized storage requires the same precision for K and V. External ownership
+forces `VLLM_LOD_PREFILL_MODE=direct`.
+`VLLM_LOD_PREFIX_ROLLBACK_TOKENS` (1024) controls the exact local tail retained
+for inexpensive metadata-only prefix rollback; it is semantic LOD state, not a
+native cache. Eligible layers always retain a scheduler-visible virtual
+full-history group with the original block geometry and are restored as
+worker-only attention groups, so they receive ordinary metadata while binding
+no native K/V tensor. With prefix caching enabled, that virtual group stores
+chained token hashes in a bounded CPU sentinel table, but it never consumes GPU
+tensor bytes or IDs from vLLM's shared physical block pool. Physical cache
+sizing therefore uses only the model's remaining native groups, while hybrid
+coordination keeps the full-attention topology that vLLM uses to build its fast
+local-attention metadata path. This is an unconditional cache-ownership
+invariant for every LOD-eligible CUSTOM layer, not a model- or mode-specific
+option: scheduler specs and model markers must match exactly, and startup fails
+if an eligible layer has an unsupported spec, loses its virtual group, or
+appears in any native GPU K/V tensor. The plugin retains and exactly verifies
+the corresponding semantic LOD row before accepting a prefix hit.
 `VLLM_LOD_ROUTING_GEOMETRY=raw` matches the current two-tier HF configuration.
 `auto` selects coherence-aware state routing for
 attention modules with normalized keys and spherical routing for unnormalized
 keys. `raw`, `spherical`, and `coherence` are explicit diagnostic overrides.
+
+For recursive three-tier decode,
+`VLLM_LOD_RECURSIVE_STATE_ROUTE_BACKEND=fused` retains the existing grouped
+state-route kernel. `resplit` selects the allocation-free score-materialization
+path. The latter keeps score generation, softmax, split value accumulation,
+and value reduction independently testable. It reuses each score-table tile
+load for both tile top-eight and tile LSE, then reduces the top-eight candidates
+and LSE partials together. This conservative fusion is the default for the
+`resplit` backend; the benchmark reproducer can still execute every stage
+separately. `resplit` is not a universal speed default: current batch-8
+measurements favor it for D>=256 or high KV-head count, while the grouped route
+remains faster for shorter D128/KV2 workloads.
+The score table is FP32 and the count-corrected probability table is FP16; this
+combination removed score-ordering loss and was more accurate against exact
+coarse attention than either the initial BF16-probability path or the existing
+grouped route in the Qwen control.
 
 `VLLM_LOD_AUG19_COMPAT=1` selects the closest reconstructable execution path
 to the August 19, 2026 BF16 LongBench run: fixed eight-way Triton decode,
@@ -185,19 +278,16 @@ profiles is therefore the one- versus four-warp prefill leaf-route reduction.
 
 ## Execution contract
 
-- The default authoritative path runs direct LOD prefill. It uses scheduler-only
-  placeholder pages when prefix caching is off and bounded native staging when
-  prefix caching is on. `dual` ownership retains the older
-  native-prefill/rebuild path.
-- Dual-mode prefix conversion reads each backend's canonical paged-cache view. In
-  particular, ROCm's raw allocation has a nominal token-major shape but is
-  written through head-major K/V views; treating the raw shape as semantic
-  token order scrambles the reconstructed prefix.
+- The default authoritative path runs direct LOD prefill. Eligible global
+  layers bind no native K/V tensor. Prefix caching keeps only scheduler token
+  hashes plus retained semantic LOD rows. There is no alternate cache-ownership
+  mode or native rebuild path.
 - Pure one-token decode uses fixed-address LOD pools and stable request-row
   indirection, so the Triton decode launches can be captured in CUDA graphs.
-- Authoritative mode disables vLLM's asynchronous two-model-batch queue because
-  an in-place LOD row must settle before its next update is prepared. Ordinary
-  request batching and CUDA graph replay remain enabled.
+- vLLM asynchronous scheduling remains enabled. Model forwards and all LOD
+  state mutations are submitted in worker order on the main GPU stream, while
+  only sampling-output copies overlap on a separate stream. Consequently the
+  large semantic state remains single-buffered and graph addresses stay fixed.
 - Use a 16,384-token `long_prefill_token_threshold` per request. The aggregate
   `max_num_batched_tokens` should remain `batch_size * 16,384` (131,072 for
   batch 8); setting the aggregate limit itself to 16,384 serializes the batch.
@@ -221,23 +311,20 @@ profiles is therefore the one- versus four-warp prefill leaf-route reduction.
   Triton fallback; disabling or missing this specialization selects the
   generic split decoder.
 - A direct-prefill mixed batch uses LOD only when every request can advance an
-  exact authoritative prefix. In `lod` ownership, a missing prefix is an error:
-  bounded staging cannot reconstruct discarded remote history. In `dual`
-  ownership the batch can use native attention and rebuild later.
-- Equal-length native prefixes are gathered and rebuilt as one batch per layer;
-  ragged prefixes are grouped by length. Ordinary decode tokens update only
-  host metadata between state boundaries, so eager state-maintenance launches
-  occur once per update interval rather than once per token.
+  exact authoritative prefix. A missing prefix is an error because there is
+  deliberately no native attention fallback. Retained two-level rows can
+  reconstruct an older matched prefix from their chronological leaves.
+  Ordinary decode tokens update only host metadata between state boundaries,
+  so eager state-maintenance launches occur once per update interval rather
+  than once per token.
 - Sliding-window, encoder, ALiBi, attention-sink, soft-capped, quantized-native
   KV, speculative decode, and DCP paths remain native or are rejected when a
   lossless fallback is not available. Tensor parallelism and hybrid recurrent
   layers do not alter the per-layer LOD contract.
 
-The first integration deliberately uses one uniform attention mode per batch.
-Every pure one-token decode batch uses LOD, including short requests, because a
-captured vLLM graph cannot dynamically swap its attention implementation.
-Length-based native/LOD dispatch needs a scheduler-visible graph key and is a
-later integration stage, not a hidden branch in the captured kernel.
+Every eligible global layer uses external LOD for prefill and decode, including
+short requests. A captured graph never swaps in native attention and no native
+chronological cache exists for such a layer.
 
 ## Paper-oriented kernel surface
 
@@ -273,13 +360,15 @@ within 8.6e-4.
 
 ## Current memory behavior
 
-Authoritative mode replaces full chronological K/V for eligible global layers.
-Without prefix caching, one logical placeholder block per active request is
-enough; K/V writes to it are skipped. With prefix caching, chunk-local semantics
-free settled staging blocks and startup sizes the pool from active, in-flight,
-and dormant-prefix demand rather than maximum context length. Recurrent state
-remains native. Semantic leaves are quantized only after region assignment;
-sequential native blocks are never treated as quantizable pages.
+External semantic ownership replaces full chronological K/V for eligible global
+layers. With prefix caching, an all-global model retains its real logical cache
+geometry in the scheduler for token hashes, while the worker removes the GPU
+allocation and attention path entirely. Hybrid models reuse an existing native
+group's hashes and need no tracker. Without prefix caching, no scheduler group
+or worker tensor is needed for those layers. Recurrent and sliding-window caches
+remain native. Semantic leaves are
+quantized only after region assignment; sequential native blocks are never
+treated as quantizable pages.
 
 For Qwen3.5-0.8B at 64K, batch eight, INT4 LOD uses 2.817 GB of semantic cache,
 0.221 GB of native scheduler/recurrent state, and a 0.063 GB shared decode

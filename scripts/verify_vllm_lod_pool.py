@@ -130,7 +130,6 @@ def main() -> None:
         pool_size=4,
         request_capacity=128,
         routing_geometry=args.routing_geometry,
-        cache_ownership="dual",
         prefill_local_backend="torch",
         prefill_chunk_size=16,
         prefill_local_window=32,
@@ -278,19 +277,6 @@ def main() -> None:
     assert pool.batched_cached_prefill_calls == 1
     assert pool.batched_cached_prefill_rows == 2
 
-    native_key = torch.randn(1, 2, 128, dtype=torch.bfloat16, device=device)
-    native_value = torch.randn_like(native_key)
-    prior_recent = int(pool.local_lens[2].item())
-    pool.native_append_plan = (
-        (2, 0, 1, direct_length + cached_length),
-    )
-    pool.record_native_appends(native_key, native_value)
-    assert int(pool.metadata[2]["total_len"]) == direct_length + cached_length + 1
-    assert int(pool.local_lens[2].item()) == prior_recent + 1
-    torch.testing.assert_close(
-        pool.state["recent_k"][2, :, prior_recent, :], native_key[0]
-    )
-
     length = 40
     keys = [
         torch.randn(1, 2, length, 128, dtype=torch.bfloat16, device=device)
@@ -405,7 +391,6 @@ def main() -> None:
             pool_size=1,
             request_capacity=serving_capacity,
             routing_geometry=args.routing_geometry,
-            cache_ownership="lod",
             prefill_local_backend="torch",
         )
         serving_pool = VLLMLayerLODPool(

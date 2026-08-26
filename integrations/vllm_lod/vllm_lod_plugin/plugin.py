@@ -2,10 +2,39 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
 _REGISTERED = False
+
+
+def _install_native_attention_skip_diagnostic() -> None:
+    """Hold native attention arithmetic at zero for dispatch-overhead tests."""
+    # ``eligible`` zeros only externally-owned LOD layers, leaving native
+    # sliding-window layers intact. ``skip`` also patches native attention so
+    # it remains the whole-model no-attention control.
+    if os.getenv("VLLM_LOD_DIAGNOSTIC_EXTERNAL_EMPTY_ATTENTION") != "skip":
+        return
+    if not __import__("torch").version.hip:
+        raise NotImplementedError("the external-empty diagnostic currently targets ROCm")
+    from vllm.v1.attention.backends.rocm_aiter_unified_attn import (
+        RocmAiterUnifiedAttentionImpl,
+    )
+
+    if getattr(RocmAiterUnifiedAttentionImpl, "_vllm_lod_skip_installed", False):
+        return
+
+    def skip_forward(self, *args, **kwargs):
+        output = kwargs.get("output")
+        if output is None:
+            if len(args) <= 6:
+                raise TypeError("native attention diagnostic could not locate output")
+            output = args[6]
+        return output.zero_()
+
+    RocmAiterUnifiedAttentionImpl.forward = skip_forward
+    RocmAiterUnifiedAttentionImpl._vllm_lod_skip_installed = True
 
 
 def _add_lod_source_tree() -> None:
@@ -35,6 +64,7 @@ def register() -> None:
     if _REGISTERED:
         return
     _add_lod_source_tree()
+    _install_native_attention_skip_diagnostic()
     from vllm.v1.attention.backends.registry import (
         AttentionBackendEnum,
         register_backend,
@@ -44,9 +74,20 @@ def register() -> None:
         AttentionBackendEnum.CUSTOM,
         "vllm_lod_plugin.backend.LODAttentionBackend",
     )
-    from .cache_ownership import install_cache_ownership_hooks
-    from .runtime import install_model_state_hooks
+    # The benchmark vLLM release only supports Muse-Glimmer through the
+    # generic Transformers runner, whose attention is not replaceable by an
+    # out-of-tree vLLM backend. Register its text tower lazily so both native
+    # full attention and LOD use the same serving stack.
+    from vllm import ModelRegistry
 
+    ModelRegistry.register_model(
+        "MuseGlimmerForCausalLM",
+        "vllm_lod_plugin.muse_glimmer:MuseGlimmerForCausalLM",
+    )
+    from .cache_ownership import install_cache_ownership_hooks
+    from .runtime import install_model_state_hooks, install_tp_safe_vocab_padding
+
+    install_tp_safe_vocab_padding()
     install_cache_ownership_hooks()
     install_model_state_hooks()
     from .weight_cache_loader import register_weight_cache_loader

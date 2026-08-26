@@ -16,6 +16,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+import cloudpickle
 import torch
 from torch import nn
 
@@ -501,7 +502,13 @@ class IPCWeightCacheModelLoader:
                     "client_pid": os.getpid(),
                     "device_uuid": device_uuid,
                     "fingerprint": fingerprint.to_dict(),
-                    "vllm_config_pickle": pickle.dumps(
+                    # ModelConfig permits callable hf_overrides. Benchmark and
+                    # embedding applications commonly define those callbacks
+                    # in __main__, which ordinary pickle can serialize by name
+                    # but the daemon's spawned rank cannot import. Cloudpickle
+                    # embeds such callbacks while remaining readable by the
+                    # daemon's ordinary pickle.loads.
+                    "vllm_config_pickle": cloudpickle.dumps(
                         vllm_config, protocol=pickle.HIGHEST_PROTOCOL
                     ),
                     "backing_load_format": self.backing_load_format,

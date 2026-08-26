@@ -5,10 +5,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import time
 from pathlib import Path
 
 from transformers import AutoTokenizer
+
+from vllm_engine_lifecycle import register_llm_shutdown, shutdown_registered_llms
 
 
 MARKERS = (
@@ -129,6 +132,7 @@ def main() -> None:
     ) + 3 * args.decode_tokens + 32
     llm_kwargs = dict(
         model=args.checkpoint,
+        load_format=os.getenv("VLLM_WEIGHT_CACHE_LOAD_FORMAT", "ipc_cache"),
         dtype="bfloat16",
         max_model_len=max_length,
         max_num_seqs=len(MARKERS),
@@ -141,7 +145,7 @@ def main() -> None:
     )
     if args.mode == "lod":
         llm_kwargs["attention_config"] = {"backend": "CUSTOM"}
-    llm = LLM(**llm_kwargs)
+    llm = register_llm_shutdown(LLM(**llm_kwargs))
     params = SamplingParams(
         temperature=0,
         max_tokens=args.decode_tokens,
@@ -287,4 +291,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    finally:
+        shutdown_registered_llms()
