@@ -88,40 +88,85 @@ split count selected by `VLLM_LOD_DECODE_GQA_FIXED_MASK_SEGMENTS` and requires
 two-level BF16 GQA-union decode with
 `VLLM_LOD_DECODE_GQA_UNION_HIP=1`.
 
-## High-quality 64K batch-8 decode reference
+## Best measured 64K batch-8 prefill and decode
 
-This table is the authoritative 64K/B8/BF16 speed and quality reference as of
-2026-08-26. It uses eight distinct ProLong documents, reserves 64 positions
-for decode, generates 64 timing tokens, and reports the median of three
-repetitions. A latency comparison is valid only when its dispatch audit
-records the kernel stack named below. Do not compare the portable flat
-two-tier leaf path with these numbers.
+This is the canonical speed table as of 2026-08-27. It compares full attention
+with the fastest measured **quality-conscious production configuration** for
+two-tier and recursive three-tier LOD. Static cohorts and route variants that
+won only a speed screen are excluded. In particular, unrestricted
+query-dependent top-eight remains the two-tier decode reference on every
+model, including Phi, Muse, and OLMo.
 
-The runner settings are context 65,536, batch 8, 16,384 maximum batched
-prefill tokens, 4,096 long-prefill threshold, 64-token prompt reserve,
-64 generated tokens, greedy decoding (`temperature=0`, EOS ignored), prefix
-caching disabled, and three measured repetitions after warmup. Checkpoints,
-tensor parallelism, and prompt formatting are recorded per row.
+All rows use context 65,536, batch 8, eight distinct real ProLong documents,
+16,384 maximum batched prefill tokens, a 64-token prompt reserve, BF16 LOD
+state, and warm runs. Prefill is elapsed seconds for all eight prompts. Decode
+is milliseconds per batch-eight decoding step. Parentheses report
+`full-attention time / LOD time`; values below 1.0 mean that LOD is slower.
+Bold marks the fastest of full, two-tier, and three-tier in that row.
+Phi uses TP5; the other rows use TP1. Qwen, Gemma, Phi, and Muse use their
+validated chat formatting (plus Muse's native text configuration), while OLMo
+uses its raw base-model prompt.
 
-| model | TP / prompt | historical full | fastest high-quality LOD policy | latency | quality evidence at 64K |
-|---|---|---:|---|---:|---|
-| `Qwen/Qwen3.8-27B-FP8` | 1 / chat | 52.030 ms | unrestricted top-8, grouped route | **36.247 ms** | ordinary two-level LOD 64/64 NIAH-S3 |
-| `google/gemma-4-26B-A4B-it` | 1 / chat | 11.694 ms | unrestricted top-8, grouped route, D=512 indexed final | **10.421 ms** | ordinary two-level LOD 62/64 NIAH-S3 versus full 64/64 |
-| `microsoft/phi-4` | 5 / chat | 9.970 ms | unrestricted top-8, grouped route | **10.913 ms** | 64K NIAH-S3 is not discriminative: full and LOD both scored 0/64 |
-| `meta-models/Muse-Glimmer-30B` | 1 / chat + native text config | 19.215 ms | unrestricted top-8, segmented route | **19.349 ms** | ordinary two-level LOD 64/64 NIAH-S3 |
-| `allenai/Olmo-3-1125-32B` | 1 / raw base-model prompt | 30.481 ms | unrestricted top-8, grouped route | **28.878 ms** | ordinary top-8 LOD scored 54/64; this model retains a broader LOD quality gap |
+### Prefill
 
-Unrestricted query-dependent top-eight is the high-quality reference on every
-model. Static-cohort decode has lower measured latency on Phi, Muse, and OLMo,
-but those arms have only an uninformative Phi task, an 8/8 Muse smoke, and a
-7/8 OLMo smoke respectively. They are therefore speed experiments, not
-high-quality defaults. This classification does not erase the broader quality
-caveats of ordinary LOD: Gemma scored 62/64 and OLMo 54/64 versus full
-attention's 64/64, while Phi's task fails under full attention too. It means
-only that we do not add the less-validated static selection restriction when
-identifying the safest currently measured LOD configuration.
+| model | full attention | best two-tier | best three-tier |
+|---|---:|---:|---:|
+| `Qwen/Qwen3.5-0.8B` | 9.909 s | 5.168 s (1.92x) | **4.323 s (2.29x)** |
+| `Qwen/Qwen3.8-27B-FP8` | 110.565 s | **65.062 s (1.70x)** | 66.912 s (1.65x) |
+| `google/gemma-4-26B-A4B-it` | 40.063 s | **18.110 s (2.21x)** | 19.175 s (2.09x) |
+| `microsoft/phi-4` (TP5) | **28.119 s** | 43.216 s (0.65x) | 34.788 s (0.81x) |
+| `meta-models/Muse-Glimmer-30B` | 51.933 s | **51.514 s (1.008x)** | 54.009 s (0.962x) |
+| `allenai/Olmo-3-1125-32B` | **67.892 s** | 69.286 s (0.980x) | 74.795 s (0.908x) |
 
-The exact common LOD settings for this reference are:
+The two-tier prefill rows use routed top-three selection. Qwen3.8 and OLMo use
+native-GQA coarse packing; Muse uses the hierarchical selector plus branch
+overlap; Phi uses the current automatic spherical geometry and hierarchical
+selector; Gemma retains its D=512 path. Qwen3.5-0.8B's later kernel changes do
+not dispatch on its two-tier geometry, so its latest applicable routed result
+remains 5.168 seconds.
+
+The selected three-tier rows use hierarchical prefill selection and the
+current automatic route backend. Qwen3.5-0.8B uses local/LOD overlap and
+re-split routing. Qwen3.8 uses re-split routing. Gemma, Muse, and OLMo retain
+the fused route. Phi uses 4,096-token updates and the D128/GQA4 expert/MFMA
+complete-centroid prefill consumer; its decode still performs ordinary
+recursive page routing.
+
+### Decode
+
+| model | full attention | best two-tier top-8 | best three-tier top-8 |
+|---|---:|---:|---:|
+| `Qwen/Qwen3.5-0.8B` | 5.822 ms | 3.077 ms (1.89x) | **2.369 ms (2.46x)** |
+| `Qwen/Qwen3.8-27B-FP8` | 52.030 ms | 36.334 ms (1.43x) | **34.883 ms (1.49x)** |
+| `google/gemma-4-26B-A4B-it` | 11.694 ms | 10.235 ms (1.14x) | **9.365 ms (1.25x)** |
+| `microsoft/phi-4` (TP5) | **9.970 ms** | 11.198 ms (0.89x) | 9.998 ms (0.997x) |
+| `meta-models/Muse-Glimmer-30B` | 19.215 ms | 19.153 ms (1.003x) | **19.133 ms (1.004x)** |
+| `allenai/Olmo-3-1125-32B` | 30.481 ms | **28.769 ms (1.06x)** | 29.125 ms (1.05x) |
+
+Two-tier decode is unrestricted top-eight with the page-size-one HIP/AITER
+final scan. Current automatic dispatch uses the segmented route producer only
+on Muse and the grouped producer elsewhere. Three-tier uses re-split routing
+on Qwen3.5-0.8B, Qwen3.8, and Phi, and fused routing on Gemma, Muse, and OLMo.
+The faster re-split speed screens for Gemma and OLMo are not promoted because
+they regressed their matched quality checks.
+
+The quality record remains part of this table's interpretation. Qwen3.5-0.8B,
+Qwen3.8, and Muse reached 64/64 NIAH-S3. Gemma two-tier scored 62/64; the
+three-tier fused route corrected the single miss observed in its 63/64
+re-split run on a matched block. OLMo two-tier and selected three-tier both
+scored 54/64 versus full attention's 64/64, so it retains a broader LOD quality
+gap. Phi's NIAH-S3 task is not discriminative because full attention also
+scores 0/64; its corrected three-tier prefill was instead checked with ProLong
+CE loss and was neutral within 0.013%.
+
+The full-attention controls are the latest accepted matched records. The
+Qwen3.5-0.8B control is the current seven-repeat AITER run. The five larger
+models reuse the historical native-attention controls because the subsequent
+cache and custom-kernel fixes do not execute in native full attention. OLMo
+uses the newer eight-document 67.892-second control, not the older
+68.537-second panel value.
+
+The exact common LOD settings for the two-tier decode reference are:
 
 ```bash
 VLLM_LOD_POOL_SIZE=8
@@ -131,7 +176,6 @@ VLLM_LOD_MAX_CONTEXT=131200
 VLLM_LOD_STATE_FACTOR=16
 VLLM_LOD_DENSE_LEAF_STORAGE=1
 VLLM_LOD_PREFILL_MODE=direct
-VLLM_LOD_ROUTING_GEOMETRY=raw
 VLLM_LOD_PREFILL_CHUNK_SIZE=4096
 VLLM_LOD_PREFILL_LOCAL_WINDOW=4864
 VLLM_LOD_PREFILL_STATE_UPDATE_SIZE=4096
@@ -157,6 +201,9 @@ VLLM_LOD_DECODE_GQA_FIXED_MASK_AITER=1
 
 Leave `VLLM_LOD_DECODE_HIERARCHICAL_ROUTE` unset so geometry dispatch selects
 Muse's validated segmented route and the grouped route on the other rows.
+Also leave `VLLM_LOD_ROUTING_GEOMETRY` unset to use the current automatic
+spherical/coherence-aware policy. Setting it to `raw` reproduces the archived
+August 25 two-tier control rather than the current table.
 
 The optional static 64K speed diagnostic instead adds:
 
@@ -170,9 +217,10 @@ Leaving `VLLM_LOD_DECODE_GQA_STATIC_LEAF_CAP` unset selects the length-aware
 inclusive `max(16, ceil(sqrt(T) / 16))` schedule; it also evaluates to 16 at
 64K. This mode is not part of the high-quality reference.
 
-The historical table above used raw routing. A later matched fast-top-8
-route-only rerun used the current automatic spherical/coherence-aware routing
-and found grouped/segmented latencies of
+The archived raw-routing top-eight panel measured 36.247 ms on Qwen,
+10.421 ms on Gemma, 10.913 ms on Phi, 19.349 ms on Muse, and 28.878 ms on
+OLMo. The current table instead uses the later matched automatic-geometry
+route-only rerun. It found grouped/segmented latencies of
 36.334/36.478 ms on Qwen, 10.235/10.300 ms on Gemma, and
 11.198/11.163 ms on Phi.  Muse's historical 19.349-ms fast path already used
 the segmented schedule, and the current rerun is 19.153 ms.  OLMo measured
@@ -182,20 +230,33 @@ hierarchical-route comparison.  Automatic segmented routing is therefore
 limited to Muse.  It is exact with respect to the top-eight route set, but it
 is not a speed win on Qwen or Gemma and its Phi delta is only 0.32%.
 
-The reference artifacts are
-`artifacts/static_vs_top8_30b_20260825/README.md` and
-`artifacts/prefill_route_hierarchical_20260826/README.md`.  The route-pair
+The reference artifacts are:
+
+- `artifacts/static_vs_top8_30b_20260825/README.md` for the large-model full
+  controls and archived two-tier controls;
+- `artifacts/static_prefill_20260825/README.md` for Qwen3.5-0.8B two-tier
+  prefill and `artifacts/cohort_routing_20260825/README.md` for its decode;
+- `artifacts/prefill_route_hierarchical_20260826/README.md` and
+  `artifacts/prefill_direct_gqa_20260826/README.md` for the current large-model
+  two-tier rows; and
+- `artifacts/three_tier_refresh_qwen08_20260826/README.md`,
+  `artifacts/three_tier_resplit_family_20260826/README.md`, and
+  `artifacts/three_tier_phi_prefill_20260826/README.md` for three-tier.
+
+The route-pair
 harness `scripts/run_vllm_lod_decode_route_pair.sh` fails after a run unless
 the audit confirms fixed-mask execution, HIP execution, page-size-one final
 attention, and the requested grouped or segmented route producer.
 
-Treat this section as a release record. A future configuration replaces a row
-only after a matched real-text B8 rerun, a quality result appropriate for that
-model, and a dispatch audit proving that the intended kernels executed. Record
-the checkpoint, TP, prompt formatting, all non-default environment overrides,
-timing protocol, quality evidence, and artifact path here at the same time.
-Do not infer the active kernel from requested flags, and do not promote an
-isolated-kernel or speed-only result to the high-quality set.
+Treat this section as a release record and keep both tables current. A future
+configuration replaces a row only after a matched real-text B8 rerun, a quality
+result appropriate for that model, and a dispatch audit proving that the
+intended kernels executed. Update the date, value, policy description, quality
+note, and artifact pointer in the same commit. Record the checkpoint, TP,
+prompt formatting, all non-default environment overrides, and timing protocol
+in the artifact. Do not infer the active kernel from requested flags, combine
+the best individual repetition from different runs, or promote an isolated
+kernel, static cohort, or speed-only route result into these tables.
 
 ## Install and run
 
