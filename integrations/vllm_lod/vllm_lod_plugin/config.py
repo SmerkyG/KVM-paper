@@ -163,11 +163,10 @@ class VLLMLODSettings:
     def from_environment(cls) -> VLLMLODSettings:
         capacity = _integer("VLLM_LOD_MAX_CONTEXT", 0)
         kv_bits = _integer("VLLM_LOD_KV_BITS", 0)
-        # INT4's former 16-token x 32-channel max-abs group let a single
-        # outlier consume too much of its seven positive levels.  The
-        # quality-oriented default halves the channel group and refines its
-        # scale by least squares.  BF16 and INT8 retain their established
-        # layouts unless explicitly overridden.
+        # INT4 uses page-wide, four-channel groups and refines each scale by
+        # least squares.  This preserves the broadcast scale load while
+        # limiting how many channels share the range of one outlier. BF16 and
+        # INT8 retain their established layouts unless explicitly overridden.
         int4_storage = kv_bits == 4
         settings = cls(
             aug19_compat=_boolean("VLLM_LOD_AUG19_COMPAT", False),
@@ -196,7 +195,7 @@ class VLLMLODSettings:
                 else None
             ),
             quant_group_size=_integer(
-                "VLLM_LOD_QUANT_GROUP_SIZE", 16 if int4_storage else 32
+                "VLLM_LOD_QUANT_GROUP_SIZE", 4 if int4_storage else 32
             ),
             quant_token_group_size=_integer(
                 "VLLM_LOD_QUANT_TOKEN_GROUP_SIZE", 16

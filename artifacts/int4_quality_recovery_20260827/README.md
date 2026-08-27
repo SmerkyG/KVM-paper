@@ -4,17 +4,16 @@ Date: 2026-08-27
 
 ## Outcome
 
-The recommended recursive INT4 format now uses 16-channel groups for leaf
+The recommended recursive INT4 format now uses four-channel groups for leaf
 residuals and INT8 page summaries, plus a least-squares-refined leaf scale for
 both prefill conversion and subsequent page appends. The packed K/V codes and
 page-wide scale broadcast are unchanged.
 This is now the automatic vLLM default when `VLLM_LOD_KV_BITS=4`.
 
-The previous format used one max-absolute scale for 16 tokens by 32 channels,
-or 512 residual values. One outlier could therefore consume too much of
-INT4's seven positive reconstruction levels. The new group covers 256 values,
-then refines the scale against the selected integer codes twice. It retains
-the fast one-dimensional scale load during attention.
+The previous quality default shared one scale across 16 tokens by 16 channels,
+or 256 residual values. The new group covers 64 values, then refines the scale
+against the selected integer codes twice. It retains the one-dimensional
+broadcast scale load during attention; no token-axis scale matrix is added.
 
 ## Qwen3.5-0.8B results
 
@@ -24,28 +23,32 @@ The choice panel contains 48 fixed LongBench-v2 examples spanning 13K to 262K
 input tokens and compares first-token A-D distributions against the same BF16
 LOD reference.
 
-| Storage | ProLong CE | Choice score | Agreement with BF16 | RMS margin drift | Panel wall time |
+The LOD prefill/update path has measurable nondeterminism: four BF16 repeats
+agree with each other on only 90.28% of pairwise choices. Consequently the
+scale decision uses mean A/B/C/D distributions across repeats rather than a
+lucky pairing of two individual runs.
+
+| Storage | Runs | Choice score | Agreement with four-run BF16 mean | Mean JS | RMS margin drift |
 |---|---:|---:|---:|---:|---:|
-| BF16 LOD | 1.925134 | 11/48 | reference | reference | 66.33 s |
-| legacy INT4, G32 max | 1.925332 | 10/48 | 89.58% | 0.3385 | 76.80 s |
-| INT4, G32 L2 | 1.925203 | 11/48 | 89.58% | 0.3886 | 76.26 s |
-| **INT4, G16 L2** | **1.925276** | **12/48** | **91.67%** | **0.3292** | **82.31 s** |
+| BF16 LOD | 4 | 9/48 | reference | reference | reference |
+| former INT4 default, G16 L2 | 1 | 8/48 | 42/48 (87.50%) | 0.004041 | 0.3833 |
+| INT4, G4 L2 | 1 | 9/48 | 43/48 (89.58%) | **0.001910** | **0.2626** |
+| **INT4, G4 L2** | **3** | **9/48** | **45/48 (93.75%)** | 0.001935 | 0.2720 |
 
-The selected format improves the discrete proxy from 10/48 to 12/48 and has
-slightly less RMS margin drift than legacy INT4. Its CE gap to BF16 is
-0.000143 (0.0074%), versus 0.000198 (0.0103%) for the legacy format. Panel wall
-time is 7.2% above legacy INT4 in this run; the attention consumer retains the
-same one-dimensional broadcast-scale shape rather than the much more expensive
-token-by-channel scale matrix.
+Thus the repeat-audited G4 result exceeds the former 44/48 (91.67%) target
+without relying on one favorable run. All three INT4 runs also preserve the
+BF16-mean score. The eight-by-8K ProLong CE is 1.925282, a 0.000148 (0.0077%)
+increase from BF16's 1.925134.
+The compact repeat comparison is
+`qwen08_panel48_int4_g4_l2_repeat_audit.json`.
 
-Scale metadata increases each leaf element from 4.03125 to 4.0625 effective
-bits: only 0.78% more than legacy INT4, and still 74.61% below a 16-bit leaf
-payload. This calculation excludes shared BF16 routing state and page
+Scale metadata increases each leaf element from 4.0625 to 4.25 effective
+bits, 4.62% more than the former G16 format and still 73.44% below a 16-bit
+leaf payload. This calculation excludes shared BF16 routing state and page
 metadata, which are unchanged.
 
-The selected format also scored 64/64 on Qwen3.5-0.8B NIAH-S3 at 8K, batch
-eight. The run exercised direct recursive LOD prefill and decode and completed
-in 12.09 seconds after startup.
+The selected G4 L2 format also scored 64/64 on Qwen3.5-0.8B NIAH-S3 at 8K,
+batch eight. The run exercised direct recursive LOD prefill and decode.
 
 ## Rejected alternatives
 
@@ -75,11 +78,11 @@ VLLM_LOD_LEVELS=3 VLLM_LOD_KV_BITS=4
 The equivalent explicit settings are:
 
 ```bash
-VLLM_LOD_QUANT_GROUP_SIZE=16
+VLLM_LOD_QUANT_GROUP_SIZE=4
 VLLM_LOD_LEAF_QUANT_SCALE_MODE=l2
 VLLM_LOD_LEAF_APPEND_QUANT_SCALE_MODE=l2
 VLLM_LOD_QUANT_TOKEN_GROUP_SIZE=16
 ```
 
-For exact legacy reproduction, set group size 32 and both leaf scale modes to
-`max`.
+For the former quality default, set group size 16 with both scale modes at
+`l2`. For exact legacy reproduction, set group size 32 and both modes to `max`.

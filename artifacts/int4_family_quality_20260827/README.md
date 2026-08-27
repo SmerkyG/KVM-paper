@@ -4,9 +4,11 @@ Date: 2026-08-27
 
 ## INT4 result
 
-The recursive three-tier INT4 default (16-channel groups, page-wide token
-group, two-step least-squares scale refinement, and INT8 page summaries)
-generalizes to both Gemma-4 and Muse-Glimmer in this panel.
+The former recursive three-tier INT4 default (16-channel groups, page-wide
+token group, two-step least-squares scale refinement, and INT8 page summaries)
+generalizes to both Gemma-4 and Muse-Glimmer in this panel. The newer
+four-channel Qwen quality default has not yet been re-run on these larger
+families; the table below remains explicitly labeled G16.
 
 All NIAH-S3 runs use 64 matched examples at 64K, batch eight, the model chat
 template, thinking disabled, a 16K scheduler token budget, and direct LOD

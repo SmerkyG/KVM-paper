@@ -722,29 +722,32 @@ to assess memory savings.
 
 ### Recursive INT4 quality default
 
-`VLLM_LOD_KV_BITS=4` now defaults to 16-channel page-wide groups for leaf
+`VLLM_LOD_KV_BITS=4` now defaults to four-channel page-wide groups for leaf
 residuals and INT8 page summaries, with an L2-refined leaf scale during both
-prefill conversion and decode appends. The former 32-channel max-absolute leaf
-group shared one scale across 512 residual values, so a single outlier could
-waste a material fraction of INT4's range. The new leaf layout covers 256
+prefill conversion and decode appends. The former quality default shared one
+scale across 256 residual values, so an outlier could waste a material fraction
+of INT4's range for 16 channels. The new leaf layout covers 64
 values per scale while preserving the inexpensive broadcast scale load in
-attention. It uses 4.0625 effective bits per leaf value, only
-0.78% more than the legacy 4.03125-bit layout and 74.61% less than a BF16 leaf
-payload.
+attention. It uses 4.25 effective bits per leaf value, 4.62% more than the
+former G16 layout and 73.44% less than a BF16 leaf payload.
 
-On the fixed Qwen3.5-0.8B 48-example LongBench-v2 damage panel, the new default
-scored 12/48 versus 10/48 for legacy INT4 and 11/48 for BF16 LOD. Its eight-by-
-8K ProLong CE was 1.925276, compared with 1.925332 for legacy INT4 and 1.925134
-for BF16. This is a rapid proxy result, not evidence that the historical full
-503-example INT4 gap is closed. The same format retained 64/64 NIAH-S3 at 8K,
-batch eight, with direct LOD prefill and decode. Detailed results and rejected
-token-axis formats are in
+On the fixed Qwen3.5-0.8B 48-example LongBench-v2 damage panel, mean choice
+distributions from three G4 L2 runs agreed with the mean of four BF16 LOD runs
+on 45/48 choices (93.75%). A single G4 run also had the best tested
+distribution metrics (mean JS 0.001910 and RMS correct-margin drift 0.2626).
+Repeats matter because
+the four BF16 runs themselves had only 90.28% pairwise prediction agreement.
+The G4 eight-by-8K ProLong CE was 1.925282, compared with 1.925134 for BF16.
+This is a rapid proxy result, not evidence that the historical full 503-example
+INT4 gap is closed. G4 L2 also retained 64/64 Qwen3.5-0.8B NIAH-S3 at 8K,
+batch eight. Detailed results and rejected scale formats are in
 `artifacts/int4_quality_recovery_20260827/README.md`.
 
 Set `VLLM_LOD_QUANT_GROUP_SIZE`, `VLLM_LOD_LEAF_QUANT_SCALE_MODE`, and
 `VLLM_LOD_LEAF_APPEND_QUANT_SCALE_MODE` explicitly to override the precision
-policy. Group size 32 plus `max` for both scale modes reproduces the legacy
-INT4 layout. `VLLM_LOD_QUANT_TOKEN_GROUP_SIZE` remains 16 by default; smaller
+policy. Group size 16 plus `l2` reproduces the former quality default; group
+size 32 plus `max` reproduces the legacy INT4 layout.
+`VLLM_LOD_QUANT_TOKEN_GROUP_SIZE` remains 16 by default; smaller
 values are experimental because they add per-read token-axis scale traffic.
 
 ## Quality validation
