@@ -565,10 +565,14 @@ class VLLMLODSettings:
             )
         if settings.kv_bits not in (0, 4, 8):
             raise ValueError("VLLM_LOD_KV_BITS must be zero, four, or eight")
-        if settings.resolved_key_bits not in (0, 4, 8):
-            raise ValueError("VLLM_LOD_KEY_BITS must be zero, four, or eight")
-        if settings.resolved_value_bits not in (0, 4, 8):
-            raise ValueError("VLLM_LOD_VALUE_BITS must be zero, four, or eight")
+        if settings.resolved_key_bits not in (0, 2, 3, 4, 8):
+            raise ValueError(
+                "VLLM_LOD_KEY_BITS must be zero, two, three, four, or eight"
+            )
+        if settings.resolved_value_bits not in (0, 2, 3, 4, 8):
+            raise ValueError(
+                "VLLM_LOD_VALUE_BITS must be zero, two, three, four, or eight"
+            )
         if settings.kv_bits in (4, 8) and (
             settings.resolved_key_bits != settings.kv_bits
             or settings.resolved_value_bits != settings.kv_bits

@@ -32,6 +32,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--samples", type=int, default=8)
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--tensor-parallel-size", type=int, default=1)
+    parser.add_argument("--allow-heterogeneous-global-config", action="store_true")
+    parser.add_argument("--muse-native-text-config", action="store_true")
     parser.add_argument(
         "--concatenate-prolong",
         action="store_true",
@@ -248,6 +250,39 @@ def select_niah_s3(
     return selected
 
 
+def allow_heterogeneous_global_config(config):
+    """Expose Gemma-4's nested text model as a heterogeneous causal LM."""
+    text_config = getattr(config, "text_config", config)
+    if not hasattr(text_config, "layer_types"):
+        return config
+    text_config.allow_global_per_layer_attribute_access = True
+    full_layers = [
+        text_config.per_layer_config[index]
+        for index, layer_type in enumerate(text_config.layer_types)
+        if layer_type == "full_attention"
+    ]
+    if full_layers:
+        text_config.global_head_dim = max(
+            int(layer.head_dim) for layer in full_layers
+        )
+        text_config.num_global_key_value_heads = min(
+            int(layer.num_key_value_heads) for layer in full_layers
+        )
+    if getattr(text_config, "top_k", None) is None:
+        top_k_experts = getattr(text_config, "top_k_experts", None)
+        if top_k_experts is not None:
+            text_config.top_k = int(top_k_experts)
+    text_config.architectures = ["Gemma4ForCausalLM"]
+    return text_config
+
+
+def muse_native_text_config(config):
+    """Select the Muse text tower registered by the LOD vLLM plugin."""
+    text_config = getattr(config, "text_config", config)
+    text_config.architectures = ["MuseGlimmerForCausalLM"]
+    return text_config
+
+
 def make_llm(args: argparse.Namespace):
     from vllm import LLM
 
@@ -269,6 +304,10 @@ def make_llm(args: argparse.Namespace):
     }
     if args.mode == "lod":
         kwargs["attention_config"] = {"backend": "CUSTOM"}
+    if args.allow_heterogeneous_global_config:
+        kwargs["hf_overrides"] = allow_heterogeneous_global_config
+    elif args.muse_native_text_config:
+        kwargs["hf_overrides"] = muse_native_text_config
     return register_llm_shutdown(LLM(**kwargs))
 
 
@@ -1163,6 +1202,10 @@ def main() -> None:
         enforce_eager=args.enforce_eager,
         apply_chat_template=args.apply_chat_template,
         disable_thinking=args.disable_thinking,
+        allow_heterogeneous_global_config=(
+            args.allow_heterogeneous_global_config
+        ),
+        muse_native_text_config=args.muse_native_text_config,
         concatenate_prolong=args.concatenate_prolong,
         static_cohort_never_readmit=(
             os.environ.get("VLLM_LOD_STATIC_COHORT_NEVER_READMIT", "0") == "1"

@@ -2726,6 +2726,8 @@ def _fake_quantize_completed_virtual_pages_kernel(
     HEAD_DIM: tl.constexpr,
     VALUE_DIM: tl.constexpr,
     GROUP_SIZE: tl.constexpr,
+    TOKEN_GROUP_SIZE: tl.constexpr,
+    CHANNEL_GROUP_COUNT: tl.constexpr,
     LEAF_CAPACITY: tl.constexpr,
     LEAF_K_BATCH_STRIDE: tl.constexpr,
     LEAF_K_HEAD_STRIDE: tl.constexpr,
@@ -2741,7 +2743,9 @@ def _fake_quantize_completed_virtual_pages_kernel(
 ):
     """Simulate independent K/V storage precision on newly completed pages."""
     token_row = tl.program_id(0).to(tl.int64)
-    group = tl.program_id(1).to(tl.int64)
+    scale_group = tl.program_id(1).to(tl.int64)
+    group = scale_group % CHANNEL_GROUP_COUNT
+    token_group = scale_group // CHANNEL_GROUP_COUNT
     kv_row = token_row // TOKENS
     batch = kv_row // KV_HEADS
     kv_head = kv_row - batch * KV_HEADS
@@ -2773,7 +2777,11 @@ def _fake_quantize_completed_virtual_pages_kernel(
     ).to(tl.int32)
     token_offset = tl.arange(0, PAGE_SIZE)
     dimension = group * GROUP_SIZE + tl.arange(0, GROUP_SIZE)
-    valid_token = valid_page & (token_offset < page_count)
+    in_token_group = (
+        (token_offset >= token_group * TOKEN_GROUP_SIZE)
+        & (token_offset < (token_group + 1) * TOKEN_GROUP_SIZE)
+    )
+    valid_token = valid_page & (token_offset < page_count) & in_token_group
     leaf_index = tl.load(
         page_indices + (kv_row * PAGE_CAPACITY + page_id) * PAGE_SIZE + token_offset,
         mask=valid_token,
@@ -21192,14 +21200,22 @@ def append_virtual_paged_kv(
             K_TOKEN_STRIDE=int(raw_page_summary_k.stride(2)),
             num_warps=4,
         )
-    if fake_key_quant_bits not in (0, 4, 8) or fake_value_quant_bits not in (
+    if fake_key_quant_bits not in (0, 2, 3, 4, 8) or fake_value_quant_bits not in (
         0,
+        2,
+        3,
         4,
         8,
     ):
-        raise ValueError("virtual fake quantization supports 0, 4, or 8 bits")
+        raise ValueError(
+            "virtual fake quantization supports 0, 2, 3, 4, or 8 bits"
+        )
     if fake_key_quant_bits or fake_value_quant_bits:
         value_dim = int(leaf_v.size(-1))
+        if int(page_indices.size(3)) % quant_token_group_size:
+            raise ValueError(
+                "fake token quantization group size must divide the page size"
+            )
         if fake_key_quant_bits and head_dim % quant_group_size:
             raise ValueError("virtual K group size must divide the key dimension")
         if fake_value_quant_bits and value_dim % quant_group_size:
@@ -21208,7 +21224,10 @@ def append_virtual_paged_kv(
             head_dim // quant_group_size if fake_key_quant_bits else 0,
             value_dim // quant_group_size if fake_value_quant_bits else 0,
         )
-        _fake_quantize_completed_virtual_pages_kernel[(token_rows, group_count)](
+        token_group_count = int(page_indices.size(3)) // quant_token_group_size
+        _fake_quantize_completed_virtual_pages_kernel[
+            (token_rows, group_count * token_group_count)
+        ](
             owners,
             ordinals,
             slot_pages,
@@ -21232,6 +21251,8 @@ def append_virtual_paged_kv(
             HEAD_DIM=head_dim,
             VALUE_DIM=value_dim,
             GROUP_SIZE=quant_group_size,
+            TOKEN_GROUP_SIZE=quant_token_group_size,
+            CHANNEL_GROUP_COUNT=group_count,
             LEAF_CAPACITY=leaf_capacity,
             LEAF_K_BATCH_STRIDE=int(leaf_k.stride(0)),
             LEAF_K_HEAD_STRIDE=int(leaf_k.stride(1)),

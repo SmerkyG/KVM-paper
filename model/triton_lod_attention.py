@@ -4529,10 +4529,12 @@ class TritonLODAttentionCore(nn.Module):
                 getattr(self, "simulate_leaf_quantization", False)
             )
             virtual_native_quant = matching_native_quant and not simulate_quantization
-            if self.leaf_key_quant_bits not in (0, 4, 8) or (
-                self.leaf_value_quant_bits not in (0, 4, 8)
+            if self.leaf_key_quant_bits not in (0, 2, 3, 4, 8) or (
+                self.leaf_value_quant_bits not in (0, 2, 3, 4, 8)
             ):
-                raise ValueError("virtual page quantization supports 0, 4, or 8 bits")
+                raise ValueError(
+                    "virtual page quantization supports 0, 2, 3, 4, or 8 bits"
+                )
             if virtual_k is None or virtual_v is None:
                 raise ValueError("virtual pages require the original prompt K/V")
             if virtual_k.shape[:3] != virtual_v.shape[:3]:
