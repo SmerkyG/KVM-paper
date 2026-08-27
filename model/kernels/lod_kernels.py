@@ -1954,6 +1954,7 @@ def _route_logits_coarse_attention_kernel(
     SCALE: tl.constexpr,
     BLOCK_M: tl.constexpr,
     BLOCK_N: tl.constexpr,
+    INCLUDE_LOCAL: tl.constexpr,
 ):
     """Stream the coarse softmax while reusing precomputed route logits."""
     batch = tl.program_id(0).to(tl.int64)
@@ -1975,30 +1976,31 @@ def _route_logits_coarse_attention_kernel(
         # instead of falling back to one program per query head.
         group_head_valid = group_head < KV_GROUP_SIZE
     query_valid = (query < query_len) & group_head_valid
-    key_dim = tl.arange(0, HEAD_BLOCK_DIM)
     value_dim = tl.arange(0, VALUE_BLOCK_DIM)
     token_offset = tl.arange(0, BLOCK_N)
 
-    queries = tl.load(
-        q
-        + batch * Q_BATCH_STRIDE
-        + query_head[:, None] * Q_HEAD_STRIDE
-        + query[:, None] * Q_TOKEN_STRIDE
-        + key_dim[None, :],
-        mask=query_valid[:, None] & (key_dim[None, :] < HEAD_DIM),
-        other=0.0,
-    )
-    if HEAD_TAIL_BLOCK_DIM > 0:
-        tail_dim = HEAD_BLOCK_DIM + tl.arange(0, HEAD_TAIL_BLOCK_DIM)
-        tail_queries = tl.load(
+    if INCLUDE_LOCAL:
+        key_dim = tl.arange(0, HEAD_BLOCK_DIM)
+        queries = tl.load(
             q
             + batch * Q_BATCH_STRIDE
             + query_head[:, None] * Q_HEAD_STRIDE
             + query[:, None] * Q_TOKEN_STRIDE
-            + tail_dim[None, :],
-            mask=query_valid[:, None] & (tail_dim[None, :] < HEAD_DIM),
+            + key_dim[None, :],
+            mask=query_valid[:, None] & (key_dim[None, :] < HEAD_DIM),
             other=0.0,
         )
+        if HEAD_TAIL_BLOCK_DIM > 0:
+            tail_dim = HEAD_BLOCK_DIM + tl.arange(0, HEAD_TAIL_BLOCK_DIM)
+            tail_queries = tl.load(
+                q
+                + batch * Q_BATCH_STRIDE
+                + query_head[:, None] * Q_HEAD_STRIDE
+                + query[:, None] * Q_TOKEN_STRIDE
+                + tail_dim[None, :],
+                mask=query_valid[:, None] & (tail_dim[None, :] < HEAD_DIM),
+                other=0.0,
+            )
     maximum = tl.where(query_valid, -float("inf"), 0.0).to(tl.float32)
     denominator = tl.where(query_valid, 0.0, 1.0).to(tl.float32)
     accumulator = tl.zeros((ROW_COUNT, VALUE_BLOCK_DIM), tl.float32)
@@ -2100,57 +2102,58 @@ def _route_logits_coarse_attention_kernel(
             )
         maximum = new_maximum
 
-    for local_begin in tl.range(0, local_len, BLOCK_N, num_stages=1):
-        token = local_begin + token_offset
-        token_valid = token < local_len
-        keys = tl.load(
-            local_k
-            + batch * LOCAL_K_BATCH_STRIDE
-            + kv_head * LOCAL_K_HEAD_STRIDE
-            + token[:, None] * LOCAL_K_TOKEN_STRIDE
-            + key_dim[None, :],
-            mask=token_valid[:, None] & (key_dim[None, :] < HEAD_DIM),
-            other=0.0,
-        )
-        if HEAD_TAIL_BLOCK_DIM > 0:
-            tail_keys = tl.load(
+    if INCLUDE_LOCAL:
+        for local_begin in tl.range(0, local_len, BLOCK_N, num_stages=1):
+            token = local_begin + token_offset
+            token_valid = token < local_len
+            keys = tl.load(
                 local_k
                 + batch * LOCAL_K_BATCH_STRIDE
                 + kv_head * LOCAL_K_HEAD_STRIDE
                 + token[:, None] * LOCAL_K_TOKEN_STRIDE
-                + tail_dim[None, :],
-                mask=token_valid[:, None] & (tail_dim[None, :] < HEAD_DIM),
+                + key_dim[None, :],
+                mask=token_valid[:, None] & (key_dim[None, :] < HEAD_DIM),
                 other=0.0,
             )
-        values = tl.load(
-            local_v
-            + batch * LOCAL_V_BATCH_STRIDE
-            + kv_head * LOCAL_V_HEAD_STRIDE
-            + token[:, None] * LOCAL_V_TOKEN_STRIDE
-            + value_dim[None, :],
-            mask=token_valid[:, None] & (value_dim[None, :] < VALUE_DIM),
-            other=0.0,
-        )
-        scores = SCALE * tl.dot(
-            queries, tl.trans(keys), out_dtype=tl.float32
-        )
-        if HEAD_TAIL_BLOCK_DIM > 0:
-            scores += SCALE * tl.dot(
-                tail_queries, tl.trans(tail_keys), out_dtype=tl.float32
+            if HEAD_TAIL_BLOCK_DIM > 0:
+                tail_keys = tl.load(
+                    local_k
+                    + batch * LOCAL_K_BATCH_STRIDE
+                    + kv_head * LOCAL_K_HEAD_STRIDE
+                    + token[:, None] * LOCAL_K_TOKEN_STRIDE
+                    + tail_dim[None, :],
+                    mask=token_valid[:, None] & (tail_dim[None, :] < HEAD_DIM),
+                    other=0.0,
+                )
+            values = tl.load(
+                local_v
+                + batch * LOCAL_V_BATCH_STRIDE
+                + kv_head * LOCAL_V_HEAD_STRIDE
+                + token[:, None] * LOCAL_V_TOKEN_STRIDE
+                + value_dim[None, :],
+                mask=token_valid[:, None] & (value_dim[None, :] < VALUE_DIM),
+                other=0.0,
             )
-        visible = token[None, :] <= query[:, None] + local_offset
-        valid = query_valid[:, None] & token_valid[None, :] & visible
-        scores = tl.where(valid, scores, -float("inf"))
-        block_maximum = tl.max(scores, axis=1)
-        new_maximum = tl.maximum(maximum, block_maximum)
-        correction = tl.exp(maximum - new_maximum)
-        probabilities = tl.exp(scores - new_maximum[:, None])
-        probabilities = tl.where(valid, probabilities, 0.0)
-        denominator = denominator * correction + tl.sum(probabilities, axis=1)
-        accumulator = accumulator * correction[:, None] + tl.dot(
-            probabilities.to(values.dtype), values, out_dtype=tl.float32
-        )
-        maximum = new_maximum
+            scores = SCALE * tl.dot(
+                queries, tl.trans(keys), out_dtype=tl.float32
+            )
+            if HEAD_TAIL_BLOCK_DIM > 0:
+                scores += SCALE * tl.dot(
+                    tail_queries, tl.trans(tail_keys), out_dtype=tl.float32
+                )
+            visible = token[None, :] <= query[:, None] + local_offset
+            valid = query_valid[:, None] & token_valid[None, :] & visible
+            scores = tl.where(valid, scores, -float("inf"))
+            block_maximum = tl.max(scores, axis=1)
+            new_maximum = tl.maximum(maximum, block_maximum)
+            correction = tl.exp(maximum - new_maximum)
+            probabilities = tl.exp(scores - new_maximum[:, None])
+            probabilities = tl.where(valid, probabilities, 0.0)
+            denominator = denominator * correction + tl.sum(probabilities, axis=1)
+            accumulator = accumulator * correction[:, None] + tl.dot(
+                probabilities.to(values.dtype), values, out_dtype=tl.float32
+            )
+            maximum = new_maximum
 
     output_row = (
         (batch * QUERY_HEADS + query_head) * query_len + query
@@ -5360,6 +5363,7 @@ def route_logits_coarse_attention(
     int8_state_pv: bool = False,
     head_major: bool | None = None,
     max_grouped_rows: int = 8,
+    direct_gqa_rows: bool = False,
     timing_events: dict[str, list[tuple[torch.cuda.Event, torch.cuda.Event]]]
     | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -5410,15 +5414,27 @@ def route_logits_coarse_attention(
         num_warps = min(num_warps, 4)
         head_major = True
     # Runtime strides can make Triton spill the per-row value accumulator to
-    # shared memory. Keep that tile bounded for high-GQA models. Irregular GQA
-    # factors are padded to a power of two inside each KV-head program; this is
-    # substantially cheaper than the former head-major fallback for GQA=5/6.
+    # shared memory. Keep that tile bounded for high-GQA models. The direct-GQA
+    # layout fills a power-of-two matrix tile with the real (possibly
+    # irregular) GQA factor: GQA5 with a 128-row tile uses 25 query positions
+    # and masks only three tail rows. The compatibility layout pads the group
+    # itself to a power of two and therefore wastes 24/64 rows for GQA5.
     padded_group_size = triton.next_power_of_2(kv_group_size)
-    if head_major is not True and padded_group_size * block_m > max_grouped_rows:
-        block_m = max(1, max_grouped_rows // padded_group_size)
-    if head_major is not True and block_m & (block_m - 1):
-        block_m = 1 << (block_m.bit_length() - 1)
-    grouped_rows = padded_group_size * block_m
+    if direct_gqa_rows and head_major is not True:
+        block_m = max(1, max_grouped_rows // kv_group_size)
+        grouped_rows = triton.next_power_of_2(kv_group_size * block_m)
+        if grouped_rows > max_grouped_rows and kv_group_size <= max_grouped_rows:
+            raise ValueError(
+                "direct-GQA coarse attention requires a power-of-two grouped-row cap"
+            )
+        if head_major is None:
+            head_major = False
+    else:
+        if head_major is not True and padded_group_size * block_m > max_grouped_rows:
+            block_m = max(1, max_grouped_rows // padded_group_size)
+        if head_major is not True and block_m & (block_m - 1):
+            block_m = 1 << (block_m.bit_length() - 1)
+        grouped_rows = padded_group_size * block_m
     value_block_dim = triton.next_power_of_2(value_dim)
     if head_major is None:
         # GQA grouping keeps one value accumulator per grouped query row.
@@ -5580,6 +5596,7 @@ def route_logits_coarse_attention(
         SCALE=scale,
         BLOCK_M=block_m,
         BLOCK_N=block_n,
+        INCLUDE_LOCAL=local_len > 0,
         **_launch_kwargs(num_warps),
     )
     if mean_end is not None:

@@ -1,0 +1,89 @@
+{
+  "device": "AMD Instinct MI325X",
+  "records": [
+    {
+      "aiter_import_error": null,
+      "batch_size": 8,
+      "context_length": 65536,
+      "controlled_equal_count": 16,
+      "geometry": {
+        "gqa": 4,
+        "head_dim": 128,
+        "kv_heads": 2,
+        "name": "phi"
+      },
+      "live_page_length": 4096,
+      "page_capacity": 4096,
+      "random_counts": false,
+      "route_group_size": 32,
+      "score_dtype": "fp32",
+      "state_length": 4096,
+      "times_ms": {
+        "aiter_coarse_attention_ms": 0.04555229187011719,
+        "aiter_fixed_exact_pages_ms": 0.023726940155029297,
+        "aiter_page_attention_ms": 0.046149091720581056,
+        "current_route_exact_pv_max_abs": 0.0001269616186618805,
+        "current_route_total_ms": 0.05420099973678589,
+        "dense_centroid_pv_ms": 0.010658680200576783,
+        "dense_centroid_qk_ms": 0.015045030117034912,
+        "dense_centroid_softmax_ms": 0.00762112021446228,
+        "dense_centroid_topk_ms": 0.039585559368133544,
+        "dense_page_global_topk_ms": 0.041449151039123534,
+        "dense_page_pv_ms": 0.010584679841995239,
+        "dense_page_qk_ms": 0.014301049709320068,
+        "dense_page_softmax_ms": 0.008191109895706176,
+        "exposed_score_coarse_total_ms": 0.07291038990020751,
+        "flat_page_exposed_score_total_before_correction_ms": 0.09825293064117431,
+        "flat_page_total_before_correction_ms": 0.12562623262405395,
+        "production_resplit_exact_pv_max_abs": 6.43022358417511e-05,
+        "production_resplit_fusion_sweep": {
+          "both": {
+            "coarse_lse_max_abs": 9.5367431640625e-07,
+            "coarse_out_max_abs": 4.135072231292725e-06,
+            "route_ms": 0.0776031494140625,
+            "top8_exact": true
+          },
+          "none": {
+            "coarse_lse_max_abs": 0.0,
+            "coarse_out_max_abs": 0.0,
+            "route_ms": 0.08756863594055175,
+            "top8_exact": true
+          },
+          "reduce": {
+            "coarse_lse_max_abs": 0.0,
+            "coarse_out_max_abs": 0.0,
+            "route_ms": 0.08172948837280274,
+            "top8_exact": true
+          },
+          "tile": {
+            "coarse_lse_max_abs": 9.5367431640625e-07,
+            "coarse_out_max_abs": 4.135072231292725e-06,
+            "route_ms": 0.08128870964050293,
+            "top8_exact": true
+          }
+        },
+        "production_resplit_lse_reference_max_abs": 9.5367431640625e-07,
+        "production_resplit_pv_reference_max_abs": 2.421438694000244e-08,
+        "production_resplit_route_ms": 0.08810744285583497,
+        "production_resplit_stages_ms": {
+          "route_state_lse_reduce": 0.014384179944172501,
+          "route_state_lse_tile": 0.014807850057259202,
+          "route_state_pv_reduce": 0.01348545003682375,
+          "route_state_pv_split": 0.018837080001831055,
+          "route_state_scores": 0.024186060056090353,
+          "route_state_softmax": 0.01844544002786279,
+          "route_state_topk_reduce": 0.01630778000690043,
+          "route_state_topk_tile": 0.019185429979115723
+        },
+        "production_resplit_top8_exact": true,
+        "production_resplit_vs_old_coarse_lse_max_abs": 1.9073486328125e-06,
+        "production_resplit_vs_old_coarse_out_max_abs": 0.00014470703899860382,
+        "production_resplit_vs_old_top8_set_fraction": 1.0,
+        "resplit_route_total_ms": 0.10018288135528564,
+        "route_groups_cached_mean_control_ms": 0.02580212116241455,
+        "route_groups_sum_count_ms": 0.028018488883972167,
+        "route_reduce_ms": 0.02618251085281372
+      }
+    }
+  ]
+}

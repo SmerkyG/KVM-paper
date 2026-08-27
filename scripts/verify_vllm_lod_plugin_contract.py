@@ -41,6 +41,13 @@ from vllm_lod_plugin.backend import (
 )
 from vllm_lod_plugin.config import scheduled_static_leaf_cap
 from vllm_lod_plugin.plugin import register
+from vllm_lod_plugin.pool import (
+    _prefill_coarse_direct_gqa_geometry,
+    _prefill_hierarchical_route_geometry,
+    _prefill_overlap_geometry,
+    _recursive_prefill_all_leaves_geometry,
+    _recursive_state_route_backend,
+)
 from vllm_lod_plugin.runtime import VLLMLODRuntime
 
 
@@ -58,6 +65,61 @@ def verify_static_leaf_cap_schedule() -> None:
     assert {
         length: scheduled_static_leaf_cap(length) for length in expected
     } == expected
+    proposed = {
+        1: 32,
+        65_536: 32,
+        65_537: 33,
+        131_072: 46,
+        262_144: 64,
+    }
+    assert {
+        length: scheduled_static_leaf_cap(length, minimum=32, divisor=8)
+        for length in proposed
+    } == proposed
+
+
+def verify_prefill_geometry_policy() -> None:
+    # Direct GQA packing is shared by flat and recursive prefill; only measured
+    # irregular ratios have automatic geometries.
+    assert _prefill_coarse_direct_gqa_geometry(128, 5, 8) == (128, 16, 8)
+    assert _prefill_coarse_direct_gqa_geometry(256, 6, 4) == (64, 16, 8)
+    assert _prefill_coarse_direct_gqa_geometry(256, 4, 2) is None
+
+    # Qwen3.5-0.8B's extra selector launch loses in flat two-tier prefill but
+    # wins in recursive three-tier prefill, so the level is part of policy.
+    assert not _prefill_hierarchical_route_geometry(2, 256, 4, 2)
+    assert _prefill_hierarchical_route_geometry(3, 256, 4, 2)
+    assert _prefill_hierarchical_route_geometry(2, 128, 16, 2)
+
+    # Recursive prefill can overlap only its independent local branch. Muse's
+    # flat path can additionally overlap coarse and exact-leaf attention.
+    assert _prefill_overlap_geometry(2, 128, 16, 2) == (True, True)
+    assert _prefill_overlap_geometry(3, 128, 16, 2) == (False, True)
+    assert _prefill_overlap_geometry(3, 256, 4, 2) == (False, True)
+    assert _prefill_overlap_geometry(2, 256, 4, 2) == (False, False)
+
+    # Phi's recursive archive keeps its page-routed decode but uses the faster
+    # complete-expert MFMA consumer during prefill. Other measured geometries
+    # retain page-selecting recursive prefill unless explicitly overridden.
+    assert _recursive_prefill_all_leaves_geometry(3, 128, 4, 2)
+    assert not _recursive_prefill_all_leaves_geometry(2, 128, 4, 2)
+    assert not _recursive_prefill_all_leaves_geometry(3, 128, 5, 8)
+    assert not _recursive_prefill_all_leaves_geometry(3, 256, 4, 2)
+
+    # Re-split preserves the recursive route arithmetic and is measurably
+    # faster on these batch-eight production geometries. Muse and unmeasured
+    # geometries retain the grouped kernel, and either implementation remains
+    # available as an explicit override.
+    assert _recursive_state_route_backend(3, 128, 4, 2, 8_192, "auto") == "resplit"
+    assert _recursive_state_route_backend(3, 256, 4, 2, 65_536, "auto") == "resplit"
+    assert _recursive_state_route_backend(3, 256, 6, 4, 22_528, "auto") == "resplit"
+    assert _recursive_state_route_backend(3, 256, 4, 2, 32_768, "auto") == "fused"
+    assert _recursive_state_route_backend(2, 256, 4, 2, 131_072, "auto") == "fused"
+    assert _recursive_state_route_backend(3, 128, 16, 2, 131_072, "auto") == "fused"
+    assert _recursive_state_route_backend(3, 128, 5, 8, 131_072, "auto") == "fused"
+    assert _recursive_state_route_backend(3, 512, 8, 2, 131_072, "auto") == "fused"
+    assert _recursive_state_route_backend(3, 128, 8, 4, 131_072, "auto") == "fused"
+    assert _recursive_state_route_backend(3, 256, 4, 2, 8_192, "fused") == "fused"
 
 
 def verify_metadata_only_scheduler_cache() -> None:
@@ -209,6 +271,7 @@ def verify_cache_ownership_invariant() -> None:
 
 def main() -> None:
     verify_static_leaf_cap_schedule()
+    verify_prefill_geometry_policy()
     register()
     register()
     verify_metadata_only_scheduler_cache()

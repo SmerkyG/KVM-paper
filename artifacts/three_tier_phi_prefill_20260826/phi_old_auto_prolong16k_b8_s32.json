@@ -1,0 +1,949 @@
+{
+  "apply_chat_template": false,
+  "attention_exercised": "direct_lod_prefill",
+  "batch_size": 8,
+  "checkpoint": "microsoft/phi-4",
+  "concatenate_prolong": false,
+  "decode_static_leaf_cap_min": 16,
+  "disable_thinking": false,
+  "elapsed_seconds": 47.89431050326675,
+  "enforce_eager": false,
+  "eval": "prolong",
+  "length": 16384,
+  "lod_diagnostics_after": {
+    "batched_cached_prefill_rows": 2640,
+    "batched_cached_prefills": 960,
+    "catch_up_batches": 80,
+    "catch_up_rows": 120,
+    "custom_impl_sliding_windows": {
+      "(-1, -1)": 40
+    },
+    "custom_layers": [
+      "model.layers.0.self_attn.attn",
+      "model.layers.1.self_attn.attn",
+      "model.layers.2.self_attn.attn",
+      "model.layers.3.self_attn.attn",
+      "model.layers.4.self_attn.attn",
+      "model.layers.5.self_attn.attn",
+      "model.layers.6.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.8.self_attn.attn",
+      "model.layers.9.self_attn.attn",
+      "model.layers.10.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.12.self_attn.attn",
+      "model.layers.13.self_attn.attn",
+      "model.layers.14.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.16.self_attn.attn",
+      "model.layers.17.self_attn.attn",
+      "model.layers.18.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.20.self_attn.attn",
+      "model.layers.21.self_attn.attn",
+      "model.layers.22.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.24.self_attn.attn",
+      "model.layers.25.self_attn.attn",
+      "model.layers.26.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.28.self_attn.attn",
+      "model.layers.29.self_attn.attn",
+      "model.layers.30.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.32.self_attn.attn",
+      "model.layers.33.self_attn.attn",
+      "model.layers.34.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.36.self_attn.attn",
+      "model.layers.37.self_attn.attn",
+      "model.layers.38.self_attn.attn",
+      "model.layers.39.self_attn.attn"
+    ],
+    "decode_calls": 320,
+    "decode_gqa_fixed_mask_configured": [
+      false
+    ],
+    "decode_gqa_fixed_mask_executed": [],
+    "decode_gqa_staged_fixed_configured": [
+      false
+    ],
+    "decode_gqa_staged_fixed_executed": [],
+    "decode_gqa_static_leaf_aiter_configured": [
+      false
+    ],
+    "decode_gqa_static_leaf_aiter_executed": [],
+    "decode_gqa_static_leaf_caps": [
+      null
+    ],
+    "decode_gqa_union_aiter_final": [],
+    "decode_gqa_union_configured": [
+      false
+    ],
+    "decode_gqa_union_eligible": [],
+    "decode_gqa_union_hip_configured": [
+      false
+    ],
+    "decode_gqa_union_hip_executed": [],
+    "decode_gqa_union_predicted_mass": [],
+    "decode_gqa_union_requested": [],
+    "decode_gqa_union_score_only": [],
+    "decode_max_open_leaves": [
+      1024
+    ],
+    "decode_open_counts": [
+      8
+    ],
+    "decode_route_cohort": [
+      false
+    ],
+    "direct_prefill_calls": 1560,
+    "effective_decode_route_leaf_limits": [
+      1024
+    ],
+    "eligible_layers": [
+      "model.layers.0.self_attn.attn",
+      "model.layers.1.self_attn.attn",
+      "model.layers.2.self_attn.attn",
+      "model.layers.3.self_attn.attn",
+      "model.layers.4.self_attn.attn",
+      "model.layers.5.self_attn.attn",
+      "model.layers.6.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.8.self_attn.attn",
+      "model.layers.9.self_attn.attn",
+      "model.layers.10.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.12.self_attn.attn",
+      "model.layers.13.self_attn.attn",
+      "model.layers.14.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.16.self_attn.attn",
+      "model.layers.17.self_attn.attn",
+      "model.layers.18.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.20.self_attn.attn",
+      "model.layers.21.self_attn.attn",
+      "model.layers.22.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.24.self_attn.attn",
+      "model.layers.25.self_attn.attn",
+      "model.layers.26.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.28.self_attn.attn",
+      "model.layers.29.self_attn.attn",
+      "model.layers.30.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.32.self_attn.attn",
+      "model.layers.33.self_attn.attn",
+      "model.layers.34.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.36.self_attn.attn",
+      "model.layers.37.self_attn.attn",
+      "model.layers.38.self_attn.attn",
+      "model.layers.39.self_attn.attn"
+    ],
+    "gqa_route_mass_threshold_hits": {
+      "16": 0,
+      "32": 0,
+      "64": 0,
+      "128": 0,
+      "256": 0
+    },
+    "gqa_route_max_mass": null,
+    "gqa_union_centroid_count_max": 0,
+    "gqa_union_centroid_count_mean": 0.0,
+    "gqa_union_epoch_max": 0,
+    "gqa_union_exact_token_count_max": 0,
+    "gqa_union_exact_token_count_mean": 0.0,
+    "gqa_union_nonempty_sequences": 0,
+    "gqa_union_sequence_count": 0,
+    "gqa_union_token_count_max": 0,
+    "gqa_union_token_count_mean": 0.0,
+    "install_count": 1560,
+    "pooled_layers": [
+      "model.layers.0.self_attn.attn",
+      "model.layers.1.self_attn.attn",
+      "model.layers.2.self_attn.attn",
+      "model.layers.3.self_attn.attn",
+      "model.layers.4.self_attn.attn",
+      "model.layers.5.self_attn.attn",
+      "model.layers.6.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.8.self_attn.attn",
+      "model.layers.9.self_attn.attn",
+      "model.layers.10.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.12.self_attn.attn",
+      "model.layers.13.self_attn.attn",
+      "model.layers.14.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.16.self_attn.attn",
+      "model.layers.17.self_attn.attn",
+      "model.layers.18.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.20.self_attn.attn",
+      "model.layers.21.self_attn.attn",
+      "model.layers.22.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.24.self_attn.attn",
+      "model.layers.25.self_attn.attn",
+      "model.layers.26.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.28.self_attn.attn",
+      "model.layers.29.self_attn.attn",
+      "model.layers.30.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.32.self_attn.attn",
+      "model.layers.33.self_attn.attn",
+      "model.layers.34.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.36.self_attn.attn",
+      "model.layers.37.self_attn.attn",
+      "model.layers.38.self_attn.attn",
+      "model.layers.39.self_attn.attn"
+    ],
+    "prefill_coarse_direct_gqa_configured": [
+      [
+        false,
+        64,
+        32,
+        8
+      ]
+    ],
+    "prefill_coarse_direct_gqa_executed": [],
+    "prefill_open_counts": [
+      3
+    ],
+    "prefill_route_cohort": [
+      false
+    ],
+    "recursive_state_route_backends": [
+      "resplit"
+    ],
+    "routing_geometries": [
+      [
+        "cosine",
+        "none",
+        "query"
+      ]
+    ],
+    "selected_route_count_max": 0.0,
+    "split_posting_len_max": 0,
+    "split_scheduled_state_len_max": 0,
+    "split_state_len_max": 0,
+    "state_centroids_at_or_above_open_limit": 0,
+    "state_count_max": 0.0,
+    "state_split_limits": [
+      null
+    ],
+    "state_v_abs_max": 1984.0,
+    "state_v_nonfinite": 0,
+    "static_leaf_count_distribution": [
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "1",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "2",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "3-4",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "5-8",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "9-16",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "17-32",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "33-64",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "65-128",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "129-256",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "257-512",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "513-1024",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": ">1024",
+        "leaf_fraction": 0.0
+      }
+    ],
+    "static_opened_centroid_fraction": 0.0,
+    "static_opened_centroids": 0,
+    "static_opened_leaf_fraction": 0.0,
+    "static_opened_leaves": 0.0,
+    "static_total_centroids": 0,
+    "static_total_leaves": 0.0
+  },
+  "lod_diagnostics_before": {
+    "batched_cached_prefill_rows": 0,
+    "batched_cached_prefills": 0,
+    "catch_up_batches": 80,
+    "catch_up_rows": 120,
+    "custom_impl_sliding_windows": {
+      "(-1, -1)": 40
+    },
+    "custom_layers": [
+      "model.layers.0.self_attn.attn",
+      "model.layers.1.self_attn.attn",
+      "model.layers.2.self_attn.attn",
+      "model.layers.3.self_attn.attn",
+      "model.layers.4.self_attn.attn",
+      "model.layers.5.self_attn.attn",
+      "model.layers.6.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.8.self_attn.attn",
+      "model.layers.9.self_attn.attn",
+      "model.layers.10.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.12.self_attn.attn",
+      "model.layers.13.self_attn.attn",
+      "model.layers.14.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.16.self_attn.attn",
+      "model.layers.17.self_attn.attn",
+      "model.layers.18.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.20.self_attn.attn",
+      "model.layers.21.self_attn.attn",
+      "model.layers.22.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.24.self_attn.attn",
+      "model.layers.25.self_attn.attn",
+      "model.layers.26.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.28.self_attn.attn",
+      "model.layers.29.self_attn.attn",
+      "model.layers.30.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.32.self_attn.attn",
+      "model.layers.33.self_attn.attn",
+      "model.layers.34.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.36.self_attn.attn",
+      "model.layers.37.self_attn.attn",
+      "model.layers.38.self_attn.attn",
+      "model.layers.39.self_attn.attn"
+    ],
+    "decode_calls": 320,
+    "decode_gqa_fixed_mask_configured": [
+      false
+    ],
+    "decode_gqa_fixed_mask_executed": [],
+    "decode_gqa_staged_fixed_configured": [
+      false
+    ],
+    "decode_gqa_staged_fixed_executed": [],
+    "decode_gqa_static_leaf_aiter_configured": [
+      false
+    ],
+    "decode_gqa_static_leaf_aiter_executed": [],
+    "decode_gqa_static_leaf_caps": [
+      null
+    ],
+    "decode_gqa_union_aiter_final": [],
+    "decode_gqa_union_configured": [
+      false
+    ],
+    "decode_gqa_union_eligible": [],
+    "decode_gqa_union_hip_configured": [
+      false
+    ],
+    "decode_gqa_union_hip_executed": [],
+    "decode_gqa_union_predicted_mass": [],
+    "decode_gqa_union_requested": [],
+    "decode_gqa_union_score_only": [],
+    "decode_max_open_leaves": [
+      1024
+    ],
+    "decode_open_counts": [
+      8
+    ],
+    "decode_route_cohort": [
+      false
+    ],
+    "direct_prefill_calls": 40,
+    "effective_decode_route_leaf_limits": [
+      1024
+    ],
+    "eligible_layers": [
+      "model.layers.0.self_attn.attn",
+      "model.layers.1.self_attn.attn",
+      "model.layers.2.self_attn.attn",
+      "model.layers.3.self_attn.attn",
+      "model.layers.4.self_attn.attn",
+      "model.layers.5.self_attn.attn",
+      "model.layers.6.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.8.self_attn.attn",
+      "model.layers.9.self_attn.attn",
+      "model.layers.10.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.12.self_attn.attn",
+      "model.layers.13.self_attn.attn",
+      "model.layers.14.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.16.self_attn.attn",
+      "model.layers.17.self_attn.attn",
+      "model.layers.18.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.20.self_attn.attn",
+      "model.layers.21.self_attn.attn",
+      "model.layers.22.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.24.self_attn.attn",
+      "model.layers.25.self_attn.attn",
+      "model.layers.26.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.28.self_attn.attn",
+      "model.layers.29.self_attn.attn",
+      "model.layers.30.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.32.self_attn.attn",
+      "model.layers.33.self_attn.attn",
+      "model.layers.34.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.36.self_attn.attn",
+      "model.layers.37.self_attn.attn",
+      "model.layers.38.self_attn.attn",
+      "model.layers.39.self_attn.attn"
+    ],
+    "gqa_route_mass_threshold_hits": {
+      "16": 0,
+      "32": 0,
+      "64": 0,
+      "128": 0,
+      "256": 0
+    },
+    "gqa_route_max_mass": null,
+    "gqa_union_centroid_count_max": 0,
+    "gqa_union_centroid_count_mean": 0.0,
+    "gqa_union_epoch_max": 0,
+    "gqa_union_exact_token_count_max": 0,
+    "gqa_union_exact_token_count_mean": 0.0,
+    "gqa_union_nonempty_sequences": 0,
+    "gqa_union_sequence_count": 0,
+    "gqa_union_token_count_max": 0,
+    "gqa_union_token_count_mean": 0.0,
+    "install_count": 280,
+    "pooled_layers": [
+      "model.layers.0.self_attn.attn",
+      "model.layers.1.self_attn.attn",
+      "model.layers.2.self_attn.attn",
+      "model.layers.3.self_attn.attn",
+      "model.layers.4.self_attn.attn",
+      "model.layers.5.self_attn.attn",
+      "model.layers.6.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.8.self_attn.attn",
+      "model.layers.9.self_attn.attn",
+      "model.layers.10.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.12.self_attn.attn",
+      "model.layers.13.self_attn.attn",
+      "model.layers.14.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.16.self_attn.attn",
+      "model.layers.17.self_attn.attn",
+      "model.layers.18.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.20.self_attn.attn",
+      "model.layers.21.self_attn.attn",
+      "model.layers.22.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.24.self_attn.attn",
+      "model.layers.25.self_attn.attn",
+      "model.layers.26.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.28.self_attn.attn",
+      "model.layers.29.self_attn.attn",
+      "model.layers.30.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.32.self_attn.attn",
+      "model.layers.33.self_attn.attn",
+      "model.layers.34.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.36.self_attn.attn",
+      "model.layers.37.self_attn.attn",
+      "model.layers.38.self_attn.attn",
+      "model.layers.39.self_attn.attn"
+    ],
+    "prefill_coarse_direct_gqa_configured": [
+      [
+        false,
+        64,
+        32,
+        8
+      ]
+    ],
+    "prefill_coarse_direct_gqa_executed": [],
+    "prefill_open_counts": [
+      3
+    ],
+    "prefill_route_cohort": [
+      false
+    ],
+    "recursive_state_route_backends": [
+      "resplit"
+    ],
+    "routing_geometries": [
+      [
+        "cosine",
+        "none",
+        "query"
+      ]
+    ],
+    "selected_route_count_max": 0.0,
+    "split_posting_len_max": 0,
+    "split_scheduled_state_len_max": 0,
+    "split_state_len_max": 0,
+    "state_centroids_at_or_above_open_limit": 0,
+    "state_count_max": 0.0,
+    "state_split_limits": [
+      null
+    ],
+    "state_v_abs_max": 3.359375,
+    "state_v_nonfinite": 29952,
+    "static_leaf_count_distribution": [
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "1",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "2",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "3-4",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "5-8",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "9-16",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "17-32",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "33-64",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "65-128",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "129-256",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "257-512",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "513-1024",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": ">1024",
+        "leaf_fraction": 0.0
+      }
+    ],
+    "static_opened_centroid_fraction": 0.0,
+    "static_opened_centroids": 0,
+    "static_opened_leaf_fraction": 0.0,
+    "static_opened_leaves": 0.0,
+    "static_total_centroids": 0,
+    "static_total_leaves": 0.0
+  },
+  "lod_prefill_route_block_m": null,
+  "lod_prefill_route_num_warps": null,
+  "lod_recursive_page_block_n": null,
+  "lod_recursive_state_route_backend": null,
+  "long_prefill_token_threshold": 4096,
+  "loss": 1.0570980365578284,
+  "max_num_batched_tokens": 16384,
+  "mode": "lod",
+  "perplexity": 2.8780069880591372,
+  "prediction_tokens": 524256,
+  "prefill_open_count": 3,
+  "prefill_route_cohort": false,
+  "prefill_static_leaf_cap_min": 16,
+  "requested_samples": 32,
+  "samples": [
+    {
+      "loss": 0.5594731578690061,
+      "perplexity": 1.7497504151833436,
+      "sample": 0,
+      "source_indices": [
+        3
+      ],
+      "token_sha256": "b1a94e9495932b78b5c771ee951ac16517bf6289d25a0df54140a262fc9ce55a",
+      "tokens": 16384
+    },
+    {
+      "loss": 0.7237632179514455,
+      "perplexity": 2.0621790560932873,
+      "sample": 1,
+      "source_indices": [
+        5
+      ],
+      "token_sha256": "ac06b6c6def484820449c40c64ddb2ad9eba6bcb9b087568bcaeebad626f4c13",
+      "tokens": 16384
+    },
+    {
+      "loss": 0.12180087135801719,
+      "perplexity": 1.129529157777397,
+      "sample": 2,
+      "source_indices": [
+        7
+      ],
+      "token_sha256": "cb43f04124b7ac233f543a3a8f724349f4f228842d1dc69ca3094733e76c8941",
+      "tokens": 16384
+    },
+    {
+      "loss": 0.6918714890967672,
+      "perplexity": 1.9974502437705584,
+      "sample": 3,
+      "source_indices": [
+        8
+      ],
+      "token_sha256": "3bd0a351b7fbf4bc866def52c510d2cedcbb5bac4a482958b9e115020d8ada2a",
+      "tokens": 16384
+    },
+    {
+      "loss": 1.8521993265155885,
+      "perplexity": 6.373822234936208,
+      "sample": 4,
+      "source_indices": [
+        10
+      ],
+      "token_sha256": "604d368285823c539b3f60d9704d176de8c9645174dc6473d03e991c80d73413",
+      "tokens": 16384
+    },
+    {
+      "loss": 0.568078591489745,
+      "perplexity": 1.764872750036762,
+      "sample": 5,
+      "source_indices": [
+        13
+      ],
+      "token_sha256": "26535240ad74e64ced436e7565e0c00bb9e60612fb2de16521727806c3aa065d",
+      "tokens": 16384
+    },
+    {
+      "loss": 0.38967656880201496,
+      "perplexity": 1.4765031694585597,
+      "sample": 6,
+      "source_indices": [
+        14
+      ],
+      "token_sha256": "13dc25689ab9801c5870bc2283f9c1e6087708c38625438273c21e1c4a301f31",
+      "tokens": 16384
+    },
+    {
+      "loss": 2.1252868230385635,
+      "perplexity": 8.375299372467806,
+      "sample": 7,
+      "source_indices": [
+        15
+      ],
+      "token_sha256": "cdfcb881a297d05a50dfb54a1e6d8383ff07b3ea513f4f5d5b4a9abc13f34463",
+      "tokens": 16384
+    },
+    {
+      "loss": 1.9934068408394237,
+      "perplexity": 7.340499123852989,
+      "sample": 8,
+      "source_indices": [
+        17
+      ],
+      "token_sha256": "17e3055d7a3f7686b731d08073c4441b75d0f48eb24adfe828a80d082a1b4014",
+      "tokens": 16384
+    },
+    {
+      "loss": 2.034425456961673,
+      "perplexity": 7.647856840053652,
+      "sample": 9,
+      "source_indices": [
+        23
+      ],
+      "token_sha256": "8d0b1d3498b8e51656f42bcb867534464b6116b898075082805510aed47e8e2d",
+      "tokens": 16384
+    },
+    {
+      "loss": 0.21737841186904425,
+      "perplexity": 1.2428143088517398,
+      "sample": 10,
+      "source_indices": [
+        24
+      ],
+      "token_sha256": "f14ebc238a2c10f0dd63fa8e117fa819ddaee0c8ce954e899590500c8c128fa6",
+      "tokens": 16384
+    },
+    {
+      "loss": 0.018265799618196393,
+      "perplexity": 1.0184336396896871,
+      "sample": 11,
+      "source_indices": [
+        31
+      ],
+      "token_sha256": "fca03b85448f63cb71d8e32f45f5c55cb05a4ec083d31ebdb1cedabaa4ab7961",
+      "tokens": 16384
+    },
+    {
+      "loss": 1.1291521781815814,
+      "perplexity": 3.093033047269007,
+      "sample": 12,
+      "source_indices": [
+        34
+      ],
+      "token_sha256": "84abce9034f8fad06693a6335020e36609f2ae6c54439e2db88fa50aeb907092",
+      "tokens": 16384
+    },
+    {
+      "loss": 0.6748867622217646,
+      "perplexity": 1.9638105858309876,
+      "sample": 13,
+      "source_indices": [
+        37
+      ],
+      "token_sha256": "30576fa8e28c1a14b5323e18a430435962e707ad3df29922acdcfdf59877650e",
+      "tokens": 16384
+    },
+    {
+      "loss": 2.1538849842414827,
+      "perplexity": 8.618275306819575,
+      "sample": 14,
+      "source_indices": [
+        38
+      ],
+      "token_sha256": "e4ce2c3b9dbc4efe132b4479ad4eb03333b7ee534926f48d5c444e7f116bd432",
+      "tokens": 16384
+    },
+    {
+      "loss": 0.3021246082315978,
+      "perplexity": 1.3527297774732585,
+      "sample": 15,
+      "source_indices": [
+        39
+      ],
+      "token_sha256": "596a1d681bbf36bcce665a211e1b60691b5b5e16ad7f51c7e3719a03f65c143b",
+      "tokens": 16384
+    },
+    {
+      "loss": 0.49837382806692143,
+      "perplexity": 1.6460423452313038,
+      "sample": 16,
+      "source_indices": [
+        41
+      ],
+      "token_sha256": "0f20b29f4a18fd66073a652bffeaa674d1ee14ec10e2bb05774fe5e443545f65",
+      "tokens": 16384
+    },
+    {
+      "loss": 0.7947143119114032,
+      "perplexity": 2.2138084477485545,
+      "sample": 17,
+      "source_indices": [
+        44
+      ],
+      "token_sha256": "af6414c89cdabd5f75846372dcbcd8178e5184b533124bac69275a2ad7c83997",
+      "tokens": 16384
+    },
+    {
+      "loss": 0.2199428707241948,
+      "perplexity": 1.24600554515957,
+      "sample": 18,
+      "source_indices": [
+        48
+      ],
+      "token_sha256": "a851c7f1ae9afa9c2edd8cec9d1349386c9651c170a080f7b7818d58758c5fe0",
+      "tokens": 16384
+    },
+    {
+      "loss": 0.2559840754439481,
+      "perplexity": 1.2917321575147707,
+      "sample": 19,
+      "source_indices": [
+        49
+      ],
+      "token_sha256": "5f34f340024802fb42bec560af02b4545e8b0cd138ed78b8e32e5929c79d3ff9",
+      "tokens": 16384
+    },
+    {
+      "loss": 2.3333174798320244,
+      "perplexity": 10.312095017218018,
+      "sample": 20,
+      "source_indices": [
+        53
+      ],
+      "token_sha256": "ba972f112c81cebac675e2b2cbd7b66571005473d3debbe2b0eecff0b9fe4c9a",
+      "tokens": 16384
+    },
+    {
+      "loss": 0.5576599327024561,
+      "perplexity": 1.7465805983596439,
+      "sample": 21,
+      "source_indices": [
+        54
+      ],
+      "token_sha256": "6287084a19a8018204562d57ba9e85ee2eb1db74fb97b57a7e03fbdcc4556f2a",
+      "tokens": 16384
+    },
+    {
+      "loss": 2.197586883873468,
+      "perplexity": 9.003261349603703,
+      "sample": 22,
+      "source_indices": [
+        56
+      ],
+      "token_sha256": "8dfc500b45cbe8cdf2502260eb5ebc9a7699e27d4464b7a662b721a605de9531",
+      "tokens": 16384
+    },
+    {
+      "loss": 2.1623959632937084,
+      "perplexity": 8.6919382948377,
+      "sample": 23,
+      "source_indices": [
+        62
+      ],
+      "token_sha256": "85a1d9bdb407c1a27d681714a310f77e3e8df7cccd39d3d43a380c52950b2599",
+      "tokens": 16384
+    },
+    {
+      "loss": 0.18125884298172937,
+      "perplexity": 1.198725420801744,
+      "sample": 24,
+      "source_indices": [
+        63
+      ],
+      "token_sha256": "9f4a21e491dafd15624983a98b8d778d8c10d1d54de22089d78801df0e4d7a57",
+      "tokens": 16384
+    },
+    {
+      "loss": 0.43575667933977186,
+      "perplexity": 1.5461325429851605,
+      "sample": 25,
+      "source_indices": [
+        67
+      ],
+      "token_sha256": "15cc611bec81f31d269e2ec3b6a85b17e04225c9b0aeef9c8746870462b932f9",
+      "tokens": 16384
+    },
+    {
+      "loss": 2.1540037257720757,
+      "perplexity": 8.619298714779891,
+      "sample": 26,
+      "source_indices": [
+        68
+      ],
+      "token_sha256": "743f2829b1457714c5f3f5b29b543011e7e688d97cc120a45063e544ed504f93",
+      "tokens": 16384
+    },
+    {
+      "loss": 1.9784557654652861,
+      "perplexity": 7.231567122614606,
+      "sample": 27,
+      "source_indices": [
+        74
+      ],
+      "token_sha256": "53d806899fbf3f5e597027fa3017307cfe6d94fc431082d801a3bf3b448b50a2",
+      "tokens": 16384
+    },
+    {
+      "loss": 2.3022530397637624,
+      "perplexity": 9.99668001893289,
+      "sample": 28,
+      "source_indices": [
+        77
+      ],
+      "token_sha256": "a50c7e953939976f08f6ccf8dc92cfbefc292b1ef4db3c9a67db5e97d0bde3fc",
+      "tokens": 16384
+    },
+    {
+      "loss": 0.5314955396500753,
+      "perplexity": 1.7014750301453858,
+      "sample": 29,
+      "source_indices": [
+        81
+      ],
+      "token_sha256": "100929ece64d45a53bee093f64276a89fa27619b1d9e3a511f51e68095499b48",
+      "tokens": 16384
+    },
+    {
+      "loss": 0.6603590944312973,
+      "perplexity": 1.93548723231455,
+      "sample": 30,
+      "source_indices": [
+        86
+      ],
+      "token_sha256": "123a117bc15cbedabc5fdcc7b929d719552f89158c91fce4d37062a917587592",
+      "tokens": 16384
+    },
+    {
+      "loss": 1.0079040483124668,
+      "perplexity": 2.739852394456162,
+      "sample": 31,
+      "source_indices": [
+        88
+      ],
+      "token_sha256": "d9ce40b20e321d790eab9f9cde2c0c7fb92b1d3a64a4561f0de8a1c0de829cc6",
+      "tokens": 16384
+    }
+  ],
+  "state_split_max_leaves": null,
+  "static_cohort_never_readmit": false,
+  "static_leaf_cap_divisor": 16,
+  "tensor_parallel_size": 5
+}

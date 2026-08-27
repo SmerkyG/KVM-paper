@@ -1,0 +1,887 @@
+{
+  "accuracy": 1.0,
+  "apply_chat_template": true,
+  "attention_exercised": "direct_lod_prefill_and_decode",
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "concatenate_prolong": false,
+  "correct": 64,
+  "decode_static_leaf_cap_min": 32,
+  "disable_thinking": false,
+  "elapsed_seconds": 100.07141927350312,
+  "enforce_eager": false,
+  "eval": "niah_s3",
+  "length": 131072,
+  "lod_diagnostics_after": {
+    "batched_cached_prefill_rows": 6420,
+    "batched_cached_prefills": 2940,
+    "catch_up_batches": 114,
+    "catch_up_rows": 114,
+    "custom_impl_sliding_windows": {
+      "(-1, -1)": 6
+    },
+    "custom_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "decode_calls": 48,
+    "decode_gqa_fixed_mask_configured": [
+      true
+    ],
+    "decode_gqa_fixed_mask_executed": [
+      true
+    ],
+    "decode_gqa_staged_fixed_configured": [
+      false
+    ],
+    "decode_gqa_staged_fixed_executed": [],
+    "decode_gqa_static_leaf_aiter_configured": [
+      false
+    ],
+    "decode_gqa_static_leaf_aiter_executed": [],
+    "decode_gqa_static_leaf_caps": [
+      null
+    ],
+    "decode_gqa_union_aiter_final": [
+      true
+    ],
+    "decode_gqa_union_configured": [
+      true
+    ],
+    "decode_gqa_union_eligible": [
+      true
+    ],
+    "decode_gqa_union_hip_configured": [
+      true
+    ],
+    "decode_gqa_union_hip_executed": [
+      true
+    ],
+    "decode_gqa_union_predicted_mass": [
+      false
+    ],
+    "decode_gqa_union_requested": [
+      true
+    ],
+    "decode_gqa_union_score_only": [
+      true
+    ],
+    "decode_max_open_leaves": [
+      1024
+    ],
+    "decode_open_counts": [
+      8
+    ],
+    "decode_route_cohort": [
+      true
+    ],
+    "direct_prefill_calls": 3120,
+    "effective_decode_route_leaf_limits": [
+      47
+    ],
+    "eligible_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "gqa_route_mass_threshold_hits": {
+      "16": 0,
+      "32": 0,
+      "64": 0,
+      "128": 0,
+      "256": 0
+    },
+    "gqa_route_max_mass": null,
+    "gqa_union_centroid_count_max": 26,
+    "gqa_union_centroid_count_mean": 8.322916666666666,
+    "gqa_union_epoch_max": 314,
+    "gqa_union_exact_token_count_max": 0,
+    "gqa_union_exact_token_count_mean": 0.0,
+    "gqa_union_nonempty_sequences": 96,
+    "gqa_union_sequence_count": 96,
+    "gqa_union_token_count_max": 136448,
+    "gqa_union_token_count_mean": 136448.0,
+    "install_count": 384,
+    "pooled_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "prefill_coarse_direct_gqa_configured": [
+      [
+        false,
+        64,
+        32,
+        8
+      ]
+    ],
+    "prefill_coarse_direct_gqa_executed": [],
+    "prefill_open_counts": [
+      3
+    ],
+    "prefill_route_cohort": [
+      true
+    ],
+    "recursive_state_route_backends": [
+      "fused"
+    ],
+    "routing_geometries": [
+      [
+        "none",
+        "coherence",
+        "none"
+      ]
+    ],
+    "selected_route_count_max": 0.0,
+    "state_centroids_at_or_above_open_limit": 0,
+    "state_count_max": 0.0,
+    "state_v_abs_max": 16000.0,
+    "state_v_nonfinite": 0,
+    "static_leaf_count_distribution": [
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "1",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "2",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "3-4",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "5-8",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "9-16",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "17-32",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "33-64",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "65-128",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "129-256",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "257-512",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "513-1024",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": ">1024",
+        "leaf_fraction": 0.0
+      }
+    ],
+    "static_opened_centroid_fraction": 0.0,
+    "static_opened_centroids": 0,
+    "static_opened_leaf_fraction": 0.0,
+    "static_opened_leaves": 0.0,
+    "static_total_centroids": 0,
+    "static_total_leaves": 0.0
+  },
+  "lod_diagnostics_before": {
+    "batched_cached_prefill_rows": 0,
+    "batched_cached_prefills": 0,
+    "catch_up_batches": 0,
+    "catch_up_rows": 0,
+    "custom_impl_sliding_windows": {
+      "(-1, -1)": 6
+    },
+    "custom_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "decode_calls": 48,
+    "decode_gqa_fixed_mask_configured": [
+      true
+    ],
+    "decode_gqa_fixed_mask_executed": [
+      true
+    ],
+    "decode_gqa_staged_fixed_configured": [
+      false
+    ],
+    "decode_gqa_staged_fixed_executed": [],
+    "decode_gqa_static_leaf_aiter_configured": [
+      false
+    ],
+    "decode_gqa_static_leaf_aiter_executed": [],
+    "decode_gqa_static_leaf_caps": [
+      null
+    ],
+    "decode_gqa_union_aiter_final": [
+      true
+    ],
+    "decode_gqa_union_configured": [
+      true
+    ],
+    "decode_gqa_union_eligible": [
+      true
+    ],
+    "decode_gqa_union_hip_configured": [
+      true
+    ],
+    "decode_gqa_union_hip_executed": [
+      true
+    ],
+    "decode_gqa_union_predicted_mass": [
+      false
+    ],
+    "decode_gqa_union_requested": [
+      true
+    ],
+    "decode_gqa_union_score_only": [
+      true
+    ],
+    "decode_max_open_leaves": [
+      1024
+    ],
+    "decode_open_counts": [
+      8
+    ],
+    "decode_route_cohort": [
+      true
+    ],
+    "direct_prefill_calls": 0,
+    "effective_decode_route_leaf_limits": [
+      47
+    ],
+    "eligible_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "gqa_route_mass_threshold_hits": {
+      "16": 0,
+      "32": 0,
+      "64": 0,
+      "128": 0,
+      "256": 0
+    },
+    "gqa_route_max_mass": null,
+    "gqa_union_centroid_count_max": 0,
+    "gqa_union_centroid_count_mean": 0.0,
+    "gqa_union_epoch_max": 5,
+    "gqa_union_exact_token_count_max": 0,
+    "gqa_union_exact_token_count_mean": 0.0,
+    "gqa_union_nonempty_sequences": 0,
+    "gqa_union_sequence_count": 96,
+    "gqa_union_token_count_max": 0,
+    "gqa_union_token_count_mean": 0.0,
+    "install_count": 0,
+    "pooled_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "prefill_coarse_direct_gqa_configured": [
+      [
+        false,
+        64,
+        32,
+        8
+      ]
+    ],
+    "prefill_coarse_direct_gqa_executed": [],
+    "prefill_open_counts": [
+      3
+    ],
+    "prefill_route_cohort": [
+      true
+    ],
+    "recursive_state_route_backends": [
+      "fused"
+    ],
+    "routing_geometries": [
+      [
+        "none",
+        "coherence",
+        "none"
+      ]
+    ],
+    "selected_route_count_max": 0.0,
+    "state_centroids_at_or_above_open_limit": 0,
+    "state_count_max": 0.0,
+    "state_v_abs_max": 0.0,
+    "state_v_nonfinite": 0,
+    "static_leaf_count_distribution": [
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "1",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "2",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "3-4",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "5-8",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "9-16",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "17-32",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "33-64",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "65-128",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "129-256",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "257-512",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "513-1024",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": ">1024",
+        "leaf_fraction": 0.0
+      }
+    ],
+    "static_opened_centroid_fraction": 0.0,
+    "static_opened_centroids": 0,
+    "static_opened_leaf_fraction": 0.0,
+    "static_opened_leaves": 0.0,
+    "static_total_centroids": 0,
+    "static_total_leaves": 0.0
+  },
+  "lod_prefill_route_block_m": null,
+  "lod_prefill_route_num_warps": null,
+  "lod_recursive_page_block_n": null,
+  "lod_recursive_state_route_backend": null,
+  "long_prefill_token_threshold": 4096,
+  "max_num_batched_tokens": 16384,
+  "mode": "lod",
+  "prefill_open_count": 3,
+  "prefill_route_cohort": true,
+  "prefill_static_leaf_cap_min": 32,
+  "requested_samples": 64,
+  "samples": [
+    {
+      "exact": true,
+      "index": 0,
+      "input_tokens": 130392,
+      "response": ":\n\n**7f107645-094c-4230-a3b4-df81eeb3462c**",
+      "target": "7f107645-094c-4230-a3b4-df81eeb3462c"
+    },
+    {
+      "exact": true,
+      "index": 1,
+      "input_tokens": 130393,
+      "response": ":\n\n**3c740119-7547-44dd-a69b-6c3babf0f4bd**",
+      "target": "3c740119-7547-44dd-a69b-6c3babf0f4bd"
+    },
+    {
+      "exact": true,
+      "index": 2,
+      "input_tokens": 130400,
+      "response": ":\n\n**566ff3ec-679b-49e8-80c3-2da9bc49b58e**",
+      "target": "566ff3ec-679b-49e8-80c3-2da9bc49b58e"
+    },
+    {
+      "exact": true,
+      "index": 3,
+      "input_tokens": 130396,
+      "response": ":\n\n**e689e5e8-87c4-4eb8-8f8e-3e0103c8e104**",
+      "target": "e689e5e8-87c4-4eb8-8f8e-3e0103c8e104"
+    },
+    {
+      "exact": true,
+      "index": 4,
+      "input_tokens": 130399,
+      "response": ":\n\n**8d56206d-920c-4de9-8823-9867c5dd967b**",
+      "target": "8d56206d-920c-4de9-8823-9867c5dd967b"
+    },
+    {
+      "exact": true,
+      "index": 5,
+      "input_tokens": 130392,
+      "response": ":\n\n**675e0c52-1eb9-4739-b8ac-dd816522ff46**",
+      "target": "675e0c52-1eb9-4739-b8ac-dd816522ff46"
+    },
+    {
+      "exact": true,
+      "index": 6,
+      "input_tokens": 130393,
+      "response": ":\n\n**fee4e6bc-bd6d-4b92-85e6-95b1054b8816**",
+      "target": "fee4e6bc-bd6d-4b92-85e6-95b1054b8816"
+    },
+    {
+      "exact": true,
+      "index": 7,
+      "input_tokens": 130394,
+      "response": ":\n\n**c6a2894d-b3e4-4d3a-94fe-31a0ae2e45a4**",
+      "target": "c6a2894d-b3e4-4d3a-94fe-31a0ae2e45a4"
+    },
+    {
+      "exact": true,
+      "index": 8,
+      "input_tokens": 130395,
+      "response": ":\n\n**fa7bff5f-62d5-4938-971c-9d788429aeae**",
+      "target": "fa7bff5f-62d5-4938-971c-9d788429aeae"
+    },
+    {
+      "exact": true,
+      "index": 9,
+      "input_tokens": 130395,
+      "response": ":\n\n**ce0755e3-5456-4b12-bb52-451d90e7e1a1**",
+      "target": "ce0755e3-5456-4b12-bb52-451d90e7e1a1"
+    },
+    {
+      "exact": true,
+      "index": 10,
+      "input_tokens": 130392,
+      "response": ":\n\n**272eaa36-e642-465c-9e38-6aebea96abe6**",
+      "target": "272eaa36-e642-465c-9e38-6aebea96abe6"
+    },
+    {
+      "exact": true,
+      "index": 11,
+      "input_tokens": 130403,
+      "response": ":\n\n**27fa8b8a-909b-471c-8d1f-0a7fd0fce922**",
+      "target": "27fa8b8a-909b-471c-8d1f-0a7fd0fce922"
+    },
+    {
+      "exact": true,
+      "index": 12,
+      "input_tokens": 130396,
+      "response": ":\n\n**7eaf1679-52b0-4994-8b1d-d9fda02ebb76**",
+      "target": "7eaf1679-52b0-4994-8b1d-d9fda02ebb76"
+    },
+    {
+      "exact": true,
+      "index": 13,
+      "input_tokens": 130395,
+      "response": ":\n\n**918ff358-2408-43c2-89d0-a7f400425fc6**",
+      "target": "918ff358-2408-43c2-89d0-a7f400425fc6"
+    },
+    {
+      "exact": true,
+      "index": 14,
+      "input_tokens": 130397,
+      "response": ":\n\n**f2d7fe55-0262-45aa-adec-31ef57627626**",
+      "target": "f2d7fe55-0262-45aa-adec-31ef57627626"
+    },
+    {
+      "exact": true,
+      "index": 15,
+      "input_tokens": 130393,
+      "response": ":\n\n**efa2ce12-8c83-4848-91fb-a56e300a2187**",
+      "target": "efa2ce12-8c83-4848-91fb-a56e300a2187"
+    },
+    {
+      "exact": true,
+      "index": 16,
+      "input_tokens": 130394,
+      "response": ":\n\n**a8ab29f1-1033-4310-ab7b-de99878f40ed**",
+      "target": "a8ab29f1-1033-4310-ab7b-de99878f40ed"
+    },
+    {
+      "exact": true,
+      "index": 17,
+      "input_tokens": 130400,
+      "response": ":\n\n**9ae445e0-8b1d-42f8-8bf1-f93ca1d33772**",
+      "target": "9ae445e0-8b1d-42f8-8bf1-f93ca1d33772"
+    },
+    {
+      "exact": true,
+      "index": 18,
+      "input_tokens": 130398,
+      "response": ":\n\n**6dbf859c-037d-4752-88f3-531c4fb7c3bb**",
+      "target": "6dbf859c-037d-4752-88f3-531c4fb7c3bb"
+    },
+    {
+      "exact": true,
+      "index": 19,
+      "input_tokens": 130398,
+      "response": ":\n\n**fd768f63-5163-4e1d-8df7-a26786fadb0e**",
+      "target": "fd768f63-5163-4e1d-8df7-a26786fadb0e"
+    },
+    {
+      "exact": true,
+      "index": 20,
+      "input_tokens": 130392,
+      "response": ":\n\n**2446ecee-caa0-4679-ae83-a7b2c857d8c3**",
+      "target": "2446ecee-caa0-4679-ae83-a7b2c857d8c3"
+    },
+    {
+      "exact": true,
+      "index": 21,
+      "input_tokens": 130393,
+      "response": ":\n\n**903374bf-c812-46e6-ac77-cfc8b38e5adb**",
+      "target": "903374bf-c812-46e6-ac77-cfc8b38e5adb"
+    },
+    {
+      "exact": true,
+      "index": 22,
+      "input_tokens": 130400,
+      "response": ":\n\n**e994f3e6-8fc4-4dd3-894f-7d5af313c0b0**",
+      "target": "e994f3e6-8fc4-4dd3-894f-7d5af313c0b0"
+    },
+    {
+      "exact": true,
+      "index": 23,
+      "input_tokens": 130395,
+      "response": ":\n\n**f0fcccc6-fb46-4d39-8772-c3475cba9be3**",
+      "target": "f0fcccc6-fb46-4d39-8772-c3475cba9be3"
+    },
+    {
+      "exact": true,
+      "index": 24,
+      "input_tokens": 130392,
+      "response": ":\n\n**7f3ab7dc-b339-4a6e-a0b8-7e455abec113**",
+      "target": "7f3ab7dc-b339-4a6e-a0b8-7e455abec113"
+    },
+    {
+      "exact": true,
+      "index": 25,
+      "input_tokens": 130393,
+      "response": ":\n\n**2f6570d7-4643-4705-bdf8-eeefe44a01f6**",
+      "target": "2f6570d7-4643-4705-bdf8-eeefe44a01f6"
+    },
+    {
+      "exact": true,
+      "index": 26,
+      "input_tokens": 130391,
+      "response": ":\n\n**b6bca2a2-be79-4965-bc9a-923672bbe7b3**",
+      "target": "b6bca2a2-be79-4965-bc9a-923672bbe7b3"
+    },
+    {
+      "exact": true,
+      "index": 27,
+      "input_tokens": 130397,
+      "response": ":\n\n**10b2e6e5-ec6e-41bd-b0c4-55a92a1bc112**",
+      "target": "10b2e6e5-ec6e-41bd-b0c4-55a92a1bc112"
+    },
+    {
+      "exact": true,
+      "index": 28,
+      "input_tokens": 130390,
+      "response": ":\n\n**c1fa924e-e1bc-4fb2-afed-6cc540b000a4**",
+      "target": "c1fa924e-e1bc-4fb2-afed-6cc540b000a4"
+    },
+    {
+      "exact": true,
+      "index": 29,
+      "input_tokens": 130397,
+      "response": ":\n\n**02cee581-7e15-4a2c-87b6-e28f4e98ce25**",
+      "target": "02cee581-7e15-4a2c-87b6-e28f4e98ce25"
+    },
+    {
+      "exact": true,
+      "index": 30,
+      "input_tokens": 130393,
+      "response": ":\n\n**a2a7d0fc-c683-4d33-af84-439262f9dbb2**",
+      "target": "a2a7d0fc-c683-4d33-af84-439262f9dbb2"
+    },
+    {
+      "exact": true,
+      "index": 31,
+      "input_tokens": 130396,
+      "response": ":\n\n**919c21ed-d471-43e7-9ac5-f4f0771ec087**",
+      "target": "919c21ed-d471-43e7-9ac5-f4f0771ec087"
+    },
+    {
+      "exact": true,
+      "index": 32,
+      "input_tokens": 130391,
+      "response": ":\n\n**79460978-65e9-4753-8638-9bd3d26eeeba**",
+      "target": "79460978-65e9-4753-8638-9bd3d26eeeba"
+    },
+    {
+      "exact": true,
+      "index": 33,
+      "input_tokens": 130394,
+      "response": ":\n\n**58f16c91-dd6d-47e4-90e0-172f14dc01bc**",
+      "target": "58f16c91-dd6d-47e4-90e0-172f14dc01bc"
+    },
+    {
+      "exact": true,
+      "index": 34,
+      "input_tokens": 130399,
+      "response": ":\n\n**abe0a177-1c5e-4698-b7a0-2afd30d6863f**",
+      "target": "abe0a177-1c5e-4698-b7a0-2afd30d6863f"
+    },
+    {
+      "exact": true,
+      "index": 35,
+      "input_tokens": 130396,
+      "response": ":\n\n**d855fb35-d763-4159-ad9a-189a50852f4f**",
+      "target": "d855fb35-d763-4159-ad9a-189a50852f4f"
+    },
+    {
+      "exact": true,
+      "index": 36,
+      "input_tokens": 130390,
+      "response": ":\n\n**fe292238-fbfb-4602-a011-bc8ae7bf9a96**",
+      "target": "fe292238-fbfb-4602-a011-bc8ae7bf9a96"
+    },
+    {
+      "exact": true,
+      "index": 37,
+      "input_tokens": 130397,
+      "response": ":\n\n**6779de0d-25c1-4f67-987d-616d2462c274**",
+      "target": "6779de0d-25c1-4f67-987d-616d2462c274"
+    },
+    {
+      "exact": true,
+      "index": 38,
+      "input_tokens": 130395,
+      "response": ":\n\n**e91e70af-224a-4354-a490-7635201910c6**",
+      "target": "e91e70af-224a-4354-a490-7635201910c6"
+    },
+    {
+      "exact": true,
+      "index": 39,
+      "input_tokens": 130396,
+      "response": ":\n\n**d2d07223-0b20-4e0f-8505-0a17d2e1ed4d**",
+      "target": "d2d07223-0b20-4e0f-8505-0a17d2e1ed4d"
+    },
+    {
+      "exact": true,
+      "index": 40,
+      "input_tokens": 130399,
+      "response": ":\n\n**d020baee-95fc-4389-8cd6-6756583e26a4**",
+      "target": "d020baee-95fc-4389-8cd6-6756583e26a4"
+    },
+    {
+      "exact": true,
+      "index": 41,
+      "input_tokens": 130395,
+      "response": ":\n\n**339c5a75-43fd-46ff-9034-59a42ca723c4**",
+      "target": "339c5a75-43fd-46ff-9034-59a42ca723c4"
+    },
+    {
+      "exact": true,
+      "index": 42,
+      "input_tokens": 130395,
+      "response": ":\n\n**425de95f-c846-4f90-80fe-6898b56b9357**",
+      "target": "425de95f-c846-4f90-80fe-6898b56b9357"
+    },
+    {
+      "exact": true,
+      "index": 43,
+      "input_tokens": 130395,
+      "response": ":\n\n**8d7f7ba5-72e6-416e-a671-0ad2c1b5468a**",
+      "target": "8d7f7ba5-72e6-416e-a671-0ad2c1b5468a"
+    },
+    {
+      "exact": true,
+      "index": 44,
+      "input_tokens": 130402,
+      "response": ":\n\n**83210210-a43c-491d-ad4d-a4ef95e38180**",
+      "target": "83210210-a43c-491d-ad4d-a4ef95e38180"
+    },
+    {
+      "exact": true,
+      "index": 45,
+      "input_tokens": 130395,
+      "response": ":\n\n**74e04bbb-ca80-43a7-a5fd-89c831610b3d**",
+      "target": "74e04bbb-ca80-43a7-a5fd-89c831610b3d"
+    },
+    {
+      "exact": true,
+      "index": 46,
+      "input_tokens": 130391,
+      "response": ":\n\n**556b20fa-b5a3-4ece-a8cd-c38a85b303d3**",
+      "target": "556b20fa-b5a3-4ece-a8cd-c38a85b303d3"
+    },
+    {
+      "exact": true,
+      "index": 47,
+      "input_tokens": 130399,
+      "response": ":\n\n**d21276c2-1519-401c-8b1f-11370ea255e0**",
+      "target": "d21276c2-1519-401c-8b1f-11370ea255e0"
+    },
+    {
+      "exact": true,
+      "index": 48,
+      "input_tokens": 130393,
+      "response": ":\n\n**1a9e8547-147a-48ac-865d-8e4ed01e488b**",
+      "target": "1a9e8547-147a-48ac-865d-8e4ed01e488b"
+    },
+    {
+      "exact": true,
+      "index": 49,
+      "input_tokens": 130396,
+      "response": ":\n\n**60c8e5a0-d560-464c-95f7-792a739ac9e2**",
+      "target": "60c8e5a0-d560-464c-95f7-792a739ac9e2"
+    },
+    {
+      "exact": true,
+      "index": 50,
+      "input_tokens": 130391,
+      "response": ":\n\n**eceec38d-511f-4da9-a2d8-01701e6cbd83**",
+      "target": "eceec38d-511f-4da9-a2d8-01701e6cbd83"
+    },
+    {
+      "exact": true,
+      "index": 51,
+      "input_tokens": 130396,
+      "response": ":\n\n**e2ccddd8-567f-4c5e-84ea-581d20068c1c**",
+      "target": "e2ccddd8-567f-4c5e-84ea-581d20068c1c"
+    },
+    {
+      "exact": true,
+      "index": 52,
+      "input_tokens": 130392,
+      "response": ":\n\n**b2e74e77-0fe1-4edf-a538-790169f12ccd**",
+      "target": "b2e74e77-0fe1-4edf-a538-790169f12ccd"
+    },
+    {
+      "exact": true,
+      "index": 53,
+      "input_tokens": 130398,
+      "response": ":\n\n**b61b03e9-cb60-4efc-847e-330e99b702a2**",
+      "target": "b61b03e9-cb60-4efc-847e-330e99b702a2"
+    },
+    {
+      "exact": true,
+      "index": 54,
+      "input_tokens": 130394,
+      "response": ":\n\n**5adffd04-70d2-4718-8dd3-5d11688181a8**",
+      "target": "5adffd04-70d2-4718-8dd3-5d11688181a8"
+    },
+    {
+      "exact": true,
+      "index": 55,
+      "input_tokens": 130403,
+      "response": ":\n\n**cdc39412-d95e-47e1-900f-72f74f4b4ed5**",
+      "target": "cdc39412-d95e-47e1-900f-72f74f4b4ed5"
+    },
+    {
+      "exact": true,
+      "index": 56,
+      "input_tokens": 130398,
+      "response": ":\n\n**439f4b86-cd6a-4e0c-b427-965607db34e0**",
+      "target": "439f4b86-cd6a-4e0c-b427-965607db34e0"
+    },
+    {
+      "exact": true,
+      "index": 57,
+      "input_tokens": 130398,
+      "response": ":\n\n**06b42b6f-1f94-43c8-98a7-75945b8c4949**",
+      "target": "06b42b6f-1f94-43c8-98a7-75945b8c4949"
+    },
+    {
+      "exact": true,
+      "index": 58,
+      "input_tokens": 130397,
+      "response": ":\n\n**a747795e-b0c9-42af-9db3-1510675d0855**",
+      "target": "a747795e-b0c9-42af-9db3-1510675d0855"
+    },
+    {
+      "exact": true,
+      "index": 59,
+      "input_tokens": 130389,
+      "response": ":\n\n**df254e5d-befa-4c47-8dd6-650fca6ef7ce**",
+      "target": "df254e5d-befa-4c47-8dd6-650fca6ef7ce"
+    },
+    {
+      "exact": true,
+      "index": 60,
+      "input_tokens": 130398,
+      "response": ":\n\n**dcb32e4a-891d-4a7b-8d3d-c6aadba45b5e**",
+      "target": "dcb32e4a-891d-4a7b-8d3d-c6aadba45b5e"
+    },
+    {
+      "exact": true,
+      "index": 61,
+      "input_tokens": 130391,
+      "response": ":\n\n**d62b68d4-1880-4a4b-840f-bb0ba5e327af**",
+      "target": "d62b68d4-1880-4a4b-840f-bb0ba5e327af"
+    },
+    {
+      "exact": true,
+      "index": 62,
+      "input_tokens": 130402,
+      "response": ":\n\n**f7d870b6-78ac-4704-9936-5f61f484878d**",
+      "target": "f7d870b6-78ac-4704-9936-5f61f484878d"
+    },
+    {
+      "exact": true,
+      "index": 63,
+      "input_tokens": 130392,
+      "response": ":\n\n**f5b7751f-497e-48aa-8e03-a34da022dfee**",
+      "target": "f5b7751f-497e-48aa-8e03-a34da022dfee"
+    }
+  ],
+  "static_cohort_never_readmit": false,
+  "static_leaf_cap_divisor": 8,
+  "total": 64
+}

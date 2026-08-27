@@ -75,12 +75,127 @@ the active cap, one `log(count)`-biased coarse entry for each larger centroid,
 and the fixed local-window suffix. By default the inclusive cap for a request
 of length `T` is `max(16, ceil(sqrt(T) / 16))`. Set
 `VLLM_LOD_DECODE_GQA_STATIC_LEAF_CAP` to use a fixed experimental override, or
-`VLLM_LOD_DECODE_GQA_STATIC_LEAF_CAP_MIN` to change the default floor. Decode
+`VLLM_LOD_DECODE_GQA_STATIC_LEAF_CAP_MIN` to change the default floor.
+`VLLM_LOD_STATIC_LEAF_CAP_DIVISOR` changes the shared prefill/decode divisor
+(default 16), so a floor of 32 and divisor of 8 select
+`max(32, ceil(sqrt(T) / 8))`. `VLLM_LOD_STATIC_COHORT_NEVER_READMIT=1` makes
+cohort eviction terminal: a centroid that ever exceeds the active cap remains
+coarse-only even if a later cap increase would otherwise re-admit its leaves.
+Decode
 then performs a single indexed attention scan over that list; it has no
 coarse-score, top-k, union, or mask-construction dependency. It shares the
 split count selected by `VLLM_LOD_DECODE_GQA_FIXED_MASK_SEGMENTS` and requires
 two-level BF16 GQA-union decode with
 `VLLM_LOD_DECODE_GQA_UNION_HIP=1`.
+
+## High-quality 64K batch-8 decode reference
+
+This table is the authoritative 64K/B8/BF16 speed and quality reference as of
+2026-08-26. It uses eight distinct ProLong documents, reserves 64 positions
+for decode, generates 64 timing tokens, and reports the median of three
+repetitions. A latency comparison is valid only when its dispatch audit
+records the kernel stack named below. Do not compare the portable flat
+two-tier leaf path with these numbers.
+
+The runner settings are context 65,536, batch 8, 16,384 maximum batched
+prefill tokens, 4,096 long-prefill threshold, 64-token prompt reserve,
+64 generated tokens, greedy decoding (`temperature=0`, EOS ignored), prefix
+caching disabled, and three measured repetitions after warmup. Checkpoints,
+tensor parallelism, and prompt formatting are recorded per row.
+
+| model | TP / prompt | historical full | fastest high-quality LOD policy | latency | quality evidence at 64K |
+|---|---|---:|---|---:|---|
+| `Qwen/Qwen3.8-27B-FP8` | 1 / chat | 52.030 ms | unrestricted top-8, grouped route | **36.247 ms** | ordinary two-level LOD 64/64 NIAH-S3 |
+| `google/gemma-4-26B-A4B-it` | 1 / chat | 11.694 ms | unrestricted top-8, grouped route, D=512 indexed final | **10.421 ms** | ordinary two-level LOD 62/64 NIAH-S3 versus full 64/64 |
+| `microsoft/phi-4` | 5 / chat | 9.970 ms | unrestricted top-8, grouped route | **10.913 ms** | 64K NIAH-S3 is not discriminative: full and LOD both scored 0/64 |
+| `meta-models/Muse-Glimmer-30B` | 1 / chat + native text config | 19.215 ms | unrestricted top-8, segmented route | **19.349 ms** | ordinary two-level LOD 64/64 NIAH-S3 |
+| `allenai/Olmo-3-1125-32B` | 1 / raw base-model prompt | 30.481 ms | unrestricted top-8, grouped route | **28.878 ms** | ordinary top-8 LOD scored 54/64; this model retains a broader LOD quality gap |
+
+Unrestricted query-dependent top-eight is the high-quality reference on every
+model. Static-cohort decode has lower measured latency on Phi, Muse, and OLMo,
+but those arms have only an uninformative Phi task, an 8/8 Muse smoke, and a
+7/8 OLMo smoke respectively. They are therefore speed experiments, not
+high-quality defaults. This classification does not erase the broader quality
+caveats of ordinary LOD: Gemma scored 62/64 and OLMo 54/64 versus full
+attention's 64/64, while Phi's task fails under full attention too. It means
+only that we do not add the less-validated static selection restriction when
+identifying the safest currently measured LOD configuration.
+
+The exact common LOD settings for this reference are:
+
+```bash
+VLLM_LOD_POOL_SIZE=8
+VLLM_LOD_LEVELS=2
+VLLM_LOD_KV_BITS=0
+VLLM_LOD_MAX_CONTEXT=131200
+VLLM_LOD_STATE_FACTOR=16
+VLLM_LOD_DENSE_LEAF_STORAGE=1
+VLLM_LOD_PREFILL_MODE=direct
+VLLM_LOD_ROUTING_GEOMETRY=raw
+VLLM_LOD_PREFILL_CHUNK_SIZE=4096
+VLLM_LOD_PREFILL_LOCAL_WINDOW=4864
+VLLM_LOD_PREFILL_STATE_UPDATE_SIZE=4096
+VLLM_LOD_LEAF_BLOCK_N=32
+VLLM_LOD_DECODE_GEOMETRY_TUNING=1
+VLLM_LOD_DECODE_SPLIT_KV=8
+VLLM_LOD_DECODE_GQA_UNION=1
+VLLM_LOD_DECODE_GQA_UNION_HIP=1
+VLLM_LOD_DECODE_GQA_FIXED_MASK_BLOCK_N=64
+VLLM_LOD_DECODE_GQA_FIXED_MASK_SEGMENTS=128
+```
+
+The unrestricted top-eight preset used by every high-quality reference row adds:
+
+```bash
+VLLM_LOD_OPEN_COUNT=8
+VLLM_LOD_DECODE_MAX_OPEN_LEAVES=1024
+VLLM_LOD_DECODE_ROUTE_COHORT=0
+VLLM_LOD_DECODE_GQA_PREDICTED_MASS=0
+VLLM_LOD_DECODE_GQA_STATIC_LEAF_AITER=0
+VLLM_LOD_DECODE_GQA_FIXED_MASK_AITER=1
+```
+
+Leave `VLLM_LOD_DECODE_HIERARCHICAL_ROUTE` unset so geometry dispatch selects
+Muse's validated segmented route and the grouped route on the other rows.
+
+The optional static 64K speed diagnostic instead adds:
+
+```bash
+VLLM_LOD_DECODE_GQA_FIXED_MASK_AITER=0
+VLLM_LOD_DECODE_GQA_STATIC_LEAF_AITER=1
+VLLM_LOD_DECODE_GQA_STATIC_LEAF_CAP=16
+```
+
+Leaving `VLLM_LOD_DECODE_GQA_STATIC_LEAF_CAP` unset selects the length-aware
+inclusive `max(16, ceil(sqrt(T) / 16))` schedule; it also evaluates to 16 at
+64K. This mode is not part of the high-quality reference.
+
+The historical table above used raw routing. A later matched fast-top-8
+route-only rerun used the current automatic spherical/coherence-aware routing
+and found grouped/segmented latencies of
+36.334/36.478 ms on Qwen, 10.235/10.300 ms on Gemma, and
+11.198/11.163 ms on Phi.  Muse's historical 19.349-ms fast path already used
+the segmented schedule, and the current rerun is 19.153 ms.  OLMo measured
+28.769/28.436 ms, but its requested tuned arm retained a one-tile grouped
+producer and only changed grouped tile/reducer geometry; it is not a
+hierarchical-route comparison.  Automatic segmented routing is therefore
+limited to Muse.  It is exact with respect to the top-eight route set, but it
+is not a speed win on Qwen or Gemma and its Phi delta is only 0.32%.
+
+The reference artifacts are
+`artifacts/static_vs_top8_30b_20260825/README.md` and
+`artifacts/prefill_route_hierarchical_20260826/README.md`.  The route-pair
+harness `scripts/run_vllm_lod_decode_route_pair.sh` fails after a run unless
+the audit confirms fixed-mask execution, HIP execution, page-size-one final
+attention, and the requested grouped or segmented route producer.
+
+Treat this section as a release record. A future configuration replaces a row
+only after a matched real-text B8 rerun, a quality result appropriate for that
+model, and a dispatch audit proving that the intended kernels executed. Record
+the checkpoint, TP, prompt formatting, all non-default environment overrides,
+timing protocol, quality evidence, and artifact path here at the same time.
+Do not infer the active kernel from requested flags, and do not promote an
+isolated-kernel or speed-only result to the high-quality set.
 
 ## Install and run
 
@@ -152,8 +267,11 @@ On `cluster-run`, keep the daemon as a detached job and use `--overlap-own` for
 development jobs that must share its allocated GPUs. The `ipc_cache` plugin
 accounts for weights that were resident before vLLM's normal memory snapshot,
 so ordinary `--gpu-memory-utilization` settings continue to include the mapped
-model weights. The broker is single-node and DP=1; TP and PP are supported and
-discovered from each requesting vLLM engine.
+model weights. On a cold miss, an LRU eviction may legitimately increase free
+memory after vLLM takes that snapshot. The loader rebases only the byte range
+reported by the broker as evicted; a larger unexplained release still trips
+vLLM's ordinary concurrent-process guard. The broker is single-node and DP=1;
+TP and PP are supported and discovered from each requesting vLLM engine.
 
 The repository's current vLLM benchmark, quality, prefix-cache, chat-batch, and
 NIAH panel entry points select `ipc_cache` by default. They share the namespace
@@ -191,14 +309,22 @@ The optional `VLLM_LOD_MAX_CONTEXT` caps each LOD row. It defaults to vLLM's
 `max_model_len`. Other settings are `VLLM_LOD_CHUNK_SIZE` (256),
 `VLLM_LOD_LOCAL_WINDOW` (512), `VLLM_LOD_STATE_FACTOR` (16),
 `VLLM_LOD_STATE_MIN` (256), `VLLM_LOD_OPEN_COUNT` (8), and
-`VLLM_LOD_QUANT_GROUP_SIZE` (32). The two-tier path additionally defaults to
-4,096-token prefill chunks, a 4,864-token prefill local field, 4,096-token
-prefill state updates, expert-layout BF16 leaf attention, and the two-level
-page directory. These are configurable with `VLLM_LOD_PREFILL_CHUNK_SIZE`,
+`VLLM_LOD_QUANT_GROUP_SIZE` (32). Both paths use 4,096-token prefill state
+updates. This replaces recursive LOD's former 1,280-token update batch, which
+split each 4,096-token archive step into four state-update launches. The
+two-tier path additionally defaults to 4,096-token prefill chunks, a
+4,864-token prefill local field, expert-layout BF16 leaf attention, and the
+two-level page directory. These are configurable with `VLLM_LOD_PREFILL_CHUNK_SIZE`,
 `VLLM_LOD_PREFILL_LOCAL_WINDOW`, `VLLM_LOD_PREFILL_STATE_UPDATE_SIZE`,
 `VLLM_LOD_LEAF_LAYOUT`, and `VLLM_LOD_LEAF_PAGED_DIRECTORY`.
-Two-level D=128/GQA=16 prefill automatically overlaps its independent coarse,
-exact-leaf, and exact-local branches on separate GPU streams after routing.
+Routed two-level D=128/GQA=16 prefill automatically overlaps its independent
+coarse, exact-leaf, and exact-local branches on separate GPU streams after
+routing. Static-cohort prefill is excluded because keeping its larger AITER
+exact-leaf working set live beside materialized coarse logits exceeds the
+normal transient-memory allowance.
+Recursive Qwen3.5-0.8B prefill overlaps only its independent local branch with
+the dependent coarse/page LOD branch; the final merge explicitly waits on that
+stream even when recursive page attention takes its dense-page early return.
 `VLLM_LOD_PREFILL_OVERLAP_COARSE_LEAF=0` and
 `VLLM_LOD_PREFILL_OVERLAP_LOCAL_LOD=0` disable the respective overlaps for
 diagnostics; setting either to `1` enables it on other supported geometries.
@@ -207,18 +333,47 @@ large-model geometries where it improves or preserves end-to-end speed:
 independent wide centroid tiles emit their local candidates, then a small
 reduction selects and orders the global three. The automatic geometry set is
 D128/GQA16/KV2, D128/GQA5/KV8, D128/GQA4/KV2, D256/GQA6/KV4, and
-D512/GQA8/KV2. The former selector remains automatic elsewhere; notably, the
-extra launch loses on Qwen3.5-0.8B. Set
+D512/GQA8/KV2. The former selector remains automatic elsewhere. Qwen3.5-0.8B's
+D256/GQA4/KV2 geometry remains on the former selector for two-level prefill,
+where the extra launch loses, but uses the exact two-stage selector for
+recursive three-tier prefill, where it improves 64K/B8 latency by 5.4%. Set
 `VLLM_LOD_PREFILL_HIERARCHICAL_ROUTE={0,1}` to override automatic dispatch.
 `VLLM_LOD_PREFILL_HIERARCHICAL_ROUTE=0` or `1` overrides geometry selection;
 both selectors use the same scores and return the same ordered routes.
+The coarse-attention consumer independently folds native GQA directly into
+the matrix-row dimension on the measured irregular-ratio winners:
+D128/GQA5/KV8 uses M128/N16/W8, and D256/GQA6/KV4 uses M64/N16/W8. This avoids
+padding the head group to the next power of two and is automatic for both
+two-level and recursive LOD. Power-of-two GQA4/GQA16 already fill their former M64 tiles and retain
+that path; the D512/GQA8 GEMM alternative also remains unchanged because a
+packed-PV experiment regressed end-to-end Gemma prefill. Set
+`VLLM_LOD_PREFILL_COARSE_DIRECT_GQA=0` to disable automatic direct packing, or
+set it to `1` and use `VLLM_LOD_PREFILL_COARSE_GROUPED_ROWS`,
+`VLLM_LOD_PREFILL_COARSE_BLOCK_N`, and
+`VLLM_LOD_PREFILL_COARSE_NUM_WARPS` for an explicit diagnostic geometry. The
+64K/B8 production A/B and dispatch audit are in
+`artifacts/prefill_direct_gqa_20260826/README.md`.
 `VLLM_LOD_PREFILL_STATIC_LEAF_AITER=1` replaces query-dependent prefill top-k
 with the static small-centroid cohort. After each 4,096-token state catch-up it
 rebuilds one page-size-one AITER list per KV head containing every leaf whose
 centroid has at most `max(16, ceil(sqrt(T) / 16))` leaves; the list stays fixed
 for that query chunk. Larger centroids remain represented by their biased
-coarse entries. `VLLM_LOD_PREFILL_STATIC_LEAF_CAP_MIN` changes the floor. This
+coarse entries. `VLLM_LOD_PREFILL_STATIC_LEAF_CAP_MIN` changes the floor, and
+`VLLM_LOD_STATIC_LEAF_CAP_DIVISOR` changes the shared schedule divisor. This
 experimental prefill mode requires two-level BF16 dense leaf storage.
+It shares the native-GQA coarse consumer above. At 64K/B8 this reduces matched
+static Qwen3.8 prefill from 79.422 to 69.648 seconds (-12.31%) and static OLMo
+from 72.053 to 70.901 seconds (-1.60%). These current numbers, the superseded
+original panel, the dispatch audit, and a static phase profile are recorded in
+`artifacts/static_prefill_recent_20260826/README.md`.
+`VLLM_LOD_PREFILL_ROUTE_COHORT=1` instead retains dynamic routing but restricts
+eligible routes to the same scheduled small-centroid cohort; larger centroids
+remain in the count-corrected coarse residual. The production prefill route
+count remains `min(3, VLLM_LOD_OPEN_COUNT)`. Set
+`VLLM_LOD_PREFILL_OPEN_COUNT=1..8` only when an explicit prefill route count is
+needed. At 128K, the enlarged floor-32/divisor-8 cohort was quality-negative
+when combined with top-k, even with literal prefill top-8; results are in
+`artifacts/static_cohort_top8_20260826/README.md`.
 `VLLM_LOD_LEAF_SEAL_CAPACITY` is an opt-in diagnostic; it is unset by default,
 and the reported two-tier benchmarks retain every leaf. The two-tier cache accepts
 `VLLM_LOD_KV_BITS=0` (BF16) or `8` (signed INT8 K/V with one BF16 scale per
@@ -237,9 +392,44 @@ the probabilities for INT8 PV because the longer posting-list scan amortizes
 that fixed work. `VLLM_LOD_PREFILL_INT8_PV_MMA=0` or `1` overrides this
 automatic crossover. Batch-8 INT8 leaf kernels use two warps by default; one
 warp under-occupies the true batched workload.
+
+### Validated recursive prefill refresh
+
+On Qwen3.5-0.8B at 64K/B8, recursive BF16 LOD retains its historical
+1,280-token state-update cadence. Moving updates to 4,096 tokens was 1.4%
+slower in the initial three-repeat screen, so that change was rejected. With
+seven measured repetitions over eight distinct real ProLong documents, exact
+two-stage route selection reduced median prefill from 4.646 to 4.396 seconds;
+overlapping the independent local branch reduced it further to 4.348 seconds.
+The matched AITER full-attention result was 9.909 seconds. Decode was
+2.657 ms per batch step for the final LOD run versus 5.822 ms for full
+attention. The automatic final configuration scored 8/8 on chat-formatted
+64K NIAH-S3, and its dispatch audit recorded the hierarchical selector,
+recursive indexed residual-page kernel, AITER local attention, local/LOD
+overlap, and the unchanged 1,280-token update length. Results and all raw
+samples are in `artifacts/three_tier_refresh_qwen08_20260826/README.md`.
+
+Replacing the grouped recursive state-route kernel with the allocation-free
+re-split implementation subsequently reduced steady batch-8 decode from
+2.657 to 2.369 ms per step (10.8%) without a steady-state prefill regression.
+The re-split path scored 64/64 on the same chat-formatted 64K NIAH-S3 panel.
+The subsequent five-family panel generalized automatic dispatch by measured
+attention geometry and allocated request capacity; see the routing section
+below and `artifacts/three_tier_resplit_family_20260826/README.md`.
+
 Recursive three-tier storage accepts 0, 4, or 8 bits;
 quantized storage requires the same precision for K and V. External ownership
 forces `VLLM_LOD_PREFILL_MODE=direct`.
+On the measured recursive `D=128/GQA=4/KVH=2` geometry (Phi-4 at TP5),
+prefill automatically reuses the two-tier expert/MFMA exact-leaf consumer.
+It evaluates all leaves of each selected centroid while the update path still
+constructs the recursive page archive; one-token decode therefore retains
+ordinary centroid-to-page routing. This is faster than Phi's query-major
+one-page residual kernel despite evaluating more leaves. Set
+`VLLM_LOD_RECURSIVE_PREFILL_ALL_LEAVES=0` to retain literal page-selecting
+recursive prefill, or `1` to request the hybrid on another BF16 geometry.
+The matched speed and ProLong CE results are recorded in
+`artifacts/three_tier_phi_prefill_20260826/README.md`.
 `VLLM_LOD_PREFIX_ROLLBACK_TOKENS` (1024) controls the exact local tail retained
 for inexpensive metadata-only prefix rollback; it is semantic LOD state, not a
 native cache. Eligible layers always retain a scheduler-visible virtual
@@ -261,12 +451,16 @@ the corresponding semantic LOD row before accepting a prefix hit.
 attention modules with normalized keys and spherical routing for unnormalized
 keys. `raw`, `spherical`, and `coherence` are explicit diagnostic overrides.
 
-At 32K and above, two-tier decode also groups one or more efficient native-width
-centroid tiles behind each program and reduces the shorter candidate and
-online-softmax fields in parallel. The number of tiles is selected from head
-dimension, GQA ratio, and KV-head count. This is the decode form of the same
+At 32K and above, two-tier decode can group one or more efficient native-width
+centroid tiles behind each program and reduce the shorter candidate and
+online-softmax fields in parallel. This is the decode form of the same
 hierarchical routing idea; it preserves the top-eight route set and retains
-the established BF16-rounded centroid-mean arithmetic.
+the established BF16-rounded centroid-mean arithmetic. Automatic segmented
+decode dispatch is enabled only for the validated Muse geometry
+`D=128/GQA=16/KVH=2`. Other geometries retain the grouped producer unless the
+diagnostic override below is set; a forced override must not be described as
+segmented unless the dispatch audit records more than one effective route
+segment and `_segments_kernel` as the producer.
 `VLLM_LOD_DECODE_HIERARCHICAL_ROUTE={0,1}` force-disables/enables only this
 route schedule for matched diagnostics. The older
 `VLLM_LOD_DECODE_GEOMETRY_TUNING=0` setting disables all decode geometry
@@ -274,16 +468,32 @@ tuning, including unrelated leaf and dot-product choices, and therefore must
 not be used as a route-only A/B control.
 
 For recursive three-tier decode,
-`VLLM_LOD_RECURSIVE_STATE_ROUTE_BACKEND=fused` retains the existing grouped
-state-route kernel. `resplit` selects the allocation-free score-materialization
+`VLLM_LOD_RECURSIVE_STATE_ROUTE_BACKEND=auto` selects the measured backend by
+geometry. `fused` retains the existing grouped state-route kernel, while
+`resplit` selects the allocation-free score-materialization
 path. The latter keeps score generation, softmax, split value accumulation,
 and value reduction independently testable. It reuses each score-table tile
 load for both tile top-eight and tile LSE, then reduces the top-eight candidates
 and LSE partials together. This conservative fusion is the default for the
 `resplit` backend; the benchmark reproducer can still execute every stage
-separately. `resplit` is not a universal speed default: current batch-8
-measurements favor it for D>=256 or high KV-head count, while the grouped route
-remains faster for shorter D128/KV2 workloads.
+separately. `resplit` is not a universal speed default. At batch eight,
+automatic dispatch uses it for Phi-4 TP5 at every measured capacity, and after
+the measured request-capacity crossover for Qwen3.5-0.8B (`65,536`) and
+Qwen3.8-27B (`22,528`). Muse-Glimmer's `D=128/GQA=16/KVH=2` geometry remains
+grouped through 128K. OLMo's re-split route was 5.98% faster at 64K, but scored
+7/8 on a matched NIAH-S3 smoke where grouped routing and full attention both
+scored 8/8. The completed grouped OLMo panel scored 54/64 versus full
+attention's 64/64, so grouped avoids an additional route regression but does
+not close that model's broader LOD-quality gap. Gemma re-split was 4.54% faster
+but scored 63/64, while grouped
+routing passed the matched eight-example block containing its lone miss.
+Both automatic defaults therefore remain grouped; `resplit` is still
+available as an explicit speed/diagnostic override.
+The decision uses the pool's allocated request capacity, not the momentary
+prompt length, because the graph-safe state field and decode scratch are fixed
+when the pool is constructed. Unmeasured geometries retain grouped routing.
+Explicit `fused` and `resplit` overrides remain available for reproducible
+comparisons.
 The score table is FP32 and the count-corrected probability table is FP16; this
 combination removed score-ordering loss and was more accurate against exact
 coarse attention than either the initial BF16-probability path or the existing

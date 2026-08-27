@@ -330,6 +330,61 @@ def _apply_module_metadata(
                 setattr(module, name, value)
 
 
+def _restore_daemon_runtime_objects(model: nn.Module) -> None:
+    """Rebuild small non-tensor kernel objects omitted from CUDA IPC.
+
+    The daemon exports weights *after* vLLM's post-load conversion. Calling
+    ``process_weights_after_loading`` again in the client would therefore
+    shuffle or quantize those shared tensors a second time. Most runtime state
+    is either present on a freshly initialized module or represented by an
+    exported tensor, but the ROCm unquantized MoE path constructs a Python
+    ``moe_kernel`` object only during post-load processing. Recreate just that
+    object around the already-converted daemon-owned weights.
+    """
+
+    try:
+        from vllm.model_executor.layers.fused_moe.oracle.unquantized import (
+            make_unquantized_moe_kernel,
+        )
+        from vllm.model_executor.layers.fused_moe.unquantized_fused_moe_method import (
+            UnquantizedFusedMoEMethod,
+        )
+    except ImportError:
+        return
+
+    restored = 0
+    for module in model.modules():
+        method = getattr(module, "quant_method", None)
+        if not isinstance(method, UnquantizedFusedMoEMethod):
+            continue
+        if method.moe_kernel is not None:
+            continue
+        if method.experts_cls is None:
+            raise RuntimeError(
+                "Weight-cache client cannot restore an unquantized MoE "
+                "kernel without its selected experts implementation"
+            )
+        quant_config = method.get_fused_moe_quant_config(module)
+        if quant_config is None:
+            raise RuntimeError(
+                "Weight-cache client could not reconstruct unquantized MoE "
+                "kernel configuration"
+            )
+        method.moe_quant_config = quant_config
+        method.moe_kernel = make_unquantized_moe_kernel(
+            quant_config=quant_config,
+            moe_config=method.moe,
+            backend=method.unquantized_backend,
+            experts_cls=method.experts_cls,
+            routing_tables=module._expert_routing_tables(),
+        )
+        restored += 1
+    if restored:
+        logger.info(
+            "Rebuilt %d daemon-backed unquantized MoE runtime kernels", restored
+        )
+
+
 class IPCWeightCacheModelLoader:
     """vLLM loader that replaces meta tensors with daemon-owned IPC mappings."""
 
@@ -464,6 +519,7 @@ class IPCWeightCacheModelLoader:
                 "Weight-cache mapping left tensors on the meta device: "
                 + ", ".join(remaining[:20])
             )
+        _restore_daemon_runtime_objects(model)
 
         model._vllm_weight_cache_imports = imported
         model._vllm_weight_cache_endpoint = str(endpoint)
@@ -598,6 +654,40 @@ def install_weight_cache_memory_hooks() -> None:
         )
 
     def determine_available_memory(worker: Any) -> int:
+        rebase_bytes = 0
+        correction = 0
+        if _uses_ipc_cache(worker):
+            model = worker.model_runner.get_model()
+            correction = int(
+                getattr(model, "_vllm_weight_cache_profile_correction_bytes", 0)
+            )
+            current_free, _ = torch.accelerator.get_memory_info(worker.device)
+            initial_free = int(worker.init_snapshot.free_memory)
+            if current_free > initial_free:
+                # A cold cache miss can evict an older inactive daemon model
+                # after vLLM takes its initial snapshot.  That legitimately
+                # increases free memory and otherwise trips vLLM's guard
+                # against unrelated processes changing allocation during the
+                # profile.  The broker's correction is the exact expected
+                # pre-existing allocation, so only rebase a release covered
+                # by that correction; a larger change remains an error.
+                rebase_bytes = int(current_free - initial_free)
+                if rebase_bytes <= correction:
+                    worker.init_snapshot.free_memory = int(current_free)
+                    worker.init_snapshot.cuda_memory = int(
+                        worker.init_snapshot.total_memory - current_free
+                    )
+                    worker.init_snapshot.non_torch_memory = int(
+                        worker.init_snapshot.cuda_memory
+                        - worker.init_snapshot.torch_memory
+                    )
+                    logger.info(
+                        "Rebased vLLM's memory profile by %.3f GiB after "
+                        "the weight-cache broker evicted an inactive model",
+                        rebase_bytes / 1024**3,
+                    )
+                else:
+                    rebase_bytes = 0
         available = int(original_determine_available_memory(worker))
         if (
             not _uses_ipc_cache(worker)
@@ -605,10 +695,10 @@ def install_weight_cache_memory_hooks() -> None:
         ):
             return available
 
-        model = worker.model_runner.get_model()
-        correction = int(
-            getattr(model, "_vllm_weight_cache_profile_correction_bytes", 0)
-        )
+        # Rebasing made the broker's expected release part of the baseline;
+        # remove the same bytes from its explicit correction to avoid counting
+        # the evicted allocation twice.
+        correction -= rebase_bytes
         if correction == 0:
             return available
         corrected = available - correction

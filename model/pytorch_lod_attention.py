@@ -53,6 +53,11 @@ class LODConfig:
     # their meaning. New code should continue to pass these options by name.
     state_size_offset: int = 0
     state_premerge_factor: int = 1
+    # Experimental overcomplete state: keep every posting list at or below
+    # this many exact leaves by routing overflow assignments into additional
+    # affinity-stratified child centroids. Scheduled centroid appends continue
+    # independently at the ordinary state-growth rate.
+    state_split_max_leaves: int | None = None
     state_clustering_policy: str = "manual"
     state_clustering_normalization: str = "none"
     state_clustering_radial_bias: float = 0.0
@@ -105,6 +110,15 @@ class LODConfig:
             raise ValueError("state_size_offset cannot be negative")
         if self.state_premerge_factor not in {1, 2, 4}:
             raise ValueError("state_premerge_factor must be one, two, or four")
+        if (
+            self.state_split_max_leaves is not None
+            and self.state_split_max_leaves <= 0
+        ):
+            raise ValueError("state_split_max_leaves must be positive")
+        if self.state_split_max_leaves is not None and self.state_premerge_factor != 1:
+            raise ValueError(
+                "state posting-list splitting requires unmerged token leaves"
+            )
         if self.protected_prefix < 0:
             raise ValueError("protected_prefix cannot be negative")
         if self.leaf_seal_capacity is not None and self.leaf_seal_capacity <= 0:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import os
 from typing import Any
 
 import torch
@@ -33,6 +34,96 @@ def _round_up(value: int, multiple: int) -> int:
 
 def _power_of_two(value: int) -> int:
     return 1 << max(1, (value - 1).bit_length())
+
+
+def _prefill_coarse_direct_gqa_geometry(
+    head_dim: int,
+    gqa: int,
+    kv_heads: int,
+) -> tuple[int, int, int] | None:
+    """Return a measured direct-GQA coarse geometry, if one exists."""
+
+    return {
+        # D, GQA, KV heads: (grouped rows, N, warps)
+        (128, 5, 8): (128, 16, 8),  # OLMo-3-32B TP1
+        (256, 6, 4): (64, 16, 8),   # Qwen3.8-27B TP1
+    }.get((head_dim, gqa, kv_heads))
+
+
+def _prefill_hierarchical_route_geometry(
+    levels: int,
+    head_dim: int,
+    gqa: int,
+    kv_heads: int,
+) -> bool:
+    """Whether exact two-stage top-k is the measured automatic policy."""
+
+    geometry = (head_dim, gqa, kv_heads)
+    return geometry in {
+        (128, 16, 2),  # Muse-Glimmer TP1
+        (128, 5, 8),   # OLMo-3-32B TP1
+        (128, 4, 2),   # Phi-4 TP5
+        (256, 6, 4),   # Qwen3.8-27B TP1 (neutral/slightly positive)
+        (512, 8, 2),   # Gemma-4-26B-A4B TP1
+    } or (levels == 3 and geometry == (256, 4, 2))
+
+
+def _prefill_overlap_geometry(
+    levels: int,
+    head_dim: int,
+    gqa: int,
+    kv_heads: int,
+) -> tuple[bool, bool]:
+    """Return automatic (coarse/leaf, local/LOD) stream overlap policy."""
+
+    geometry = (head_dim, gqa, kv_heads)
+    muse = geometry == (128, 16, 2)
+    recursive_qwen = levels == 3 and geometry == (256, 4, 2)
+    return levels == 2 and muse, muse or recursive_qwen
+
+
+def _recursive_prefill_all_leaves_geometry(
+    levels: int,
+    head_dim: int,
+    gqa: int,
+    kv_heads: int,
+) -> bool:
+    """Whether recursive prefill should reuse complete-expert attention."""
+
+    # Phi's D128/GQA4 query-major residual-page kernel is badly launch and
+    # vector-op limited. The existing D128 expert/MFMA path can evaluate every
+    # leaf of the selected centroids faster than selecting and evaluating only
+    # one page. Decode still consumes the recursive page archive normally.
+    return levels == 3 and (head_dim, gqa, kv_heads) == (128, 4, 2)
+
+
+def _recursive_state_route_backend(
+    levels: int,
+    head_dim: int,
+    gqa: int,
+    kv_heads: int,
+    request_capacity: int,
+    requested: str,
+) -> str:
+    """Resolve the measured recursive coarse-routing implementation."""
+
+    if requested != "auto":
+        return requested
+    # Re-split has a nearly fixed launch floor, whereas the grouped producer
+    # grows with the allocated state field. Keep the measured batch-eight
+    # crossover in request-token units for each validated geometry. Muse stays
+    # grouped through the largest measured 128K capacity. OLMo and Gemma also
+    # stay grouped: re-split was faster at 64K, but each uniquely missed a
+    # matched NIAH-S3 case that grouped routing passed. Unmeasured shapes and
+    # flat two-tier LOD retain the conservative grouped producer.
+    crossover = {
+        (128, 4, 2): 0,        # Phi-4 TP5 (re-split also wins at 8K)
+        (256, 4, 2): 65_536,   # Qwen3.5-0.8B TP1
+        (256, 6, 4): 22_528,   # Qwen3.8-27B TP1
+    }.get((head_dim, gqa, kv_heads))
+    if levels == 3 and crossover is not None and request_capacity >= crossover:
+        return "resplit"
+    return "fused"
 
 
 class VLLMLayerLODPool:
@@ -67,6 +158,7 @@ class VLLMLayerLODPool:
         self.kv_heads = int(layer.num_kv_heads)
         self.head_dim = int(layer.head_size)
         self.value_dim = int(layer.head_size_v)
+        gqa = self.query_heads // self.kv_heads
         if self.value_dim != self.head_dim:
             raise NotImplementedError(
                 "LOD vLLM currently requires equal K and V widths"
@@ -91,11 +183,20 @@ class VLLMLayerLODPool:
             # prefixes remain supported by restore_prefix() below.
             local_window = max(local_window, prefix_rollback_tokens)
         config_type = PagedLODConfig if settings.levels == 3 else LODConfig
+        recursive_state_route_backend = _recursive_state_route_backend(
+            settings.levels,
+            self.head_dim,
+            gqa,
+            self.kv_heads,
+            request_capacity,
+            settings.recursive_state_route_backend,
+        )
         config_kwargs = dict(
             chunk_size=settings.chunk_size,
             local_window=local_window,
             state_growth_factor=settings.state_growth_factor,
             state_min_size=settings.state_min_size,
+            state_split_max_leaves=settings.state_split_max_leaves,
             protected_prefix=settings.protected_prefix,
             max_routes=max(settings.open_count, 8),
             leaf_dtype=self.dtype,
@@ -129,7 +230,7 @@ class VLLMLayerLODPool:
                     settings.recursive_page_select_block_n
                 ),
                 recursive_state_route_backend=(
-                    settings.recursive_state_route_backend
+                    recursive_state_route_backend
                 ),
                 # The compatibility pool uses its fixed graph-safe overflow
                 # hash rather than the flat two-tier directory allocation.
@@ -148,13 +249,27 @@ class VLLMLayerLODPool:
             scale=float(layer.impl.scale),
             default_open_count=settings.open_count,
         )
-        hierarchical_decode_route = (
+        # Decode auto-dispatch is based on the production fixed-list
+        # page-size-one path, not the slower portable flat leaf path. Muse was
+        # already using the segmented schedule in the historical fast
+        # baseline. Qwen and Gemma regress, while Phi's 0.32% delta is
+        # noise-scale, on the matched fixed-mask AITER comparison. OLMo's
+        # nominal tuned arm remains a one-tile grouped producer, so it is not
+        # evidence for hierarchical routing. An explicit override still
+        # enables the diagnostic schedule for any geometry below.
+        automatic_hierarchical_decode = bool(
             settings.decode_geometry_tuning
+            and (self.head_dim, gqa, self.kv_heads)
+            in {
+                (128, 16, 2),  # Muse-Glimmer TP1 (existing fast baseline)
+            }
+        )
+        hierarchical_decode_route = (
+            automatic_hierarchical_decode
             if settings.decode_hierarchical_route is None
             else settings.decode_hierarchical_route
         )
         if hierarchical_decode_route and request_capacity >= 32_768:
-            gqa = self.query_heads // self.kv_heads
             # Keep several native state tiles behind each independent program,
             # emit only its local top eight, then reduce the much shorter
             # candidate/online-softmax field in parallel.  The schedules below
@@ -216,18 +331,87 @@ class VLLMLayerLODPool:
             and bool(settings.resolved_key_bits or settings.resolved_value_bits)
         )
         self.engine.prefill_local_attention_backend = settings.prefill_local_backend
+        self.engine.static_cohort_never_readmit = (
+            settings.static_cohort_never_readmit
+        )
+        # Fold the native GQA ratio directly into the MFMA M dimension when
+        # that avoids substantial padded rows.  The selected geometries are
+        # production B8/64K wins; power-of-two GQA4/GQA16 already fill the
+        # former 64-row layout and do not benefit from this alternative.
+        direct_gqa_geometry = _prefill_coarse_direct_gqa_geometry(
+            self.head_dim, gqa, self.kv_heads
+        )
+        if settings.prefill_coarse_direct_gqa is None:
+            direct_gqa = direct_gqa_geometry is not None
+        else:
+            direct_gqa = settings.prefill_coarse_direct_gqa
+        if direct_gqa and settings.prefill_coarse_direct_gqa is None:
+            (
+                coarse_grouped_rows,
+                coarse_block_n,
+                coarse_num_warps,
+            ) = direct_gqa_geometry
+        else:
+            coarse_grouped_rows = settings.prefill_coarse_max_grouped_rows
+            coarse_block_n = settings.prefill_coarse_block_n
+            coarse_num_warps = settings.prefill_coarse_num_warps
+        self.engine.prefill_coarse_direct_gqa = direct_gqa
+        self.engine.prefill_coarse_max_grouped_rows = coarse_grouped_rows
+        self.engine.prefill_coarse_route_block_n = coarse_block_n
+        self.engine.prefill_coarse_route_num_warps = coarse_num_warps
+        # Scheduler chunks are already presented as one contiguous prefill
+        # field.  Use the serving-wide update batch for both flat and
+        # recursive LOD; the recursive engine's old 5 * chunk_size default
+        # needlessly split each 4K archive step into four small state-update
+        # launches (1280 + 1280 + 1280 + 256 for the standard 256-token
+        # decode chunk).  The target state schedule and exact-local window are
+        # unchanged; assignment batching can change centroid/page membership,
+        # so this schedule is covered by the matched ProLong quality artifact.
+        self.engine.prefill_state_update_len = settings.prefill_state_update_size
+        recursive_prefill_all_leaves = (
+            (
+                settings.kv_bits == 0
+                and _recursive_prefill_all_leaves_geometry(
+                    settings.levels, self.head_dim, gqa, self.kv_heads
+                )
+            )
+            if settings.recursive_prefill_all_leaves is None
+            else settings.recursive_prefill_all_leaves
+        )
+        self.engine.recursive_prefill_all_leaves = recursive_prefill_all_leaves
+        if settings.levels == 3 and recursive_prefill_all_leaves:
+            # Reuse the same measured expert geometry as flat two-tier
+            # prefill. The recursive branch still owns and updates the page
+            # directory; only its prefill exact-attention consumer changes.
+            self.engine.leaf_layout = settings.leaf_layout
+            self.engine.leaf_block_m = settings.leaf_block_m
+            self.engine.leaf_block_n = settings.leaf_block_n
+            self.engine.leaf_num_warps = settings.leaf_num_warps
+            self.engine.leaf_geometry_tuning = settings.leaf_geometry_tuning
+            self.engine.leaf_reduce_num_warps = settings.leaf_reduce_num_warps
         if settings.levels == 2:
             self.engine.virtual_page_storage = settings.dense_leaf_storage
             self.engine.prefill_chunk_len = settings.prefill_chunk_size
             self.engine.prefill_local_len = settings.prefill_local_window
-            self.engine.prefill_state_update_len = settings.prefill_state_update_size
             self.engine.prefill_static_leaf_aiter = (
                 settings.prefill_static_leaf_aiter
             )
             self.engine.prefill_static_leaf_cap_min = (
                 settings.prefill_static_leaf_cap_min
             )
-            self.engine.prefill_two_level_topk = min(3, settings.open_count)
+            self.engine.prefill_route_leaf_cap_min = (
+                settings.prefill_static_leaf_cap_min
+                if settings.prefill_route_cohort
+                else None
+            )
+            self.engine.static_leaf_cap_divisor = (
+                settings.static_leaf_cap_divisor
+            )
+            self.engine.prefill_two_level_topk = (
+                settings.prefill_open_count
+                if settings.prefill_open_count is not None
+                else min(3, settings.open_count)
+            )
             self.engine.split_prefill_local_attention = True
             self.engine.leaf_layout = settings.leaf_layout
             self.engine.leaf_block_m = settings.leaf_block_m
@@ -281,22 +465,13 @@ class VLLMLayerLODPool:
         self.engine.fused_prefill_external_recompute = (
             settings.fused_prefill_external_recompute
         )
-        gqa = self.query_heads // self.kv_heads
         # Wide tile-local top-three followed by a tiny global reduction is an
         # exact selector replacement, but the extra launch only pays for the
         # geometries where the former selector is a meaningful end-to-end
         # fraction. The explicit environment setting remains a force-on/off
         # override for diagnostics and new architectures.
-        hierarchical_prefill_geometry = (
-            settings.levels == 2
-            and (self.head_dim, gqa, self.kv_heads)
-            in {
-                (128, 16, 2),  # Muse-Glimmer TP1
-                (128, 5, 8),   # OLMo-3-32B TP1
-                (128, 4, 2),   # Phi-4 TP5
-                (256, 6, 4),   # Qwen3.8-27B TP1 (neutral/slightly positive)
-                (512, 8, 2),   # Gemma-4-26B-A4B TP1
-            }
+        hierarchical_prefill_geometry = _prefill_hierarchical_route_geometry(
+            settings.levels, self.head_dim, gqa, self.kv_heads
         )
         self.engine.prefill_hierarchical_route = (
             hierarchical_prefill_geometry
@@ -316,20 +491,20 @@ class VLLMLayerLODPool:
             and settings.fused_prefill_stable_recompute
             and settings.fused_prefill_external_recompute
         ):
-            self.engine.prefill_coarse_max_grouped_rows = (
-                settings.prefill_coarse_max_grouped_rows
+            coarse_leaf_overlap, local_lod_overlap = _prefill_overlap_geometry(
+                settings.levels, self.head_dim, gqa, self.kv_heads
             )
-            if (
-                settings.levels == 2
-                and self.head_dim == 128
-                and self.query_heads == self.kv_heads * 16
-            ):
-                # Muse's GQA-16 coarse, exact-leaf, and exact-local branches
-                # are independent after route selection. Queue them on three
-                # streams and synchronize only at the final LSE merge. This
-                # removes two serial gaps while retaining the established
-                # N=32 coarse arithmetic and route choices.
-                self.engine.prefill_overlap_coarse_leaf = True
+            if not settings.prefill_static_leaf_aiter and local_lod_overlap:
+                # Muse's routed GQA-16 coarse, exact-leaf, and exact-local
+                # branches are independent after route selection. Queue them
+                # on three streams and synchronize only at the final LSE
+                # merge. Static-cohort prefill keeps a much larger exact-leaf
+                # working set live, so overlapping its materialized coarse
+                # logits exhausts the normal transient-memory allowance.
+                # The recursive page branch is one dependent LOD operation,
+                # so only its independent local branch can overlap. Flat LOD
+                # additionally overlaps coarse and exact-leaf attention.
+                self.engine.prefill_overlap_coarse_leaf = coarse_leaf_overlap
                 self.engine.prefill_overlap_local_lod = True
         if settings.prefill_overlap_coarse_leaf is not None:
             self.engine.prefill_overlap_coarse_leaf = (
@@ -398,6 +573,32 @@ class VLLMLayerLODPool:
         self.retained_restore_last_prefix = 0
         self.retained_restore_last_coverage = 0
         self.retained_restore_last_total = 0
+        self.split_state_len_max = 0
+        self.split_scheduled_state_len_max = 0
+        self.split_posting_len_max = 0
+
+    def _record_split_state(
+        self,
+        state: dict[str, object],
+        page: dict[str, object],
+    ) -> None:
+        """Record cheap experiment invariants before request rows are reset."""
+
+        if self.settings.state_split_max_leaves is None:
+            return
+        actual = int(state["state_len"])
+        scheduled = int(state.get("scheduled_state_len", actual))
+        lengths = page.get("slot_lengths")
+        if not isinstance(lengths, torch.Tensor):
+            raise RuntimeError("split-state posting lengths are missing")
+        posting_max = int(lengths[..., :actual].max().item())
+        if posting_max > int(self.settings.state_split_max_leaves):
+            raise AssertionError("split-state posting limit was violated")
+        self.split_state_len_max = max(self.split_state_len_max, actual)
+        self.split_scheduled_state_len_max = max(
+            self.split_scheduled_state_len_max, scheduled
+        )
+        self.split_posting_len_max = max(self.split_posting_len_max, posting_max)
 
     def _allocate_state(self) -> dict[str, object]:
         r, h, s, d = (
@@ -628,6 +829,21 @@ class VLLMLayerLODPool:
                     "page_directory_size": 64,
                     "slot_lengths": torch.zeros(
                         r, h, s, dtype=torch.int32, device=self.device
+                    ),
+                    "static_cohort_status": torch.zeros(
+                        r,
+                        h,
+                        (
+                            s
+                            if os.getenv(
+                                "LOD_STATIC_COHORT_EVICTION_DIAGNOSTICS"
+                            )
+                            == "1"
+                            or self.settings.static_cohort_never_readmit
+                            else 0
+                        ),
+                        dtype=torch.int8,
+                        device=self.device,
                     ),
                     "next_page": torch.zeros(
                         r, h, dtype=torch.int32, device=self.device
@@ -956,6 +1172,7 @@ class VLLMLayerLODPool:
     def reset(self, slot: int) -> None:
         if not 0 <= slot < self.max_requests:
             raise IndexError("vLLM request slot is outside the LOD pool")
+        self._snapshot_static_cohort_eviction(slot)
         self.ready[slot] = False
         self.clean[slot] = True
         self.metadata[slot].clear()
@@ -969,6 +1186,8 @@ class VLLMLayerLODPool:
         page = self.state["page_cache"]
         page["slot_pages"][slot].fill_(-1)
         page["slot_lengths"][slot].zero_()
+        if "static_cohort_status" in page:
+            page["static_cohort_status"][slot].zero_()
         page["next_page"][slot].zero_()
         if "page_indices" in page:
             page["page_indices"][slot].fill_(-1)
@@ -986,6 +1205,7 @@ class VLLMLayerLODPool:
         if not 0 <= start < stop <= self.max_requests:
             raise IndexError("vLLM request row range is outside the LOD pool")
         for slot in range(start, stop):
+            self._snapshot_static_cohort_eviction(slot)
             self.ready[slot] = False
             self.clean[slot] = True
             self.metadata[slot].clear()
@@ -999,6 +1219,8 @@ class VLLMLayerLODPool:
         page = self.state["page_cache"]
         page["slot_pages"][start:stop].fill_(-1)
         page["slot_lengths"][start:stop].zero_()
+        if "static_cohort_status" in page:
+            page["static_cohort_status"][start:stop].zero_()
         page["next_page"][start:stop].zero_()
         if "page_indices" in page:
             page["page_indices"][start:stop].fill_(-1)
@@ -1010,6 +1232,47 @@ class VLLMLayerLODPool:
             page["page_quantized_counts"][start:stop].zero_()
         if "decode_previous_total_lse" in page:
             page["decode_previous_total_lse"][start:stop].fill_(float("inf"))
+
+    def _snapshot_static_cohort_eviction(self, slot: int) -> None:
+        """Preserve the final monotone-cohort working set before row reuse."""
+        if (
+            (
+                os.getenv("LOD_STATIC_COHORT_EVICTION_DIAGNOSTICS") != "1"
+                and not self.settings.static_cohort_never_readmit
+            )
+            or self.clean[slot]
+            or not self.metadata[slot]
+        ):
+            return
+        page = self.state.get("page_cache")
+        if not isinstance(page, dict):
+            return
+        status = page.get("static_cohort_status")
+        lengths = page.get("slot_lengths")
+        if not isinstance(status, torch.Tensor) or not isinstance(
+            lengths, torch.Tensor
+        ):
+            return
+        row_status = status[slot]
+        row_lengths = lengths[slot]
+        cap = scheduled_static_leaf_cap(
+            int(self.metadata[slot].get("total_len", 0)),
+            minimum=int(self.settings.prefill_static_leaf_cap_min),
+            divisor=int(self.settings.static_leaf_cap_divisor),
+        )
+        active = row_lengths.gt(0)
+        row_status.masked_fill_(row_status.eq(0) & active, 1)
+        row_status.masked_fill_(row_status.eq(1) & row_lengths.gt(cap), -1)
+        snapshots = getattr(self, "_static_cohort_eviction_snapshots", None)
+        if snapshots is None:
+            snapshots = {}
+            self._static_cohort_eviction_snapshots = snapshots
+        snapshots[int(slot)] = (
+            row_lengths.detach().to("cpu").clone(),
+            row_status.detach().to("cpu").clone(),
+            int(cap),
+            int(self.metadata[slot].get("total_len", 0)),
+        )
 
     def truncate_recent(self, slot: int, total_length: int) -> None:
         """Roll a retained cache back inside its unclustered exact tail."""
@@ -1257,6 +1520,25 @@ class VLLMLayerLODPool:
             fixed_leaf_owners, torch.Tensor
         ):
             return
+        if self.settings.static_cohort_never_readmit:
+            status = page.get("static_cohort_status")
+            lengths = page.get("slot_lengths")
+            if not isinstance(status, torch.Tensor) or not isinstance(
+                lengths, torch.Tensor
+            ):
+                raise RuntimeError("monotone static cohort storage is missing")
+            if tuple(status.shape) != tuple(lengths.shape):
+                raise ValueError("monotone static cohort storage has the wrong shape")
+            for slot in slots:
+                row_status = status[slot]
+                row_lengths = lengths[slot]
+                active = row_lengths.gt(0)
+                row_status.masked_fill_(row_status.eq(0) & active, 1)
+                row_status.masked_fill_(
+                    row_status.eq(1)
+                    & row_lengths.gt(self._static_leaf_cap_for_slot(slot)),
+                    -1,
+                )
         if (
             self.settings.decode_gqa_static_leaf_cap is not None
             or static_cap_page1
@@ -1330,6 +1612,11 @@ class VLLMLayerLODPool:
                     *positional,
                     fixed_slot_offsets[start_slot:stop_slot],
                     fixed_lengths[start_slot:stop_slot],
+                    cohort_status=(
+                        page["static_cohort_status"][start_slot:stop_slot]
+                        if self.settings.static_cohort_never_readmit
+                        else None
+                    ),
                     leaf_capacity=self.leaf_capacity,
                     max_exact_leaves=static_leaf_cap,
                     **common,
@@ -1353,6 +1640,7 @@ class VLLMLayerLODPool:
         return scheduled_static_leaf_cap(
             total_length,
             minimum=int(self.settings.decode_gqa_static_leaf_cap_min),
+            divisor=int(self.settings.static_leaf_cap_divisor),
         )
 
     def _decode_route_leaf_limit(self) -> int | None:
@@ -1370,6 +1658,7 @@ class VLLMLayerLODPool:
             cap = scheduled_static_leaf_cap(
                 self.request_capacity,
                 minimum=int(self.settings.decode_gqa_static_leaf_cap_min),
+                divisor=int(self.settings.static_leaf_cap_divisor),
             )
         # Route kernels use count < limit; the cohort definition is inclusive.
         return int(cap) + 1
@@ -1466,6 +1755,9 @@ class VLLMLayerLODPool:
         for slot in slots:
             self.metadata[slot].update(
                 state_len=int(source["state_len"]),
+                scheduled_state_len=int(
+                    source.get("scheduled_state_len", source["state_len"])
+                ),
                 coverage=int(source["coverage"]),
                 total_len=int(source["total_len"]),
                 recent_len=recent_len,
@@ -1475,6 +1767,7 @@ class VLLMLayerLODPool:
             self.ready[slot] = True
             self.clean[slot] = False
             self.install_count += 1
+        self._record_split_state(source, source_page)
         self._refresh_unified_page1_coarse(slots)
 
     def install(
@@ -1549,6 +1842,9 @@ class VLLMLayerLODPool:
         self.local_lens[slot].fill_(recent_len)
         self.metadata[slot].update(
             state_len=int(source["state_len"]),
+            scheduled_state_len=int(
+                source.get("scheduled_state_len", source["state_len"])
+            ),
             coverage=int(source["coverage"]),
             total_len=int(source["total_len"]),
             recent_len=recent_len,
@@ -1558,6 +1854,7 @@ class VLLMLayerLODPool:
         self.ready[slot] = True
         self.clean[slot] = False
         self.install_count += 1
+        self._record_split_state(source, source_page)
         self._refresh_unified_page1_coarse((slot,))
 
     def _synchronize_row(self, slot: int, cache: KernelLODCache) -> None:
@@ -1613,6 +1910,9 @@ class VLLMLayerLODPool:
             self.local_lens[slot].fill_(recent_len)
             self.metadata[slot].update(
                 state_len=int(source["state_len"]),
+                scheduled_state_len=int(
+                    source.get("scheduled_state_len", source["state_len"])
+                ),
                 coverage=int(source["coverage"]),
                 total_len=int(source["total_len"]),
                 recent_len=recent_len,
@@ -1620,6 +1920,7 @@ class VLLMLayerLODPool:
                 overflow_safe_until=int(source_page["overflow_safe_until"]),
             )
             self.ready[slot] = True
+        self._record_split_state(source, source_page)
         self._refresh_unified_page1_coarse(slots)
 
     def _direct_cached_prefill_group(
@@ -1840,6 +2141,7 @@ class VLLMLayerLODPool:
                 end - begin,
                 previous_length,
                 int(metadata["state_len"]),
+                int(metadata.get("scheduled_state_len", metadata["state_len"])),
                 int(metadata["coverage"]),
                 int(metadata["recent_len"]),
                 int(metadata["leaf_count"]),
@@ -1868,6 +2170,7 @@ class VLLMLayerLODPool:
         metadata = self.metadata[slots[0]]
         scalar_names = (
             "state_len",
+            "scheduled_state_len",
             "coverage",
             "recent_len",
             "total_len",
@@ -1888,6 +2191,9 @@ class VLLMLayerLODPool:
         }
         state.update(
             state_len=int(metadata["state_len"]),
+            scheduled_state_len=int(
+                metadata.get("scheduled_state_len", metadata["state_len"])
+            ),
             coverage=int(metadata["coverage"]),
             state_capacity=self.state_capacity,
             recent_len=int(metadata["recent_len"]),
@@ -1918,6 +2224,7 @@ class VLLMLayerLODPool:
         metadata = self.metadata[start]
         scalar_names = (
             "state_len",
+            "scheduled_state_len",
             "coverage",
             "recent_len",
             "total_len",
@@ -1937,6 +2244,9 @@ class VLLMLayerLODPool:
         }
         state.update(
             state_len=int(metadata["state_len"]),
+            scheduled_state_len=int(
+                metadata.get("scheduled_state_len", metadata["state_len"])
+            ),
             coverage=int(metadata["coverage"]),
             state_capacity=self.state_capacity,
             recent_len=int(metadata["recent_len"]),
@@ -1996,6 +2306,9 @@ class VLLMLayerLODPool:
         page = row.state["page_cache"]
         self.metadata[slot].update(
             state_len=int(row.state["state_len"]),
+            scheduled_state_len=int(
+                row.state.get("scheduled_state_len", row.state["state_len"])
+            ),
             coverage=int(row.state["coverage"]),
             total_len=int(row.state["total_len"]),
             recent_len=int(row.state["recent_len"]),
@@ -2003,6 +2316,7 @@ class VLLMLayerLODPool:
             overflow_safe_until=int(page["overflow_safe_until"]),
         )
         self.local_lens[slot].fill_(int(row.state["recent_len"]))
+        self._record_split_state(row.state, page)
         self._refresh_unified_page1_coarse((slot,))
 
     def catch_up_many(self, requests: list[tuple[int, int]]) -> None:
@@ -2022,6 +2336,7 @@ class VLLMLayerLODPool:
             signature = (
                 total_length,
                 int(metadata["state_len"]),
+                int(metadata.get("scheduled_state_len", metadata["state_len"])),
                 int(metadata["coverage"]),
                 int(metadata["recent_len"]),
                 int(metadata["leaf_count"]),
@@ -2052,6 +2367,11 @@ class VLLMLayerLODPool:
                 for slot in range(start_slot, stop_slot):
                     self.metadata[slot].update(
                         state_len=int(row.state["state_len"]),
+                        scheduled_state_len=int(
+                            row.state.get(
+                                "scheduled_state_len", row.state["state_len"]
+                            )
+                        ),
                         coverage=int(row.state["coverage"]),
                         total_len=int(row.state["total_len"]),
                         recent_len=int(row.state["recent_len"]),
@@ -2061,6 +2381,7 @@ class VLLMLayerLODPool:
                 self.local_lens[start_slot:stop_slot].fill_(
                     int(row.state["recent_len"])
                 )
+                self._record_split_state(row.state, page)
                 self._refresh_unified_page1_coarse(
                     tuple(range(start_slot, stop_slot))
                 )

@@ -51,6 +51,7 @@ GEOMETRIES = {
         Geometry("muse", 128, 2, 16),
         Geometry("olmo", 128, 8, 5),
         Geometry("phi", 128, 2, 4),
+        Geometry("qwen08", 256, 2, 4),
         Geometry("qwen", 256, 4, 6),
         Geometry("gemma", 512, 2, 8),
     )

@@ -200,6 +200,9 @@ def inspect_lod_model(model) -> dict[str, object]:
         "static_prefill_cap_max_observed": None,
         "static_prefill_exact_tokens_min": None,
         "static_prefill_exact_tokens_max": None,
+        "static_prefill_permanent_exact_tokens": 0,
+        "static_prefill_archive_tokens": 0,
+        "static_prefill_permanent_exact_fraction": None,
     }
     for module in model.modules():
         pool = getattr(module, "_vllm_lod_pool", None)
@@ -244,6 +247,12 @@ def inspect_lod_model(model) -> dict[str, object]:
                 ),
                 prefill_static_leaf_cap_min=int(
                     pool.engine.prefill_static_leaf_cap_min
+                ),
+                static_leaf_cap_divisor=int(
+                    pool.engine.static_leaf_cap_divisor
+                ),
+                static_cohort_never_readmit=bool(
+                    pool.settings.static_cohort_never_readmit
                 ),
                 leaf_num_warps=int(pool.engine.leaf_num_warps),
                 decode_gqa_cooperative=bool(pool._use_cooperative_decode()),
@@ -337,6 +346,21 @@ def inspect_lod_model(model) -> dict[str, object]:
             int(diagnostics["retained_restore_last_total"]),
             int(pool.retained_restore_last_total),
         )
+        eviction_snapshots = getattr(
+            pool, "_static_cohort_eviction_snapshots", None
+        )
+        if isinstance(eviction_snapshots, dict):
+            for lengths, status, _, _ in eviction_snapshots.values():
+                if not isinstance(lengths, torch.Tensor) or not isinstance(
+                    status, torch.Tensor
+                ):
+                    continue
+                diagnostics["static_prefill_archive_tokens"] += int(
+                    lengths.sum().item()
+                )
+                diagnostics["static_prefill_permanent_exact_tokens"] += int(
+                    lengths[status.eq(1)].sum().item()
+                )
         engine = pool.engine
         if bool(getattr(engine, "_lod_prefill_static_leaf_cap_executed", False)):
             diagnostics["static_prefill_layers_executed"] = (
@@ -375,6 +399,11 @@ def inspect_lod_model(model) -> dict[str, object]:
                 if previous_high is None
                 else max(int(previous_high), exact_high)
             )
+    archived = int(diagnostics["static_prefill_archive_tokens"])
+    if archived:
+        diagnostics["static_prefill_permanent_exact_fraction"] = (
+            int(diagnostics["static_prefill_permanent_exact_tokens"]) / archived
+        )
     return diagnostics
 
 
@@ -618,9 +647,10 @@ def inspect_lod_dispatch(model) -> dict[str, object]:
         else:
             exact_leaf_kernel = "flat two-tier leaf dispatch"
 
-        # Track the production direct-prefill branch as well as decode.  The
-        # recursive engine derives its 4096/1280 schedule from chunk_size; the
-        # similarly named two-tier environment settings are not consulted.
+        # Track the production direct-prefill branch as well as decode. Both
+        # flat and recursive vLLM pools use the configured serving update
+        # batch; recursive LOD retains its separately derived query/local
+        # schedule.
         fused_prefill_route = bool(
             not static_prefill
             and
@@ -908,6 +938,12 @@ def inspect_lod_dispatch(model) -> dict[str, object]:
             "configured_prefill_static_leaf_cap_min": int(
                 getattr(pool.settings, "prefill_static_leaf_cap_min", 16)
             ),
+            "configured_static_leaf_cap_divisor": int(
+                getattr(pool.settings, "static_leaf_cap_divisor", 16)
+            ),
+            "configured_static_cohort_never_readmit": bool(
+                getattr(pool.settings, "static_cohort_never_readmit", False)
+            ),
             "configured_prefill_local_backend": (
                 engine.prefill_local_attention_backend
             ),
@@ -929,11 +965,24 @@ def inspect_lod_dispatch(model) -> dict[str, object]:
                 )
                 if static_prefill
                 else (
-                    "_query_major_residual_page_attention_kernel "
-                    "(INDEXED=True, recursive residual pages)"
+                    (
+                        "paged_leaf_attention expert/MFMA over complete selected "
+                        "centroids (recursive page archive retained for decode)"
+                        if bool(
+                            getattr(engine, "recursive_prefill_all_leaves", False)
+                        )
+                        else "_query_major_residual_page_attention_kernel "
+                        "(INDEXED=True, recursive residual pages)"
+                    )
                     if recursive
                     else str(engine.leaf_layout)
                 )
+            ),
+            "requested_recursive_prefill_all_leaves": getattr(
+                pool.settings, "recursive_prefill_all_leaves", None
+            ),
+            "configured_recursive_prefill_all_leaves": bool(
+                getattr(engine, "recursive_prefill_all_leaves", False)
             ),
             "prefill_leaf_page_block_n": (
                 int(engine.recursive_page_block_n)

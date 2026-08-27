@@ -58,6 +58,49 @@ one part of prefill:
 | Qwen3.8-27B-FP8 | 79.098 s | 78.994 s | -0.13% |
 | Qwen3.5-0.8B | 4.545 s | 4.965 s | **+9.25%** |
 
+These selector A/Bs use the current automatic routing geometry. In
+particular, Phi uses spherical routing (`cosine/none/query`), which is not
+eligible for the fused route/coarse producer, while OLMo uses coherence-aware
+routing (`none/coherence/none`) and remains fused-route eligible. Therefore
+the 43.216-second Phi result must not be compared as a pure hierarchy delta
+against the older 32.930-second raw-routing result. The hierarchy-only Phi A/B
+is 46.414 to 43.216 seconds within the same spherical path. OLMo's current
+coherence-aware 72.355-second result is effectively identical to its
+72.364-second raw-routing top-three/cap-16 diagnostic, so routing geometry is
+not the source of OLMo's remaining deficit.
+
+The D128 Phi/OLMo prefill attention kernels are not generally M=16. Route QK
+is a PyTorch matmul over the full query chunk. The hierarchical top-k
+consumer uses eight query positions per program, but it only scans already
+materialized logits and performs no QK/PV MFMA. Coarse attention is configured
+with `BLOCK_M=16` before GQA folding and a 64-row limit: Phi executes 16 query
+positions times four heads, for 64 valid rows; OLMo shrinks to eight positions
+times a GQA group padded from five to eight, for a 64-row tile with 40 valid
+and 24 masked rows. The D128 exact-leaf geometry tuner replaces its nominal
+M16/N32 setting with M64/N64/W4. Exact local attention uses AITER CK FMHA.
+
+The full-attention OLMo reference takes a materially different path. vLLM
+dispatches `ROCM_AITER_UNIFIED_ATTN`, whose gfx942 long-prefill configuration
+uses the AITER Triton 2-D unified-attention kernel with M128/N64, W4, and one
+program per KV head and query block. OLMo's five query heads per KV head are
+folded directly into M: row `m` addresses query position `m // 5` and query
+head `m % 5`. Since `128 // 5 = 25`, each program advances 25 positions; 125
+of its 128 rows are new query/head pairs and the remaining three repeat the
+first three heads of the boundary position in the adjacent tile. Thus the
+steady-state matrix-row efficiency is 125/128 = 97.7%, with no padding of
+GQA5 to GQA8. Each D128 K/V tile is loaded once and reused by all five query
+heads across those positions. This is why the unusual GQA ratio itself is
+nearly free in full prefill, unlike the current OLMo LOD coarse kernel's
+40-live/64-row geometry.
+
+The follow-up direct-GQA implementation closes most of this packing gap. OLMo
+now uses 125 live rows in an M128 tile and improves fresh 64K/B8 prefill from
+70.305 to 69.286 seconds without changing its matched NIAH-S3 score. The same
+mechanism improves Qwen3.8 D256/GQA6 from 74.384 to 65.062 seconds. Phi and
+Muse already fill all rows with their power-of-two GQA ratios and do not use
+the alternative. See `artifacts/prefill_direct_gqa_20260826/README.md` for the
+corrected isolated controls, production dispatch audits, and artifacts.
+
 The large-model geometries are enabled automatically.  Qwen3.5-0.8B retains
 the former single-stage selector: its six custom-attention layers do too
 little routing work to amortize another launch.  The explicit
@@ -84,29 +127,62 @@ The production schedules retain the established BF16-rounded centroid means.
 The coarse output changes by at most 1.42e-4 solely because the same online
 softmax terms are associated in a different segment order.
 
-The clean production A/B uses B8, real 64K ProLong prompts, and 64 decode
-tokens after an untimed warmup.  Both arms retain all established decode
-geometry tuning; only `VLLM_LOD_DECODE_HIERARCHICAL_ROUTE` changes:
+### Corrected production decode comparison
 
-| model | former decode | hierarchical decode | change |
+The first production table in this directory was invalid.  Its nominal
+route-only runs did toggle only `VLLM_LOD_DECODE_HIERARCHICAL_ROUTE`, but the
+harness failed to enable `VLLM_LOD_DECODE_GQA_UNION`,
+`VLLM_LOD_DECODE_GQA_UNION_HIP`, and
+`VLLM_LOD_DECODE_GQA_FIXED_MASK_AITER`.  The dispatch audit therefore recorded
+`flat two-tier leaf dispatch` and
+`_reduce_routed_split_decode_lod_attention_kernel`, rather than the historical
+fast persistent fixed-list page-size-one final scan.  The resulting claimed
+1.4--8.1% gains compared two route schedules inside the wrong decoder and must
+not be used.
+
+The corrected A/B uses B8, eight distinct real 64K ProLong prompts, a 64-token
+prompt reserve, 64 decode tokens, and three repetitions.  Both arms execute
+the fixed-mask HIP/AITER final path; only the route producer changes.  Gemma's
+arms ran concurrently on the same node to remove the previously observed
+engine-order bias.
+
+| model | grouped fast top-8 | segmented fast top-8 | change |
 |---|---:|---:|---:|
-| Phi-4 TP5 | 15.650 ms | 14.389 ms | -8.06% |
-| OLMo-3-32B | 31.755 ms | 30.580 ms | -3.70% |
-| Muse-Glimmer-30B | 20.997 ms | 20.517 ms | -2.29% |
-| Gemma-4-26B-A4B | 10.180 ms | 9.968 ms | -2.08% |
-| Qwen3.8-27B-FP8 | 37.431 ms | 36.903 ms | -1.41% |
+| Qwen3.8-27B-FP8 | **36.334 ms** | 36.478 ms | +0.40% |
+| Gemma-4-26B-A4B | **10.235 ms** | 10.300 ms | +0.64% |
+| Phi-4 TP5 | 11.198 ms | **11.163 ms** | -0.32% |
+| OLMo-3-32B | 28.769 ms | **28.436 ms** | -1.16%* |
 
-Gemma is the simultaneous, same-node, three-repeat median.  Sequential Gemma
-pairs showed a strong engine-order bias: whichever variant ran first appeared
-about 3.3% faster.  The concurrent result removes that artifact and was also
-internally stable.  The other four tuned arms ran second and still won.
+Muse is not an additional new decode win: its historical 19.349-ms fast
+top-eight result already used the segmented D128/GQA16 schedule.  The current
+same-schedule rerun is 19.153 ms, consistent within run variation.
 
-Earlier `*_decode_{grouped,hierarchical}_*` and `*_decode_warm_*` files toggled
-the broad `VLLM_LOD_DECODE_GEOMETRY_TUNING` setting.  They are confounded by
-unrelated leaf and dot-product choices and are deliberately excluded from the
-table.  The later `*_decode_routeonly_*` files and Gemma concurrent files use
-the dedicated route-only override.  Production dispatch audits confirm the
-expected producer and reducer kernels in both arms.
+*OLMo's requested tuned arm retained
+`_decode_route_coarse_gqa_groups_kernel` with one tile per producer.  It changed
+the grouped tile/reducer geometry (32/W4 to 64/W2), not producer segmentation,
+so the 1.16% difference is not a hierarchical-route result and the strict
+route-pair validator rejects it.
+
+The corrected grouped controls also reproduce the earlier authoritative panel:
+36.247 ms Qwen, 10.421 ms Gemma, 10.913 ms Phi, and 28.878 ms OLMo.  Automatic
+segmented decode routing is consequently limited to Muse.  Qwen, Gemma, and
+OLMo retain grouped routing; Phi's 0.32% difference is too small to justify an
+automatic change.  This decode conclusion does not alter the valid prefill
+selector results above.
+
+Authoritative corrected artifacts are:
+
+- `qwen38_decode_fastpath_corrected_{grouped,hierarchical}_64k_b8_r3_d64.json`
+- `gemma4_decode_fastpath_concurrent_{grouped,hierarchical}_64k_b8_r3_d64.json`
+- `phi4_decode_fastpath_corrected_{grouped,hierarchical}_64k_b8_r3_d64.json`
+- `olmo3_decode_fastpath_corrected_{grouped,hierarchical}_64k_b8_r3_d64.json`
+- `muse_decode_fastpath_current_hierarchical_64k_b8_r3_d64.json`
+
+All earlier `*_decode_routeonly_*`, `*_decode_warm_*`, and unqualified
+`*_decode_{grouped,hierarchical}_*` files in this directory are quarantined
+diagnostics, not production comparisons.  The corrected harness now fails a
+run unless the dispatch audit confirms fixed-mask execution, HIP execution,
+the page-size-one final path, and the requested grouped or segmented producer.
 
 ## Muse 64K end-to-end
 
@@ -185,9 +261,9 @@ that experimental code was removed.
 - Variable-count decode comparisons matched the complete top-eight route set
   on all five geometries; the maximum coarse-output reassociation difference
   was 1.42e-4.
-- Route-only production audits record the expected grouped/segmented producer,
-  serial/vector reducer, requested override, and unchanged global geometry
-  setting in every A/B arm.
+- Corrected decode production audits record the requested grouped/segmented
+  score-only producer, fixed-mask execution, HIP execution, and page-size-one
+  final attention in every authoritative A/B arm.
 - The final N=32 branch-overlap path scored **8/8** on canonical 64K NIAH-S3
   with Muse chat formatting and greedy 64-token generation.
 - Python compilation and `git diff --check` pass for the touched code.

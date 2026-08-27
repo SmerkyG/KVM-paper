@@ -12309,6 +12309,7 @@ def _materialize_page1_static_cap_entries_kernel(
     overflow_page_values,
     overflow_used,
     slot_lengths,
+    cohort_status,
     slot_offsets,
     fixed_indices,
     ROW_OFFSET: tl.constexpr,
@@ -12325,6 +12326,7 @@ def _materialize_page1_static_cap_entries_kernel(
     ARENA_LEAF_OFFSET: tl.constexpr,
     ARENA_COARSE_OFFSET: tl.constexpr,
     MAX_EXACT_LEAVES: tl.constexpr,
+    USE_COHORT_STATUS: tl.constexpr,
     BLOCK_N: tl.constexpr,
 ):
     """Write one coarse entry or every exact leaf for each centroid."""
@@ -12337,8 +12339,15 @@ def _materialize_page1_static_cap_entries_kernel(
     destination = SINK_LEN + tl.load(
         slot_offsets + local_sequence * (STATE_CAPACITY + 1) + slot
     ).to(tl.int32)
-    exact = (leaf_count > 0) & (leaf_count <= MAX_EXACT_LEAVES)
-    coarse = leaf_count > MAX_EXACT_LEAVES
+    if USE_COHORT_STATUS:
+        status = tl.load(
+            cohort_status + local_sequence * STATE_CAPACITY + slot
+        ).to(tl.int32)
+        exact = (leaf_count > 0) & (status == 1)
+        coarse = (leaf_count > 0) & (status == -1)
+    else:
+        exact = (leaf_count > 0) & (leaf_count <= MAX_EXACT_LEAVES)
+        coarse = leaf_count > MAX_EXACT_LEAVES
     tl.store(
         fixed_indices + local_sequence * FIXED_CAPACITY + destination,
         ARENA_COARSE_OFFSET + global_sequence * STATE_CAPACITY + slot,
@@ -12400,6 +12409,7 @@ def materialize_page1_static_cap_indices(
     fixed_slot_offsets: torch.Tensor,
     fixed_base_lengths: torch.Tensor,
     *,
+    cohort_status: torch.Tensor | None = None,
     row_offset: int,
     arena_leaf_offset: int,
     arena_local_offset: int,
@@ -12434,14 +12444,27 @@ def materialize_page1_static_cap_indices(
         raise ValueError("static page-size-one indices have the wrong row geometry")
     if tuple(fixed_base_lengths.shape) != (rows, kv_heads):
         raise ValueError("static page-size-one lengths have the wrong shape")
+    if cohort_status is not None and tuple(cohort_status.shape) != tuple(
+        slot_lengths.shape
+    ):
+        raise ValueError("static page-size-one cohort status has the wrong shape")
     if leaf_capacity <= 0:
         raise ValueError("static page-size-one leaf capacity must be positive")
     fixed_capacity = int(fixed_indices.size(2))
-    entry_lengths = torch.where(
-        (slot_lengths > 0) & (slot_lengths <= max_exact_leaves),
-        slot_lengths,
-        (slot_lengths > max_exact_leaves).to(torch.int32),
-    )
+    if cohort_status is None:
+        entry_lengths = torch.where(
+            (slot_lengths > 0) & (slot_lengths <= max_exact_leaves),
+            slot_lengths,
+            (slot_lengths > max_exact_leaves).to(torch.int32),
+        )
+        status_argument = slot_lengths
+    else:
+        entry_lengths = torch.where(
+            cohort_status.eq(1),
+            slot_lengths,
+            cohort_status.eq(-1).to(torch.int32),
+        )
+        status_argument = cohort_status
     fixed_slot_offsets[..., 0].zero_()
     torch.cumsum(
         entry_lengths,
@@ -12484,6 +12507,7 @@ def materialize_page1_static_cap_indices(
         overflow_page_values,
         overflow_used,
         slot_lengths,
+        status_argument,
         fixed_slot_offsets,
         fixed_indices,
         ROW_OFFSET=row_offset,
@@ -12500,6 +12524,7 @@ def materialize_page1_static_cap_indices(
         ARENA_LEAF_OFFSET=arena_leaf_offset,
         ARENA_COARSE_OFFSET=arena_coarse_offset,
         MAX_EXACT_LEAVES=max_exact_leaves,
+        USE_COHORT_STATUS=cohort_status is not None,
         BLOCK_N=leaf_block,
         num_warps=1,
     )
@@ -19720,6 +19745,7 @@ def static_cap_aiter_paged_leaf_attention(
     overflow_used: torch.Tensor,
     slot_lengths: torch.Tensor,
     *,
+    exact_slot_mask: torch.Tensor | None = None,
     kv_group_size: int,
     scale: float,
     max_exact_leaves: int,
@@ -19765,6 +19791,10 @@ def static_cap_aiter_paged_leaf_attention(
         raise ValueError("static AITER prefill requires 16-token logical pages")
     if tuple(slot_lengths.shape) != (batch, kv_heads, state_capacity):
         raise ValueError("static AITER prefill slot lengths have the wrong shape")
+    if exact_slot_mask is not None and tuple(exact_slot_mask.shape) != tuple(
+        slot_lengths.shape
+    ):
+        raise ValueError("static AITER prefill cohort mask has the wrong shape")
     if slot_lengths.dtype != torch.int32 or page_indices.dtype != torch.int32:
         raise TypeError("static AITER prefill metadata must use INT32")
     if buffers is None:
@@ -19817,6 +19847,10 @@ def static_cap_aiter_paged_leaf_attention(
         exact_lengths.masked_fill_(
             exact_lengths.le(0) | exact_lengths.gt(max_exact_leaves), 0
         )
+        if exact_slot_mask is not None:
+            exact_lengths.masked_fill_(
+                ~exact_slot_mask.reshape(sequences, state_capacity), 0
+            )
         slot_offsets = reserve(
             "static_prefill_slot_offsets",
             (sequences, state_capacity + 1),
@@ -19854,7 +19888,7 @@ def static_cap_aiter_paged_leaf_attention(
                 triton.cdiv(max_exact_leaves, table_block),
             )
         ](
-            slot_lengths,
+            exact_lengths,
             slot_offsets,
             kv_indptr,
             slot_pages,

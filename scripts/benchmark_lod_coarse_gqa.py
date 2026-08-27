@@ -34,18 +34,26 @@ def main() -> None:
     parser.add_argument("--warmup", type=int, default=3)
     parser.add_argument("--repeats", type=int, default=10)
     parser.add_argument("--sweep-muse", action="store_true")
+    parser.add_argument("--sweep-direct", action="store_true")
+    parser.add_argument(
+        "--only",
+        choices=("olmo_g5", "muse_g16", "phi_g4", "qwen_g6_d256"),
+        default=None,
+    )
     args = parser.parse_args()
 
     torch.manual_seed(0)
     device = torch.device("cuda")
     results: dict[str, object] = {}
     # These reproduce the sparse-layer geometries of OLMo, Muse, and Phi.
-    for label, kv_heads, group_size in (
-        ("olmo_g5", 8, 5),
-        ("muse_g16", 2, 16),
-        ("phi_g4", 2, 4),
+    for label, kv_heads, group_size, head_dim in (
+        ("olmo_g5", 8, 5, 128),
+        ("muse_g16", 2, 16, 128),
+        ("phi_g4", 2, 4, 128),
+        ("qwen_g6_d256", 4, 6, 256),
     ):
-        head_dim = 128
+        if args.only is not None and label != args.only:
+            continue
         query_heads = kv_heads * group_size
         q = torch.randn(
             args.batch,
@@ -94,7 +102,15 @@ def main() -> None:
             device=device,
         )
 
-        def run(head_major: bool, *, precompute_mean_values: bool):
+        def run(
+            head_major: bool,
+            *,
+            precompute_mean_values: bool,
+            block_m: int = 16,
+            block_n: int = 32,
+            num_warps: int = 4,
+            grouped_rows: int = 64,
+        ):
             return route_logits_coarse_attention(
                 q,
                 route_logits,
@@ -106,9 +122,31 @@ def main() -> None:
                 state_len=args.state_len,
                 kv_group_size=group_size,
                 scale=head_dim**-0.5,
+                block_m=block_m,
+                block_n=block_n,
+                num_warps=num_warps,
                 precompute_mean_values=precompute_mean_values,
-                max_grouped_rows=64,
+                max_grouped_rows=grouped_rows,
                 head_major=head_major,
+            )
+
+        def run_direct(*, grouped_rows: int, block_n: int = 64, num_warps: int = 4):
+            return route_logits_coarse_attention(
+                q,
+                route_logits,
+                state_v,
+                counts,
+                empty,
+                empty,
+                top_slots,
+                state_len=args.state_len,
+                kv_group_size=group_size,
+                scale=head_dim**-0.5,
+                block_n=block_n,
+                num_warps=num_warps,
+                precompute_mean_values=True,
+                max_grouped_rows=grouped_rows,
+                direct_gqa_rows=True,
             )
 
         grouped_output, grouped_lse = run(False, precompute_mean_values=True)
@@ -116,9 +154,42 @@ def main() -> None:
         dynamic_output, dynamic_lse = run(
             False, precompute_mean_values=False
         )
+        direct64_output, direct64_lse = run_direct(grouped_rows=64)
+        direct128_output, direct128_lse = run_direct(grouped_rows=128)
         results[label] = {
             "grouped_ms": _time_ms(
                 lambda: run(False, precompute_mean_values=True),
+                warmup=args.warmup,
+                repeats=args.repeats,
+            ),
+            "production_m64_n32_w8_ms": _time_ms(
+                lambda: run(
+                    False,
+                    precompute_mean_values=True,
+                    block_n=32,
+                    num_warps=8,
+                ),
+                warmup=args.warmup,
+                repeats=args.repeats,
+            ),
+            "grouped_m64_n16_w8_ms": _time_ms(
+                lambda: run(
+                    False,
+                    precompute_mean_values=True,
+                    block_n=16,
+                    num_warps=8,
+                ),
+                warmup=args.warmup,
+                repeats=args.repeats,
+            ),
+            "grouped_m128_n16_w8_ms": _time_ms(
+                lambda: run(
+                    False,
+                    precompute_mean_values=True,
+                    block_n=16,
+                    num_warps=8,
+                    grouped_rows=128,
+                ),
                 warmup=args.warmup,
                 repeats=args.repeats,
             ),
@@ -142,7 +213,59 @@ def main() -> None:
             "divide_in_kernel_lse_max_abs": float(
                 (grouped_lse - dynamic_lse).abs().max().item()
             ),
+            "direct_gqa_m64_ms": _time_ms(
+                lambda: run_direct(grouped_rows=64),
+                warmup=args.warmup,
+                repeats=args.repeats,
+            ),
+            "direct_gqa_m128_ms": _time_ms(
+                lambda: run_direct(grouped_rows=128),
+                warmup=args.warmup,
+                repeats=args.repeats,
+            ),
+            "direct_gqa_m64_n16_w8_ms": _time_ms(
+                lambda: run_direct(grouped_rows=64, block_n=16, num_warps=8),
+                warmup=args.warmup,
+                repeats=args.repeats,
+            ),
+            "direct_gqa_m128_n16_w8_ms": _time_ms(
+                lambda: run_direct(grouped_rows=128, block_n=16, num_warps=8),
+                warmup=args.warmup,
+                repeats=args.repeats,
+            ),
+            "direct_gqa_m64_output_max_abs": float(
+                (grouped_output.float() - direct64_output.float()).abs().max().item()
+            ),
+            "direct_gqa_m64_lse_max_abs": float(
+                (grouped_lse - direct64_lse).abs().max().item()
+            ),
+            "direct_gqa_m128_output_max_abs": float(
+                (grouped_output.float() - direct128_output.float()).abs().max().item()
+            ),
+            "direct_gqa_m128_lse_max_abs": float(
+                (grouped_lse - direct128_lse).abs().max().item()
+            ),
         }
+        if args.sweep_direct:
+            direct_sweep: dict[str, float] = {}
+            for grouped_rows in (32, 64, 128):
+                if grouped_rows < group_size:
+                    continue
+                for block_n in (16, 32, 64, 128):
+                    for num_warps in (2, 4, 8):
+                        name = f"m{grouped_rows}_n{block_n}_w{num_warps}"
+                        direct_sweep[name] = _time_ms(
+                            lambda grouped_rows=grouped_rows,
+                            block_n=block_n,
+                            num_warps=num_warps: run_direct(
+                                grouped_rows=grouped_rows,
+                                block_n=block_n,
+                                num_warps=num_warps,
+                            ),
+                            warmup=args.warmup,
+                            repeats=args.repeats,
+                        )
+            results[label]["direct_sweep_ms"] = direct_sweep
         if label == "muse_g16" and args.sweep_muse:
             sweep: dict[str, float] = {}
             for block_n in (32, 64, 128):

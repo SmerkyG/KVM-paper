@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import functools
+import hashlib
 import json
 import math
 import os
@@ -30,6 +31,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--length", type=int, default=8192)
     parser.add_argument("--samples", type=int, default=8)
     parser.add_argument("--batch-size", type=int, default=8)
+    parser.add_argument("--tensor-parallel-size", type=int, default=1)
+    parser.add_argument(
+        "--concatenate-prolong",
+        action="store_true",
+        help="Concatenate distinct real ProLong documents to reach long contexts.",
+    )
     parser.add_argument("--max-new-tokens", type=int, default=64)
     parser.add_argument(
         "--apply-chat-template",
@@ -52,12 +59,61 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def select_prolong_tokens(tokenizer, length: int, samples: int) -> list[list[int]]:
+def select_prolong_tokens(
+    tokenizer,
+    length: int,
+    samples: int,
+    *,
+    concatenate: bool = False,
+) -> tuple[list[list[int]], list[list[int]]]:
+    if concatenate:
+        # Streaming shuffle order can depend on which remote/cache shards are
+        # visible.  Draw explicit row indices from the materialized dataset so
+        # independent configurations always evaluate byte-identical prompts.
+        dataset = load_dataset("Seerkfang/prolong-64k-512-new", split="train")
+        generator = random.Random(42)
+        used_indices: set[int] = set()
+
+        def next_document() -> tuple[int, dict]:
+            while True:
+                index = generator.randrange(len(dataset))
+                if index not in used_indices:
+                    used_indices.add(index)
+                    return index, dataset[index]
+
+        separator = tokenizer(
+            "\n\n--- NEXT PROLONG DOCUMENT ---\n\n",
+            add_special_tokens=False,
+            return_attention_mask=False,
+        )["input_ids"]
+        selected = []
+        selected_indices = []
+        for _ in range(samples):
+            token_ids: list[int] = []
+            source_indices: list[int] = []
+            while len(token_ids) < length:
+                source_index, document = next_document()
+                document_ids = tokenizer(
+                    document["text"],
+                    add_special_tokens=False,
+                    return_attention_mask=False,
+                )["input_ids"]
+                if not document_ids:
+                    continue
+                source_indices.append(source_index)
+                if token_ids:
+                    remaining = length - len(token_ids)
+                    token_ids.extend(separator[: max(0, remaining - 1)])
+                token_ids.extend(document_ids[: length - len(token_ids)])
+            selected.append(token_ids)
+            selected_indices.append(source_indices)
+        return selected, selected_indices
     dataset = load_dataset(
         "Seerkfang/prolong-64k-512-new", split="train", streaming=True
     ).shuffle(seed=42, buffer_size=1_000)
     selected: list[list[int]] = []
-    for document in dataset:
+    selected_indices: list[list[int]] = []
+    for stream_index, document in enumerate(dataset):
         token_count = document.get("length")
         if token_count is not None and int(token_count) < length:
             continue
@@ -70,11 +126,12 @@ def select_prolong_tokens(tokenizer, length: int, samples: int) -> list[list[int
         )["input_ids"]
         if len(token_ids) == length:
             selected.append(token_ids)
+            selected_indices.append([stream_index])
         if len(selected) == samples:
             break
     if len(selected) != samples:
         raise RuntimeError(f"found only {len(selected)} sufficiently long documents")
-    return selected
+    return selected, selected_indices
 
 
 def select_niah_s3(
@@ -208,6 +265,7 @@ def make_llm(args: argparse.Namespace):
         "gpu_memory_utilization": args.gpu_memory_utilization,
         "enforce_eager": args.enforce_eager,
         "enable_prefix_caching": False,
+        "tensor_parallel_size": args.tensor_parallel_size,
     }
     if args.mode == "lod":
         kwargs["attention_config"] = {"backend": "CUSTOM"}
@@ -228,6 +286,8 @@ def inspect_lod_model(model) -> dict[str, object]:
     batched_cached_prefill_rows = 0
     routing_geometries = set()
     recursive_state_route_backends = set()
+    prefill_coarse_direct_gqa_configured = set()
+    prefill_coarse_direct_gqa_executed = set()
     state_v_abs_max = 0.0
     state_v_nonfinite = 0
     decode_gqa_union_configured = set()
@@ -247,6 +307,8 @@ def inspect_lod_model(model) -> dict[str, object]:
     decode_gqa_static_leaf_caps = set()
     decode_max_open_leaves = set()
     decode_route_cohort = set()
+    prefill_route_cohort = set()
+    prefill_open_counts = set()
     effective_decode_route_leaf_limits = set()
     decode_open_counts = set()
     static_total_centroids = 0
@@ -257,6 +319,10 @@ def inspect_lod_model(model) -> dict[str, object]:
     static_bin_centroids = [0 for _ in range(len(static_bin_bounds) + 1)]
     static_bin_leaves = [0.0 for _ in range(len(static_bin_bounds) + 1)]
     state_count_max = 0.0
+    state_split_limits = set()
+    split_state_len_max = 0
+    split_scheduled_state_len_max = 0
+    split_posting_len_max = 0
     state_centroids_at_or_above_open_limit = 0
     selected_route_count_max = 0.0
     gqa_union_epoch_max = 0
@@ -296,6 +362,19 @@ def inspect_lod_model(model) -> dict[str, object]:
             batched_cached_prefills += int(pool.batched_cached_prefill_calls)
             batched_cached_prefill_rows += int(pool.batched_cached_prefill_rows)
             engine = pool.engine
+            state_split_limits.add(
+                getattr(pool.settings, "state_split_max_leaves", None)
+            )
+            split_state_len_max = max(
+                split_state_len_max, int(pool.split_state_len_max)
+            )
+            split_scheduled_state_len_max = max(
+                split_scheduled_state_len_max,
+                int(pool.split_scheduled_state_len_max),
+            )
+            split_posting_len_max = max(
+                split_posting_len_max, int(pool.split_posting_len_max)
+            )
             state_v = pool.state["state_v"]
             state_v_abs_max = max(
                 state_v_abs_max,
@@ -305,6 +384,21 @@ def inspect_lod_model(model) -> dict[str, object]:
             recursive_state_route_backends.add(
                 str(engine.recursive_state_route_backend)
             )
+            prefill_coarse_direct_gqa_configured.add(
+                (
+                    bool(getattr(engine, "prefill_coarse_direct_gqa", False)),
+                    int(getattr(engine, "prefill_coarse_max_grouped_rows", 0)),
+                    int(getattr(engine, "prefill_coarse_route_block_n", 0)),
+                    int(getattr(engine, "prefill_coarse_route_num_warps", 0)),
+                )
+            )
+            executed_direct_gqa = getattr(
+                engine, "_lod_prefill_coarse_direct_gqa_executed", None
+            )
+            if executed_direct_gqa is not None:
+                prefill_coarse_direct_gqa_executed.add(
+                    tuple(int(value) for value in executed_direct_gqa)
+                )
             decode_gqa_union_configured.add(
                 bool(getattr(pool.settings, "decode_gqa_union", False))
             )
@@ -343,6 +437,10 @@ def inspect_lod_model(model) -> dict[str, object]:
             decode_route_cohort.add(
                 bool(getattr(pool.settings, "decode_route_cohort", False))
             )
+            prefill_route_cohort.add(
+                bool(getattr(pool.settings, "prefill_route_cohort", False))
+            )
+            prefill_open_counts.add(int(engine.prefill_two_level_topk))
             effective_open_limit = pool._decode_route_leaf_limit()
             effective_decode_route_leaf_limits.add(effective_open_limit)
             decode_open_counts.add(int(pool.settings.open_count))
@@ -634,6 +732,12 @@ def inspect_lod_model(model) -> dict[str, object]:
         "recursive_state_route_backends": sorted(
             recursive_state_route_backends
         ),
+        "prefill_coarse_direct_gqa_configured": sorted(
+            prefill_coarse_direct_gqa_configured
+        ),
+        "prefill_coarse_direct_gqa_executed": sorted(
+            prefill_coarse_direct_gqa_executed
+        ),
         "decode_gqa_union_configured": sorted(decode_gqa_union_configured),
         "decode_gqa_union_requested": sorted(decode_gqa_union_requested),
         "decode_gqa_union_score_only": sorted(decode_gqa_union_score_only),
@@ -714,12 +818,21 @@ def inspect_lod_model(model) -> dict[str, object]:
             key=lambda value: -1 if value is None else int(value),
         ),
         "decode_route_cohort": sorted(decode_route_cohort),
+        "prefill_route_cohort": sorted(prefill_route_cohort),
+        "prefill_open_counts": sorted(prefill_open_counts),
         "effective_decode_route_leaf_limits": sorted(
             effective_decode_route_leaf_limits,
             key=lambda value: -1 if value is None else int(value),
         ),
         "decode_open_counts": sorted(decode_open_counts),
         "state_count_max": state_count_max,
+        "state_split_limits": sorted(
+            state_split_limits,
+            key=lambda value: -1 if value is None else int(value),
+        ),
+        "split_state_len_max": split_state_len_max,
+        "split_scheduled_state_len_max": split_scheduled_state_len_max,
+        "split_posting_len_max": split_posting_len_max,
         "state_centroids_at_or_above_open_limit": (
             state_centroids_at_or_above_open_limit
         ),
@@ -827,7 +940,12 @@ def configure_lod_model(
 def evaluate_prolong(args: argparse.Namespace, tokenizer, llm) -> dict:
     from vllm import SamplingParams
 
-    sequences = select_prolong_tokens(tokenizer, args.length, args.samples)
+    sequences, source_indices = select_prolong_tokens(
+        tokenizer,
+        args.length,
+        args.samples,
+        concatenate=args.concatenate_prolong,
+    )
     prompts = [{"prompt_token_ids": token_ids} for token_ids in sequences]
     params = SamplingParams(
         temperature=0,
@@ -850,7 +968,9 @@ def evaluate_prolong(args: argparse.Namespace, tokenizer, llm) -> dict:
     sample_records = []
     total_nll = 0.0
     total_tokens = 0
-    for sample, (token_ids, output) in enumerate(zip(sequences, outputs)):
+    for sample, (token_ids, output, sample_sources) in enumerate(
+        zip(sequences, outputs, source_indices)
+    ):
         prompt_logprobs = output.prompt_logprobs
         if prompt_logprobs is None or len(prompt_logprobs) != len(token_ids):
             raise RuntimeError("vLLM returned incomplete prompt log probabilities")
@@ -866,6 +986,10 @@ def evaluate_prolong(args: argparse.Namespace, tokenizer, llm) -> dict:
             {
                 "sample": sample,
                 "tokens": len(token_ids),
+                "source_indices": sample_sources,
+                "token_sha256": hashlib.sha256(
+                    np.asarray(token_ids, dtype="<u4").tobytes()
+                ).hexdigest(),
                 "loss": nll / prediction_tokens,
                 "perplexity": math.exp(nll / prediction_tokens),
             }
@@ -1033,11 +1157,58 @@ def main() -> None:
         length=args.length,
         requested_samples=args.samples,
         batch_size=args.batch_size,
+        tensor_parallel_size=args.tensor_parallel_size,
         max_num_batched_tokens=args.max_num_batched_tokens,
         long_prefill_token_threshold=args.long_prefill_token_threshold,
         enforce_eager=args.enforce_eager,
         apply_chat_template=args.apply_chat_template,
         disable_thinking=args.disable_thinking,
+        concatenate_prolong=args.concatenate_prolong,
+        static_cohort_never_readmit=(
+            os.environ.get("VLLM_LOD_STATIC_COHORT_NEVER_READMIT", "0") == "1"
+            if args.mode == "lod"
+            else None
+        ),
+        static_leaf_cap_divisor=(
+            int(os.environ.get("VLLM_LOD_STATIC_LEAF_CAP_DIVISOR", "16"))
+            if args.mode == "lod"
+            else None
+        ),
+        prefill_static_leaf_cap_min=(
+            int(os.environ.get("VLLM_LOD_PREFILL_STATIC_LEAF_CAP_MIN", "16"))
+            if args.mode == "lod"
+            else None
+        ),
+        prefill_route_cohort=(
+            os.environ.get("VLLM_LOD_PREFILL_ROUTE_COHORT", "0") == "1"
+            if args.mode == "lod"
+            else None
+        ),
+        prefill_open_count=(
+            int(
+                os.environ.get(
+                    "VLLM_LOD_PREFILL_OPEN_COUNT",
+                    str(min(3, int(os.environ.get("VLLM_LOD_OPEN_COUNT", "8")))),
+                )
+            )
+            if args.mode == "lod"
+            else None
+        ),
+        state_split_max_leaves=(
+            int(os.environ["VLLM_LOD_STATE_SPLIT_MAX_LEAVES"])
+            if args.mode == "lod"
+            and os.environ.get("VLLM_LOD_STATE_SPLIT_MAX_LEAVES")
+            else None
+        ),
+        decode_static_leaf_cap_min=(
+            int(
+                os.environ.get(
+                    "VLLM_LOD_DECODE_GQA_STATIC_LEAF_CAP_MIN", "16"
+                )
+            )
+            if args.mode == "lod"
+            else None
+        ),
         lod_prefill_route_block_m=args.lod_prefill_route_block_m,
         lod_prefill_route_num_warps=args.lod_prefill_route_num_warps,
         lod_recursive_page_block_n=args.lod_recursive_page_block_n,

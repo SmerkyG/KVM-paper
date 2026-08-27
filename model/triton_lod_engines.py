@@ -66,6 +66,7 @@ class _KernelLODEngine(TritonLODAttentionCore):
         self.state_min_len = config.state_min_size
         self.state_size_offset = config.state_size_offset
         self.state_premerge_factor = config.state_premerge_factor
+        self.state_split_max_leaves = config.state_split_max_leaves
         self.sink_len = config.protected_prefix
         self.state_clustering_normalization = (
             config.state_clustering_normalization
@@ -464,6 +465,7 @@ class KernelRecursivePagedLODAttention(_KernelLODEngine):
             raise TypeError("LOD key-norm sum cache is invalid")
 
         state_len = int(state["state_len"])
+        scheduled_state_len = int(state.get("scheduled_state_len", state_len))
         coverage = int(state["coverage"])
         if recent_length is None:
             recent_length = total_length - coverage
@@ -488,6 +490,17 @@ class KernelRecursivePagedLODAttention(_KernelLODEngine):
             if overflow_len > recent_length:
                 raise AssertionError("LOD decode-local cache underflowed during catch-up")
             state_capacity = int(state["state_capacity"])
+            update_ctx_len = exact_floor + target_coverage
+            next_scheduled_state_len = (
+                self._next_scheduled_state_len(
+                    scheduled_state_len,
+                    ctx_len=update_ctx_len,
+                    available_context=target_coverage,
+                    overflow_len=overflow_len,
+                )
+                if self.state_split_max_leaves is not None
+                else scheduled_state_len
+            )
             (
                 state_k,
                 state_v,
@@ -503,10 +516,16 @@ class KernelRecursivePagedLODAttention(_KernelLODEngine):
                 recent_k[..., :overflow_len, :],
                 recent_v[..., :overflow_len, :],
                 state_len=state_len,
-                ctx_len=exact_floor + target_coverage,
+                ctx_len=update_ctx_len,
                 available_context=target_coverage,
                 state_capacity=state_capacity,
                 clustering_query_scale=None,
+                scheduled_state_len=scheduled_state_len,
+            )
+            scheduled_state_len = (
+                next_scheduled_state_len
+                if self.state_split_max_leaves is not None
+                else state_len
             )
             if old_slot_remap is not None:
                 raise AssertionError("paged state remapping is unsupported")
@@ -532,6 +551,7 @@ class KernelRecursivePagedLODAttention(_KernelLODEngine):
             state_v=state_v.detach(),
             counts=counts.detach(),
             state_len=state_len,
+            scheduled_state_len=scheduled_state_len,
             coverage=coverage,
             recent_k=recent_k.detach(),
             recent_v=recent_v.detach(),

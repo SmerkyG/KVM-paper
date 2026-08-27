@@ -45,15 +45,21 @@ def _choice(name: str, default: str, choices: tuple[str, ...]) -> str:
     return value
 
 
-def scheduled_static_leaf_cap(total_length: int, minimum: int = 16) -> int:
-    """Return ``max(minimum, ceil(sqrt(total_length) / 16))`` exactly."""
+def scheduled_static_leaf_cap(
+    total_length: int,
+    minimum: int = 16,
+    divisor: int = 16,
+) -> int:
+    """Return ``max(minimum, ceil(sqrt(total_length) / divisor))`` exactly."""
     if total_length < 1:
         raise ValueError("static leaf-cap scheduling requires a positive length")
     if minimum < 1:
         raise ValueError("static leaf-cap scheduling requires a positive minimum")
-    # For positive integers T, floor(sqrt(T - 1)) // 16 + 1 is exactly
-    # ceil(sqrt(T) / 16), including the perfect-square boundaries.
-    scheduled = math.isqrt(total_length - 1) // 16 + 1
+    if divisor < 1:
+        raise ValueError("static leaf-cap scheduling requires a positive divisor")
+    # For positive integers T, floor(sqrt(T - 1)) // divisor + 1 is exactly
+    # ceil(sqrt(T) / divisor), including the perfect-square boundaries.
+    scheduled = math.isqrt(total_length - 1) // divisor + 1
     return max(minimum, scheduled)
 
 
@@ -65,8 +71,10 @@ class VLLMLODSettings:
     local_window: int = 512
     state_growth_factor: float = 16.0
     state_min_size: int = 256
+    state_split_max_leaves: int | None = None
     protected_prefix: int = 1
     open_count: int = 8
+    prefill_open_count: int | None = None
     kv_bits: int = 0
     key_bits: int | None = None
     value_bits: int | None = None
@@ -82,6 +90,9 @@ class VLLMLODSettings:
     fused_prefill_external_recompute: bool = True
     prefill_hierarchical_route: bool | None = None
     prefill_coarse_max_grouped_rows: int = 64
+    prefill_coarse_direct_gqa: bool | None = None
+    prefill_coarse_block_n: int = 32
+    prefill_coarse_num_warps: int = 8
     prefill_overlap_coarse_leaf: bool | None = None
     prefill_overlap_local_lod: bool | None = None
     prefill_int8_route_mma: bool = False
@@ -93,8 +104,12 @@ class VLLMLODSettings:
     prefill_chunk_size: int = 4096
     prefill_local_window: int = 4864
     prefill_state_update_size: int = 4096
+    recursive_prefill_all_leaves: bool | None = None
     prefill_static_leaf_aiter: bool = False
     prefill_static_leaf_cap_min: int = 16
+    prefill_route_cohort: bool = False
+    static_leaf_cap_divisor: int = 16
+    static_cohort_never_readmit: bool = False
     leaf_layout: str = "expert"
     leaf_block_m: int = 16
     leaf_block_n: int = 32
@@ -130,7 +145,7 @@ class VLLMLODSettings:
     recursive_page_score_block_n: int = 16
     recursive_page_score_num_warps: int = 2
     recursive_page_select_block_n: int = 64
-    recursive_state_route_backend: str = "fused"
+    recursive_state_route_backend: str = "auto"
 
     @property
     def resolved_key_bits(self) -> int:
@@ -150,8 +165,14 @@ class VLLMLODSettings:
             local_window=_integer("VLLM_LOD_LOCAL_WINDOW", 512),
             state_growth_factor=_floating("VLLM_LOD_STATE_FACTOR", 16.0),
             state_min_size=_integer("VLLM_LOD_STATE_MIN", 256),
+            state_split_max_leaves=(
+                _integer("VLLM_LOD_STATE_SPLIT_MAX_LEAVES", 0) or None
+            ),
             protected_prefix=_integer("VLLM_LOD_PROTECTED_PREFIX", 1),
             open_count=_integer("VLLM_LOD_OPEN_COUNT", 8),
+            prefill_open_count=(
+                _integer("VLLM_LOD_PREFILL_OPEN_COUNT", 0) or None
+            ),
             kv_bits=_integer("VLLM_LOD_KV_BITS", 0),
             key_bits=(
                 _integer("VLLM_LOD_KEY_BITS", 0)
@@ -200,6 +221,17 @@ class VLLMLODSettings:
             prefill_coarse_max_grouped_rows=_integer(
                 "VLLM_LOD_PREFILL_COARSE_GROUPED_ROWS", 64
             ),
+            prefill_coarse_direct_gqa=(
+                _boolean("VLLM_LOD_PREFILL_COARSE_DIRECT_GQA", False)
+                if os.getenv("VLLM_LOD_PREFILL_COARSE_DIRECT_GQA") is not None
+                else None
+            ),
+            prefill_coarse_block_n=_integer(
+                "VLLM_LOD_PREFILL_COARSE_BLOCK_N", 32
+            ),
+            prefill_coarse_num_warps=_integer(
+                "VLLM_LOD_PREFILL_COARSE_NUM_WARPS", 8
+            ),
             prefill_overlap_coarse_leaf=(
                 _boolean("VLLM_LOD_PREFILL_OVERLAP_COARSE_LEAF", False)
                 if os.getenv("VLLM_LOD_PREFILL_OVERLAP_COARSE_LEAF") is not None
@@ -235,11 +267,27 @@ class VLLMLODSettings:
             prefill_state_update_size=_integer(
                 "VLLM_LOD_PREFILL_STATE_UPDATE_SIZE", 4096
             ),
+            recursive_prefill_all_leaves=(
+                _boolean("VLLM_LOD_RECURSIVE_PREFILL_ALL_LEAVES", False)
+                if os.getenv(
+                    "VLLM_LOD_RECURSIVE_PREFILL_ALL_LEAVES"
+                ) is not None
+                else None
+            ),
             prefill_static_leaf_aiter=_boolean(
                 "VLLM_LOD_PREFILL_STATIC_LEAF_AITER", False
             ),
             prefill_static_leaf_cap_min=_integer(
                 "VLLM_LOD_PREFILL_STATIC_LEAF_CAP_MIN", 16
+            ),
+            prefill_route_cohort=_boolean(
+                "VLLM_LOD_PREFILL_ROUTE_COHORT", False
+            ),
+            static_leaf_cap_divisor=_integer(
+                "VLLM_LOD_STATIC_LEAF_CAP_DIVISOR", 16
+            ),
+            static_cohort_never_readmit=_boolean(
+                "VLLM_LOD_STATIC_COHORT_NEVER_READMIT", False
             ),
             leaf_layout=_choice(
                 "VLLM_LOD_LEAF_LAYOUT", "expert", ("query", "expert")
@@ -336,7 +384,7 @@ class VLLMLODSettings:
                 "VLLM_LOD_PAGE_SELECT_BLOCK_N", 64
             ),
             recursive_state_route_backend=os.getenv(
-                "VLLM_LOD_RECURSIVE_STATE_ROUTE_BACKEND", "fused"
+                "VLLM_LOD_RECURSIVE_STATE_ROUTE_BACKEND", "auto"
             ).strip().lower(),
         )
         if settings.aug19_compat:
@@ -363,6 +411,17 @@ class VLLMLODSettings:
             )
         if settings.levels not in (2, 3):
             raise ValueError("VLLM_LOD_LEVELS must be two or three")
+        if settings.recursive_prefill_all_leaves and (
+            settings.levels != 3 or settings.kv_bits != 0
+        ):
+            raise ValueError(
+                "VLLM_LOD_RECURSIVE_PREFILL_ALL_LEAVES requires "
+                "three-level BF16 LOD"
+            )
+        if settings.state_split_max_leaves is not None and settings.levels != 2:
+            raise ValueError(
+                "VLLM_LOD_STATE_SPLIT_MAX_LEAVES requires two-level LOD"
+            )
         if settings.decode_gqa_mass_fraction is not None and not (
             0.0 < settings.decode_gqa_mass_fraction < 1.0
         ):
@@ -440,6 +499,10 @@ class VLLMLODSettings:
             raise ValueError(
                 "VLLM_LOD_DECODE_GQA_STATIC_LEAF_CAP_MIN must be positive"
             )
+        if settings.static_leaf_cap_divisor < 1:
+            raise ValueError(
+                "VLLM_LOD_STATIC_LEAF_CAP_DIVISOR must be positive"
+            )
         if settings.decode_route_cohort and settings.levels != 2:
             raise ValueError(
                 "VLLM_LOD_DECODE_ROUTE_COHORT requires two-level LOD"
@@ -487,6 +550,12 @@ class VLLMLODSettings:
             )
         if not 1 <= settings.open_count <= 8:
             raise ValueError("VLLM_LOD_OPEN_COUNT must be between one and eight")
+        if settings.prefill_open_count is not None and not (
+            1 <= settings.prefill_open_count <= 8
+        ):
+            raise ValueError(
+                "VLLM_LOD_PREFILL_OPEN_COUNT must be between one and eight"
+            )
         if settings.pool_size <= 0:
             raise ValueError("VLLM_LOD_POOL_SIZE must be positive")
         if settings.prefix_rollback_tokens <= 0:
@@ -494,6 +563,22 @@ class VLLMLODSettings:
         if settings.prefill_coarse_max_grouped_rows <= 0:
             raise ValueError(
                 "VLLM_LOD_PREFILL_COARSE_GROUPED_ROWS must be positive"
+            )
+        if settings.prefill_coarse_direct_gqa and (
+            settings.prefill_coarse_max_grouped_rows
+            & (settings.prefill_coarse_max_grouped_rows - 1)
+        ):
+            raise ValueError(
+                "direct-GQA prefill requires a power-of-two "
+                "VLLM_LOD_PREFILL_COARSE_GROUPED_ROWS"
+            )
+        if settings.prefill_coarse_block_n not in (16, 32, 64, 128):
+            raise ValueError(
+                "VLLM_LOD_PREFILL_COARSE_BLOCK_N must be 16, 32, 64, or 128"
+            )
+        if settings.prefill_coarse_num_warps not in (1, 2, 4, 8):
+            raise ValueError(
+                "VLLM_LOD_PREFILL_COARSE_NUM_WARPS must be 1, 2, 4, or 8"
             )
         if (
             settings.prefill_int8_coarse_block_n <= 0
@@ -522,6 +607,10 @@ class VLLMLODSettings:
         if settings.prefill_static_leaf_cap_min < 1:
             raise ValueError(
                 "VLLM_LOD_PREFILL_STATIC_LEAF_CAP_MIN must be positive"
+            )
+        if settings.prefill_route_cohort and settings.levels != 2:
+            raise ValueError(
+                "VLLM_LOD_PREFILL_ROUTE_COHORT requires two-level LOD"
             )
         if settings.prefill_static_leaf_aiter and (
             settings.levels != 2
@@ -584,9 +673,14 @@ class VLLMLODSettings:
             raise ValueError(
                 "VLLM_LOD_MATERIALIZE_PAGE_SCORES requires VLLM_LOD_LEVELS=3"
             )
-        if settings.recursive_state_route_backend not in ("fused", "resplit"):
+        if settings.recursive_state_route_backend not in (
+            "auto",
+            "fused",
+            "resplit",
+        ):
             raise ValueError(
-                "VLLM_LOD_RECURSIVE_STATE_ROUTE_BACKEND must be fused or resplit"
+                "VLLM_LOD_RECURSIVE_STATE_ROUTE_BACKEND must be auto, fused, "
+                "or resplit"
             )
         if settings.recursive_state_route_backend == "resplit" and settings.levels != 3:
             raise ValueError(
