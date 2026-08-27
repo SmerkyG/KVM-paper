@@ -14,6 +14,7 @@ checkpoint=${VLLM_MODEL:-Qwen/Qwen3.5-0.8B}
 max_context=${LOD_MARGIN_MAX_CONTEXT:-262144}
 max_input_tokens=${LOD_MARGIN_MAX_INPUT_TOKENS:-$((max_context - 128))}
 gpu_memory_utilization=${LOD_MARGIN_GPU_MEMORY_UTILIZATION:-0.8}
+load_format=${VLLM_WEIGHT_CACHE_LOAD_FORMAT:-ipc_cache}
 
 case "$kv_bits" in
   0|4|8) ;;
@@ -32,13 +33,16 @@ env \
   VLLM_WEIGHT_CACHE_ID="${VLLM_WEIGHT_CACHE_ID:-dev}" \
   PYTHONPATH="$repo/integrations/vllm_lod:$repo" \
   VLLM_LOD_POOL_SIZE=8 \
+  VLLM_LOD_LEVELS="${VLLM_LOD_LEVELS:-3}" \
+  VLLM_LOD_ROUTING_GEOMETRY="${VLLM_LOD_ROUTING_GEOMETRY:-auto}" \
+  VLLM_LOD_PREFILL_MODE="${VLLM_LOD_PREFILL_MODE:-direct}" \
   VLLM_LOD_KV_BITS="$kv_bits" \
   VLLM_LOD_KEY_BITS="${LOD_MARGIN_KEY_BITS:-$kv_bits}" \
   VLLM_LOD_VALUE_BITS="${LOD_MARGIN_VALUE_BITS:-$kv_bits}" \
   VLLM_LOD_MAX_CONTEXT="$max_context" \
   "$vllm_root/bin/vllm" serve \
     "$checkpoint" \
-    --load-format ipc_cache \
+    --load-format "$load_format" \
     --attention-config '{"backend":"CUSTOM"}' \
     --dtype bfloat16 \
     --kv-cache-dtype bfloat16 \

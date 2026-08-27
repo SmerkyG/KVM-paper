@@ -79,6 +79,10 @@ class VLLMLODSettings:
     key_bits: int | None = None
     value_bits: int | None = None
     quant_group_size: int = 32
+    quant_token_group_size: int = 16
+    leaf_quant_scale_mode: str = "max"
+    leaf_append_quant_scale_mode: str = "max"
+    page_summary_scale_mode: str = "l2"
     pool_size: int = 8
     request_capacity: int | None = None
     prefill_mode: str = "direct"
@@ -158,6 +162,13 @@ class VLLMLODSettings:
     @classmethod
     def from_environment(cls) -> VLLMLODSettings:
         capacity = _integer("VLLM_LOD_MAX_CONTEXT", 0)
+        kv_bits = _integer("VLLM_LOD_KV_BITS", 0)
+        # INT4's former 16-token x 32-channel max-abs group let a single
+        # outlier consume too much of its seven positive levels.  The
+        # quality-oriented default halves the channel group and refines its
+        # scale by least squares.  BF16 and INT8 retain their established
+        # layouts unless explicitly overridden.
+        int4_storage = kv_bits == 4
         settings = cls(
             aug19_compat=_boolean("VLLM_LOD_AUG19_COMPAT", False),
             levels=_integer("VLLM_LOD_LEVELS", 2),
@@ -173,7 +184,7 @@ class VLLMLODSettings:
             prefill_open_count=(
                 _integer("VLLM_LOD_PREFILL_OPEN_COUNT", 0) or None
             ),
-            kv_bits=_integer("VLLM_LOD_KV_BITS", 0),
+            kv_bits=kv_bits,
             key_bits=(
                 _integer("VLLM_LOD_KEY_BITS", 0)
                 if os.getenv("VLLM_LOD_KEY_BITS") is not None
@@ -184,7 +195,25 @@ class VLLMLODSettings:
                 if os.getenv("VLLM_LOD_VALUE_BITS") is not None
                 else None
             ),
-            quant_group_size=_integer("VLLM_LOD_QUANT_GROUP_SIZE", 32),
+            quant_group_size=_integer(
+                "VLLM_LOD_QUANT_GROUP_SIZE", 16 if int4_storage else 32
+            ),
+            quant_token_group_size=_integer(
+                "VLLM_LOD_QUANT_TOKEN_GROUP_SIZE", 16
+            ),
+            leaf_quant_scale_mode=_choice(
+                "VLLM_LOD_LEAF_QUANT_SCALE_MODE",
+                "l2" if int4_storage else "max",
+                ("max", "l2"),
+            ),
+            leaf_append_quant_scale_mode=_choice(
+                "VLLM_LOD_LEAF_APPEND_QUANT_SCALE_MODE",
+                "l2" if int4_storage else "max",
+                ("max", "l2"),
+            ),
+            page_summary_scale_mode=_choice(
+                "VLLM_LOD_PAGE_SUMMARY_SCALE_MODE", "l2", ("max", "l2")
+            ),
             pool_size=_integer("VLLM_LOD_POOL_SIZE", 8),
             request_capacity=capacity or None,
             prefill_mode=_choice(
@@ -547,6 +576,11 @@ class VLLMLODSettings:
             raise ValueError(
                 "quantized storage requires matching K and V precision; use "
                 "VLLM_LOD_KV_BITS=0 for mixed-precision QDQ analysis"
+            )
+        if settings.quant_token_group_size not in (1, 2, 4, 8, 16):
+            raise ValueError(
+                "VLLM_LOD_QUANT_TOKEN_GROUP_SIZE must be one, two, four, "
+                "eight, or sixteen"
             )
         if not 1 <= settings.open_count <= 8:
             raise ValueError("VLLM_LOD_OPEN_COUNT must be between one and eight")

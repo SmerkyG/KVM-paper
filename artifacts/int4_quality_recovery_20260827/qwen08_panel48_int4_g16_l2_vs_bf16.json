@@ -1,0 +1,24 @@
+{
+  "reference_runs": [
+    "/home/dan/subusers/agent/kvm-paper-dg/branches/lod-diffusion-gemma/code/artifacts/int4_quality_recovery_20260827/qwen08_panel48_bf16.jsonl"
+  ],
+  "candidate_runs": [
+    "/home/dan/subusers/agent/kvm-paper-dg/branches/lod-diffusion-gemma/code/artifacts/int4_quality_recovery_20260827/qwen08_panel48_int4_g16_l2.jsonl"
+  ],
+  "mean_distribution_comparison": {
+    "count": 48,
+    "reference_correct": 11,
+    "candidate_correct": 12,
+    "prediction_agreement": 44,
+    "prediction_agreement_rate": 0.9166666666666666,
+    "reference_correct_candidate_wrong": 1,
+    "candidate_correct_reference_wrong": 2,
+    "mean_js_divergence": 0.003415252721792996,
+    "max_js_divergence": 0.06799619492505357,
+    "mean_correct_margin_delta": 0.049479164173438485,
+    "mean_correct_margin_drop": 0.07031251118557222,
+    "rms_correct_margin_delta": 0.3292391973566621
+  },
+  "reference_repeat_stability": null,
+  "candidate_repeat_stability": null
+}

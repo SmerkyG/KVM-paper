@@ -209,6 +209,7 @@ class TritonLODAttentionCore(nn.Module):
     leaf_key_quant_bits = 0
     leaf_value_quant_bits = 0
     leaf_quant_group_size = 32
+    leaf_quant_token_group_size = 16
     leaf_quant_scale_mode = "max"
     leaf_append_quant_scale_mode = "max"
     page_summary_quant_bits = 8
@@ -4611,6 +4612,7 @@ class TritonLODAttentionCore(nn.Module):
                 )
             elif virtual_native_quant:
                 group_size = self.leaf_quant_group_size
+                token_groups = page_size // self.leaf_quant_token_group_size
                 value_dim = int(virtual_v.size(-1))
                 if head_dim % group_size or value_dim % group_size:
                     raise ValueError(
@@ -4641,7 +4643,7 @@ class TritonLODAttentionCore(nn.Module):
                         batch,
                         kv_heads,
                         page_capacity,
-                        head_dim // group_size,
+                        token_groups * (head_dim // group_size),
                         dtype=k.dtype,
                         device=k.device,
                     ),
@@ -4649,7 +4651,7 @@ class TritonLODAttentionCore(nn.Module):
                         batch,
                         kv_heads,
                         page_capacity,
-                        value_dim // group_size,
+                        token_groups * (value_dim // group_size),
                         dtype=v.dtype,
                         device=v.device,
                     ),
@@ -5179,6 +5181,7 @@ class TritonLODAttentionCore(nn.Module):
                     *quantized_tensors,
                     hash_probes=append_hash_probes,
                     quant_group_size=self.leaf_quant_group_size,
+                    quant_token_group_size=self.leaf_quant_token_group_size,
                     quant_bits=int(cache.get("leaf_quant_bits", 4)),
                     quantized_page_sum_k=cache.get("quantized_page_sum_k"),
                     quantized_page_sum_v=cache.get("quantized_page_sum_v"),
@@ -5213,6 +5216,7 @@ class TritonLODAttentionCore(nn.Module):
                     page_v_scales=cache.get("page_v_scales"),
                     page_quantized_counts=cache.get("page_quantized_counts"),
                     quant_group_size=self.leaf_quant_group_size,
+                    quant_token_group_size=self.leaf_quant_token_group_size,
                     quant_bits=int(cache.get("leaf_quant_bits", 4)),
                     quantize_touched=False,
                     optimize_scale=(self.leaf_quant_scale_mode == "l2"),
@@ -6644,6 +6648,9 @@ class TritonLODAttentionCore(nn.Module):
                     page_cache.get("page_v_token_scales") if flat_int8_decode else None
                 ),
                 recursive_quant_group_size=self.leaf_quant_group_size,
+                recursive_quant_token_group_size=(
+                    self.leaf_quant_token_group_size
+                ),
                 recursive_materialize_page_scores=(
                     self.recursive_materialize_page_scores
                 ),
@@ -6870,6 +6877,7 @@ class TritonLODAttentionCore(nn.Module):
                         else None
                     ),
                     quant_group_size=self.leaf_quant_group_size,
+                    quant_token_group_size=self.leaf_quant_token_group_size,
                     quant_bits=int(page_cache.get("leaf_quant_bits", 4)),
                     mla_norm_weight=(
                         self.mla_key_norm_weight if raw_page_key_summaries else None
@@ -7821,6 +7829,7 @@ class TritonLODAttentionCore(nn.Module):
                     *quantization_tensors,
                     quantized_counts,
                     quant_group_size=self.leaf_quant_group_size,
+                    quant_token_group_size=self.leaf_quant_token_group_size,
                     quant_bits=int(page_cache.get("leaf_quant_bits", 4)),
                     optimize_scale=self.leaf_quant_scale_mode == "l2",
                 )

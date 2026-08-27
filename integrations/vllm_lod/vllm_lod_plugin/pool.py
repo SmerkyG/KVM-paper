@@ -304,6 +304,12 @@ class VLLMLayerLODPool:
         self.engine.leaf_value_quant_bits = (
             0 if flat_int8 else settings.resolved_value_bits
         )
+        self.engine.leaf_quant_token_group_size = settings.quant_token_group_size
+        self.engine.leaf_quant_scale_mode = settings.leaf_quant_scale_mode
+        self.engine.leaf_append_quant_scale_mode = (
+            settings.leaf_append_quant_scale_mode
+        )
+        self.engine.page_summary_scale_mode = settings.page_summary_scale_mode
         self.engine.prefill_int8_leaf_mma = flat_int8
         int8_pv_mma = settings.prefill_int8_pv_mma
         if int8_pv_mma is None:
@@ -1040,6 +1046,7 @@ class VLLMLayerLODPool:
             ),
         }
         groups = d // self.settings.quant_group_size
+        token_groups = 16 // self.settings.quant_token_group_size
         if self.settings.kv_bits in (4, 8):
             quant_bits = self.settings.kv_bits
             quant_width = d // 2 if quant_bits == 4 else d
@@ -1068,7 +1075,7 @@ class VLLMLayerLODPool:
                     r,
                     h,
                     self.page_capacity,
-                    groups,
+                    token_groups * groups,
                     dtype=self.dtype,
                     device=self.device,
                 ),
@@ -1076,7 +1083,7 @@ class VLLMLayerLODPool:
                     r,
                     h,
                     self.page_capacity,
-                    groups,
+                    token_groups * groups,
                     dtype=self.dtype,
                     device=self.device,
                 ),
@@ -2733,6 +2740,9 @@ class VLLMLayerLODPool:
                 page.get("page_v_token_scales") if flat_int8 else None
             ),
             recursive_quant_group_size=int(self.engine.leaf_quant_group_size),
+            recursive_quant_token_group_size=int(
+                self.engine.leaf_quant_token_group_size
+            ),
             timing_events=getattr(self.engine, "_lod_decode_timing_events", None),
             recursive_materialize_page_scores=bool(
                 self.engine.recursive_materialize_page_scores

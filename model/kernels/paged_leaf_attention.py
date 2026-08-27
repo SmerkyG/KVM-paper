@@ -2215,6 +2215,7 @@ def _quantize_virtual_page_tensor(
     kv_row,
     page_id,
     group,
+    token_group,
     pair_offset,
     even_dimension,
     odd_dimension,
@@ -2222,6 +2223,7 @@ def _quantize_virtual_page_tensor(
     PAGE_SIZE: tl.constexpr,
     DIMENSION_SIZE: tl.constexpr,
     GROUP_SIZE: tl.constexpr,
+    TOKEN_GROUP_SIZE: tl.constexpr,
     LEAF_CAPACITY: tl.constexpr,
     SOURCE_BATCH_STRIDE: tl.constexpr,
     SOURCE_HEAD_STRIDE: tl.constexpr,
@@ -2229,6 +2231,12 @@ def _quantize_virtual_page_tensor(
     QUANT_BITS: tl.constexpr,
     OPTIMIZE_SCALE: tl.constexpr,
 ):
+    token_offset = tl.arange(0, PAGE_SIZE)
+    in_token_group = (
+        (token_offset >= token_group * TOKEN_GROUP_SIZE)
+        & (token_offset < (token_group + 1) * TOKEN_GROUP_SIZE)
+    )
+    valid_token &= in_token_group
     valid_even = valid_token[:, None] & (even_dimension[None, :] < DIMENSION_SIZE)
     valid_odd = valid_token[:, None] & (odd_dimension[None, :] < DIMENSION_SIZE)
     source_base = (
@@ -2389,7 +2397,11 @@ def _quantize_virtual_page_tensor(
         )
     tl.store(
         scales
-        + (kv_row * PAGE_CAPACITY + page_id) * (DIMENSION_SIZE // GROUP_SIZE)
+        + (
+            (kv_row * PAGE_CAPACITY + page_id) * (PAGE_SIZE // TOKEN_GROUP_SIZE)
+            + token_group
+        )
+        * (DIMENSION_SIZE // GROUP_SIZE)
         + group,
         scale,
         mask=refresh,
@@ -2430,6 +2442,8 @@ def _quantize_touched_virtual_pages_kernel(
     HEAD_DIM: tl.constexpr,
     VALUE_DIM: tl.constexpr,
     GROUP_SIZE: tl.constexpr,
+    TOKEN_GROUP_SIZE: tl.constexpr,
+    CHANNEL_GROUP_COUNT: tl.constexpr,
     LEAF_CAPACITY: tl.constexpr,
     LEAF_K_BATCH_STRIDE: tl.constexpr,
     LEAF_K_HEAD_STRIDE: tl.constexpr,
@@ -2442,7 +2456,9 @@ def _quantize_touched_virtual_pages_kernel(
 ):
     """Requantize each page changed by this append against its current mean."""
     token_row = tl.program_id(0).to(tl.int64)
-    group = tl.program_id(1).to(tl.int64)
+    scale_group = tl.program_id(1).to(tl.int64)
+    group = scale_group % CHANNEL_GROUP_COUNT
+    token_group = scale_group // CHANNEL_GROUP_COUNT
     kv_row = token_row // TOKENS
     batch = kv_row // KV_HEADS
     kv_head = kv_row - batch * KV_HEADS
@@ -2498,6 +2514,7 @@ def _quantize_touched_virtual_pages_kernel(
         kv_row,
         page_id,
         group,
+        token_group,
         pair_offset,
         even_dimension,
         odd_dimension,
@@ -2505,6 +2522,7 @@ def _quantize_touched_virtual_pages_kernel(
         PAGE_SIZE,
         HEAD_DIM,
         GROUP_SIZE,
+        TOKEN_GROUP_SIZE,
         LEAF_CAPACITY,
         LEAF_K_BATCH_STRIDE,
         LEAF_K_HEAD_STRIDE,
@@ -2526,6 +2544,7 @@ def _quantize_touched_virtual_pages_kernel(
         kv_row,
         page_id,
         group,
+        token_group,
         pair_offset,
         even_dimension,
         odd_dimension,
@@ -2533,6 +2552,7 @@ def _quantize_touched_virtual_pages_kernel(
         PAGE_SIZE,
         VALUE_DIM,
         GROUP_SIZE,
+        TOKEN_GROUP_SIZE,
         LEAF_CAPACITY,
         LEAF_V_BATCH_STRIDE,
         LEAF_V_HEAD_STRIDE,
@@ -2543,7 +2563,7 @@ def _quantize_touched_virtual_pages_kernel(
     tl.store(
         page_quantized_counts + kv_row * PAGE_CAPACITY + page_id,
         page_count,
-        mask=refresh & (group == 0),
+        mask=refresh & (scale_group == 0),
     )
 
 
@@ -2835,6 +2855,8 @@ def _quantize_all_virtual_pages_kernel(
     HEAD_DIM: tl.constexpr,
     VALUE_DIM: tl.constexpr,
     GROUP_SIZE: tl.constexpr,
+    TOKEN_GROUP_SIZE: tl.constexpr,
+    CHANNEL_GROUP_COUNT: tl.constexpr,
     LEAF_CAPACITY: tl.constexpr,
     LEAF_K_BATCH_STRIDE,
     LEAF_K_HEAD_STRIDE,
@@ -2847,7 +2869,9 @@ def _quantize_all_virtual_pages_kernel(
 ):
     """Quantize every populated virtual page once prefill is complete."""
     page_row = tl.program_id(0).to(tl.int64)
-    group = tl.program_id(1).to(tl.int64)
+    scale_group = tl.program_id(1).to(tl.int64)
+    group = scale_group % CHANNEL_GROUP_COUNT
+    token_group = scale_group // CHANNEL_GROUP_COUNT
     kv_row = page_row // PAGE_CAPACITY
     page_id = page_row - kv_row * PAGE_CAPACITY
     batch = kv_row // KV_HEADS
@@ -2879,6 +2903,7 @@ def _quantize_all_virtual_pages_kernel(
         kv_row,
         page_id,
         group,
+        token_group,
         pair_offset,
         even_dimension,
         odd_dimension,
@@ -2886,6 +2911,7 @@ def _quantize_all_virtual_pages_kernel(
         PAGE_SIZE,
         HEAD_DIM,
         GROUP_SIZE,
+        TOKEN_GROUP_SIZE,
         LEAF_CAPACITY,
         LEAF_K_BATCH_STRIDE,
         LEAF_K_HEAD_STRIDE,
@@ -2907,6 +2933,7 @@ def _quantize_all_virtual_pages_kernel(
         kv_row,
         page_id,
         group,
+        token_group,
         pair_offset,
         even_dimension,
         odd_dimension,
@@ -2914,6 +2941,7 @@ def _quantize_all_virtual_pages_kernel(
         PAGE_SIZE,
         VALUE_DIM,
         GROUP_SIZE,
+        TOKEN_GROUP_SIZE,
         LEAF_CAPACITY,
         LEAF_V_BATCH_STRIDE,
         LEAF_V_HEAD_STRIDE,
@@ -2924,7 +2952,7 @@ def _quantize_all_virtual_pages_kernel(
     tl.store(
         page_quantized_counts + page_row,
         page_count,
-        mask=refresh & (group == 0),
+        mask=refresh & (scale_group == 0),
     )
 
 
@@ -2954,6 +2982,8 @@ def _requantize_appended_virtual_page_tensor(
     PAGE_CAPACITY: tl.constexpr,
     DIMENSION_SIZE: tl.constexpr,
     GROUP_SIZE: tl.constexpr,
+    PAGE_SIZE: tl.constexpr,
+    TOKEN_GROUP_SIZE: tl.constexpr,
     LEAF_CAPACITY: tl.constexpr,
     SOURCE_TOKEN_COUNT: tl.constexpr,
     SOURCE_BATCH_STRIDE,
@@ -2965,6 +2995,7 @@ def _requantize_appended_virtual_page_tensor(
     OPTIMIZE_LEAF_SCALE: tl.constexpr,
 ):
     """Requantize one changed page from old quantized and exact new leaves."""
+    token_offset = tl.arange(0, PAGE_SIZE)
     valid_even = valid_token[:, None] & (even_dimension[None, :] < DIMENSION_SIZE)
     valid_odd = valid_token[:, None] & (odd_dimension[None, :] < DIMENSION_SIZE)
     old_even_valid = valid_even & old_token[:, None]
@@ -3042,9 +3073,13 @@ def _requantize_appended_virtual_page_tensor(
         ).to(tl.float32)
     old_scale = tl.load(
         scales
-        + (kv_row * PAGE_CAPACITY + page_id) * (DIMENSION_SIZE // GROUP_SIZE)
+        + (
+            (kv_row * PAGE_CAPACITY + page_id) * (PAGE_SIZE // TOKEN_GROUP_SIZE)
+            + token_offset[:, None] // TOKEN_GROUP_SIZE
+        )
+        * (DIMENSION_SIZE // GROUP_SIZE)
         + group,
-        mask=refresh & (old_count > 0),
+        mask=old_even_valid,
         other=0.0,
     ).to(tl.float32)
     old_even = old_even_sum * old_inverse_count + old_even_code * old_scale
@@ -3155,58 +3190,27 @@ def _requantize_appended_virtual_page_tensor(
     inverse_count = 1.0 / tl.maximum(new_count.to(tl.float32), 1.0)
     even_residual = even - new_even_sum[None, :] * inverse_count
     odd_residual = odd - new_odd_sum[None, :] * inverse_count
-    even_max = tl.max(
-        tl.max(tl.where(valid_even, tl.abs(even_residual), 0.0), axis=1),
-        axis=0,
-    )
-    odd_max = tl.max(
-        tl.max(tl.where(valid_odd, tl.abs(odd_residual), 0.0), axis=1),
-        axis=0,
-    )
     quant_max: tl.constexpr = (1 << (QUANT_BITS - 1)) - 1
-    scale = tl.maximum(tl.maximum(even_max, odd_max) / quant_max, 1.0e-8)
-    even_code_float = tl.maximum(
-        tl.minimum(tl.floor(even_residual / scale + 0.5), quant_max),
-        -quant_max,
-    )
-    odd_code_float = tl.maximum(
-        tl.minimum(tl.floor(odd_residual / scale + 0.5), quant_max),
-        -quant_max,
-    )
-    if OPTIMIZE_LEAF_SCALE:
-        denominator = tl.sum(
-            tl.sum(
-                tl.where(valid_even, even_code_float * even_code_float, 0.0),
-                axis=1,
+    for token_group in tl.static_range(0, PAGE_SIZE // TOKEN_GROUP_SIZE):
+        in_token_group = (
+            (token_offset >= token_group * TOKEN_GROUP_SIZE)
+            & (token_offset < (token_group + 1) * TOKEN_GROUP_SIZE)
+        )
+        group_valid_even = valid_even & in_token_group[:, None]
+        group_valid_odd = valid_odd & in_token_group[:, None]
+        even_max = tl.max(
+            tl.max(
+                tl.where(group_valid_even, tl.abs(even_residual), 0.0), axis=1
             ),
             axis=0,
         )
-        denominator += tl.sum(
-            tl.sum(
-                tl.where(valid_odd, odd_code_float * odd_code_float, 0.0),
-                axis=1,
+        odd_max = tl.max(
+            tl.max(
+                tl.where(group_valid_odd, tl.abs(odd_residual), 0.0), axis=1
             ),
             axis=0,
         )
-        numerator = tl.sum(
-            tl.sum(
-                tl.where(valid_even, even_residual * even_code_float, 0.0),
-                axis=1,
-            ),
-            axis=0,
-        )
-        numerator += tl.sum(
-            tl.sum(
-                tl.where(valid_odd, odd_residual * odd_code_float, 0.0),
-                axis=1,
-            ),
-            axis=0,
-        )
-        scale = tl.where(
-            denominator > 0.0,
-            tl.maximum(numerator / denominator, 1.0e-8),
-            scale,
-        )
+        scale = tl.maximum(tl.maximum(even_max, odd_max) / quant_max, 1.0e-8)
         even_code_float = tl.maximum(
             tl.minimum(tl.floor(even_residual / scale + 0.5), quant_max),
             -quant_max,
@@ -3215,65 +3219,144 @@ def _requantize_appended_virtual_page_tensor(
             tl.minimum(tl.floor(odd_residual / scale + 0.5), quant_max),
             -quant_max,
         )
-        denominator = tl.sum(
-            tl.sum(
-                tl.where(valid_even, even_code_float * even_code_float, 0.0),
-                axis=1,
-            ),
-            axis=0,
-        )
-        denominator += tl.sum(
-            tl.sum(
-                tl.where(valid_odd, odd_code_float * odd_code_float, 0.0),
-                axis=1,
-            ),
-            axis=0,
-        )
-        numerator = tl.sum(
-            tl.sum(
-                tl.where(valid_even, even_residual * even_code_float, 0.0),
-                axis=1,
-            ),
-            axis=0,
-        )
-        numerator += tl.sum(
-            tl.sum(
-                tl.where(valid_odd, odd_residual * odd_code_float, 0.0),
-                axis=1,
-            ),
-            axis=0,
-        )
-        scale = tl.where(
-            denominator > 0.0,
-            tl.maximum(numerator / denominator, 1.0e-8),
+        if OPTIMIZE_LEAF_SCALE:
+            denominator = tl.sum(
+                tl.sum(
+                    tl.where(
+                        group_valid_even,
+                        even_code_float * even_code_float,
+                        0.0,
+                    ),
+                    axis=1,
+                ),
+                axis=0,
+            )
+            denominator += tl.sum(
+                tl.sum(
+                    tl.where(
+                        group_valid_odd,
+                        odd_code_float * odd_code_float,
+                        0.0,
+                    ),
+                    axis=1,
+                ),
+                axis=0,
+            )
+            numerator = tl.sum(
+                tl.sum(
+                    tl.where(
+                        group_valid_even,
+                        even_residual * even_code_float,
+                        0.0,
+                    ),
+                    axis=1,
+                ),
+                axis=0,
+            )
+            numerator += tl.sum(
+                tl.sum(
+                    tl.where(
+                        group_valid_odd,
+                        odd_residual * odd_code_float,
+                        0.0,
+                    ),
+                    axis=1,
+                ),
+                axis=0,
+            )
+            scale = tl.where(
+                denominator > 0.0,
+                tl.maximum(numerator / denominator, 1.0e-8),
+                scale,
+            )
+            even_code_float = tl.maximum(
+                tl.minimum(tl.floor(even_residual / scale + 0.5), quant_max),
+                -quant_max,
+            )
+            odd_code_float = tl.maximum(
+                tl.minimum(tl.floor(odd_residual / scale + 0.5), quant_max),
+                -quant_max,
+            )
+            denominator = tl.sum(
+                tl.sum(
+                    tl.where(
+                        group_valid_even,
+                        even_code_float * even_code_float,
+                        0.0,
+                    ),
+                    axis=1,
+                ),
+                axis=0,
+            )
+            denominator += tl.sum(
+                tl.sum(
+                    tl.where(
+                        group_valid_odd,
+                        odd_code_float * odd_code_float,
+                        0.0,
+                    ),
+                    axis=1,
+                ),
+                axis=0,
+            )
+            numerator = tl.sum(
+                tl.sum(
+                    tl.where(
+                        group_valid_even,
+                        even_residual * even_code_float,
+                        0.0,
+                    ),
+                    axis=1,
+                ),
+                axis=0,
+            )
+            numerator += tl.sum(
+                tl.sum(
+                    tl.where(
+                        group_valid_odd,
+                        odd_residual * odd_code_float,
+                        0.0,
+                    ),
+                    axis=1,
+                ),
+                axis=0,
+            )
+            scale = tl.where(
+                denominator > 0.0,
+                tl.maximum(numerator / denominator, 1.0e-8),
+                scale,
+            )
+        if QUANT_BITS == 4:
+            even_code = even_code_float.to(tl.int32) + 8
+            odd_code = odd_code_float.to(tl.int32) + 8
+            tl.store(
+                destination_base,
+                (even_code | (odd_code << 4)).to(tl.uint8),
+                mask=group_valid_even,
+            )
+        else:
+            tl.store(
+                destination_base + even_dimension[None, :],
+                even_code_float.to(tl.int8),
+                mask=group_valid_even,
+            )
+            tl.store(
+                destination_base + odd_dimension[None, :],
+                odd_code_float.to(tl.int8),
+                mask=group_valid_odd,
+            )
+        tl.store(
+            scales
+            + (
+                (kv_row * PAGE_CAPACITY + page_id)
+                * (PAGE_SIZE // TOKEN_GROUP_SIZE)
+                + token_group
+            )
+            * (DIMENSION_SIZE // GROUP_SIZE)
+            + group,
             scale,
+            mask=refresh,
         )
-    if QUANT_BITS == 4:
-        even_code = even_code_float.to(tl.int32) + 8
-        odd_code = odd_code_float.to(tl.int32) + 8
-        tl.store(
-            destination_base,
-            (even_code | (odd_code << 4)).to(tl.uint8),
-            mask=valid_even,
-        )
-    else:
-        tl.store(
-            destination_base + even_dimension[None, :],
-            even_code_float.to(tl.int8),
-            mask=valid_even,
-        )
-        tl.store(
-            destination_base + odd_dimension[None, :],
-            odd_code_float.to(tl.int8),
-            mask=valid_odd,
-        )
-    tl.store(
-        scales
-        + (kv_row * PAGE_CAPACITY + page_id) * (DIMENSION_SIZE // GROUP_SIZE)
-        + group,
-        scale,
-        mask=refresh,
-    )
 
 
 @triton.jit(
@@ -3315,6 +3398,7 @@ def _append_quantized_virtual_pages_kernel(
     HEAD_DIM: tl.constexpr,
     VALUE_DIM: tl.constexpr,
     GROUP_SIZE: tl.constexpr,
+    TOKEN_GROUP_SIZE: tl.constexpr,
     LEAF_CAPACITY: tl.constexpr,
     APPEND_K_BATCH_STRIDE,
     APPEND_K_HEAD_STRIDE,
@@ -3397,6 +3481,8 @@ def _append_quantized_virtual_pages_kernel(
         PAGE_CAPACITY,
         HEAD_DIM,
         GROUP_SIZE,
+        PAGE_SIZE,
+        TOKEN_GROUP_SIZE,
         LEAF_CAPACITY,
         TOKENS,
         APPEND_K_BATCH_STRIDE,
@@ -3432,6 +3518,8 @@ def _append_quantized_virtual_pages_kernel(
         PAGE_CAPACITY,
         VALUE_DIM,
         GROUP_SIZE,
+        PAGE_SIZE,
+        TOKEN_GROUP_SIZE,
         LEAF_CAPACITY,
         TOKENS,
         APPEND_V_BATCH_STRIDE,
@@ -6076,6 +6164,7 @@ def _query_major_residual_page_attention_kernel(
     LEAF_V_TOKEN_STRIDE,
     LEAF_CAPACITY,
     QUANT_GROUP_SIZE: tl.constexpr,
+    QUANT_TOKEN_GROUP_SIZE: tl.constexpr,
     QUANT_BITS: tl.constexpr,
     QUANTIZED_SUMMARIES: tl.constexpr,
     MATERIALIZED_PAGE_SCORES: tl.constexpr,
@@ -6419,30 +6508,74 @@ def _query_major_residual_page_attention_kernel(
                         & (value_offset[None, :] < VALUE_DIM),
                         other=0,
                     ).to(tl.int32)
-                key_scale = tl.load(
-                    page_k_scales
-                    + (kv_row * PAGE_CAPACITY + selected_page)
-                    * (HEAD_DIM // QUANT_GROUP_SIZE)
-                    + head_offset // QUANT_GROUP_SIZE,
-                    mask=head_offset < HEAD_DIM,
-                    other=0.0,
-                ).to(tl.float32)
-                value_scale = tl.load(
-                    page_v_scales
-                    + (kv_row * PAGE_CAPACITY + selected_page)
-                    * (VALUE_DIM // QUANT_GROUP_SIZE)
-                    + value_offset // QUANT_GROUP_SIZE,
-                    mask=value_offset < VALUE_DIM,
-                    other=0.0,
-                ).to(tl.float32)
-                quantized_keys = (
-                    selected_key_sum / selected_count
-                    + key_code.to(tl.float32) * key_scale
-                )
-                quantized_values = (
-                    selected_value_sum / selected_count
-                    + value_code.to(tl.float32) * value_scale
-                )
+                if QUANT_TOKEN_GROUP_SIZE == PAGE_SIZE:
+                    # Keep the original broadcast load for the legacy layout.
+                    # Besides avoiding redundant scale traffic, this preserves
+                    # the exact reduction numerics of the established kernel.
+                    key_scale = tl.load(
+                        page_k_scales
+                        + (kv_row * PAGE_CAPACITY + selected_page)
+                        * (HEAD_DIM // QUANT_GROUP_SIZE)
+                        + head_offset // QUANT_GROUP_SIZE,
+                        mask=head_offset < HEAD_DIM,
+                        other=0.0,
+                    ).to(tl.float32)
+                    value_scale = tl.load(
+                        page_v_scales
+                        + (kv_row * PAGE_CAPACITY + selected_page)
+                        * (VALUE_DIM // QUANT_GROUP_SIZE)
+                        + value_offset // QUANT_GROUP_SIZE,
+                        mask=value_offset < VALUE_DIM,
+                        other=0.0,
+                    ).to(tl.float32)
+                else:
+                    key_scale_row = (
+                        (kv_row * PAGE_CAPACITY + selected_page)
+                        * (PAGE_SIZE // QUANT_TOKEN_GROUP_SIZE)
+                        + token_offset // QUANT_TOKEN_GROUP_SIZE
+                    ) * (HEAD_DIM // QUANT_GROUP_SIZE)
+                    value_scale_row = (
+                        (kv_row * PAGE_CAPACITY + selected_page)
+                        * (PAGE_SIZE // QUANT_TOKEN_GROUP_SIZE)
+                        + token_offset // QUANT_TOKEN_GROUP_SIZE
+                    ) * (VALUE_DIM // QUANT_GROUP_SIZE)
+                    if QUANT_GROUP_SIZE == HEAD_DIM:
+                        # Token-wise, whole-vector INT4 has one scale per key.
+                        # Load it once and broadcast in registers rather than
+                        # issuing HEAD_DIM identical scale loads per token.
+                        key_scale = tl.load(
+                            page_k_scales + key_scale_row,
+                            mask=valid_token,
+                            other=0.0,
+                        ).to(tl.float32)[:, None]
+                    else:
+                        key_scale = tl.load(
+                            page_k_scales
+                            + key_scale_row[:, None]
+                            + head_offset[None, :] // QUANT_GROUP_SIZE,
+                            mask=valid_token[:, None]
+                            & (head_offset[None, :] < HEAD_DIM),
+                            other=0.0,
+                        ).to(tl.float32)
+                    if QUANT_GROUP_SIZE == VALUE_DIM:
+                        value_scale = tl.load(
+                            page_v_scales + value_scale_row,
+                            mask=valid_token,
+                            other=0.0,
+                        ).to(tl.float32)[:, None]
+                    else:
+                        value_scale = tl.load(
+                            page_v_scales
+                            + value_scale_row[:, None]
+                            + value_offset[None, :] // QUANT_GROUP_SIZE,
+                            mask=valid_token[:, None]
+                            & (value_offset[None, :] < VALUE_DIM),
+                            other=0.0,
+                        ).to(tl.float32)
+                key_residual = key_code.to(tl.float32) * key_scale
+                value_residual = value_code.to(tl.float32) * value_scale
+                quantized_keys = selected_key_sum / selected_count + key_residual
+                quantized_values = selected_value_sum / selected_count + value_residual
             else:
                 use_quantized = tl.full((PAGE_SIZE,), False, tl.int1)
                 quantized_keys = tl.zeros((HEAD_BLOCK_DIM,), tl.float32)
@@ -6963,6 +7096,7 @@ def query_major_residual_page_attention(
     page_sum_k_scales: torch.Tensor | None = None,
     page_sum_v_scales: torch.Tensor | None = None,
     quant_group_size: int = 32,
+    quant_token_group_size: int = 16,
     quant_bits: int = 4,
     output_buffer: torch.Tensor | None = None,
     lse_buffer: torch.Tensor | None = None,
@@ -7059,6 +7193,8 @@ def query_major_residual_page_attention(
         raise ValueError("query/KV head grouping is inconsistent")
     if quantized and (head_dim % quant_group_size or value_dim % quant_group_size):
         raise ValueError("quantization group size must divide K/V dimensions")
+    if quantized and int(page_indices.size(3)) % quant_token_group_size:
+        raise ValueError("token quantization group size must divide the page size")
     if quantized:
         expected_k_width = head_dim // 2 if quant_bits == 4 else head_dim
         expected_v_width = value_dim // 2 if quant_bits == 4 else value_dim
@@ -7073,6 +7209,20 @@ def query_major_residual_page_attention(
             int(quantized_leaf_v.size(-1)) != expected_v_width
         ):
             raise ValueError("quantized leaf widths do not match K/V dimensions")
+        token_group_count = int(page_indices.size(3)) // quant_token_group_size
+        expected_k_scales = (
+            cache_batch_size,
+            kv_heads,
+            int(page_indices.size(2)),
+            token_group_count * (head_dim // quant_group_size),
+        )
+        expected_v_scales = expected_k_scales[:-1] + (
+            token_group_count * (value_dim // quant_group_size),
+        )
+        if tuple(page_k_scales.shape) != expected_k_scales:
+            raise ValueError("quantized leaf K scales do not match the cache")
+        if tuple(page_v_scales.shape) != expected_v_scales:
+            raise ValueError("quantized leaf V scales do not match the cache")
     if int(page_shape[3]) != 16:
         raise ValueError("residual-page attention requires 16-token pages")
     expected_k_summary = (
@@ -7196,6 +7346,7 @@ def query_major_residual_page_attention(
             int(quantized_leaf_k.size(2)) if quantized else int(storage_k.size(2))
         ),
         QUANT_GROUP_SIZE=quant_group_size,
+        QUANT_TOKEN_GROUP_SIZE=quant_token_group_size,
         QUANT_BITS=quant_bits if quantized else 0,
         QUANTIZED_SUMMARIES=quantized_summaries,
         MATERIALIZED_PAGE_SCORES=materialized_page_scores is not None,
@@ -15186,6 +15337,7 @@ def fused_decode_paged_lod_attention(
     flat_page_k_scales: torch.Tensor | None = None,
     flat_page_v_scales: torch.Tensor | None = None,
     recursive_quant_group_size: int = 32,
+    recursive_quant_token_group_size: int = 16,
     recursive_materialize_page_scores: bool = False,
     recursive_page_score_block_n: int = 16,
     recursive_page_score_num_warps: int = 2,
@@ -16687,6 +16839,7 @@ def fused_decode_paged_lod_attention(
                     cache_tensor("page_sum_v_scales") if quantized_summaries else None
                 ),
                 quant_group_size=recursive_quant_group_size,
+                quant_token_group_size=recursive_quant_token_group_size,
                 quant_bits=int(recursive_page_cache.get("leaf_quant_bits", 4)),
                 output_buffer=partial_out,
                 lse_buffer=partial_lse,
@@ -20865,6 +21018,7 @@ def append_virtual_paged_kv(
     page_v_scales: torch.Tensor | None = None,
     page_quantized_counts: torch.Tensor | None = None,
     quant_group_size: int = 32,
+    quant_token_group_size: int = 16,
     quant_bits: int = 4,
     quantize_touched: bool = True,
     optimize_scale: bool = False,
@@ -21110,6 +21264,9 @@ def append_virtual_paged_kv(
             )
         if quant_group_size % 2:
             raise ValueError("virtual quantization group size must be even")
+        page_size = int(page_indices.size(3))
+        if page_size % quant_token_group_size:
+            raise ValueError("token quantization group size must divide the page size")
         key_width = head_dim // 2 if quant_bits == 4 else head_dim
         value_width = (
             int(leaf_v.size(-1)) // 2 if quant_bits == 4 else int(leaf_v.size(-1))
@@ -21130,11 +21287,14 @@ def append_virtual_paged_kv(
         ):
             raise ValueError("quantized virtual V does not match the flat cache")
         if quantize_touched:
-            group_count = max(
+            channel_group_count = max(
                 head_dim // quant_group_size,
                 int(leaf_v.size(-1)) // quant_group_size,
             )
-            _quantize_touched_virtual_pages_kernel[(token_rows, group_count)](
+            token_group_count = page_size // quant_token_group_size
+            _quantize_touched_virtual_pages_kernel[
+                (token_rows, channel_group_count * token_group_count)
+            ](
                 owners,
                 ordinals,
                 slot_pages,
@@ -21164,6 +21324,8 @@ def append_virtual_paged_kv(
                 HEAD_DIM=head_dim,
                 VALUE_DIM=int(leaf_v.size(-1)),
                 GROUP_SIZE=quant_group_size,
+                TOKEN_GROUP_SIZE=quant_token_group_size,
+                CHANNEL_GROUP_COUNT=channel_group_count,
                 LEAF_CAPACITY=int(quantized_leaf_k.size(2)),
                 LEAF_K_BATCH_STRIDE=int(leaf_k.stride(0)),
                 LEAF_K_HEAD_STRIDE=int(leaf_k.stride(1)),
@@ -21279,6 +21441,7 @@ def quantize_virtual_paged_kv(
     page_quantized_counts: torch.Tensor,
     *,
     quant_group_size: int = 32,
+    quant_token_group_size: int = 16,
     quant_bits: int = 4,
     optimize_scale: bool = False,
 ) -> None:
@@ -21309,11 +21472,30 @@ def quantize_virtual_paged_kv(
     ):
         raise ValueError("quantized virtual cache layout does not match quant_bits")
     page_capacity = int(page_indices.size(2))
-    group_count = max(
+    page_size = int(page_indices.size(3))
+    if page_size % quant_token_group_size:
+        raise ValueError("token quantization group size must divide the page size")
+    channel_group_count = max(
         head_dim // quant_group_size,
         value_dim // quant_group_size,
     )
-    _quantize_all_virtual_pages_kernel[(batch * kv_heads * page_capacity, group_count)](
+    token_group_count = page_size // quant_token_group_size
+    expected_k_scales = (
+        batch,
+        kv_heads,
+        page_capacity,
+        token_group_count * (head_dim // quant_group_size),
+    )
+    expected_v_scales = expected_k_scales[:-1] + (
+        token_group_count * (value_dim // quant_group_size),
+    )
+    if tuple(page_k_scales.shape) != expected_k_scales:
+        raise ValueError("virtual K scale layout does not match token groups")
+    if tuple(page_v_scales.shape) != expected_v_scales:
+        raise ValueError("virtual V scale layout does not match token groups")
+    _quantize_all_virtual_pages_kernel[
+        (batch * kv_heads * page_capacity, channel_group_count * token_group_count)
+    ](
         page_indices,
         leaf_k,
         leaf_v,
@@ -21331,6 +21513,8 @@ def quantize_virtual_paged_kv(
         HEAD_DIM=head_dim,
         VALUE_DIM=value_dim,
         GROUP_SIZE=quant_group_size,
+        TOKEN_GROUP_SIZE=quant_token_group_size,
+        CHANNEL_GROUP_COUNT=channel_group_count,
         LEAF_CAPACITY=leaf_capacity,
         LEAF_K_BATCH_STRIDE=int(leaf_k.stride(0)),
         LEAF_K_HEAD_STRIDE=int(leaf_k.stride(1)),
@@ -21368,6 +21552,7 @@ def append_quantized_virtual_paged_kv(
     *,
     hash_probes: int = 8,
     quant_group_size: int = 32,
+    quant_token_group_size: int = 16,
     quant_bits: int = 4,
     quantized_page_sum_k: torch.Tensor | None = None,
     quantized_page_sum_v: torch.Tensor | None = None,
@@ -21393,6 +21578,23 @@ def append_quantized_virtual_paged_kv(
         raise ValueError("virtual quantization group size must divide K/V dimensions")
     if quant_bits not in (4, 8):
         raise ValueError("virtual leaf storage supports 4 or 8 bits")
+    page_size = int(page_indices.size(3))
+    if page_size % quant_token_group_size:
+        raise ValueError("token quantization group size must divide the page size")
+    token_group_count = page_size // quant_token_group_size
+    expected_k_scales = (
+        batch,
+        kv_heads,
+        int(page_indices.size(2)),
+        token_group_count * (head_dim // quant_group_size),
+    )
+    expected_v_scales = expected_k_scales[:-1] + (
+        token_group_count * (value_dim // quant_group_size),
+    )
+    if tuple(page_k_scales.shape) != expected_k_scales:
+        raise ValueError("quantized append K scales do not match token groups")
+    if tuple(page_v_scales.shape) != expected_v_scales:
+        raise ValueError("quantized append V scales do not match token groups")
     key_width = head_dim // 2 if quant_bits == 4 else head_dim
     value_width = value_dim // 2 if quant_bits == 4 else value_dim
     code_dtype = torch.uint8 if quant_bits == 4 else torch.int8
@@ -21486,6 +21688,7 @@ def append_quantized_virtual_paged_kv(
         HEAD_DIM=head_dim,
         VALUE_DIM=value_dim,
         GROUP_SIZE=quant_group_size,
+        TOKEN_GROUP_SIZE=quant_token_group_size,
         LEAF_CAPACITY=leaf_capacity,
         APPEND_K_BATCH_STRIDE=int(append_k.stride(0)),
         APPEND_K_HEAD_STRIDE=int(append_k.stride(1)),
