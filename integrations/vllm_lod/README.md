@@ -201,9 +201,10 @@ VLLM_LOD_DECODE_GQA_FIXED_MASK_AITER=1
 
 Leave `VLLM_LOD_DECODE_HIERARCHICAL_ROUTE` unset so geometry dispatch selects
 Muse's validated segmented route and the grouped route on the other rows.
-Also leave `VLLM_LOD_ROUTING_GEOMETRY` unset to use the current automatic
-spherical/coherence-aware policy. Setting it to `raw` reproduces the archived
-August 25 two-tier control rather than the current table.
+Set `VLLM_LOD_ROUTING_GEOMETRY=auto` to use the current automatic
+spherical/coherence-aware policy. Leaving it unset selects the conservative
+`raw` default and reproduces the archived August 25 routing geometry rather
+than the current table.
 
 The optional static 64K speed diagnostic instead adds:
 
@@ -242,6 +243,47 @@ The reference artifacts are:
 - `artifacts/three_tier_refresh_qwen08_20260826/README.md`,
   `artifacts/three_tier_resplit_family_20260826/README.md`, and
   `artifacts/three_tier_phi_prefill_20260826/README.md` for three-tier.
+
+### Memory-balanced precision policy
+
+The speed table above remains BF16 so it compares the latency-first paths.
+For Qwen, Gemma, and Muse recursive three-tier serving,
+`VLLM_LOD_KV_BITS=8` is the validated memory-balanced format. At 64K/B8 it
+reduces persistent LOD cache by 42.7% on both Qwen models, 43.3% on Gemma, and
+41.6% on Muse. Relative to matched BF16 runs, decode changes by +1.0% on
+Qwen3.5-0.8B, +0.6% on Qwen3.8-27B, -0.7% on Gemma, and +0.2% on Muse. Prefill
+changes by -5.2%, +4.2%, +8.7%, and +0.05%, respectively. Gemma should
+therefore retain BF16 when prefill latency is the priority and use INT8 when
+capacity is the priority; Muse INT8 is tied with BF16 for both phases.
+
+Qwen3.5-0.8B retained 64/64 NIAH-S3 in both formats and its eight-example 8K
+ProLong CE was 1.923225 BF16 versus 1.923071 INT8. Gemma retained 8/8 in the
+matched 64K NIAH-S3 smoke check, and Qwen3.8 INT8 also passed its 8/8 smoke
+check. Muse INT8 retained the full 64/64 score of its BF16 reference. Enable
+the memory-balanced recursive path explicitly:
+
+```bash
+VLLM_LOD_LEVELS=3
+VLLM_LOD_KV_BITS=8
+VLLM_LOD_ROUTING_GEOMETRY=auto
+```
+
+The current fastest two-tier fixed-list page-size-one path remains BF16. Its
+persistent metadata does not yet accept INT8; generic two-tier INT8 is only
+0.8% slower than generic BF16 in matched decode, but falls onto a pathway that
+is 33% slower than fixed-list BF16. Expanding INT8 into BF16 before attention
+would add a full-cache read and write, lose the bandwidth saving, and either
+consume the saved memory persistently or reintroduce per-query compaction.
+Direct INT8 support in the fixed-list consumer is the appropriate future
+two-tier change.
+
+A hindsight profile over every prefill query in one real 64K Qwen3.5-0.8B
+ProLong document found that 92.77% of leaf bytes belonged to centroids opened
+at least once. Evicting the remaining 7.23% cannot be decided safely in
+advance; compressing only that subset from INT8 to INT4 would save at most a
+further 3.6% of leaf bytes before mixed-format overhead. Cold-centroid
+eviction is therefore not enabled. Full paired measurements and the profile
+are in `artifacts/int8_best_tiers_20260827/README.md`.
 
 The route-pair
 harness `scripts/run_vllm_lod_decode_route_pair.sh` fails after a run unless

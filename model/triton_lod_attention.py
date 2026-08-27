@@ -4183,6 +4183,15 @@ class TritonLODAttentionCore(nn.Module):
             logits[..., :protected_len] = float("-inf")
             top_slots = logits.topk(route_count, dim=-1, sorted=False).indices
             if getattr(self, "_lod_collect_stats", False):
+                self._lod_ever_selected_slots.scatter_(
+                    -1,
+                    top_slots.reshape(
+                        int(top_slots.size(0)),
+                        int(top_slots.size(1)),
+                        -1,
+                    ),
+                    True,
+                )
                 expanded_counts = query_counts.unsqueeze(2).expand(
                     -1, -1, int(q.size(2)), -1
                 )
@@ -7500,6 +7509,14 @@ class TritonLODAttentionCore(nn.Module):
             )
             initial_counts.masked_fill_(initial_valid[:, None, :, None], 1.0)
         state_capacity = self._state_capacity(prefill_len, initial_state_len)
+        if getattr(self, "_lod_collect_stats", False):
+            self._lod_ever_selected_slots = torch.zeros(
+                batch_size,
+                self.config.num_attention_heads,
+                state_capacity,
+                dtype=torch.bool,
+                device=k.device,
+            )
         state_k = _pad_sequence(initial_state_k, state_capacity).clone()
         state_v = _pad_sequence(initial_state_v, state_capacity).clone()
         counts = torch.zeros(
