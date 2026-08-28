@@ -50,6 +50,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--leaf-num-warps", type=int, default=1)
     parser.add_argument("--page-summary-quant-bits", type=int, choices=(0, 8), default=8)
     parser.add_argument("--state-growth-factor", type=float, default=16.0)
+    parser.add_argument(
+        "--state-premerge-factor",
+        type=int,
+        choices=(1, 2, 4, 8, 16, 32),
+        default=1,
+    )
     parser.add_argument("--prefill-chunk-length", type=int)
     parser.add_argument("--prefill-local-length", type=int)
     parser.add_argument(
@@ -106,6 +112,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--coarse-route-block-n", type=int, default=32)
     parser.add_argument("--coarse-route-num-warps", type=int, default=4)
     parser.add_argument("--prefill-coarse-max-grouped-rows", type=int, default=8)
+    parser.add_argument("--prefill-coarse-route-block-n", type=int, default=32)
+    parser.add_argument("--prefill-coarse-route-num-warps", type=int, default=8)
+    parser.add_argument(
+        "--prefill-coarse-direct-gqa",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+    )
     parser.add_argument("--route-gqa-matmul", action="store_true")
     parser.add_argument("--repeats", type=int, default=1)
     parser.add_argument("--check-phase-finite", action="store_true")
@@ -185,9 +198,11 @@ def install_timers(
 def main() -> None:
     args = parse_args()
     if args.prefill_two_level_topk is not None and not (
-        0 <= args.prefill_two_level_topk <= 8
+        0 <= args.prefill_two_level_topk <= 32
     ):
-        raise ValueError("prefill top-k must be in [0, 8]")
+        raise ValueError("prefill top-k must be in [0, 32]")
+    if not 0 <= args.two_level_topk <= 32:
+        raise ValueError("decode top-k must be in [0, 32]")
     device = torch.device("cuda", 0)
     torch.cuda.set_device(device)
     model = load_text_model(
@@ -214,6 +229,7 @@ def main() -> None:
     if args.disable_fused_state_update and args.enable_fused_state_update:
         raise ValueError("state update cannot be both enabled and disabled")
     for module in modules:
+        module.state_premerge_factor = args.state_premerge_factor
         module.prefill_two_level_topk = args.prefill_two_level_topk
         module.prefill_max_leaf_tokens = args.prefill_max_leaf_tokens
         module.recursive_page_lod = args.recursive_page_lod
@@ -277,6 +293,9 @@ def main() -> None:
         module.coarse_route_block_n = args.coarse_route_block_n
         module.coarse_route_num_warps = args.coarse_route_num_warps
         module.prefill_coarse_max_grouped_rows = args.prefill_coarse_max_grouped_rows
+        module.prefill_coarse_route_block_n = args.prefill_coarse_route_block_n
+        module.prefill_coarse_route_num_warps = args.prefill_coarse_route_num_warps
+        module.prefill_coarse_direct_gqa = args.prefill_coarse_direct_gqa
         module.route_gqa_matmul = args.route_gqa_matmul
 
     with torch.inference_mode():
@@ -342,6 +361,7 @@ def main() -> None:
         "sequence_length": args.sequence_length,
         "batch_size": args.batch_size,
         "state_growth_factor": args.state_growth_factor,
+        "state_premerge_factor": args.state_premerge_factor,
         "prefill_chunk_length": args.prefill_chunk_length,
         "prefill_local_length": args.prefill_local_length,
         "prefill_local_attention_backend": args.prefill_local_attention_backend,
@@ -400,6 +420,9 @@ def main() -> None:
         "coarse_route_block_n": args.coarse_route_block_n,
         "coarse_route_num_warps": args.coarse_route_num_warps,
         "prefill_coarse_max_grouped_rows": args.prefill_coarse_max_grouped_rows,
+        "prefill_coarse_route_block_n": args.prefill_coarse_route_block_n,
+        "prefill_coarse_route_num_warps": args.prefill_coarse_route_num_warps,
+        "prefill_coarse_direct_gqa": args.prefill_coarse_direct_gqa,
         "route_gqa_matmul": args.route_gqa_matmul,
         "repeats": args.repeats,
         "attention_layers": len(modules),

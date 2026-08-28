@@ -42,6 +42,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--sequence-length", type=int, default=32768)
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--state-growth-factor", type=float, default=8.0)
+    parser.add_argument(
+        "--state-premerge-factor",
+        type=int,
+        choices=(1, 2, 4, 8, 16, 32),
+        default=1,
+    )
     parser.add_argument("--prefill-two-level-topk", type=int, default=3)
     parser.add_argument("--block-m", type=int, default=16)
     parser.add_argument("--block-n", type=int, default=64)
@@ -216,6 +222,7 @@ def main() -> None:
         if isinstance(module, Qwen3_5TwoLevelAttention)
     ]
     for module in modules:
+        module.state_premerge_factor = args.state_premerge_factor
         module.prefill_two_level_topk = args.prefill_two_level_topk
         module.leaf_block_m = args.block_m
         module.leaf_block_n = args.block_n
@@ -270,6 +277,8 @@ def main() -> None:
     record = {
         "sequence_length": args.sequence_length,
         "batch_size": args.batch_size,
+        "state_growth_factor": args.state_growth_factor,
+        "state_premerge_factor": args.state_premerge_factor,
         "attention_layers": len(modules),
         "prefill_two_level_topk": args.prefill_two_level_topk,
         "block_m": args.block_m,

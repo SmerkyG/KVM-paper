@@ -54,7 +54,23 @@ option requires two-level BF16 GQA-union decode with
 `VLLM_LOD_DECODE_GQA_FIXED_MASK_BLOCK_N` selects the experimental fast-fail
 tile width (16, 64, or 128; default 64), and
 `VLLM_LOD_DECODE_GQA_FIXED_MASK_SEGMENTS` selects 8--512 split segments
-(default 128).
+(default 128). For low-row decode,
+`VLLM_LOD_DECODE_GQA_FIXED_MASK_ADAPTIVE_SEGMENTS=1` selects 256 segments when
+the local rank has at most eight real query rows and 128 otherwise.
+`VLLM_LOD_DECODE_GQA_FIXED_MASK_REDUCE_BLOCK_D=64` splits the formerly
+one-program-per-query-head FP32 segment reduction across output dimensions; it
+is applied only in that same at-most-eight-row regime. The two settings are
+intended to be enabled together. The split also applies to predicted-mass
+decode: only D partition zero persists the remote-coarse LSE and advances the
+next-token route epoch, while all partitions reduce disjoint output channels.
+In the low-row regime, the fixed scan also automatically uses one warp and one
+wave per EU; the batch-eight launch remains at the configured two/two default.
+Fixed-mask top-eight decode uses direct route activation by default. Its route
+programs update the persistent mask directly; duplicate writes are idempotent,
+so the separate compact GQA-union launch and barrier are unnecessary at any
+batch size. Set `VLLM_LOD_DECODE_GQA_FIXED_MASK_DIRECT_ROUTES=0` only for an
+old-path control. Direct activation is exact and does not change centroid
+selection.
 
 `VLLM_LOD_DECODE_ROUTE_COHORT=1` restricts dynamic top-k or mass-cutoff
 routing to centroids in the same small-posting-list cohort used by the static
@@ -66,7 +82,10 @@ selects one through eight routes for top-k experiments.  Predicted-mass decode
 instead uses `VLLM_LOD_DECODE_GQA_PREDICTED_MASS=1` and
 `VLLM_LOD_DECODE_GQA_MASS_FRACTION`; it applies the current query to the
 eligible centroids while reusing only the preceding token's total mass as the
-cutoff denominator.
+cutoff denominator. On Qwen3.5-0.8B at 64K, `0.0625` (1/16) retained 64/64
+NIAH-S3 and was useful only in the low-row regime; bounded top-eight remains
+the general default because mass routing can form long-tail unions and did not
+improve the batch-eight result.
 
 `VLLM_LOD_DECODE_GQA_STATIC_LEAF_AITER=1` selects the routing-free compact
 variant. At a state update it builds one persistent page-size-one list per KV
@@ -166,6 +185,68 @@ cache and custom-kernel fixes do not execute in native full attention. OLMo
 uses the newer eight-document 67.892-second control, not the older
 68.537-second panel value.
 
+### Phi-4 TP1 diagnostic
+
+A matched TP1 rerun uses a 4,096-token scheduler aggregate because the current
+QH40 LOD selector workspace does not fit the canonical 16,384-token aggregate.
+With that aggregate applied to every row, full / two-tier / three-tier prefill
+is **56.095 / 228.145 / 189.468 seconds**, while decode is **14.796 / 12.826 /
+14.179 milliseconds**. Thus two-tier wins TP1 decode by 1.154x, but native full
+attention wins prefill by 4.07x over two-tier and 3.38x over three-tier. The
+full configuration and raw records are in
+`artifacts/phi_tp1_tier_panel_20260827/README.md`.
+
+This is a speed diagnostic only. Phi-4 has a native 16K position limit without
+configured RoPE scaling, so its 64K quality output is non-discriminative. The
+other large-model rows in the canonical table (Qwen3.8, Gemma, Muse, and OLMo)
+are TP1; Phi was the only TP5 row.
+
+### TP4 parallelism diagnostic
+
+Matched 64K/B8 TP4 runs confirm that splitting the attention heads over four
+GPUs narrows LOD's relative advantage without reversing it. Qwen full / two /
+three prefill is **43.696 / 32.233 / 32.608 seconds**, and decode is **26.111 /
+23.036 / 22.213 milliseconds**. Gemma full / two / three prefill is **15.793 /
+10.406 / 10.146 seconds**, and decode is **12.432 / 11.264 / 10.812
+milliseconds**. Qwen's two-tier decode speedup therefore falls from 1.43x at
+TP1/B8 to 1.13x at TP4/B8; Gemma's falls from 1.14x to 1.10x.
+
+Higher batch restores the missing per-GPU parallelism. In a synchronized
+TP4/B32 Qwen decode test, full attention takes **47.226 ms** per batch step and
+two-tier takes **28.096 ms**, a **1.68x** LOD speedup. The LOD audit reports all
+32 requests on every eligible layer. Comparing this synchronized prefix-cache
+replay with the cold B8 panel is directional because the Qwen Mamba cache mode
+also changes. The detailed methodology, collective and full-backend caveats,
+and raw artifact names are in
+`artifacts/tp4_tier_panel_20260827/README.md`.
+
+### TP1 batch-size and occupancy diagnostic
+
+A synchronized TP1 64K sweep on Qwen3.5-0.8B confirms that per-rank parallelism
+is the limiting variable. Two-tier speedup over full attention rises from
+1.08x / 1.34x / 1.73x to 2.22x at batch 1 / 2 / 4 / 8; recursive three-tier
+rises from 1.24x / 1.61x / 2.09x to 2.57x. Prompts are distinct real ProLong
+documents, not repeated synthetic text.
+
+The fixed attention scan itself benefits from more splits at B1, but its old
+reducer handled the complete `[segments, D]` FP32 field in one program per
+query head. The new split-D64 reducer makes the scan/reduction pair parallel:
+on the same GPU, Qwen3.5-0.8B two-tier B1 falls from 2.234 to 2.095 ms, 6.2%
+faster, and is 1.11x faster than the 2.325-ms full-attention result. It is
+numerically equal within 1.1e-8 and scored 8/8 on 64K NIAH-S3. Exact
+partitioned and tiled top-8 alternatives were 26% and 35% slower than the
+existing 9.7-us reducer, so they were not retained.
+
+Low occupancy is determined by the number of independent KV scans as well as
+the raw query-row count. Qwen3.8-27B-FP8 B1 has four KV scans at D=256/GQA6 but
+24 query rows, so the original eight-query-row rule incorrectly left it on the
+128-segment serial-reducer path. The B1 correction enables 256 segments,
+split-D64, and direct fixed-route activation when `batch == 1` and local KV
+scans are at most four. A matched seven-repeat 64K real-ProLong run falls from
+29.240 to **28.717 ms/step** (1.79%); the matched 31.571-ms full-AITER result
+makes optimized two-tier 1.099x faster. Full methodology and raw artifact names
+are in `artifacts/batch_parallelism_20260827/README.md`.
+
 The exact common LOD settings for the two-tier decode reference are:
 
 ```bash
@@ -186,7 +267,26 @@ VLLM_LOD_DECODE_GQA_UNION=1
 VLLM_LOD_DECODE_GQA_UNION_HIP=1
 VLLM_LOD_DECODE_GQA_FIXED_MASK_BLOCK_N=64
 VLLM_LOD_DECODE_GQA_FIXED_MASK_SEGMENTS=128
+VLLM_LOD_DECODE_GQA_FIXED_MASK_ADAPTIVE_SEGMENTS=1
+VLLM_LOD_DECODE_GQA_FIXED_MASK_REDUCE_BLOCK_D=64
+VLLM_LOD_DECODE_GQA_FIXED_MASK_DIRECT_ROUTES=1
 ```
+
+For gfx942 D=256/GQA4 or GQA6 layers using grouped 32-centroid score-only routing,
+`VLLM_LOD_DECODE_CENTROID_MAJOR_HIP=1` selects the low-row centroid-major HIP
+scorer. It stages the GQA queries in LDS, loads each centroid K vector once for
+all scores, preserves production's BF16 mean-key rounding, and emits
+the same eight candidates per route block. With fixed-mask attention it also
+performs prefix-mask maintenance and old-route clearing in the score grid, so
+no preparation launch is added. Other dimensions, GQA ratios, route widths,
+and non-score-only paths fall back to the existing Triton implementation.
+Execution is reported as `decode_centroid_major_hip_{configured,executed}` in
+the decode audit and as `centroid_major_vector` in the dispatch manifest.
+The option remains experimental and opt-in. In particular, Qwen3.8's GQA6
+mapping was 0.41% slower than the prior path in repeated 64K/B1 vLLM runs even
+though it was faster in eager microbenchmarks; CUDA-graph replay removes that
+apparent launch-overhead advantage. The GQA4 Qwen3.5-0.8B B1 path retained a
+2.71% end-to-end gain.
 
 The unrestricted top-eight preset used by every high-quality reference row adds:
 

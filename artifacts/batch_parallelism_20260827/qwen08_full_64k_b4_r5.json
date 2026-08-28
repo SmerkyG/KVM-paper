@@ -1,0 +1,195 @@
+{
+  "allow_heterogeneous_global_config": false,
+  "apply_chat_template": true,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 219886387200,
+    "device_used_bytes_before_reclaim": 221614440448,
+    "external_lod_layers": 0,
+    "external_lod_layers_with_native_cache": 0,
+    "external_lod_native_cache_bytes": 0,
+    "lod_cache_bytes": 0,
+    "lod_decode_scratch_bytes": 0,
+    "native_cache_bytes": 214799745024,
+    "torch_allocated_bytes": 216926349312,
+    "torch_reclaimable_cached_bytes": 1728053248,
+    "torch_reserved_bytes_after_reclaim": 216996511744,
+    "torch_reserved_bytes_before_reclaim": 218724564992
+  },
+  "batch_size": 4,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "diagnostic_external_empty_attention": null,
+  "disable_custom_all_reduce": false,
+  "disable_thinking": true,
+  "enable_prefix_caching": true,
+  "full_attention_backend": "ROCM_AITER_UNIFIED_ATTN",
+  "full_attention_dispatch": {
+    "records": [
+      {
+        "attention_callable": "aiter.ops.triton.attention.unified_attention.unified_attention",
+        "head_dim": 256,
+        "implementation_class": "vllm.v1.attention.backends.rocm_aiter_unified_attn.RocmAiterUnifiedAttentionImpl",
+        "kv_cache_dtype": "auto",
+        "kv_group_size": 4,
+        "kv_heads": 2,
+        "layers": 6,
+        "query_heads": 8,
+        "sliding_window": [
+          -1,
+          -1
+        ]
+      }
+    ],
+    "schema_version": 1
+  },
+  "language_model_only": false,
+  "lengths": [
+    65536
+  ],
+  "load_format": "auto",
+  "lod_diagnostics_before": null,
+  "long_prefill_token_threshold": 4096,
+  "max_new_tokens": 64,
+  "max_num_batched_tokens": 16384,
+  "mode": "full",
+  "model_impl": null,
+  "muse_native_text_config": false,
+  "results": {
+    "65536": {
+      "speed": {
+        "decode_timings_seconds": [
+          1.1034983857534826,
+          1.1026525674387813,
+          1.10183492815122,
+          1.102397290058434,
+          1.1037531332112849
+        ],
+        "marginal_decode_ms_per_batch_step": 4.324127715446201,
+        "marginal_decode_tokens_per_second": 925.0420577800268,
+        "prefill_prompt_tokens_per_second": 2255432.4163191114,
+        "prefill_seconds": 0.11577380821108818,
+        "prefill_timings_seconds": [
+          0.11577380821108818,
+          0.12158334068953991,
+          0.11553447088226676,
+          0.11488845990970731,
+          0.11885582702234387
+        ],
+        "prefix_cache_probe": {
+          "decode_seconds": 1.1058571650646627,
+          "elapsed_seconds": 1.7681690701283514,
+          "matching_output_prefix_tokens": [
+            45,
+            256,
+            13,
+            256
+          ],
+          "matching_output_requests": 2,
+          "output_requests": 4,
+          "outputs_match_cold": false,
+          "prefill_seconds": 0.656979245133698
+        },
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 65280,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London K",
+              "request_index": 0,
+              "sha256": "e7a33c71d24bf7dc62d9f144a380c673ca322e3d0a367d50ff7af800d86f892a",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4080,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4080
+              }
+            },
+            {
+              "decoded_prefix": "steam engine had gone by, there were still all the boxcars and flatcars and tank cars to admire, and at last the caboose\u2014this one painted yellow instead of the more usual red. \"Wow!\" Alec's eyes shone. \"I want to make one of those go when I get big.\" \"Maybe you will,\" Mort said. \"It's a good job.\" For all the sense he made to his son, he might as well have started speaking Eskimo. Alec couldn't imagine that being an engineer was work, and often hard work to boot. He would have paid, and paid anything he",
+              "request_index": 1,
+              "sha256": "800e5370399cdbbbc1c9e05b3d7ee31d4afe00e9e8700bc4a67a12d304303f4c",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "65431",
+                  "stream_index": 1
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4080,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4080
+              }
+            },
+            {
+              "decoded_prefix": "ulegu glance at him. Rukn chose that moment to bow deeply. His father had ordered it, though Rukn resented even the idea. The warrior stared coldly at him and Rukn watched as his eyes flickered around the inside of the tent, taking in every detail. Hulegu had yet to enter the shaded awning. He stood on the threshold glaring in, while his ten thousand continued to make an appalling racket all around them. Dust drifted in wisps through the air, visible in the light of the setting sun. Rukn struggled to remain calm. 'You must be thirsty,",
+              "request_index": 2,
+              "sha256": "1adf2ae38b112d03dbeff9633097212dde93cb224a947e1df46245db5968e1ec",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "65626",
+                  "stream_index": 2
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4080,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4080
+              }
+            },
+            {
+              "decoded_prefix": "1); # # Structure for table \"news_categories\" # DROP TABLE IF EXISTS `news_categories`; CREATE TABLE `news_categories` ( `id` int(11) NOT NULL AUTO_INCREMENT, `title` varchar(255) NOT NULL, `seo_url` varchar(255) NOT NULL, `rank` int(11) NOT NULL, `isActive` int(11) NOT NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8; # #",
+              "request_index": 3,
+              "sha256": "8f5cf524121bc40cc3969790adea6774471be0f84160f47d38b567c3130d60c2",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "68110",
+                  "stream_index": 3
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4080,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4080
+              }
+            }
+          ],
+          "rejected_candidate_count": 0,
+          "rejected_candidates": []
+        },
+        "prompt_length": 65280,
+        "total_timings_seconds": [
+          1.22980892425403,
+          1.2294626887887716,
+          1.229405099991709,
+          1.2287301789037883,
+          1.2279645279049873
+        ]
+      }
+    }
+  },
+  "sample_offset": 0,
+  "samples_per_length": 4,
+  "speed_decode_tokens": 256,
+  "speed_prompt_reserve": 256,
+  "speed_repeats": 5,
+  "speed_use_warm_prefix_cache": true,
+  "tensor_parallel_size": 1
+}

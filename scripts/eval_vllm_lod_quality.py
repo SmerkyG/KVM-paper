@@ -341,6 +341,10 @@ def inspect_lod_model(model) -> dict[str, object]:
     decode_gqa_staged_fixed_executed = set()
     decode_gqa_fixed_mask_configured = set()
     decode_gqa_fixed_mask_executed = set()
+    decode_gqa_direct_fixed_routes_configured = set()
+    decode_gqa_direct_fixed_routes_executed = set()
+    decode_centroid_major_hip_configured = set()
+    decode_centroid_major_hip_executed = set()
     decode_gqa_static_leaf_aiter_configured = set()
     decode_gqa_static_leaf_aiter_executed = set()
     decode_gqa_static_leaf_caps = set()
@@ -373,6 +377,10 @@ def inspect_lod_model(model) -> dict[str, object]:
     gqa_union_token_count_max = 0
     gqa_union_exact_token_count_sum = 0
     gqa_union_exact_token_count_max = 0
+    gqa_union_effective_segments = set()
+    gqa_union_split_d_reduce = set()
+    gqa_union_runtime_sequence_counts = set()
+    gqa_union_runtime_kv_heads = set()
     gqa_route_max_mass_values = []
     gqa_route_mass_threshold_hits = {
         denominator: 0 for denominator in (16, 32, 64, 128, 256)
@@ -458,6 +466,24 @@ def inspect_lod_model(model) -> dict[str, object]:
                     getattr(
                         pool.settings,
                         "decode_gqa_fixed_mask_aiter",
+                        False,
+                    )
+                )
+            )
+            decode_gqa_direct_fixed_routes_configured.add(
+                bool(
+                    getattr(
+                        pool.settings,
+                        "decode_gqa_fixed_mask_direct_routes",
+                        False,
+                    )
+                )
+            )
+            decode_centroid_major_hip_configured.add(
+                bool(
+                    getattr(
+                        pool.settings,
+                        "decode_centroid_major_hip",
                         False,
                     )
                 )
@@ -573,6 +599,23 @@ def inspect_lod_model(model) -> dict[str, object]:
                     )
             decode_storage = pool.decode_buffer_storage
             if isinstance(decode_storage, dict):
+                execution_geometry = decode_storage.get(
+                    "gqa_union_fixed_execution_geometry"
+                )
+                if isinstance(execution_geometry, torch.Tensor):
+                    gqa_union_effective_segments.add(
+                        int(execution_geometry[0].item())
+                    )
+                    gqa_union_split_d_reduce.add(
+                        bool(execution_geometry[1].item())
+                    )
+                    if execution_geometry.numel() >= 4:
+                        gqa_union_runtime_sequence_counts.add(
+                            int(execution_geometry[2].item())
+                        )
+                        gqa_union_runtime_kv_heads.add(
+                            int(execution_geometry[3].item())
+                        )
                 staged_marker = decode_storage.get("gqa_union_destinations")
                 if bool(
                     getattr(
@@ -721,6 +764,22 @@ def inspect_lod_model(model) -> dict[str, object]:
                             )
                         )
                     )
+                    if "gqa_union_last_direct_fixed_routes" in decode_buffers:
+                        decode_gqa_direct_fixed_routes_executed.add(
+                            bool(
+                                decode_buffers[
+                                    "gqa_union_last_direct_fixed_routes"
+                                ]
+                            )
+                        )
+                    if "route_last_centroid_major_hip" in decode_buffers:
+                        decode_centroid_major_hip_executed.add(
+                            bool(
+                                decode_buffers[
+                                    "route_last_centroid_major_hip"
+                                ]
+                            )
+                        )
                 top_slots = decode_buffers.get("route_top_slots")
                 if isinstance(top_slots, torch.Tensor):
                     rows = int(top_slots.size(0))
@@ -805,6 +864,26 @@ def inspect_lod_model(model) -> dict[str, object]:
         "decode_gqa_fixed_mask_executed": sorted(
             decode_gqa_fixed_mask_executed
         ),
+        "decode_gqa_direct_fixed_routes_configured": sorted(
+            decode_gqa_direct_fixed_routes_configured
+        ),
+        "decode_gqa_direct_fixed_routes_executed": sorted(
+            decode_gqa_direct_fixed_routes_executed
+        ),
+        "decode_centroid_major_hip_configured": sorted(
+            decode_centroid_major_hip_configured
+        ),
+        "decode_centroid_major_hip_executed": sorted(
+            decode_centroid_major_hip_executed
+        ),
+        "gqa_union_effective_segments": sorted(
+            gqa_union_effective_segments
+        ),
+        "gqa_union_split_d_reduce": sorted(gqa_union_split_d_reduce),
+        "gqa_union_runtime_sequence_counts": sorted(
+            gqa_union_runtime_sequence_counts
+        ),
+        "gqa_union_runtime_kv_heads": sorted(gqa_union_runtime_kv_heads),
         "decode_gqa_static_leaf_aiter_configured": sorted(
             decode_gqa_static_leaf_aiter_configured
         ),
@@ -936,6 +1015,9 @@ def reset_lod_decode_execution_markers(model) -> int:
             )
             launch_lens = decode_buffers.get("gqa_union_hip_launch_lens")
             union_counts = decode_buffers.get("gqa_union_counts")
+            execution_geometry = decode_buffers.get(
+                "gqa_union_fixed_execution_geometry"
+            )
             if not isinstance(epochs, torch.Tensor):
                 continue
             epochs.zero_()
@@ -949,6 +1031,8 @@ def reset_lod_decode_execution_markers(model) -> int:
                 launch_lens.zero_()
             if isinstance(union_counts, torch.Tensor):
                 union_counts.zero_()
+            if isinstance(execution_geometry, torch.Tensor):
+                execution_geometry.zero_()
             reset += 1
     return reset
 

@@ -262,30 +262,31 @@ def main() -> None:
         }
         results.append(result)
         print(json.dumps(result), flush=True)
-    grouped_slots, grouped_times_us = _run_grouped(
-        logits,
-        counts,
-        scale=float(args.head_dim**-0.5),
-        topk=args.topk,
-        warmup=args.warmup,
-        repeats=args.repeats,
-        max_leaf_tokens=args.max_leaf_tokens,
-    )
-    grouped_result = {
-        "label": "production_grouped_m16_n64_w4",
-        "block_m": 16,
-        "block_n": 64,
-        "num_warps": 4,
-        "median_us": statistics.median(grouped_times_us),
-        "min_us": min(grouped_times_us),
-        "max_us": max(grouped_times_us),
-        "route_set_exact": bool(
-            torch.equal(grouped_slots.sort(dim=-1).values, reference)
-        ),
-        "route_order_exact": bool(torch.equal(grouped_slots, reference_order)),
-    }
-    results.append(grouped_result)
-    print(json.dumps(grouped_result), flush=True)
+    if args.topk <= 8:
+        grouped_slots, grouped_times_us = _run_grouped(
+            logits,
+            counts,
+            scale=float(args.head_dim**-0.5),
+            topk=args.topk,
+            warmup=args.warmup,
+            repeats=args.repeats,
+            max_leaf_tokens=args.max_leaf_tokens,
+        )
+        grouped_result = {
+            "label": "production_grouped_m16_n64_w4",
+            "block_m": 16,
+            "block_n": 64,
+            "num_warps": 4,
+            "median_us": statistics.median(grouped_times_us),
+            "min_us": min(grouped_times_us),
+            "max_us": max(grouped_times_us),
+            "route_set_exact": bool(
+                torch.equal(grouped_slots.sort(dim=-1).values, reference)
+            ),
+            "route_order_exact": bool(torch.equal(grouped_slots, reference_order)),
+        }
+        results.append(grouped_result)
+        print(json.dumps(grouped_result), flush=True)
     hierarchical_configs = (
         (8, 64, 4, 4),
         (16, 64, 4, 4),
@@ -325,7 +326,9 @@ def main() -> None:
             (8, 512, 4, 4),
             (8, 1024, 2, 2),
         )
-    for block_m, block_n, tile_warps, reduce_warps in hierarchical_configs:
+    for block_m, block_n, tile_warps, reduce_warps in (
+        hierarchical_configs if args.topk == 3 else ()
+    ):
         label = f"hier_m{block_m}_n{block_n}_tw{tile_warps}_rw{reduce_warps}"
 
         def invoke_hierarchical() -> torch.Tensor:

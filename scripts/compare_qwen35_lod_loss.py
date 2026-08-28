@@ -40,6 +40,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prefill-two-level-topk", type=int, default=3)
     parser.add_argument("--prefill-max-leaf-tokens", type=int)
     parser.add_argument("--leaf-seal-capacity", type=int)
+    parser.add_argument(
+        "--leaf-page-size",
+        type=int,
+        choices=(4, 16),
+        default=16,
+        help="physical/logical leaf page size; use four for fixed 16->4 routing",
+    )
     parser.add_argument("--dynamic-open-top-p", type=float)
     parser.add_argument("--dynamic-open-prefill-top-p", type=float)
     parser.add_argument("--dynamic-open-prefill-residual-mass", type=float)
@@ -53,6 +60,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prefill-mass-previous-chunk-lse", action="store_true")
     parser.add_argument("--prefill-coarse-max-grouped-rows", type=int, default=8)
     parser.add_argument("--dynamic-open-decode-top-p", type=float)
+    parser.add_argument(
+        "--routing-page-mass-candidates",
+        type=int,
+        default=0,
+        help=(
+            "review this many coarse candidates with page-summary mass before "
+            "selecting the final parent routes"
+        ),
+    )
     parser.add_argument("--recursive-page-lod", action="store_true")
     parser.add_argument("--dense-page-prefill", action="store_true")
     parser.add_argument("--dense-page-topk", type=int, choices=(1, 2, 4, 8), default=8)
@@ -85,6 +101,17 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--virtual-page-storage", action="store_true")
     parser.add_argument("--state-growth-factor", type=float, default=16.0)
+    parser.add_argument(
+        "--state-premerge-factor",
+        type=int,
+        choices=(1, 2, 4, 8, 16, 32),
+        default=1,
+        help=(
+            "sum adjacent tokens into atomic state inputs before any state "
+            "routing; a sufficiently large state-growth factor retains every "
+            "group as an independent fixed centroid"
+        ),
+    )
     parser.add_argument("--prefill-chunk-length", type=int)
     parser.add_argument("--prefill-local-length", type=int)
     parser.add_argument("--prefill-state-update-length", type=int)
@@ -166,10 +193,20 @@ def select_sequences(
 
 def main() -> None:
     args = parse_args()
+    # The fused fast path is specialized for top-k <= 8, but the ordinary
+    # PyTorch routing and packed-leaf paths support wider diagnostic sweeps.
+    route_limit = 32
     if args.prefill_two_level_topk is not None and not (
-        0 <= args.prefill_two_level_topk <= 8
+        0 <= args.prefill_two_level_topk <= route_limit
     ):
-        raise ValueError("prefill top-k must be in [0, 8]")
+        raise ValueError(f"prefill top-k must be in [0, {route_limit}]")
+    if not 0 <= args.two_level_topk <= route_limit:
+        raise ValueError(f"decode top-k must be in [0, {route_limit}]")
+    if args.routing_page_mass_candidates and (
+        args.routing_page_mass_candidates
+        < max(args.two_level_topk, args.prefill_two_level_topk or 0)
+    ):
+        raise ValueError("page-mass candidate count must cover the requested top-k")
     if args.prefill_max_leaf_tokens is not None and args.prefill_max_leaf_tokens <= 0:
         raise ValueError("maximum prefill leaf count must be positive")
     if args.leaf_seal_capacity is not None and args.leaf_seal_capacity <= 0:
@@ -221,6 +258,7 @@ def main() -> None:
     if args.mode == "two_level":
         for module in model.modules():
             if isinstance(module, Qwen3_5TwoLevelAttention):
+                module.state_premerge_factor = args.state_premerge_factor
                 module.prefill_two_level_topk = args.prefill_two_level_topk
                 module.prefill_route_mass_fraction = args.prefill_route_mass_fraction
                 module.prefill_route_mass_max_routes = (
@@ -232,6 +270,11 @@ def main() -> None:
                 module.prefill_mass_previous_chunk_lse = (
                     args.prefill_mass_previous_chunk_lse
                 )
+                module.routing_page_mass_candidates = (
+                    args.routing_page_mass_candidates
+                )
+                if args.routing_page_mass_candidates:
+                    module.fused_decode_attention = False
                 module.prefill_coarse_max_grouped_rows = (
                     args.prefill_coarse_max_grouped_rows
                 )
@@ -239,6 +282,7 @@ def main() -> None:
                 module.separate_sink_cache = args.separate_sink_cache
                 module.prefill_max_leaf_tokens = args.prefill_max_leaf_tokens
                 module.leaf_seal_capacity = args.leaf_seal_capacity
+                module.leaf_page_size = args.leaf_page_size
                 module.recursive_page_lod = args.recursive_page_lod
                 module.dense_page_prefill = args.dense_page_prefill
                 module.dense_page_topk = args.dense_page_topk
@@ -353,6 +397,11 @@ def main() -> None:
                 "two_level_topk": (
                     args.two_level_topk if args.mode == "two_level" else None
                 ),
+                "state_premerge_factor": (
+                    args.state_premerge_factor
+                    if args.mode == "two_level"
+                    else None
+                ),
                 "exclude_sink_from_routes": (
                     args.exclude_sink_from_routes if args.mode == "two_level" else None
                 ),
@@ -393,6 +442,9 @@ def main() -> None:
                 "leaf_seal_capacity": (
                     args.leaf_seal_capacity if args.mode == "two_level" else None
                 ),
+                "leaf_page_size": (
+                    args.leaf_page_size if args.mode == "two_level" else None
+                ),
                 "fused_prefill_route_coarse": (
                     args.enable_fused_prefill_route_coarse
                     if args.mode == "two_level"
@@ -400,6 +452,11 @@ def main() -> None:
                 ),
                 "dynamic_open_top_p": (
                     args.dynamic_open_top_p if args.mode == "two_level" else None
+                ),
+                "routing_page_mass_candidates": (
+                    args.routing_page_mass_candidates
+                    if args.mode == "two_level"
+                    else None
                 ),
                 "dynamic_open_prefill_top_p": (
                     dynamic_prefill_top_p if args.mode == "two_level" else None

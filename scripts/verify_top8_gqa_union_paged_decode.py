@@ -58,6 +58,7 @@ def main() -> None:
     parser.add_argument("--mass-fraction", type=float, default=None)
     parser.add_argument("--predicted-mass", action="store_true")
     parser.add_argument("--hip-union", action="store_true")
+    parser.add_argument("--centroid-major-hip", action="store_true")
     parser.add_argument("--unified-arena", action="store_true")
     parser.add_argument("--group64-padded", action="store_true")
     parser.add_argument("--staged-fixed-aiter", action="store_true")
@@ -71,6 +72,14 @@ def main() -> None:
         choices=(32, 64, 128, 256, 512),
         default=128,
     )
+    parser.add_argument("--fixed-mask-adaptive-segments", action="store_true")
+    parser.add_argument(
+        "--fixed-mask-reduce-block-d",
+        type=int,
+        choices=(0, 16, 32, 64, 128),
+        default=0,
+    )
+    parser.add_argument("--fixed-mask-direct-routes", action="store_true")
     parser.add_argument("--inject-oversized-centroid", action="store_true")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
@@ -424,7 +433,11 @@ def main() -> None:
             gqa_union_kv_heads=kv_heads,
             gqa_union_index_capacity=leaf_capacity + local_limit + 1,
         )
-        if args.hip_union and not args.predicted_mass
+        if (
+            args.hip_union
+            and not args.predicted_mass
+            and (gqa & (gqa - 1)) == 0
+        )
         else None
     )
 
@@ -458,6 +471,9 @@ def main() -> None:
             gqa_union_mass_fraction=(args.mass_fraction if union else None),
             gqa_union_predicted_mass=(args.predicted_mass if union else False),
             gqa_union_hip=(use_hip if union else False),
+            route_centroid_major_hip=(
+                args.centroid_major_hip if union else False
+            ),
             gqa_union_group64_padded=(args.group64_padded if union else False),
             gqa_union_staged_fixed_aiter=(
                 args.staged_fixed_aiter if union else False
@@ -466,6 +482,15 @@ def main() -> None:
                 args.fixed_mask_aiter if union else False
             ),
             gqa_union_fixed_mask_tile_size=args.fixed_mask_block_n,
+            gqa_union_fixed_mask_adaptive_segments=(
+                args.fixed_mask_adaptive_segments if union else False
+            ),
+            gqa_union_fixed_mask_reduce_block_d=(
+                args.fixed_mask_reduce_block_d if union else 0
+            ),
+            gqa_union_fixed_mask_direct_routes=(
+                args.fixed_mask_direct_routes if union else False
+            ),
             gqa_union_page1_k=(arena_k if union and args.unified_arena else None),
             gqa_union_page1_v=(arena_v if union and args.unified_arena else None),
             gqa_union_page1_bias=(
@@ -755,6 +780,11 @@ def main() -> None:
             "fixed_mask_aiter": args.fixed_mask_aiter,
             "fixed_mask_block_n": args.fixed_mask_block_n,
             "fixed_mask_segments": args.fixed_mask_segments,
+            "fixed_mask_adaptive_segments": (
+                args.fixed_mask_adaptive_segments
+            ),
+            "fixed_mask_reduce_block_d": args.fixed_mask_reduce_block_d,
+            "fixed_mask_direct_routes": args.fixed_mask_direct_routes,
             "cuda_graph_timing": args.cuda_graph_timing,
         },
         "correctness": {

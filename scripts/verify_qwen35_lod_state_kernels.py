@@ -29,7 +29,7 @@ from model.pytorch_lod_attention import _sum_adjacent_groups
 
 def verify_adjacent_premerge_kernels() -> dict[str, dict[str, float | bool]]:
     results = {}
-    for factor in (2, 4):
+    for factor in (2, 4, 8, 16, 32):
         batch, heads, length, key_dim, value_dim = 2, 3, 257, 128, 64
         key_storage = torch.randn(
             batch,

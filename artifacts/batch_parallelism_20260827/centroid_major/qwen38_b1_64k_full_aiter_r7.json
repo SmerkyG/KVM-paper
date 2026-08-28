@@ -1,0 +1,141 @@
+{
+  "allow_heterogeneous_global_config": false,
+  "apply_chat_template": true,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 218900725760,
+    "device_used_bytes_before_reclaim": 220010119168,
+    "external_lod_layers": 0,
+    "external_lod_layers_with_native_cache": 0,
+    "external_lod_native_cache_bytes": 0,
+    "lod_cache_bytes": 0,
+    "lod_decode_scratch_bytes": 0,
+    "native_cache_bytes": 176282402816,
+    "torch_allocated_bytes": 176496689664,
+    "torch_reclaimable_cached_bytes": 1109393408,
+    "torch_reserved_bytes_after_reclaim": 178991923200,
+    "torch_reserved_bytes_before_reclaim": 180101316608
+  },
+  "batch_size": 1,
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "diagnostic_external_empty_attention": null,
+  "disable_custom_all_reduce": false,
+  "disable_thinking": true,
+  "enable_prefix_caching": true,
+  "full_attention_backend": "ROCM_AITER_UNIFIED_ATTN",
+  "full_attention_dispatch": {
+    "records": [
+      {
+        "attention_callable": "aiter.ops.triton.attention.unified_attention.unified_attention",
+        "head_dim": 256,
+        "implementation_class": "vllm.v1.attention.backends.rocm_aiter_unified_attn.RocmAiterUnifiedAttentionImpl",
+        "kv_cache_dtype": "auto",
+        "kv_group_size": 6,
+        "kv_heads": 4,
+        "layers": 16,
+        "query_heads": 24,
+        "sliding_window": [
+          -1,
+          -1
+        ]
+      }
+    ],
+    "schema_version": 1
+  },
+  "language_model_only": true,
+  "lengths": [
+    65536
+  ],
+  "load_format": "ipc_cache",
+  "lod_diagnostics_before": null,
+  "long_prefill_token_threshold": 4096,
+  "max_new_tokens": 64,
+  "max_num_batched_tokens": 4096,
+  "mode": "full",
+  "model_impl": null,
+  "muse_native_text_config": false,
+  "results": {
+    "65536": {
+      "speed": {
+        "decode_timings_seconds": [
+          8.045413163490593,
+          8.05683190561831,
+          8.041822887025774,
+          8.050545182079077,
+          8.044327709823847,
+          8.053964619524777,
+          8.051469928584993
+        ],
+        "marginal_decode_ms_per_batch_step": 31.570765419917947,
+        "marginal_decode_tokens_per_second": 31.674873469146284,
+        "prefill_prompt_tokens_per_second": 76608.81626145022,
+        "prefill_seconds": 0.8546274853870273,
+        "prefill_timings_seconds": [
+          0.8546274853870273,
+          0.8531523495912552,
+          0.8547829417511821,
+          0.8543363623321056,
+          0.8555808616802096,
+          0.8516807779669762,
+          0.8561247866600752
+        ],
+        "prefix_cache_probe": {
+          "decode_seconds": 8.050133991986513,
+          "elapsed_seconds": 8.908763023093343,
+          "matching_output_prefix_tokens": [
+            256
+          ],
+          "matching_output_requests": 1,
+          "output_requests": 1,
+          "outputs_match_cold": true,
+          "prefill_seconds": 0.8538326919078827
+        },
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 65472,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London K",
+              "request_index": 0,
+              "sha256": "3fdb5eafad868bafecc7788272b5659192d5a4b143721ac055df6e5844a590f4",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4092,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4092
+              }
+            }
+          ],
+          "rejected_candidate_count": 0,
+          "rejected_candidates": []
+        },
+        "prompt_length": 65472,
+        "total_timings_seconds": [
+          8.90637025050819,
+          8.914393497630954,
+          8.902010381221771,
+          8.909283278509974,
+          8.905344503000379,
+          8.90989509318024,
+          8.912986476905644
+        ]
+      }
+    }
+  },
+  "sample_offset": 0,
+  "samples_per_length": 1,
+  "speed_decode_tokens": 256,
+  "speed_prompt_reserve": 64,
+  "speed_repeats": 7,
+  "speed_use_warm_prefix_cache": true,
+  "tensor_parallel_size": 1
+}

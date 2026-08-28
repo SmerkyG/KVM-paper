@@ -1,0 +1,163 @@
+{
+  "suite": "lowrow256",
+  "batch_size": 1,
+  "slots": 4096,
+  "local_len": 512,
+  "context_len": 65536,
+  "device": "AMD Instinct MI325X",
+  "geometries": [
+    {
+      "name": "D256_KV2_G4_qwen",
+      "head_dim": 256,
+      "kv_heads": 2,
+      "group_size": 4,
+      "query_heads": 8,
+      "best_config": "n16_w2_rg16_rw1_rr4_fr4_ld0_rd1_ff0_coop0",
+      "measurements": [
+        {
+          "config": "n16_w2_rg32_rw2_rr4_fr4_ld0_rd1_ff0_coop0",
+          "wall_ms_median": 0.2020825631916523,
+          "phase_ms_median": {
+            "route_groups": 0.03488000109791756,
+            "route_groups_b1": 0.03488000109791756,
+            "route_reduce": 0.046239499002695084,
+            "route_reduce_b1": 0.046239499002695084,
+            "leaf_local": 0.03147999942302704,
+            "leaf_local_b1": 0.03147999942302704,
+            "final_reduce": 0.03223950043320656,
+            "final_reduce_b1": 0.03223950043320656
+          },
+          "output_max_abs_vs_baseline": 0.0
+        },
+        {
+          "config": "n16_w2_rg16_rw2_rr4_fr4_ld0_rd1_ff0_coop0",
+          "wall_ms_median": 0.20737247541546822,
+          "phase_ms_median": {
+            "route_groups": 0.03435949981212616,
+            "route_groups_b1": 0.03435949981212616,
+            "route_reduce": 0.09073849767446518,
+            "route_reduce_b1": 0.09073849767446518,
+            "leaf_local": 0.020679499953985214,
+            "leaf_local_b1": 0.020679499953985214,
+            "final_reduce": 0.006439500022679567,
+            "final_reduce_b1": 0.006439500022679567
+          },
+          "output_max_abs_vs_baseline": 3.814697265625e-06,
+          "output_mean_abs_vs_baseline": 1.6747947029216448e-07
+        },
+        {
+          "config": "n16_w2_rg16_rw1_rr4_fr4_ld0_rd1_ff0_coop0",
+          "wall_ms_median": 0.20048720762133598,
+          "phase_ms_median": {
+            "route_groups": 0.03521900065243244,
+            "route_groups_b1": 0.03521900065243244,
+            "route_reduce": 0.07871849834918976,
+            "route_reduce_b1": 0.07871849834918976,
+            "leaf_local": 0.02075949963182211,
+            "leaf_local_b1": 0.02075949963182211,
+            "final_reduce": 0.007200000109151006,
+            "final_reduce_b1": 0.007200000109151006
+          },
+          "output_max_abs_vs_baseline": 3.814697265625e-06,
+          "output_mean_abs_vs_baseline": 1.6747947029216448e-07
+        },
+        {
+          "config": "n16_w2_rg16_rw2_rr4_fr4_ld0_rd0_ff0_coop0",
+          "wall_ms_median": 0.21359743550419807,
+          "phase_ms_median": {
+            "route_groups": 0.05067899823188782,
+            "route_groups_b1": 0.05067899823188782,
+            "route_reduce": 0.08101899921894073,
+            "route_reduce_b1": 0.08101899921894073,
+            "leaf_local": 0.020739499479532242,
+            "leaf_local_b1": 0.020739499479532242,
+            "final_reduce": 0.006039999891072512,
+            "final_reduce_b1": 0.006039999891072512
+          },
+          "output_max_abs_vs_baseline": 3.814697265625e-06,
+          "output_mean_abs_vs_baseline": 1.6748128928156802e-07
+        },
+        {
+          "config": "n16_w2_rg16_rw1_rr4_fr4_ld0_rd0_ff0_coop0",
+          "wall_ms_median": 0.2129124477505684,
+          "phase_ms_median": {
+            "route_groups": 0.04589900001883507,
+            "route_groups_b1": 0.04589900001883507,
+            "route_reduce": 0.07999899983406067,
+            "route_reduce_b1": 0.07999899983406067,
+            "leaf_local": 0.020879999734461308,
+            "leaf_local_b1": 0.020879999734461308,
+            "final_reduce": 0.006120000034570694,
+            "final_reduce_b1": 0.006120000034570694
+          },
+          "output_max_abs_vs_baseline": 3.814697265625e-06,
+          "output_mean_abs_vs_baseline": 1.6748128928156802e-07
+        },
+        {
+          "config": "n16_w2_rg16_rw4_rr4_fr4_ld0_rd0_ff0_coop0",
+          "wall_ms_median": 0.2219267189502716,
+          "phase_ms_median": {
+            "route_groups": 0.056819500401616096,
+            "route_groups_b1": 0.056819500401616096,
+            "route_reduce": 0.07821900025010109,
+            "route_reduce_b1": 0.07821900025010109,
+            "leaf_local": 0.02073999959975481,
+            "leaf_local_b1": 0.02073999959975481,
+            "final_reduce": 0.005960000213235617,
+            "final_reduce_b1": 0.005960000213235617
+          },
+          "output_max_abs_vs_baseline": 3.814697265625e-06,
+          "output_mean_abs_vs_baseline": 1.6747947029216448e-07
+        },
+        {
+          "config": "n16_w2_rg8_rw1_rr4_fr4_ld0_rd1_ff0_coop0",
+          "wall_ms_median": 0.2697664313018322,
+          "phase_ms_median": {
+            "route_groups": 0.04095999896526337,
+            "route_groups_b1": 0.04095999896526337,
+            "route_reduce": 0.14569800347089767,
+            "route_reduce_b1": 0.14569800347089767,
+            "leaf_local": 0.020919499918818474,
+            "leaf_local_b1": 0.020919499918818474,
+            "final_reduce": 0.006000000052154064,
+            "final_reduce_b1": 0.006000000052154064
+          },
+          "output_max_abs_vs_baseline": 3.814697265625e-06,
+          "output_mean_abs_vs_baseline": 1.911904519147356e-07
+        },
+        {
+          "config": "n16_w2_rg8_rw2_rr4_fr4_ld0_rd1_ff0_coop0",
+          "wall_ms_median": 0.28360122814774513,
+          "phase_ms_median": {
+            "route_groups": 0.05323899909853935,
+            "route_groups_b1": 0.05323899909853935,
+            "route_reduce": 0.14633800089359283,
+            "route_reduce_b1": 0.14633800089359283,
+            "leaf_local": 0.021058999933302402,
+            "leaf_local_b1": 0.021058999933302402,
+            "final_reduce": 0.00598000013269484,
+            "final_reduce_b1": 0.00598000013269484
+          },
+          "output_max_abs_vs_baseline": 3.814697265625e-06,
+          "output_mean_abs_vs_baseline": 1.911904519147356e-07
+        },
+        {
+          "config": "n16_w2_rg8_rw2_rr4_fr4_ld0_rd0_ff0_coop0",
+          "wall_ms_median": 0.27453573420643806,
+          "phase_ms_median": {
+            "route_groups": 0.04456000030040741,
+            "route_groups_b1": 0.04456000030040741,
+            "route_reduce": 0.14587800204753876,
+            "route_reduce_b1": 0.14587800204753876,
+            "leaf_local": 0.021038999781012535,
+            "leaf_local_b1": 0.021038999781012535,
+            "final_reduce": 0.006000000052154064,
+            "final_reduce_b1": 0.006000000052154064
+          },
+          "output_max_abs_vs_baseline": 3.814697265625e-06,
+          "output_mean_abs_vs_baseline": 1.911904519147356e-07
+        }
+      ]
+    }
+  ]
+}

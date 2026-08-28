@@ -206,6 +206,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prefill-two-level-topk", type=int, default=3)
     parser.add_argument("--prefill-max-leaf-tokens", type=int)
     parser.add_argument("--leaf-seal-capacity", type=int)
+    parser.add_argument(
+        "--leaf-page-size",
+        type=int,
+        choices=(4, 16),
+        default=16,
+        help="physical/logical leaf page size; use four for fixed 16->4 routing",
+    )
     parser.add_argument("--dynamic-open-top-p", type=float)
     parser.add_argument("--dynamic-open-prefill-top-p", type=float)
     parser.add_argument("--dynamic-open-prefill-residual-mass", type=float)
@@ -221,6 +228,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prefill-coarse-max-grouped-rows", type=int, default=8)
     parser.add_argument("--dynamic-open-decode-top-p", type=float)
     parser.add_argument("--dynamic-open-decode-residual-mass", type=float)
+    parser.add_argument(
+        "--routing-page-mass-candidates",
+        type=int,
+        default=0,
+        help=(
+            "review this many coarse candidates with page-summary mass before "
+            "selecting the final parent routes"
+        ),
+    )
     parser.add_argument("--decode-route-mass-fraction", type=float)
     parser.add_argument(
         "--decode-open-all-under-leaf-cap",
@@ -304,6 +320,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--virtual-page-storage", action="store_true")
     parser.add_argument("--state-growth-factor", type=float, default=16.0)
     parser.add_argument(
+        "--state-premerge-factor",
+        type=int,
+        choices=(1, 2, 4, 8, 16, 32),
+        default=1,
+        help=(
+            "sum adjacent tokens into atomic state inputs before any state "
+            "routing; a sufficiently large state-growth factor retains every "
+            "group as an independent fixed centroid"
+        ),
+    )
+    parser.add_argument(
         "--state-clustering-geometry",
         choices=("raw", "coherence"),
         default="raw",
@@ -352,6 +379,8 @@ def parse_args() -> argparse.Namespace:
         default="packed",
     )
     parser.add_argument("--max-new-tokens", type=int, default=64)
+    parser.add_argument("--apply-chat-template", action="store_true")
+    parser.add_argument("--disable-thinking", action="store_true")
     parser.add_argument("--disable-fused-state-routing", action="store_true")
     parser.add_argument("--no-clone-decode-routes", action="store_true")
     parser.add_argument("--disable-fused-decode-state-route", action="store_true")
@@ -382,10 +411,20 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    # The fused fast path is specialized for top-k <= 8, but the ordinary
+    # PyTorch routing and packed-leaf paths support wider diagnostic sweeps.
+    route_limit = 32
     if args.prefill_two_level_topk is not None and not (
-        0 <= args.prefill_two_level_topk <= 8
+        0 <= args.prefill_two_level_topk <= route_limit
     ):
-        raise ValueError("prefill top-k must be in [0, 8]")
+        raise ValueError(f"prefill top-k must be in [0, {route_limit}]")
+    if not 0 <= args.two_level_topk <= route_limit:
+        raise ValueError(f"decode top-k must be in [0, {route_limit}]")
+    if args.routing_page_mass_candidates and (
+        args.routing_page_mass_candidates
+        < max(args.two_level_topk, args.prefill_two_level_topk or 0)
+    ):
+        raise ValueError("page-mass candidate count must cover the requested top-k")
     if args.prefill_max_leaf_tokens is not None and args.prefill_max_leaf_tokens <= 0:
         raise ValueError("maximum prefill leaf count must be positive")
     if args.leaf_seal_capacity is not None and args.leaf_seal_capacity <= 0:
@@ -437,6 +476,7 @@ def main() -> None:
     if args.mode == "two_level":
         for module in model.modules():
             if isinstance(module, Qwen3_5TwoLevelAttention):
+                module.state_premerge_factor = args.state_premerge_factor
                 module.prefill_two_level_topk = args.prefill_two_level_topk
                 module.prefill_route_mass_fraction = args.prefill_route_mass_fraction
                 module.prefill_route_mass_max_routes = (
@@ -450,6 +490,14 @@ def main() -> None:
                     args.prefill_mass_previous_chunk_lse
                 )
                 module.decode_route_mass_fraction = args.decode_route_mass_fraction
+                module.routing_page_mass_candidates = (
+                    args.routing_page_mass_candidates
+                )
+                if args.routing_page_mass_candidates:
+                    # Page-refined routes are formed outside the fused decoder;
+                    # retain them for the recursive leaf stage instead of asking
+                    # the fused kernel to rerun ordinary state routing.
+                    module.fused_decode_attention = False
                 module.decode_open_all_under_leaf_cap = (
                     args.decode_open_all_under_leaf_cap
                 )
@@ -468,6 +516,7 @@ def main() -> None:
                 module.separate_sink_cache = args.separate_sink_cache
                 module.prefill_max_leaf_tokens = args.prefill_max_leaf_tokens
                 module.leaf_seal_capacity = args.leaf_seal_capacity
+                module.leaf_page_size = args.leaf_page_size
                 module.leaf_paged_directory = args.leaf_paged_directory
                 module.recursive_page_lod = args.recursive_page_lod
                 module.recursive_materialize_page_scores = (
@@ -614,12 +663,30 @@ def main() -> None:
             for doc in selected_documents[rank::world_size]:
                 pop_qwen35_dynamic_open_statistics(model)
                 pop_qwen35_static_leaf_cap_statistics(model)
-                prompt = doc["input"] + " " + doc["gen_prefix"]
-                input_ids = tokenizer(
-                    prompt,
-                    add_special_tokens=False,
-                    return_tensors="pt",
-                ).input_ids.to(device)
+                if args.apply_chat_template:
+                    encoded = tokenizer.apply_chat_template(
+                        [
+                            {"role": "user", "content": doc["input"]},
+                            {"role": "assistant", "content": doc["gen_prefix"]},
+                        ],
+                        tokenize=True,
+                        add_generation_prompt=False,
+                        continue_final_message=True,
+                        enable_thinking=not args.disable_thinking,
+                    )
+                    token_ids = (
+                        encoded["input_ids"] if hasattr(encoded, "keys") else encoded
+                    )
+                    input_ids = torch.tensor(
+                        token_ids, dtype=torch.long, device=device
+                    ).unsqueeze(0)
+                else:
+                    prompt = doc["input"] + " " + doc["gen_prefix"]
+                    input_ids = tokenizer(
+                        prompt,
+                        add_special_tokens=False,
+                        return_tensors="pt",
+                    ).input_ids.to(device)
                 generated = model.generate(
                     input_ids=input_ids,
                     max_new_tokens=args.max_new_tokens,
@@ -646,8 +713,15 @@ def main() -> None:
                     "index": int(doc["index"]),
                     "length": int(doc["max_length"]),
                     "input_tokens": int(input_ids.size(1)),
+                    "apply_chat_template": args.apply_chat_template,
+                    "disable_thinking": args.disable_thinking,
                     "two_level_topk": (
                         args.two_level_topk if args.mode == "two_level" else None
+                    ),
+                    "state_premerge_factor": (
+                        args.state_premerge_factor
+                        if args.mode == "two_level"
+                        else None
                     ),
                     "exclude_sink_from_routes": (
                         args.exclude_sink_from_routes
@@ -687,6 +761,11 @@ def main() -> None:
                         if args.mode == "two_level"
                         else None
                     ),
+                    "routing_page_mass_candidates": (
+                        args.routing_page_mass_candidates
+                        if args.mode == "two_level"
+                        else None
+                    ),
                     "decode_open_all_under_leaf_cap": (
                         args.decode_open_all_under_leaf_cap
                         if args.mode == "two_level"
@@ -715,6 +794,9 @@ def main() -> None:
                     ),
                     "leaf_seal_capacity": (
                         args.leaf_seal_capacity if args.mode == "two_level" else None
+                    ),
+                    "leaf_page_size": (
+                        args.leaf_page_size if args.mode == "two_level" else None
                     ),
                     "leaf_paged_directory": (
                         args.leaf_paged_directory if args.mode == "two_level" else None

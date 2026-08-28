@@ -1,0 +1,54 @@
+{
+  "geometry": {
+    "batch_size": 1,
+    "kv_heads": 2,
+    "gqa": 4,
+    "head_dim": 256,
+    "fixed_length": 70144,
+    "physical_length": 70144,
+    "kernel": "fixed-mask",
+    "index_order": "random",
+    "tile_size": 64,
+    "segments": 256,
+    "scan_num_warps": 1,
+    "scan_waves_per_eu": 1,
+    "scan_num_stages": 2,
+    "reduce_block_d": 64,
+    "layers": 6,
+    "arena_bytes": 861929472,
+    "repeats": 500
+  },
+  "results": {
+    "zero": {
+      "active_fraction": 0.0,
+      "attention_ms": 0.028993114471435547,
+      "attention_and_reduce_ms": 0.05755727386474609,
+      "reduction_increment_ms": 0.028564159393310546,
+      "attention_ms_per_layer": 0.004832185745239258,
+      "attention_and_reduce_ms_per_layer": 0.009592878977457682,
+      "reduction_increment_ms_per_layer": 0.004760693232218424
+    },
+    "quarter": {
+      "active_fraction": 0.25,
+      "attention_ms": 0.12404212188720704,
+      "attention_and_reduce_ms": 0.14987208557128906,
+      "reduction_increment_ms": 0.025829963684082025,
+      "attention_ms_per_layer": 0.020673686981201173,
+      "attention_and_reduce_ms_per_layer": 0.024978680928548175,
+      "reduction_increment_ms_per_layer": 0.004304993947347004
+    },
+    "all": {
+      "active_fraction": 1.0,
+      "attention_ms": 0.2574926452636719,
+      "attention_and_reduce_ms": 0.2825562744140625,
+      "reduction_increment_ms": 0.02506362915039062,
+      "attention_ms_per_layer": 0.042915440877278645,
+      "attention_and_reduce_ms_per_layer": 0.04709271240234375,
+      "reduction_increment_ms_per_layer": 0.004177271525065103
+    }
+  },
+  "reduction_check": {
+    "output_max_abs": 7.450580596923828e-09,
+    "lse_max_abs": 0.0
+  }
+}

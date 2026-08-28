@@ -6701,8 +6701,8 @@ def refine_route_candidates_by_page_mass(
         raise ValueError("page-summary key dimension differs from the query")
     if tuple(page_counts.shape) != tuple(page_sum_k.shape[:3]):
         raise ValueError("page counts differ from page-summary storage")
-    if page_size != 16:
-        raise ValueError("page-mass refinement currently requires 16-token pages")
+    if page_size not in (4, 16):
+        raise ValueError("page-mass refinement requires 4- or 16-token pages")
     if page_block_n <= 0 or page_block_n & (page_block_n - 1):
         raise ValueError("page-mass block size must be a power of two")
     rows = batch * query_heads * query_len
@@ -7231,8 +7231,8 @@ def query_major_residual_page_attention(
             raise ValueError("quantized leaf K scales do not match the cache")
         if tuple(page_v_scales.shape) != expected_v_scales:
             raise ValueError("quantized leaf V scales do not match the cache")
-    if int(page_shape[3]) != 16:
-        raise ValueError("residual-page attention requires 16-token pages")
+    if int(page_shape[3]) not in (4, 16):
+        raise ValueError("residual-page attention requires 4- or 16-token pages")
     expected_k_summary = (
         cache_batch_size,
         kv_heads,
@@ -9561,6 +9561,7 @@ def _decode_route_coarse_scalar_gqa_groups_kernel(
     PROTECTED_LEN: tl.constexpr,
     MAX_LEAF_TOKENS: tl.constexpr,
     USE_DOT: tl.constexpr,
+    SCORE_ONLY: tl.constexpr,
 ):
     """Reuse one state tile while preserving scalar per-query routing math."""
     batch_kv = tl.program_id(0).to(tl.int64)
@@ -9633,30 +9634,124 @@ def _decode_route_coarse_scalar_gqa_groups_kernel(
             tl.store(candidate_scores + candidate_base + rank, block_scores)
             tl.store(candidate_indices + candidate_base + rank, block_indices)
 
-        maximum = tl.max(scores, axis=0)
-        weights = tl.exp(scores - maximum)
-        weights = tl.where(valid, weights, 0.0)
-        denominator = tl.sum(weights, axis=0)
-        weighted_values = tl.dot(
-            weights[None, :].to(mean_values.dtype),
-            mean_values,
-            out_dtype=tl.float32,
-        )
-        weighted_values = tl.reshape(weighted_values, (HEAD_DIM,))
-        group_row = query_row * MAX_GROUPS + group
-        tl.store(
-            group_out + group_row * HEAD_DIM + dim,
-            tl.where(denominator > 0.0, weighted_values / denominator, 0.0),
-        )
-        tl.store(
-            group_lse + group_row,
-            tl.where(
-                denominator > 0.0,
-                maximum + tl.log(denominator),
-                -float("inf"),
-            ),
+        if not SCORE_ONLY:
+            maximum = tl.max(scores, axis=0)
+            numerator = tl.exp2((scores - maximum) * 1.4426950408889634)
+            numerator = tl.where(valid, numerator, 0.0)
+            denominator = tl.sum(numerator, axis=0)
+            accumulator = tl.sum(
+                numerator[:, None] * mean_values.to(tl.float32), axis=0
+            )
+            segment_row = query_row * MAX_GROUPS + group
+            tl.store(
+                group_out + segment_row * HEAD_DIM + dim,
+                tl.where(denominator > 0.0, accumulator / denominator, 0.0),
+            )
+            tl.store(
+                group_lse + segment_row,
+                tl.where(
+                    denominator > 0.0,
+                    maximum + tl.log(denominator),
+                    -float("inf"),
+                ),
+            )
+
+
+@triton.jit
+def _decode_route_coarse_query_major_score_kernel(
+    q,
+    state_k,
+    state_v,
+    counts,
+    cache_indices,
+    candidate_scores,
+    candidate_indices,
+    group_out,
+    group_lse,
+    STATE_BATCH_STRIDE,
+    STATE_HEAD_STRIDE,
+    STATE_TOKEN_STRIDE,
+    STATE_V_BATCH_STRIDE,
+    STATE_V_HEAD_STRIDE,
+    STATE_V_TOKEN_STRIDE,
+    COUNT_BATCH_STRIDE,
+    COUNT_HEAD_STRIDE,
+    COUNT_TOKEN_STRIDE,
+    state_len,
+    QUERY_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    KV_GROUP_SIZE: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    SCALE: tl.constexpr,
+    GROUP_N: tl.constexpr,
+    MAX_GROUPS: tl.constexpr,
+    PROTECTED_LEN: tl.constexpr,
+    MAX_LEAF_TOKENS: tl.constexpr,
+    USE_DOT: tl.constexpr,
+    SCORE_ONLY: tl.constexpr,
+):
+    """Score one query/head and one state slice per program.
+
+    This deliberately reloads the GQA key slice for each query head.  At very
+    low row counts that extra traffic can be preferable to leaving most of an
+    M=16 MFMA tile empty, and the query-major grid exposes KV_GROUP_SIZE times
+    as many independent programs.  The kernel is score-only because the final
+    fixed-list attention evaluates coarse values again with the opened leaves.
+    """
+    query_row = tl.program_id(0).to(tl.int64)
+    group = tl.program_id(1).to(tl.int64)
+    batch = query_row // QUERY_HEADS
+    query_head = query_row - batch * QUERY_HEADS
+    kv_head = query_head // KV_GROUP_SIZE
+    cache_batch = tl.load(cache_indices + batch).to(tl.int64)
+    slot = group * GROUP_N + tl.arange(0, GROUP_N)
+    valid = slot < state_len
+    dim = tl.arange(0, HEAD_DIM)
+    count = tl.load(
+        counts
+        + cache_batch * COUNT_BATCH_STRIDE
+        + kv_head * COUNT_HEAD_STRIDE
+        + slot * COUNT_TOKEN_STRIDE,
+        mask=valid,
+        other=1.0,
+    ).to(tl.float32)
+    valid &= count > 0.0
+    count = tl.where(valid, count, 1.0)
+    keys = tl.load(
+        state_k
+        + cache_batch * STATE_BATCH_STRIDE
+        + kv_head * STATE_HEAD_STRIDE
+        + slot[:, None] * STATE_TOKEN_STRIDE
+        + dim[None, :],
+        mask=valid[:, None],
+        other=0.0,
+    )
+    query = tl.load(q + query_row * HEAD_DIM + dim)
+    scores = tl.sum(
+        (keys.to(tl.float32) / count[:, None])
+        * query[None, :].to(tl.float32),
+        axis=1,
+    )
+    scores = scores * SCALE + tl.log(count)
+    scores = tl.where(valid, scores, -float("inf"))
+    route_scores = tl.where(slot >= PROTECTED_LEN, scores, -float("inf"))
+    if MAX_LEAF_TOKENS:
+        route_scores = tl.where(
+            count < MAX_LEAF_TOKENS, route_scores, -float("inf")
         )
 
+    candidate_base = (query_row * MAX_GROUPS + group) * 8
+    if GROUP_N == 8:
+        position = tl.arange(0, GROUP_N)
+        tl.store(candidate_scores + candidate_base + position, route_scores)
+        tl.store(candidate_indices + candidate_base + position, slot)
+    else:
+        packed = _pack_route_score_index(route_scores, slot)
+        block_top = tl.topk(packed, 8, dim=0)
+        block_scores, block_indices = _unpack_route_score_index(block_top)
+        rank = tl.arange(0, 8)
+        tl.store(candidate_scores + candidate_base + rank, block_scores)
+        tl.store(candidate_indices + candidate_base + rank, block_indices)
 
 @triton.jit
 def _reduce_decode_route_coarse_kernel(
@@ -12205,6 +12300,7 @@ def _apply_aiter_fixed_current_union_kernel(
     fixed_slot_offsets,
     active_mask,
     active_blocks,
+    execution_geometry,
     slot_offset_stride: tl.int64,
     mask_stride: tl.int64,
     block_stride: tl.int64,
@@ -12216,10 +12312,17 @@ def _apply_aiter_fixed_current_union_kernel(
     TILE_SIZE: tl.constexpr,
     BLOCK_N: tl.constexpr,
     BLOCKS_N: tl.constexpr,
+    EFFECTIVE_SEGMENTS: tl.constexpr,
+    SPLIT_D_REDUCE: tl.constexpr,
 ):
     """Apply the current sparse union and retain it for next-token reset."""
     sequence = tl.program_id(0).to(tl.int64)
     rank = tl.program_id(1).to(tl.int32)
+    if sequence == 0 and rank == 0:
+        tl.store(execution_geometry, EFFECTIVE_SEGMENTS)
+        tl.store(execution_geometry + 1, SPLIT_D_REDUCE)
+        tl.store(execution_geometry + 2, tl.num_programs(0))
+        tl.store(execution_geometry + 3, KV_HEADS)
     current_count = tl.load(current_counts + sequence).to(tl.int32)
     rank_valid = rank < current_count
     slot = tl.load(
@@ -12286,6 +12389,135 @@ def _apply_aiter_fixed_current_union_kernel(
     )
     tl.store(previous_counts + sequence, current_count, mask=rank == 0)
     tl.store(previous_cache_rows + sequence, cache_batch, mask=rank == 0)
+
+
+@triton.jit
+def _apply_aiter_fixed_direct_routes_kernel(
+    top_slots,
+    cache_indices,
+    union_counts,
+    union_token_counts,
+    sequence_epochs,
+    previous_counts,
+    previous_slots,
+    previous_cache_rows,
+    fixed_slot_offsets,
+    active_mask,
+    active_blocks,
+    execution_geometry,
+    TOP_BATCH_STRIDE,
+    TOP_HEAD_STRIDE,
+    slot_offset_stride: tl.int64,
+    mask_stride: tl.int64,
+    block_stride: tl.int64,
+    QUERY_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    KV_GROUP_SIZE: tl.constexpr,
+    ROUTE_COUNT: tl.constexpr,
+    STATE_CAPACITY: tl.constexpr,
+    UNION_CAPACITY: tl.constexpr,
+    LEAF_BEGIN: tl.constexpr,
+    MASK_CAPACITY: tl.constexpr,
+    TILE_SIZE: tl.constexpr,
+    BLOCK_N: tl.constexpr,
+    BLOCKS_N: tl.constexpr,
+    EFFECTIVE_SEGMENTS: tl.constexpr,
+    SPLIT_D_REDUCE: tl.constexpr,
+):
+    """Activate head routes directly when deduplicating would serialize B1.
+
+    Every write is idempotent: duplicate routes only clear the same coarse byte
+    and enable the same leaf range. Retaining all head-route pairs also makes
+    the next-token reset safe without constructing a compact union first.
+    """
+    sequence = tl.program_id(0).to(tl.int64)
+    candidate = tl.program_id(1).to(tl.int32)
+    batch = sequence // KV_HEADS
+    kv_head = sequence - batch * KV_HEADS
+    query_lane = candidate // ROUTE_COUNT
+    route = candidate - query_lane * ROUTE_COUNT
+    query_head = kv_head * KV_GROUP_SIZE + query_lane
+    slot = tl.load(
+        top_slots
+        + batch * TOP_BATCH_STRIDE
+        + query_head * TOP_HEAD_STRIDE
+        + route,
+        mask=candidate < KV_GROUP_SIZE * ROUTE_COUNT,
+        other=-1,
+    ).to(tl.int32)
+    slot_valid = (slot >= 0) & (slot < STATE_CAPACITY)
+    safe_slot = tl.where(slot_valid, slot, 0)
+    cache_batch = tl.load(cache_indices + batch).to(tl.int64)
+    physical_sequence = cache_batch * KV_HEADS + kv_head
+    offset_base = physical_sequence * slot_offset_stride
+    leaf_start = tl.load(
+        fixed_slot_offsets + offset_base + safe_slot,
+        mask=slot_valid,
+        other=0,
+        cache_modifier=".cg",
+    ).to(tl.int32)
+    leaf_stop = tl.load(
+        fixed_slot_offsets + offset_base + safe_slot + 1,
+        mask=slot_valid,
+        other=0,
+        cache_modifier=".cg",
+    ).to(tl.int32)
+    leaf_count = tl.where(slot_valid, leaf_stop - leaf_start, 0)
+    logical_start = LEAF_BEGIN + leaf_start
+    coarse_token = LEAF_BEGIN - STATE_CAPACITY + safe_slot
+    tl.store(
+        active_mask + sequence * mask_stride + coarse_token,
+        0,
+        mask=slot_valid & (coarse_token < MASK_CAPACITY),
+    )
+    token = tl.arange(0, BLOCK_N)
+    for begin in tl.range(0, leaf_count, BLOCK_N, num_stages=1):
+        offset = begin + token
+        logical_token = logical_start + offset
+        tl.store(
+            active_mask + sequence * mask_stride + logical_token,
+            1,
+            mask=(
+                slot_valid
+                & (offset < leaf_count)
+                & (logical_token < MASK_CAPACITY)
+            ),
+        )
+    first_block = logical_start // TILE_SIZE
+    last_block = (logical_start + leaf_count + TILE_SIZE - 1) // TILE_SIZE
+    block = tl.arange(0, BLOCKS_N)
+    for begin in tl.range(0, last_block - first_block, BLOCKS_N, num_stages=1):
+        logical_block = first_block + begin + block
+        tl.store(
+            active_blocks + sequence * block_stride + logical_block,
+            1,
+            mask=(
+                slot_valid
+                & (begin + block < last_block - first_block)
+                & (
+                    logical_block
+                    < (MASK_CAPACITY + TILE_SIZE - 1) // TILE_SIZE
+                )
+            ),
+        )
+
+    tl.store(
+        previous_slots + sequence * UNION_CAPACITY + candidate,
+        slot,
+        mask=candidate < UNION_CAPACITY,
+    )
+    if candidate == 0:
+        tl.store(previous_counts + sequence, UNION_CAPACITY)
+        tl.store(previous_cache_rows + sequence, cache_batch)
+        tl.store(union_counts + sequence, UNION_CAPACITY)
+        tl.store(union_token_counts + sequence, 0)
+        epoch = tl.load(sequence_epochs + sequence).to(tl.int32)
+        tl.store(sequence_epochs + sequence, epoch + 1)
+        if sequence == 0:
+            tl.store(execution_geometry, EFFECTIVE_SEGMENTS)
+            tl.store(execution_geometry + 1, SPLIT_D_REDUCE)
+            tl.store(execution_geometry + 2, tl.num_programs(0))
+            tl.store(execution_geometry + 3, KV_HEADS)
 
 
 @triton.jit
@@ -12922,6 +13154,80 @@ def _reduce_aiter_page1_segments_with_lse_kernel(
 
 
 @triton.jit
+def _reduce_aiter_page1_segments_with_lse_split_d_kernel(
+    segment_output,
+    segment_max_logits,
+    segment_exp_sums,
+    context_lens,
+    output,
+    output_lse,
+    OUTPUT_STRIDE_0: tl.constexpr,
+    OUTPUT_STRIDE_1: tl.constexpr,
+    QUERY_ROWS: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    SEGMENTS: tl.constexpr,
+    TILE_SIZE: tl.constexpr,
+    BLOCK_D: tl.constexpr,
+):
+    """Reduce page1 splits with independent output-dimension programs."""
+    sequence = tl.program_id(0).to(tl.int64)
+    query_lane = tl.program_id(1).to(tl.int64)
+    dimension_block = tl.program_id(2).to(tl.int64)
+    length = tl.load(context_lens + sequence).to(tl.int32)
+    segment = tl.arange(0, SEGMENTS)
+    tiles_per_segment = tl.cdiv(tl.maximum(length, 1), SEGMENTS * TILE_SIZE)
+    active_segments = tl.cdiv(length, tiles_per_segment * TILE_SIZE)
+    valid = segment < active_segments
+    scalar_offset = (
+        sequence * QUERY_ROWS * SEGMENTS
+        + query_lane * SEGMENTS
+        + segment
+    )
+    maxima = tl.load(
+        segment_max_logits + scalar_offset,
+        mask=valid,
+        other=-float("inf"),
+    ).to(tl.float32)
+    maximum = tl.max(maxima, axis=0)
+    exp_sums = tl.load(
+        segment_exp_sums + scalar_offset, mask=valid, other=0.0
+    ).to(tl.float32)
+    corrections = tl.where(valid, tl.math.exp2(maxima - maximum), 0.0)
+    denominator = tl.sum(exp_sums * corrections, axis=0)
+
+    dimension = dimension_block * BLOCK_D + tl.arange(0, BLOCK_D)
+    valid_dimension = dimension < HEAD_DIM
+    vector_offset = (
+        sequence * QUERY_ROWS * SEGMENTS * HEAD_DIM
+        + query_lane * SEGMENTS * HEAD_DIM
+        + segment[:, None] * HEAD_DIM
+        + dimension[None, :]
+    )
+    partials = tl.load(
+        segment_output + vector_offset,
+        mask=valid[:, None] & valid_dimension[None, :],
+        other=0.0,
+    ).to(tl.float32)
+    numerator = tl.sum(partials * corrections[:, None], axis=0)
+    result = tl.where(denominator > 0.0, numerator / denominator, 0.0)
+    tl.store(
+        output
+        + sequence * OUTPUT_STRIDE_0
+        + query_lane * OUTPUT_STRIDE_1
+        + dimension,
+        result,
+        mask=valid_dimension,
+    )
+    if dimension_block == 0:
+        lse = tl.where(
+            denominator > 0.0,
+            (maximum + tl.log2(denominator)) * 0.6931471805599453,
+            -float("inf"),
+        )
+        tl.store(output_lse + sequence * QUERY_ROWS + query_lane, lse)
+
+
+@triton.jit
 def _reduce_aiter_page1_segments_with_predicted_lse_kernel(
     segment_output,
     segment_max_logits,
@@ -12947,10 +13253,12 @@ def _reduce_aiter_page1_segments_with_predicted_lse_kernel(
     TILE_SIZE: tl.constexpr,
     ACTIVE_GROUPS: tl.constexpr,
     GROUP_BLOCK: tl.constexpr,
+    BLOCK_D: tl.constexpr,
 ):
     """Reduce final attention and persist eligible remote mass together."""
     sequence = tl.program_id(0).to(tl.int64)
     query_lane = tl.program_id(1).to(tl.int64)
+    dimension_block = tl.program_id(2).to(tl.int64)
     length = tl.load(context_lens + sequence).to(tl.int32)
     segment = tl.arange(0, SEGMENTS)
     tiles_per_segment = tl.cdiv(tl.maximum(length, 1), SEGMENTS * TILE_SIZE)
@@ -12972,7 +13280,8 @@ def _reduce_aiter_page1_segments_with_predicted_lse_kernel(
     ).to(tl.float32)
     corrections = tl.where(valid, tl.math.exp2(maxima - maximum), 0.0)
     denominator = tl.sum(exp_sums * corrections, axis=0)
-    dimension = tl.arange(0, HEAD_DIM)
+    dimension = dimension_block * BLOCK_D + tl.arange(0, BLOCK_D)
+    valid_dimension = dimension < HEAD_DIM
     vector_offset = (
         sequence * QUERY_ROWS * SEGMENTS * HEAD_DIM
         + query_lane * SEGMENTS * HEAD_DIM
@@ -12981,7 +13290,7 @@ def _reduce_aiter_page1_segments_with_predicted_lse_kernel(
     )
     partials = tl.load(
         segment_output + vector_offset,
-        mask=valid[:, None],
+        mask=valid[:, None] & valid_dimension[None, :],
         other=0.0,
     ).to(tl.float32)
     numerator = tl.sum(partials * corrections[:, None], axis=0)
@@ -12992,61 +13301,64 @@ def _reduce_aiter_page1_segments_with_predicted_lse_kernel(
         + query_lane * OUTPUT_STRIDE_1
         + dimension,
         result,
+        mask=valid_dimension,
     )
-    lse = tl.where(
-        denominator > 0.0,
-        (maximum + tl.log2(denominator)) * 0.6931471805599453,
-        -float("inf"),
-    )
-    tl.store(output_lse + sequence * QUERY_ROWS + query_lane, lse)
+    if dimension_block == 0:
+        lse = tl.where(
+            denominator > 0.0,
+            (maximum + tl.log2(denominator)) * 0.6931471805599453,
+            -float("inf"),
+        )
+        tl.store(output_lse + sequence * QUERY_ROWS + query_lane, lse)
 
-    # The next route only needs the eligible remote-coarse normalization
-    # scalar.  Keeping this reduction in the final consumer removes a launch
-    # from the serial per-token chain without extending the lifetime of the
-    # final-attention reduction vectors.
-    logical_batch = sequence // KV_HEADS
-    kv_head = sequence - logical_batch * KV_HEADS
-    cache_batch = tl.load(cache_indices + logical_batch).to(tl.int64)
-    remote_group = tl.arange(0, GROUP_BLOCK)
-    remote_valid = remote_group < ACTIVE_GROUPS
-    query_head = kv_head * QUERY_ROWS + query_lane
-    remote_row = logical_batch * (KV_HEADS * QUERY_ROWS) + query_head
-    partial_lse = tl.load(
-        remote_group_lse
-        + remote_row * REMOTE_LSE_ROW_STRIDE
-        + remote_group,
-        mask=remote_valid,
-        other=-float("inf"),
-    ).to(tl.float32)
-    remote_maximum = tl.max(partial_lse, axis=0)
-    remote_has_mass = remote_maximum > -float("inf")
-    remote_denominator = tl.sum(
-        tl.where(
-            remote_valid & remote_has_mass,
-            tl.exp(partial_lse - remote_maximum),
-            0.0,
-        ),
-        axis=0,
-    )
-    total_remote_lse = tl.where(
-        remote_denominator > 0.0,
-        remote_maximum + tl.log(remote_denominator),
-        -float("inf"),
-    )
-    tl.store(
-        persistent_lse
-        + cache_batch * PERSISTENT_BATCH_STRIDE
-        + query_head * PERSISTENT_HEAD_STRIDE,
-        total_remote_lse,
-    )
-    if query_lane == 0:
-        # Prepare the routing queue for the following token after every
-        # consumer of the current queue has finished.  This removes the
-        # serialized reset launch from the beginning of the next decode step.
-        epoch = tl.load(sequence_epochs + sequence).to(tl.int32)
-        tl.store(sequence_epochs + sequence, epoch + 1)
-        tl.store(union_counts + sequence, 0)
-        tl.store(union_token_counts + sequence, 0)
+        # The next route only needs the eligible remote-coarse normalization
+        # scalar.  Keeping this reduction in the final consumer removes a
+        # launch from the serial per-token chain without extending the
+        # lifetime of the final-attention reduction vectors.  Only the first
+        # D partition performs these scalar side effects.
+        logical_batch = sequence // KV_HEADS
+        kv_head = sequence - logical_batch * KV_HEADS
+        cache_batch = tl.load(cache_indices + logical_batch).to(tl.int64)
+        remote_group = tl.arange(0, GROUP_BLOCK)
+        remote_valid = remote_group < ACTIVE_GROUPS
+        query_head = kv_head * QUERY_ROWS + query_lane
+        remote_row = logical_batch * (KV_HEADS * QUERY_ROWS) + query_head
+        partial_lse = tl.load(
+            remote_group_lse
+            + remote_row * REMOTE_LSE_ROW_STRIDE
+            + remote_group,
+            mask=remote_valid,
+            other=-float("inf"),
+        ).to(tl.float32)
+        remote_maximum = tl.max(partial_lse, axis=0)
+        remote_has_mass = remote_maximum > -float("inf")
+        remote_denominator = tl.sum(
+            tl.where(
+                remote_valid & remote_has_mass,
+                tl.exp(partial_lse - remote_maximum),
+                0.0,
+            ),
+            axis=0,
+        )
+        total_remote_lse = tl.where(
+            remote_denominator > 0.0,
+            remote_maximum + tl.log(remote_denominator),
+            -float("inf"),
+        )
+        tl.store(
+            persistent_lse
+            + cache_batch * PERSISTENT_BATCH_STRIDE
+            + query_head * PERSISTENT_HEAD_STRIDE,
+            total_remote_lse,
+        )
+        if query_lane == 0:
+            # Prepare the routing queue for the following token after every
+            # consumer of the current queue has finished.  This removes the
+            # serialized reset launch from the beginning of the next step.
+            epoch = tl.load(sequence_epochs + sequence).to(tl.int32)
+            tl.store(sequence_epochs + sequence, epoch + 1)
+            tl.store(union_counts + sequence, 0)
+            tl.store(union_token_counts + sequence, 0)
 
 
 @triton.jit
@@ -15253,6 +15565,11 @@ def new_fused_decode_buffers(
                             dtype=torch.int32,
                             device=q.device,
                         ),
+                        gqa_union_fixed_execution_geometry=torch.zeros(
+                            4,
+                            dtype=torch.int32,
+                            device=q.device,
+                        ),
                     )
     return buffers
 
@@ -15302,6 +15619,7 @@ def fused_decode_paged_lod_attention(
     fuse_final_reduce: bool = False,
     route_use_dot: bool = False,
     route_gqa_grouped: bool = False,
+    route_centroid_major_hip: bool = False,
     gqa_cooperative_leaf: bool = True,
     gqa_cooperative_hip: bool = False,
     gqa_cooperative_route_splits: int = 4,
@@ -15316,6 +15634,12 @@ def fused_decode_paged_lod_attention(
     gqa_union_staged_fixed_aiter: bool = False,
     gqa_union_fixed_mask_aiter: bool = False,
     gqa_union_fixed_mask_tile_size: int = 64,
+    gqa_union_fixed_mask_adaptive_segments: bool = False,
+    gqa_union_fixed_mask_reduce_block_d: int = 0,
+    gqa_union_fixed_mask_direct_routes: bool = True,
+    gqa_union_fixed_mask_scan_num_warps: int = 2,
+    gqa_union_fixed_mask_scan_waves_per_eu: int = 2,
+    gqa_union_fixed_mask_scan_num_stages: int = 2,
     gqa_union_static_leaf_cap: int | None = None,
     gqa_union_page1_k: torch.Tensor | None = None,
     gqa_union_page1_v: torch.Tensor | None = None,
@@ -15415,8 +15739,11 @@ def fused_decode_paged_lod_attention(
         if recursive_page_cache is not None
         else (flat_page_indices if flat_page_indices is not None else page_k)
     )
-    if not isinstance(page_shape, torch.Tensor) or int(page_shape.size(3)) != 16:
-        raise ValueError("fused LOD decode requires 16-token leaf pages")
+    if not isinstance(page_shape, torch.Tensor) or int(page_shape.size(3)) not in (
+        4,
+        16,
+    ):
+        raise ValueError("fused LOD decode requires 4- or 16-token leaf pages")
     flat_int8 = page_k.dtype == torch.int8 or page_v.dtype == torch.int8
     if flat_int8:
         if recursive_page_cache is not None:
@@ -15630,12 +15957,17 @@ def fused_decode_paged_lod_attention(
         raise ValueError("recursive state-route backend must be fused or resplit")
     if recursive_state_route_backend == "resplit" and recursive_page_cache is None:
         raise ValueError("re-split state routing requires recursive page LOD")
-    if protected_len < 0 or protected_len + 8 > state_len:
+    if protected_len < 0 or protected_len + open_count > state_len:
         raise ValueError("protected state leaves too few decode routing candidates")
     if max_leaf_tokens is not None and max_leaf_tokens <= 0:
         raise ValueError("maximum routed leaves must be positive")
-    if not 1 <= open_count <= 8:
-        raise ValueError("decode open count must lie in [1, 8]")
+    if not 1 <= open_count <= 16:
+        raise ValueError("decode open count must lie in [1, 16]")
+    if execute_state_route and open_count > 8:
+        raise ValueError(
+            "fused decode route selection supports at most eight routes; "
+            "wider preselected routes may still use the fused attention scan"
+        )
     if route_top_p is not None and not 0.0 < route_top_p <= 1.0:
         raise ValueError("decode route top-p must lie in (0, 1]")
     if route_residual_mass is not None and not 0.0 < route_residual_mass <= 1.0:
@@ -15820,11 +16152,6 @@ def fused_decode_paged_lod_attention(
             and head_dim in (128, 256, 512)
             and route_gqa_grouped
             and (route_segment_tiles > 1 or gqa_union_page1_arena)
-            and (
-                route_segment_tiles > 1
-                or route_use_dot
-                or route_group_size > 16
-            )
             and (route_mass_fraction is None or gqa_union_mass)
             and route_top_p is None
             and route_residual_mass is None
@@ -16300,6 +16627,33 @@ def fused_decode_paged_lod_attention(
                 route_rows = (
                     batch * kv_heads if route_gqa_grouped else batch * query_heads
                 )
+                centroid_major_hip = False
+                if (
+                    route_centroid_major_hip
+                    and gqa_union_score_only
+                    and route_segment_tiles == 1
+                    and route_gqa_grouped
+                    and group_size == 32
+                    and head_dim == 256
+                    and kv_group_size in (4, 6)
+                    and q.dtype == torch.bfloat16
+                    and state_k.dtype == torch.bfloat16
+                    and counts.dtype == torch.float32
+                    and cache_indices.dtype == torch.int64
+                    and q.is_cuda
+                    and q.is_contiguous()
+                ):
+                    from model.kernels.centroid_major_route_score import (
+                        centroid_major_route_score_available,
+                    )
+
+                    device_index = q.device.index
+                    if device_index is None:
+                        device_index = torch.cuda.current_device()
+                    centroid_major_hip = centroid_major_route_score_available(
+                        device_index
+                    )
+                buffers["route_last_centroid_major_hip"] = centroid_major_hip
                 route_groups_begin = timing_begin()
                 route_arguments = (
                     q,
@@ -16322,7 +16676,95 @@ def fused_decode_paged_lod_attention(
                     counts.stride(2),
                     state_len,
                 )
-                if route_segment_tiles > 1:
+                if centroid_major_hip:
+                    from model.kernels.centroid_major_route_score import (
+                        centroid_major_route_score,
+                        centroid_major_route_score_fixed_prepare,
+                    )
+
+                    candidate_scores = buffers[
+                        "route_candidate_scores"
+                    ].reshape(batch * query_heads, max_groups, 8)
+                    candidate_indices = buffers[
+                        "route_candidate_indices"
+                    ].reshape(batch * query_heads, max_groups, 8)
+                    if gqa_union_fixed_mask:
+                        if not all(
+                            isinstance(tensor, torch.Tensor)
+                            for tensor in (
+                                gqa_union_fixed_lengths,
+                                gqa_union_fixed_slot_offsets,
+                                gqa_union_page1_k,
+                                gqa_union_page1_v,
+                            )
+                        ):
+                            raise AssertionError(
+                                "centroid-major fixed metadata is missing"
+                            )
+                        fixed_active_mask = buffers[
+                            "gqa_union_fixed_active_mask"
+                        ][: batch * kv_heads]
+                        fixed_active_blocks = buffers[
+                            "gqa_union_fixed_active_blocks"
+                        ][: batch * kv_heads]
+                        sink_len = int(sink_k.size(2)) if include_sink else 0
+                        centroid_major_route_score_fixed_prepare(
+                            q,
+                            state_k,
+                            counts,
+                            cache_indices,
+                            candidate_scores,
+                            candidate_indices,
+                            local_lens,
+                            gqa_union_fixed_lengths,
+                            buffers["gqa_union_hip_context_lens"],
+                            buffers["gqa_union_hip_launch_lens"],
+                            new_k,
+                            new_v,
+                            gqa_union_page1_k,
+                            gqa_union_page1_v,
+                            buffers["gqa_union_destinations"],
+                            buffers["gqa_union_fixed_previous_cache_rows"],
+                            buffers["gqa_union_fixed_previous_counts"],
+                            buffers["gqa_union_fixed_previous_slots"],
+                            gqa_union_fixed_slot_offsets,
+                            fixed_active_mask,
+                            fixed_active_blocks,
+                            state_len=state_len,
+                            protected_len=protected_len,
+                            max_leaf_tokens=max_leaf_tokens or 0,
+                            mean_before_dot=True,
+                            union_capacity=int(
+                                buffers["gqa_union_slots"].size(1)
+                            ),
+                            local_offset=gqa_union_page1_local_offset,
+                            local_capacity=int(local_k.size(2)),
+                            local_limit=local_len,
+                            sink_len=sink_len,
+                            leaf_begin=(
+                                local_len + sink_len + int(state_k.size(2))
+                            ),
+                            mask_capacity=int(fixed_active_mask.size(1)),
+                            tile_size=gqa_union_fixed_mask_tile_size,
+                            include_new=include_new,
+                            scale=float(scale),
+                        )
+                        gqa_union_fixed_prepare_fused = True
+                    else:
+                        centroid_major_route_score(
+                            q,
+                            state_k,
+                            counts,
+                            cache_indices,
+                            candidate_scores,
+                            candidate_indices,
+                            state_len=state_len,
+                            protected_len=protected_len,
+                            max_leaf_tokens=max_leaf_tokens or 0,
+                            mean_before_dot=True,
+                            scale=float(scale),
+                        )
+                elif route_segment_tiles > 1:
                     route_kernel[(route_rows, active_groups)](
                         *route_arguments,
                         QUERY_HEADS=query_heads,
@@ -17048,6 +17490,18 @@ def fused_decode_paged_lod_attention(
         if gqa_union_leaf:
             union_begin = timing_begin()
             sequence_count = batch * kv_heads
+            # The fixed-mask scan launches one independent sequence per
+            # (request, KV head); the GQA query rows are processed together
+            # inside that sequence's M=16 tile.  Preserve the established
+            # <=8-query-row rule, but also recognize B1 configurations with at
+            # most four independent KV scans. Counting query rows alone hid
+            # the low-batch path from higher-GQA models such as Qwen3.8
+            # (B1/KV4/GQA6: four scans, but 24 query rows). Restricting the new
+            # arm to B1 avoids silently changing the validated B2+ dispatch.
+            low_sequence_count = bool(
+                sequence_count * kv_group_size <= 8
+                or (batch == 1 and sequence_count <= 4)
+            )
             union_capacity = int(buffers["gqa_union_slots"].size(1))
             index_capacity = int(buffers["gqa_union_token_indices"].size(1))
             hip_block_table = (
@@ -17066,7 +17520,18 @@ def fused_decode_paged_lod_attention(
                 )
             if gqa_union_hip_exact and not gqa_union_fixed_mask:
                 hip_context_lens[:sequence_count].zero_()
-            if not gqa_union_mass and not gqa_union_predicted:
+            direct_fixed_routes = bool(
+                gqa_union_fixed_mask
+                and gqa_union_fixed_mask_direct_routes
+                and not gqa_union_mass
+                and not gqa_union_predicted
+            )
+            buffers["gqa_union_last_direct_fixed_routes"] = direct_fixed_routes
+            if (
+                not gqa_union_mass
+                and not gqa_union_predicted
+                and not direct_fixed_routes
+            ):
                 _decode_topk_gqa_union_kernel[(sequence_count,)](
                     top_slots,
                     buffers["gqa_union_seen_stamps"],
@@ -17195,46 +17660,109 @@ def fused_decode_paged_lod_attention(
                 fixed_query = q[:, :, 0, :].reshape(
                     sequence_count, kv_group_size, head_dim
                 )
+                allocated_segments = int(
+                    buffers["gqa_union_hip_exp_sums"].size(2)
+                )
+                # With at most four independent KV scans on this rank, 256
+                # scan programs can repay their larger partial-output field.
+                # The split-D reducer below makes the low-sequence 256-way case
+                # profitable; 512 still pays excessive partial-output traffic.
+                unified_segments = allocated_segments
+                if (
+                    gqa_union_fixed_mask_adaptive_segments
+                    and allocated_segments >= 256
+                ):
+                    unified_segments = 256 if low_sequence_count else 128
                 fixed_segment_out = buffers["gqa_union_hip_segment_out"][
-                    :sequence_count
+                    :sequence_count, :, :unified_segments
                 ]
                 fixed_exp_sums = buffers["gqa_union_hip_exp_sums"][
-                    :sequence_count
+                    :sequence_count, :, :unified_segments
                 ]
                 fixed_max_logits = buffers["gqa_union_hip_max_logits"][
-                    :sequence_count
+                    :sequence_count, :, :unified_segments
                 ]
-                unified_segments = int(fixed_exp_sums.size(2))
+                buffers["gqa_union_last_effective_segments"] = unified_segments
+                use_split_d_reduce = bool(
+                    head_dim != 512
+                    and gqa_union_fixed_mask_reduce_block_d
+                    and low_sequence_count
+                )
                 mask_prepare_begin = timing_begin()
                 # Prefix preparation and prior-route clearing were distributed
                 # across the current route-scoring grid. Only activation of the
                 # newly selected union remains before final attention.
-                _apply_aiter_fixed_current_union_kernel[
-                    (sequence_count, union_capacity)
-                ](
-                    cache_indices,
-                    buffers["gqa_union_counts"],
-                    buffers["gqa_union_slots"],
-                    buffers["gqa_union_fixed_previous_counts"],
-                    buffers["gqa_union_fixed_previous_slots"],
-                    buffers["gqa_union_fixed_previous_cache_rows"],
-                    gqa_union_fixed_slot_offsets,
-                    fixed_active_mask,
-                    fixed_active_blocks,
-                    gqa_union_fixed_slot_offsets.stride(1),
-                    fixed_active_mask.stride(0),
-                    fixed_active_blocks.stride(0),
-                    KV_HEADS=kv_heads,
-                    STATE_CAPACITY=int(state_k.size(2)),
-                    UNION_CAPACITY=union_capacity,
-                    LEAF_BEGIN=local_len + sink_len + int(state_k.size(2)),
-                    MASK_CAPACITY=int(fixed_active_mask.size(1)),
-                    TILE_SIZE=gqa_union_fixed_mask_tile_size,
-                    BLOCK_N=64,
-                    BLOCKS_N=4,
-                    num_warps=1,
-                    waves_per_eu=1,
-                )
+                if direct_fixed_routes:
+                    _apply_aiter_fixed_direct_routes_kernel[
+                        (sequence_count, union_capacity)
+                    ](
+                        top_slots,
+                        cache_indices,
+                        buffers["gqa_union_counts"],
+                        buffers["gqa_union_token_counts"],
+                        buffers["gqa_union_epochs"],
+                        buffers["gqa_union_fixed_previous_counts"],
+                        buffers["gqa_union_fixed_previous_slots"],
+                        buffers["gqa_union_fixed_previous_cache_rows"],
+                        gqa_union_fixed_slot_offsets,
+                        fixed_active_mask,
+                        fixed_active_blocks,
+                        buffers["gqa_union_fixed_execution_geometry"],
+                        top_slots.stride(0),
+                        top_slots.stride(1),
+                        gqa_union_fixed_slot_offsets.stride(1),
+                        fixed_active_mask.stride(0),
+                        fixed_active_blocks.stride(0),
+                        QUERY_HEADS=query_heads,
+                        KV_HEADS=kv_heads,
+                        KV_GROUP_SIZE=kv_group_size,
+                        ROUTE_COUNT=int(top_slots.size(-1)),
+                        STATE_CAPACITY=int(state_k.size(2)),
+                        UNION_CAPACITY=union_capacity,
+                        LEAF_BEGIN=(
+                            local_len + sink_len + int(state_k.size(2))
+                        ),
+                        MASK_CAPACITY=int(fixed_active_mask.size(1)),
+                        TILE_SIZE=gqa_union_fixed_mask_tile_size,
+                        BLOCK_N=64,
+                        BLOCKS_N=4,
+                        EFFECTIVE_SEGMENTS=unified_segments,
+                        SPLIT_D_REDUCE=use_split_d_reduce,
+                        num_warps=1,
+                        waves_per_eu=1,
+                    )
+                else:
+                    _apply_aiter_fixed_current_union_kernel[
+                        (sequence_count, union_capacity)
+                    ](
+                        cache_indices,
+                        buffers["gqa_union_counts"],
+                        buffers["gqa_union_slots"],
+                        buffers["gqa_union_fixed_previous_counts"],
+                        buffers["gqa_union_fixed_previous_slots"],
+                        buffers["gqa_union_fixed_previous_cache_rows"],
+                        gqa_union_fixed_slot_offsets,
+                        fixed_active_mask,
+                        fixed_active_blocks,
+                        buffers["gqa_union_fixed_execution_geometry"],
+                        gqa_union_fixed_slot_offsets.stride(1),
+                        fixed_active_mask.stride(0),
+                        fixed_active_blocks.stride(0),
+                        KV_HEADS=kv_heads,
+                        STATE_CAPACITY=int(state_k.size(2)),
+                        UNION_CAPACITY=union_capacity,
+                        LEAF_BEGIN=(
+                            local_len + sink_len + int(state_k.size(2))
+                        ),
+                        MASK_CAPACITY=int(fixed_active_mask.size(1)),
+                        TILE_SIZE=gqa_union_fixed_mask_tile_size,
+                        BLOCK_N=64,
+                        BLOCKS_N=4,
+                        EFFECTIVE_SEGMENTS=unified_segments,
+                        SPLIT_D_REDUCE=use_split_d_reduce,
+                        num_warps=1,
+                        waves_per_eu=1,
+                    )
                 timing_end(
                     "gqa_union_fixed_mask_prepare", mask_prepare_begin
                 )
@@ -17286,6 +17814,19 @@ def fused_decode_paged_lod_attention(
                     )
                 fixed_out = output[:, :, 0, :].reshape(
                     sequence_count, kv_group_size, head_dim
+                )
+                fixed_scan_begin = timing_begin()
+                low_row_scan = bool(
+                    gqa_union_fixed_mask_adaptive_segments
+                    and low_sequence_count
+                )
+                scan_num_warps = (
+                    1 if low_row_scan else gqa_union_fixed_mask_scan_num_warps
+                )
+                scan_waves_per_eu = (
+                    1
+                    if low_row_scan
+                    else gqa_union_fixed_mask_scan_waves_per_eu
                 )
                 if head_dim == 512:
                     if predicted_fixed_prepare:
@@ -17352,14 +17893,29 @@ def fused_decode_paged_lod_attention(
                         BLOCK_M=16,
                         NUM_SEGMENTS=unified_segments,
                         INCLUDE_NEW=include_new,
-                        num_warps=2,
-                        waves_per_eu=2,
-                        num_stages=2,
+                        num_warps=scan_num_warps,
+                        waves_per_eu=scan_waves_per_eu,
+                        num_stages=gqa_union_fixed_mask_scan_num_stages,
                     )
+                timing_end("gqa_union_fixed_mask_scan", fixed_scan_begin)
+                fixed_reduce_begin = (
+                    timing_begin() if head_dim != 512 else None
+                )
                 if predicted_fixed_prepare:
                     predicted_groups = triton.cdiv(state_len, 64)
                     _reduce_aiter_page1_segments_with_predicted_lse_kernel[
-                        (sequence_count, kv_group_size)
+                        (
+                            sequence_count,
+                            kv_group_size,
+                            triton.cdiv(
+                                head_dim,
+                                (
+                                    gqa_union_fixed_mask_reduce_block_d
+                                    if use_split_d_reduce
+                                    else head_dim
+                                ),
+                            ),
+                        )
                     ](
                         fixed_segment_out,
                         fixed_max_logits,
@@ -17391,27 +17947,70 @@ def fused_decode_paged_lod_attention(
                         TILE_SIZE=gqa_union_fixed_mask_tile_size,
                         ACTIVE_GROUPS=predicted_groups,
                         GROUP_BLOCK=triton.next_power_of_2(predicted_groups),
+                        BLOCK_D=(
+                            gqa_union_fixed_mask_reduce_block_d
+                            if use_split_d_reduce
+                            else head_dim
+                        ),
                         num_warps=2,
                         waves_per_eu=waves_per_eu,
                     )
+                    buffers["gqa_union_last_split_d_reduce"] = (
+                        use_split_d_reduce
+                    )
                 elif head_dim != 512:
-                    _reduce_aiter_page1_segments_with_lse_kernel[
-                        (sequence_count, kv_group_size)
-                    ](
-                        fixed_segment_out,
-                        fixed_max_logits,
-                        fixed_exp_sums,
-                        fixed_context_lens,
-                        fixed_out,
-                        buffers["gqa_union_hip_lse"][:sequence_count],
-                        OUTPUT_STRIDE_0=fixed_out.stride(0),
-                        OUTPUT_STRIDE_1=fixed_out.stride(1),
-                        QUERY_ROWS=kv_group_size,
-                        HEAD_DIM=head_dim,
-                        SEGMENTS=unified_segments,
-                        TILE_SIZE=gqa_union_fixed_mask_tile_size,
-                        num_warps=2,
-                        waves_per_eu=waves_per_eu,
+                    buffers["gqa_union_last_split_d_reduce"] = (
+                        use_split_d_reduce
+                    )
+                    if use_split_d_reduce:
+                        _reduce_aiter_page1_segments_with_lse_split_d_kernel[
+                            (
+                                sequence_count,
+                                kv_group_size,
+                                triton.cdiv(
+                                    head_dim,
+                                    gqa_union_fixed_mask_reduce_block_d,
+                                ),
+                            )
+                        ](
+                            fixed_segment_out,
+                            fixed_max_logits,
+                            fixed_exp_sums,
+                            fixed_context_lens,
+                            fixed_out,
+                            buffers["gqa_union_hip_lse"][:sequence_count],
+                            OUTPUT_STRIDE_0=fixed_out.stride(0),
+                            OUTPUT_STRIDE_1=fixed_out.stride(1),
+                            QUERY_ROWS=kv_group_size,
+                            HEAD_DIM=head_dim,
+                            SEGMENTS=unified_segments,
+                            TILE_SIZE=gqa_union_fixed_mask_tile_size,
+                            BLOCK_D=gqa_union_fixed_mask_reduce_block_d,
+                            num_warps=2,
+                            waves_per_eu=waves_per_eu,
+                        )
+                    else:
+                        _reduce_aiter_page1_segments_with_lse_kernel[
+                            (sequence_count, kv_group_size)
+                        ](
+                            fixed_segment_out,
+                            fixed_max_logits,
+                            fixed_exp_sums,
+                            fixed_context_lens,
+                            fixed_out,
+                            buffers["gqa_union_hip_lse"][:sequence_count],
+                            OUTPUT_STRIDE_0=fixed_out.stride(0),
+                            OUTPUT_STRIDE_1=fixed_out.stride(1),
+                            QUERY_ROWS=kv_group_size,
+                            HEAD_DIM=head_dim,
+                            SEGMENTS=unified_segments,
+                            TILE_SIZE=gqa_union_fixed_mask_tile_size,
+                            num_warps=2,
+                            waves_per_eu=waves_per_eu,
+                        )
+                if fixed_reduce_begin is not None:
+                    timing_end(
+                        "gqa_union_fixed_mask_reduce", fixed_reduce_begin
                     )
                 timing_end("gqa_union_fixed_mask_attention", fixed_attention_begin)
                 timing_end("gqa_union_indices", union_begin)
@@ -21064,8 +21663,8 @@ def append_virtual_paged_kv(
             raise ValueError("virtual INT8 source V has the wrong shape")
     if tuple(page_indices.shape[:2]) != (batch, kv_heads):
         raise ValueError("virtual page index rows do not match flat K/V")
-    if int(page_indices.size(3)) != 16:
-        raise ValueError("virtual page append requires 16-entry pages")
+    if int(page_indices.size(3)) not in (4, 16):
+        raise ValueError("virtual page append requires 4- or 16-entry pages")
     if slot_lengths.dtype != torch.int32 or next_page.dtype != torch.int32:
         raise TypeError("Triton page counters must use int32")
     if raw_page_summary_k is not None:

@@ -290,6 +290,7 @@ class TritonLODAttentionCore(nn.Module):
     # D=512 route tiles are faster with the scalar accumulation path on
     # gfx942; D=128/256 retain MFMA routing.
     decode_geometry_tuning = True
+    decode_centroid_major_hip = False
     decode_route_gqa_grouped = True
     decode_gqa_cooperative_leaf = True
     decode_gqa_cooperative_hip = True
@@ -1812,8 +1813,11 @@ class TritonLODAttentionCore(nn.Module):
         torch.Tensor,
         torch.Tensor | None,
     ]:
-        if self.state_premerge_factor not in {1, 2, 4}:
-            raise ValueError("state premerge factor must be one, two, or four")
+        if self.state_premerge_factor not in {1, 2, 4, 8, 16, 32}:
+            raise ValueError(
+                "state premerge factor must be one, two, four, eight, sixteen, or "
+                "thirty-two"
+            )
         if self.state_premerge_factor > 1 and (
             self.overflow_bipartite_merge
             or self.state_union_bipartite
@@ -2003,6 +2007,7 @@ class TritonLODAttentionCore(nn.Module):
         buffers = None
         old_route_scores = None
         old_route_indices = None
+        maxsim_buffers = None
         if use_fused_state_update and state_k.is_cuda:
             buffers = getattr(self, "_lod_state_update_buffers", None)
             expected_prefix = (
@@ -2019,7 +2024,16 @@ class TritonLODAttentionCore(nn.Module):
                 buffers = new_state_delta_buffers(state_k, state_v, state_capacity)
                 self._lod_state_update_buffers = buffers
 
-        if use_streaming_state_scan:
+        if n_append == overflow_len:
+            # Every premerged input becomes a new centroid.  This is the
+            # normal fixed-adjacent path through 64K: T/16 is no larger than
+            # the 16*sqrt(T) state schedule.  Scanning the old state cannot
+            # affect either the append set or ownership, and is invalid when
+            # the only existing entry is the protected sink.
+            append_idx = _all_idx(overflow_k, overflow_len)
+            merge_idx = append_idx[..., :0]
+            use_streaming_state_scan = False
+        elif use_streaming_state_scan:
             maxsim_buffers = getattr(self, "_lod_state_maxsim_buffers", None)
             needs_maxsim_buffers = (
                 maxsim_buffers is None
@@ -3004,10 +3018,6 @@ class TritonLODAttentionCore(nn.Module):
                 statistics.append(statistic)
                 return routed
             if int(q.size(2)) == 1 and self.decode_route_mass_fraction is not None:
-                if self.leaf_attention_backend != "paged":
-                    raise ValueError(
-                        "decode mass-fraction routing requires paged leaf attention"
-                    )
                 if dynamic_target is not None or dynamic_residual is not None:
                     raise ValueError(
                         "decode mass-fraction routing cannot use dynamic opening"
@@ -3743,7 +3753,7 @@ class TritonLODAttentionCore(nn.Module):
                 and self.routing_variance_bias == 0.0
                 and q.is_cuda
                 and int(q.size(2)) > 1
-                and 0 < route_count <= 8
+                and 0 < route_count <= 16
                 and dynamic_target is None
                 and not getattr(self, "_lod_collect_stats", False)
                 and (
@@ -4167,7 +4177,7 @@ class TritonLODAttentionCore(nn.Module):
                 and self.routing_variance_bias == 0.0
                 and self.reuse_route_logits_for_coarse
                 and int(q.size(2)) > 1
-                and route_count <= 8
+                and route_count <= 16
             ):
                 self._lod_prefill_route_logits = logits
             logits = logits * self.scaling
@@ -6606,6 +6616,7 @@ class TritonLODAttentionCore(nn.Module):
                     else self.decode_route_use_dot
                 ),
                 route_gqa_grouped=self.decode_route_gqa_grouped,
+                route_centroid_major_hip=self.decode_centroid_major_hip,
                 gqa_cooperative_leaf=cooperative_leaf,
                 gqa_cooperative_hip=self.decode_gqa_cooperative_hip,
                 gqa_cooperative_route_splits=cooperative_route_splits,
@@ -7687,7 +7698,16 @@ class TritonLODAttentionCore(nn.Module):
                 if page_cache is not None:
                     if old_slot_remap is not None:
                         raise AssertionError("paged state remapping is unsupported")
-                    append_owner_parts.append(new_owners)
+                    # Adjacent premerge expands owners through a persistent
+                    # workspace.  A 4K archive block can contain several
+                    # state-update batches, so retaining the returned view
+                    # would let the following update overwrite every earlier
+                    # owner segment before the batched page append.
+                    append_owner_parts.append(
+                        new_owners.clone()
+                        if self.state_premerge_factor > 1
+                        else new_owners
+                    )
                 else:
                     if owners is None:
                         raise AssertionError("packed LOD owner archive is missing")
@@ -7765,7 +7785,11 @@ class TritonLODAttentionCore(nn.Module):
             if page_cache is not None:
                 if old_slot_remap is not None:
                     raise AssertionError("paged state remapping is unsupported")
-                append_owner_parts.append(new_owners)
+                append_owner_parts.append(
+                    new_owners.clone()
+                    if self.state_premerge_factor > 1
+                    else new_owners
+                )
             else:
                 if owners is None:
                     raise AssertionError("packed LOD owner archive is missing")
@@ -8078,12 +8102,20 @@ class TritonLODAttentionCore(nn.Module):
             exact_k = torch.cat(exact_key_parts, dim=2)
             exact_v = torch.cat(exact_value_parts, dim=2)
             suffix_query = q[..., :front_query_end, :]
+            # The initial exact field can contain premerged coarse entries.
+            # Its causal prefix is therefore the number of materialized keys
+            # before these suffix queries, not the uncompressed token offset.
+            # They are equal for the ordinary learned state, but differ for
+            # fixed adjacent-token groups such as T/16.
+            exact_query_offset = int(exact_k.size(2)) - front_query_end
             exact_q = (
                 suffix_query
                 if self.prefill_local_attention_backend == "aiter"
                 else torch.cat(
                     (
-                        q.new_zeros(*q.shape[:2], previous_total_len, int(q.size(-1))),
+                        q.new_zeros(
+                            *q.shape[:2], exact_query_offset, int(q.size(-1))
+                        ),
                         suffix_query,
                     ),
                     dim=2,
@@ -8093,7 +8125,7 @@ class TritonLODAttentionCore(nn.Module):
                 exact_q,
                 exact_k,
                 exact_v,
-                query_offset=previous_total_len,
+                query_offset=exact_query_offset,
             )
             if output_buffer is not None:
                 output_buffer[..., :front_query_end, :].copy_(exact_output)

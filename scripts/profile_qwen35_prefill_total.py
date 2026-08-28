@@ -147,6 +147,13 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--state-growth-factor", type=float, default=16.0)
     parser.add_argument(
+        "--state-premerge-factor",
+        type=int,
+        choices=(1, 2, 4, 8, 16, 32),
+        default=1,
+        help="sum fixed adjacent token groups before state routing",
+    )
+    parser.add_argument(
         "--state-clustering-geometry",
         choices=("raw", "coherence"),
         default="raw",
@@ -260,6 +267,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--coarse-route-block-m", type=int, default=16)
     parser.add_argument("--coarse-route-block-n", type=int, default=32)
     parser.add_argument("--coarse-route-num-warps", type=int, default=4)
+    parser.add_argument("--prefill-coarse-max-grouped-rows", type=int, default=8)
+    parser.add_argument("--prefill-coarse-route-block-n", type=int, default=32)
+    parser.add_argument("--prefill-coarse-route-num-warps", type=int, default=8)
+    parser.add_argument(
+        "--prefill-coarse-direct-gqa",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+    )
     parser.add_argument("--route-gqa-matmul", action="store_true")
     parser.add_argument("--output", type=Path, required=True)
     return parser.parse_args()
@@ -723,9 +738,11 @@ def main() -> None:
     if args.repeats <= 0:
         raise ValueError("profile repeats must be positive")
     if args.prefill_two_level_topk is not None and not (
-        0 <= args.prefill_two_level_topk <= 8
+        0 <= args.prefill_two_level_topk <= 32
     ):
-        raise ValueError("prefill top-k must be in [0, 8]")
+        raise ValueError("prefill top-k must be in [0, 32]")
+    if not 0 <= args.two_level_topk <= 32:
+        raise ValueError("decode top-k must be in [0, 32]")
     if args.prefill_max_leaf_tokens is not None and args.prefill_max_leaf_tokens <= 0:
         raise ValueError("maximum prefill leaf count must be positive")
     if args.leaf_seal_capacity is not None and args.leaf_seal_capacity <= 0:
@@ -839,6 +856,7 @@ def main() -> None:
     if args.mode == "two_level":
         for module in model.modules():
             if isinstance(module, Qwen3_5TwoLevelAttention):
+                module.state_premerge_factor = args.state_premerge_factor
                 module.prefill_two_level_topk = args.prefill_two_level_topk
                 module.separate_sink_cache = args.separate_sink_cache
                 module.prefill_max_leaf_tokens = args.prefill_max_leaf_tokens
@@ -1011,6 +1029,16 @@ def main() -> None:
                 module.coarse_route_block_m = args.coarse_route_block_m
                 module.coarse_route_block_n = args.coarse_route_block_n
                 module.coarse_route_num_warps = args.coarse_route_num_warps
+                module.prefill_coarse_max_grouped_rows = (
+                    args.prefill_coarse_max_grouped_rows
+                )
+                module.prefill_coarse_route_block_n = (
+                    args.prefill_coarse_route_block_n
+                )
+                module.prefill_coarse_route_num_warps = (
+                    args.prefill_coarse_route_num_warps
+                )
+                module.prefill_coarse_direct_gqa = args.prefill_coarse_direct_gqa
                 module.route_gqa_matmul = args.route_gqa_matmul
 
     def prefill():
@@ -1513,6 +1541,9 @@ def main() -> None:
             if args.mode in ("two_level", "pytorch_lod")
             else None
         ),
+        "state_premerge_factor": (
+            args.state_premerge_factor if args.mode == "two_level" else None
+        ),
         "state_clustering_geometry": (
             args.state_clustering_geometry if args.mode == "two_level" else None
         ),
@@ -1691,6 +1722,18 @@ def main() -> None:
         ),
         "fused_prefill_route_coarse": (
             args.enable_fused_prefill_route_coarse if args.mode == "two_level" else None
+        ),
+        "prefill_coarse_max_grouped_rows": (
+            args.prefill_coarse_max_grouped_rows if args.mode == "two_level" else None
+        ),
+        "prefill_coarse_route_block_n": (
+            args.prefill_coarse_route_block_n if args.mode == "two_level" else None
+        ),
+        "prefill_coarse_route_num_warps": (
+            args.prefill_coarse_route_num_warps if args.mode == "two_level" else None
+        ),
+        "prefill_coarse_direct_gqa": (
+            args.prefill_coarse_direct_gqa if args.mode == "two_level" else None
         ),
         "split_prefill_local_attention": (
             args.split_prefill_local_attention if args.mode == "two_level" else None

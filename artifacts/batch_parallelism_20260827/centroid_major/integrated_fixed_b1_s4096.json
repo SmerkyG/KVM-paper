@@ -1,0 +1,104 @@
+{
+  "geometry": {
+    "batch": 1,
+    "kv_heads": 2,
+    "gqa": 4,
+    "head_dim": 256,
+    "state_len": 4096,
+    "local_limit": 512,
+    "active_local": 173,
+    "leaf_count_mean": 16.060466766357422,
+    "splits": 8,
+    "union_final": "unified",
+    "mass_fraction": null,
+    "hip_union": true,
+    "unified_arena": true,
+    "group64_padded": false,
+    "staged_fixed_aiter": false,
+    "fixed_mask_aiter": true,
+    "fixed_mask_block_n": 64,
+    "fixed_mask_segments": 128,
+    "cuda_graph_timing": false
+  },
+  "correctness": {
+    "max_abs": 0.057769775390625,
+    "mean_abs": 0.012104691937565804,
+    "hip_vs_triton_max_abs": 0.056915283203125,
+    "hip_vs_triton_mean_abs": 0.012269014492630959,
+    "manual_shared_union": null,
+    "manual_fixed_mask": {
+      "max_abs": 0.056479211896657944,
+      "mean_abs": 0.012272201478481293
+    },
+    "oversized_route_excluded": null
+  },
+  "timing_ms": {
+    "baseline_two_tier": 0.1324475383758545,
+    "gqa_union": 0.16638702392578125,
+    "speedup": 0.7960208389503629
+  },
+  "phase_microseconds": {
+    "baseline": {
+      "route_groups": 136.7579996585846,
+      "route_reduce": 81.557996571064,
+      "leaf_local": 78.39900255203247,
+      "final_reduce": 51.639001816511154
+    },
+    "gqa_union": {
+      "route_groups": 62.87900358438492,
+      "route_reduce": 58.71900171041489,
+      "gqa_union_fixed_fallback_prepare": 87.15800195932388,
+      "gqa_union_fixed_mask_prepare": 39.27899897098541,
+      "gqa_union_fixed_mask_scan": 147.27799594402313,
+      "gqa_union_fixed_mask_reduce": 9.039999917149544,
+      "gqa_union_fixed_mask_attention": 353.59400510787964,
+      "gqa_union_indices": 399.51300621032715,
+      "leaf_local": 418.5529947280884
+    }
+  },
+  "kernel_profile": null,
+  "union": {
+    "initial_counts": [
+      0,
+      0
+    ],
+    "initial_epochs": [
+      2,
+      2
+    ],
+    "epochs": [
+      58,
+      58
+    ],
+    "route_valid_counts": [
+      [
+        [
+          8
+        ],
+        [
+          8
+        ],
+        [
+          8
+        ],
+        [
+          8
+        ],
+        [
+          8
+        ],
+        [
+          8
+        ],
+        [
+          8
+        ],
+        [
+          8
+        ]
+      ]
+    ],
+    "mean_centroids": 0.0,
+    "mean_tokens_including_local": 69772.0
+  }
+}

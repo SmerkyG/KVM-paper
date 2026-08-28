@@ -1,0 +1,155 @@
+{
+  "allow_heterogeneous_global_config": false,
+  "apply_chat_template": true,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 219863318528,
+    "device_used_bytes_before_reclaim": 220897214464,
+    "external_lod_layers": 0,
+    "external_lod_layers_with_native_cache": 0,
+    "external_lod_native_cache_bytes": 0,
+    "lod_cache_bytes": 0,
+    "lod_decode_scratch_bytes": 0,
+    "native_cache_bytes": 214941302784,
+    "torch_allocated_bytes": 216967590400,
+    "torch_reclaimable_cached_bytes": 1033895936,
+    "torch_reserved_bytes_after_reclaim": 217036357632,
+    "torch_reserved_bytes_before_reclaim": 218070253568
+  },
+  "batch_size": 2,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "diagnostic_external_empty_attention": null,
+  "disable_custom_all_reduce": false,
+  "disable_thinking": true,
+  "enable_prefix_caching": true,
+  "full_attention_backend": "ROCM_AITER_UNIFIED_ATTN",
+  "full_attention_dispatch": {
+    "records": [
+      {
+        "attention_callable": "aiter.ops.triton.attention.unified_attention.unified_attention",
+        "head_dim": 256,
+        "implementation_class": "vllm.v1.attention.backends.rocm_aiter_unified_attn.RocmAiterUnifiedAttentionImpl",
+        "kv_cache_dtype": "auto",
+        "kv_group_size": 4,
+        "kv_heads": 2,
+        "layers": 6,
+        "query_heads": 8,
+        "sliding_window": [
+          -1,
+          -1
+        ]
+      }
+    ],
+    "schema_version": 1
+  },
+  "language_model_only": false,
+  "lengths": [
+    65536
+  ],
+  "load_format": "auto",
+  "lod_diagnostics_before": null,
+  "long_prefill_token_threshold": 4096,
+  "max_new_tokens": 64,
+  "max_num_batched_tokens": 8192,
+  "mode": "full",
+  "model_impl": null,
+  "muse_native_text_config": false,
+  "results": {
+    "65536": {
+      "speed": {
+        "decode_timings_seconds": [
+          0.7863885820843279,
+          0.7876844946295023,
+          0.7872990407049656,
+          0.7859461181797087,
+          0.786526020616293
+        ],
+        "marginal_decode_ms_per_batch_step": 3.0844157671227173,
+        "marginal_decode_tokens_per_second": 648.4210142219869,
+        "prefill_prompt_tokens_per_second": 1961658.444993149,
+        "prefill_seconds": 0.06655592890456319,
+        "prefill_timings_seconds": [
+          0.0643571587279439,
+          0.6736737452447414,
+          0.06655592890456319,
+          0.06759061571210623,
+          0.06503034941852093
+        ],
+        "prefix_cache_probe": {
+          "decode_seconds": 0.786480741109699,
+          "elapsed_seconds": 0.8582770610228181,
+          "matching_output_prefix_tokens": [
+            45,
+            256
+          ],
+          "matching_output_requests": 1,
+          "output_requests": 2,
+          "outputs_match_cold": false,
+          "prefill_seconds": 0.0681014689616859
+        },
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 65280,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London K",
+              "request_index": 0,
+              "sha256": "e7a33c71d24bf7dc62d9f144a380c673ca322e3d0a367d50ff7af800d86f892a",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4080,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4080
+              }
+            },
+            {
+              "decoded_prefix": "steam engine had gone by, there were still all the boxcars and flatcars and tank cars to admire, and at last the caboose\u2014this one painted yellow instead of the more usual red. \"Wow!\" Alec's eyes shone. \"I want to make one of those go when I get big.\" \"Maybe you will,\" Mort said. \"It's a good job.\" For all the sense he made to his son, he might as well have started speaking Eskimo. Alec couldn't imagine that being an engineer was work, and often hard work to boot. He would have paid, and paid anything he",
+              "request_index": 1,
+              "sha256": "800e5370399cdbbbc1c9e05b3d7ee31d4afe00e9e8700bc4a67a12d304303f4c",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "65431",
+                  "stream_index": 1
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4080,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4080
+              }
+            }
+          ],
+          "rejected_candidate_count": 0,
+          "rejected_candidates": []
+        },
+        "prompt_length": 65280,
+        "total_timings_seconds": [
+          0.8550659036263824,
+          1.4686011536978185,
+          0.858104603830725,
+          0.8578845160081983,
+          0.8559805913828313
+        ]
+      }
+    }
+  },
+  "sample_offset": 0,
+  "samples_per_length": 2,
+  "speed_decode_tokens": 256,
+  "speed_prompt_reserve": 256,
+  "speed_repeats": 5,
+  "speed_use_warm_prefix_cache": true,
+  "tensor_parallel_size": 1
+}

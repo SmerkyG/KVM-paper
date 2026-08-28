@@ -94,6 +94,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mode", choices=("full", "lod"), required=True)
     parser.add_argument("--length", type=int, default=8192)
     parser.add_argument(
+        "--prompt-source",
+        choices=("synthetic", "prolong"),
+        default="synthetic",
+        help=(
+            "Prompt construction. 'prolong' uses distinct shuffled real "
+            "documents without repeating a document to fill a request."
+        ),
+    )
+    parser.add_argument(
         "--lengths",
         type=lambda value: [int(item) for item in value.split(",")],
         help="Comma-separated per-request prompt lengths for a ragged batch",
@@ -101,6 +110,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--decode-tokens", type=int, default=64)
     parser.add_argument("--repeats", type=int, default=3)
+    parser.add_argument(
+        "--allow-output-mismatch",
+        action="store_true",
+        help=(
+            "Continue a speed-only run if repeated greedy outputs differ; "
+            "the result records the mismatch count."
+        ),
+    )
     parser.add_argument("--max-num-batched-tokens", type=int)
     parser.add_argument("--long-prefill-token-threshold", type=int, default=0)
     parser.add_argument("--gpu-memory-utilization", type=float, default=0.8)
@@ -483,6 +500,15 @@ def inspect_lod_dispatch(model) -> dict[str, object]:
             engine.decode_route_reduce_num_warps
         )
         effective_route_use_dot = bool(engine.decode_route_use_dot)
+        centroid_major_hip = bool(
+            getattr(pool.settings, "decode_centroid_major_hip", False)
+            and gqa_union_aiter_final
+            and effective_route_group_size == 32
+            and effective_route_segment_tiles == 1
+            and int(pool.head_dim) == 256
+            and kv_group_size in (4, 6)
+            and pool.dtype == torch.bfloat16
+        )
         if gqa_union_static_cap:
             state_route = [
                 "none (persistent exact-small/coarse-large index list)"
@@ -517,6 +543,22 @@ def inspect_lod_dispatch(model) -> dict[str, object]:
                 ]
             )
             state_route_math = "page1_mfma_m16_retained_mass"
+        elif centroid_major_hip:
+            state_route = [
+                (
+                    "centroid_major_route_score_fixed_prepare "
+                    "(HIP vector QK, one K load/all GQA scores, LDS query "
+                    "reuse, block top-8, fixed-mask maintenance)"
+                    if gqa_union_fixed_mask
+                    else (
+                        "centroid_major_route_score "
+                        "(HIP vector QK, one K load/all GQA scores, "
+                        "LDS query reuse, block top-8)"
+                    )
+                ),
+                "_reduce_decode_route_topk_kernel",
+            ]
+            state_route_math = "centroid_major_vector"
         elif bool(engine.decode_route_gqa_grouped):
             scalar_gqa = (
                 not effective_route_use_dot
@@ -539,8 +581,13 @@ def inspect_lod_dispatch(model) -> dict[str, object]:
             else:
                 state_route = [
                     (
-                        "_decode_route_coarse_gqa_groups_kernel "
-                        "(SCORE_ONLY=True)"
+                        (
+                            "_decode_route_coarse_scalar_gqa_groups_kernel "
+                            "(SCORE_ONLY=True)"
+                            if scalar_gqa
+                            else "_decode_route_coarse_gqa_groups_kernel "
+                            "(SCORE_ONLY=True)"
+                        )
                         if gqa_union_aiter_final
                         else (
                             "_decode_route_coarse_scalar_gqa_groups_kernel"
@@ -662,7 +709,7 @@ def inspect_lod_dispatch(model) -> dict[str, object]:
             and not bool(engine.routing_rope_jensen)
             and float(engine.routing_count_bias) == 1.0
             and float(engine.routing_variance_bias) == 0.0
-            and int(engine.prefill_two_level_topk or engine.two_level_topk) <= 8
+            and int(engine.prefill_two_level_topk or engine.two_level_topk) <= 16
         )
         if static_prefill:
             prefill_route_kernels = [
@@ -763,6 +810,9 @@ def inspect_lod_dispatch(model) -> dict[str, object]:
             "configured_decode_geometry_tuning": bool(
                 pool.settings.decode_geometry_tuning
             ),
+            "configured_decode_centroid_major_hip": bool(
+                getattr(pool.settings, "decode_centroid_major_hip", False)
+            ),
             "configured_gqa_union_decode": bool(
                 getattr(pool.settings, "decode_gqa_union", False)
             ),
@@ -799,6 +849,48 @@ def inspect_lod_dispatch(model) -> dict[str, object]:
             "configured_gqa_fixed_mask_segments": int(
                 getattr(pool.settings, "decode_gqa_fixed_mask_segments", 128)
             ),
+            "configured_gqa_fixed_mask_adaptive_segments": bool(
+                getattr(
+                    pool.settings,
+                    "decode_gqa_fixed_mask_adaptive_segments",
+                    False,
+                )
+            ),
+            "configured_gqa_fixed_mask_reduce_block_d": int(
+                getattr(
+                    pool.settings,
+                    "decode_gqa_fixed_mask_reduce_block_d",
+                    0,
+                )
+            ),
+            "configured_gqa_fixed_mask_direct_routes": bool(
+                getattr(
+                    pool.settings,
+                    "decode_gqa_fixed_mask_direct_routes",
+                    False,
+                )
+            ),
+            "configured_gqa_fixed_mask_scan_num_warps": int(
+                getattr(
+                    pool.settings,
+                    "decode_gqa_fixed_mask_scan_num_warps",
+                    2,
+                )
+            ),
+            "configured_gqa_fixed_mask_scan_waves_per_eu": int(
+                getattr(
+                    pool.settings,
+                    "decode_gqa_fixed_mask_scan_waves_per_eu",
+                    2,
+                )
+            ),
+            "configured_gqa_fixed_mask_scan_num_stages": int(
+                getattr(
+                    pool.settings,
+                    "decode_gqa_fixed_mask_scan_num_stages",
+                    2,
+                )
+            ),
             "configured_gqa_predicted_mass": bool(
                 getattr(pool.settings, "decode_gqa_predicted_mass", False)
             ),
@@ -809,6 +901,9 @@ def inspect_lod_dispatch(model) -> dict[str, object]:
                 pool.settings, "decode_max_open_leaves", None
             ),
             "configured_open_count": int(pool.settings.open_count),
+            "configured_state_premerge_factor": int(
+                pool.settings.state_premerge_factor
+            ),
             "effective_prefill_open_count": int(
                 engine.prefill_two_level_topk
                 if engine.prefill_two_level_topk is not None
@@ -1501,31 +1596,47 @@ def main() -> None:
     from vllm import LLM, SamplingParams
 
     tokenizer = AutoTokenizer.from_pretrained(args.checkpoint, trust_remote_code=True)
-    seed = tokenizer(
-        "LOD attention retains precise high-mass regions and summarizes the rest. ",
-        add_special_tokens=False,
-    )["input_ids"]
-    # Give every request a distinct leading token pattern. Identical synthetic
-    # prompts exercise the LOD pool's content-matched completed-prefix reuse,
-    # which changes the number and batch shape of measured prefill calls based
-    # on scheduler timing and obscures kernel occupancy comparisons.
-    request_seeds = [
-        tokenizer(
-            f"LOD benchmark request {request_index}: ",
+    prompt_metadata: dict[str, Any] | None = None
+    if args.prompt_source == "prolong":
+        if len(set(prompt_lengths)) != 1:
+            raise ValueError("ProLong speed prompts currently require uniform lengths")
+        # Reuse the guarded prompt builder from the quality/speed panel: each
+        # batch row consumes distinct shuffled documents and naturally short
+        # documents are concatenated, never repeated.
+        from eval_vllm_lod_niah_speed_panel import make_speed_prompts
+
+        prompts, prompt_metadata = make_speed_prompts(
+            tokenizer,
+            prompt_lengths[0],
+            args.batch_size,
+            streaming=False,
+        )
+    else:
+        seed = tokenizer(
+            "LOD attention retains precise high-mass regions and summarizes the rest. ",
             add_special_tokens=False,
         )["input_ids"]
-        + seed
-        for request_index in range(args.batch_size)
-    ]
-    prompts = [
-        {
-            "prompt_token_ids": (
-                request_seed
-                * ((length + len(request_seed) - 1) // len(request_seed))
-            )[:length]
-        }
-        for request_seed, length in zip(request_seeds, prompt_lengths)
-    ]
+        # Give every request a distinct leading token pattern. Identical synthetic
+        # prompts exercise the LOD pool's content-matched completed-prefix reuse,
+        # which changes the number and batch shape of measured prefill calls based
+        # on scheduler timing and obscures kernel occupancy comparisons.
+        request_seeds = [
+            tokenizer(
+                f"LOD benchmark request {request_index}: ",
+                add_special_tokens=False,
+            )["input_ids"]
+            + seed
+            for request_index in range(args.batch_size)
+        ]
+        prompts = [
+            {
+                "prompt_token_ids": (
+                    request_seed
+                    * ((length + len(request_seed) - 1) // len(request_seed))
+                )[:length]
+            }
+            for request_seed, length in zip(request_seeds, prompt_lengths)
+        ]
     prompt_tokens = sum(prompt_lengths)
     # Cap each request at a consistent 16K scheduler chunk while retaining the
     # actual request batch. ``max_num_batched_tokens`` is an aggregate budget;
@@ -1641,14 +1752,17 @@ def main() -> None:
     prefill_timings = []
     total_timings = []
     decode_timings = []
+    output_mismatch_runs = 0
     for _ in range(args.repeats):
         elapsed, prefill_elapsed, decode_elapsed, token_ids = timed_generate(
             llm, prompts, many, return_token_ids=True
         )
         if token_ids != reference_token_ids:
-            raise RuntimeError(
-                "deterministic benchmark output changed across identical runs"
-            )
+            output_mismatch_runs += 1
+            if not args.allow_output_mismatch:
+                raise RuntimeError(
+                    "deterministic benchmark output changed across identical runs"
+                )
         total_timings.append(elapsed)
         prefill_timings.append(prefill_elapsed)
         decode_timings.append(decode_elapsed)
@@ -1665,11 +1779,14 @@ def main() -> None:
         "load_format": kwargs["load_format"],
         "length": args.length if args.lengths is None else None,
         "lengths": prompt_lengths,
+        "prompt_source": args.prompt_source,
+        "prompt_metadata": prompt_metadata,
         "prompt_tokens": prompt_tokens,
         "batch_size": args.batch_size,
         "decode_tokens": args.decode_tokens,
         "decode_interval_tokens": decode_interval,
         "repeats": args.repeats,
+        "output_mismatch_runs": output_mismatch_runs,
         "max_num_batched_tokens": max_batched,
         "long_prefill_token_threshold": long_prefill_token_threshold,
         "enforce_eager": args.enforce_eager,

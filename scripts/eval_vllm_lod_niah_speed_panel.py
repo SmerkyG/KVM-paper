@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import functools
 import hashlib
 import json
 import os
@@ -15,6 +16,7 @@ from pathlib import Path
 from transformers import AutoTokenizer
 
 from benchmark_vllm_lod_speed import (
+    configure_lod_model,
     inspect_attention_memory,
     inspect_full_attention_dispatch,
     inspect_lod_dispatch,
@@ -71,6 +73,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gpu-memory-utilization", type=float, default=0.8)
     parser.add_argument("--tensor-parallel-size", type=int, default=1)
     parser.add_argument(
+        "--disable-custom-all-reduce",
+        action="store_true",
+        help=(
+            "Disable vLLM's custom all-reduce and use the distributed backend. "
+            "This is required on ROCm configurations where custom_all_reduce_hip "
+            "rejects the TP topology during graph-memory profiling."
+        ),
+    )
+    parser.add_argument(
         "--full-attention-backend", default="ROCM_AITER_UNIFIED_ATTN"
     )
     parser.add_argument("--allow-heterogeneous-global-config", action="store_true")
@@ -83,11 +94,24 @@ def parse_args() -> argparse.Namespace:
         action=argparse.BooleanOptionalAction,
         default=False,
     )
+    parser.add_argument(
+        "--speed-use-warm-prefix-cache",
+        action="store_true",
+        help=(
+            "Keep the speed prompt in the prefix cache after warmup. This is "
+            "a decode-throughput diagnostic: it synchronizes a large request "
+            "batch at decode instead of letting long chunked prefills admit "
+            "requests in waves."
+        ),
+    )
     parser.add_argument("--quality-only", action="store_true")
     parser.add_argument("--speed-only", action="store_true")
     parser.add_argument("--profile-lod-phases", action="store_true")
     parser.add_argument("--profile-lod-total", action="store_true")
     parser.add_argument("--profile-full-attention", action="store_true")
+    parser.add_argument("--lod-decode-route-group-size", type=int)
+    parser.add_argument("--lod-decode-route-num-warps", type=int)
+    parser.add_argument("--lod-decode-route-reduce-num-warps", type=int)
     parser.add_argument("--torch-profile-dir", type=Path)
     parser.add_argument("--torch-profile-delay-iterations", type=int, default=0)
     parser.add_argument("--torch-profile-max-iterations", type=int, default=0)
@@ -114,7 +138,7 @@ def _token_block_diagnostics(token_ids: list[int], block_size: int = 16) -> dict
 
 
 def make_speed_prompts(
-    tokenizer, length: int, batch_size: int
+    tokenizer, length: int, batch_size: int, *, streaming: bool = True
 ) -> tuple[list[dict], dict]:
     """Build exact-length speed prompts from distinct ProLong documents.
 
@@ -125,11 +149,13 @@ def make_speed_prompts(
     from datasets import load_dataset
 
     dataset_name = "Seerkfang/prolong-64k-512-new"
-    documents = iter(
-        load_dataset(dataset_name, split="train", streaming=True).shuffle(
-            seed=20260824, buffer_size=1_000
-        )
+    dataset = load_dataset(dataset_name, split="train", streaming=streaming)
+    shuffled = (
+        dataset.shuffle(seed=20260824, buffer_size=1_000)
+        if streaming
+        else dataset.shuffle(seed=20260824)
     )
+    documents = iter(shuffled)
     separator = tokenizer(
         "\n\n--- NEXT PROLONG DOCUMENT ---\n\n", add_special_tokens=False
     )["input_ids"]
@@ -422,7 +448,11 @@ def evaluate_speed(args, tokenizer, llm, length: int) -> dict:
     for _ in range(args.speed_repeats):
         # Keep the ordinary speed result a cold-prefill measurement even when
         # the separate repeated-prefix probe above is enabled.
-        if args.enable_prefix_caching and not llm.reset_prefix_cache():
+        if (
+            args.enable_prefix_caching
+            and not args.speed_use_warm_prefix_cache
+            and not llm.reset_prefix_cache()
+        ):
             raise RuntimeError("vLLM refused to reset an idle prefix cache")
         elapsed, prefill_elapsed, decode_elapsed = timed_generate(
             llm, prompts, params
@@ -441,8 +471,12 @@ def evaluate_speed(args, tokenizer, llm, length: int) -> dict:
         "prompt_length": prompt_length,
         "prefill_seconds": prefill,
         "prefill_prompt_tokens_per_second": prompt_tokens / prefill,
-        "marginal_decode_ms_per_batch_step": 1000.0 * decode / decode_steps,
-        "marginal_decode_tokens_per_second": decode_tokens / decode,
+        "marginal_decode_ms_per_batch_step": (
+            1000.0 * decode / decode_steps if decode_steps else None
+        ),
+        "marginal_decode_tokens_per_second": (
+            decode_tokens / decode if decode_steps and decode > 0.0 else None
+        ),
         "prefill_timings_seconds": prefills,
         "decode_timings_seconds": decodes,
         "total_timings_seconds": totals,
@@ -462,11 +496,19 @@ def evaluate_speed(args, tokenizer, llm, length: int) -> dict:
                 "decode_gqa_union_eligible",
                 "decode_gqa_union_hip_configured",
                 "decode_gqa_union_hip_executed",
+                "decode_centroid_major_hip_configured",
+                "decode_centroid_major_hip_executed",
                 "decode_gqa_union_aiter_final",
                 "decode_gqa_staged_fixed_configured",
                 "decode_gqa_staged_fixed_executed",
                 "decode_gqa_fixed_mask_configured",
                 "decode_gqa_fixed_mask_executed",
+                "decode_gqa_direct_fixed_routes_configured",
+                "decode_gqa_direct_fixed_routes_executed",
+                "gqa_union_effective_segments",
+                "gqa_union_split_d_reduce",
+                "gqa_union_runtime_sequence_counts",
+                "gqa_union_runtime_kv_heads",
                 "decode_gqa_static_leaf_aiter_configured",
                 "decode_gqa_static_leaf_aiter_executed",
                 "decode_max_open_leaves",
@@ -490,11 +532,19 @@ def evaluate_speed(args, tokenizer, llm, length: int) -> dict:
                 execution_audit["gqa_union_epoch_max"] <= 0
                 or execution_audit["gqa_union_nonempty_sequences"] <= 0
             )
-        ):
+            ):
             raise RuntimeError(
                 "the measured vLLM decode replayed a graph that did not run "
                 "the configured GQA-union kernels; disable or invalidate the "
                 "vLLM compile cache"
+            )
+        if (
+            execution_audit["decode_centroid_major_hip_configured"] == [True]
+            and execution_audit["decode_centroid_major_hip_executed"] != [True]
+        ):
+            raise RuntimeError(
+                "centroid-major HIP routing was configured but its "
+                "device-written execution marker was not observed"
             )
         if (
             execution_audit["decode_gqa_staged_fixed_configured"] == [True]
@@ -561,6 +611,10 @@ def main() -> None:
         raise ValueError("lengths must contain positive context lengths")
     if args.samples < 1 or args.samples % args.batch_size:
         raise ValueError("samples must be a positive multiple of batch size")
+    if args.speed_use_warm_prefix_cache and not args.enable_prefix_caching:
+        raise ValueError(
+            "--speed-use-warm-prefix-cache requires --enable-prefix-caching"
+        )
     if args.sample_offset < 0:
         raise ValueError("sample-offset must be non-negative")
     if args.quality_only and args.speed_only:
@@ -612,6 +666,7 @@ def main() -> None:
         "long_prefill_token_threshold": long_prefill_token_threshold,
         "gpu_memory_utilization": args.gpu_memory_utilization,
         "tensor_parallel_size": args.tensor_parallel_size,
+        "disable_custom_all_reduce": args.disable_custom_all_reduce,
         "enforce_eager": args.enforce_eager,
         "enable_prefix_caching": args.enable_prefix_caching,
         "disable_log_stats": False,
@@ -640,6 +695,36 @@ def main() -> None:
     elif args.full_attention_backend:
         kwargs["attention_config"] = {"backend": args.full_attention_backend}
     llm = register_llm_shutdown(LLM(**kwargs))
+    if args.mode == "lod" and any(
+        value is not None
+        for value in (
+            args.lod_decode_route_group_size,
+            args.lod_decode_route_num_warps,
+            args.lod_decode_route_reduce_num_warps,
+        )
+    ):
+        configured = llm.apply_model(
+            functools.partial(
+                configure_lod_model,
+                leaf_num_warps=None,
+                recursive_page_block_n=None,
+                recursive_state_route_backend=None,
+                prefill_chunk_len=None,
+                prefill_state_update_len=None,
+                direct_prefill_route=False,
+                decode_route_group_size=args.lod_decode_route_group_size,
+                decode_route_num_warps=args.lod_decode_route_num_warps,
+                decode_route_reduce_num_warps=(
+                    args.lod_decode_route_reduce_num_warps
+                ),
+                decode_final_reduce_num_warps=None,
+                decode_block_n=None,
+                decode_num_warps=None,
+                decode_use_dot=None,
+            )
+        )
+        if not configured or not all(value > 0 for value in configured):
+            raise RuntimeError("LOD decode-route tuning found no installed layers")
 
     diagnostics_before = None
     if args.mode == "lod":
@@ -664,6 +749,7 @@ def main() -> None:
         "samples_per_length": args.samples,
         "sample_offset": args.sample_offset,
         "batch_size": args.batch_size,
+        "speed_use_warm_prefix_cache": args.speed_use_warm_prefix_cache,
         "max_new_tokens": args.max_new_tokens,
         "speed_decode_tokens": args.speed_decode_tokens,
         "speed_prompt_reserve": args.speed_prompt_reserve,
@@ -673,6 +759,7 @@ def main() -> None:
         "max_num_batched_tokens": max_num_batched_tokens,
         "long_prefill_token_threshold": long_prefill_token_threshold,
         "tensor_parallel_size": args.tensor_parallel_size,
+        "disable_custom_all_reduce": args.disable_custom_all_reduce,
         "enable_prefix_caching": args.enable_prefix_caching,
         "allow_heterogeneous_global_config": (
             args.allow_heterogeneous_global_config

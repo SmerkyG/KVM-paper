@@ -11,6 +11,7 @@ apply_chat_template=${7:-1}
 repo=${8:-/home/dan/subusers/agent/kvm-paper-dg/branches/lod-diffusion-gemma/code}
 tensor_parallel_size=${9:-1}
 vllm_root=/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1
+batch_size=${VLLM_LOD_PANEL_BATCH_SIZE:-8}
 speed_prompt_reserve=${VLLM_LOD_PANEL_SPEED_PROMPT_RESERVE:-}
 if [[ -z "$speed_prompt_reserve" ]]; then
   # OLMo advertises exactly 64K positions, so its 64K panel must leave room
@@ -42,7 +43,7 @@ args=(
   --lengths "$lengths"
   --samples "$samples"
   --sample-offset "${VLLM_LOD_PANEL_SAMPLE_OFFSET:-0}"
-  --batch-size 8
+  --batch-size "$batch_size"
   --max-new-tokens 64
   --speed-decode-tokens "${VLLM_LOD_PANEL_SPEED_DECODE_TOKENS:-64}"
   --speed-prompt-reserve "$speed_prompt_reserve"
@@ -74,6 +75,30 @@ if [[ "${VLLM_LOD_PANEL_ENFORCE_EAGER:-0}" == 1 ]]; then
 fi
 if [[ "${VLLM_LOD_PANEL_PREFIX_CACHING:-0}" == 1 ]]; then
   args+=(--enable-prefix-caching)
+fi
+if [[ "${VLLM_LOD_PANEL_SPEED_USE_WARM_PREFIX_CACHE:-0}" == 1 ]]; then
+  args+=(--enable-prefix-caching --speed-use-warm-prefix-cache)
+fi
+if [[ "${VLLM_LOD_PANEL_DISABLE_CUSTOM_ALL_REDUCE:-0}" == 1 ]]; then
+  args+=(--disable-custom-all-reduce)
+fi
+if [[ -n "${VLLM_LOD_PANEL_DECODE_ROUTE_GROUP_SIZE:-}" ]]; then
+  args+=(
+    --lod-decode-route-group-size
+    "$VLLM_LOD_PANEL_DECODE_ROUTE_GROUP_SIZE"
+  )
+fi
+if [[ -n "${VLLM_LOD_PANEL_DECODE_ROUTE_NUM_WARPS:-}" ]]; then
+  args+=(
+    --lod-decode-route-num-warps
+    "$VLLM_LOD_PANEL_DECODE_ROUTE_NUM_WARPS"
+  )
+fi
+if [[ -n "${VLLM_LOD_PANEL_DECODE_ROUTE_REDUCE_NUM_WARPS:-}" ]]; then
+  args+=(
+    --lod-decode-route-reduce-num-warps
+    "$VLLM_LOD_PANEL_DECODE_ROUTE_REDUCE_NUM_WARPS"
+  )
 fi
 if [[ "$apply_chat_template" == 1 ]]; then
   args+=(--apply-chat-template --disable-thinking)
@@ -111,10 +136,10 @@ fi
 if [[ "$mode" == lod ]]; then
   common_env+=(
     VLLM_PLUGINS=lod_attention
-    VLLM_LOD_POOL_SIZE=8
+    VLLM_LOD_POOL_SIZE="${VLLM_LOD_PANEL_POOL_SIZE:-$batch_size}"
     VLLM_LOD_LEVELS="${VLLM_LOD_PANEL_LEVELS:-2}"
     VLLM_LOD_KV_BITS=0
-    VLLM_LOD_MAX_CONTEXT=131200
+    VLLM_LOD_MAX_CONTEXT="${VLLM_LOD_PANEL_MAX_CONTEXT:-131200}"
     VLLM_LOD_STATE_FACTOR=16
     VLLM_LOD_DENSE_LEAF_STORAGE=1
     VLLM_LOD_PREFILL_MODE=direct

@@ -70,6 +70,7 @@ class VLLMLODSettings:
     chunk_size: int = 256
     local_window: int = 512
     state_growth_factor: float = 16.0
+    state_premerge_factor: int = 1
     state_min_size: int = 256
     state_split_max_leaves: int | None = None
     protected_prefix: int = 1
@@ -127,6 +128,7 @@ class VLLMLODSettings:
     prefill_leaf_visit_cap: int | None = None
     decode_split_kv: int = 8
     decode_geometry_tuning: bool = True
+    decode_centroid_major_hip: bool = False
     decode_hierarchical_route: bool | None = None
     decode_gqa_cooperative: bool = True
     decode_gqa_cooperative_hip: bool = True
@@ -138,6 +140,12 @@ class VLLMLODSettings:
     decode_gqa_fixed_mask_aiter: bool = False
     decode_gqa_fixed_mask_block_n: int = 64
     decode_gqa_fixed_mask_segments: int = 128
+    decode_gqa_fixed_mask_adaptive_segments: bool = False
+    decode_gqa_fixed_mask_reduce_block_d: int = 0
+    decode_gqa_fixed_mask_direct_routes: bool = True
+    decode_gqa_fixed_mask_scan_num_warps: int = 2
+    decode_gqa_fixed_mask_scan_waves_per_eu: int = 2
+    decode_gqa_fixed_mask_scan_num_stages: int = 2
     decode_gqa_static_leaf_cap: int | None = None
     decode_gqa_static_leaf_cap_min: int = 16
     decode_gqa_static_leaf_aiter: bool = False
@@ -174,6 +182,7 @@ class VLLMLODSettings:
             chunk_size=_integer("VLLM_LOD_CHUNK_SIZE", 256),
             local_window=_integer("VLLM_LOD_LOCAL_WINDOW", 512),
             state_growth_factor=_floating("VLLM_LOD_STATE_FACTOR", 16.0),
+            state_premerge_factor=_integer("VLLM_LOD_STATE_PREMERGE_FACTOR", 1),
             state_min_size=_integer("VLLM_LOD_STATE_MIN", 256),
             state_split_max_leaves=(
                 _integer("VLLM_LOD_STATE_SPLIT_MAX_LEAVES", 0) or None
@@ -345,6 +354,9 @@ class VLLMLODSettings:
             decode_geometry_tuning=_boolean(
                 "VLLM_LOD_DECODE_GEOMETRY_TUNING", True
             ),
+            decode_centroid_major_hip=_boolean(
+                "VLLM_LOD_DECODE_CENTROID_MAJOR_HIP", False
+            ),
             decode_hierarchical_route=(
                 _boolean("VLLM_LOD_DECODE_HIERARCHICAL_ROUTE", False)
                 if os.getenv("VLLM_LOD_DECODE_HIERARCHICAL_ROUTE") is not None
@@ -377,6 +389,24 @@ class VLLMLODSettings:
             ),
             decode_gqa_fixed_mask_segments=_integer(
                 "VLLM_LOD_DECODE_GQA_FIXED_MASK_SEGMENTS", 128
+            ),
+            decode_gqa_fixed_mask_adaptive_segments=_boolean(
+                "VLLM_LOD_DECODE_GQA_FIXED_MASK_ADAPTIVE_SEGMENTS", False
+            ),
+            decode_gqa_fixed_mask_reduce_block_d=_integer(
+                "VLLM_LOD_DECODE_GQA_FIXED_MASK_REDUCE_BLOCK_D", 0
+            ),
+            decode_gqa_fixed_mask_direct_routes=_boolean(
+                "VLLM_LOD_DECODE_GQA_FIXED_MASK_DIRECT_ROUTES", True
+            ),
+            decode_gqa_fixed_mask_scan_num_warps=_integer(
+                "VLLM_LOD_DECODE_GQA_FIXED_MASK_SCAN_NUM_WARPS", 2
+            ),
+            decode_gqa_fixed_mask_scan_waves_per_eu=_integer(
+                "VLLM_LOD_DECODE_GQA_FIXED_MASK_SCAN_WAVES_PER_EU", 2
+            ),
+            decode_gqa_fixed_mask_scan_num_stages=_integer(
+                "VLLM_LOD_DECODE_GQA_FIXED_MASK_SCAN_NUM_STAGES", 2
             ),
             decode_gqa_static_leaf_cap=(
                 _integer("VLLM_LOD_DECODE_GQA_STATIC_LEAF_CAP", 0) or None
@@ -511,6 +541,48 @@ class VLLMLODSettings:
                 "VLLM_LOD_DECODE_GQA_FIXED_MASK_SEGMENTS must be a supported "
                 "power of two from 8 through 512"
             )
+        if (
+            settings.decode_gqa_fixed_mask_adaptive_segments
+            and not settings.decode_gqa_fixed_mask_aiter
+        ):
+            raise ValueError(
+                "VLLM_LOD_DECODE_GQA_FIXED_MASK_ADAPTIVE_SEGMENTS requires "
+                "VLLM_LOD_DECODE_GQA_FIXED_MASK_AITER=1"
+            )
+        if settings.decode_gqa_fixed_mask_reduce_block_d not in (
+            0,
+            16,
+            32,
+            64,
+            128,
+        ):
+            raise ValueError(
+                "VLLM_LOD_DECODE_GQA_FIXED_MASK_REDUCE_BLOCK_D must be 0, "
+                "16, 32, 64, or 128"
+            )
+        if (
+            settings.decode_gqa_fixed_mask_reduce_block_d
+            and not settings.decode_gqa_fixed_mask_aiter
+        ):
+            raise ValueError(
+                "VLLM_LOD_DECODE_GQA_FIXED_MASK_REDUCE_BLOCK_D requires "
+                "VLLM_LOD_DECODE_GQA_FIXED_MASK_AITER=1"
+            )
+        if settings.decode_gqa_fixed_mask_scan_num_warps not in (1, 2, 4, 8):
+            raise ValueError(
+                "VLLM_LOD_DECODE_GQA_FIXED_MASK_SCAN_NUM_WARPS must be 1, 2, "
+                "4, or 8"
+            )
+        if settings.decode_gqa_fixed_mask_scan_waves_per_eu not in (1, 2, 4):
+            raise ValueError(
+                "VLLM_LOD_DECODE_GQA_FIXED_MASK_SCAN_WAVES_PER_EU must be 1, "
+                "2, or 4"
+            )
+        if settings.decode_gqa_fixed_mask_scan_num_stages not in (1, 2, 3, 4):
+            raise ValueError(
+                "VLLM_LOD_DECODE_GQA_FIXED_MASK_SCAN_NUM_STAGES must be 1, 2, "
+                "3, or 4"
+            )
         if settings.decode_gqa_static_leaf_cap is not None and (
             settings.decode_gqa_static_leaf_cap < 1
             or not (
@@ -588,10 +660,15 @@ class VLLMLODSettings:
         if not 1 <= settings.open_count <= 8:
             raise ValueError("VLLM_LOD_OPEN_COUNT must be between one and eight")
         if settings.prefill_open_count is not None and not (
-            1 <= settings.prefill_open_count <= 8
+            1 <= settings.prefill_open_count <= 16
         ):
             raise ValueError(
-                "VLLM_LOD_PREFILL_OPEN_COUNT must be between one and eight"
+                "VLLM_LOD_PREFILL_OPEN_COUNT must be between one and sixteen"
+            )
+        if settings.state_premerge_factor not in {1, 2, 4, 8, 16, 32}:
+            raise ValueError(
+                "VLLM_LOD_STATE_PREMERGE_FACTOR must be one, two, four, eight, "
+                "sixteen, or thirty-two"
             )
         if settings.pool_size <= 0:
             raise ValueError("VLLM_LOD_POOL_SIZE must be positive")

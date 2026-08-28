@@ -1,0 +1,81 @@
+{
+  "kv_heads": 2,
+  "gqa": 4,
+  "routes": 8,
+  "state_len": 4096,
+  "repeats": 2000,
+  "results": [
+    {
+      "batch_size": 1,
+      "sequence_count": 2,
+      "num_warps": 1,
+      "milliseconds": 0.010004677772521973
+    },
+    {
+      "batch_size": 1,
+      "sequence_count": 2,
+      "num_warps": 2,
+      "milliseconds": 0.009745083808898925
+    },
+    {
+      "batch_size": 1,
+      "sequence_count": 2,
+      "num_warps": 4,
+      "milliseconds": 0.00957382583618164
+    },
+    {
+      "batch_size": 1,
+      "sequence_count": 2,
+      "num_warps": 8,
+      "milliseconds": 0.017270593643188475
+    },
+    {
+      "batch_size": 2,
+      "sequence_count": 4,
+      "num_warps": 1,
+      "milliseconds": 0.009521684646606444
+    },
+    {
+      "batch_size": 2,
+      "sequence_count": 4,
+      "num_warps": 2,
+      "milliseconds": 0.017228233337402345
+    },
+    {
+      "batch_size": 2,
+      "sequence_count": 4,
+      "num_warps": 4,
+      "milliseconds": 0.009543423652648925
+    },
+    {
+      "batch_size": 2,
+      "sequence_count": 4,
+      "num_warps": 8,
+      "milliseconds": 0.00953412437438965
+    },
+    {
+      "batch_size": 8,
+      "sequence_count": 16,
+      "num_warps": 1,
+      "milliseconds": 0.009527166366577149
+    },
+    {
+      "batch_size": 8,
+      "sequence_count": 16,
+      "num_warps": 2,
+      "milliseconds": 0.00952660846710205
+    },
+    {
+      "batch_size": 8,
+      "sequence_count": 16,
+      "num_warps": 4,
+      "milliseconds": 0.0095382080078125
+    },
+    {
+      "batch_size": 8,
+      "sequence_count": 16,
+      "num_warps": 8,
+      "milliseconds": 0.009619064331054687
+    }
+  ]
+}

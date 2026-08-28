@@ -2408,7 +2408,7 @@ def _route_logits_topk_coarse_attention_kernel(
     maximum = tl.where(query_valid, -float("inf"), 0.0).to(tl.float32)
     denominator = tl.where(query_valid, 0.0, 1.0).to(tl.float32)
     accumulator = tl.zeros((ROW_COUNT, VALUE_BLOCK_DIM), tl.float32)
-    if ROUTE_COUNT == 8:
+    if ROUTE_COUNT == 8 or ROUTE_COUNT == 16:
         # Sort scores and prefer the lower slot index on exact ties in one
         # packed scalar, so Triton's bitonic top-k can retain both fields.
         top_packed = tl.full(
@@ -2516,7 +2516,7 @@ def _route_logits_topk_coarse_attention_kernel(
             remaining_scores = tl.where(
                 route_valid[None, :], route_scores, -float("inf")
             )
-        if ROUTE_COUNT == 8:
+        if ROUTE_COUNT == 8 or ROUTE_COUNT == 16:
             score_bits = remaining_scores.to(tl.uint32, bitcast=True)
             negative = (score_bits & 0x80000000) != 0
             ordered_bits = tl.where(
@@ -2592,7 +2592,7 @@ def _route_logits_topk_coarse_attention_kernel(
                 )
             maximum = new_maximum
 
-    if ROUTE_COUNT == 8:
+    if ROUTE_COUNT == 8 or ROUTE_COUNT == 16:
         inverse_slot = top_packed & 0xFFFFFFFF
         top_indices = (4294967295 - inverse_slot).to(tl.int32)
     # Routing may use a different count prior, but removing the selected
@@ -3431,13 +3431,17 @@ def _route_state_group_candidates_kernel(
     scores = tl.dot(q_values, tl.trans(key), out_dtype=tl.float32)
     scores = (scores.to(tl.bfloat16) * SCALE).to(tl.bfloat16).to(tl.float32)
     scores += COUNT_BIAS * tl.log(count)[None, :]
-    scores = tl.where(
+    selectable = (
         query_valid[:, None]
         & slot_valid[None, :]
-        & (slot[None, :] >= PROTECTED_LEN),
-        scores,
-        -float("inf"),
+        & (slot[None, :] >= PROTECTED_LEN)
+        & (count[None, :] > 0.0)
     )
+    # A model may produce NaN routing logits outside its trained positional
+    # range.  Keep those rows memory-safe: the selector still emits distinct
+    # in-range fallback slots instead of allowing its INT_MAX sort sentinel to
+    # escape into the leaf page lookup.
+    scores = tl.where(selectable & (scores == scores), scores, -float("inf"))
 
     partial_base = (
         batch * PARTIAL_BATCH_STRIDE
@@ -3446,16 +3450,21 @@ def _route_state_group_candidates_kernel(
         + state_group * PARTIAL_GROUP_STRIDE
     )
     for rank in tl.static_range(0, TOPK):
+        has_candidate = tl.sum(selectable.to(tl.int32), axis=1) > 0
         best_score = tl.max(scores, axis=1)
         best_position = tl.min(
             tl.where(
-                scores == best_score[:, None],
+                selectable & (scores == best_score[:, None]),
                 slot_offset[None, :],
                 BLOCK_N,
             ),
             axis=1,
         )
-        best_slot = state_group * BLOCK_N + best_position
+        best_slot = tl.where(
+            has_candidate,
+            state_group * BLOCK_N + best_position,
+            -1,
+        )
         tl.store(
             partial_scores + partial_base + rank,
             best_score,
@@ -3466,11 +3475,8 @@ def _route_state_group_candidates_kernel(
             best_slot,
             mask=query_valid,
         )
-        scores = tl.where(
-            slot_offset[None, :] == best_position[:, None],
-            -float("inf"),
-            scores,
-        )
+        selectable &= slot_offset[None, :] != best_position[:, None]
+        scores = tl.where(selectable, scores, -float("inf"))
 
 
 @triton.jit(
@@ -3551,12 +3557,30 @@ def _route_score_group_candidates_kernel(
     # rounding.  Only the count correction promotes the scores to FP32.
     scores = (scores.to(tl.bfloat16) * SCALE).to(tl.bfloat16).to(tl.float32)
     scores += COUNT_BIAS * tl.log(count)[None, :]
-    scores = tl.where(query_valid[:, None] & slot_valid[None, :], scores, -float("inf"))
+    score_valid = (
+        query_valid[:, None]
+        & slot_valid[None, :]
+        & (count[None, :] > 0.0)
+    )
+    scores = tl.where(score_valid & (scores == scores), scores, -float("inf"))
 
     if STORE_LSE:
         group_max = tl.max(scores, axis=1)
-        group_sum = tl.sum(tl.exp(scores - group_max[:, None]), axis=1)
-        group_lse = group_max + tl.log(group_sum)
+        group_has_mass = tl.sum(score_valid.to(tl.int32), axis=1) > 0
+        safe_group_max = tl.where(group_has_mass, group_max, 0.0)
+        group_sum = tl.sum(
+            tl.where(
+                score_valid,
+                tl.exp(scores - safe_group_max[:, None]),
+                0.0,
+            ),
+            axis=1,
+        )
+        group_lse = tl.where(
+            group_has_mass,
+            safe_group_max + tl.log(group_sum),
+            -float("inf"),
+        )
         tl.store(
             partial_lse
             + batch * PARTIAL_LSE_BATCH_STRIDE
@@ -3567,7 +3591,8 @@ def _route_score_group_candidates_kernel(
             mask=query_valid,
         )
 
-    scores = tl.where(slot[None, :] >= PROTECTED_LEN, scores, -float("inf"))
+    selectable = score_valid & (slot[None, :] >= PROTECTED_LEN)
+    scores = tl.where(selectable, scores, -float("inf"))
     partial_base = (
         batch * PARTIAL_BATCH_STRIDE
         + q_head * PARTIAL_HEAD_STRIDE
@@ -3575,16 +3600,21 @@ def _route_score_group_candidates_kernel(
         + state_group * PARTIAL_GROUP_STRIDE
     )
     for rank in tl.static_range(0, TOPK):
+        has_candidate = tl.sum(selectable.to(tl.int32), axis=1) > 0
         best_score = tl.max(scores, axis=1)
         best_position = tl.min(
             tl.where(
-                scores == best_score[:, None],
+                selectable & (scores == best_score[:, None]),
                 slot_offset[None, :],
                 BLOCK_N,
             ),
             axis=1,
         )
-        best_slot = state_group * BLOCK_N + best_position
+        best_slot = tl.where(
+            has_candidate,
+            state_group * BLOCK_N + best_position,
+            -1,
+        )
         tl.store(
             partial_scores + partial_base + rank,
             best_score,
@@ -3595,11 +3625,8 @@ def _route_score_group_candidates_kernel(
             best_slot,
             mask=query_valid,
         )
-        scores = tl.where(
-            slot_offset[None, :] == best_position[:, None],
-            -float("inf"),
-            scores,
-        )
+        selectable &= slot_offset[None, :] != best_position[:, None]
+        scores = tl.where(selectable, scores, -float("inf"))
 
 
 @triton.jit(
@@ -4166,6 +4193,12 @@ def _reduce_route_group_candidates_kernel(
         mask=query_valid[:, None] & candidate_valid[None, :],
         other=-1,
     ).to(tl.int64)
+    selectable = (
+        query_valid[:, None]
+        & candidate_valid[None, :]
+        & (indices >= 0)
+    )
+    scores = tl.where(selectable & (scores == scores), scores, -float("inf"))
     output_base = (
         output
         + batch * OUTPUT_BATCH_STRIDE
@@ -4173,10 +4206,11 @@ def _reduce_route_group_candidates_kernel(
         + query * OUTPUT_TOKEN_STRIDE
     )
     for rank in tl.static_range(0, TOPK):
+        has_candidate = tl.sum(selectable.to(tl.int32), axis=1) > 0
         best_score = tl.max(scores, axis=1)
         best_position = tl.min(
             tl.where(
-                scores == best_score[:, None],
+                selectable & (scores == best_score[:, None]),
                 candidate[None, :],
                 CANDIDATE_BLOCK,
             ),
@@ -4190,12 +4224,13 @@ def _reduce_route_group_candidates_kernel(
             ),
             axis=1,
         )
-        tl.store(output_base + rank, best_index, mask=query_valid)
-        scores = tl.where(
-            candidate[None, :] == best_position[:, None],
-            -float("inf"),
-            scores,
+        tl.store(
+            output_base + rank,
+            tl.where(has_candidate, best_index, -1),
+            mask=query_valid,
         )
+        selectable &= candidate[None, :] != best_position[:, None]
+        scores = tl.where(selectable, scores, -float("inf"))
     if STORE_LSE:
         group = tl.arange(0, MAX_GROUPS)
         group_values = tl.load(
@@ -4208,13 +4243,26 @@ def _reduce_route_group_candidates_kernel(
             other=-float("inf"),
         )
         group_max = tl.max(group_values, axis=1)
-        group_sum = tl.sum(tl.exp(group_values - group_max[:, None]), axis=1)
+        group_has_mass = group_max != -float("inf")
+        safe_group_max = tl.where(group_has_mass, group_max, 0.0)
+        group_sum = tl.sum(
+            tl.where(
+                group_values != -float("inf"),
+                tl.exp(group_values - safe_group_max[:, None]),
+                0.0,
+            ),
+            axis=1,
+        )
         tl.store(
             state_lse
             + batch * STATE_LSE_BATCH_STRIDE
             + q_head * STATE_LSE_HEAD_STRIDE
             + query * STATE_LSE_QUERY_STRIDE,
-            group_max + tl.log(group_sum),
+            tl.where(
+                group_has_mass,
+                safe_group_max + tl.log(group_sum),
+                -float("inf"),
+            ),
             mask=query_valid,
         )
 
@@ -4243,11 +4291,16 @@ def _reorder_topk_like_torch_kernel(
         other=-1,
     )
     boundary = tl.max(tl.where(rank == TOPK - 1, selected, -1), axis=0)
-    remaining = tl.where(rank < TOPK - 1, selected, 0x7FFFFFFF)
+    remaining = tl.where(
+        (rank < TOPK - 1) & (selected >= 0), selected, 0x7FFFFFFF
+    )
     for output_rank in tl.static_range(0, 8):
         if output_rank < TOPK - 1:
             best = tl.min(remaining, axis=0)
-            tl.store(base + output_rank, best)
+            tl.store(
+                base + output_rank,
+                tl.where(best == 0x7FFFFFFF, -1, best),
+            )
             remaining = tl.where(remaining == best, 0x7FFFFFFF, remaining)
     if TOPK > 0:
         tl.store(
@@ -5158,8 +5211,11 @@ def premerge_adjacent_kv(
     Optional output tensors let a persistent engine workspace avoid allocator
     traffic on every state-maintenance update.
     """
-    if factor not in {2, 4}:
-        raise ValueError("fused adjacent premerge supports factors two and four")
+    if factor not in {2, 4, 8, 16, 32}:
+        raise ValueError(
+            "fused adjacent premerge supports factors two, four, eight, sixteen, "
+            "and thirty-two"
+        )
     if not key.is_cuda or not value.is_cuda:
         raise ValueError("fused adjacent premerge requires CUDA tensors")
     if key.ndim != 4 or value.ndim != 4 or key.shape[:3] != value.shape[:3]:
@@ -5246,8 +5302,11 @@ def expand_adjacent_group_owners(
     output: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """Expand one owner per fixed group directly to exact-token owners."""
-    if factor not in {2, 4}:
-        raise ValueError("fused owner expansion supports factors two and four")
+    if factor not in {2, 4, 8, 16, 32}:
+        raise ValueError(
+            "fused owner expansion supports factors two, four, eight, sixteen, "
+            "and thirty-two"
+        )
     if not group_owners.is_cuda or group_owners.ndim != 3:
         raise ValueError("fused owner expansion requires rank-three CUDA owners")
     if output_len < 0 or (output_len + factor - 1) // factor > int(
@@ -5723,8 +5782,8 @@ def route_logits_topk_coarse_attention(
         raise ValueError("fused state key width differs from the query")
     if int8_qk and (not fused_state_qk or head_dim % 32):
         raise ValueError("INT8 fused routing requires aligned state keys")
-    if not 0 < topk <= 8:
-        raise ValueError("fused LOD prefill routing requires top-k in [1, 8]")
+    if not 0 < topk <= 16:
+        raise ValueError("fused LOD prefill routing requires top-k in [1, 16]")
     if max_leaf_tokens is not None and max_leaf_tokens <= 0:
         raise ValueError("maximum routed leaf count must be positive")
     if residual_mass is not None and not 0.0 < residual_mass < 1.0:

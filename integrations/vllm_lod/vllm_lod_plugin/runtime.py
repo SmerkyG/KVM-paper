@@ -844,6 +844,13 @@ class VLLMLODRuntime:
 
 
 def _runtime(model_state: Any) -> VLLMLODRuntime | None:
+    # The weight-cache backing rank constructs the final model solely to
+    # retain/export its parameters.  Its requested config still names the
+    # CUSTOM backend so attention modules have the same final structure, but
+    # allocating serving-time semantic pools there would pin another complete
+    # B*T LOD cache in the daemon.  Fresh workers own those pools instead.
+    if os.getenv("VLLM_LOD_WEIGHT_CACHE_BACKING", "0") == "1":
+        return None
     runtime = getattr(model_state, "_vllm_lod_runtime", None)
     if runtime is not None:
         return runtime

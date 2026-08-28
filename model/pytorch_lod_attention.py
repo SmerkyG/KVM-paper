@@ -108,8 +108,11 @@ class LODConfig:
             raise ValueError("state_min_size cannot be negative")
         if self.state_size_offset < 0:
             raise ValueError("state_size_offset cannot be negative")
-        if self.state_premerge_factor not in {1, 2, 4}:
-            raise ValueError("state_premerge_factor must be one, two, or four")
+        if self.state_premerge_factor not in {1, 2, 4, 8, 16, 32}:
+            raise ValueError(
+                "state_premerge_factor must be one, two, four, eight, sixteen, or "
+                "thirty-two"
+            )
         if (
             self.state_split_max_leaves is not None
             and self.state_split_max_leaves <= 0
@@ -1013,8 +1016,11 @@ def _premerge_adjacent_state_inputs(
     maps every original leaf to its fixed adjacent group. The exact leaf
     archive is intentionally not modified by this operation.
     """
-    if factor not in {1, 2, 4}:
-        raise ValueError("adjacent state premerge factor must be one, two, or four")
+    if factor not in {1, 2, 4, 8, 16, 32}:
+        raise ValueError(
+            "adjacent state premerge factor must be one, two, four, eight, sixteen, "
+            "or thirty-two"
+        )
     length = int(key.size(2))
     if length != int(value.size(2)):
         raise ValueError("adjacent state premerge K/V lengths differ")

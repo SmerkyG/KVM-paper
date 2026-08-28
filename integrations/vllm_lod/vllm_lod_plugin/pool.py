@@ -195,10 +195,15 @@ class VLLMLayerLODPool:
             chunk_size=settings.chunk_size,
             local_window=local_window,
             state_growth_factor=settings.state_growth_factor,
+            state_premerge_factor=settings.state_premerge_factor,
             state_min_size=settings.state_min_size,
             state_split_max_leaves=settings.state_split_max_leaves,
             protected_prefix=settings.protected_prefix,
-            max_routes=max(settings.open_count, 8),
+            max_routes=max(
+                settings.open_count,
+                settings.prefill_open_count or 0,
+                8,
+            ),
             leaf_dtype=self.dtype,
             state_clustering_normalization=state_normalization,
             state_clustering_centroid_rescale=centroid_rescale,
@@ -445,6 +450,9 @@ class VLLMLayerLODPool:
                 # reduction overhead. Batch-8 Muse geometry is fastest at 16.
                 self.engine.decode_split_kv = 16
             self.engine.decode_geometry_tuning = settings.decode_geometry_tuning
+            self.engine.decode_centroid_major_hip = (
+                settings.decode_centroid_major_hip
+            )
             if settings.decode_geometry_tuning and self.head_dim == 512:
                 self.engine.decode_route_use_dot = False
             self.engine.decode_gqa_cooperative_leaf = (
@@ -2473,7 +2481,14 @@ class VLLMLayerLODPool:
                     self.settings.decode_gqa_fixed_mask_block_n
                 ),
                 gqa_union_fixed_mask_segments=int(
-                    self.settings.decode_gqa_fixed_mask_segments
+                    max(
+                        self.settings.decode_gqa_fixed_mask_segments,
+                        256,
+                    )
+                    if (
+                        self.settings.decode_gqa_fixed_mask_adaptive_segments
+                    )
+                    else self.settings.decode_gqa_fixed_mask_segments
                 ),
             )
             if bool(self.engine.recursive_materialize_page_scores):
@@ -2667,6 +2682,9 @@ class VLLMLayerLODPool:
             fuse_final_reduce=bool(self.engine.decode_fuse_final_reduce),
             route_use_dot=bool(self.engine.decode_route_use_dot),
             route_gqa_grouped=bool(self.engine.decode_route_gqa_grouped),
+            route_centroid_major_hip=bool(
+                self.settings.decode_centroid_major_hip
+            ),
             gqa_cooperative_leaf=self._use_cooperative_decode(),
             gqa_cooperative_hip=bool(
                 self.settings.decode_gqa_cooperative_hip
@@ -2685,6 +2703,24 @@ class VLLMLayerLODPool:
             ),
             gqa_union_fixed_mask_tile_size=int(
                 self.settings.decode_gqa_fixed_mask_block_n
+            ),
+            gqa_union_fixed_mask_adaptive_segments=bool(
+                self.settings.decode_gqa_fixed_mask_adaptive_segments
+            ),
+            gqa_union_fixed_mask_reduce_block_d=int(
+                self.settings.decode_gqa_fixed_mask_reduce_block_d
+            ),
+            gqa_union_fixed_mask_direct_routes=bool(
+                self.settings.decode_gqa_fixed_mask_direct_routes
+            ),
+            gqa_union_fixed_mask_scan_num_warps=int(
+                self.settings.decode_gqa_fixed_mask_scan_num_warps
+            ),
+            gqa_union_fixed_mask_scan_waves_per_eu=int(
+                self.settings.decode_gqa_fixed_mask_scan_waves_per_eu
+            ),
+            gqa_union_fixed_mask_scan_num_stages=int(
+                self.settings.decode_gqa_fixed_mask_scan_num_stages
             ),
             gqa_union_static_leaf_cap=(
                 self.settings.decode_gqa_static_leaf_cap

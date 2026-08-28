@@ -9,6 +9,7 @@ import math
 from pathlib import Path
 
 import torch
+import triton
 
 from model.kernels.aiter_page1_attention import (
     kernel_page1_attention_3d_bias,
@@ -16,6 +17,7 @@ from model.kernels.aiter_page1_attention import (
 )
 from model.kernels.paged_leaf_attention import (
     _reduce_aiter_page1_segments_with_lse_kernel,
+    _reduce_aiter_page1_segments_with_lse_split_d_kernel,
 )
 
 
@@ -48,6 +50,22 @@ def main() -> None:
     parser.add_argument("--head-dim", type=int, default=256)
     parser.add_argument("--tile-size", type=int, choices=(16, 64), default=64)
     parser.add_argument("--segments", type=int, default=128)
+    parser.add_argument(
+        "--scan-num-warps", type=int, choices=(1, 2, 4, 8), default=2
+    )
+    parser.add_argument(
+        "--scan-waves-per-eu", type=int, choices=(1, 2, 4), default=2
+    )
+    parser.add_argument(
+        "--scan-num-stages", type=int, choices=(1, 2, 3, 4), default=2
+    )
+    parser.add_argument(
+        "--reduce-block-d",
+        type=int,
+        choices=(0, 16, 32, 64, 128),
+        default=0,
+        help="Split the segment reducer across this many output dimensions.",
+    )
     parser.add_argument(
         "--layers",
         type=int,
@@ -172,9 +190,9 @@ def main() -> None:
                 HEAD_SIZE=head_dim,
                 BLOCK_M=16,
                 NUM_SEGMENTS=segments,
-                num_warps=2,
-                waves_per_eu=2,
-                num_stages=2,
+                num_warps=args.scan_num_warps,
+                waves_per_eu=args.scan_waves_per_eu,
+                num_stages=args.scan_num_stages,
             )
         else:
             kernel_page1_attention_3d_bias_fixed_mask[
@@ -209,9 +227,9 @@ def main() -> None:
                 BLOCK_M=16,
                 NUM_SEGMENTS=segments,
                 INCLUDE_NEW=False,
-                num_warps=2,
-                waves_per_eu=2,
-                num_stages=2,
+                num_warps=args.scan_num_warps,
+                waves_per_eu=args.scan_waves_per_eu,
+                num_stages=args.scan_num_stages,
             )
 
     def attention() -> None:
@@ -219,6 +237,54 @@ def main() -> None:
             attention_layer(layer)
 
     def reduce() -> None:
+        if args.reduce_block_d:
+            _reduce_aiter_page1_segments_with_lse_split_d_kernel[
+                (sequences, gqa, triton.cdiv(head_dim, args.reduce_block_d))
+            ](
+                segment_out,
+                segment_max,
+                segment_sum,
+                context_lens,
+                output,
+                output_lse,
+                OUTPUT_STRIDE_0=output.stride(0),
+                OUTPUT_STRIDE_1=output.stride(1),
+                QUERY_ROWS=gqa,
+                HEAD_DIM=head_dim,
+                SEGMENTS=segments,
+                TILE_SIZE=tile_size,
+                BLOCK_D=args.reduce_block_d,
+                num_warps=2,
+                waves_per_eu=1,
+            )
+        else:
+            _reduce_aiter_page1_segments_with_lse_kernel[(sequences, gqa)](
+                segment_out,
+                segment_max,
+                segment_sum,
+                context_lens,
+                output,
+                output_lse,
+                OUTPUT_STRIDE_0=output.stride(0),
+                OUTPUT_STRIDE_1=output.stride(1),
+                QUERY_ROWS=gqa,
+                HEAD_DIM=head_dim,
+                SEGMENTS=segments,
+                TILE_SIZE=tile_size,
+                num_warps=2,
+                waves_per_eu=1,
+            )
+
+    def attention_and_reduce() -> None:
+        for layer in range(layers):
+            attention_layer(layer)
+            reduce()
+
+    reduction_check = None
+    if args.reduce_block_d:
+        active_mask.fill_(1)
+        active_blocks.fill_(1)
+        attention_layer(0)
         _reduce_aiter_page1_segments_with_lse_kernel[(sequences, gqa)](
             segment_out,
             segment_max,
@@ -235,11 +301,21 @@ def main() -> None:
             num_warps=2,
             waves_per_eu=1,
         )
-
-    def attention_and_reduce() -> None:
-        for layer in range(layers):
-            attention_layer(layer)
-            reduce()
+        reference_output = output.clone()
+        reference_lse = output_lse.clone()
+        reduce()
+        torch.cuda.synchronize()
+        output_max_abs = float((output - reference_output).abs().max().item())
+        lse_max_abs = float((output_lse - reference_lse).abs().max().item())
+        reduction_check = {
+            "output_max_abs": output_max_abs,
+            "lse_max_abs": lse_max_abs,
+        }
+        if output_max_abs > 2.0e-5 or lse_max_abs > 2.0e-5:
+            raise AssertionError(
+                "split-D reduction differs from baseline: "
+                f"output={output_max_abs}, lse={lse_max_abs}"
+            )
 
     results: dict[str, dict[str, float]] = {}
     token = torch.arange(length, device=device)
@@ -280,11 +356,16 @@ def main() -> None:
             "index_order": args.index_order,
             "tile_size": tile_size,
             "segments": segments,
+            "scan_num_warps": args.scan_num_warps,
+            "scan_waves_per_eu": args.scan_waves_per_eu,
+            "scan_num_stages": args.scan_num_stages,
+            "reduce_block_d": args.reduce_block_d,
             "layers": layers,
             "arena_bytes": int((key.numel() + value.numel()) * key.element_size()),
             "repeats": args.repeats,
         },
         "results": results,
+        "reduction_check": reduction_check,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(payload, indent=2) + "\n")

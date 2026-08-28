@@ -97,12 +97,35 @@ TUNING_CONFIGS = (
     ),
 )
 
+LOW_ROW_ROUTE_CONFIGS = (
+    BASELINE,
+    DecodeConfig(route_group_size=16),
+    DecodeConfig(route_group_size=16, route_num_warps=1),
+    DecodeConfig(route_group_size=16, route_use_dot=False),
+    DecodeConfig(
+        route_group_size=16, route_num_warps=1, route_use_dot=False
+    ),
+    DecodeConfig(
+        route_group_size=16, route_num_warps=4, route_use_dot=False
+    ),
+    DecodeConfig(route_group_size=8, route_num_warps=1),
+    DecodeConfig(route_group_size=8),
+    DecodeConfig(route_group_size=8, route_use_dot=False),
+)
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--suite",
-        choices=("diagnostic", "cooperative", "tune128", "tune512", "all"),
+        choices=(
+            "diagnostic",
+            "cooperative",
+            "tune128",
+            "tune512",
+            "lowrow256",
+            "all",
+        ),
         default="diagnostic"
     )
     parser.add_argument("--batch-size", type=int, default=8)
@@ -362,6 +385,10 @@ def main() -> None:
         )
     if args.suite in ("tune512", "all"):
         jobs.append((Geometry("D512_KV2_G8_gemma", 512, 2, 8), TUNING_CONFIGS))
+    if args.suite in ("lowrow256", "all"):
+        jobs.append(
+            (Geometry("D256_KV2_G4_qwen", 256, 2, 4), LOW_ROW_ROUTE_CONFIGS)
+        )
     if args.geometry:
         jobs = [job for job in jobs if args.geometry in job[0].name]
     output: dict[str, object] = {
