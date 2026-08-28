@@ -1550,6 +1550,97 @@ def _prepare_int8_attention_queries_kernel(
 
 
 @triton.jit
+def _count_direct_expert_routes_kernel(
+    top_slots,
+    expert_counts,
+    ROWS,
+    QUERY_LEN: tl.constexpr,
+    QUERY_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    KV_GROUP_SIZE: tl.constexpr,
+    STATE_CAPACITY: tl.constexpr,
+    ROUTE_COUNT: tl.constexpr,
+    ROUTE_BLOCK: tl.constexpr,
+    BLOCK_M: tl.constexpr,
+):
+    """Count route rows directly into their expert-major buckets."""
+    row = (
+        tl.program_id(0).to(tl.int64) * BLOCK_M
+        + tl.arange(0, BLOCK_M).to(tl.int64)
+    )
+    valid_row = row < ROWS
+    batch_head = row // QUERY_LEN
+    batch = batch_head // QUERY_HEADS
+    query_head = batch_head - batch * QUERY_HEADS
+    kv_row = batch * KV_HEADS + query_head // KV_GROUP_SIZE
+    route = tl.arange(0, ROUTE_BLOCK)
+    valid_route = valid_row[:, None] & (route[None, :] < ROUTE_COUNT)
+    slot = tl.load(
+        top_slots + row[:, None] * ROUTE_COUNT + route[None, :],
+        mask=valid_route,
+        other=-1,
+    ).to(tl.int32)
+    valid_route &= slot >= 0
+    expert = kv_row[:, None].to(tl.int32) * STATE_CAPACITY + tl.maximum(slot, 0)
+    tl.atomic_add(
+        expert_counts + expert,
+        1,
+        mask=valid_route,
+        sem="relaxed",
+    )
+
+
+@triton.jit
+def _scatter_direct_expert_routes_kernel(
+    top_slots,
+    expert_offsets,
+    expert_cursors,
+    packed_route_rows,
+    ROWS,
+    QUERY_LEN: tl.constexpr,
+    QUERY_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    KV_GROUP_SIZE: tl.constexpr,
+    STATE_CAPACITY: tl.constexpr,
+    ROUTE_COUNT: tl.constexpr,
+    ROUTE_BLOCK: tl.constexpr,
+    BLOCK_M: tl.constexpr,
+):
+    """Scatter route-row indices into contiguous expert-major spans."""
+    row = (
+        tl.program_id(0).to(tl.int64) * BLOCK_M
+        + tl.arange(0, BLOCK_M).to(tl.int64)
+    )
+    valid_row = row < ROWS
+    batch_head = row // QUERY_LEN
+    batch = batch_head // QUERY_HEADS
+    query_head = batch_head - batch * QUERY_HEADS
+    kv_row = batch * KV_HEADS + query_head // KV_GROUP_SIZE
+    route = tl.arange(0, ROUTE_BLOCK)
+    valid_route = valid_row[:, None] & (route[None, :] < ROUTE_COUNT)
+    slot = tl.load(
+        top_slots + row[:, None] * ROUTE_COUNT + route[None, :],
+        mask=valid_route,
+        other=-1,
+    ).to(tl.int32)
+    valid_route &= slot >= 0
+    expert = kv_row[:, None].to(tl.int32) * STATE_CAPACITY + tl.maximum(slot, 0)
+    rank = tl.atomic_add(
+        expert_cursors + expert,
+        1,
+        mask=valid_route,
+        sem="relaxed",
+    ).to(tl.int32)
+    destination = tl.load(
+        expert_offsets + expert,
+        mask=valid_route,
+        other=0,
+    ).to(tl.int32) + rank
+    route_row = row[:, None] * ROUTE_COUNT + route[None, :]
+    tl.store(packed_route_rows + destination, route_row, mask=valid_route)
+
+
+@triton.jit
 def _prepare_tiny_expert_sort_keys_kernel(
     top_slots,
     slot_lengths,
@@ -18958,6 +19049,7 @@ def paged_leaf_attention(
     long_expert_splits: int = 1,
     reduce_num_warps: int = 1,
     compact_invalid_routes: bool = False,
+    direct_expert_buckets: bool = False,
     max_leaves_per_expert: int | None = None,
     timing_events: dict[str, list[tuple[torch.cuda.Event, torch.cuda.Event]]]
     | None = None,
@@ -19020,6 +19112,10 @@ def paged_leaf_attention(
         if int8_mma:
             raise ValueError("split-N expert attention currently requires BF16 K/V")
     compound_expert_routing = bool(tiny_expert_max or split_long_experts)
+    if direct_expert_buckets and (int8_mma or compound_expert_routing):
+        raise ValueError(
+            "direct expert buckets currently require ordinary BF16 expert routing"
+        )
     if reduce_num_warps not in (1, 2, 4, 8):
         raise ValueError("expert route reduction warps must be one of 1, 2, 4, 8")
 
@@ -19044,7 +19140,29 @@ def paged_leaf_attention(
         rows = batch * query_heads * query_len
         kernel_q = q
         query_scales = q
-        if int8_mma:
+        if direct_expert_buckets:
+            expert_capacity = batch * kv_heads * state_capacity
+            expert_counts = torch.zeros(
+                expert_capacity, dtype=torch.int32, device=q.device
+            )
+            query_prepare_block_m = 16
+            _count_direct_expert_routes_kernel[
+                (triton.cdiv(rows, query_prepare_block_m),)
+            ](
+                top_slots,
+                expert_counts,
+                rows,
+                QUERY_LEN=query_len,
+                QUERY_HEADS=query_heads,
+                KV_HEADS=kv_heads,
+                KV_GROUP_SIZE=kv_group_size,
+                STATE_CAPACITY=state_capacity,
+                ROUTE_COUNT=route_count,
+                ROUTE_BLOCK=triton.next_power_of_2(route_count),
+                BLOCK_M=query_prepare_block_m,
+                num_warps=1,
+            )
+        elif int8_mma:
             source_q = q.contiguous()
             kernel_q = torch.empty_like(source_q, dtype=torch.int8)
             query_scales = torch.empty(rows, dtype=q.dtype, device=q.device)
@@ -19116,7 +19234,33 @@ def paged_leaf_attention(
                 + top_slots.clamp_min(0).to(torch.int32)
             ).reshape(-1)
         record_dispatch_boundary()
-        if compact_invalid_routes and not int8_mma and not compound_expert_routing:
+        if direct_expert_buckets:
+            q_lengths = expert_counts
+            cu_q = F.pad(q_lengths.cumsum(0), (1, 0)).to(torch.int32)
+            expert_cursors = torch.zeros_like(expert_counts)
+            order = torch.empty(
+                rows * route_count, dtype=torch.int32, device=q.device
+            )
+            _scatter_direct_expert_routes_kernel[
+                (triton.cdiv(rows, query_prepare_block_m),)
+            ](
+                top_slots,
+                cu_q,
+                expert_cursors,
+                order,
+                rows,
+                QUERY_LEN=query_len,
+                QUERY_HEADS=query_heads,
+                KV_HEADS=kv_heads,
+                KV_GROUP_SIZE=kv_group_size,
+                STATE_CAPACITY=state_capacity,
+                ROUTE_COUNT=route_count,
+                ROUTE_BLOCK=triton.next_power_of_2(route_count),
+                BLOCK_M=query_prepare_block_m,
+                num_warps=1,
+            )
+            sorted_expert = order
+        elif compact_invalid_routes and not int8_mma and not compound_expert_routing:
             valid_route_row = torch.nonzero(
                 top_slots.reshape(-1).ge(0), as_tuple=False
             ).reshape(-1)
@@ -19126,9 +19270,14 @@ def paged_leaf_attention(
         else:
             sorted_expert, order = expert_id.sort(stable=False)
         record_dispatch_boundary()
-        unique_sort_key, q_lengths = torch.unique_consecutive(
-            sorted_expert, return_counts=True
-        )
+        if direct_expert_buckets:
+            unique_sort_key = torch.arange(
+                expert_capacity, dtype=torch.int32, device=q.device
+            )
+        else:
+            unique_sort_key, q_lengths = torch.unique_consecutive(
+                sorted_expert, return_counts=True
+            )
         if compound_expert_routing:
             expert_kv_row = torch.empty_like(unique_sort_key, dtype=torch.int32)
             expert_slot = torch.empty_like(unique_sort_key, dtype=torch.int32)
@@ -19164,9 +19313,14 @@ def paged_leaf_attention(
                 unique_expert, state_capacity, rounding_mode="floor"
             )
             expert_slot = unique_expert % state_capacity
-        cu_q = F.pad(q_lengths.cumsum(0), (1, 0)).to(torch.int32)
-        expert_index = torch.arange(
-            q_lengths.numel(), device=q.device, dtype=torch.int32
+        if not direct_expert_buckets:
+            cu_q = F.pad(q_lengths.cumsum(0), (1, 0)).to(torch.int32)
+        expert_index = (
+            unique_sort_key
+            if direct_expert_buckets
+            else torch.arange(
+                q_lengths.numel(), device=q.device, dtype=torch.int32
+            )
         )
         record_dispatch_boundary()
         if compound_expert_routing:

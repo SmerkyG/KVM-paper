@@ -192,6 +192,7 @@ class TritonLODAttentionCore(nn.Module):
     # Each row merges only the top-eight routes. One wave is sufficient and
     # avoids the synchronization/occupancy overhead of a four-wave reduction.
     leaf_reduce_num_warps = 1
+    prefill_direct_expert_buckets = False
     leaf_union_query_tile = 8
     leaf_aiter_copy_page_size = 16
     # Store flat exact leaves as tokenwise symmetric INT8 and execute both QK
@@ -5402,6 +5403,9 @@ class TritonLODAttentionCore(nn.Module):
                     self.prefill_route_mass_fraction is not None
                     and int(q.size(2)) > 1
                 )
+                leaf_kwargs["direct_expert_buckets"] = bool(
+                    self.prefill_direct_expert_buckets and int(q.size(2)) > 1
+                )
                 leaf_kwargs.update(
                     long_expert_threshold=self.leaf_long_expert_threshold,
                     long_expert_splits=self.leaf_long_expert_splits,
@@ -5437,7 +5441,7 @@ class TritonLODAttentionCore(nn.Module):
                 )
         if indexed:
             leaf_kwargs["page_indices"] = page_indices
-        return leaf_function(
+        result = leaf_function(
             q,
             page_k,
             page_v,
@@ -5451,6 +5455,11 @@ class TritonLODAttentionCore(nn.Module):
             scale=self.scaling,
             **leaf_kwargs,
         )
+        if leaf_kwargs.get("direct_expert_buckets", False):
+            self.prefill_direct_expert_bucket_calls = int(
+                getattr(self, "prefill_direct_expert_bucket_calls", 0)
+            ) + 1
+        return result
 
     def _coarse_attention(
         self,

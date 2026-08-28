@@ -121,6 +121,7 @@ class VLLMLODSettings:
     leaf_num_warps: int = 2
     leaf_geometry_tuning: bool = True
     leaf_reduce_num_warps: int = 1
+    prefill_direct_expert_buckets: bool | None = None
     prefill_int8_leaf_num_warps: int = 2
     leaf_paged_directory: bool = True
     dense_leaf_storage: bool = True
@@ -337,6 +338,11 @@ class VLLMLODSettings:
             ),
             leaf_reduce_num_warps=_integer(
                 "VLLM_LOD_LEAF_REDUCE_NUM_WARPS", 1
+            ),
+            prefill_direct_expert_buckets=(
+                _boolean("VLLM_LOD_PREFILL_DIRECT_EXPERT_BUCKETS", False)
+                if os.getenv("VLLM_LOD_PREFILL_DIRECT_EXPERT_BUCKETS") is not None
+                else None
             ),
             prefill_int8_leaf_num_warps=_integer(
                 "VLLM_LOD_PREFILL_INT8_LEAF_NUM_WARPS", 2

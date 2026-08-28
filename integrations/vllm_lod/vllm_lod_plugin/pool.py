@@ -82,6 +82,17 @@ def _prefill_overlap_geometry(
     return levels == 2 and muse, muse or recursive_qwen
 
 
+def _prefill_direct_expert_bucket_geometry(
+    levels: int,
+    head_dim: int,
+    gqa: int,
+    kv_heads: int,
+) -> bool:
+    """Whether measured route density favors histogram/scatter dispatch."""
+
+    return levels == 2 and (head_dim, gqa, kv_heads) == (256, 4, 2)
+
+
 def _recursive_prefill_all_leaves_geometry(
     levels: int,
     head_dim: int,
@@ -390,6 +401,22 @@ class VLLMLayerLODPool:
             else settings.recursive_prefill_all_leaves
         )
         self.engine.recursive_prefill_all_leaves = recursive_prefill_all_leaves
+        direct_expert_buckets = (
+            (
+                settings.kv_bits == 0
+                and settings.leaf_layout == "expert"
+                and _prefill_direct_expert_bucket_geometry(
+                    settings.levels, self.head_dim, gqa, self.kv_heads
+                )
+            )
+            if settings.prefill_direct_expert_buckets is None
+            else settings.prefill_direct_expert_buckets
+        )
+        if direct_expert_buckets and settings.kv_bits != 0:
+            raise ValueError("direct prefill expert buckets require BF16 LOD leaves")
+        if direct_expert_buckets and settings.leaf_layout != "expert":
+            raise ValueError("direct prefill expert buckets require expert leaf layout")
+        self.engine.prefill_direct_expert_buckets = direct_expert_buckets
         if settings.levels == 3 and recursive_prefill_all_leaves:
             # Reuse the same measured expert geometry as flat two-tier
             # prefill. The recursive branch still owns and updates the page

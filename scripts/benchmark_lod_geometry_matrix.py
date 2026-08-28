@@ -115,10 +115,48 @@ def parse_args() -> argparse.Namespace:
         choices=("diagnostic", "tune128", "tune512", "all"),
         default="diagnostic",
     )
+    parser.add_argument(
+        "--geometry",
+        action="append",
+        default=[],
+        help="Only run the named geometry (repeatable)",
+    )
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--query-len", type=int, default=256)
     parser.add_argument("--slots", type=int, default=32)
     parser.add_argument("--routes", type=int, default=8)
+    parser.add_argument(
+        "--route-working-set",
+        type=int,
+        default=0,
+        help=(
+            "Restrict deterministic routes to this many leading slots while "
+            "retaining the full state allocation (zero means all slots)"
+        ),
+    )
+    parser.add_argument(
+        "--route-hold",
+        type=int,
+        default=1,
+        help="Reuse each deterministic route set for this many adjacent queries",
+    )
+    parser.add_argument(
+        "--route-head-hold",
+        type=int,
+        default=1,
+        help="Reuse each route offset for this many adjacent query heads",
+    )
+    parser.add_argument(
+        "--invalid-route-period",
+        type=int,
+        default=0,
+        help="Set the final route to -1 on every Nth query row",
+    )
+    parser.add_argument(
+        "--dispatch",
+        choices=("sort", "direct", "both"),
+        default="both",
+    )
     parser.add_argument("--repeats", type=int, default=5)
     parser.add_argument("--seed", type=int, default=20260820)
     parser.add_argument("--output", type=Path, required=True)
@@ -134,9 +172,20 @@ def make_inputs(
     routes: int,
     seed: int,
     device: torch.device,
+    invalid_route_period: int,
+    route_working_set: int,
+    route_hold: int,
+    route_head_hold: int,
 ) -> dict[str, torch.Tensor]:
     if routes > slots:
         raise ValueError("route count cannot exceed state slots")
+    routed_slots = slots if route_working_set <= 0 else route_working_set
+    if routed_slots < routes or routed_slots > slots:
+        raise ValueError("route working set must be between route count and slots")
+    if route_hold < 1:
+        raise ValueError("route hold must be positive")
+    if route_head_hold < 1:
+        raise ValueError("route head hold must be positive")
     page_size = 16
     # The permutation produces identical 16..256-token posting-list lengths
     # for every batch/KV row, while avoiding correlation with adjacent slots.
@@ -150,13 +199,14 @@ def make_inputs(
     page_capacity = int(pages_per_slot.sum().item())
     inline_pages = int(pages_per_slot.max().item())
 
+    page_index_dtype = torch.int16 if page_capacity < 2**15 else torch.int32
     slot_pages_1d = torch.full(
-        (slots, inline_pages), -1, dtype=torch.int16
+        (slots, inline_pages), -1, dtype=page_index_dtype
     )
     next_page = 0
     for slot, page_count in enumerate(pages_per_slot.tolist()):
         slot_pages_1d[slot, :page_count] = torch.arange(
-            next_page, next_page + page_count, dtype=torch.int16
+            next_page, next_page + page_count, dtype=page_index_dtype
         )
         next_page += page_count
     slot_pages = (
@@ -212,8 +262,14 @@ def make_inputs(
     token = torch.arange(query_len, device=device)[None, None, :, None]
     head = torch.arange(query_heads, device=device)[None, :, None, None]
     batch = torch.arange(batch_size, device=device)[:, None, None, None]
-    base = token * 5 + head * 3 + batch * 7
-    top_slots = ((base + route_offsets) % slots).to(torch.int64)
+    base = (
+        torch.div(token, route_hold, rounding_mode="floor") * 5
+        + torch.div(head, route_head_hold, rounding_mode="floor") * 3
+        + batch * 7
+    )
+    top_slots = ((base + route_offsets) % routed_slots).to(torch.int64)
+    if invalid_route_period > 0:
+        top_slots.reshape(-1, routes)[::invalid_route_period, -1] = -1
 
     overflow_page_keys = torch.full(
         (batch_size, geometry.kv_heads, 1),
@@ -251,6 +307,7 @@ def benchmark_config(
     config: KernelConfig,
     *,
     repeats: int,
+    dispatch: str,
 ) -> tuple[dict[str, object], tuple[torch.Tensor, torch.Tensor]]:
     common = dict(
         kv_group_size=geometry.group_size,
@@ -261,6 +318,7 @@ def benchmark_config(
         num_warps=config.num_warps,
         waves_per_eu=config.waves_per_eu,
         reduce_num_warps=1,
+        direct_expert_buckets=dispatch != "sort",
     )
     # Compile and warm all paths before collecting either GPU or wall time.
     warm = paged_leaf_attention(**tensors, **common)
@@ -288,7 +346,7 @@ def benchmark_config(
         tensors["slot_lengths"].float().mean().item()
     )
     result: dict[str, object] = {
-        "config": config.name,
+        "config": f"{config.name}_{dispatch}",
         "block_m": config.block_m,
         "block_n": config.block_n,
         "num_warps": config.num_warps,
@@ -318,32 +376,44 @@ def run_geometry(
         routes=args.routes,
         seed=args.seed,
         device=device,
+        invalid_route_period=args.invalid_route_period,
+        route_working_set=args.route_working_set,
+        route_hold=args.route_hold,
+        route_head_hold=args.route_head_hold,
     )
     baseline_output: tuple[torch.Tensor, torch.Tensor] | None = None
     results: list[dict[str, object]] = []
+    dispatches = (
+        ("sort", "direct") if args.dispatch == "both" else (args.dispatch,)
+    )
     for config in configs:
-        measured, output = benchmark_config(
-            tensors, geometry, config, repeats=args.repeats
-        )
-        if baseline_output is None:
-            baseline_output = tuple(value.detach().clone() for value in output)
-            measured["output_max_abs_vs_baseline"] = 0.0
-            measured["lse_max_abs_vs_baseline"] = 0.0
-        else:
-            measured["output_max_abs_vs_baseline"] = float(
-                (output[0].float() - baseline_output[0].float()).abs().max().item()
+        for dispatch in dispatches:
+            measured, output = benchmark_config(
+                tensors,
+                geometry,
+                config,
+                repeats=args.repeats,
+                dispatch=dispatch,
             )
-            measured["lse_max_abs_vs_baseline"] = float(
-                (output[1] - baseline_output[1]).abs().max().item()
+            if baseline_output is None:
+                baseline_output = tuple(value.detach().clone() for value in output)
+                measured["output_max_abs_vs_baseline"] = 0.0
+                measured["lse_max_abs_vs_baseline"] = 0.0
+            else:
+                measured["output_max_abs_vs_baseline"] = float(
+                    (output[0].float() - baseline_output[0].float()).abs().max().item()
+                )
+                measured["lse_max_abs_vs_baseline"] = float(
+                    (output[1] - baseline_output[1]).abs().max().item()
+                )
+            results.append(measured)
+            print(
+                geometry.name,
+                measured["config"],
+                f"wall={measured['wall_ms_median']:.3f} ms",
+                f"kernel={measured['phase_ms_median'].get('kernel', float('nan')):.3f} ms",
+                flush=True,
             )
-        results.append(measured)
-        print(
-            geometry.name,
-            config.name,
-            f"wall={measured['wall_ms_median']:.3f} ms",
-            f"kernel={measured['phase_ms_median'].get('kernel', float('nan')):.3f} ms",
-            flush=True,
-        )
     best = min(results, key=lambda result: float(result["wall_ms_median"]))
     return {
         "name": geometry.name,
@@ -376,6 +446,12 @@ def main() -> None:
         )
     if args.suite in ("tune512", "all"):
         suites.append((Geometry("D512_KV2_G8_gemma", 512, 2, 8), D512_CONFIGS))
+    if args.geometry:
+        selected = set(args.geometry)
+        suites = [(geometry, configs) for geometry, configs in suites if geometry.name in selected]
+        missing = selected - {geometry.name for geometry, _ in suites}
+        if missing:
+            raise ValueError(f"unknown or unavailable geometries: {sorted(missing)}")
 
     output: dict[str, object] = {
         "suite": args.suite,
@@ -383,6 +459,13 @@ def main() -> None:
         "query_len": args.query_len,
         "slots": args.slots,
         "routes": args.routes,
+        "route_working_set": (
+            args.slots if args.route_working_set <= 0 else args.route_working_set
+        ),
+        "route_hold": args.route_hold,
+        "route_head_hold": args.route_head_hold,
+        "invalid_route_period": args.invalid_route_period,
+        "dispatch": args.dispatch,
         "posting_list_lengths": [16 * (1 + ((slot * 7) % 16)) for slot in range(args.slots)],
         "device": torch.cuda.get_device_name(device),
         "torch_version": torch.__version__,

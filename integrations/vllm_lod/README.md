@@ -543,6 +543,18 @@ recursive three-tier prefill, where it improves 64K/B8 latency by 5.4%. Set
 `VLLM_LOD_PREFILL_HIERARCHICAL_ROUTE={0,1}` to override automatic dispatch.
 `VLLM_LOD_PREFILL_HIERARCHICAL_ROUTE=0` or `1` overrides geometry selection;
 both selectors use the same scores and return the same ordered routes.
+Expert-major BF16 prefill normally radix-sorts route rows by selected centroid.
+The measured D256/GQA4/KV2 two-level geometry instead constructs exact expert
+buckets with a histogram and prefix scatter. On Qwen3.5-0.8B this reduces the
+isolated top-three exact-leaf stage by 12.2% at B1 and 8.2% at B8, and reduces
+a matched real-ProLong 64K/B8 prefill from 4.168 to 4.128 seconds (0.96%). It
+does not change selected leaves or attention math and passed 8/8 64K NIAH-S3.
+This is deliberately not automatic on Muse: its concentrated routes make the
+atomic count/scatter 4.1x slower than radix dispatch in the production vLLM
+profile. Set `VLLM_LOD_PREFILL_DIRECT_EXPERT_BUCKETS=0` to disable the measured
+Qwen policy or `1` to force it for a BF16 expert-layout diagnostic. The full
+route-concentration and overlap-stage analysis is in
+`artifacts/prefill_direct_buckets_20260828/README.md`.
 The coarse-attention consumer independently folds native GQA directly into
 the matrix-row dimension on the measured irregular-ratio winners:
 D128/GQA5/KV8 uses M128/N16/W8, and D256/GQA6/KV4 uses M64/N16/W8. This avoids

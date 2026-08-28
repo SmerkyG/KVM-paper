@@ -220,6 +220,7 @@ def inspect_lod_model(model) -> dict[str, object]:
         "static_prefill_permanent_exact_tokens": 0,
         "static_prefill_archive_tokens": 0,
         "static_prefill_permanent_exact_fraction": None,
+        "prefill_direct_expert_bucket_calls": 0,
     }
     for module in model.modules():
         pool = getattr(module, "_vllm_lod_pool", None)
@@ -259,6 +260,9 @@ def inspect_lod_model(model) -> dict[str, object]:
                 prefill_int8_leaf_mma=bool(pool.engine.prefill_int8_leaf_mma),
                 prefill_int8_pv_mma=bool(pool.engine.prefill_int8_pv_mma),
                 prefill_int8_coarse_mma=bool(pool.engine.prefill_int8_coarse_mma),
+                prefill_direct_expert_buckets=bool(
+                    pool.engine.prefill_direct_expert_buckets
+                ),
                 prefill_static_leaf_aiter=bool(
                     pool.engine.prefill_static_leaf_aiter
                 ),
@@ -295,6 +299,9 @@ def inspect_lod_model(model) -> dict[str, object]:
                 ),
             )
         diagnostics["layers"] += 1
+        diagnostics["prefill_direct_expert_bucket_calls"] += int(
+            getattr(pool.engine, "prefill_direct_expert_bucket_calls", 0)
+        )
         diagnostics["installs"] += int(pool.install_count)
         diagnostics["batched_install_calls"] += int(pool.batched_install_calls)
         diagnostics["direct_prefills"] += int(pool.direct_prefill_calls)
@@ -929,6 +936,12 @@ def inspect_lod_dispatch(model) -> dict[str, object]:
             ),
             "configured_prefill_hierarchical_route": bool(
                 engine.prefill_hierarchical_route
+            ),
+            "configured_prefill_direct_expert_buckets": bool(
+                engine.prefill_direct_expert_buckets
+            ),
+            "prefill_direct_expert_bucket_calls": int(
+                getattr(engine, "prefill_direct_expert_bucket_calls", 0)
             ),
             "configured_prefill_leaf_visit_cap": getattr(
                 pool.settings, "prefill_leaf_visit_cap", None
