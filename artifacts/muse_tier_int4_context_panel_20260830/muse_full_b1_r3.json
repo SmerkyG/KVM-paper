@@ -1,0 +1,346 @@
+{
+  "allow_heterogeneous_global_config": false,
+  "apply_chat_template": true,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 218116390912,
+    "device_used_bytes_before_reclaim": 224061816832,
+    "external_lod_layers": 0,
+    "external_lod_layers_with_native_cache": 0,
+    "external_lod_native_cache_bytes": 0,
+    "lod_cache_bytes": 0,
+    "lod_decode_scratch_bytes": 0,
+    "native_cache_bytes": 159295012864,
+    "torch_allocated_bytes": 159378979328,
+    "torch_reclaimable_cached_bytes": 5945425920,
+    "torch_reserved_bytes_after_reclaim": 159477923840,
+    "torch_reserved_bytes_before_reclaim": 165423349760
+  },
+  "batch_size": 1,
+  "checkpoint": "meta-models/Muse-Glimmer-30B",
+  "diagnostic_external_empty_attention": null,
+  "disable_custom_all_reduce": false,
+  "disable_thinking": true,
+  "enable_prefix_caching": false,
+  "full_attention_backend": "ROCM_AITER_UNIFIED_ATTN",
+  "full_attention_dispatch": {
+    "records": [
+      {
+        "attention_callable": "aiter.ops.triton.attention.unified_attention.unified_attention",
+        "head_dim": 128,
+        "implementation_class": "vllm.v1.attention.backends.rocm_aiter_unified_attn.RocmAiterUnifiedAttentionImpl",
+        "kv_cache_dtype": "auto",
+        "kv_group_size": 16,
+        "kv_heads": 2,
+        "layers": 13,
+        "query_heads": 32,
+        "sliding_window": [
+          -1,
+          -1
+        ]
+      }
+    ],
+    "schema_version": 1
+  },
+  "language_model_only": false,
+  "lengths": [
+    8192,
+    16384,
+    32768,
+    65536,
+    131072
+  ],
+  "load_format": "ipc_cache",
+  "lod_diagnostics_before": null,
+  "long_prefill_token_threshold": 16384,
+  "max_new_tokens": 64,
+  "max_num_batched_tokens": 16384,
+  "mode": "full",
+  "model_impl": null,
+  "muse_native_text_config": true,
+  "results": {
+    "131072": {
+      "speed": {
+        "decode_timings_seconds": [
+          4.080809386912733,
+          4.081235031131655,
+          4.079402067232877
+        ],
+        "marginal_decode_ms_per_batch_step": 16.003174066324444,
+        "marginal_decode_tokens_per_second": 62.48760376257513,
+        "prefill_prompt_tokens_per_second": 8752.62731327789,
+        "prefill_seconds": 14.945912274997681,
+        "prefill_timings_seconds": [
+          14.942705086898059,
+          14.945912274997681,
+          14.955404968000948
+        ],
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 130816,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London Kegan Paul, Trench, True",
+              "request_index": 0,
+              "sha256": "86568d13c9429b107da320add9c16b359b5da89304996ff287ab683728716249",
+              "source_document_count": 3,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                },
+                {
+                  "length": "65431",
+                  "stream_index": 1
+                },
+                {
+                  "length": "65626",
+                  "stream_index": 2
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8176,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 8176
+              }
+            }
+          ],
+          "rejected_candidate_count": 0,
+          "rejected_candidates": []
+        },
+        "prompt_length": 130816,
+        "total_timings_seconds": [
+          19.02917684894055,
+          19.03215550025925,
+          19.039626149926335
+        ]
+      }
+    },
+    "16384": {
+      "speed": {
+        "decode_timings_seconds": [
+          3.974028745200485,
+          3.973457471933216,
+          3.975693922955543
+        ],
+        "marginal_decode_ms_per_batch_step": 15.584426451766609,
+        "marginal_decode_tokens_per_second": 64.16662192188939,
+        "prefill_prompt_tokens_per_second": 11631.378398098503,
+        "prefill_seconds": 1.3865940431132913,
+        "prefill_timings_seconds": [
+          1.3833678858354688,
+          1.3879095860756934,
+          1.3865940431132913
+        ],
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 16128,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London Kegan Paul, Trench, True",
+              "request_index": 0,
+              "sha256": "d21902a5a18ace2261ad15e3e9bff638308bbe2df46c4f5e902b65160644dcb4",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 1008,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 1008
+              }
+            }
+          ],
+          "rejected_candidate_count": 0,
+          "rejected_candidates": []
+        },
+        "prompt_length": 16128,
+        "total_timings_seconds": [
+          5.3589671198278666,
+          5.362859229091555,
+          5.363835645839572
+        ]
+      }
+    },
+    "32768": {
+      "speed": {
+        "decode_timings_seconds": [
+          3.9843813772313297,
+          3.9872784088365734,
+          3.99094592127949
+        ],
+        "marginal_decode_ms_per_batch_step": 15.63638591700617,
+        "marginal_decode_tokens_per_second": 63.953397243310405,
+        "prefill_prompt_tokens_per_second": 10984.144487408013,
+        "prefill_seconds": 2.9599027978256345,
+        "prefill_timings_seconds": [
+          2.9599027978256345,
+          2.959545152261853,
+          2.96502379886806
+        ],
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 32512,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London Kegan Paul, Trench, True",
+              "request_index": 0,
+              "sha256": "79d4e18a25f96cd7f098d277f7cdfa45f08d37ee28fc25eb8bac035c9616c1c2",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 2032,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 2032
+              }
+            }
+          ],
+          "rejected_candidate_count": 0,
+          "rejected_candidates": []
+        },
+        "prompt_length": 32512,
+        "total_timings_seconds": [
+          6.94660072401166,
+          6.948829465080053,
+          6.9584054769948125
+        ]
+      }
+    },
+    "65536": {
+      "speed": {
+        "decode_timings_seconds": [
+          4.017476497683674,
+          4.021498075220734,
+          4.017550566699356
+        ],
+        "marginal_decode_ms_per_batch_step": 15.7551002615661,
+        "marginal_decode_tokens_per_second": 63.47150975861814,
+        "prefill_prompt_tokens_per_second": 10058.421237805087,
+        "prefill_seconds": 6.490084125194699,
+        "prefill_timings_seconds": [
+          6.485663153231144,
+          6.4913640869781375,
+          6.490084125194699
+        ],
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 65280,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London Kegan Paul, Trench, True",
+              "request_index": 0,
+              "sha256": "a36a86ea4415ae644282d8a74124bed5be5515d7eb7cc29009d04f106b1f4e07",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                },
+                {
+                  "length": "65431",
+                  "stream_index": 1
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4080,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4080
+              }
+            }
+          ],
+          "rejected_candidate_count": 0,
+          "rejected_candidates": []
+        },
+        "prompt_length": 65280,
+        "total_timings_seconds": [
+          10.506894691847265,
+          10.515894843265414,
+          10.510808669030666
+        ]
+      }
+    },
+    "8192": {
+      "speed": {
+        "decode_timings_seconds": [
+          3.964756978210062,
+          3.961803438141942,
+          3.965060394257307
+        ],
+        "marginal_decode_ms_per_batch_step": 15.548066581215929,
+        "marginal_decode_tokens_per_second": 64.31667852568428,
+        "prefill_prompt_tokens_per_second": 11423.438647868958,
+        "prefill_seconds": 0.6947120078839362,
+        "prefill_timings_seconds": [
+          0.6947120078839362,
+          0.6946118590421975,
+          0.696461555082351
+        ],
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 7936,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London Kegan Paul, Trench, True",
+              "request_index": 0,
+              "sha256": "e5653e6369056297e72d14fe3f95ceb1b677bb84e9b65e11d443abe32a3df298",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 496,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 496
+              }
+            }
+          ],
+          "rejected_candidate_count": 0,
+          "rejected_candidates": []
+        },
+        "prompt_length": 7936,
+        "total_timings_seconds": [
+          4.6611712030135095,
+          4.657706939149648,
+          4.662787121720612
+        ]
+      }
+    }
+  },
+  "sample_offset": 0,
+  "samples_per_length": 8,
+  "speed_decode_tokens": 256,
+  "speed_prompt_reserve": 256,
+  "speed_repeats": 3,
+  "speed_use_warm_prefix_cache": false,
+  "tensor_parallel_size": 1
+}

@@ -963,6 +963,17 @@ correctness checks are in
 full/two-tier/three-tier B1/B8 decision tables and raw records are in
 `artifacts/int4_context_panel_20260829/README.md`.
 
+The matched Muse-Glimmer-30B TP1 panel uses the same 16,384-token aggregate
+budget and per-request threshold. Full attention wins prefill through 32K at
+B1 and through 64K at B8. Two-tier BF16 crosses at 64K/B1 and 128K/B8; at
+128K it takes 13.478/109.322 seconds versus 14.946/120.432 seconds for full
+attention. Full attention wins decode through 128K/B1 and 64K/B8. Recursive
+three-tier BF16 crosses at 128K/B8, taking 20.041 ms versus 20.919 ms for full
+attention. Recursive INT4 reduces allocated LOD cache by 60.7%, keeps decode
+within 1.0% of recursive BF16, and costs up to 6.8% in prefill. The complete
+tables and raw records are in
+`artifacts/muse_tier_int4_context_panel_20260830/README.md`.
+
 Set `VLLM_LOD_QUANT_GROUP_SIZE`, `VLLM_LOD_LEAF_QUANT_SCALE_MODE`, and
 `VLLM_LOD_LEAF_APPEND_QUANT_SCALE_MODE` explicitly to override the precision
 policy. Group size 16 plus `l2` reproduces the former quality default; group
