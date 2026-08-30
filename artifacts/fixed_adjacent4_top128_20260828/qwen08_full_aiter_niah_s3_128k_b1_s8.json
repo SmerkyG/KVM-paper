@@ -1,0 +1,132 @@
+{
+  "allow_heterogeneous_global_config": false,
+  "apply_chat_template": true,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 219915747328,
+    "device_used_bytes_before_reclaim": 220358246400,
+    "external_lod_layers": 0,
+    "external_lod_layers_with_native_cache": 0,
+    "external_lod_native_cache_bytes": 0,
+    "lod_cache_bytes": 0,
+    "lod_decode_scratch_bytes": 0,
+    "native_cache_bytes": 215111172096,
+    "torch_allocated_bytes": 217134355456,
+    "torch_reclaimable_cached_bytes": 442499072,
+    "torch_reserved_bytes_after_reclaim": 217191546880,
+    "torch_reserved_bytes_before_reclaim": 217634045952
+  },
+  "batch_size": 1,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "diagnostic_external_empty_attention": null,
+  "disable_custom_all_reduce": false,
+  "disable_thinking": true,
+  "enable_prefix_caching": false,
+  "full_attention_backend": "ROCM_AITER_UNIFIED_ATTN",
+  "full_attention_dispatch": {
+    "records": [
+      {
+        "attention_callable": "aiter.ops.triton.attention.unified_attention.unified_attention",
+        "head_dim": 256,
+        "implementation_class": "vllm.v1.attention.backends.rocm_aiter_unified_attn.RocmAiterUnifiedAttentionImpl",
+        "kv_cache_dtype": "auto",
+        "kv_group_size": 4,
+        "kv_heads": 2,
+        "layers": 6,
+        "query_heads": 8,
+        "sliding_window": [
+          -1,
+          -1
+        ]
+      }
+    ],
+    "schema_version": 1
+  },
+  "language_model_only": false,
+  "lengths": [
+    131072
+  ],
+  "load_format": "auto",
+  "lod_diagnostics_before": null,
+  "long_prefill_token_threshold": 4096,
+  "max_new_tokens": 64,
+  "max_num_batched_tokens": 4096,
+  "mode": "full",
+  "model_impl": null,
+  "muse_native_text_config": false,
+  "results": {
+    "131072": {
+      "quality": {
+        "accuracy": 1.0,
+        "correct": 8,
+        "elapsed_seconds": 38.30751499114558,
+        "input_tokens": 1043159,
+        "samples": [
+          {
+            "exact": true,
+            "index": 0,
+            "input_tokens": 130392,
+            "response": ":\n\n**7f107645-094c-4230-a3b4-df81eeb3462c**",
+            "target": "7f107645-094c-4230-a3b4-df81eeb3462c"
+          },
+          {
+            "exact": true,
+            "index": 1,
+            "input_tokens": 130393,
+            "response": ":\n\n**3c740119-7547-44dd-a69b-6c3babf0f4bd**",
+            "target": "3c740119-7547-44dd-a69b-6c3babf0f4bd"
+          },
+          {
+            "exact": true,
+            "index": 2,
+            "input_tokens": 130400,
+            "response": ":\n\n**566ff3ec-679b-49e8-80c3-2da9bc49b58e**",
+            "target": "566ff3ec-679b-49e8-80c3-2da9bc49b58e"
+          },
+          {
+            "exact": true,
+            "index": 3,
+            "input_tokens": 130396,
+            "response": ":\n\n**e689e5e8-87c4-4eb8-8f8e-3e0103c8e104**",
+            "target": "e689e5e8-87c4-4eb8-8f8e-3e0103c8e104"
+          },
+          {
+            "exact": true,
+            "index": 4,
+            "input_tokens": 130399,
+            "response": ":\n\n**8d56206d-920c-4de9-8823-9867c5dd967b**",
+            "target": "8d56206d-920c-4de9-8823-9867c5dd967b"
+          },
+          {
+            "exact": true,
+            "index": 5,
+            "input_tokens": 130392,
+            "response": ":\n\n**675e0c52-1eb9-4739-b8ac-dd816522ff46**",
+            "target": "675e0c52-1eb9-4739-b8ac-dd816522ff46"
+          },
+          {
+            "exact": true,
+            "index": 6,
+            "input_tokens": 130393,
+            "response": ":\n\n**fee4e6bc-bd6d-4b92-85e6-95b1054b8816**",
+            "target": "fee4e6bc-bd6d-4b92-85e6-95b1054b8816"
+          },
+          {
+            "exact": true,
+            "index": 7,
+            "input_tokens": 130394,
+            "response": ":\n\n**c6a2894d-b3e4-4d3a-94fe-31a0ae2e45a4**",
+            "target": "c6a2894d-b3e4-4d3a-94fe-31a0ae2e45a4"
+          }
+        ],
+        "total": 8
+      }
+    }
+  },
+  "sample_offset": 0,
+  "samples_per_length": 8,
+  "speed_decode_tokens": 64,
+  "speed_prompt_reserve": 0,
+  "speed_repeats": 3,
+  "speed_use_warm_prefix_cache": false,
+  "tensor_parallel_size": 1
+}

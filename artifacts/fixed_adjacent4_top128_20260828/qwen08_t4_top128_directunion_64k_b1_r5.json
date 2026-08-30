@@ -1,0 +1,425 @@
+{
+  "async_scheduling_requested": false,
+  "attention_backend": null,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 219766849536,
+    "device_used_bytes_before_reclaim": 232775483392,
+    "external_lod_layers": 6,
+    "external_lod_layers_with_native_cache": 0,
+    "external_lod_native_cache_bytes": 0,
+    "lod_cache_bytes": 1984341680,
+    "lod_decode_scratch_bytes": 64194888,
+    "native_cache_bytes": 213377089536,
+    "torch_allocated_bytes": 217486381056,
+    "torch_reclaimable_cached_bytes": 13008633856,
+    "torch_reserved_bytes_after_reclaim": 217627754496,
+    "torch_reserved_bytes_before_reclaim": 230636388352
+  },
+  "batch_size": 1,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "decode_interval_tokens": 0,
+  "decode_timings_seconds": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "decode_tokens": 1,
+  "enforce_eager": false,
+  "jit_monitor_verbose": false,
+  "length": 65536,
+  "lengths": [
+    65536
+  ],
+  "load_format": "auto",
+  "lod_decode_block_n": null,
+  "lod_decode_final_reduce_num_warps": null,
+  "lod_decode_num_warps": null,
+  "lod_decode_route_group_size": null,
+  "lod_decode_route_num_warps": null,
+  "lod_decode_route_reduce_num_warps": null,
+  "lod_decode_use_dot": null,
+  "lod_diagnostics": {
+    "batched_cached_prefill_rows": 0,
+    "batched_cached_prefills": 0,
+    "batched_install_calls": 36,
+    "cached_prefill_candidate_calls": 540,
+    "cached_prefill_candidate_rows": 540,
+    "cached_prefill_noncontiguous": 0,
+    "cached_prefill_nonpacked_calls": 0,
+    "cached_prefill_nonuniform_lengths": 0,
+    "cached_prefill_nonuniform_previous": 0,
+    "cached_prefill_packed_calls": 540,
+    "cached_prefill_unready": 0,
+    "catch_up_batches": 0,
+    "catch_up_rows": 0,
+    "decode_calls": 12,
+    "decode_gqa_cooperative": true,
+    "decode_route_cohort": false,
+    "dense_leaf_storage": true,
+    "direct_prefills": 576,
+    "effective_decode_route_leaf_limit": 1024,
+    "external_kv_cache": true,
+    "installs": 36,
+    "kv_bits": 0,
+    "layers": 6,
+    "leaf_num_warps": 2,
+    "leaf_seal_capacity": null,
+    "levels": 2,
+    "open_count": 8,
+    "page_summary_quant_bits": 8,
+    "prefill_chunk_len": 4096,
+    "prefill_direct_expert_bucket_calls": 0,
+    "prefill_direct_expert_buckets": false,
+    "prefill_int8_coarse_mma": false,
+    "prefill_int8_leaf_mma": false,
+    "prefill_int8_pv_mma": false,
+    "prefill_state_update_len": 4096,
+    "prefill_static_leaf_aiter": false,
+    "prefill_static_leaf_cap_min": 16,
+    "recursive_materialize_page_scores": false,
+    "recursive_page_score_block_n": 16,
+    "recursive_page_score_num_warps": 2,
+    "recursive_page_select_block_n": 64,
+    "recursive_state_route_backend": "fused",
+    "retained_prefix_reuses": 0,
+    "retained_restore_attempts": 0,
+    "retained_restore_fail_coverage": 0,
+    "retained_restore_fail_no_row": 0,
+    "retained_restore_fail_short": 0,
+    "retained_restore_fail_tokens": 0,
+    "retained_restore_last_coverage": 0,
+    "retained_restore_last_prefix": 0,
+    "retained_restore_last_total": 0,
+    "retained_restore_rebuild_tokens": 0,
+    "retained_restore_rebuilds": 0,
+    "static_cohort_never_readmit": false,
+    "static_leaf_cap_divisor": 16,
+    "static_prefill_archive_tokens": 0,
+    "static_prefill_calls": 0,
+    "static_prefill_cap_max_observed": null,
+    "static_prefill_cap_min_observed": null,
+    "static_prefill_exact_tokens_max": null,
+    "static_prefill_exact_tokens_min": null,
+    "static_prefill_layers_executed": 0,
+    "static_prefill_permanent_exact_fraction": null,
+    "static_prefill_permanent_exact_tokens": 0
+  },
+  "lod_direct_prefill_route": false,
+  "lod_dispatch": {
+    "records": [
+      {
+        "configured_decode_centroid_major_hip": false,
+        "configured_decode_geometry_tuning": true,
+        "configured_decode_hierarchical_route": false,
+        "configured_decode_max_open_leaves": 1024,
+        "configured_decode_route_cohort": false,
+        "configured_diagnostic_static_preselected": false,
+        "configured_gqa_fixed_mask_adaptive_segments": false,
+        "configured_gqa_fixed_mask_aiter": false,
+        "configured_gqa_fixed_mask_block_n": 64,
+        "configured_gqa_fixed_mask_direct_routes": true,
+        "configured_gqa_fixed_mask_reduce_block_d": 0,
+        "configured_gqa_fixed_mask_scan_num_stages": 2,
+        "configured_gqa_fixed_mask_scan_num_warps": 2,
+        "configured_gqa_fixed_mask_scan_waves_per_eu": 2,
+        "configured_gqa_fixed_mask_segments": 128,
+        "configured_gqa_mass_fraction": null,
+        "configured_gqa_predicted_mass": false,
+        "configured_gqa_staged_fixed_aiter": false,
+        "configured_gqa_static_leaf_aiter": false,
+        "configured_gqa_union_decode": false,
+        "configured_gqa_union_hip": false,
+        "configured_leaf_block_n": 16,
+        "configured_open_count": 8,
+        "configured_prefill_coarse_block_m": 16,
+        "configured_prefill_coarse_block_n": 32,
+        "configured_prefill_coarse_max_grouped_rows": 64,
+        "configured_prefill_coarse_num_warps": 8,
+        "configured_prefill_direct_expert_buckets": false,
+        "configured_prefill_hierarchical_route": false,
+        "configured_prefill_leaf_visit_cap": null,
+        "configured_prefill_local_backend": "aiter",
+        "configured_prefill_overlap_coarse_leaf": false,
+        "configured_prefill_overlap_local_lod": false,
+        "configured_prefill_static_leaf_aiter": false,
+        "configured_prefill_static_leaf_cap_min": 16,
+        "configured_recursive_prefill_all_leaves": false,
+        "configured_route_group_size": 32,
+        "configured_route_num_warps": 2,
+        "configured_route_parallel_reduce": false,
+        "configured_route_post_dot_normalize": false,
+        "configured_route_post_pv_normalize": false,
+        "configured_route_reduce_num_warps": 4,
+        "configured_route_segment_tiles": 1,
+        "configured_route_use_dot": true,
+        "configured_state_premerge_factor": 4,
+        "configured_static_cohort_never_readmit": false,
+        "configured_static_leaf_cap_divisor": 16,
+        "decode_split_kv": 8,
+        "effective_decode_route_leaf_limit": 1024,
+        "effective_leaf_page_block_n": 16,
+        "effective_prefill_local_kernel": "aiter.ops.mha.flash_attn_func (CK FMHA v3)",
+        "effective_prefill_open_count": 128,
+        "effective_route_group_size": 32,
+        "effective_route_num_warps": 2,
+        "effective_route_reduce_num_warps": 4,
+        "effective_route_segment_tiles": 1,
+        "effective_route_segment_width": 32,
+        "effective_route_use_dot": true,
+        "engine_long_d128_override_bypassed_by_vllm_pool": false,
+        "engine_long_d128_override_exists": false,
+        "exact_leaf_kernel": "flat two-tier leaf dispatch",
+        "final_reduce_kernel": "_reduce_routed_split_decode_lod_attention_kernel",
+        "final_reduce_num_warps": 4,
+        "hash_probes": -1,
+        "head_dim": 256,
+        "kv_group_size": 4,
+        "kv_heads": 2,
+        "layers": 6,
+        "leaf_dtype": "torch.bfloat16",
+        "leaf_num_warps": 2,
+        "levels": 2,
+        "local_capacity": 4864,
+        "local_kernels": [
+          "_mask_decode_routes_residual_mass_kernel"
+        ],
+        "local_score_block_m": 16,
+        "local_score_block_n": 32,
+        "local_score_num_warps": 4,
+        "local_value_block_d": 32,
+        "local_value_block_k": 32,
+        "local_value_block_m": 16,
+        "local_value_num_warps": 4,
+        "local_window": 512,
+        "materialize_page_scores": false,
+        "observed_context_len": 0,
+        "page_capacity": 37152,
+        "page_route_kernels": [
+          "inline page-summary scoring in exact-leaf kernel"
+        ],
+        "page_score_block_n": 16,
+        "page_score_num_warps": 2,
+        "page_select_block_n": 64,
+        "pool_request_capacity": 65553,
+        "prefill_chunk_len": 4096,
+        "prefill_direct_expert_bucket_calls": 0,
+        "prefill_fused_route_eligible": false,
+        "prefill_leaf_kernel": "aiter_union",
+        "prefill_leaf_num_warps": 2,
+        "prefill_leaf_page_block_n": 32,
+        "prefill_mode": "direct",
+        "prefill_route_kernels": [
+          "_route_score_group_candidates_kernel",
+          "_reduce_route_group_candidates_kernel",
+          "_reorder_topk_like_torch_kernel",
+          "_route_logits_coarse_attention_kernel"
+        ],
+        "prefill_schedule_source": "VLLM_LOD_PREFILL_* settings",
+        "prefill_state_update_len": 4096,
+        "query_heads": 8,
+        "requested_decode_hierarchical_route": null,
+        "requested_recursive_prefill_all_leaves": null,
+        "route_gqa_grouped": true,
+        "state_capacity": 33024,
+        "state_pv_block_d": 128,
+        "state_pv_block_n": 64,
+        "state_pv_splits": 8,
+        "state_route_backend": "fused",
+        "state_route_kernels": [
+          "_decode_route_coarse_gqa_groups_kernel",
+          "_reduce_decode_route_coarse_kernel"
+        ],
+        "state_route_math": "mfma_m16",
+        "state_score_block_n": 32,
+        "state_score_num_stages": 3,
+        "state_score_num_warps": 2,
+        "state_topk_block_n": 128,
+        "state_topk_num_warps": 2
+      }
+    ],
+    "schema_version": 6
+  },
+  "lod_leaf_num_warps": null,
+  "lod_prefill_chunk_len": null,
+  "lod_prefill_state_update_len": null,
+  "lod_recursive_page_block_n": null,
+  "lod_recursive_state_route_backend": null,
+  "long_prefill_token_threshold": 4096,
+  "marginal_decode_ms_per_batch_step": null,
+  "marginal_decode_ms_per_token": null,
+  "marginal_decode_tokens_per_second": null,
+  "max_num_batched_tokens": 16384,
+  "mode": "lod",
+  "num_gpu_blocks_override": null,
+  "output_mismatch_runs": 0,
+  "prefill_plus_decode_seconds": 1.329850586131215,
+  "prefill_prompt_tokens_per_second": 49383.866203599755,
+  "prefill_seconds": 1.3270730916410685,
+  "prefill_timings_seconds": [
+    1.3196104117669165,
+    1.3263009930960834,
+    1.32920400518924,
+    1.3270730916410685,
+    1.3282288368791342
+  ],
+  "prefix_caching_requested": false,
+  "prompt_metadata": {
+    "all_prompt_hashes_unique": true,
+    "construction": "distinct shuffled documents, concatenated without repetition",
+    "dataset": "Seerkfang/prolong-64k-512-new",
+    "prompt_length": 65536,
+    "prompts": [
+      {
+        "decoded_prefix": "We have many premium term papers and essays on oil and gas conservation and its relevances in daily life we also have a wide variety of research papers and book reports available to you for free you can browse our collection of term papers or use our search engine oil and gas conservation and its relevances in. Get an answer for 'essay: role of youth in promoting oil conservationwrite an essay on the role of youth in promoting oil conservation' and find homework help for other perhaps two years ago, a young man modified his vw bug engine to use the grease and oil from the school cafeteria as fuel, thus conserving eneergy. The summer fruits",
+        "request_index": 0,
+        "sha256": "aaa22fb49b24917d008c214cd211e738b04c3e1c737fa3416a2aa6462dbde8f8",
+        "source_document_count": 30,
+        "source_documents": [
+          {
+            "length": "743",
+            "stream_index": 0
+          },
+          {
+            "length": "835",
+            "stream_index": 1
+          },
+          {
+            "length": "572",
+            "stream_index": 2
+          },
+          {
+            "length": "734",
+            "stream_index": 3
+          },
+          {
+            "length": "1213",
+            "stream_index": 4
+          },
+          {
+            "length": "899",
+            "stream_index": 5
+          },
+          {
+            "length": "696",
+            "stream_index": 6
+          },
+          {
+            "length": "1188",
+            "stream_index": 7
+          },
+          {
+            "length": "1090",
+            "stream_index": 8
+          },
+          {
+            "length": "1554",
+            "stream_index": 9
+          },
+          {
+            "length": "1207",
+            "stream_index": 10
+          },
+          {
+            "length": "919",
+            "stream_index": 11
+          },
+          {
+            "length": "1316",
+            "stream_index": 12
+          },
+          {
+            "length": "600",
+            "stream_index": 13
+          },
+          {
+            "length": "717",
+            "stream_index": 14
+          },
+          {
+            "length": "905",
+            "stream_index": 15
+          },
+          {
+            "length": "1195",
+            "stream_index": 16
+          },
+          {
+            "length": "570",
+            "stream_index": 17
+          },
+          {
+            "length": "1183",
+            "stream_index": 18
+          },
+          {
+            "length": "1479",
+            "stream_index": 19
+          },
+          {
+            "length": "990",
+            "stream_index": 20
+          },
+          {
+            "length": "1027",
+            "stream_index": 21
+          },
+          {
+            "length": "527",
+            "stream_index": 22
+          },
+          {
+            "length": "841",
+            "stream_index": 23
+          },
+          {
+            "length": "1962",
+            "stream_index": 24
+          },
+          {
+            "length": "559",
+            "stream_index": 25
+          },
+          {
+            "length": "1039",
+            "stream_index": 26
+          },
+          {
+            "length": "1617",
+            "stream_index": 27
+          },
+          {
+            "length": "1661",
+            "stream_index": 28
+          },
+          {
+            "length": "45458",
+            "stream_index": 29
+          }
+        ],
+        "token_blocks": {
+          "block_size": 16,
+          "blocks": 4096,
+          "max_identical_block_occurrences": 1,
+          "unique_block_ratio": 1.0,
+          "unique_blocks": 4096
+        }
+      }
+    ],
+    "rejected_candidate_count": 0,
+    "rejected_candidates": []
+  },
+  "prompt_source": "prolong",
+  "prompt_tokens": 65536,
+  "repeats": 5,
+  "token_ids_sha256": "9929aefb260b05fccb11cbdcb6be1dc41df7409eed62bcf0d1875e375fec91d5",
+  "torch_profile_dir": null,
+  "total_timings_seconds": [
+    1.3228763900697231,
+    1.3292184849269688,
+    1.3322098851203918,
+    1.329850586131215,
+    1.3310240507125854
+  ]
+}

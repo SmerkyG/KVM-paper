@@ -333,6 +333,8 @@ def inspect_lod_model(model) -> dict[str, object]:
     decode_gqa_union_requested = set()
     decode_gqa_union_score_only = set()
     decode_gqa_union_predicted_mass = set()
+    decode_gqa_union_pilot_z_configured = set()
+    decode_gqa_union_pilot_z = set()
     decode_gqa_union_eligible = set()
     decode_gqa_union_hip_configured = set()
     decode_gqa_union_hip_executed = set()
@@ -341,6 +343,8 @@ def inspect_lod_model(model) -> dict[str, object]:
     decode_gqa_staged_fixed_executed = set()
     decode_gqa_fixed_mask_configured = set()
     decode_gqa_fixed_mask_executed = set()
+    decode_gqa_overlap_local_sink_configured = set()
+    decode_gqa_overlap_local_sink_executed = set()
     decode_gqa_direct_fixed_routes_configured = set()
     decode_gqa_direct_fixed_routes_executed = set()
     decode_centroid_major_hip_configured = set()
@@ -452,6 +456,9 @@ def inspect_lod_model(model) -> dict[str, object]:
             decode_gqa_union_hip_configured.add(
                 bool(getattr(pool.settings, "decode_gqa_union_hip", False))
             )
+            decode_gqa_union_pilot_z_configured.add(
+                bool(getattr(pool.settings, "decode_gqa_pilot_z", False))
+            )
             decode_gqa_staged_fixed_configured.add(
                 bool(
                     getattr(
@@ -466,6 +473,15 @@ def inspect_lod_model(model) -> dict[str, object]:
                     getattr(
                         pool.settings,
                         "decode_gqa_fixed_mask_aiter",
+                        False,
+                    )
+                )
+            )
+            decode_gqa_overlap_local_sink_configured.add(
+                bool(
+                    getattr(
+                        pool.settings,
+                        "decode_gqa_overlap_local_sink",
                         False,
                     )
                 )
@@ -751,6 +767,13 @@ def inspect_lod_model(model) -> dict[str, object]:
                             )
                         )
                     )
+                    decode_gqa_union_pilot_z.add(
+                        bool(
+                            decode_buffers.get(
+                                "gqa_union_last_pilot_z", False
+                            )
+                        )
+                    )
                     decode_gqa_union_eligible.add(
                         bool(decode_buffers["gqa_union_last_eligible"])
                     )
@@ -769,6 +792,14 @@ def inspect_lod_model(model) -> dict[str, object]:
                             bool(
                                 decode_buffers[
                                     "gqa_union_last_direct_fixed_routes"
+                                ]
+                            )
+                        )
+                    if "gqa_union_last_overlap_local_sink" in decode_buffers:
+                        decode_gqa_overlap_local_sink_executed.add(
+                            bool(
+                                decode_buffers[
+                                    "gqa_union_last_overlap_local_sink"
                                 ]
                             )
                         )
@@ -842,6 +873,10 @@ def inspect_lod_model(model) -> dict[str, object]:
         "decode_gqa_union_predicted_mass": sorted(
             decode_gqa_union_predicted_mass
         ),
+        "decode_gqa_union_pilot_z_configured": sorted(
+            decode_gqa_union_pilot_z_configured
+        ),
+        "decode_gqa_union_pilot_z": sorted(decode_gqa_union_pilot_z),
         "decode_gqa_union_eligible": sorted(decode_gqa_union_eligible),
         "decode_gqa_union_hip_configured": sorted(
             decode_gqa_union_hip_configured
@@ -863,6 +898,12 @@ def inspect_lod_model(model) -> dict[str, object]:
         ),
         "decode_gqa_fixed_mask_executed": sorted(
             decode_gqa_fixed_mask_executed
+        ),
+        "decode_gqa_overlap_local_sink_configured": sorted(
+            decode_gqa_overlap_local_sink_configured
+        ),
+        "decode_gqa_overlap_local_sink_executed": sorted(
+            decode_gqa_overlap_local_sink_executed
         ),
         "decode_gqa_direct_fixed_routes_configured": sorted(
             decode_gqa_direct_fixed_routes_configured

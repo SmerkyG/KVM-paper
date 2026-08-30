@@ -101,7 +101,7 @@ def _fixed_function():
             ctypes.c_longlong
         ] * 6 + [ctypes.c_int] * 3 + [ctypes.c_longlong] * 7 + [
             ctypes.c_int
-        ] * 9 + [ctypes.c_float, ctypes.c_void_p]
+        ] * 10 + [ctypes.c_float, ctypes.c_void_p]
         _LIBRARY = library
         _FIXED_FUNCTION = function
         return function
@@ -325,6 +325,7 @@ def centroid_major_route_score_fixed_prepare(
     mask_capacity: int,
     tile_size: int,
     include_new: bool,
+    separate_local_sink: bool,
     scale: float,
 ) -> None:
     """Score routes while maintaining the persistent fixed attention mask."""
@@ -437,6 +438,7 @@ def centroid_major_route_score_fixed_prepare(
         int(mask_capacity),
         int(tile_size),
         int(include_new),
+        int(separate_local_sink),
         float(scale),
         torch.cuda.current_stream().cuda_stream,
     )

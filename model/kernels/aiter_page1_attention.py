@@ -40,11 +40,27 @@ def kernel_page1_attention_3d_bias(
     HEAD_SIZE: tl.constexpr,
     BLOCK_M: tl.constexpr,
     NUM_SEGMENTS: tl.constexpr,
+    LENGTHS_BY_CACHE: tl.constexpr = False,
+    LOCAL_LIMIT: tl.constexpr = 0,
+    SINK_LEN: tl.constexpr = 0,
+    INCLUDE_NEW: tl.constexpr = False,
 ):
     """AITER-shaped segmented decode attention over indexed single-token pages."""
     sequence = tl.program_id(0).to(tl.int64)
     segment = tl.program_id(2).to(tl.int64)
-    sequence_length = tl.load(sequence_lengths + sequence).to(tl.int32)
+    if LENGTHS_BY_CACHE:
+        logical_batch = sequence // KV_HEADS
+        cache_batch = tl.load(cache_indices + logical_batch).to(tl.int64)
+        local_token_count = (
+            tl.minimum(
+                tl.load(sequence_lengths + cache_batch).to(tl.int32),
+                LOCAL_LIMIT,
+            )
+            + INCLUDE_NEW
+        )
+        sequence_length = local_token_count + SINK_LEN
+    else:
+        sequence_length = tl.load(sequence_lengths + sequence).to(tl.int32)
     tiles_per_segment = _cdiv(sequence_length, NUM_SEGMENTS * TILE_SIZE)
     tile_begin = segment * tiles_per_segment
     if tile_begin * TILE_SIZE >= sequence_length:
@@ -84,8 +100,18 @@ def kernel_page1_attention_3d_bias(
     ):
         logical_token = tile * TILE_SIZE + token_lane
         token_valid = logical_token < sequence_length
+        table_token = logical_token
+        if LENGTHS_BY_CACHE:
+            # The persistent list reserves LOCAL_LIMIT positions before its
+            # fixed sink suffix. Compact the logical local+sink scan without
+            # constructing another block table for the current local length.
+            table_token = tl.where(
+                logical_token < local_token_count,
+                logical_token,
+                LOCAL_LIMIT + logical_token - local_token_count,
+            )
         physical_token = tl.load(
-            block_table + table_base + logical_token,
+            block_table + table_base + table_token,
             mask=token_valid,
             other=0,
         ).to(tl.int64)
@@ -184,6 +210,7 @@ def kernel_page1_attention_3d_bias_fixed_mask(
     BLOCK_M: tl.constexpr,
     NUM_SEGMENTS: tl.constexpr,
     INCLUDE_NEW: tl.constexpr,
+    PREFIX_SKIP: tl.constexpr = 0,
 ):
     """AITER-shaped attention over a persistent, route-masked index list.
 
@@ -200,9 +227,10 @@ def kernel_page1_attention_3d_bias_fixed_mask(
     kv_head = sequence - logical_batch * KV_HEADS
     cache_batch = tl.load(cache_indices + logical_batch).to(tl.int64)
     physical_sequence = cache_batch * KV_HEADS + kv_head
-    sequence_length = tl.load(
+    full_sequence_length = tl.load(
         fixed_lengths + physical_sequence
     ).to(tl.int32)
+    sequence_length = tl.maximum(full_sequence_length - PREFIX_SKIP, 0)
     tiles_per_segment = _cdiv(sequence_length, NUM_SEGMENTS * TILE_SIZE)
     tile_begin = segment * tiles_per_segment
     if tile_begin * TILE_SIZE >= sequence_length:
@@ -235,10 +263,14 @@ def kernel_page1_attention_3d_bias_fixed_mask(
         tile_begin,
         min((segment + 1) * tiles_per_segment, tile_count),
     ):
-        logical_token = tile * TILE_SIZE + token_lane
-        token_valid = logical_token < sequence_length
+        remote_token = tile * TILE_SIZE + token_lane
+        token_valid = remote_token < sequence_length
+        logical_token = PREFIX_SKIP + remote_token
         tile_has_mass = tl.load(
-            fixed_active_blocks + block_base + tile,
+            fixed_active_blocks
+            + block_base
+            + PREFIX_SKIP // TILE_SIZE
+            + tile,
             cache_modifier=".cg",
         ).to(tl.int1)
 
@@ -414,6 +446,118 @@ def init_page1_predicted_mass_union(
         tl.store(sequence_epochs + sequence, epoch + 1)
         tl.store(union_counts + sequence, 0)
         tl.store(union_token_counts + sequence, 0)
+
+
+@triton.jit
+def kernel_page1_pilot_z_threshold(
+    query,
+    coarse_key,
+    coarse_bias,
+    counts,
+    cache_indices,
+    calibrated_bounds,
+    absolute_thresholds,
+    scale,
+    margin,
+    query_stride_0: tl.int64,
+    query_stride_1: tl.int64,
+    count_batch_stride: tl.int64,
+    count_head_stride: tl.int64,
+    count_token_stride: tl.int64,
+    bound_batch_stride: tl.int64,
+    bound_head_stride: tl.int64,
+    threshold_batch_stride: tl.int64,
+    threshold_head_stride: tl.int64,
+    NUM_QUERY_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    STATE_LEN: tl.constexpr,
+    STATE_CAPACITY: tl.constexpr,
+    COARSE_OFFSET: tl.constexpr,
+    HEAD_SIZE: tl.constexpr,
+    BLOCK_M: tl.constexpr,
+    PROTECTED_LEN: tl.constexpr,
+    PILOT_SIZE: tl.constexpr,
+    MAX_LEAF_TOKENS: tl.constexpr,
+):
+    """Estimate each query's score baseline/scale from one N=64 pilot tile."""
+    sequence = tl.program_id(0).to(tl.int64)
+    logical_batch = sequence // KV_HEADS
+    kv_head = sequence - logical_batch * KV_HEADS
+    cache_batch = tl.load(cache_indices + logical_batch).to(tl.int64)
+    kv_row = cache_batch * KV_HEADS + kv_head
+
+    query_lane = tl.arange(0, BLOCK_M)
+    query_valid = query_lane < NUM_QUERY_HEADS
+    dimension = tl.arange(0, HEAD_SIZE)
+    pilot_lane = tl.arange(0, PILOT_SIZE)
+    candidate_count: tl.constexpr = STATE_LEN - PROTECTED_LEN
+    # Uniform deterministic samples make calibration and decode use the same
+    # state geometry without materializing an index vector.
+    token = PROTECTED_LEN + (pilot_lane * candidate_count) // PILOT_SIZE
+    count = tl.load(
+        counts
+        + cache_batch * count_batch_stride
+        + kv_head * count_head_stride
+        + token * count_token_stride,
+    ).to(tl.float32)
+    pilot_valid = (count > 0.0) & (
+        (MAX_LEAF_TOKENS <= 0) | (count < MAX_LEAF_TOKENS)
+    )
+
+    queries = tl.load(
+        query
+        + sequence * query_stride_0
+        + query_lane[:, None] * query_stride_1
+        + dimension[None, :],
+        mask=query_valid[:, None],
+        other=0.0,
+    )
+    physical_token = COARSE_OFFSET + kv_row * STATE_CAPACITY + token
+    keys = tl.load(
+        coarse_key
+        + physical_token[None, :] * HEAD_SIZE
+        + dimension[:, None],
+        mask=pilot_valid[None, :],
+        other=0.0,
+        cache_modifier=".cg",
+    ).to(queries.dtype)
+    bias = tl.load(
+        coarse_bias + physical_token,
+        mask=pilot_valid,
+        other=0.0,
+        cache_modifier=".cg",
+    ).to(tl.float32)
+    scores = scale * tl.dot(queries, keys) + bias[None, :]
+    pilot_population = tl.sum(pilot_valid.to(tl.float32), axis=0)
+    mean = tl.sum(
+        tl.where(pilot_valid[None, :], scores, 0.0), axis=1
+    ) / tl.maximum(pilot_population, 1.0)
+    centered = scores - mean[:, None]
+    variance = tl.sum(
+        tl.where(pilot_valid[None, :], centered * centered, 0.0), axis=1
+    ) / tl.maximum(pilot_population, 1.0)
+    standard_deviation = tl.sqrt(tl.maximum(variance, 1.0e-6))
+
+    query_head = kv_head * NUM_QUERY_HEADS + query_lane
+    calibrated = tl.load(
+        calibrated_bounds
+        + cache_batch * bound_batch_stride
+        + query_head * bound_head_stride,
+        mask=query_valid,
+        other=float("inf"),
+    ).to(tl.float32)
+    threshold = tl.where(
+        pilot_population > 0.0,
+        mean + (calibrated - margin) * standard_deviation,
+        float("inf"),
+    )
+    tl.store(
+        absolute_thresholds
+        + cache_batch * threshold_batch_stride
+        + query_head * threshold_head_stride,
+        threshold,
+        mask=query_valid,
+    )
 
 
 @triton.jit
@@ -619,6 +763,7 @@ def kernel_page1_predicted_mass_fixed_prepare(
     RESET_BLOCK_N: tl.constexpr,
     RESET_BLOCKS_N: tl.constexpr,
     INCLUDE_NEW: tl.constexpr,
+    STORE_REMOTE_LSE: tl.constexpr,
 ):
     """Predicted remote-mass routing plus fixed-mask preparation.
 
@@ -819,32 +964,33 @@ def kernel_page1_predicted_mass_fixed_prepare(
     rcp_ln2: tl.constexpr = 1.4426950408889634
     scores = scale * rcp_ln2 * tl.dot(queries, keys)
     scores += bias[None, :] * rcp_ln2
+    query_head = kv_head * NUM_QUERY_HEADS + query_lane
     eligible_scores = tl.where(
         query_valid[:, None] & eligible[None, :],
         scores,
         -float("inf"),
     )
-    tile_maximum = tl.max(eligible_scores, axis=1)
-    tile_denominator = tl.sum(
-        tl.where(
-            eligible[None, :] & (tile_maximum[:, None] > -float("inf")),
-            tl.math.exp2(eligible_scores - tile_maximum[:, None]),
-            0.0,
-        ),
-        axis=1,
-    )
-    tile_lse = tl.where(
-        tile_denominator > 0.0,
-        (tile_maximum + tl.log2(tile_denominator)) / rcp_ln2,
-        -float("inf"),
-    )
-    query_head = kv_head * NUM_QUERY_HEADS + query_lane
-    remote_row = logical_batch * (KV_HEADS * NUM_QUERY_HEADS) + query_head
-    tl.store(
-        remote_group_lse + remote_row * remote_lse_row_stride + tile,
-        tile_lse,
-        mask=query_valid & (tile < REMOTE_MAX_GROUPS),
-    )
+    if STORE_REMOTE_LSE:
+        tile_maximum = tl.max(eligible_scores, axis=1)
+        tile_denominator = tl.sum(
+            tl.where(
+                eligible[None, :] & (tile_maximum[:, None] > -float("inf")),
+                tl.math.exp2(eligible_scores - tile_maximum[:, None]),
+                0.0,
+            ),
+            axis=1,
+        )
+        tile_lse = tl.where(
+            tile_denominator > 0.0,
+            (tile_maximum + tl.log2(tile_denominator)) / rcp_ln2,
+            -float("inf"),
+        )
+        remote_row = logical_batch * (KV_HEADS * NUM_QUERY_HEADS) + query_head
+        tl.store(
+            remote_group_lse + remote_row * remote_lse_row_stride + tile,
+            tile_lse,
+            mask=query_valid & (tile < REMOTE_MAX_GROUPS),
+        )
 
     previous_lse = tl.load(
         previous_remote_lse

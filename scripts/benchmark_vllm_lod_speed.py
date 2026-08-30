@@ -221,6 +221,21 @@ def inspect_lod_model(model) -> dict[str, object]:
         "static_prefill_archive_tokens": 0,
         "static_prefill_permanent_exact_fraction": None,
         "prefill_direct_expert_bucket_calls": 0,
+        "positive_dot_population": 0,
+        "positive_dot_population_positive": 0,
+        "positive_dot_blocks": 0,
+        "positive_dot_blocks_empty": 0,
+        "positive_dot_blocks_under_k": 0,
+        "positive_dot_route_counts": [],
+        "routing_cutoff_simulations": [],
+        "routing_segment_cutoff_simulations": [],
+        "pilot_z_record_calls": 0,
+        "pilot_z_copy_calls": 0,
+        "pilot_z_engine_bound_finite": 0,
+        "pilot_z_route_threshold_finite": 0,
+        "pilot_z_route_threshold_total": 0,
+        "pilot_z_route_threshold_min": None,
+        "pilot_z_route_threshold_max": None,
     }
     for module in model.modules():
         pool = getattr(module, "_vllm_lod_pool", None)
@@ -302,6 +317,167 @@ def inspect_lod_model(model) -> dict[str, object]:
         diagnostics["prefill_direct_expert_bucket_calls"] += int(
             getattr(pool.engine, "prefill_direct_expert_bucket_calls", 0)
         )
+        diagnostics["pilot_z_record_calls"] += int(
+            getattr(pool.engine, "_lod_decode_pilot_z_record_calls", 0)
+        )
+        diagnostics["pilot_z_copy_calls"] += int(
+            getattr(pool.engine, "_lod_decode_pilot_z_copy_calls", 0)
+        )
+        engine_pilot_bound = getattr(
+            pool.engine, "_lod_decode_pilot_z_bound", None
+        )
+        if isinstance(engine_pilot_bound, torch.Tensor):
+            diagnostics["pilot_z_engine_bound_finite"] += int(
+                torch.isfinite(engine_pilot_bound).sum().item()
+            )
+        decode_storage = pool.decode_buffer_storage
+        route_threshold = (
+            decode_storage.get("route_pilot_z_thresholds")
+            if isinstance(decode_storage, dict)
+            else None
+        )
+        if isinstance(route_threshold, torch.Tensor):
+            finite = torch.isfinite(route_threshold)
+            finite_count = int(finite.sum().item())
+            diagnostics["pilot_z_route_threshold_finite"] += finite_count
+            diagnostics["pilot_z_route_threshold_total"] += int(
+                route_threshold.numel()
+            )
+            if finite_count:
+                finite_values = route_threshold[finite]
+                current_min = float(finite_values.min().item())
+                current_max = float(finite_values.max().item())
+                previous_min = diagnostics["pilot_z_route_threshold_min"]
+                previous_max = diagnostics["pilot_z_route_threshold_max"]
+                diagnostics["pilot_z_route_threshold_min"] = (
+                    current_min
+                    if previous_min is None
+                    else min(previous_min, current_min)
+                )
+                diagnostics["pilot_z_route_threshold_max"] = (
+                    current_max
+                    if previous_max is None
+                    else max(previous_max, current_max)
+                )
+        for statistic in getattr(
+            pool.engine, "_lod_positive_dot_population_stats", ()
+        ):
+            diagnostics["positive_dot_population"] += int(
+                statistic["population"].item()
+            )
+            diagnostics["positive_dot_population_positive"] += int(
+                statistic["positive"].item()
+            )
+            diagnostics["positive_dot_blocks"] += int(
+                statistic["blocks"].item()
+            )
+            diagnostics["positive_dot_blocks_empty"] += int(
+                statistic["blocks_empty"].item()
+            )
+            diagnostics["positive_dot_blocks_under_k"] += int(
+                statistic["blocks_under_k"].item()
+            )
+            route_count = int(statistic["route_count"])
+            if route_count not in diagnostics["positive_dot_route_counts"]:
+                diagnostics["positive_dot_route_counts"].append(route_count)
+        for statistic in getattr(pool.engine, "_lod_routing_cutoff_stats", ()):
+            rows = int(statistic["rows"].item())
+            route_count = int(statistic["route_count"])
+            diagnostics["routing_cutoff_simulations"].append(
+                {
+                    "state_len": int(statistic["state_len"]),
+                    "route_count": route_count,
+                    "period": int(statistic["period"]),
+                    "margin": float(statistic["margin"]),
+                    "rows": rows,
+                    "mean_selected": (
+                        int(statistic["selected"].item()) / rows
+                    ),
+                    "max_selected": int(statistic["selected_max"].item()),
+                    "p95_selected": float(statistic["selected_p95"].item()),
+                    "p99_selected": float(statistic["selected_p99"].item()),
+                    "topk_recall": (
+                        int(statistic["recalled"].item())
+                        / (rows * route_count)
+                    ),
+                    "full_recall_row_fraction": (
+                        int(statistic["full_recall_rows"].item()) / rows
+                    ),
+                    "unsafe_row_fraction": (
+                        int(statistic["unsafe_rows"].item()) / rows
+                    ),
+                    "mean_threshold_error": (
+                        float(statistic["threshold_error"].item()) / rows
+                    ),
+                    "mean_abs_threshold_error": (
+                        float(statistic["threshold_abs_error"].item()) / rows
+                    ),
+                    "max_abs_threshold_error": float(
+                        statistic["threshold_abs_error_max"].item()
+                    ),
+                }
+            )
+        for statistic in getattr(
+            pool.engine, "_lod_routing_segment_cutoff_stats", ()
+        ):
+            rows = int(statistic["rows"].item())
+            route_count = int(statistic["route_count"])
+            diagnostics["routing_segment_cutoff_simulations"].append(
+                {
+                    "state_len": int(statistic["state_len"]),
+                    "route_count": route_count,
+                    "normalization": str(statistic["normalization"]),
+                    "previous_segment_quantile": float(
+                        statistic["quantile"]
+                    ),
+                    "margin": float(statistic["margin"]),
+                    "rows": rows,
+                    "mean_selected": (
+                        int(statistic["selected"].item()) / rows
+                    ),
+                    "max_selected": int(statistic["selected_max"].item()),
+                    "p95_selected": float(
+                        statistic["selected_p95"].item()
+                    ),
+                    "p99_selected": float(
+                        statistic["selected_p99"].item()
+                    ),
+                    "mean_selected_leaf_tokens": (
+                        float(statistic["selected_leaf_tokens"].item()) / rows
+                    ),
+                    "max_selected_leaf_tokens": float(
+                        statistic["selected_leaf_tokens_max"].item()
+                    ),
+                    "p95_selected_leaf_tokens": float(
+                        statistic["selected_leaf_tokens_p95"].item()
+                    ),
+                    "p99_selected_leaf_tokens": float(
+                        statistic["selected_leaf_tokens_p99"].item()
+                    ),
+                    "mean_exact_topk_leaf_tokens": (
+                        float(statistic["exact_leaf_tokens"].item()) / rows
+                    ),
+                    "topk_recall": (
+                        int(statistic["recalled"].item())
+                        / (rows * route_count)
+                    ),
+                    "full_recall_row_fraction": (
+                        int(statistic["full_recall_rows"].item()) / rows
+                    ),
+                    "unsafe_row_fraction": (
+                        int(statistic["unsafe_rows"].item()) / rows
+                    ),
+                    "mean_threshold_error": (
+                        float(statistic["threshold_error"].item()) / rows
+                    ),
+                    "mean_abs_threshold_error": (
+                        float(statistic["threshold_abs_error"].item()) / rows
+                    ),
+                    "max_abs_threshold_error": float(
+                        statistic["threshold_abs_error_max"].item()
+                    ),
+                }
+            )
         diagnostics["installs"] += int(pool.install_count)
         diagnostics["batched_install_calls"] += int(pool.batched_install_calls)
         diagnostics["direct_prefills"] += int(pool.direct_prefill_calls)
@@ -488,6 +664,10 @@ def inspect_lod_dispatch(model) -> dict[str, object]:
             gqa_union_aiter_final
             and getattr(pool.settings, "decode_gqa_predicted_mass", False)
         )
+        gqa_union_pilot_z = bool(
+            gqa_union_aiter_final
+            and getattr(pool.settings, "decode_gqa_pilot_z", False)
+        )
         context_len = max(
             (int(row.get("total_len", 0)) for row in pool.metadata),
             default=0,
@@ -550,6 +730,23 @@ def inspect_lod_dispatch(model) -> dict[str, object]:
                 ]
             )
             state_route_math = "page1_mfma_m16_retained_mass"
+        elif gqa_union_pilot_z:
+            pilot_route_kernel = (
+                "kernel_page1_predicted_mass_fixed_prepare "
+                "(M16/N64 absolute-cutoff scan + fixed-mask preparation)"
+                if getattr(
+                    pool.settings, "decode_gqa_fixed_mask_aiter", False
+                )
+                else (
+                    "kernel_page1_predicted_mass_union "
+                    "(M16/N64 absolute-cutoff scan + compact union)"
+                )
+            )
+            state_route = [
+                "kernel_page1_pilot_z_threshold (M16/N64 pilot)",
+                pilot_route_kernel,
+            ]
+            state_route_math = "page1_mfma_m16_pilot_z"
         elif centroid_major_hip:
             state_route = [
                 (
@@ -900,6 +1097,15 @@ def inspect_lod_dispatch(model) -> dict[str, object]:
             ),
             "configured_gqa_predicted_mass": bool(
                 getattr(pool.settings, "decode_gqa_predicted_mass", False)
+            ),
+            "configured_gqa_pilot_z": bool(
+                getattr(pool.settings, "decode_gqa_pilot_z", False)
+            ),
+            "configured_gqa_pilot_z_route_count": int(
+                getattr(pool.settings, "decode_gqa_pilot_z_route_count", 8)
+            ),
+            "configured_gqa_pilot_z_margin": float(
+                getattr(pool.settings, "decode_gqa_pilot_z_margin", 0.25)
             ),
             "configured_gqa_mass_fraction": getattr(
                 pool.settings, "decode_gqa_mass_fraction", None

@@ -1,0 +1,36 @@
+{
+  "geometry": {
+    "batch": 1,
+    "dimension": 256,
+    "kv_heads": 2,
+    "page_capacity": 4096,
+    "page_size": 16
+  },
+  "variants": {
+    "1": {
+      "milliseconds": 0.8513739585876465,
+      "speedup": 1.0
+    },
+    "2": {
+      "codes_equal": true,
+      "counts_equal": true,
+      "milliseconds": 0.3862515926361084,
+      "scale_max_abs": 0.0,
+      "speedup": 2.2041953349037313
+    },
+    "4": {
+      "codes_equal": true,
+      "counts_equal": true,
+      "milliseconds": 0.24292519092559814,
+      "scale_max_abs": 0.0,
+      "speedup": 3.5046754737280454
+    },
+    "8": {
+      "codes_equal": true,
+      "counts_equal": true,
+      "milliseconds": 0.23714120388031007,
+      "scale_max_abs": 0.0,
+      "speedup": 3.5901561797643233
+    }
+  }
+}

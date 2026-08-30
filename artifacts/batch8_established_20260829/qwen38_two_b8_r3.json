@@ -1,0 +1,2426 @@
+{
+  "allow_heterogeneous_global_config": false,
+  "apply_chat_template": true,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 249852592128,
+    "device_used_bytes_before_reclaim": 253545676800,
+    "external_lod_layers": 16,
+    "external_lod_layers_with_native_cache": 0,
+    "external_lod_native_cache_bytes": 0,
+    "lod_cache_bytes": 89753461440,
+    "lod_decode_scratch_bytes": 2139169600,
+    "native_cache_bytes": 24045944832,
+    "torch_allocated_bytes": 118421676544,
+    "torch_reclaimable_cached_bytes": 3693084672,
+    "torch_reserved_bytes_after_reclaim": 120292638720,
+    "torch_reserved_bytes_before_reclaim": 123985723392
+  },
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "diagnostic_external_empty_attention": null,
+  "disable_custom_all_reduce": false,
+  "disable_thinking": true,
+  "enable_prefix_caching": false,
+  "full_attention_backend": null,
+  "language_model_only": true,
+  "lengths": [
+    8192,
+    16384,
+    32768,
+    65536,
+    131072
+  ],
+  "load_format": "ipc_cache",
+  "lod_diagnostics_after": {
+    "batched_cached_prefill_rows": 448,
+    "batched_cached_prefills": 224,
+    "catch_up_batches": 384,
+    "catch_up_rows": 384,
+    "custom_impl_sliding_windows": {
+      "(-1, -1)": 16
+    },
+    "custom_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn",
+      "language_model.model.layers.27.self_attn.attn",
+      "language_model.model.layers.31.self_attn.attn",
+      "language_model.model.layers.35.self_attn.attn",
+      "language_model.model.layers.39.self_attn.attn",
+      "language_model.model.layers.43.self_attn.attn",
+      "language_model.model.layers.47.self_attn.attn",
+      "language_model.model.layers.51.self_attn.attn",
+      "language_model.model.layers.55.self_attn.attn",
+      "language_model.model.layers.59.self_attn.attn",
+      "language_model.model.layers.63.self_attn.attn"
+    ],
+    "decode_calls": 128,
+    "decode_centroid_major_hip_configured": [
+      false
+    ],
+    "decode_centroid_major_hip_executed": [
+      false
+    ],
+    "decode_gqa_direct_fixed_routes_configured": [
+      true
+    ],
+    "decode_gqa_direct_fixed_routes_executed": [
+      true
+    ],
+    "decode_gqa_fixed_mask_configured": [
+      true
+    ],
+    "decode_gqa_fixed_mask_executed": [
+      true
+    ],
+    "decode_gqa_overlap_local_sink_configured": [
+      false
+    ],
+    "decode_gqa_overlap_local_sink_executed": [
+      false
+    ],
+    "decode_gqa_staged_fixed_configured": [
+      false
+    ],
+    "decode_gqa_staged_fixed_executed": [],
+    "decode_gqa_static_leaf_aiter_configured": [
+      false
+    ],
+    "decode_gqa_static_leaf_aiter_executed": [],
+    "decode_gqa_static_leaf_caps": [
+      null
+    ],
+    "decode_gqa_union_aiter_final": [
+      true
+    ],
+    "decode_gqa_union_configured": [
+      true
+    ],
+    "decode_gqa_union_eligible": [
+      true
+    ],
+    "decode_gqa_union_hip_configured": [
+      true
+    ],
+    "decode_gqa_union_hip_executed": [
+      true
+    ],
+    "decode_gqa_union_pilot_z": [
+      false
+    ],
+    "decode_gqa_union_pilot_z_configured": [
+      false
+    ],
+    "decode_gqa_union_predicted_mass": [
+      false
+    ],
+    "decode_gqa_union_requested": [
+      true
+    ],
+    "decode_gqa_union_score_only": [
+      true
+    ],
+    "decode_max_open_leaves": [
+      1024
+    ],
+    "decode_open_counts": [
+      8
+    ],
+    "decode_route_cohort": [
+      false
+    ],
+    "direct_prefill_calls": 7936,
+    "effective_decode_route_leaf_limits": [
+      1024
+    ],
+    "eligible_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn",
+      "language_model.model.layers.27.self_attn.attn",
+      "language_model.model.layers.31.self_attn.attn",
+      "language_model.model.layers.35.self_attn.attn",
+      "language_model.model.layers.39.self_attn.attn",
+      "language_model.model.layers.43.self_attn.attn",
+      "language_model.model.layers.47.self_attn.attn",
+      "language_model.model.layers.51.self_attn.attn",
+      "language_model.model.layers.55.self_attn.attn",
+      "language_model.model.layers.59.self_attn.attn",
+      "language_model.model.layers.63.self_attn.attn"
+    ],
+    "gqa_route_mass_threshold_hits": {
+      "16": 0,
+      "32": 0,
+      "64": 0,
+      "128": 0,
+      "256": 0
+    },
+    "gqa_route_max_mass": null,
+    "gqa_union_centroid_count_max": 48,
+    "gqa_union_centroid_count_mean": 48.0,
+    "gqa_union_effective_segments": [
+      256
+    ],
+    "gqa_union_epoch_max": 765,
+    "gqa_union_exact_token_count_max": 0,
+    "gqa_union_exact_token_count_mean": 0.0,
+    "gqa_union_nonempty_sequences": 512,
+    "gqa_union_runtime_kv_heads": [
+      4
+    ],
+    "gqa_union_runtime_sequence_counts": [
+      4
+    ],
+    "gqa_union_sequence_count": 512,
+    "gqa_union_split_d_reduce": [
+      true
+    ],
+    "gqa_union_token_count_max": 136960,
+    "gqa_union_token_count_mean": 136960.0,
+    "install_count": 2560,
+    "pooled_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn",
+      "language_model.model.layers.27.self_attn.attn",
+      "language_model.model.layers.31.self_attn.attn",
+      "language_model.model.layers.35.self_attn.attn",
+      "language_model.model.layers.39.self_attn.attn",
+      "language_model.model.layers.43.self_attn.attn",
+      "language_model.model.layers.47.self_attn.attn",
+      "language_model.model.layers.51.self_attn.attn",
+      "language_model.model.layers.55.self_attn.attn",
+      "language_model.model.layers.59.self_attn.attn",
+      "language_model.model.layers.63.self_attn.attn"
+    ],
+    "prefill_coarse_direct_gqa_configured": [
+      [
+        true,
+        64,
+        16,
+        8
+      ]
+    ],
+    "prefill_coarse_direct_gqa_executed": [
+      [
+        64,
+        16,
+        8
+      ]
+    ],
+    "prefill_open_counts": [
+      3
+    ],
+    "prefill_route_cohort": [
+      false
+    ],
+    "recursive_state_route_backends": [
+      "fused"
+    ],
+    "routing_geometries": [
+      [
+        "none",
+        "coherence",
+        "none"
+      ]
+    ],
+    "selected_route_count_max": 0.0,
+    "split_posting_len_max": 0,
+    "split_scheduled_state_len_max": 0,
+    "split_state_len_max": 0,
+    "state_centroids_at_or_above_open_limit": 0,
+    "state_count_max": 0.0,
+    "state_split_limits": [
+      null
+    ],
+    "state_v_abs_max": 97280.0,
+    "state_v_nonfinite": 0,
+    "static_leaf_count_distribution": [
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "1",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "2",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "3-4",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "5-8",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "9-16",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "17-32",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "33-64",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "65-128",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "129-256",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "257-512",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "513-1024",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": ">1024",
+        "leaf_fraction": 0.0
+      }
+    ],
+    "static_opened_centroid_fraction": 0.0,
+    "static_opened_centroids": 0,
+    "static_opened_leaf_fraction": 0.0,
+    "static_opened_leaves": 0.0,
+    "static_total_centroids": 0,
+    "static_total_leaves": 0.0
+  },
+  "lod_diagnostics_before": {
+    "batched_cached_prefill_rows": 0,
+    "batched_cached_prefills": 0,
+    "catch_up_batches": 0,
+    "catch_up_rows": 0,
+    "custom_impl_sliding_windows": {
+      "(-1, -1)": 16
+    },
+    "custom_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn",
+      "language_model.model.layers.27.self_attn.attn",
+      "language_model.model.layers.31.self_attn.attn",
+      "language_model.model.layers.35.self_attn.attn",
+      "language_model.model.layers.39.self_attn.attn",
+      "language_model.model.layers.43.self_attn.attn",
+      "language_model.model.layers.47.self_attn.attn",
+      "language_model.model.layers.51.self_attn.attn",
+      "language_model.model.layers.55.self_attn.attn",
+      "language_model.model.layers.59.self_attn.attn",
+      "language_model.model.layers.63.self_attn.attn"
+    ],
+    "decode_calls": 128,
+    "decode_centroid_major_hip_configured": [
+      false
+    ],
+    "decode_centroid_major_hip_executed": [
+      false
+    ],
+    "decode_gqa_direct_fixed_routes_configured": [
+      true
+    ],
+    "decode_gqa_direct_fixed_routes_executed": [
+      true
+    ],
+    "decode_gqa_fixed_mask_configured": [
+      true
+    ],
+    "decode_gqa_fixed_mask_executed": [
+      true
+    ],
+    "decode_gqa_overlap_local_sink_configured": [
+      false
+    ],
+    "decode_gqa_overlap_local_sink_executed": [
+      false
+    ],
+    "decode_gqa_staged_fixed_configured": [
+      false
+    ],
+    "decode_gqa_staged_fixed_executed": [],
+    "decode_gqa_static_leaf_aiter_configured": [
+      false
+    ],
+    "decode_gqa_static_leaf_aiter_executed": [],
+    "decode_gqa_static_leaf_caps": [
+      null
+    ],
+    "decode_gqa_union_aiter_final": [
+      true
+    ],
+    "decode_gqa_union_configured": [
+      true
+    ],
+    "decode_gqa_union_eligible": [
+      true
+    ],
+    "decode_gqa_union_hip_configured": [
+      true
+    ],
+    "decode_gqa_union_hip_executed": [
+      true
+    ],
+    "decode_gqa_union_pilot_z": [
+      false
+    ],
+    "decode_gqa_union_pilot_z_configured": [
+      false
+    ],
+    "decode_gqa_union_predicted_mass": [
+      false
+    ],
+    "decode_gqa_union_requested": [
+      true
+    ],
+    "decode_gqa_union_score_only": [
+      true
+    ],
+    "decode_max_open_leaves": [
+      1024
+    ],
+    "decode_open_counts": [
+      8
+    ],
+    "decode_route_cohort": [
+      false
+    ],
+    "direct_prefill_calls": 0,
+    "effective_decode_route_leaf_limits": [
+      1024
+    ],
+    "eligible_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn",
+      "language_model.model.layers.27.self_attn.attn",
+      "language_model.model.layers.31.self_attn.attn",
+      "language_model.model.layers.35.self_attn.attn",
+      "language_model.model.layers.39.self_attn.attn",
+      "language_model.model.layers.43.self_attn.attn",
+      "language_model.model.layers.47.self_attn.attn",
+      "language_model.model.layers.51.self_attn.attn",
+      "language_model.model.layers.55.self_attn.attn",
+      "language_model.model.layers.59.self_attn.attn",
+      "language_model.model.layers.63.self_attn.attn"
+    ],
+    "gqa_route_mass_threshold_hits": {
+      "16": 0,
+      "32": 0,
+      "64": 0,
+      "128": 0,
+      "256": 0
+    },
+    "gqa_route_max_mass": null,
+    "gqa_union_centroid_count_max": 48,
+    "gqa_union_centroid_count_mean": 48.0,
+    "gqa_union_effective_segments": [
+      256
+    ],
+    "gqa_union_epoch_max": 5,
+    "gqa_union_exact_token_count_max": 0,
+    "gqa_union_exact_token_count_mean": 0.0,
+    "gqa_union_nonempty_sequences": 0,
+    "gqa_union_runtime_kv_heads": [
+      4
+    ],
+    "gqa_union_runtime_sequence_counts": [
+      4
+    ],
+    "gqa_union_sequence_count": 512,
+    "gqa_union_split_d_reduce": [
+      true
+    ],
+    "gqa_union_token_count_max": 0,
+    "gqa_union_token_count_mean": 0.0,
+    "install_count": 0,
+    "pooled_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn",
+      "language_model.model.layers.27.self_attn.attn",
+      "language_model.model.layers.31.self_attn.attn",
+      "language_model.model.layers.35.self_attn.attn",
+      "language_model.model.layers.39.self_attn.attn",
+      "language_model.model.layers.43.self_attn.attn",
+      "language_model.model.layers.47.self_attn.attn",
+      "language_model.model.layers.51.self_attn.attn",
+      "language_model.model.layers.55.self_attn.attn",
+      "language_model.model.layers.59.self_attn.attn",
+      "language_model.model.layers.63.self_attn.attn"
+    ],
+    "prefill_coarse_direct_gqa_configured": [
+      [
+        true,
+        64,
+        16,
+        8
+      ]
+    ],
+    "prefill_coarse_direct_gqa_executed": [],
+    "prefill_open_counts": [
+      3
+    ],
+    "prefill_route_cohort": [
+      false
+    ],
+    "recursive_state_route_backends": [
+      "fused"
+    ],
+    "routing_geometries": [
+      [
+        "none",
+        "coherence",
+        "none"
+      ]
+    ],
+    "selected_route_count_max": 0.0,
+    "split_posting_len_max": 0,
+    "split_scheduled_state_len_max": 0,
+    "split_state_len_max": 0,
+    "state_centroids_at_or_above_open_limit": 0,
+    "state_count_max": 0.0,
+    "state_split_limits": [
+      null
+    ],
+    "state_v_abs_max": 0.0,
+    "state_v_nonfinite": 0,
+    "static_leaf_count_distribution": [
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "1",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "2",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "3-4",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "5-8",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "9-16",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "17-32",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "33-64",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "65-128",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "129-256",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "257-512",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "513-1024",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": ">1024",
+        "leaf_fraction": 0.0
+      }
+    ],
+    "static_opened_centroid_fraction": 0.0,
+    "static_opened_centroids": 0,
+    "static_opened_leaf_fraction": 0.0,
+    "static_opened_leaves": 0.0,
+    "static_total_centroids": 0,
+    "static_total_leaves": 0.0
+  },
+  "lod_dispatch": {
+    "records": [
+      {
+        "configured_decode_centroid_major_hip": false,
+        "configured_decode_geometry_tuning": true,
+        "configured_decode_hierarchical_route": false,
+        "configured_decode_max_open_leaves": 1024,
+        "configured_decode_route_cohort": false,
+        "configured_diagnostic_static_preselected": false,
+        "configured_gqa_fixed_mask_adaptive_segments": true,
+        "configured_gqa_fixed_mask_aiter": true,
+        "configured_gqa_fixed_mask_block_n": 64,
+        "configured_gqa_fixed_mask_direct_routes": true,
+        "configured_gqa_fixed_mask_reduce_block_d": 64,
+        "configured_gqa_fixed_mask_scan_num_stages": 2,
+        "configured_gqa_fixed_mask_scan_num_warps": 2,
+        "configured_gqa_fixed_mask_scan_waves_per_eu": 2,
+        "configured_gqa_fixed_mask_segments": 128,
+        "configured_gqa_mass_fraction": null,
+        "configured_gqa_pilot_z": false,
+        "configured_gqa_pilot_z_margin": 0.25,
+        "configured_gqa_pilot_z_route_count": 8,
+        "configured_gqa_predicted_mass": false,
+        "configured_gqa_staged_fixed_aiter": false,
+        "configured_gqa_static_leaf_aiter": false,
+        "configured_gqa_union_decode": true,
+        "configured_gqa_union_hip": true,
+        "configured_leaf_block_n": 16,
+        "configured_open_count": 8,
+        "configured_prefill_coarse_block_m": 16,
+        "configured_prefill_coarse_block_n": 32,
+        "configured_prefill_coarse_max_grouped_rows": 64,
+        "configured_prefill_coarse_num_warps": 8,
+        "configured_prefill_direct_expert_buckets": false,
+        "configured_prefill_hierarchical_route": false,
+        "configured_prefill_leaf_visit_cap": null,
+        "configured_prefill_local_backend": "aiter",
+        "configured_prefill_overlap_coarse_leaf": false,
+        "configured_prefill_overlap_local_lod": false,
+        "configured_prefill_static_leaf_aiter": false,
+        "configured_prefill_static_leaf_cap_min": 16,
+        "configured_recursive_prefill_all_leaves": false,
+        "configured_route_group_size": 32,
+        "configured_route_num_warps": 2,
+        "configured_route_parallel_reduce": false,
+        "configured_route_post_dot_normalize": false,
+        "configured_route_post_pv_normalize": false,
+        "configured_route_reduce_num_warps": 4,
+        "configured_route_segment_tiles": 1,
+        "configured_route_use_dot": true,
+        "configured_state_premerge_factor": 1,
+        "configured_static_cohort_never_readmit": false,
+        "configured_static_leaf_cap_divisor": 16,
+        "decode_split_kv": 8,
+        "effective_decode_route_leaf_limit": 1024,
+        "effective_leaf_page_block_n": 16,
+        "effective_prefill_local_kernel": "aiter.ops.mha.flash_attn_func (CK FMHA v3)",
+        "effective_prefill_open_count": 3,
+        "effective_route_group_size": 32,
+        "effective_route_num_warps": 2,
+        "effective_route_reduce_num_warps": 4,
+        "effective_route_segment_tiles": 1,
+        "effective_route_segment_width": 32,
+        "effective_route_use_dot": true,
+        "engine_long_d128_override_bypassed_by_vllm_pool": false,
+        "engine_long_d128_override_exists": false,
+        "exact_leaf_kernel": "kernel_page1_attention_3d_bias_fixed_mask (persistent centroid-major index list, M16/N64, route-prepared byte mask, block fast-fail before lane mask, K/V, and MFMA)",
+        "final_reduce_kernel": "_reduce_aiter_page1_segments_with_lse_kernel (writes final output)",
+        "final_reduce_num_warps": 4,
+        "hash_probes": -1,
+        "head_dim": 256,
+        "kv_group_size": 6,
+        "kv_heads": 4,
+        "layers": 16,
+        "leaf_dtype": "torch.bfloat16",
+        "leaf_num_warps": 2,
+        "levels": 2,
+        "local_capacity": 4864,
+        "local_kernels": [
+          "_mask_decode_routes_residual_mass_kernel"
+        ],
+        "local_score_block_m": 16,
+        "local_score_block_n": 32,
+        "local_score_num_warps": 4,
+        "local_value_block_d": 32,
+        "local_value_block_k": 32,
+        "local_value_block_m": 16,
+        "local_value_num_warps": 4,
+        "local_window": 512,
+        "materialize_page_scores": false,
+        "observed_context_len": 0,
+        "page_capacity": 14112,
+        "page_route_kernels": [
+          "inline page-summary scoring in exact-leaf kernel"
+        ],
+        "page_score_block_n": 16,
+        "page_score_num_warps": 2,
+        "page_select_block_n": 64,
+        "pool_request_capacity": 131152,
+        "prefill_chunk_len": 4096,
+        "prefill_direct_expert_bucket_calls": 0,
+        "prefill_fused_route_eligible": true,
+        "prefill_leaf_kernel": "expert",
+        "prefill_leaf_num_warps": 2,
+        "prefill_leaf_page_block_n": 16,
+        "prefill_mode": "direct",
+        "prefill_route_kernels": [
+          "_route_logits_topk_coarse_attention_kernel",
+          "_route_logits_coarse_attention_kernel"
+        ],
+        "prefill_schedule_source": "VLLM_LOD_PREFILL_* settings",
+        "prefill_state_update_len": 4096,
+        "query_heads": 24,
+        "requested_decode_hierarchical_route": null,
+        "requested_recursive_prefill_all_leaves": null,
+        "route_gqa_grouped": true,
+        "state_capacity": 5888,
+        "state_pv_block_d": 128,
+        "state_pv_block_n": 64,
+        "state_pv_splits": 8,
+        "state_route_backend": "fused",
+        "state_route_kernels": [
+          "_decode_route_coarse_gqa_groups_kernel (SCORE_ONLY=True)",
+          "_reduce_decode_route_topk_kernel"
+        ],
+        "state_route_math": "mfma_m16",
+        "state_score_block_n": 32,
+        "state_score_num_stages": 3,
+        "state_score_num_warps": 2,
+        "state_topk_block_n": 128,
+        "state_topk_num_warps": 2
+      }
+    ],
+    "schema_version": 6
+  },
+  "lod_speed_diagnostics": {
+    "batched_cached_prefill_rows": 448,
+    "batched_cached_prefills": 224,
+    "batched_install_calls": 2480,
+    "cached_prefill_candidate_calls": 7616,
+    "cached_prefill_candidate_rows": 35200,
+    "cached_prefill_noncontiguous": 0,
+    "cached_prefill_nonpacked_calls": 0,
+    "cached_prefill_nonuniform_lengths": 6848,
+    "cached_prefill_nonuniform_previous": 6848,
+    "cached_prefill_packed_calls": 34976,
+    "cached_prefill_unready": 0,
+    "catch_up_batches": 384,
+    "catch_up_rows": 384,
+    "decode_calls": 128,
+    "decode_gqa_cooperative": false,
+    "decode_route_cohort": false,
+    "dense_leaf_storage": true,
+    "direct_prefills": 7936,
+    "effective_decode_route_leaf_limit": 1024,
+    "external_kv_cache": true,
+    "installs": 2560,
+    "kv_bits": 0,
+    "layers": 16,
+    "leaf_num_warps": 2,
+    "leaf_seal_capacity": null,
+    "levels": 2,
+    "open_count": 8,
+    "page_summary_quant_bits": 8,
+    "pilot_z_copy_calls": 0,
+    "pilot_z_engine_bound_finite": 0,
+    "pilot_z_record_calls": 0,
+    "pilot_z_route_threshold_finite": 0,
+    "pilot_z_route_threshold_max": null,
+    "pilot_z_route_threshold_min": null,
+    "pilot_z_route_threshold_total": 0,
+    "positive_dot_blocks": 0,
+    "positive_dot_blocks_empty": 0,
+    "positive_dot_blocks_under_k": 0,
+    "positive_dot_population": 0,
+    "positive_dot_population_positive": 0,
+    "positive_dot_route_counts": [],
+    "prefill_chunk_len": 4096,
+    "prefill_direct_expert_bucket_calls": 0,
+    "prefill_direct_expert_buckets": false,
+    "prefill_int8_coarse_mma": false,
+    "prefill_int8_leaf_mma": false,
+    "prefill_int8_pv_mma": false,
+    "prefill_state_update_len": 4096,
+    "prefill_static_leaf_aiter": false,
+    "prefill_static_leaf_cap_min": 16,
+    "recursive_materialize_page_scores": false,
+    "recursive_page_score_block_n": 16,
+    "recursive_page_score_num_warps": 2,
+    "recursive_page_select_block_n": 64,
+    "recursive_state_route_backend": "fused",
+    "retained_prefix_reuses": 0,
+    "retained_restore_attempts": 0,
+    "retained_restore_fail_coverage": 0,
+    "retained_restore_fail_no_row": 0,
+    "retained_restore_fail_short": 0,
+    "retained_restore_fail_tokens": 0,
+    "retained_restore_last_coverage": 0,
+    "retained_restore_last_prefix": 0,
+    "retained_restore_last_total": 0,
+    "retained_restore_rebuild_tokens": 0,
+    "retained_restore_rebuilds": 0,
+    "routing_cutoff_simulations": [],
+    "routing_segment_cutoff_simulations": [],
+    "static_cohort_never_readmit": false,
+    "static_leaf_cap_divisor": 16,
+    "static_prefill_archive_tokens": 0,
+    "static_prefill_calls": 0,
+    "static_prefill_cap_max_observed": null,
+    "static_prefill_cap_min_observed": null,
+    "static_prefill_exact_tokens_max": null,
+    "static_prefill_exact_tokens_min": null,
+    "static_prefill_layers_executed": 0,
+    "static_prefill_permanent_exact_fraction": null,
+    "static_prefill_permanent_exact_tokens": 0
+  },
+  "long_prefill_token_threshold": 16384,
+  "max_new_tokens": 64,
+  "max_num_batched_tokens": 16384,
+  "mode": "lod",
+  "model_impl": null,
+  "muse_native_text_config": false,
+  "results": {
+    "131072": {
+      "speed": {
+        "decode_timings_seconds": [
+          9.584803856909275,
+          9.615700711030513,
+          9.581745166797191
+        ],
+        "lod_decode_execution_audit": {
+          "decode_centroid_major_hip_configured": [
+            false
+          ],
+          "decode_centroid_major_hip_executed": [
+            false
+          ],
+          "decode_gqa_direct_fixed_routes_configured": [
+            true
+          ],
+          "decode_gqa_direct_fixed_routes_executed": [
+            true
+          ],
+          "decode_gqa_fixed_mask_configured": [
+            true
+          ],
+          "decode_gqa_fixed_mask_executed": [
+            true
+          ],
+          "decode_gqa_overlap_local_sink_configured": [
+            false
+          ],
+          "decode_gqa_overlap_local_sink_executed": [
+            false
+          ],
+          "decode_gqa_staged_fixed_configured": [
+            false
+          ],
+          "decode_gqa_staged_fixed_executed": [],
+          "decode_gqa_static_leaf_aiter_configured": [
+            false
+          ],
+          "decode_gqa_static_leaf_aiter_executed": [],
+          "decode_gqa_union_aiter_final": [
+            true
+          ],
+          "decode_gqa_union_configured": [
+            true
+          ],
+          "decode_gqa_union_eligible": [
+            true
+          ],
+          "decode_gqa_union_hip_configured": [
+            true
+          ],
+          "decode_gqa_union_hip_executed": [
+            true
+          ],
+          "decode_gqa_union_predicted_mass": [
+            false
+          ],
+          "decode_gqa_union_requested": [
+            true
+          ],
+          "decode_gqa_union_score_only": [
+            true
+          ],
+          "decode_max_open_leaves": [
+            1024
+          ],
+          "decode_open_counts": [
+            8
+          ],
+          "decode_route_cohort": [
+            false
+          ],
+          "effective_decode_route_leaf_limits": [
+            1024
+          ],
+          "gqa_union_centroid_count_max": 48,
+          "gqa_union_centroid_count_mean": 48.0,
+          "gqa_union_effective_segments": [
+            256
+          ],
+          "gqa_union_epoch_max": 765,
+          "gqa_union_exact_token_count_max": 0,
+          "gqa_union_exact_token_count_mean": 0.0,
+          "gqa_union_nonempty_sequences": 512,
+          "gqa_union_runtime_kv_heads": [
+            4
+          ],
+          "gqa_union_runtime_sequence_counts": [
+            4
+          ],
+          "gqa_union_sequence_count": 512,
+          "gqa_union_split_d_reduce": [
+            true
+          ],
+          "gqa_union_token_count_max": 136960,
+          "gqa_union_token_count_mean": 136960.0
+        },
+        "marginal_decode_ms_per_batch_step": 37.587466105526566,
+        "marginal_decode_tokens_per_second": 212.836906258593,
+        "prefill_prompt_tokens_per_second": 7133.845076194618,
+        "prefill_seconds": 146.69900857424363,
+        "prefill_timings_seconds": [
+          146.6430133730173,
+          146.70138251362368,
+          146.69900857424363
+        ],
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 130816,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London K",
+              "request_index": 0,
+              "sha256": "bb69b2d2c81bdab8d61fa2dad4b52367ec15cf6318327c23ff706b0fbda7ef73",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                },
+                {
+                  "length": "65431",
+                  "stream_index": 1
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8176,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 8176
+              }
+            },
+            {
+              "decoded_prefix": "ulegu glance at him. Rukn chose that moment to bow deeply. His father had ordered it, though Rukn resented even the idea. The warrior stared coldly at him and Rukn watched as his eyes flickered around the inside of the tent, taking in every detail. Hulegu had yet to enter the shaded awning. He stood on the threshold glaring in, while his ten thousand continued to make an appalling racket all around them. Dust drifted in wisps through the air, visible in the light of the setting sun. Rukn struggled to remain calm. 'You must be thirsty,",
+              "request_index": 1,
+              "sha256": "f21eed18e5c6b9e796d07edad4283d4f117940bad76a5ef53722e65406911da6",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "65626",
+                  "stream_index": 2
+                },
+                {
+                  "length": "68110",
+                  "stream_index": 3
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8176,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 8176
+              }
+            },
+            {
+              "decoded_prefix": "Repo: playpark777/spafac-test ======================= File: app/assets/javascripts/profiles.coffee ======================= <gh_stars>0 $ -> $('.add-identification-attachment').click -> li_count = $(\"ul.list-unstyled.identification-attachments>li\").size() + 1 input = document.createElement('input') input.setAttribute('type', 'file') input.setAttribute('id', \"identification_image\" + li_count) input.setAttribute('name', \"identification[image\" + li_count + \"]\") input.setAttribute('class', 'row",
+              "request_index": 2,
+              "sha256": "89490299c3d53f506befe1d77c985585be665852c57b9a6b7eb002c51ea74a01",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "66409",
+                  "stream_index": 4
+                },
+                {
+                  "length": "65449",
+                  "stream_index": 5
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8176,
+                "max_identical_block_occurrences": 7,
+                "unique_block_ratio": 0.9717465753424658,
+                "unique_blocks": 7945
+              }
+            },
+            {
+              "decoded_prefix": "[Graduate School of Business Creation] Aiming to become a \u201ctax accountant x MBA\u201d who can work with managers to create a \u201cfuture vision for a company\u201d \u201cTax Accountant Exam Subject Exemption Briefing\u201d will be held on October 28th (Sat) NSG Group\u2019s Business Creation Graduate University (3-1-46 Yoneyama, Chuo-ku, Niigata City) will be offering a tax accountant exam subject exemption from 10:30 on Saturday, October 28, 2023 for those aiming to pass the tax accountant exam. An information",
+              "request_index": 3,
+              "sha256": "882919a342c4ada47b8d693ab2d34d6dcf273ce26e8d9dd6077f63687254175a",
+              "source_document_count": 3,
+              "source_documents": [
+                {
+                  "length": "1617",
+                  "stream_index": 6
+                },
+                {
+                  "length": "67588",
+                  "stream_index": 7
+                },
+                {
+                  "length": "65718",
+                  "stream_index": 8
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8176,
+                "max_identical_block_occurrences": 4,
+                "unique_block_ratio": 0.9957191780821918,
+                "unique_blocks": 8141
+              }
+            },
+            {
+              "decoded_prefix": "device { //In the next step we associate the GPU memory with the Kernel arguments //my_dev::dev_mem<uint> counts(devContext, 512), countx(devContext, 512); //Memory that should be alloced outside the function: //devMemCounts and devMemCountsx // make sure previous reset has finished. this->devMemCountsx.waitForCopyEvent(); //Kernel configuration parameters setupParams sParam; sParam.jobs = (N / 64) / 480 ; //",
+              "request_index": 4,
+              "sha256": "6a49138a601e884b4807d6b4e2f9dbb2a12fab5ccb38dcbf94af5fb82d789e29",
+              "source_document_count": 3,
+              "source_documents": [
+                {
+                  "length": "66365",
+                  "stream_index": 9
+                },
+                {
+                  "length": "912",
+                  "stream_index": 10
+                },
+                {
+                  "length": "66633",
+                  "stream_index": 11
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8176,
+                "max_identical_block_occurrences": 4,
+                "unique_block_ratio": 0.9914383561643836,
+                "unique_blocks": 8106
+              }
+            },
+            {
+              "decoded_prefix": "Whatever kind of Passover Seder one attends, there is a fifth question, usually only whispered, that arises sometime after those famous four questions which begin the long Maggid (literally, telling) section of the haggadah are recited: \u201cWhen do we eat?\u201d Of course, the haggadah itself says that \u201cwhoever elaborates in the retelling of the story of the exodus is surely praised\u201d and illustrates the point with the famous story of the five sages of the 2nd century, who stayed up all night doing just that: It happened that Rabbi Eliezer, Rabbi Joshua, Rabbi",
+              "request_index": 5,
+              "sha256": "04b58e714268db7ba14244d050568b0ed7a68d2a21b309f86d6615b91107c6c3",
+              "source_document_count": 7,
+              "source_documents": [
+                {
+                  "length": "2691",
+                  "stream_index": 12
+                },
+                {
+                  "length": "1396",
+                  "stream_index": 13
+                },
+                {
+                  "length": "995",
+                  "stream_index": 14
+                },
+                {
+                  "length": "727",
+                  "stream_index": 15
+                },
+                {
+                  "length": "65970",
+                  "stream_index": 16
+                },
+                {
+                  "length": "1349",
+                  "stream_index": 17
+                },
+                {
+                  "length": "65549",
+                  "stream_index": 18
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8176,
+                "max_identical_block_occurrences": 4,
+                "unique_block_ratio": 0.9926614481409002,
+                "unique_blocks": 8116
+              }
+            },
+            {
+              "decoded_prefix": "**LOUISE ALLAN** is a debut author from Western Australia. In 2014, this novel was awarded a Varuna residential fellowship and shortlisted for the City of Fremantle-TAG Hungerford Award. Louise grew up in Tasmania but now lives in Perth with her husband, children and dogs. Her first career was as a doctor before she took up writing in 2010. She has had several of her short stories, essays and articles published in literary anthologies and medical journals. She also has a passion for music. You can find her at her website: louisej",
+              "request_index": 6,
+              "sha256": "4e74940c182a0326934b96c3bb12ed909fbc068b609aab4679891746a3285ad8",
+              "source_document_count": 3,
+              "source_documents": [
+                {
+                  "length": "65672",
+                  "stream_index": 22
+                },
+                {
+                  "length": "2192",
+                  "stream_index": 23
+                },
+                {
+                  "length": "66851",
+                  "stream_index": 24
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8176,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 8176
+              }
+            },
+            {
+              "decoded_prefix": "## How Nancy Drew Saved My Life ## LAUREN BARATZ-LOGSTED For my mother, Lucille Baratz, one of the world's greatest ladies, and the woman who gave me my first Nancy Drew. Mom, if I keep putting off dedicating a book to you, will you stay with us forever? ## Contents Prologue Chapter 1 Chapter 2 Chapter 3 Chapter 4 Chapter 5 Chapter 6 Chapter 7 Chapter 8 Chapter 9 Chapter 10 Chapter 11",
+              "request_index": 7,
+              "sha256": "d5b74d7319027873d833067a872f392b9a93b26609276f4210b6b76c9bf01fb3",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "65604",
+                  "stream_index": 33
+                },
+                {
+                  "length": "66948",
+                  "stream_index": 34
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8176,
+                "max_identical_block_occurrences": 15,
+                "unique_block_ratio": 0.9675880626223092,
+                "unique_blocks": 7911
+              }
+            }
+          ],
+          "rejected_candidate_count": 3,
+          "rejected_candidates": [
+            {
+              "prospective_request_index": 6,
+              "reason": "unique_block_ratio_below_0.95",
+              "source_documents": [
+                {
+                  "length": "65565",
+                  "stream_index": 19
+                },
+                {
+                  "length": "801",
+                  "stream_index": 20
+                },
+                {
+                  "length": "66129",
+                  "stream_index": 21
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8176,
+                "max_identical_block_occurrences": 47,
+                "unique_block_ratio": 0.7502446183953033,
+                "unique_blocks": 6134
+              }
+            },
+            {
+              "prospective_request_index": 7,
+              "reason": "unique_block_ratio_below_0.95",
+              "source_documents": [
+                {
+                  "length": "67567",
+                  "stream_index": 25
+                },
+                {
+                  "length": "69990",
+                  "stream_index": 26
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8176,
+                "max_identical_block_occurrences": 15,
+                "unique_block_ratio": 0.9355430528375733,
+                "unique_blocks": 7649
+              }
+            },
+            {
+              "prospective_request_index": 7,
+              "reason": "unique_block_ratio_below_0.95",
+              "source_documents": [
+                {
+                  "length": "66033",
+                  "stream_index": 27
+                },
+                {
+                  "length": "684",
+                  "stream_index": 28
+                },
+                {
+                  "length": "843",
+                  "stream_index": 29
+                },
+                {
+                  "length": "970",
+                  "stream_index": 30
+                },
+                {
+                  "length": "1553",
+                  "stream_index": 31
+                },
+                {
+                  "length": "80254",
+                  "stream_index": 32
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8176,
+                "max_identical_block_occurrences": 96,
+                "unique_block_ratio": 0.8225293542074364,
+                "unique_blocks": 6725
+              }
+            }
+          ]
+        },
+        "prompt_length": 130816,
+        "total_timings_seconds": [
+          156.23675498878583,
+          156.32701273076236,
+          156.28996326820925
+        ]
+      }
+    },
+    "16384": {
+      "speed": {
+        "decode_timings_seconds": [
+          9.245559703093022,
+          9.248711179941893,
+          9.244351268745959
+        ],
+        "lod_decode_execution_audit": {
+          "decode_centroid_major_hip_configured": [
+            false
+          ],
+          "decode_centroid_major_hip_executed": [
+            false
+          ],
+          "decode_gqa_direct_fixed_routes_configured": [
+            true
+          ],
+          "decode_gqa_direct_fixed_routes_executed": [
+            true
+          ],
+          "decode_gqa_fixed_mask_configured": [
+            true
+          ],
+          "decode_gqa_fixed_mask_executed": [
+            true
+          ],
+          "decode_gqa_overlap_local_sink_configured": [
+            false
+          ],
+          "decode_gqa_overlap_local_sink_executed": [
+            false
+          ],
+          "decode_gqa_staged_fixed_configured": [
+            false
+          ],
+          "decode_gqa_staged_fixed_executed": [],
+          "decode_gqa_static_leaf_aiter_configured": [
+            false
+          ],
+          "decode_gqa_static_leaf_aiter_executed": [],
+          "decode_gqa_union_aiter_final": [
+            true
+          ],
+          "decode_gqa_union_configured": [
+            true
+          ],
+          "decode_gqa_union_eligible": [
+            true
+          ],
+          "decode_gqa_union_hip_configured": [
+            true
+          ],
+          "decode_gqa_union_hip_executed": [
+            true
+          ],
+          "decode_gqa_union_predicted_mass": [
+            false
+          ],
+          "decode_gqa_union_requested": [
+            true
+          ],
+          "decode_gqa_union_score_only": [
+            true
+          ],
+          "decode_max_open_leaves": [
+            1024
+          ],
+          "decode_open_counts": [
+            8
+          ],
+          "decode_route_cohort": [
+            false
+          ],
+          "effective_decode_route_leaf_limits": [
+            1024
+          ],
+          "gqa_union_centroid_count_max": 48,
+          "gqa_union_centroid_count_mean": 48.0,
+          "gqa_union_effective_segments": [
+            256
+          ],
+          "gqa_union_epoch_max": 765,
+          "gqa_union_exact_token_count_max": 0,
+          "gqa_union_exact_token_count_mean": 0.0,
+          "gqa_union_nonempty_sequences": 512,
+          "gqa_union_runtime_kv_heads": [
+            4
+          ],
+          "gqa_union_runtime_sequence_counts": [
+            4
+          ],
+          "gqa_union_sequence_count": 512,
+          "gqa_union_split_d_reduce": [
+            true
+          ],
+          "gqa_union_token_count_max": 22272,
+          "gqa_union_token_count_mean": 22272.0
+        },
+        "marginal_decode_ms_per_batch_step": 36.2570968748746,
+        "marginal_decode_tokens_per_second": 220.64645792266484,
+        "prefill_prompt_tokens_per_second": 8101.351787754741,
+        "prefill_seconds": 15.926231001969427,
+        "prefill_timings_seconds": [
+          16.17014948790893,
+          15.926231001969427,
+          15.915669274982065
+        ],
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 16128,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London K",
+              "request_index": 0,
+              "sha256": "a3c86e663cdf4d27b21ee1730b8ee9f76805c111c25cf8dc6772f255ed49321c",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 1008,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 1008
+              }
+            },
+            {
+              "decoded_prefix": "steam engine had gone by, there were still all the boxcars and flatcars and tank cars to admire, and at last the caboose\u2014this one painted yellow instead of the more usual red. \"Wow!\" Alec's eyes shone. \"I want to make one of those go when I get big.\" \"Maybe you will,\" Mort said. \"It's a good job.\" For all the sense he made to his son, he might as well have started speaking Eskimo. Alec couldn't imagine that being an engineer was work, and often hard work to boot. He would have paid, and paid anything he",
+              "request_index": 1,
+              "sha256": "ecc466b50692eff9f1c8d2ae317d453e35ffd2c10a553fb240ab76067e48cdf8",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "65431",
+                  "stream_index": 1
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 1008,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 1008
+              }
+            },
+            {
+              "decoded_prefix": "ulegu glance at him. Rukn chose that moment to bow deeply. His father had ordered it, though Rukn resented even the idea. The warrior stared coldly at him and Rukn watched as his eyes flickered around the inside of the tent, taking in every detail. Hulegu had yet to enter the shaded awning. He stood on the threshold glaring in, while his ten thousand continued to make an appalling racket all around them. Dust drifted in wisps through the air, visible in the light of the setting sun. Rukn struggled to remain calm. 'You must be thirsty,",
+              "request_index": 2,
+              "sha256": "7667322c63b4c89412c0311ffcd09a480eb7f908de0eb3d11eb3c1c1740eb310",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "65626",
+                  "stream_index": 2
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 1008,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 1008
+              }
+            },
+            {
+              "decoded_prefix": "1); # # Structure for table \"news_categories\" # DROP TABLE IF EXISTS `news_categories`; CREATE TABLE `news_categories` ( `id` int(11) NOT NULL AUTO_INCREMENT, `title` varchar(255) NOT NULL, `seo_url` varchar(255) NOT NULL, `rank` int(11) NOT NULL, `isActive` int(11) NOT NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8; # #",
+              "request_index": 3,
+              "sha256": "828ef32b0c82f21675018b036adb1e71cd059d630266f0cf5abb40c3e09b4233",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "68110",
+                  "stream_index": 3
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 1008,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 1008
+              }
+            },
+            {
+              "decoded_prefix": "Sausage Hall Sausage Hall: home to millionaire Kevan de Vries, grandson of a Dutch immigrant farmer. De Vries has built up a huge farming and food packing empire which extends, via the banana trade, to the West Indies. But sleazy MD, Tony Sentance, manages to persuade de Vries to branch out into the luxury holiday trade. De Vries and wife, Joanna, take the first cruise out to explore the potentially lucrative possibilities. However, back at home, a break-in at Sausage Hall uncovers a truly gruesome historical discovery. And when a young employee of de V",
+              "request_index": 4,
+              "sha256": "b093089e44a988025baf79bd5d7254ac27041f7f51c3de0fa960a498a1a8281b",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "65449",
+                  "stream_index": 5
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 1008,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 1008
+              }
+            },
+            {
+              "decoded_prefix": "[Graduate School of Business Creation] Aiming to become a \u201ctax accountant x MBA\u201d who can work with managers to create a \u201cfuture vision for a company\u201d \u201cTax Accountant Exam Subject Exemption Briefing\u201d will be held on October 28th (Sat) NSG Group\u2019s Business Creation Graduate University (3-1-46 Yoneyama, Chuo-ku, Niigata City) will be offering a tax accountant exam subject exemption from 10:30 on Saturday, October 28, 2023 for those aiming to pass the tax accountant exam. An information",
+              "request_index": 5,
+              "sha256": "c3afbd1e71207bda2a0bbb1badce85b8f6bbca980b5a4a33b04998233f54732a",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "1617",
+                  "stream_index": 6
+                },
+                {
+                  "length": "67588",
+                  "stream_index": 7
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 1008,
+                "max_identical_block_occurrences": 2,
+                "unique_block_ratio": 0.9990079365079365,
+                "unique_blocks": 1007
+              }
+            },
+            {
+              "decoded_prefix": "_Cover illustrations:_ Front: \u00a9 Terry O'Neill Back: \u00a9 News UK First published as _Roger Moore as James Bond 007_ in 1973 by Pan Books Ltd. This edition published 2018 The History Press The Mill, Brimscombe Port Stroud, Gloucestershire, GL5 2QG www.thehistorypress.co.uk \u00a9 Miramont Investments Ltd, 2018 Live and Let Die \u00a9 1973 Danjaq LLC and United Artists Corporation, All Rights Reserved The right of Roger",
+              "request_index": 6,
+              "sha256": "898de0f2f48c21b9dda2198924bda2ba6327e3b2ae1cc68222ba4c08f8891119",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "65718",
+                  "stream_index": 8
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 1008,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 1008
+              }
+            },
+            {
+              "decoded_prefix": "device { //In the next step we associate the GPU memory with the Kernel arguments //my_dev::dev_mem<uint> counts(devContext, 512), countx(devContext, 512); //Memory that should be alloced outside the function: //devMemCounts and devMemCountsx // make sure previous reset has finished. this->devMemCountsx.waitForCopyEvent(); //Kernel configuration parameters setupParams sParam; sParam.jobs = (N / 64) / 480 ; //",
+              "request_index": 7,
+              "sha256": "7943f28aafa4b05edf5eec489bfa266a75ce09f31f02edb5f1aad29ed4ab6b4a",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "66365",
+                  "stream_index": 9
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 1008,
+                "max_identical_block_occurrences": 2,
+                "unique_block_ratio": 0.9950396825396826,
+                "unique_blocks": 1003
+              }
+            }
+          ],
+          "rejected_candidate_count": 1,
+          "rejected_candidates": [
+            {
+              "prospective_request_index": 4,
+              "reason": "unique_block_ratio_below_0.95",
+              "source_documents": [
+                {
+                  "length": "66409",
+                  "stream_index": 4
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 1008,
+                "max_identical_block_occurrences": 4,
+                "unique_block_ratio": 0.9444444444444444,
+                "unique_blocks": 952
+              }
+            }
+          ]
+        },
+        "prompt_length": 16128,
+        "total_timings_seconds": [
+          25.4229046436958,
+          25.17726878123358,
+          25.162194584030658
+        ]
+      }
+    },
+    "32768": {
+      "speed": {
+        "decode_timings_seconds": [
+          9.295546426903456,
+          9.278220401145518,
+          9.27753736032173
+        ],
+        "lod_decode_execution_audit": {
+          "decode_centroid_major_hip_configured": [
+            false
+          ],
+          "decode_centroid_major_hip_executed": [
+            false
+          ],
+          "decode_gqa_direct_fixed_routes_configured": [
+            true
+          ],
+          "decode_gqa_direct_fixed_routes_executed": [
+            true
+          ],
+          "decode_gqa_fixed_mask_configured": [
+            true
+          ],
+          "decode_gqa_fixed_mask_executed": [
+            true
+          ],
+          "decode_gqa_overlap_local_sink_configured": [
+            false
+          ],
+          "decode_gqa_overlap_local_sink_executed": [
+            false
+          ],
+          "decode_gqa_staged_fixed_configured": [
+            false
+          ],
+          "decode_gqa_staged_fixed_executed": [],
+          "decode_gqa_static_leaf_aiter_configured": [
+            false
+          ],
+          "decode_gqa_static_leaf_aiter_executed": [],
+          "decode_gqa_union_aiter_final": [
+            true
+          ],
+          "decode_gqa_union_configured": [
+            true
+          ],
+          "decode_gqa_union_eligible": [
+            true
+          ],
+          "decode_gqa_union_hip_configured": [
+            true
+          ],
+          "decode_gqa_union_hip_executed": [
+            true
+          ],
+          "decode_gqa_union_predicted_mass": [
+            false
+          ],
+          "decode_gqa_union_requested": [
+            true
+          ],
+          "decode_gqa_union_score_only": [
+            true
+          ],
+          "decode_max_open_leaves": [
+            1024
+          ],
+          "decode_open_counts": [
+            8
+          ],
+          "decode_route_cohort": [
+            false
+          ],
+          "effective_decode_route_leaf_limits": [
+            1024
+          ],
+          "gqa_union_centroid_count_max": 48,
+          "gqa_union_centroid_count_mean": 48.0,
+          "gqa_union_effective_segments": [
+            256
+          ],
+          "gqa_union_epoch_max": 765,
+          "gqa_union_exact_token_count_max": 0,
+          "gqa_union_exact_token_count_mean": 0.0,
+          "gqa_union_nonempty_sequences": 512,
+          "gqa_union_runtime_kv_heads": [
+            4
+          ],
+          "gqa_union_runtime_sequence_counts": [
+            4
+          ],
+          "gqa_union_sequence_count": 512,
+          "gqa_union_split_d_reduce": [
+            true
+          ],
+          "gqa_union_token_count_max": 38656,
+          "gqa_union_token_count_mean": 38656.0
+        },
+        "marginal_decode_ms_per_batch_step": 36.38517804370791,
+        "marginal_decode_tokens_per_second": 219.86974999517528,
+        "prefill_prompt_tokens_per_second": 7869.24254994848,
+        "prefill_seconds": 33.05222813365981,
+        "prefill_timings_seconds": [
+          33.04139669891447,
+          33.05222813365981,
+          33.05772453779355
+        ],
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 32512,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London K",
+              "request_index": 0,
+              "sha256": "2789b4d04ca26dbfd3ece901c5dfbddc4bb00aaa590c175c0352216ba557a75d",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 2032,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 2032
+              }
+            },
+            {
+              "decoded_prefix": "steam engine had gone by, there were still all the boxcars and flatcars and tank cars to admire, and at last the caboose\u2014this one painted yellow instead of the more usual red. \"Wow!\" Alec's eyes shone. \"I want to make one of those go when I get big.\" \"Maybe you will,\" Mort said. \"It's a good job.\" For all the sense he made to his son, he might as well have started speaking Eskimo. Alec couldn't imagine that being an engineer was work, and often hard work to boot. He would have paid, and paid anything he",
+              "request_index": 1,
+              "sha256": "cf2c8ada1af674811807b7f4a53f9a36064dc68478dd557d9713c0e257952759",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "65431",
+                  "stream_index": 1
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 2032,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 2032
+              }
+            },
+            {
+              "decoded_prefix": "ulegu glance at him. Rukn chose that moment to bow deeply. His father had ordered it, though Rukn resented even the idea. The warrior stared coldly at him and Rukn watched as his eyes flickered around the inside of the tent, taking in every detail. Hulegu had yet to enter the shaded awning. He stood on the threshold glaring in, while his ten thousand continued to make an appalling racket all around them. Dust drifted in wisps through the air, visible in the light of the setting sun. Rukn struggled to remain calm. 'You must be thirsty,",
+              "request_index": 2,
+              "sha256": "54553987e3505b53fb84aaa1603064659e303e17b67d2bc8b0dac44fb76d2b36",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "65626",
+                  "stream_index": 2
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 2032,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 2032
+              }
+            },
+            {
+              "decoded_prefix": "1); # # Structure for table \"news_categories\" # DROP TABLE IF EXISTS `news_categories`; CREATE TABLE `news_categories` ( `id` int(11) NOT NULL AUTO_INCREMENT, `title` varchar(255) NOT NULL, `seo_url` varchar(255) NOT NULL, `rank` int(11) NOT NULL, `isActive` int(11) NOT NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8; # #",
+              "request_index": 3,
+              "sha256": "7a5afc8e0c4989d8d0e7eeba3e5db89d14b56fe326d927264892a72f622da049",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "68110",
+                  "stream_index": 3
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 2032,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 2032
+              }
+            },
+            {
+              "decoded_prefix": "Sausage Hall Sausage Hall: home to millionaire Kevan de Vries, grandson of a Dutch immigrant farmer. De Vries has built up a huge farming and food packing empire which extends, via the banana trade, to the West Indies. But sleazy MD, Tony Sentance, manages to persuade de Vries to branch out into the luxury holiday trade. De Vries and wife, Joanna, take the first cruise out to explore the potentially lucrative possibilities. However, back at home, a break-in at Sausage Hall uncovers a truly gruesome historical discovery. And when a young employee of de V",
+              "request_index": 4,
+              "sha256": "88370ad3bbbde50f12c118a529de23985d174f5fe36e7db0b381fed34de44e4f",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "65449",
+                  "stream_index": 5
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 2032,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 2032
+              }
+            },
+            {
+              "decoded_prefix": "[Graduate School of Business Creation] Aiming to become a \u201ctax accountant x MBA\u201d who can work with managers to create a \u201cfuture vision for a company\u201d \u201cTax Accountant Exam Subject Exemption Briefing\u201d will be held on October 28th (Sat) NSG Group\u2019s Business Creation Graduate University (3-1-46 Yoneyama, Chuo-ku, Niigata City) will be offering a tax accountant exam subject exemption from 10:30 on Saturday, October 28, 2023 for those aiming to pass the tax accountant exam. An information",
+              "request_index": 5,
+              "sha256": "ccce8d531d219db6dc84813c9cd708f7af9404154856477784a798d80f022f2f",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "1617",
+                  "stream_index": 6
+                },
+                {
+                  "length": "67588",
+                  "stream_index": 7
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 2032,
+                "max_identical_block_occurrences": 2,
+                "unique_block_ratio": 0.9980314960629921,
+                "unique_blocks": 2028
+              }
+            },
+            {
+              "decoded_prefix": "_Cover illustrations:_ Front: \u00a9 Terry O'Neill Back: \u00a9 News UK First published as _Roger Moore as James Bond 007_ in 1973 by Pan Books Ltd. This edition published 2018 The History Press The Mill, Brimscombe Port Stroud, Gloucestershire, GL5 2QG www.thehistorypress.co.uk \u00a9 Miramont Investments Ltd, 2018 Live and Let Die \u00a9 1973 Danjaq LLC and United Artists Corporation, All Rights Reserved The right of Roger",
+              "request_index": 6,
+              "sha256": "91af052f4cbdb748c6f8b87e1b35f4307b51f5bd8e8a76e6f5cc1131d22ffa79",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "65718",
+                  "stream_index": 8
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 2032,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 2032
+              }
+            },
+            {
+              "decoded_prefix": "device { //In the next step we associate the GPU memory with the Kernel arguments //my_dev::dev_mem<uint> counts(devContext, 512), countx(devContext, 512); //Memory that should be alloced outside the function: //devMemCounts and devMemCountsx // make sure previous reset has finished. this->devMemCountsx.waitForCopyEvent(); //Kernel configuration parameters setupParams sParam; sParam.jobs = (N / 64) / 480 ; //",
+              "request_index": 7,
+              "sha256": "ce0a36c407abb4207d20434ffc175ea8f1aa9475b68b961bec8e0801015ed205",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "66365",
+                  "stream_index": 9
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 2032,
+                "max_identical_block_occurrences": 2,
+                "unique_block_ratio": 0.9921259842519685,
+                "unique_blocks": 2016
+              }
+            }
+          ],
+          "rejected_candidate_count": 1,
+          "rejected_candidates": [
+            {
+              "prospective_request_index": 4,
+              "reason": "unique_block_ratio_below_0.95",
+              "source_documents": [
+                {
+                  "length": "66409",
+                  "stream_index": 4
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 2032,
+                "max_identical_block_occurrences": 7,
+                "unique_block_ratio": 0.9010826771653543,
+                "unique_blocks": 1831
+              }
+            }
+          ]
+        },
+        "prompt_length": 32512,
+        "total_timings_seconds": [
+          42.34726601699367,
+          42.34254890214652,
+          42.34776081983
+        ]
+      }
+    },
+    "65536": {
+      "speed": {
+        "decode_timings_seconds": [
+          9.387172690127045,
+          9.395273520145565,
+          9.386161103844643
+        ],
+        "lod_decode_execution_audit": {
+          "decode_centroid_major_hip_configured": [
+            false
+          ],
+          "decode_centroid_major_hip_executed": [
+            false
+          ],
+          "decode_gqa_direct_fixed_routes_configured": [
+            true
+          ],
+          "decode_gqa_direct_fixed_routes_executed": [
+            true
+          ],
+          "decode_gqa_fixed_mask_configured": [
+            true
+          ],
+          "decode_gqa_fixed_mask_executed": [
+            true
+          ],
+          "decode_gqa_overlap_local_sink_configured": [
+            false
+          ],
+          "decode_gqa_overlap_local_sink_executed": [
+            false
+          ],
+          "decode_gqa_staged_fixed_configured": [
+            false
+          ],
+          "decode_gqa_staged_fixed_executed": [],
+          "decode_gqa_static_leaf_aiter_configured": [
+            false
+          ],
+          "decode_gqa_static_leaf_aiter_executed": [],
+          "decode_gqa_union_aiter_final": [
+            true
+          ],
+          "decode_gqa_union_configured": [
+            true
+          ],
+          "decode_gqa_union_eligible": [
+            true
+          ],
+          "decode_gqa_union_hip_configured": [
+            true
+          ],
+          "decode_gqa_union_hip_executed": [
+            true
+          ],
+          "decode_gqa_union_predicted_mass": [
+            false
+          ],
+          "decode_gqa_union_requested": [
+            true
+          ],
+          "decode_gqa_union_score_only": [
+            true
+          ],
+          "decode_max_open_leaves": [
+            1024
+          ],
+          "decode_open_counts": [
+            8
+          ],
+          "decode_route_cohort": [
+            false
+          ],
+          "effective_decode_route_leaf_limits": [
+            1024
+          ],
+          "gqa_union_centroid_count_max": 48,
+          "gqa_union_centroid_count_mean": 48.0,
+          "gqa_union_effective_segments": [
+            256
+          ],
+          "gqa_union_epoch_max": 765,
+          "gqa_union_exact_token_count_max": 0,
+          "gqa_union_exact_token_count_mean": 0.0,
+          "gqa_union_nonempty_sequences": 512,
+          "gqa_union_runtime_kv_heads": [
+            4
+          ],
+          "gqa_union_runtime_sequence_counts": [
+            4
+          ],
+          "gqa_union_sequence_count": 512,
+          "gqa_union_split_d_reduce": [
+            true
+          ],
+          "gqa_union_token_count_max": 71424,
+          "gqa_union_token_count_mean": 71424.0
+        },
+        "marginal_decode_ms_per_batch_step": 36.812441922066846,
+        "marginal_decode_tokens_per_second": 217.31783012211645,
+        "prefill_prompt_tokens_per_second": 7555.560589069141,
+        "prefill_seconds": 69.11995395226404,
+        "prefill_timings_seconds": [
+          69.1114733661525,
+          69.12895821174607,
+          69.11995395226404
+        ],
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 65280,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London K",
+              "request_index": 0,
+              "sha256": "e7a33c71d24bf7dc62d9f144a380c673ca322e3d0a367d50ff7af800d86f892a",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4080,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4080
+              }
+            },
+            {
+              "decoded_prefix": "steam engine had gone by, there were still all the boxcars and flatcars and tank cars to admire, and at last the caboose\u2014this one painted yellow instead of the more usual red. \"Wow!\" Alec's eyes shone. \"I want to make one of those go when I get big.\" \"Maybe you will,\" Mort said. \"It's a good job.\" For all the sense he made to his son, he might as well have started speaking Eskimo. Alec couldn't imagine that being an engineer was work, and often hard work to boot. He would have paid, and paid anything he",
+              "request_index": 1,
+              "sha256": "800e5370399cdbbbc1c9e05b3d7ee31d4afe00e9e8700bc4a67a12d304303f4c",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "65431",
+                  "stream_index": 1
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4080,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4080
+              }
+            },
+            {
+              "decoded_prefix": "ulegu glance at him. Rukn chose that moment to bow deeply. His father had ordered it, though Rukn resented even the idea. The warrior stared coldly at him and Rukn watched as his eyes flickered around the inside of the tent, taking in every detail. Hulegu had yet to enter the shaded awning. He stood on the threshold glaring in, while his ten thousand continued to make an appalling racket all around them. Dust drifted in wisps through the air, visible in the light of the setting sun. Rukn struggled to remain calm. 'You must be thirsty,",
+              "request_index": 2,
+              "sha256": "1adf2ae38b112d03dbeff9633097212dde93cb224a947e1df46245db5968e1ec",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "65626",
+                  "stream_index": 2
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4080,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4080
+              }
+            },
+            {
+              "decoded_prefix": "1); # # Structure for table \"news_categories\" # DROP TABLE IF EXISTS `news_categories`; CREATE TABLE `news_categories` ( `id` int(11) NOT NULL AUTO_INCREMENT, `title` varchar(255) NOT NULL, `seo_url` varchar(255) NOT NULL, `rank` int(11) NOT NULL, `isActive` int(11) NOT NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8; # #",
+              "request_index": 3,
+              "sha256": "8f5cf524121bc40cc3969790adea6774471be0f84160f47d38b567c3130d60c2",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "68110",
+                  "stream_index": 3
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4080,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4080
+              }
+            },
+            {
+              "decoded_prefix": "Sausage Hall Sausage Hall: home to millionaire Kevan de Vries, grandson of a Dutch immigrant farmer. De Vries has built up a huge farming and food packing empire which extends, via the banana trade, to the West Indies. But sleazy MD, Tony Sentance, manages to persuade de Vries to branch out into the luxury holiday trade. De Vries and wife, Joanna, take the first cruise out to explore the potentially lucrative possibilities. However, back at home, a break-in at Sausage Hall uncovers a truly gruesome historical discovery. And when a young employee of de V",
+              "request_index": 4,
+              "sha256": "f9e75a6575cb7c7353449817f72c3cd3d0a8b53705a87c13559c8739c833b9f4",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "65449",
+                  "stream_index": 5
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4080,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4080
+              }
+            },
+            {
+              "decoded_prefix": "[Graduate School of Business Creation] Aiming to become a \u201ctax accountant x MBA\u201d who can work with managers to create a \u201cfuture vision for a company\u201d \u201cTax Accountant Exam Subject Exemption Briefing\u201d will be held on October 28th (Sat) NSG Group\u2019s Business Creation Graduate University (3-1-46 Yoneyama, Chuo-ku, Niigata City) will be offering a tax accountant exam subject exemption from 10:30 on Saturday, October 28, 2023 for those aiming to pass the tax accountant exam. An information",
+              "request_index": 5,
+              "sha256": "965d51d691c01f163fefbf1aaad1fc493c0caf8facfd1b3731c3f2f3bf58f256",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "1617",
+                  "stream_index": 6
+                },
+                {
+                  "length": "67588",
+                  "stream_index": 7
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4080,
+                "max_identical_block_occurrences": 4,
+                "unique_block_ratio": 0.9921568627450981,
+                "unique_blocks": 4048
+              }
+            },
+            {
+              "decoded_prefix": "_Cover illustrations:_ Front: \u00a9 Terry O'Neill Back: \u00a9 News UK First published as _Roger Moore as James Bond 007_ in 1973 by Pan Books Ltd. This edition published 2018 The History Press The Mill, Brimscombe Port Stroud, Gloucestershire, GL5 2QG www.thehistorypress.co.uk \u00a9 Miramont Investments Ltd, 2018 Live and Let Die \u00a9 1973 Danjaq LLC and United Artists Corporation, All Rights Reserved The right of Roger",
+              "request_index": 6,
+              "sha256": "fd239ce2a16b300369767e938c3fa362b02af48367512903d94bbe9b17512d5b",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "65718",
+                  "stream_index": 8
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4080,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4080
+              }
+            },
+            {
+              "decoded_prefix": "device { //In the next step we associate the GPU memory with the Kernel arguments //my_dev::dev_mem<uint> counts(devContext, 512), countx(devContext, 512); //Memory that should be alloced outside the function: //devMemCounts and devMemCountsx // make sure previous reset has finished. this->devMemCountsx.waitForCopyEvent(); //Kernel configuration parameters setupParams sParam; sParam.jobs = (N / 64) / 480 ; //",
+              "request_index": 7,
+              "sha256": "ae7aee55ff8a6c854849f8e4d003b6a0620b43f371149174170273534ef2b2b4",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "66365",
+                  "stream_index": 9
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4080,
+                "max_identical_block_occurrences": 4,
+                "unique_block_ratio": 0.9850490196078432,
+                "unique_blocks": 4019
+              }
+            }
+          ],
+          "rejected_candidate_count": 1,
+          "rejected_candidates": [
+            {
+              "prospective_request_index": 4,
+              "reason": "unique_block_ratio_below_0.95",
+              "source_documents": [
+                {
+                  "length": "66409",
+                  "stream_index": 4
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4080,
+                "max_identical_block_occurrences": 7,
+                "unique_block_ratio": 0.9475490196078431,
+                "unique_blocks": 3866
+              }
+            }
+          ]
+        },
+        "prompt_length": 65280,
+        "total_timings_seconds": [
+          78.50427006091923,
+          78.54556462401524,
+          78.52718030195683
+        ]
+      }
+    },
+    "8192": {
+      "speed": {
+        "decode_timings_seconds": [
+          9.163057547062635,
+          9.16301559843123,
+          9.160988504998386
+        ],
+        "lod_decode_execution_audit": {
+          "decode_centroid_major_hip_configured": [
+            false
+          ],
+          "decode_centroid_major_hip_executed": [
+            false
+          ],
+          "decode_gqa_direct_fixed_routes_configured": [
+            true
+          ],
+          "decode_gqa_direct_fixed_routes_executed": [
+            true
+          ],
+          "decode_gqa_fixed_mask_configured": [
+            true
+          ],
+          "decode_gqa_fixed_mask_executed": [
+            true
+          ],
+          "decode_gqa_overlap_local_sink_configured": [
+            false
+          ],
+          "decode_gqa_overlap_local_sink_executed": [
+            false
+          ],
+          "decode_gqa_staged_fixed_configured": [
+            false
+          ],
+          "decode_gqa_staged_fixed_executed": [],
+          "decode_gqa_static_leaf_aiter_configured": [
+            false
+          ],
+          "decode_gqa_static_leaf_aiter_executed": [],
+          "decode_gqa_union_aiter_final": [
+            true
+          ],
+          "decode_gqa_union_configured": [
+            true
+          ],
+          "decode_gqa_union_eligible": [
+            true
+          ],
+          "decode_gqa_union_hip_configured": [
+            true
+          ],
+          "decode_gqa_union_hip_executed": [
+            true
+          ],
+          "decode_gqa_union_predicted_mass": [
+            false
+          ],
+          "decode_gqa_union_requested": [
+            true
+          ],
+          "decode_gqa_union_score_only": [
+            true
+          ],
+          "decode_max_open_leaves": [
+            1024
+          ],
+          "decode_open_counts": [
+            8
+          ],
+          "decode_route_cohort": [
+            false
+          ],
+          "effective_decode_route_leaf_limits": [
+            1024
+          ],
+          "gqa_union_centroid_count_max": 48,
+          "gqa_union_centroid_count_mean": 48.0,
+          "gqa_union_effective_segments": [
+            128
+          ],
+          "gqa_union_epoch_max": 765,
+          "gqa_union_exact_token_count_max": 0,
+          "gqa_union_exact_token_count_mean": 0.0,
+          "gqa_union_nonempty_sequences": 512,
+          "gqa_union_runtime_kv_heads": [
+            4
+          ],
+          "gqa_union_runtime_sequence_counts": [
+            8
+          ],
+          "gqa_union_sequence_count": 512,
+          "gqa_union_split_d_reduce": [
+            false
+          ],
+          "gqa_union_token_count_max": 14080,
+          "gqa_union_token_count_mean": 14080.0
+        },
+        "marginal_decode_ms_per_batch_step": 35.93339450365188,
+        "marginal_decode_tokens_per_second": 222.6341293524876,
+        "prefill_prompt_tokens_per_second": 8371.478920212765,
+        "prefill_seconds": 7.58384517300874,
+        "prefill_timings_seconds": [
+          7.58384517300874,
+          7.613834917545319,
+          7.524889388587326
+        ],
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 7936,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London K",
+              "request_index": 0,
+              "sha256": "fa8b99f58641eea02947be27dc08b492efd2dcbdf2f3b85284db40b49eb24d51",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 496,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 496
+              }
+            },
+            {
+              "decoded_prefix": "steam engine had gone by, there were still all the boxcars and flatcars and tank cars to admire, and at last the caboose\u2014this one painted yellow instead of the more usual red. \"Wow!\" Alec's eyes shone. \"I want to make one of those go when I get big.\" \"Maybe you will,\" Mort said. \"It's a good job.\" For all the sense he made to his son, he might as well have started speaking Eskimo. Alec couldn't imagine that being an engineer was work, and often hard work to boot. He would have paid, and paid anything he",
+              "request_index": 1,
+              "sha256": "1e3eab273a91a015ebcf01c2e051dce3b4469b4f8b3086f5325d184a44521087",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "65431",
+                  "stream_index": 1
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 496,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 496
+              }
+            },
+            {
+              "decoded_prefix": "ulegu glance at him. Rukn chose that moment to bow deeply. His father had ordered it, though Rukn resented even the idea. The warrior stared coldly at him and Rukn watched as his eyes flickered around the inside of the tent, taking in every detail. Hulegu had yet to enter the shaded awning. He stood on the threshold glaring in, while his ten thousand continued to make an appalling racket all around them. Dust drifted in wisps through the air, visible in the light of the setting sun. Rukn struggled to remain calm. 'You must be thirsty,",
+              "request_index": 2,
+              "sha256": "bbc8880b01d5472176fa690c88cac83bc24bd2c5ab1865950f5702e1777ea9ad",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "65626",
+                  "stream_index": 2
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 496,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 496
+              }
+            },
+            {
+              "decoded_prefix": "1); # # Structure for table \"news_categories\" # DROP TABLE IF EXISTS `news_categories`; CREATE TABLE `news_categories` ( `id` int(11) NOT NULL AUTO_INCREMENT, `title` varchar(255) NOT NULL, `seo_url` varchar(255) NOT NULL, `rank` int(11) NOT NULL, `isActive` int(11) NOT NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8; # #",
+              "request_index": 3,
+              "sha256": "22defb04b43121b83bd43ab3c51ca2f2f74000522ab99d966ec53029caa5e50f",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "68110",
+                  "stream_index": 3
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 496,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 496
+              }
+            },
+            {
+              "decoded_prefix": "Repo: playpark777/spafac-test ======================= File: app/assets/javascripts/profiles.coffee ======================= <gh_stars>0 $ -> $('.add-identification-attachment').click -> li_count = $(\"ul.list-unstyled.identification-attachments>li\").size() + 1 input = document.createElement('input') input.setAttribute('type', 'file') input.setAttribute('id', \"identification_image\" + li_count) input.setAttribute('name', \"identification[image\" + li_count + \"]\") input.setAttribute('class', 'row",
+              "request_index": 4,
+              "sha256": "a90bf913506b49b2a32abcd44d2372c207c6a3d7a8c4e2fd37fc99f32af4be79",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "66409",
+                  "stream_index": 4
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 496,
+                "max_identical_block_occurrences": 3,
+                "unique_block_ratio": 0.9858870967741935,
+                "unique_blocks": 489
+              }
+            },
+            {
+              "decoded_prefix": "Sausage Hall Sausage Hall: home to millionaire Kevan de Vries, grandson of a Dutch immigrant farmer. De Vries has built up a huge farming and food packing empire which extends, via the banana trade, to the West Indies. But sleazy MD, Tony Sentance, manages to persuade de Vries to branch out into the luxury holiday trade. De Vries and wife, Joanna, take the first cruise out to explore the potentially lucrative possibilities. However, back at home, a break-in at Sausage Hall uncovers a truly gruesome historical discovery. And when a young employee of de V",
+              "request_index": 5,
+              "sha256": "7ed9e5dccd3e6fdfe8301ddcff4a5c83faadba6993b368d9eef29c91ae36fcfb",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "65449",
+                  "stream_index": 5
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 496,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 496
+              }
+            },
+            {
+              "decoded_prefix": "[Graduate School of Business Creation] Aiming to become a \u201ctax accountant x MBA\u201d who can work with managers to create a \u201cfuture vision for a company\u201d \u201cTax Accountant Exam Subject Exemption Briefing\u201d will be held on October 28th (Sat) NSG Group\u2019s Business Creation Graduate University (3-1-46 Yoneyama, Chuo-ku, Niigata City) will be offering a tax accountant exam subject exemption from 10:30 on Saturday, October 28, 2023 for those aiming to pass the tax accountant exam. An information",
+              "request_index": 6,
+              "sha256": "529ddf8468be672916f69e9fac7fa59cbade913036957cd4dffabee5ea7eed7c",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "1617",
+                  "stream_index": 6
+                },
+                {
+                  "length": "67588",
+                  "stream_index": 7
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 496,
+                "max_identical_block_occurrences": 2,
+                "unique_block_ratio": 0.9979838709677419,
+                "unique_blocks": 495
+              }
+            },
+            {
+              "decoded_prefix": "_Cover illustrations:_ Front: \u00a9 Terry O'Neill Back: \u00a9 News UK First published as _Roger Moore as James Bond 007_ in 1973 by Pan Books Ltd. This edition published 2018 The History Press The Mill, Brimscombe Port Stroud, Gloucestershire, GL5 2QG www.thehistorypress.co.uk \u00a9 Miramont Investments Ltd, 2018 Live and Let Die \u00a9 1973 Danjaq LLC and United Artists Corporation, All Rights Reserved The right of Roger",
+              "request_index": 7,
+              "sha256": "d4dc8496dd733af6781cfefea132ac582b2d8bb7838e2b0d86de64a0706ff60d",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "65718",
+                  "stream_index": 8
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 496,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 496
+              }
+            }
+          ],
+          "rejected_candidate_count": 0,
+          "rejected_candidates": []
+        },
+        "prompt_length": 7936,
+        "total_timings_seconds": [
+          16.75317709473893,
+          16.780905670952052,
+          16.687960646115243
+        ]
+      }
+    }
+  },
+  "sample_offset": 0,
+  "samples_per_length": 8,
+  "speed_decode_tokens": 256,
+  "speed_prompt_reserve": 256,
+  "speed_repeats": 3,
+  "speed_use_warm_prefix_cache": false,
+  "tensor_parallel_size": 1
+}

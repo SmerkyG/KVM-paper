@@ -72,6 +72,16 @@ batch size. Set `VLLM_LOD_DECODE_GQA_FIXED_MASK_DIRECT_ROUTES=0` only for an
 old-path control. Direct activation is exact and does not change centroid
 selection.
 
+The fixed-mask scorer reads BF16 centroid means already materialized in the
+page-size-one arena at state-update boundaries. Authoritative state still
+stores sums, but decode no longer repeats a component-wise division for every
+query. Candidate scores and routes are bitwise identical to the former hot-path
+division. At 64K/B1 on Qwen3.5-0.8B this reduced the stable median from 1.984
+to 1.962 ms/step. FP8 mean storage is not enabled: it saved no time at the
+4,096-centroid target and perturbed route candidates. Likewise, cached FP32
+`log(count)` added a load without reducing score time. Details are in
+`artifacts/decode_local_overlap_20260829/README.md`.
+
 `VLLM_LOD_DECODE_ROUTE_COHORT=1` restricts dynamic top-k or mass-cutoff
 routing to centroids in the same small-posting-list cohort used by the static
 variant: an inclusive `max(16, ceil(sqrt(T) / 16))` leaf cap.  This policy
@@ -86,6 +96,30 @@ cutoff denominator. On Qwen3.5-0.8B at 64K, `0.0625` (1/16) retained 64/64
 NIAH-S3 and was useful only in the low-row regime; bounded top-eight remains
 the general default because mass routing can form long-tail unions and did not
 improve the batch-eight result.
+
+`VLLM_LOD_DECODE_GQA_PILOT_Z=1` is the no-top-k threshold-routing experiment.
+During prefill it calibrates each layer and query head from 64 sampled queries,
+retaining the minimum standardized eighth-best centroid score. Decode scores
+64 evenly spaced pilot centroids to estimate the current query's score mean
+and standard deviation, then directly stamps every centroid above the
+calibrated threshold into the fixed mask. It therefore uses the current query
+without a global top-eight reduction or a preceding-token route. Set
+`VLLM_LOD_DECODE_GQA_PILOT_Z_ROUTE_COUNT` to change the calibrated order
+statistic (default 8; 128 was tested for adjacent-T/4 groups), and set
+`VLLM_LOD_DECODE_GQA_PILOT_Z_MARGIN` to a nonnegative standardized-score
+margin. Zero is the fastest measured pilot setting and scored 64/64 on 64K
+NIAH-S3. After fusing its queue reset into the final reduction it measured
+1.998 ms/step at 64K/B1, versus 1.984 ms for current top-eight: removing the
+serial top-k is therefore nearly latency-neutral, but not yet faster on Qwen.
+This option currently requires two-level BF16 GQA-union HIP decode, supports
+both fixed-mask and compact selected-list consumers, and is mutually exclusive
+with predicted-mass routing. The adjacent-T/4/route-128 transfer was negative:
+at 64K/B1 the fixed-list form measured 2.253 ms/step and the compact form 3.537
+ms/step, versus 1.998 ms for ordinary pilot LOD. The compact four-head union
+selected about 11,062 of 15,424 live adjacent groups, so this is not a usable
+N/4 default even though the fixed-list path passed an 8/8 chat-formatted 64K
+NIAH-S3 smoke test; details are in
+`artifacts/fixed_adjacent4_top128_20260828/README.md`.
 
 `VLLM_LOD_DECODE_GQA_STATIC_LEAF_AITER=1` selects the routing-free compact
 variant. At a state update it builds one persistent page-size-one list per KV
@@ -222,6 +256,39 @@ and raw artifact names are in
 
 ### TP1 batch-size and occupancy diagnostic
 
+A fresh cold-prefill batch-one context panel for Qwen3.5-0.8B is recorded in
+`artifacts/batch1_established_20260829/README.md`. With real ProLong prompts and
+16K chunking, full / two-tier / recursive-three-tier prefill at
+8K, 16K, 32K, 64K, and 128K is respectively
+`0.059/0.075/0.068`, `0.153/0.157/0.149`, `0.413/0.338/0.306`,
+`1.285/0.733/0.649`, and `4.421/1.599/1.450` seconds. Matched decode is
+`1.833/1.768/1.698`, `1.936/1.792/1.708`, `2.083/1.839/1.743`,
+`2.331/1.893/1.766`, and `2.840/2.036/1.795` milliseconds per token. Thus the
+primary two-tier prefill crosses over between 16K and 32K, while recursive
+three-tier is at parity by 16K and reaches 3.05x prefill and 1.58x decode
+speedup at 128K. The recent overlap, staged-attention, pilot-threshold,
+FP8-routing, and centroid-major experiments were disabled.
+
+The matched Qwen3.8-27B-FP8 TP1/B1 cold-prefill panel in the same artifact
+finds that two-tier, rather than recursive three-tier, is fastest at every
+measured point. Full / two-tier prefill from 8K through 128K is
+`0.968/0.955`, `2.154/1.968`, `5.231/4.085`, `14.046/8.553`, and
+`42.534/18.083` seconds. Full / two-tier decode is `28.683/28.522`,
+`29.405/28.651`, `30.047/28.668`, `31.404/28.877`, and `34.181/29.251`
+milliseconds. Two-tier is therefore approximately tied at 8K and reaches
+2.35x prefill and 1.17x decode speedup at 128K. Recursive three-tier is close
+in prefill but adds roughly 0.4--0.7 ms of decode overhead on this model.
+
+The matched TP1/B8 panel intentionally uses a 16,384-token aggregate scheduler
+budget across the entire batch. At 8K/16K/32K/64K/128K, full versus two-tier
+prefill is `7.553/7.584`, `17.218/15.926`, `41.812/33.052`,
+`112.544/69.120`, and `341.448/146.699` seconds. Full versus recursive
+three-tier decode is `37.929/35.241`, `41.399/35.276`, `46.049/35.319`,
+`54.956/35.382`, and `71.781/35.542` milliseconds per batch step. Thus
+two-tier reaches 2.33x prefill speedup and three-tier reaches 2.02x decode
+speedup at 128K. The complete combined B1/B8 tables and raw record names are
+in `artifacts/batch1_established_20260829/README.md`.
+
 A synchronized TP1 64K sweep on Qwen3.5-0.8B confirms that per-rank parallelism
 is the limiting variable. Two-tier speedup over full attention rises from
 1.08x / 1.34x / 1.73x to 2.22x at batch 1 / 2 / 4 / 8; recursive three-tier
@@ -305,6 +372,22 @@ Set `VLLM_LOD_ROUTING_GEOMETRY=auto` to use the current automatic
 spherical/coherence-aware policy. Leaving it unset selects the conservative
 `raw` default and reproduces the archived August 25 routing geometry rather
 than the current table.
+
+`VLLM_LOD_ROUTING_POSITIVE_DOT_STATS=1` is a diagnostic-only switch that
+records positive routing-dot density and the number of 64-centroid tiles with
+fewer than `k` positive entries. The extra reductions are not intended for
+timing runs. Setting `VLLM_LOD_ROUTING_CUTOFF_STATS_MIN_STATE` to a positive
+state length additionally simulates periodically reused top-n score cutoffs
+near that state size. `VLLM_LOD_ROUTING_CUTOFF_STATS_ROUTE_COUNT` restricts
+that simulation to the requested routing width. Setting
+`VLLM_LOD_ROUTING_CUTOFF_STATS_NORMALIZATION` accepts `raw`, diagnostic-only
+full-state `lse`, `pilot64_lse`, or `pilot64_z`. The pilot variants normalize
+against 64 evenly sampled centroid scores; `pilot64_z` uses their mean and
+standard deviation. They model a practical one-tile calibration rather than a
+second full coarse scan. The report includes both single-query refresh periods
+and cutoffs derived from the minimum/low quantiles of the preceding
+state-update segment. These diagnostics perform repeated population scans and
+their wall-clock times are invalid as speed measurements.
 
 The optional static 64K speed diagnostic instead adds:
 
@@ -544,8 +627,8 @@ recursive three-tier prefill, where it improves 64K/B8 latency by 5.4%. Set
 `VLLM_LOD_PREFILL_HIERARCHICAL_ROUTE=0` or `1` overrides geometry selection;
 both selectors use the same scores and return the same ordered routes.
 Expert-major BF16 prefill normally radix-sorts route rows by selected centroid.
-The measured D256/GQA4/KV2 two-level geometry instead constructs exact expert
-buckets with a histogram and prefix scatter. On Qwen3.5-0.8B this reduces the
+The measured D256/GQA4/KV2 two-level top-three geometry instead constructs
+exact expert buckets with a histogram and prefix scatter. On Qwen3.5-0.8B this reduces the
 isolated top-three exact-leaf stage by 12.2% at B1 and 8.2% at B8, and reduces
 a matched real-ProLong 64K/B8 prefill from 4.168 to 4.128 seconds (0.96%). It
 does not change selected leaves or attention math and passed 8/8 64K NIAH-S3.
@@ -740,9 +823,9 @@ profiles is therefore the one- versus four-warp prefill leaf-route reduction.
   state mutations are submitted in worker order on the main GPU stream, while
   only sampling-output copies overlap on a separate stream. Consequently the
   large semantic state remains single-buffered and graph addresses stay fixed.
-- Use a 16,384-token `long_prefill_token_threshold` per request. The aggregate
-  `max_num_batched_tokens` should remain `batch_size * 16,384` (131,072 for
-  batch 8); setting the aggregate limit itself to 16,384 serializes the batch.
+- The benchmark panel uses a 16,384-token aggregate scheduler budget across
+  the entire batch. `long_prefill_token_threshold` may remain 16,384, but
+  `max_num_batched_tokens` must also remain 16,384 for this methodology.
 - Two-tier mode protects the sink inside the state, matching the current HF
   implementation. Recursive compatibility mode retains its separate sink
   branch.
@@ -854,6 +937,31 @@ This is a rapid proxy result, not evidence that the historical full 503-example
 INT4 gap is closed. G4 L2 also retained 64/64 Qwen3.5-0.8B NIAH-S3 at 8K,
 batch eight. Detailed results and rejected scale formats are in
 `artifacts/int4_quality_recovery_20260827/README.md`.
+
+The current matched Qwen3.8-27B-FP8 speed panel uses both a 16,384-token
+aggregate scheduler budget and a 16,384-token per-request long-prefill
+threshold. No retained timing uses the rejected 4K per-request cap. At B1,
+two-tier BF16 is the fastest prefill and decode choice from 8K through 128K.
+At B8, full attention narrowly wins 8K prefill, two-tier BF16 wins prefill from
+16K onward, and recursive three-tier BF16 wins decode at every length. At
+64K/B8, two-tier BF16 prefill is 69.120 seconds; recursive BF16/INT4 prefill is
+69.793/76.597 seconds, and recursive BF16/INT4 decode is 35.340/35.751 ms.
+Matched full attention is 112.544 seconds and 54.956 ms.
+
+The INT4 prefill optimization changes neither cache format nor approximation.
+Relative to recursive BF16, INT4 prefill is at most 9.6% slower at B1 and
+10.3% slower at B8; decode remains within 1.4%. Allocated recursive LOD cache
+storage falls from 10.449 GB to 3.985 GB at B1 and from 83.592 GB to 31.881 GB
+at B8 (61.9%) after scale metadata, page summaries, and routing state are
+included. The implementation uses a one-wave, four-group page quantizer,
+grouped cached-prefill requantization, no finalized-cache BF16 fallback, and a
+shared page-mean factorization in leaf QK/PV. Final code retained 64/64
+Qwen3.5-0.8B NIAH-S3. Two-tier INT4 is not reported because the flat two-tier
+cache currently supports BF16 and INT8 storage only. Kernel profiles and
+correctness checks are in
+`artifacts/int4_prefill_optimization_20260829/README.md`; the authoritative
+full/two-tier/three-tier B1/B8 decision tables and raw records are in
+`artifacts/int4_context_panel_20260829/README.md`.
 
 Set `VLLM_LOD_QUANT_GROUP_SIZE`, `VLLM_LOD_LEAF_QUANT_SCALE_MODE`, and
 `VLLM_LOD_LEAF_APPEND_QUANT_SCALE_MODE` explicitly to override the precision

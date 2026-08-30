@@ -87,10 +87,15 @@ def _prefill_direct_expert_bucket_geometry(
     head_dim: int,
     gqa: int,
     kv_heads: int,
+    open_count: int,
 ) -> bool:
     """Whether measured route density favors histogram/scatter dispatch."""
 
-    return levels == 2 and (head_dim, gqa, kv_heads) == (256, 4, 2)
+    return (
+        levels == 2
+        and open_count == 3
+        and (head_dim, gqa, kv_heads) == (256, 4, 2)
+    )
 
 
 def _recursive_prefill_all_leaves_geometry(
@@ -213,6 +218,11 @@ class VLLMLayerLODPool:
             max_routes=max(
                 settings.open_count,
                 settings.prefill_open_count or 0,
+                (
+                    settings.decode_gqa_pilot_z_route_count
+                    if settings.decode_gqa_pilot_z
+                    else 0
+                ),
                 8,
             ),
             leaf_dtype=self.dtype,
@@ -264,6 +274,18 @@ class VLLMLayerLODPool:
             key_value_heads=self.kv_heads,
             scale=float(layer.impl.scale),
             default_open_count=settings.open_count,
+        )
+        self.engine.routing_positive_dot_stats = (
+            settings.routing_positive_dot_stats
+        )
+        self.engine.routing_cutoff_stats_min_state = (
+            settings.routing_cutoff_stats_min_state
+        )
+        self.engine.routing_cutoff_stats_route_count = (
+            settings.routing_cutoff_stats_route_count
+        )
+        self.engine.routing_cutoff_stats_normalization = (
+            settings.routing_cutoff_stats_normalization
         )
         # Decode auto-dispatch is based on the production fixed-list
         # page-size-one path, not the slower portable flat leaf path. Muse was
@@ -406,7 +428,15 @@ class VLLMLayerLODPool:
                 settings.kv_bits == 0
                 and settings.leaf_layout == "expert"
                 and _prefill_direct_expert_bucket_geometry(
-                    settings.levels, self.head_dim, gqa, self.kv_heads
+                    settings.levels,
+                    self.head_dim,
+                    gqa,
+                    self.kv_heads,
+                    (
+                        settings.prefill_open_count
+                        if settings.prefill_open_count is not None
+                        else min(3, settings.open_count)
+                    ),
                 )
             )
             if settings.prefill_direct_expert_buckets is None
@@ -422,6 +452,7 @@ class VLLMLayerLODPool:
             # prefill. The recursive branch still owns and updates the page
             # directory; only its prefill exact-attention consumer changes.
             self.engine.leaf_layout = settings.leaf_layout
+            self.engine.leaf_union_query_tile = settings.leaf_union_query_tile
             self.engine.leaf_block_m = settings.leaf_block_m
             self.engine.leaf_block_n = settings.leaf_block_n
             self.engine.leaf_num_warps = settings.leaf_num_warps
@@ -452,6 +483,7 @@ class VLLMLayerLODPool:
             )
             self.engine.split_prefill_local_attention = True
             self.engine.leaf_layout = settings.leaf_layout
+            self.engine.leaf_union_query_tile = settings.leaf_union_query_tile
             self.engine.leaf_block_m = settings.leaf_block_m
             self.engine.leaf_block_n = settings.leaf_block_n
             self.engine.leaf_num_warps = (
@@ -493,6 +525,13 @@ class VLLMLayerLODPool:
             )
             self.engine.decode_gqa_union_predicted_mass = (
                 settings.decode_gqa_predicted_mass
+            )
+            self.engine.decode_gqa_union_pilot_z = settings.decode_gqa_pilot_z
+            self.engine.decode_gqa_union_pilot_z_route_count = (
+                settings.decode_gqa_pilot_z_route_count
+            )
+            self.engine.decode_gqa_union_pilot_z_margin = (
+                settings.decode_gqa_pilot_z_margin
             )
             self.engine.decode_gqa_cooperative_route_splits = (
                 settings.decode_gqa_route_splits
@@ -954,6 +993,13 @@ class VLLMLayerLODPool:
                                 device=self.device,
                             )
                         )
+                    if self.settings.decode_gqa_pilot_z:
+                        state["page_cache"]["decode_pilot_z_bound"] = torch.full(
+                            (r, self.query_heads),
+                            float("inf"),
+                            dtype=torch.float32,
+                            device=self.device,
+                        )
                 if int8_storage:
                     state["page_cache"].update(
                         page_k_token_scales=torch.zeros(
@@ -1241,6 +1287,8 @@ class VLLMLayerLODPool:
             page["page_quantized_counts"][slot].zero_()
         if "decode_previous_total_lse" in page:
             page["decode_previous_total_lse"][slot].fill_(float("inf"))
+        if "decode_pilot_z_bound" in page:
+            page["decode_pilot_z_bound"][slot].fill_(float("inf"))
 
     def _reset_range(self, start: int, stop: int) -> None:
         """Reset one contiguous row range with one launch per cache field."""
@@ -1274,6 +1322,8 @@ class VLLMLayerLODPool:
             page["page_quantized_counts"][start:stop].zero_()
         if "decode_previous_total_lse" in page:
             page["decode_previous_total_lse"][start:stop].fill_(float("inf"))
+        if "decode_pilot_z_bound" in page:
+            page["decode_pilot_z_bound"][start:stop].fill_(float("inf"))
 
     def _snapshot_static_cohort_eviction(self, slot: int) -> None:
         """Preserve the final monotone-cohort working set before row reuse."""
@@ -1471,6 +1521,44 @@ class VLLMLayerLODPool:
             indices,
             source[slices],
         )
+
+    def _persist_decode_pilot_z_bound(
+        self,
+        slots: tuple[int, ...],
+        *,
+        source_slots: tuple[int, ...] | None = None,
+    ) -> None:
+        """Install the latest prefill calibration into authoritative rows."""
+
+        if not self.settings.decode_gqa_pilot_z:
+            return
+        destination = self.state["page_cache"].get("decode_pilot_z_bound")
+        source = getattr(self.engine, "_lod_decode_pilot_z_bound", None)
+        if not isinstance(destination, torch.Tensor) or not isinstance(
+            source, torch.Tensor
+        ):
+            return
+        if source.ndim != 2 or int(source.size(1)) != self.query_heads:
+            raise ValueError("calibrated pilot-z bounds have the wrong shape")
+        if source_slots is None:
+            source_slots = tuple(range(len(slots)))
+        if len(source_slots) != len(slots):
+            raise ValueError("pilot-z source and destination rows do not match")
+        if any(
+            not 0 <= source_slot < int(source.size(0))
+            for source_slot in source_slots
+        ):
+            # Mixed prefill/decode scheduler steps may finish several
+            # independent catch-up groups in one model invocation.  The
+            # engine scratch retains only the most recently evaluated group's
+            # calibration, while each group's page-cache tensor was already
+            # copied by the caller.  There is no valid row mapping from stale
+            # scratch in that case.
+            return
+        for source_slot, destination_slot in zip(
+            source_slots, slots, strict=True
+        ):
+            destination[destination_slot].copy_(source[source_slot])
 
     def _refresh_unified_page1_coarse(self, slots: tuple[int, ...]) -> None:
         """Materialize centroid means in the persistent AITER K/V arena.
@@ -1787,6 +1875,7 @@ class VLLMLayerLODPool:
                     destination_slot=destination_slot,
                 )
         destination_page["overflow_flag"].logical_or_(source_page["overflow_flag"])
+        self._persist_decode_pilot_z_bound(slots)
         recent_len = int(source["recent_len"])
         if ascending:
             self.local_lens[start:stop].fill_(recent_len)
@@ -1880,6 +1969,9 @@ class VLLMLayerLODPool:
         destination_page["overflow_flag"].logical_or_(
             source_page["overflow_flag"]
         )
+        self._persist_decode_pilot_z_bound(
+            (slot,), source_slots=(source_slot,)
+        )
         recent_len = int(source["recent_len"])
         self.local_lens[slot].fill_(recent_len)
         self.metadata[slot].update(
@@ -1947,6 +2039,7 @@ class VLLMLayerLODPool:
                     self._copy_row(
                         destination, value, slot, source_slot=source_slot
                     )
+        self._persist_decode_pilot_z_bound(slots)
         recent_len = int(source["recent_len"])
         for slot in slots:
             self.local_lens[slot].fill_(recent_len)
@@ -2463,6 +2556,16 @@ class VLLMLayerLODPool:
                     if self.settings.decode_gqa_union
                     else False
                 ),
+                gqa_union_pilot_z=(
+                    self.settings.decode_gqa_pilot_z
+                    if self.settings.decode_gqa_union
+                    else False
+                ),
+                gqa_union_pilot_z_route_count=(
+                    self.settings.decode_gqa_pilot_z_route_count
+                    if self.settings.decode_gqa_union
+                    else 8
+                ),
                 gqa_union_kv_heads=(
                     self.kv_heads
                     if self.settings.decode_gqa_union
@@ -2498,6 +2601,10 @@ class VLLMLayerLODPool:
                 ),
                 gqa_union_fixed_mask=bool(
                     self.settings.decode_gqa_fixed_mask_aiter
+                    and self.settings.decode_gqa_union
+                ),
+                gqa_union_overlap_local_sink=bool(
+                    self.settings.decode_gqa_overlap_local_sink
                     and self.settings.decode_gqa_union
                 ),
                 gqa_union_static_cap_page1=bool(
@@ -2551,7 +2658,11 @@ class VLLMLayerLODPool:
             buffers = {
                 name: (
                     tensor[:rows]
-                    if tensor.ndim and int(tensor.size(0)) == self.max_requests
+                    if (
+                        name != "route_pilot_z_thresholds"
+                        and tensor.ndim
+                        and int(tensor.size(0)) == self.max_requests
+                    )
                     else tensor
                 )
                 for name, tensor in storage.items()
@@ -2721,12 +2832,19 @@ class VLLMLayerLODPool:
             gqa_union_predicted_mass=bool(
                 self.settings.decode_gqa_predicted_mass
             ),
+            gqa_union_pilot_z=bool(self.settings.decode_gqa_pilot_z),
+            gqa_union_pilot_z_margin=float(
+                self.settings.decode_gqa_pilot_z_margin
+            ),
             gqa_union_hip=bool(self.settings.decode_gqa_union_hip),
             gqa_union_staged_fixed_aiter=bool(
                 self.settings.decode_gqa_staged_fixed_aiter
             ),
             gqa_union_fixed_mask_aiter=bool(
                 self.settings.decode_gqa_fixed_mask_aiter
+            ),
+            gqa_union_overlap_local_sink=bool(
+                self.settings.decode_gqa_overlap_local_sink
             ),
             gqa_union_fixed_mask_tile_size=int(
                 self.settings.decode_gqa_fixed_mask_block_n
@@ -2775,6 +2893,7 @@ class VLLMLayerLODPool:
             gqa_union_previous_total_lse=page.get(
                 "decode_previous_total_lse"
             ),
+            gqa_union_pilot_z_bound=page.get("decode_pilot_z_bound"),
             gqa_union_fixed_indices=page.get(
                 "unified_page1_fixed_indices"
             ),

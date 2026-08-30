@@ -1,0 +1,374 @@
+{
+  "async_scheduling_requested": false,
+  "attention_backend": null,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 219152384000,
+    "device_used_bytes_before_reclaim": 219594883072,
+    "external_lod_layers": 0,
+    "external_lod_layers_with_native_cache": 0,
+    "external_lod_native_cache_bytes": 0,
+    "lod_cache_bytes": 0,
+    "lod_decode_scratch_bytes": 0,
+    "native_cache_bytes": 215366762496,
+    "torch_allocated_bytes": 217412877824,
+    "torch_reclaimable_cached_bytes": 442499072,
+    "torch_reserved_bytes_after_reclaim": 217462079488,
+    "torch_reserved_bytes_before_reclaim": 217904578560
+  },
+  "batch_size": 1,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "decode_interval_tokens": 0,
+  "decode_timings_seconds": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "decode_tokens": 1,
+  "enforce_eager": false,
+  "full_attention_dispatch": {
+    "records": [
+      {
+        "attention_callable": "vllm.v1.attention.ops.triton_unified_attention.unified_attention",
+        "head_dim": 256,
+        "implementation_class": "vllm.v1.attention.backends.rocm_attn.RocmAttentionImpl",
+        "kv_cache_dtype": "auto",
+        "kv_group_size": 4,
+        "kv_heads": 2,
+        "layers": 6,
+        "query_heads": 8,
+        "sliding_window": [
+          -1,
+          -1
+        ]
+      }
+    ],
+    "schema_version": 1
+  },
+  "jit_monitor_verbose": false,
+  "length": 131072,
+  "lengths": [
+    131072
+  ],
+  "load_format": "auto",
+  "lod_decode_block_n": null,
+  "lod_decode_final_reduce_num_warps": null,
+  "lod_decode_num_warps": null,
+  "lod_decode_route_group_size": null,
+  "lod_decode_route_num_warps": null,
+  "lod_decode_route_reduce_num_warps": null,
+  "lod_decode_use_dot": null,
+  "lod_direct_prefill_route": false,
+  "lod_leaf_num_warps": null,
+  "lod_prefill_chunk_len": null,
+  "lod_prefill_state_update_len": null,
+  "lod_recursive_page_block_n": null,
+  "lod_recursive_state_route_backend": null,
+  "long_prefill_token_threshold": 4096,
+  "marginal_decode_ms_per_batch_step": null,
+  "marginal_decode_ms_per_token": null,
+  "marginal_decode_tokens_per_second": null,
+  "max_num_batched_tokens": 16384,
+  "mode": "full",
+  "num_gpu_blocks_override": null,
+  "output_mismatch_runs": 0,
+  "prefill_plus_decode_seconds": 8.491148001048714,
+  "prefill_prompt_tokens_per_second": 15449.503510084676,
+  "prefill_seconds": 8.483897227793932,
+  "prefill_timings_seconds": [
+    8.483897227793932,
+    8.483707352075726,
+    8.490807346999645
+  ],
+  "prefix_caching_requested": false,
+  "prompt_metadata": {
+    "all_prompt_hashes_unique": true,
+    "construction": "distinct shuffled documents, concatenated without repetition",
+    "dataset": "Seerkfang/prolong-64k-512-new",
+    "prompt_length": 131072,
+    "prompts": [
+      {
+        "decoded_prefix": "We have many premium term papers and essays on oil and gas conservation and its relevances in daily life we also have a wide variety of research papers and book reports available to you for free you can browse our collection of term papers or use our search engine oil and gas conservation and its relevances in. Get an answer for 'essay: role of youth in promoting oil conservationwrite an essay on the role of youth in promoting oil conservation' and find homework help for other perhaps two years ago, a young man modified his vw bug engine to use the grease and oil from the school cafeteria as fuel, thus conserving eneergy. The summer fruits",
+        "request_index": 0,
+        "sha256": "4071e9517161aa72ce5433f9a8bf9f242f4c091b91c541329aa30d8508470f82",
+        "source_document_count": 64,
+        "source_documents": [
+          {
+            "length": "743",
+            "stream_index": 0
+          },
+          {
+            "length": "835",
+            "stream_index": 1
+          },
+          {
+            "length": "572",
+            "stream_index": 2
+          },
+          {
+            "length": "734",
+            "stream_index": 3
+          },
+          {
+            "length": "1213",
+            "stream_index": 4
+          },
+          {
+            "length": "899",
+            "stream_index": 5
+          },
+          {
+            "length": "696",
+            "stream_index": 6
+          },
+          {
+            "length": "1188",
+            "stream_index": 7
+          },
+          {
+            "length": "1090",
+            "stream_index": 8
+          },
+          {
+            "length": "1554",
+            "stream_index": 9
+          },
+          {
+            "length": "1207",
+            "stream_index": 10
+          },
+          {
+            "length": "919",
+            "stream_index": 11
+          },
+          {
+            "length": "1316",
+            "stream_index": 12
+          },
+          {
+            "length": "600",
+            "stream_index": 13
+          },
+          {
+            "length": "717",
+            "stream_index": 14
+          },
+          {
+            "length": "905",
+            "stream_index": 15
+          },
+          {
+            "length": "1195",
+            "stream_index": 16
+          },
+          {
+            "length": "570",
+            "stream_index": 17
+          },
+          {
+            "length": "1183",
+            "stream_index": 18
+          },
+          {
+            "length": "1479",
+            "stream_index": 19
+          },
+          {
+            "length": "990",
+            "stream_index": 20
+          },
+          {
+            "length": "1027",
+            "stream_index": 21
+          },
+          {
+            "length": "527",
+            "stream_index": 22
+          },
+          {
+            "length": "841",
+            "stream_index": 23
+          },
+          {
+            "length": "1962",
+            "stream_index": 24
+          },
+          {
+            "length": "559",
+            "stream_index": 25
+          },
+          {
+            "length": "1039",
+            "stream_index": 26
+          },
+          {
+            "length": "1617",
+            "stream_index": 27
+          },
+          {
+            "length": "1661",
+            "stream_index": 28
+          },
+          {
+            "length": "45458",
+            "stream_index": 29
+          },
+          {
+            "length": "2728",
+            "stream_index": 30
+          },
+          {
+            "length": "900",
+            "stream_index": 31
+          },
+          {
+            "length": "1486",
+            "stream_index": 32
+          },
+          {
+            "length": "1732",
+            "stream_index": 33
+          },
+          {
+            "length": "669",
+            "stream_index": 34
+          },
+          {
+            "length": "2197",
+            "stream_index": 35
+          },
+          {
+            "length": "781",
+            "stream_index": 36
+          },
+          {
+            "length": "1096",
+            "stream_index": 37
+          },
+          {
+            "length": "725",
+            "stream_index": 38
+          },
+          {
+            "length": "677",
+            "stream_index": 39
+          },
+          {
+            "length": "1305",
+            "stream_index": 40
+          },
+          {
+            "length": "5036",
+            "stream_index": 41
+          },
+          {
+            "length": "1281",
+            "stream_index": 42
+          },
+          {
+            "length": "556",
+            "stream_index": 43
+          },
+          {
+            "length": "3329",
+            "stream_index": 44
+          },
+          {
+            "length": "1601",
+            "stream_index": 45
+          },
+          {
+            "length": "1283",
+            "stream_index": 46
+          },
+          {
+            "length": "2712",
+            "stream_index": 47
+          },
+          {
+            "length": "656",
+            "stream_index": 48
+          },
+          {
+            "length": "601",
+            "stream_index": 49
+          },
+          {
+            "length": "932",
+            "stream_index": 50
+          },
+          {
+            "length": "917",
+            "stream_index": 51
+          },
+          {
+            "length": "1980",
+            "stream_index": 52
+          },
+          {
+            "length": "708",
+            "stream_index": 53
+          },
+          {
+            "length": "1086",
+            "stream_index": 54
+          },
+          {
+            "length": "642",
+            "stream_index": 55
+          },
+          {
+            "length": "1424",
+            "stream_index": 56
+          },
+          {
+            "length": "1101",
+            "stream_index": 57
+          },
+          {
+            "length": "529",
+            "stream_index": 58
+          },
+          {
+            "length": "1038",
+            "stream_index": 59
+          },
+          {
+            "length": "3878",
+            "stream_index": 60
+          },
+          {
+            "length": "687",
+            "stream_index": 61
+          },
+          {
+            "length": "774",
+            "stream_index": 62
+          },
+          {
+            "length": "18226",
+            "stream_index": 63
+          }
+        ],
+        "token_blocks": {
+          "block_size": 16,
+          "blocks": 8192,
+          "max_identical_block_occurrences": 2,
+          "unique_block_ratio": 0.999755859375,
+          "unique_blocks": 8190
+        }
+      }
+    ],
+    "rejected_candidate_count": 0,
+    "rejected_candidates": []
+  },
+  "prompt_source": "prolong",
+  "prompt_tokens": 131072,
+  "repeats": 3,
+  "token_ids_sha256": "c22a5ff2d8bdae4a44ee3503aaeadde7dda76c30d9035ffb81ebc7552e1e4423",
+  "torch_profile_dir": null,
+  "total_timings_seconds": [
+    8.491148001048714,
+    8.489205627702177,
+    8.497368858195841
+  ]
+}

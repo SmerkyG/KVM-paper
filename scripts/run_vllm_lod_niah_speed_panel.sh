@@ -49,7 +49,7 @@ args=(
   --speed-prompt-reserve "$speed_prompt_reserve"
   --speed-repeats "$speed_repeats"
   --max-num-batched-tokens "${VLLM_LOD_PANEL_MAX_BATCHED_TOKENS:-16384}"
-  --long-prefill-token-threshold "${VLLM_LOD_PANEL_LONG_PREFILL_THRESHOLD:-4096}"
+  --long-prefill-token-threshold "${VLLM_LOD_PANEL_LONG_PREFILL_THRESHOLD:-16384}"
   --gpu-memory-utilization "${VLLM_LOD_PANEL_GPU_MEMORY_UTILIZATION:-0.8}"
   --tensor-parallel-size "$tensor_parallel_size"
   --output "$output"
@@ -138,7 +138,7 @@ if [[ "$mode" == lod ]]; then
     VLLM_PLUGINS=lod_attention
     VLLM_LOD_POOL_SIZE="${VLLM_LOD_PANEL_POOL_SIZE:-$batch_size}"
     VLLM_LOD_LEVELS="${VLLM_LOD_PANEL_LEVELS:-2}"
-    VLLM_LOD_KV_BITS=0
+    VLLM_LOD_KV_BITS="${VLLM_LOD_PANEL_KV_BITS:-0}"
     VLLM_LOD_MAX_CONTEXT="${VLLM_LOD_PANEL_MAX_CONTEXT:-131200}"
     VLLM_LOD_STATE_FACTOR=16
     VLLM_LOD_DENSE_LEAF_STORAGE=1

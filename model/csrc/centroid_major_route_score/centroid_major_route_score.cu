@@ -76,6 +76,7 @@ struct FixedPrepareArguments {
     int mask_capacity;
     int tile_size;
     bool include_new;
+    bool separate_local_sink;
 };
 
 __device__ __forceinline__ float bf16_bits_to_float(uint16_t bits) {
@@ -163,7 +164,8 @@ __global__ __launch_bounds__(kThreads) void centroid_major_route_score_kernel(
         if (metadata_index < fixed.local_limit) {
             fixed.active_mask[
                 static_cast<int64_t>(sequence) * fixed.mask_stride
-                + metadata_index] = metadata_index < active_local;
+                + metadata_index] = !fixed.separate_local_sink
+                && metadata_index < active_local;
         }
         if (metadata_index < state_capacity) {
             fixed.active_mask[
@@ -175,14 +177,17 @@ __global__ __launch_bounds__(kThreads) void centroid_major_route_score_kernel(
         if (metadata_index < prefix_blocks) {
             fixed.active_blocks[
                 static_cast<int64_t>(sequence) * fixed.block_stride
-                + metadata_index] = 1;
+                + metadata_index] = !fixed.separate_local_sink
+                || (metadata_index * fixed.tile_size + fixed.tile_size
+                    > fixed.local_limit + fixed.sink_len);
         }
 
         if (group == 0) {
             if (tid < fixed.sink_len) {
                 fixed.active_mask[
                     static_cast<int64_t>(sequence) * fixed.mask_stride
-                    + fixed.local_limit + tid] = 1;
+                    + fixed.local_limit + tid] =
+                    !fixed.separate_local_sink;
             }
             if (tid == 0) {
                 const int fixed_length = fixed.fixed_lengths[physical_sequence];
@@ -192,7 +197,8 @@ __global__ __launch_bounds__(kThreads) void centroid_major_route_score_kernel(
                     *fixed.execution_marker = 2;
                 }
             }
-            if (fixed.include_new && tid < kHeadDim) {
+            if (fixed.include_new && !fixed.separate_local_sink
+                && tid < kHeadDim) {
                 const int64_t physical_local = fixed.local_offset
                     + static_cast<int64_t>(physical_sequence)
                         * fixed.local_capacity
@@ -425,7 +431,8 @@ centroid_major_gqa6_route_score_kernel(
         if (metadata_index < fixed.local_limit) {
             fixed.active_mask[
                 static_cast<int64_t>(sequence) * fixed.mask_stride
-                + metadata_index] = metadata_index < active_local;
+                + metadata_index] = !fixed.separate_local_sink
+                && metadata_index < active_local;
         }
         if (metadata_index < state_capacity) {
             fixed.active_mask[
@@ -437,14 +444,17 @@ centroid_major_gqa6_route_score_kernel(
         if (metadata_index < prefix_blocks) {
             fixed.active_blocks[
                 static_cast<int64_t>(sequence) * fixed.block_stride
-                + metadata_index] = 1;
+                + metadata_index] = !fixed.separate_local_sink
+                || (metadata_index * fixed.tile_size + fixed.tile_size
+                    > fixed.local_limit + fixed.sink_len);
         }
 
         if (group == 0) {
             if (tid < fixed.sink_len) {
                 fixed.active_mask[
                     static_cast<int64_t>(sequence) * fixed.mask_stride
-                    + fixed.local_limit + tid] = 1;
+                    + fixed.local_limit + tid] =
+                    !fixed.separate_local_sink;
             }
             if (tid == 0) {
                 const int fixed_length = fixed.fixed_lengths[physical_sequence];
@@ -454,7 +464,8 @@ centroid_major_gqa6_route_score_kernel(
                     *fixed.execution_marker = 2;
                 }
             }
-            if (fixed.include_new && tid < kHeadDim) {
+            if (fixed.include_new && !fixed.separate_local_sink
+                && tid < kHeadDim) {
                 const int64_t physical_local = fixed.local_offset
                     + static_cast<int64_t>(physical_sequence)
                         * fixed.local_capacity
@@ -1052,6 +1063,7 @@ extern "C" int launch_centroid_major_route_score_fixed_prepare(
     int mask_capacity,
     int tile_size,
     int include_new,
+    int separate_local_sink,
     float scale,
     void* stream) {
     const bool gqa4 = kv_heads > 0 && query_heads == kv_heads * kGqaHeads;
@@ -1098,6 +1110,7 @@ extern "C" int launch_centroid_major_route_score_fixed_prepare(
         mask_capacity,
         tile_size,
         include_new != 0,
+        separate_local_sink != 0,
     };
     const dim3 grid(
         static_cast<unsigned int>(batch * kv_heads),

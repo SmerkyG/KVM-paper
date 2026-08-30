@@ -2508,7 +2508,8 @@ def _route_logits_topk_coarse_attention_kernel(
         route_valid = slot >= PROTECTED_LEN
         if MAX_LEAF_TOKENS:
             remaining_scores = tl.where(
-                route_valid[None, :] & (count[None, :] <= MAX_LEAF_TOKENS),
+                route_valid[None, :]
+                & (count[None, :] <= MAX_LEAF_TOKENS),
                 route_scores,
                 -float("inf"),
             )
@@ -2597,7 +2598,11 @@ def _route_logits_topk_coarse_attention_kernel(
         top_indices = (4294967295 - inverse_slot).to(tl.int32)
     # Routing may use a different count prior, but removing the selected
     # centroids from coarse attention must always use the true mass score.
-    selected_valid = query_valid[:, None] & (top_indices < state_len)
+    selected_valid = (
+        query_valid[:, None]
+        & (top_indices >= 0)
+        & (top_indices < state_len)
+    )
     selected_counts = tl.load(
         counts
         + batch * COUNT_BATCH_STRIDE

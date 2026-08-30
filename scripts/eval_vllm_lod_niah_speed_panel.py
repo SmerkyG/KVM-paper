@@ -69,7 +69,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--disable-thinking", action="store_true")
     parser.add_argument("--max-num-batched-tokens", type=int, default=16384)
-    parser.add_argument("--long-prefill-token-threshold", type=int, default=4096)
+    parser.add_argument("--long-prefill-token-threshold", type=int, default=16384)
     parser.add_argument("--gpu-memory-utilization", type=float, default=0.8)
     parser.add_argument("--tensor-parallel-size", type=int, default=1)
     parser.add_argument(
@@ -503,6 +503,8 @@ def evaluate_speed(args, tokenizer, llm, length: int) -> dict:
                 "decode_gqa_staged_fixed_executed",
                 "decode_gqa_fixed_mask_configured",
                 "decode_gqa_fixed_mask_executed",
+                "decode_gqa_overlap_local_sink_configured",
+                "decode_gqa_overlap_local_sink_executed",
                 "decode_gqa_direct_fixed_routes_configured",
                 "decode_gqa_direct_fixed_routes_executed",
                 "gqa_union_effective_segments",
@@ -561,6 +563,16 @@ def evaluate_speed(args, tokenizer, llm, length: int) -> dict:
             raise RuntimeError(
                 "the measured vLLM decode did not execute the configured "
                 "fixed-list masked AITER path"
+            )
+        if (
+            execution_audit["decode_gqa_overlap_local_sink_configured"]
+            == [True]
+            and execution_audit["decode_gqa_overlap_local_sink_executed"]
+            != [True]
+        ):
+            raise RuntimeError(
+                "the measured vLLM decode did not execute the configured "
+                "local/sink overlap path"
             )
         if (
             execution_audit["decode_gqa_static_leaf_aiter_configured"] == [True]
@@ -649,9 +661,14 @@ def main() -> None:
         max_length + args.max_new_tokens + 16,
         max_length - args.speed_prompt_reserve + args.speed_decode_tokens + 16,
     )
+    # Keep the scheduler's aggregate token budget independent of the
+    # long-prefill classification threshold.  In particular, B1 with a 4K
+    # long-prefill threshold must still be able to use the requested 16K
+    # aggregate chunk budget.  Coupling these settings silently changed B1
+    # panels to 4K chunks while their B8 counterparts retained 16K.
     max_num_batched_tokens = min(
         args.max_num_batched_tokens,
-        args.batch_size * min(max_length, args.long_prefill_token_threshold),
+        args.batch_size * max_length,
     )
     long_prefill_token_threshold = min(
         args.long_prefill_token_threshold, max_model_len

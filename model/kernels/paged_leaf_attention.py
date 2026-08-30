@@ -17,6 +17,54 @@ import triton
 import triton.language as tl
 
 
+def _virtual_page_quant_num_warps(
+    *,
+    quant_bits: int,
+    quant_group_size: int,
+) -> int:
+    """Choose a sensible wave count for the very small page quantizer rows.
+
+    INT4 with four-channel groups reduces only 64 values (one 16-token page)
+    per program.  Four waves left most lanes idle and sharply reduced the
+    number of concurrently resident page/group programs on gfx942.  Keep an
+    environment override for controlled kernel sweeps while defaulting that
+    common layout to a single wave.
+    """
+    configured = os.getenv("VLLM_LOD_INT4_QUANT_NUM_WARPS")
+    if configured is not None:
+        num_warps = int(configured)
+        if num_warps not in (1, 2, 4, 8):
+            raise ValueError(
+                "VLLM_LOD_INT4_QUANT_NUM_WARPS must be 1, 2, 4, or 8"
+            )
+        return num_warps
+    if quant_bits == 4 and quant_group_size <= 4:
+        return 1
+    return 4
+
+
+def _virtual_page_quant_groups_per_program(
+    *,
+    quant_bits: int,
+    quant_group_size: int,
+    page_size: int,
+    quant_token_group_size: int,
+) -> int:
+    """Return the grouped INT4 quantizer width, with an override for sweeps."""
+    configured = int(os.getenv("VLLM_LOD_INT4_QUANT_GROUPS_PER_PROGRAM", "4"))
+    if configured not in (1, 2, 4, 8):
+        raise ValueError(
+            "VLLM_LOD_INT4_QUANT_GROUPS_PER_PROGRAM must be 1, 2, 4, or 8"
+        )
+    specialized = (
+        quant_bits == 4
+        and quant_group_size == 4
+        and page_size == 16
+        and quant_token_group_size == 16
+    )
+    return configured if specialized else 1
+
+
 @triton.jit
 def _page_hash_index(key, HASH_CAPACITY: tl.constexpr):
     value = key.to(tl.uint32)
@@ -3056,6 +3104,292 @@ def _quantize_all_virtual_pages_kernel(
 
 
 @triton.jit
+def _quantize_virtual_page_tensor_grouped_int4(
+    source,
+    page_sum,
+    destination,
+    scales,
+    leaf_index,
+    valid_token,
+    refresh,
+    page_count,
+    batch,
+    kv_head,
+    kv_row,
+    page_id,
+    group_begin,
+    PAGE_CAPACITY: tl.constexpr,
+    DIMENSION_SIZE: tl.constexpr,
+    GROUPS_PER_PROGRAM: tl.constexpr,
+    LEAF_CAPACITY: tl.constexpr,
+    SOURCE_BATCH_STRIDE: tl.constexpr,
+    SOURCE_HEAD_STRIDE: tl.constexpr,
+    SOURCE_TOKEN_STRIDE: tl.constexpr,
+    OPTIMIZE_SCALE: tl.constexpr,
+):
+    """Quantize several four-channel, page-wide INT4 groups together."""
+    group_lane = tl.arange(0, GROUPS_PER_PROGRAM)
+    pair_lane = tl.arange(0, 2)
+    groups = group_begin + group_lane
+    dimensions = groups[:, None] * 4 + pair_lane[None, :] * 2
+    group_valid = groups < DIMENSION_SIZE // 4
+    even_dimension = dimensions
+    odd_dimension = dimensions + 1
+    valid_even = (
+        valid_token[:, None, None]
+        & group_valid[None, :, None]
+        & (even_dimension[None, :, :] < DIMENSION_SIZE)
+    )
+    valid_odd = valid_even & (odd_dimension[None, :, :] < DIMENSION_SIZE)
+    source_base = (
+        source
+        + batch * SOURCE_BATCH_STRIDE
+        + kv_head * SOURCE_HEAD_STRIDE
+        + leaf_index[:, None, None] * SOURCE_TOKEN_STRIDE
+    )
+    even = tl.load(
+        source_base + even_dimension[None, :, :],
+        mask=valid_even,
+        other=0.0,
+    ).to(tl.float32)
+    odd = tl.load(
+        source_base + odd_dimension[None, :, :],
+        mask=valid_odd,
+        other=0.0,
+    ).to(tl.float32)
+    sum_base = page_sum + (kv_row * PAGE_CAPACITY + page_id) * DIMENSION_SIZE
+    inverse_count = 1.0 / tl.maximum(page_count.to(tl.float32), 1.0)
+    even_anchor = (
+        tl.load(
+            sum_base + even_dimension,
+            mask=refresh & group_valid[:, None],
+            other=0.0,
+        ).to(tl.float32)
+        * inverse_count
+    )
+    odd_anchor = (
+        tl.load(
+            sum_base + odd_dimension,
+            mask=refresh & group_valid[:, None],
+            other=0.0,
+        ).to(tl.float32)
+        * inverse_count
+    )
+    even_residual = even - even_anchor[None, :, :]
+    odd_residual = odd - odd_anchor[None, :, :]
+    even_max = tl.max(
+        tl.max(tl.where(valid_even, tl.abs(even_residual), 0.0), axis=2),
+        axis=0,
+    )
+    odd_max = tl.max(
+        tl.max(tl.where(valid_odd, tl.abs(odd_residual), 0.0), axis=2),
+        axis=0,
+    )
+    scale = tl.maximum(tl.maximum(even_max, odd_max) / 7.0, 1.0e-8)
+    even_code_float = tl.maximum(
+        tl.minimum(tl.floor(even_residual / scale[None, :, None] + 0.5), 7.0),
+        -7.0,
+    )
+    odd_code_float = tl.maximum(
+        tl.minimum(tl.floor(odd_residual / scale[None, :, None] + 0.5), 7.0),
+        -7.0,
+    )
+    if OPTIMIZE_SCALE:
+        denominator = tl.sum(
+            tl.sum(
+                tl.where(valid_even, even_code_float * even_code_float, 0.0),
+                axis=2,
+            ),
+            axis=0,
+        )
+        denominator += tl.sum(
+            tl.sum(
+                tl.where(valid_odd, odd_code_float * odd_code_float, 0.0),
+                axis=2,
+            ),
+            axis=0,
+        )
+        numerator = tl.sum(
+            tl.sum(
+                tl.where(valid_even, even_residual * even_code_float, 0.0),
+                axis=2,
+            ),
+            axis=0,
+        )
+        numerator += tl.sum(
+            tl.sum(
+                tl.where(valid_odd, odd_residual * odd_code_float, 0.0),
+                axis=2,
+            ),
+            axis=0,
+        )
+        scale = tl.where(
+            denominator > 0.0,
+            tl.maximum(numerator / denominator, 1.0e-8),
+            scale,
+        )
+        even_code_float = tl.maximum(
+            tl.minimum(
+                tl.floor(even_residual / scale[None, :, None] + 0.5), 7.0
+            ),
+            -7.0,
+        )
+        odd_code_float = tl.maximum(
+            tl.minimum(
+                tl.floor(odd_residual / scale[None, :, None] + 0.5), 7.0
+            ),
+            -7.0,
+        )
+        denominator = tl.sum(
+            tl.sum(
+                tl.where(valid_even, even_code_float * even_code_float, 0.0),
+                axis=2,
+            ),
+            axis=0,
+        )
+        denominator += tl.sum(
+            tl.sum(
+                tl.where(valid_odd, odd_code_float * odd_code_float, 0.0),
+                axis=2,
+            ),
+            axis=0,
+        )
+        numerator = tl.sum(
+            tl.sum(
+                tl.where(valid_even, even_residual * even_code_float, 0.0),
+                axis=2,
+            ),
+            axis=0,
+        )
+        numerator += tl.sum(
+            tl.sum(
+                tl.where(valid_odd, odd_residual * odd_code_float, 0.0),
+                axis=2,
+            ),
+            axis=0,
+        )
+        scale = tl.where(
+            denominator > 0.0,
+            tl.maximum(numerator / denominator, 1.0e-8),
+            scale,
+        )
+    even_code = even_code_float.to(tl.int32) + 8
+    odd_code = odd_code_float.to(tl.int32) + 8
+    packed = (even_code | (odd_code << 4)).to(tl.uint8)
+    destination_base = (
+        destination
+        + (kv_row * LEAF_CAPACITY + leaf_index[:, None, None])
+        * (DIMENSION_SIZE // 2)
+        + groups[None, :, None] * 2
+        + pair_lane[None, None, :]
+    )
+    tl.store(destination_base, packed, mask=valid_even)
+    tl.store(
+        scales
+        + (kv_row * PAGE_CAPACITY + page_id) * (DIMENSION_SIZE // 4)
+        + groups,
+        scale,
+        mask=refresh & group_valid,
+    )
+
+
+@triton.jit
+def _quantize_all_virtual_pages_grouped_int4_kernel(
+    page_indices,
+    leaf_k,
+    leaf_v,
+    page_sum_k,
+    page_sum_v,
+    page_counts,
+    quantized_leaf_k,
+    quantized_leaf_v,
+    page_k_scales,
+    page_v_scales,
+    page_quantized_counts,
+    KV_HEADS: tl.constexpr,
+    PAGE_CAPACITY: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+    GROUPS_PER_PROGRAM: tl.constexpr,
+    CHANNEL_GROUP_COUNT: tl.constexpr,
+    LEAF_CAPACITY: tl.constexpr,
+    LEAF_K_BATCH_STRIDE,
+    LEAF_K_HEAD_STRIDE,
+    LEAF_K_TOKEN_STRIDE: tl.constexpr,
+    LEAF_V_BATCH_STRIDE,
+    LEAF_V_HEAD_STRIDE,
+    LEAF_V_TOKEN_STRIDE: tl.constexpr,
+    OPTIMIZE_SCALE: tl.constexpr,
+):
+    page_row = tl.program_id(0).to(tl.int64)
+    group_begin = tl.program_id(1).to(tl.int64) * GROUPS_PER_PROGRAM
+    kv_row = page_row // PAGE_CAPACITY
+    page_id = page_row - kv_row * PAGE_CAPACITY
+    batch = kv_row // KV_HEADS
+    kv_head = kv_row - batch * KV_HEADS
+    page_count = tl.load(page_counts + page_row).to(tl.int32)
+    refresh = page_count > 0
+    token_offset = tl.arange(0, 16)
+    valid_token = refresh & (token_offset < page_count)
+    leaf_index = tl.load(
+        page_indices + page_row * 16 + token_offset,
+        mask=valid_token,
+        other=0,
+    ).to(tl.int64)
+    _quantize_virtual_page_tensor_grouped_int4(
+        leaf_k,
+        page_sum_k,
+        quantized_leaf_k,
+        page_k_scales,
+        leaf_index,
+        valid_token,
+        refresh,
+        page_count,
+        batch,
+        kv_head,
+        kv_row,
+        page_id,
+        group_begin,
+        PAGE_CAPACITY,
+        HEAD_DIM,
+        GROUPS_PER_PROGRAM,
+        LEAF_CAPACITY,
+        LEAF_K_BATCH_STRIDE,
+        LEAF_K_HEAD_STRIDE,
+        LEAF_K_TOKEN_STRIDE,
+        OPTIMIZE_SCALE,
+    )
+    _quantize_virtual_page_tensor_grouped_int4(
+        leaf_v,
+        page_sum_v,
+        quantized_leaf_v,
+        page_v_scales,
+        leaf_index,
+        valid_token,
+        refresh,
+        page_count,
+        batch,
+        kv_head,
+        kv_row,
+        page_id,
+        group_begin,
+        PAGE_CAPACITY,
+        VALUE_DIM,
+        GROUPS_PER_PROGRAM,
+        LEAF_CAPACITY,
+        LEAF_V_BATCH_STRIDE,
+        LEAF_V_HEAD_STRIDE,
+        LEAF_V_TOKEN_STRIDE,
+        OPTIMIZE_SCALE,
+    )
+    tl.store(
+        page_quantized_counts + page_row,
+        page_count,
+        mask=refresh & (group_begin == 0),
+    )
+
+
+@triton.jit
 def _requantize_appended_virtual_page_tensor(
     source,
     page_sum,
@@ -3625,6 +3959,503 @@ def _append_quantized_virtual_pages_kernel(
         APPEND_V_HEAD_STRIDE,
         APPEND_V_TOKEN_STRIDE,
         QUANT_BITS,
+        QUANTIZED_SUMMARIES,
+        OPTIMIZE_SUMMARY_SCALE,
+        OPTIMIZE_LEAF_SCALE,
+    )
+
+
+@triton.jit
+def _requantize_appended_virtual_page_tensor_grouped_int4(
+    source,
+    page_sum,
+    quantized_page_sum,
+    page_sum_scales,
+    destination,
+    scales,
+    leaf_index,
+    valid_token,
+    old_token,
+    refresh,
+    old_count,
+    new_count,
+    leaf_offset,
+    batch,
+    kv_head,
+    kv_row,
+    page_id,
+    group_begin,
+    PAGE_CAPACITY: tl.constexpr,
+    DIMENSION_SIZE: tl.constexpr,
+    GROUPS_PER_PROGRAM: tl.constexpr,
+    LEAF_CAPACITY: tl.constexpr,
+    SOURCE_TOKEN_COUNT: tl.constexpr,
+    SOURCE_BATCH_STRIDE,
+    SOURCE_HEAD_STRIDE,
+    SOURCE_TOKEN_STRIDE: tl.constexpr,
+    QUANTIZED_SUMMARIES: tl.constexpr,
+    OPTIMIZE_SUMMARY_SCALE: tl.constexpr,
+    OPTIMIZE_LEAF_SCALE: tl.constexpr,
+):
+    """Requantize several changed four-channel INT4 groups together."""
+    group_lane = tl.arange(0, GROUPS_PER_PROGRAM)
+    pair_lane = tl.arange(0, 2)
+    groups = group_begin + group_lane
+    dimensions = groups[:, None] * 4 + pair_lane[None, :] * 2
+    group_valid = groups < DIMENSION_SIZE // 4
+    even_dimension = dimensions
+    odd_dimension = dimensions + 1
+    valid_even = valid_token[:, None, None] & group_valid[None, :, None]
+    valid_odd = valid_even
+    old_even_valid = valid_even & old_token[:, None, None]
+    old_odd_valid = valid_odd & old_token[:, None, None]
+    destination_base = (
+        destination
+        + (kv_row * LEAF_CAPACITY + leaf_index[:, None, None])
+        * (DIMENSION_SIZE // 2)
+        + groups[None, :, None] * 2
+        + pair_lane[None, None, :]
+    )
+    old_packed = tl.load(
+        destination_base,
+        mask=old_even_valid,
+        other=0,
+    ).to(tl.int32)
+    old_even_code = (old_packed & 15) - 8
+    old_odd_code = ((old_packed >> 4) & 15) - 8
+    sum_base = page_sum + (kv_row * PAGE_CAPACITY + page_id) * DIMENSION_SIZE
+    quantized_sum_base = (
+        quantized_page_sum + (kv_row * PAGE_CAPACITY + page_id) * DIMENSION_SIZE
+    )
+    old_inverse_count = 1.0 / tl.maximum(old_count.to(tl.float32), 1.0)
+    has_old_tokens = refresh & (old_count > 0)
+    if QUANTIZED_SUMMARIES:
+        old_summary_scale = tl.load(
+            page_sum_scales
+            + (kv_row * PAGE_CAPACITY + page_id) * (DIMENSION_SIZE // 4)
+            + groups,
+            mask=has_old_tokens & group_valid,
+            other=0.0,
+        ).to(tl.float32)
+        old_even_sum = (
+            tl.load(
+                quantized_sum_base + even_dimension,
+                mask=has_old_tokens & group_valid[:, None],
+                other=0,
+            ).to(tl.float32)
+            * old_summary_scale[:, None]
+        )
+        old_odd_sum = (
+            tl.load(
+                quantized_sum_base + odd_dimension,
+                mask=has_old_tokens & group_valid[:, None],
+                other=0,
+            ).to(tl.float32)
+            * old_summary_scale[:, None]
+        )
+    else:
+        old_even_sum = tl.load(
+            sum_base + even_dimension,
+            mask=has_old_tokens & group_valid[:, None],
+            other=0.0,
+        ).to(tl.float32)
+        old_odd_sum = tl.load(
+            sum_base + odd_dimension,
+            mask=has_old_tokens & group_valid[:, None],
+            other=0.0,
+        ).to(tl.float32)
+    old_scale = tl.load(
+        scales
+        + (kv_row * PAGE_CAPACITY + page_id) * (DIMENSION_SIZE // 4)
+        + groups,
+        mask=has_old_tokens & group_valid,
+        other=0.0,
+    ).to(tl.float32)
+    old_even = (
+        old_even_sum[None, :, :] * old_inverse_count
+        + old_even_code * old_scale[None, :, None]
+    )
+    old_odd = (
+        old_odd_sum[None, :, :] * old_inverse_count
+        + old_odd_code * old_scale[None, :, None]
+    )
+
+    source_index = leaf_index - leaf_offset
+    new_token = valid_token & ~old_token
+    valid_source = new_token & (source_index >= 0) & (source_index < SOURCE_TOKEN_COUNT)
+    source_base = (
+        source
+        + batch * SOURCE_BATCH_STRIDE
+        + kv_head * SOURCE_HEAD_STRIDE
+        + source_index[:, None, None] * SOURCE_TOKEN_STRIDE
+    )
+    new_even = tl.load(
+        source_base + even_dimension[None, :, :],
+        mask=valid_source[:, None, None] & group_valid[None, :, None],
+        other=0.0,
+    ).to(tl.float32)
+    new_odd = tl.load(
+        source_base + odd_dimension[None, :, :],
+        mask=valid_source[:, None, None] & group_valid[None, :, None],
+        other=0.0,
+    ).to(tl.float32)
+    even = tl.where(old_token[:, None, None], old_even, new_even)
+    odd = tl.where(old_token[:, None, None], old_odd, new_odd)
+    new_even_sum = old_even_sum + tl.sum(
+        tl.where(valid_source[:, None, None], new_even, 0.0), axis=0
+    )
+    new_odd_sum = old_odd_sum + tl.sum(
+        tl.where(valid_source[:, None, None], new_odd, 0.0), axis=0
+    )
+    if QUANTIZED_SUMMARIES:
+        new_summary_scale = tl.maximum(
+            tl.maximum(
+                tl.max(tl.abs(new_even_sum), axis=1),
+                tl.max(tl.abs(new_odd_sum), axis=1),
+            )
+            / 127.0,
+            1.0e-8,
+        )
+        new_even_code_float = tl.maximum(
+            tl.minimum(
+                tl.floor(new_even_sum / new_summary_scale[:, None] + 0.5),
+                127.0,
+            ),
+            -127.0,
+        )
+        new_odd_code_float = tl.maximum(
+            tl.minimum(
+                tl.floor(new_odd_sum / new_summary_scale[:, None] + 0.5),
+                127.0,
+            ),
+            -127.0,
+        )
+        if OPTIMIZE_SUMMARY_SCALE:
+            denominator = tl.sum(
+                new_even_code_float * new_even_code_float, axis=1
+            ) + tl.sum(new_odd_code_float * new_odd_code_float, axis=1)
+            numerator = tl.sum(
+                new_even_sum * new_even_code_float, axis=1
+            ) + tl.sum(new_odd_sum * new_odd_code_float, axis=1)
+            new_summary_scale = tl.where(
+                denominator > 0.0,
+                tl.maximum(numerator / denominator, 1.0e-8),
+                new_summary_scale,
+            )
+            new_even_code_float = tl.maximum(
+                tl.minimum(
+                    tl.floor(new_even_sum / new_summary_scale[:, None] + 0.5),
+                    127.0,
+                ),
+                -127.0,
+            )
+            new_odd_code_float = tl.maximum(
+                tl.minimum(
+                    tl.floor(new_odd_sum / new_summary_scale[:, None] + 0.5),
+                    127.0,
+                ),
+                -127.0,
+            )
+            denominator = tl.sum(
+                new_even_code_float * new_even_code_float, axis=1
+            ) + tl.sum(new_odd_code_float * new_odd_code_float, axis=1)
+            numerator = tl.sum(
+                new_even_sum * new_even_code_float, axis=1
+            ) + tl.sum(new_odd_sum * new_odd_code_float, axis=1)
+            new_summary_scale = tl.where(
+                denominator > 0.0,
+                tl.maximum(numerator / denominator, 1.0e-8),
+                new_summary_scale,
+            )
+        tl.store(
+            quantized_sum_base + even_dimension,
+            new_even_code_float.to(tl.int8),
+            mask=refresh & group_valid[:, None],
+        )
+        tl.store(
+            quantized_sum_base + odd_dimension,
+            new_odd_code_float.to(tl.int8),
+            mask=refresh & group_valid[:, None],
+        )
+        tl.store(
+            page_sum_scales
+            + (kv_row * PAGE_CAPACITY + page_id) * (DIMENSION_SIZE // 4)
+            + groups,
+            new_summary_scale,
+            mask=refresh & group_valid,
+        )
+    else:
+        tl.store(
+            sum_base + even_dimension,
+            new_even_sum,
+            mask=refresh & group_valid[:, None],
+        )
+        tl.store(
+            sum_base + odd_dimension,
+            new_odd_sum,
+            mask=refresh & group_valid[:, None],
+        )
+
+    inverse_count = 1.0 / tl.maximum(new_count.to(tl.float32), 1.0)
+    even_residual = even - new_even_sum[None, :, :] * inverse_count
+    odd_residual = odd - new_odd_sum[None, :, :] * inverse_count
+    even_max = tl.max(
+        tl.max(tl.where(valid_even, tl.abs(even_residual), 0.0), axis=2),
+        axis=0,
+    )
+    odd_max = tl.max(
+        tl.max(tl.where(valid_odd, tl.abs(odd_residual), 0.0), axis=2),
+        axis=0,
+    )
+    scale = tl.maximum(tl.maximum(even_max, odd_max) / 7.0, 1.0e-8)
+    even_code_float = tl.maximum(
+        tl.minimum(tl.floor(even_residual / scale[None, :, None] + 0.5), 7.0),
+        -7.0,
+    )
+    odd_code_float = tl.maximum(
+        tl.minimum(tl.floor(odd_residual / scale[None, :, None] + 0.5), 7.0),
+        -7.0,
+    )
+    if OPTIMIZE_LEAF_SCALE:
+        denominator = tl.sum(
+            tl.sum(
+                tl.where(valid_even, even_code_float * even_code_float, 0.0),
+                axis=2,
+            ),
+            axis=0,
+        )
+        denominator += tl.sum(
+            tl.sum(
+                tl.where(valid_odd, odd_code_float * odd_code_float, 0.0),
+                axis=2,
+            ),
+            axis=0,
+        )
+        numerator = tl.sum(
+            tl.sum(
+                tl.where(valid_even, even_residual * even_code_float, 0.0),
+                axis=2,
+            ),
+            axis=0,
+        )
+        numerator += tl.sum(
+            tl.sum(
+                tl.where(valid_odd, odd_residual * odd_code_float, 0.0),
+                axis=2,
+            ),
+            axis=0,
+        )
+        scale = tl.where(
+            denominator > 0.0,
+            tl.maximum(numerator / denominator, 1.0e-8),
+            scale,
+        )
+        even_code_float = tl.maximum(
+            tl.minimum(
+                tl.floor(even_residual / scale[None, :, None] + 0.5), 7.0
+            ),
+            -7.0,
+        )
+        odd_code_float = tl.maximum(
+            tl.minimum(
+                tl.floor(odd_residual / scale[None, :, None] + 0.5), 7.0
+            ),
+            -7.0,
+        )
+        denominator = tl.sum(
+            tl.sum(
+                tl.where(valid_even, even_code_float * even_code_float, 0.0),
+                axis=2,
+            ),
+            axis=0,
+        )
+        denominator += tl.sum(
+            tl.sum(
+                tl.where(valid_odd, odd_code_float * odd_code_float, 0.0),
+                axis=2,
+            ),
+            axis=0,
+        )
+        numerator = tl.sum(
+            tl.sum(
+                tl.where(valid_even, even_residual * even_code_float, 0.0),
+                axis=2,
+            ),
+            axis=0,
+        )
+        numerator += tl.sum(
+            tl.sum(
+                tl.where(valid_odd, odd_residual * odd_code_float, 0.0),
+                axis=2,
+            ),
+            axis=0,
+        )
+        scale = tl.where(
+            denominator > 0.0,
+            tl.maximum(numerator / denominator, 1.0e-8),
+            scale,
+        )
+    packed = (
+        (even_code_float.to(tl.int32) + 8)
+        | ((odd_code_float.to(tl.int32) + 8) << 4)
+    ).to(tl.uint8)
+    tl.store(destination_base, packed, mask=valid_even)
+    tl.store(
+        scales
+        + (kv_row * PAGE_CAPACITY + page_id) * (DIMENSION_SIZE // 4)
+        + groups,
+        scale,
+        mask=refresh & group_valid,
+    )
+
+
+@triton.jit(
+    do_not_specialize=["leaf_offset", "TOKENS"],
+    do_not_specialize_on_alignment=["leaf_offset", "TOKENS"],
+)
+def _append_quantized_virtual_pages_grouped_int4_kernel(
+    owners,
+    ordinals,
+    slot_pages,
+    overflow_page_keys,
+    overflow_page_values,
+    overflow_used,
+    slot_lengths,
+    page_indices,
+    append_k,
+    append_v,
+    page_sum_k,
+    page_sum_v,
+    quantized_page_sum_k,
+    quantized_page_sum_v,
+    page_sum_k_scales,
+    page_sum_v_scales,
+    page_counts,
+    quantized_leaf_k,
+    quantized_leaf_v,
+    page_k_scales,
+    page_v_scales,
+    leaf_offset,
+    TOKENS,
+    KV_HEADS: tl.constexpr,
+    STATE_CAPACITY: tl.constexpr,
+    INLINE_PAGES_PER_SLOT: tl.constexpr,
+    PAGE_CAPACITY: tl.constexpr,
+    HASH_CAPACITY: tl.constexpr,
+    HASH_PROBES: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+    GROUPS_PER_PROGRAM: tl.constexpr,
+    LEAF_CAPACITY: tl.constexpr,
+    APPEND_K_BATCH_STRIDE,
+    APPEND_K_HEAD_STRIDE,
+    APPEND_K_TOKEN_STRIDE: tl.constexpr,
+    APPEND_V_BATCH_STRIDE,
+    APPEND_V_HEAD_STRIDE,
+    APPEND_V_TOKEN_STRIDE: tl.constexpr,
+    QUANTIZED_SUMMARIES: tl.constexpr,
+    OPTIMIZE_SUMMARY_SCALE: tl.constexpr,
+    OPTIMIZE_LEAF_SCALE: tl.constexpr,
+):
+    token_row = tl.program_id(0).to(tl.int64)
+    group_begin = tl.program_id(1).to(tl.int64) * GROUPS_PER_PROGRAM
+    kv_row = token_row // TOKENS
+    batch = kv_row // KV_HEADS
+    kv_head = kv_row - batch * KV_HEADS
+    owner = tl.load(owners + token_row).to(tl.int64)
+    ordinal = tl.load(ordinals + token_row).to(tl.int64)
+    slot_length = tl.load(slot_lengths + kv_row * STATE_CAPACITY + owner).to(tl.int64)
+    completes_page = ordinal % 16 == 15
+    is_partial_tail = ordinal == slot_length - 1
+    refresh = completes_page | is_partial_tail
+    page_ordinal = ordinal // 16
+    page_id = _lookup_page_id(
+        slot_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        kv_row,
+        owner,
+        page_ordinal,
+        refresh,
+        STATE_CAPACITY,
+        INLINE_PAGES_PER_SLOT,
+        PAGE_CAPACITY,
+        HASH_CAPACITY,
+        HASH_PROBES,
+    ).to(tl.int64)
+    old_count = tl.load(
+        page_counts + kv_row * PAGE_CAPACITY + page_id,
+        mask=refresh,
+        other=0,
+    ).to(tl.int32)
+    new_count = tl.where(completes_page, 16, ordinal % 16 + 1)
+    token_offset = tl.arange(0, 16)
+    valid_token = refresh & (token_offset < new_count)
+    old_token = valid_token & (token_offset < old_count)
+    leaf_index = tl.load(
+        page_indices + (kv_row * PAGE_CAPACITY + page_id) * 16 + token_offset,
+        mask=valid_token,
+        other=0,
+    ).to(tl.int64)
+    _requantize_appended_virtual_page_tensor_grouped_int4(
+        append_k,
+        page_sum_k,
+        quantized_page_sum_k,
+        page_sum_k_scales,
+        quantized_leaf_k,
+        page_k_scales,
+        leaf_index,
+        valid_token,
+        old_token,
+        refresh,
+        old_count,
+        new_count,
+        leaf_offset,
+        batch,
+        kv_head,
+        kv_row,
+        page_id,
+        group_begin,
+        PAGE_CAPACITY,
+        HEAD_DIM,
+        GROUPS_PER_PROGRAM,
+        LEAF_CAPACITY,
+        TOKENS,
+        APPEND_K_BATCH_STRIDE,
+        APPEND_K_HEAD_STRIDE,
+        APPEND_K_TOKEN_STRIDE,
+        QUANTIZED_SUMMARIES,
+        OPTIMIZE_SUMMARY_SCALE,
+        OPTIMIZE_LEAF_SCALE,
+    )
+    _requantize_appended_virtual_page_tensor_grouped_int4(
+        append_v,
+        page_sum_v,
+        quantized_page_sum_v,
+        page_sum_v_scales,
+        quantized_leaf_v,
+        page_v_scales,
+        leaf_index,
+        valid_token,
+        old_token,
+        refresh,
+        old_count,
+        new_count,
+        leaf_offset,
+        batch,
+        kv_head,
+        kv_row,
+        page_id,
+        group_begin,
+        PAGE_CAPACITY,
+        VALUE_DIM,
+        GROUPS_PER_PROGRAM,
+        LEAF_CAPACITY,
+        TOKENS,
+        APPEND_V_BATCH_STRIDE,
+        APPEND_V_HEAD_STRIDE,
+        APPEND_V_TOKEN_STRIDE,
         QUANTIZED_SUMMARIES,
         OPTIMIZE_SUMMARY_SCALE,
         OPTIMIZE_LEAF_SCALE,
@@ -6563,10 +7394,12 @@ def _query_major_residual_page_attention_kernel(
             valid_token &= (leaf_index >= 0) & (leaf_index < LEAF_CAPACITY)
             leaf_index = tl.where(valid_token, leaf_index, 0)
             if QUANT_BITS:
-                quantized_count = tl.load(
-                    page_quantized_counts + kv_row * PAGE_CAPACITY + selected_page
-                ).to(tl.int32)
-                use_quantized = valid_token & (token_offset < quantized_count)
+                # Final conversion and every quantized append publish complete
+                # changed pages before attention can observe them.  The old
+                # mixed BF16 fallback kept a full-width conditional load and
+                # select live in this already register-heavy kernel even
+                # though finalized vLLM caches never exercised it.
+                use_quantized = valid_token
                 if QUANT_BITS == 4:
                     packed_head_offset = head_offset // 2
                     packed_value_offset = value_offset // 2
@@ -6673,34 +7506,41 @@ def _query_major_residual_page_attention_kernel(
                         ).to(tl.float32)
                 key_residual = key_code.to(tl.float32) * key_scale
                 value_residual = value_code.to(tl.float32) * value_scale
-                quantized_keys = selected_key_sum / selected_count + key_residual
-                quantized_values = selected_value_sum / selected_count + value_residual
+                inverse_selected_count = 1.0 / tl.maximum(selected_count, 1.0)
+                key_anchor = selected_key_sum * inverse_selected_count
+                value_anchor = selected_value_sum * inverse_selected_count
+                # The page mean is shared by all sixteen leaves. Keep it out
+                # of the token-by-channel residual matrices: adding it after
+                # the QK/PV reductions is algebraically identical, avoids two
+                # page-wide broadcasts, and materially lowers register
+                # pressure in the INT4 specialization.
+                quantized_exact_scores = SCALE_LOG2 * (
+                    tl.sum(
+                        key_residual * query[None, :].to(tl.float32), axis=1
+                    )
+                    + tl.sum(key_anchor * query.to(tl.float32), axis=0)
+                )
             else:
-                use_quantized = tl.full((PAGE_SIZE,), False, tl.int1)
-                quantized_keys = tl.zeros((HEAD_BLOCK_DIM,), tl.float32)
-                quantized_values = tl.zeros((VALUE_BLOCK_DIM,), tl.float32)
-            keys = tl.load(
-                leaf_k
-                + cache_batch * LEAF_K_BATCH_STRIDE
-                + kv_head * LEAF_K_HEAD_STRIDE
-                + leaf_index[:, None] * LEAF_K_TOKEN_STRIDE
-                + head_offset[None, :],
-                mask=(valid_token & ~use_quantized)[:, None]
-                & (head_offset[None, :] < HEAD_DIM),
-                other=0.0,
-            )
-            values = tl.load(
-                leaf_v
-                + cache_batch * LEAF_V_BATCH_STRIDE
-                + kv_head * LEAF_V_HEAD_STRIDE
-                + leaf_index[:, None] * LEAF_V_TOKEN_STRIDE
-                + value_offset[None, :],
-                mask=(valid_token & ~use_quantized)[:, None]
-                & (value_offset[None, :] < VALUE_DIM),
-                other=0.0,
-            )
-            keys = tl.where(use_quantized[:, None], quantized_keys, keys)
-            values = tl.where(use_quantized[:, None], quantized_values, values)
+                keys = tl.load(
+                    leaf_k
+                    + cache_batch * LEAF_K_BATCH_STRIDE
+                    + kv_head * LEAF_K_HEAD_STRIDE
+                    + leaf_index[:, None] * LEAF_K_TOKEN_STRIDE
+                    + head_offset[None, :],
+                    mask=valid_token[:, None]
+                    & (head_offset[None, :] < HEAD_DIM),
+                    other=0.0,
+                )
+                values = tl.load(
+                    leaf_v
+                    + cache_batch * LEAF_V_BATCH_STRIDE
+                    + kv_head * LEAF_V_HEAD_STRIDE
+                    + leaf_index[:, None] * LEAF_V_TOKEN_STRIDE
+                    + value_offset[None, :],
+                    mask=valid_token[:, None]
+                    & (value_offset[None, :] < VALUE_DIM),
+                    other=0.0,
+                )
         else:
             keys = tl.load(
                 page_k + physical_token[:, None] * HEAD_DIM + head_offset[None, :],
@@ -6712,9 +7552,12 @@ def _query_major_residual_page_attention_kernel(
                 mask=valid_token[:, None] & (value_offset[None, :] < VALUE_DIM),
                 other=0.0,
             )
-        exact_scores = SCALE_LOG2 * tl.sum(
-            keys.to(tl.float32) * query[None, :].to(tl.float32), axis=1
-        )
+        if INDEXED and QUANT_BITS:
+            exact_scores = quantized_exact_scores
+        else:
+            exact_scores = SCALE_LOG2 * tl.sum(
+                keys.to(tl.float32) * query[None, :].to(tl.float32), axis=1
+            )
         exact_scores = tl.where(valid_token, exact_scores, -float("inf"))
         block_maximum = tl.max(exact_scores, axis=0)
         new_maximum = tl.maximum(maximum, block_maximum)
@@ -6726,9 +7569,14 @@ def _query_major_residual_page_attention_kernel(
         probabilities = tl.math.exp2(exact_scores - new_maximum)
         probabilities = tl.where(valid_token, probabilities, 0.0)
         denominator = denominator * correction + tl.sum(probabilities, axis=0)
-        accumulator = accumulator * correction + tl.sum(
-            probabilities[:, None] * values, axis=0
-        )
+        if INDEXED and QUANT_BITS:
+            probability_sum = tl.sum(probabilities, axis=0)
+            value_update = tl.sum(
+                probabilities[:, None] * value_residual, axis=0
+            ) + probability_sum * value_anchor
+        else:
+            value_update = tl.sum(probabilities[:, None] * values, axis=0)
+        accumulator = accumulator * correction + value_update
         maximum = tl.where(selected_valid, new_maximum, maximum)
 
     output_row = query_row * ROUTE_COUNT + active_route if ROUTE_PARALLEL else query_row
@@ -9141,6 +9989,8 @@ def _decode_route_coarse_gqa_groups_fixed_prepare_kernel(
     RESET_BLOCK_N: tl.constexpr,
     RESET_BLOCKS_N: tl.constexpr,
     INCLUDE_NEW: tl.constexpr,
+    SEPARATE_LOCAL_SINK: tl.constexpr,
+    KEYS_ARE_MEANS: tl.constexpr,
 ):
     """Score current centroids while preparing the persistent fixed mask.
 
@@ -9167,7 +10017,7 @@ def _decode_route_coarse_gqa_groups_fixed_prepare_kernel(
     ) + INCLUDE_NEW
     tl.store(
         active_mask + batch_kv * MASK_STRIDE + slot,
-        (slot < active_local).to(tl.uint8),
+        ((slot < active_local) & (not SEPARATE_LOCAL_SINK)).to(tl.uint8),
         mask=slot < LOCAL_LIMIT,
     )
     tl.store(
@@ -9182,7 +10032,10 @@ def _decode_route_coarse_gqa_groups_fixed_prepare_kernel(
     prefix_blocks = (LEAF_BEGIN + TILE_SIZE - 1) // TILE_SIZE
     tl.store(
         active_blocks + batch_kv * BLOCK_STRIDE + group,
-        1,
+        (
+            (not SEPARATE_LOCAL_SINK)
+            | (group * TILE_SIZE + TILE_SIZE > LOCAL_LIMIT + SINK_LEN)
+        ).to(tl.uint8),
         mask=group < prefix_blocks,
     )
 
@@ -9193,16 +10046,19 @@ def _decode_route_coarse_gqa_groups_fixed_prepare_kernel(
             + batch_kv * MASK_STRIDE
             + LOCAL_LIMIT
             + sink_lane,
-            1,
+            0 if SEPARATE_LOCAL_SINK else 1,
             mask=sink_lane < SINK_LEN,
         )
         fixed_length = tl.load(
             fixed_lengths + physical_sequence
         ).to(tl.int32)
-        tl.store(context_lens + batch_kv, fixed_length)
-        tl.store(launch_lens + batch_kv, tl.maximum(fixed_length, 1))
+        remote_length = tl.maximum(
+            fixed_length - (LOCAL_LIMIT if SEPARATE_LOCAL_SINK else 0), 0
+        )
+        tl.store(context_lens + batch_kv, remote_length)
+        tl.store(launch_lens + batch_kv, tl.maximum(remote_length, 1))
         tl.store(execution_marker, 2, mask=batch_kv == 0)
-        if INCLUDE_NEW:
+        if INCLUDE_NEW and not SEPARATE_LOCAL_SINK:
             dimension = tl.arange(0, HEAD_DIM)
             current_key = tl.load(
                 new_k
@@ -9328,7 +10184,13 @@ def _decode_route_coarse_gqa_groups_fixed_prepare_kernel(
         mask=valid[:, None],
         other=0.0,
     )
-    mean_keys = (keys.to(tl.float32) / count[:, None]).to(keys.dtype)
+    if KEYS_ARE_MEANS:
+        # BF16 cached means are a no-op cast. The same specialization can also
+        # benchmark an update-maintained FP8 mean cache promoted immediately
+        # before MFMA, isolating its bandwidth benefit from query quantization.
+        mean_keys = keys.to(tl.bfloat16)
+    else:
+        mean_keys = (keys.to(tl.float32) / count[:, None]).to(keys.dtype)
     scores = tl.dot(queries, tl.trans(mean_keys), out_dtype=tl.float32)
     scores = scores * SCALE + tl.log(count)[None, :]
     scores = tl.where(
@@ -10887,6 +11749,8 @@ def _gqa_cooperative_split_decode_local_attention_kernel(
     local_lens,
     local_k,
     local_v,
+    sink_k,
+    sink_v,
     new_k,
     new_v,
     partial_out,
@@ -10897,6 +11761,12 @@ def _gqa_cooperative_split_decode_local_attention_kernel(
     LOCAL_V_BATCH_STRIDE,
     LOCAL_V_HEAD_STRIDE,
     LOCAL_V_TOKEN_STRIDE,
+    SINK_K_BATCH_STRIDE,
+    SINK_K_HEAD_STRIDE,
+    SINK_K_TOKEN_STRIDE,
+    SINK_V_BATCH_STRIDE,
+    SINK_V_HEAD_STRIDE,
+    SINK_V_TOKEN_STRIDE,
     NEW_K_BATCH_STRIDE,
     NEW_K_HEAD_STRIDE,
     NEW_V_BATCH_STRIDE,
@@ -10911,6 +11781,9 @@ def _gqa_cooperative_split_decode_local_attention_kernel(
     SCALE_LOG2: tl.constexpr,
     BLOCK_N: tl.constexpr,
     INCLUDE_NEW: tl.constexpr,
+    INCLUDE_SINK: tl.constexpr,
+    SINK_LEN: tl.constexpr,
+    SINK_BLOCK: tl.constexpr,
 ):
     """Share local-window K/V loads across a short GQA query tile."""
     batch_kv = tl.program_id(0).to(tl.int64)
@@ -11008,6 +11881,48 @@ def _gqa_cooperative_split_decode_local_attention_kernel(
             + active_local_len * LOCAL_V_TOKEN_STRIDE
             + dim,
             current_value,
+        )
+
+    # The overlap path treats local+current+sinks as one independent softmax
+    # branch.  Only split zero owns the tiny sink side cache so every sink is
+    # counted exactly once when the local split LSEs are reduced.
+    if INCLUDE_SINK and split == 0:
+        sink_token = tl.arange(0, SINK_BLOCK)
+        sink_valid = sink_token < SINK_LEN
+        sink_keys = tl.load(
+            sink_k
+            + cache_batch * SINK_K_BATCH_STRIDE
+            + kv_head * SINK_K_HEAD_STRIDE
+            + sink_token[:, None] * SINK_K_TOKEN_STRIDE
+            + dim[None, :],
+            mask=sink_valid[:, None],
+            other=0.0,
+        )
+        sink_values = tl.load(
+            sink_v
+            + cache_batch * SINK_V_BATCH_STRIDE
+            + kv_head * SINK_V_HEAD_STRIDE
+            + sink_token[:, None] * SINK_V_TOKEN_STRIDE
+            + dim[None, :],
+            mask=sink_valid[:, None],
+            other=0.0,
+        )
+        sink_scores = (
+            tl.sum(
+                queries[:, None, :].to(tl.float32)
+                * sink_keys[None, :, :].to(tl.float32),
+                axis=2,
+            )
+            * SCALE_LOG2
+        )
+        sink_active = query_valid[:, None] & sink_valid[None, :]
+        maximum, denominator, accumulator = _gqa_online_softmax_update(
+            sink_scores,
+            sink_values,
+            sink_active,
+            maximum,
+            denominator,
+            accumulator,
         )
 
     partial_row = query_row * LOCAL_SPLITS + split
@@ -11971,6 +12886,7 @@ def _prepare_aiter_fixed_mask_context_kernel(
     COARSE_MASK_BLOCK: tl.constexpr,
     PREFIX_BLOCKS_BLOCK: tl.constexpr,
     INCLUDE_NEW: tl.constexpr,
+    SEPARATE_LOCAL_SINK: tl.constexpr,
 ):
     """Map persistent lengths and place the current token in the local arena."""
     sequence = tl.program_id(0).to(tl.int64)
@@ -11979,8 +12895,11 @@ def _prepare_aiter_fixed_mask_context_kernel(
     cache_batch = tl.load(cache_indices + logical_batch).to(tl.int64)
     physical_sequence = cache_batch * KV_HEADS + kv_head
     length = tl.load(fixed_lengths + physical_sequence).to(tl.int32)
-    tl.store(context_lens + sequence, length)
-    tl.store(launch_lens + sequence, tl.maximum(length, 1))
+    remote_length = tl.maximum(
+        length - (LOCAL_LIMIT if SEPARATE_LOCAL_SINK else 0), 0
+    )
+    tl.store(context_lens + sequence, remote_length)
+    tl.store(launch_lens + sequence, tl.maximum(remote_length, 1))
     tl.store(execution_marker, 2, mask=sequence == 0)
     local_length = tl.minimum(
         tl.load(local_lens + cache_batch).to(tl.int32), LOCAL_LIMIT
@@ -11989,13 +12908,15 @@ def _prepare_aiter_fixed_mask_context_kernel(
     local_token = tl.arange(0, LOCAL_MASK_BLOCK)
     tl.store(
         active_mask + sequence * MASK_STRIDE + local_token,
-        (local_token < active_local).to(tl.uint8),
+        (
+            (local_token < active_local) & (not SEPARATE_LOCAL_SINK)
+        ).to(tl.uint8),
         mask=local_token < LOCAL_LIMIT,
     )
     sink_token = tl.arange(0, SINK_MASK_BLOCK)
     tl.store(
         active_mask + sequence * MASK_STRIDE + LOCAL_LIMIT + sink_token,
-        1,
+        0 if SEPARATE_LOCAL_SINK else 1,
         mask=sink_token < SINK_LEN,
     )
     # Coarse lanes form the always-present residual branch. Re-enabling them
@@ -12018,8 +12939,69 @@ def _prepare_aiter_fixed_mask_context_kernel(
     prefix_block = tl.arange(0, PREFIX_BLOCKS_BLOCK)
     tl.store(
         active_blocks + sequence * BLOCK_STRIDE + prefix_block,
-        1,
+        (
+            (not SEPARATE_LOCAL_SINK)
+            | (
+                prefix_block * TILE_SIZE + TILE_SIZE
+                > LOCAL_LIMIT + SINK_LEN
+            )
+        ).to(tl.uint8),
         mask=prefix_block < (LEAF_BEGIN + TILE_SIZE - 1) // TILE_SIZE,
+    )
+    if INCLUDE_NEW and not SEPARATE_LOCAL_SINK:
+        dimension = tl.arange(0, HEAD_DIM)
+        current_key = tl.load(
+            new_k
+            + logical_batch * NEW_K_BATCH_STRIDE
+            + kv_head * NEW_K_HEAD_STRIDE
+            + dimension
+        )
+        current_value = tl.load(
+            new_v
+            + logical_batch * NEW_V_BATCH_STRIDE
+            + kv_head * NEW_V_HEAD_STRIDE
+            + dimension
+        )
+        physical_local = (
+            LOCAL_OFFSET + physical_sequence * LOCAL_CAPACITY + local_length
+        )
+        tl.store(arena_k + physical_local * HEAD_DIM + dimension, current_key)
+        tl.store(arena_v + physical_local * HEAD_DIM + dimension, current_value)
+
+
+@triton.jit
+def _prepare_aiter_local_sink_context_kernel(
+    cache_indices,
+    local_lens,
+    context_lens,
+    new_k,
+    new_v,
+    arena_k,
+    arena_v,
+    NEW_K_BATCH_STRIDE,
+    NEW_K_HEAD_STRIDE,
+    NEW_V_BATCH_STRIDE,
+    NEW_V_HEAD_STRIDE,
+    KV_HEADS: tl.constexpr,
+    LOCAL_OFFSET: tl.constexpr,
+    LOCAL_CAPACITY: tl.constexpr,
+    LOCAL_LIMIT: tl.constexpr,
+    SINK_LEN: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    INCLUDE_NEW: tl.constexpr,
+):
+    """Publish the current token and size the independent local/sink branch."""
+    sequence = tl.program_id(0).to(tl.int64)
+    logical_batch = sequence // KV_HEADS
+    kv_head = sequence - logical_batch * KV_HEADS
+    cache_batch = tl.load(cache_indices + logical_batch).to(tl.int64)
+    physical_sequence = cache_batch * KV_HEADS + kv_head
+    local_length = tl.minimum(
+        tl.load(local_lens + cache_batch).to(tl.int32), LOCAL_LIMIT
+    )
+    tl.store(
+        context_lens + sequence,
+        local_length + INCLUDE_NEW + SINK_LEN,
     )
     if INCLUDE_NEW:
         dimension = tl.arange(0, HEAD_DIM)
@@ -13184,12 +14166,16 @@ def _reduce_aiter_page1_segments_with_lse_kernel(
     context_lens,
     output,
     output_lse,
+    sequence_epochs,
+    union_counts,
+    union_token_counts,
     OUTPUT_STRIDE_0: tl.constexpr,
     OUTPUT_STRIDE_1: tl.constexpr,
     QUERY_ROWS: tl.constexpr,
     HEAD_DIM: tl.constexpr,
     SEGMENTS: tl.constexpr,
     TILE_SIZE: tl.constexpr,
+    ADVANCE_QUEUE: tl.constexpr,
 ):
     """AITER's segment reduction with the branch LSE stored concurrently."""
     sequence = tl.program_id(0).to(tl.int64)
@@ -13242,6 +14228,11 @@ def _reduce_aiter_page1_segments_with_lse_kernel(
         -float("inf"),
     )
     tl.store(output_lse + sequence * QUERY_ROWS + query_lane, lse)
+    if ADVANCE_QUEUE and query_lane == 0:
+        epoch = tl.load(sequence_epochs + sequence).to(tl.int32)
+        tl.store(sequence_epochs + sequence, epoch + 1)
+        tl.store(union_counts + sequence, 0)
+        tl.store(union_token_counts + sequence, 0)
 
 
 @triton.jit
@@ -13252,6 +14243,9 @@ def _reduce_aiter_page1_segments_with_lse_split_d_kernel(
     context_lens,
     output,
     output_lse,
+    sequence_epochs,
+    union_counts,
+    union_token_counts,
     OUTPUT_STRIDE_0: tl.constexpr,
     OUTPUT_STRIDE_1: tl.constexpr,
     QUERY_ROWS: tl.constexpr,
@@ -13259,6 +14253,7 @@ def _reduce_aiter_page1_segments_with_lse_split_d_kernel(
     SEGMENTS: tl.constexpr,
     TILE_SIZE: tl.constexpr,
     BLOCK_D: tl.constexpr,
+    ADVANCE_QUEUE: tl.constexpr,
 ):
     """Reduce page1 splits with independent output-dimension programs."""
     sequence = tl.program_id(0).to(tl.int64)
@@ -13307,6 +14302,144 @@ def _reduce_aiter_page1_segments_with_lse_split_d_kernel(
         + query_lane * OUTPUT_STRIDE_1
         + dimension,
         result,
+        mask=valid_dimension,
+    )
+    if dimension_block == 0:
+        lse = tl.where(
+            denominator > 0.0,
+            (maximum + tl.log2(denominator)) * 0.6931471805599453,
+            -float("inf"),
+        )
+        tl.store(output_lse + sequence * QUERY_ROWS + query_lane, lse)
+        if ADVANCE_QUEUE and query_lane == 0:
+            epoch = tl.load(sequence_epochs + sequence).to(tl.int32)
+            tl.store(sequence_epochs + sequence, epoch + 1)
+            tl.store(union_counts + sequence, 0)
+            tl.store(union_token_counts + sequence, 0)
+
+
+@triton.jit
+def _reduce_remote_local_page1_segments_with_lse_split_d_kernel(
+    remote_output,
+    remote_max_logits,
+    remote_exp_sums,
+    remote_context_lens,
+    local_output,
+    local_max_logits,
+    local_exp_sums,
+    local_context_lens,
+    output,
+    output_lse,
+    OUTPUT_STRIDE_0: tl.constexpr,
+    OUTPUT_STRIDE_1: tl.constexpr,
+    QUERY_ROWS: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    REMOTE_SEGMENTS: tl.constexpr,
+    LOCAL_SEGMENTS: tl.constexpr,
+    TILE_SIZE: tl.constexpr,
+    BLOCK_D: tl.constexpr,
+):
+    """Reduce concurrent remote and local page1 scans in one final pass."""
+    sequence = tl.program_id(0).to(tl.int64)
+    query_lane = tl.program_id(1).to(tl.int64)
+    dimension_block = tl.program_id(2).to(tl.int64)
+
+    remote_length = tl.load(remote_context_lens + sequence).to(tl.int32)
+    remote_segment = tl.arange(0, REMOTE_SEGMENTS)
+    remote_tiles_per_segment = tl.cdiv(
+        tl.maximum(remote_length, 1), REMOTE_SEGMENTS * TILE_SIZE
+    )
+    remote_active_segments = tl.cdiv(
+        remote_length, remote_tiles_per_segment * TILE_SIZE
+    )
+    remote_valid = remote_segment < remote_active_segments
+    remote_scalar = (
+        sequence * QUERY_ROWS * REMOTE_SEGMENTS
+        + query_lane * REMOTE_SEGMENTS
+        + remote_segment
+    )
+    remote_maxima = tl.load(
+        remote_max_logits + remote_scalar,
+        mask=remote_valid,
+        other=-float("inf"),
+    ).to(tl.float32)
+
+    local_length = tl.load(local_context_lens + sequence).to(tl.int32)
+    local_segment = tl.arange(0, LOCAL_SEGMENTS)
+    local_tiles_per_segment = tl.cdiv(
+        tl.maximum(local_length, 1), LOCAL_SEGMENTS * TILE_SIZE
+    )
+    local_active_segments = tl.cdiv(
+        local_length, local_tiles_per_segment * TILE_SIZE
+    )
+    local_valid = local_segment < local_active_segments
+    local_scalar = (
+        sequence * QUERY_ROWS * LOCAL_SEGMENTS
+        + query_lane * LOCAL_SEGMENTS
+        + local_segment
+    )
+    local_maxima = tl.load(
+        local_max_logits + local_scalar,
+        mask=local_valid,
+        other=-float("inf"),
+    ).to(tl.float32)
+
+    maximum = tl.maximum(
+        tl.max(remote_maxima, axis=0), tl.max(local_maxima, axis=0)
+    )
+    remote_corrections = tl.where(
+        remote_valid, tl.math.exp2(remote_maxima - maximum), 0.0
+    )
+    local_corrections = tl.where(
+        local_valid, tl.math.exp2(local_maxima - maximum), 0.0
+    )
+    remote_denominators = tl.load(
+        remote_exp_sums + remote_scalar,
+        mask=remote_valid,
+        other=0.0,
+    ).to(tl.float32)
+    local_denominators = tl.load(
+        local_exp_sums + local_scalar,
+        mask=local_valid,
+        other=0.0,
+    ).to(tl.float32)
+    denominator = tl.sum(
+        remote_denominators * remote_corrections, axis=0
+    ) + tl.sum(local_denominators * local_corrections, axis=0)
+
+    dimension = dimension_block * BLOCK_D + tl.arange(0, BLOCK_D)
+    valid_dimension = dimension < HEAD_DIM
+    remote_vector = (
+        sequence * QUERY_ROWS * REMOTE_SEGMENTS * HEAD_DIM
+        + query_lane * REMOTE_SEGMENTS * HEAD_DIM
+        + remote_segment[:, None] * HEAD_DIM
+        + dimension[None, :]
+    )
+    local_vector = (
+        sequence * QUERY_ROWS * LOCAL_SEGMENTS * HEAD_DIM
+        + query_lane * LOCAL_SEGMENTS * HEAD_DIM
+        + local_segment[:, None] * HEAD_DIM
+        + dimension[None, :]
+    )
+    remote_partials = tl.load(
+        remote_output + remote_vector,
+        mask=remote_valid[:, None] & valid_dimension[None, :],
+        other=0.0,
+    ).to(tl.float32)
+    local_partials = tl.load(
+        local_output + local_vector,
+        mask=local_valid[:, None] & valid_dimension[None, :],
+        other=0.0,
+    ).to(tl.float32)
+    numerator = tl.sum(
+        remote_partials * remote_corrections[:, None], axis=0
+    ) + tl.sum(local_partials * local_corrections[:, None], axis=0)
+    tl.store(
+        output
+        + sequence * OUTPUT_STRIDE_0
+        + query_lane * OUTPUT_STRIDE_1
+        + dimension,
+        tl.where(denominator > 0.0, numerator / denominator, 0.0),
         mask=valid_dimension,
     )
     if dimension_block == 0:
@@ -15231,12 +16364,16 @@ def static_cap_page1_decode_attention(
             context_lens,
             fixed_out,
             buffers["gqa_union_hip_lse"][:sequence_count],
+            context_lens,
+            context_lens,
+            context_lens,
             OUTPUT_STRIDE_0=fixed_out.stride(0),
             OUTPUT_STRIDE_1=fixed_out.stride(1),
             QUERY_ROWS=kv_group_size,
             HEAD_DIM=head_dim,
             SEGMENTS=segments,
             TILE_SIZE=64,
+            ADVANCE_QUEUE=False,
             num_warps=2,
         )
     if boundaries is not None:
@@ -15263,10 +16400,13 @@ def new_fused_decode_buffers(
     materialized_state_route: bool = False,
     gqa_union_mass_fraction: float | None = None,
     gqa_union_predicted_mass: bool = False,
+    gqa_union_pilot_z: bool = False,
+    gqa_union_pilot_z_route_count: int = 8,
     gqa_union_kv_heads: int | None = None,
     gqa_union_index_capacity: int | None = None,
     gqa_union_hip: bool = False,
     gqa_union_fixed_mask: bool = False,
+    gqa_union_overlap_local_sink: bool = False,
     gqa_union_static_cap_page1: bool = False,
     gqa_union_fixed_mask_tile_size: int = 64,
     gqa_union_fixed_mask_segments: int = 128,
@@ -15294,7 +16434,8 @@ def new_fused_decode_buffers(
         ),
         "output": torch.empty_like(q),
     }
-    if gqa_route_splits is not None:
+    if gqa_route_splits is not None or gqa_union_overlap_local_sink:
+        local_route_splits = gqa_route_splits or 4
         buffers.update(
             gqa_local_partial_out=torch.empty(
                 batch,
@@ -15315,7 +16456,7 @@ def new_fused_decode_buffers(
                 batch,
                 query_heads,
                 8,
-                gqa_route_splits,
+                local_route_splits,
                 value_dim,
                 dtype=torch.float32,
                 device=q.device,
@@ -15324,7 +16465,7 @@ def new_fused_decode_buffers(
                 batch,
                 query_heads,
                 8,
-                gqa_route_splits,
+                local_route_splits,
                 dtype=torch.float32,
                 device=q.device,
             ),
@@ -15459,7 +16600,23 @@ def new_fused_decode_buffers(
             if gqa_union_index_capacity is None or gqa_union_index_capacity <= 0:
                 raise ValueError("GQA-union decode requires an index capacity")
             sequences = batch * gqa_union_kv_heads
-            if gqa_union_mass_fraction is not None:
+            if gqa_union_pilot_z:
+                # Pilot-z deliberately opens a conservative superset of its
+                # calibrated top-n population.  Reserve enough queue space for
+                # broad regular hierarchies such as adjacent T/4 top-128 while
+                # keeping the established top-8 allocation unchanged.
+                # Overflow remains correctness-safe because an unstamped
+                # centroid is still represented by its coarse entry.
+                union_slot_capacity = min(
+                    state_capacity,
+                    max(
+                        2048,
+                        8
+                        * gqa_union_group_size
+                        * gqa_union_pilot_z_route_count,
+                    ),
+                )
+            elif gqa_union_mass_fraction is not None:
                 if gqa_union_predicted_mass:
                     # Retained mass is approximate, so allow twice the
                     # strict current-mass bound. On overflow, only the compact
@@ -15532,6 +16689,13 @@ def new_fused_decode_buffers(
                     device=q.device,
                 ),
             )
+            if gqa_union_pilot_z:
+                buffers["route_pilot_z_thresholds"] = torch.empty(
+                    batch,
+                    query_heads,
+                    dtype=torch.float32,
+                    device=q.device,
+                )
             if gqa_union_hip:
                 if gqa_union_fixed_mask_tile_size not in (16, 64, 128):
                     raise ValueError("unsupported fixed-mask attention tile size")
@@ -15602,6 +16766,35 @@ def new_fused_decode_buffers(
                         device=q.device,
                     ),
                 )
+                if gqa_union_overlap_local_sink:
+                    local_segments = 8
+                    buffers.update(
+                        gqa_local_page1_context_lens=torch.empty(
+                            sequences, dtype=torch.int32, device=q.device
+                        ),
+                        gqa_local_page1_segment_out=torch.empty(
+                            sequences,
+                            gqa_union_group_size,
+                            local_segments,
+                            value_dim,
+                            dtype=torch.float32,
+                            device=q.device,
+                        ),
+                        gqa_local_page1_exp_sums=torch.empty(
+                            sequences,
+                            gqa_union_group_size,
+                            local_segments,
+                            dtype=torch.float32,
+                            device=q.device,
+                        ),
+                        gqa_local_page1_max_logits=torch.empty(
+                            sequences,
+                            gqa_union_group_size,
+                            local_segments,
+                            dtype=torch.float32,
+                            device=q.device,
+                        ),
+                    )
                 if value_dim == 512 and (
                     gqa_union_fixed_mask or gqa_union_static_cap_page1
                 ):
@@ -15720,10 +16913,13 @@ def fused_decode_paged_lod_attention(
     gqa_union_unified: bool = True,
     gqa_union_mass_fraction: float | None = None,
     gqa_union_predicted_mass: bool = False,
+    gqa_union_pilot_z: bool = False,
+    gqa_union_pilot_z_margin: float = 0.25,
     gqa_union_hip: bool = False,
     gqa_union_group64_padded: bool = False,
     gqa_union_staged_fixed_aiter: bool = False,
     gqa_union_fixed_mask_aiter: bool = False,
+    gqa_union_overlap_local_sink: bool = False,
     gqa_union_fixed_mask_tile_size: int = 64,
     gqa_union_fixed_mask_adaptive_segments: bool = False,
     gqa_union_fixed_mask_reduce_block_d: int = 0,
@@ -15745,6 +16941,7 @@ def fused_decode_paged_lod_attention(
     gqa_union_fixed_slot_offsets: torch.Tensor | None = None,
     gqa_union_fixed_lengths: torch.Tensor | None = None,
     gqa_union_previous_total_lse: torch.Tensor | None = None,
+    gqa_union_pilot_z_bound: torch.Tensor | None = None,
     protected_len: int = 0,
     max_leaf_tokens: int | None = None,
     open_count: int = 8,
@@ -16077,6 +17274,29 @@ def fused_decode_paged_lod_attention(
             "predicted-mass GQA routing requires a fraction, GQA union, "
             "page-size-one attention, and persistent total LSE storage"
         )
+    if gqa_union_pilot_z and (
+        gqa_union_predicted_mass
+        or gqa_union_mass_fraction is not None
+        or not gqa_union_decode
+        or not gqa_union_hip
+        or gqa_union_pilot_z_bound is None
+    ):
+        raise ValueError(
+            "pilot-z GQA routing requires page-size-one attention, "
+            "persistent calibrated bounds, and no mass routing"
+        )
+    if gqa_union_pilot_z:
+        if tuple(gqa_union_pilot_z_bound.shape) != (
+            int(state_k.size(0)),
+            query_heads,
+        ):
+            raise ValueError("pilot-z calibrated bounds have the wrong shape")
+        if gqa_union_pilot_z_bound.dtype != torch.float32:
+            raise TypeError("pilot-z calibrated bounds must be FP32")
+        if not math.isfinite(gqa_union_pilot_z_margin) or (
+            gqa_union_pilot_z_margin < 0.0
+        ):
+            raise ValueError("pilot-z margin must be finite and nonnegative")
     if route_mass_fraction is not None and (
         route_top_p is not None or route_residual_mass is not None
     ):
@@ -16128,6 +17348,7 @@ def fused_decode_paged_lod_attention(
                 ),
                 gqa_union_mass_fraction=gqa_union_mass_fraction,
                 gqa_union_predicted_mass=gqa_union_predicted_mass,
+                gqa_union_pilot_z=gqa_union_pilot_z,
                 gqa_union_kv_heads=(
                     kv_heads
                     if gqa_union_decode
@@ -16149,6 +17370,9 @@ def fused_decode_paged_lod_attention(
                     else None
                 ),
                 gqa_union_hip=gqa_union_hip,
+                gqa_union_fixed_mask=gqa_union_fixed_mask_aiter,
+                gqa_union_overlap_local_sink=gqa_union_overlap_local_sink,
+                gqa_union_fixed_mask_tile_size=gqa_union_fixed_mask_tile_size,
             )
         output = buffers["output"] if output_buffer is None else output_buffer
         partial_out = buffers["partial_out"]
@@ -16199,11 +17423,40 @@ def fused_decode_paged_lod_attention(
                 )
             )
         )
+        gqa_union_pilot = bool(
+            execute_state_route
+            and gqa_union_decode
+            and gqa_union_pilot_z
+            and gqa_union_unified
+            and gqa_union_hip
+            and gqa_union_page1_arena
+            and not fuse_final_reduce
+            and recursive_page_cache is None
+            and flat_page_indices is not None
+            and not flat_int8
+            and q.dtype == torch.bfloat16
+            and 1 < kv_group_size <= 16
+            and head_dim in (128, 256)
+            and isinstance(gqa_union_pilot_z_bound, torch.Tensor)
+            and buffers is not None
+            and "route_pilot_z_thresholds" in buffers
+            and all(
+                name in buffers
+                for name in (
+                    "gqa_union_seen_stamps",
+                    "gqa_union_epochs",
+                    "gqa_union_counts",
+                    "gqa_union_token_counts",
+                    "gqa_union_slots",
+                )
+            )
+        )
         gqa_union_mass = bool(
             execute_state_route
             and gqa_union_decode
             and gqa_union_mass_fraction is not None
             and not gqa_union_predicted
+            and not gqa_union_pilot
             and gqa_union_unified
             and not fuse_final_reduce
             and recursive_page_cache is None
@@ -16247,6 +17500,7 @@ def fused_decode_paged_lod_attention(
             and route_top_p is None
             and route_residual_mass is None
             and not gqa_union_predicted
+            and not gqa_union_pilot
             and buffers is not None
             and "gqa_union_seen_stamps" in buffers
         )
@@ -16269,11 +17523,13 @@ def fused_decode_paged_lod_attention(
         )
         gqa_union_fixed_mask = bool(
             gqa_union_fixed_mask_aiter
-            and (gqa_union_score_only or gqa_union_predicted)
+            and (gqa_union_score_only or gqa_union_predicted or gqa_union_pilot)
             and gqa_union_hip
             and gqa_union_page1_arena
             and (
-                gqa_union_mass_fraction is None or gqa_union_predicted
+                gqa_union_mass_fraction is None
+                or gqa_union_predicted
+                or gqa_union_pilot
             )
             and isinstance(gqa_union_fixed_indices, torch.Tensor)
             and isinstance(gqa_union_fixed_leaf_owners, torch.Tensor)
@@ -16295,9 +17551,111 @@ def fused_decode_paged_lod_attention(
                 )
             )
         )
+        gqa_union_local_sink_overlap = bool(
+            gqa_union_overlap_local_sink
+            and gqa_union_fixed_mask
+            and head_dim in (128, 256)
+            and batch == 1
+            and batch * kv_heads <= 4
+            and gqa_union_fixed_mask_reduce_block_d > 0
+            and local_len % gqa_union_fixed_mask_tile_size == 0
+            and not gqa_union_staged_fixed
+            and all(
+                name in buffers
+                for name in (
+                    "route_local_out",
+                    "route_local_lse",
+                    "gqa_union_hip_out",
+                    "gqa_union_hip_lse",
+                    "gqa_local_page1_context_lens",
+                    "gqa_local_page1_segment_out",
+                    "gqa_local_page1_exp_sums",
+                    "gqa_local_page1_max_logits",
+                )
+            )
+        )
         gqa_union_fixed_prepare_fused = False
         predicted_fixed_prepare = False
         fixed_attention_stream = None
+        local_sink_stream = None
+        if gqa_union_local_sink_overlap:
+            # The batch-one coarse route grid has too little work to occupy the
+            # device, but it still gates exact-leaf attention. Fill those idle
+            # CUs with the independent local-window/sink branch. The main stream
+            # rejoins it only after remote attention, immediately before the
+            # LSE-correct two-branch merge.
+            local_sink_stream = buffers.get("gqa_union_local_sink_stream")
+            if local_sink_stream is None:
+                local_sink_stream = torch.cuda.Stream(device=q.device)
+                buffers["gqa_union_local_sink_stream"] = local_sink_stream
+            main_stream = torch.cuda.current_stream(q.device)
+            local_sink_stream.wait_stream(main_stream)
+            with torch.cuda.stream(local_sink_stream):
+                from model.kernels.aiter_page1_attention import (
+                    kernel_page1_attention_3d_bias,
+                )
+
+                local_segments = 8
+                sequence_count = batch * kv_heads
+                local_query = q[:, :, 0, :].reshape(
+                    sequence_count, kv_group_size, head_dim
+                )
+                local_context_lens = buffers[
+                    "gqa_local_page1_context_lens"
+                ][:sequence_count]
+                _prepare_aiter_local_sink_context_kernel[(sequence_count,)](
+                    cache_indices,
+                    local_lens,
+                    local_context_lens,
+                    new_k,
+                    new_v,
+                    gqa_union_page1_k,
+                    gqa_union_page1_v,
+                    new_k.stride(0),
+                    new_k.stride(1),
+                    new_v.stride(0),
+                    new_v.stride(1),
+                    KV_HEADS=kv_heads,
+                    LOCAL_OFFSET=gqa_union_page1_local_offset,
+                    LOCAL_CAPACITY=int(local_k.size(2)),
+                    LOCAL_LIMIT=local_len,
+                    SINK_LEN=(int(sink_k.size(2)) if include_sink else 0),
+                    HEAD_DIM=head_dim,
+                    INCLUDE_NEW=include_new,
+                    num_warps=1,
+                )
+                kernel_page1_attention_3d_bias[
+                    (sequence_count, 1, local_segments)
+                ](
+                    buffers["gqa_local_page1_segment_out"][:sequence_count],
+                    buffers["gqa_local_page1_max_logits"][:sequence_count],
+                    buffers["gqa_local_page1_exp_sums"][:sequence_count],
+                    local_query,
+                    gqa_union_page1_k,
+                    gqa_union_page1_v,
+                    gqa_union_page1_bias,
+                    gqa_union_fixed_indices,
+                    cache_indices,
+                    local_lens,
+                    float(scale),
+                    gqa_union_fixed_indices.stride(1),
+                    local_query.stride(0),
+                    local_query.stride(1),
+                    NUM_QUERY_HEADS=kv_group_size,
+                    KV_HEADS=kv_heads,
+                    INDEX_BY_CACHE=True,
+                    TILE_SIZE=64,
+                    HEAD_SIZE=head_dim,
+                    BLOCK_M=16,
+                    NUM_SEGMENTS=local_segments,
+                    LENGTHS_BY_CACHE=True,
+                    LOCAL_LIMIT=local_len,
+                    SINK_LEN=(int(sink_k.size(2)) if include_sink else 0),
+                    INCLUDE_NEW=include_new,
+                    num_warps=2,
+                    waves_per_eu=2,
+                    num_stages=2,
+                )
         if gqa_union_staged_fixed:
             # Start the query-independent branch before routing.  Its block
             # table is the otherwise-unused Triton index buffer, while all
@@ -16434,19 +17792,23 @@ def fused_decode_paged_lod_attention(
                     fixed_context_lens,
                     fixed_out,
                     buffers["coarse_lse"],
+                    fixed_context_lens,
+                    fixed_context_lens,
+                    fixed_context_lens,
                     OUTPUT_STRIDE_0=fixed_out.stride(0),
                     OUTPUT_STRIDE_1=fixed_out.stride(1),
                     QUERY_ROWS=kv_group_size,
                     HEAD_DIM=head_dim,
                     SEGMENTS=unified_segments,
                     TILE_SIZE=64,
+                    ADVANCE_QUEUE=False,
                     num_warps=2,
                     waves_per_eu=waves_per_eu,
                 )
-        if gqa_union_predicted:
-            predicted_route_begin = timing_begin()
+        if gqa_union_predicted or gqa_union_pilot:
+            threshold_route_begin = timing_begin()
             from model.kernels.aiter_page1_attention import (
-                init_page1_predicted_mass_union,
+                kernel_page1_pilot_z_threshold,
                 kernel_page1_predicted_mass_fixed_prepare,
                 kernel_page1_predicted_mass_union,
             )
@@ -16457,12 +17819,59 @@ def fused_decode_paged_lod_attention(
                 sequence_count, kv_group_size, head_dim
             )
             predicted_groups = triton.cdiv(state_len, 64)
+            route_thresholds = gqa_union_previous_total_lse
+            if gqa_union_pilot:
+                route_thresholds = buffers["route_pilot_z_thresholds"]
+                kernel_page1_pilot_z_threshold[(sequence_count,)](
+                    predicted_query,
+                    gqa_union_page1_k,
+                    gqa_union_page1_bias,
+                    counts,
+                    cache_indices,
+                    gqa_union_pilot_z_bound,
+                    route_thresholds,
+                    float(scale),
+                    float(gqa_union_pilot_z_margin),
+                    predicted_query.stride(0),
+                    predicted_query.stride(1),
+                    counts.stride(0),
+                    counts.stride(1),
+                    counts.stride(2),
+                    gqa_union_pilot_z_bound.stride(0),
+                    gqa_union_pilot_z_bound.stride(1),
+                    route_thresholds.stride(0),
+                    route_thresholds.stride(1),
+                    NUM_QUERY_HEADS=kv_group_size,
+                    KV_HEADS=kv_heads,
+                    STATE_LEN=state_len,
+                    STATE_CAPACITY=int(state_k.size(2)),
+                    COARSE_OFFSET=gqa_union_page1_coarse_offset,
+                    HEAD_SIZE=head_dim,
+                    BLOCK_M=16,
+                    PROTECTED_LEN=protected_len,
+                    PILOT_SIZE=64,
+                    MAX_LEAF_TOKENS=max_leaf_tokens or 0,
+                    num_warps=2,
+                    waves_per_eu=2,
+                    num_stages=2,
+                )
+            if not isinstance(route_thresholds, torch.Tensor):
+                raise AssertionError("threshold routing has no threshold storage")
             predicted_fixed_prepare = bool(
                 gqa_union_fixed_mask
+                and gqa_union_predicted
                 and predicted_groups
                 <= int(buffers["route_group_lse"].size(2))
             )
-            if not predicted_fixed_prepare:
+            pilot_fixed_prepare = bool(gqa_union_fixed_mask and gqa_union_pilot)
+            threshold_fixed_prepare = bool(
+                predicted_fixed_prepare or pilot_fixed_prepare
+            )
+            if not threshold_fixed_prepare:
+                from model.kernels.aiter_page1_attention import (
+                    init_page1_predicted_mass_union,
+                )
+
                 init_page1_predicted_mass_union[(sequence_count,)](
                     buffers["gqa_union_epochs"],
                     buffers["gqa_union_counts"],
@@ -16471,7 +17880,7 @@ def fused_decode_paged_lod_attention(
                     num_warps=1,
                     waves_per_eu=waves_per_eu,
                 )
-            if predicted_fixed_prepare:
+            if threshold_fixed_prepare:
                 fixed_active_mask = buffers[
                     "gqa_union_fixed_active_mask"
                 ][:sequence_count]
@@ -16487,7 +17896,7 @@ def fused_decode_paged_lod_attention(
                     gqa_union_page1_bias,
                     counts,
                     cache_indices,
-                    gqa_union_previous_total_lse,
+                    route_thresholds,
                     buffers["gqa_union_seen_stamps"],
                     buffers["gqa_union_epochs"],
                     buffers["gqa_union_counts"],
@@ -16514,8 +17923,8 @@ def fused_decode_paged_lod_attention(
                     counts.stride(0),
                     counts.stride(1),
                     counts.stride(2),
-                    gqa_union_previous_total_lse.stride(0),
-                    gqa_union_previous_total_lse.stride(1),
+                    route_thresholds.stride(0),
+                    route_thresholds.stride(1),
                     buffers["route_group_lse"].stride(1),
                     new_k.stride(0),
                     new_k.stride(1),
@@ -16536,7 +17945,11 @@ def fused_decode_paged_lod_attention(
                     BLOCK_M=16,
                     PROTECTED_LEN=protected_len,
                     MAX_LEAF_TOKENS=max_leaf_tokens or 0,
-                    LOG_MASS_FRACTION=math.log(float(gqa_union_mass_fraction)),
+                    LOG_MASS_FRACTION=(
+                        math.log(float(gqa_union_mass_fraction))
+                        if gqa_union_predicted
+                        else 0.0
+                    ),
                     LOCAL_OFFSET=gqa_union_page1_local_offset,
                     LOCAL_CAPACITY=int(local_k.size(2)),
                     LOCAL_LIMIT=local_len,
@@ -16546,6 +17959,7 @@ def fused_decode_paged_lod_attention(
                     RESET_BLOCK_N=64,
                     RESET_BLOCKS_N=4,
                     INCLUDE_NEW=include_new,
+                    STORE_REMOTE_LSE=gqa_union_predicted,
                     num_warps=2,
                     waves_per_eu=2,
                     num_stages=2,
@@ -16560,7 +17974,7 @@ def fused_decode_paged_lod_attention(
                     gqa_union_page1_bias,
                     counts,
                     cache_indices,
-                    gqa_union_previous_total_lse,
+                    route_thresholds,
                     buffers["gqa_union_seen_stamps"],
                     buffers["gqa_union_epochs"],
                     buffers["gqa_union_counts"],
@@ -16571,8 +17985,8 @@ def fused_decode_paged_lod_attention(
                     counts.stride(0),
                     counts.stride(1),
                     counts.stride(2),
-                    gqa_union_previous_total_lse.stride(0),
-                    gqa_union_previous_total_lse.stride(1),
+                    route_thresholds.stride(0),
+                    route_thresholds.stride(1),
                     NUM_QUERY_HEADS=kv_group_size,
                     KV_HEADS=kv_heads,
                     STATE_LEN=state_len,
@@ -16584,13 +17998,24 @@ def fused_decode_paged_lod_attention(
                     BLOCK_M=16,
                     PROTECTED_LEN=protected_len,
                     MAX_LEAF_TOKENS=max_leaf_tokens or 0,
-                    LOG_MASS_FRACTION=math.log(float(gqa_union_mass_fraction)),
+                    LOG_MASS_FRACTION=(
+                        math.log(float(gqa_union_mass_fraction))
+                        if gqa_union_predicted
+                        else 0.0
+                    ),
                     num_warps=2,
                     waves_per_eu=2,
                     num_stages=2,
                 )
             top_slots = buffers["route_top_slots"]
-            timing_end("gqa_predicted_mass_route", predicted_route_begin)
+            timing_end(
+                (
+                    "gqa_predicted_mass_route"
+                    if gqa_union_predicted
+                    else "gqa_pilot_z_route"
+                ),
+                threshold_route_begin,
+            )
         if gqa_union_mass:
             mass_route_begin = timing_begin()
             from model.kernels.gqa16_coarse_score import (
@@ -16654,7 +18079,12 @@ def fused_decode_paged_lod_attention(
             # until the final AITER page-size-one dispatch replaces it.
             top_slots = buffers["route_top_slots"]
             timing_end("gqa_mass_route", mass_route_begin)
-        if execute_state_route and not gqa_union_mass and not gqa_union_predicted:
+        if (
+            execute_state_route
+            and not gqa_union_mass
+            and not gqa_union_predicted
+            and not gqa_union_pilot
+        ):
             required = (
                 "route_candidate_scores",
                 "route_candidate_indices",
@@ -16838,6 +18268,7 @@ def fused_decode_paged_lod_attention(
                             mask_capacity=int(fixed_active_mask.size(1)),
                             tile_size=gqa_union_fixed_mask_tile_size,
                             include_new=include_new,
+                            separate_local_sink=gqa_union_local_sink_overlap,
                             scale=float(scale),
                         )
                         gqa_union_fixed_prepare_fused = True
@@ -16890,11 +18321,34 @@ def fused_decode_paged_lod_attention(
                         "gqa_union_fixed_active_blocks"
                     ][: batch * kv_heads]
                     sink_len = int(sink_k.size(2)) if include_sink else 0
+                    # The page-size-one arena is refreshed only at state-update
+                    # boundaries and already contains the exact BF16-rounded
+                    # centroid means used by routing. Read those means directly
+                    # instead of dividing every sum component by count again on
+                    # every decoded token.
+                    route_state_k = state_k
+                    route_keys_are_means = False
+                    coarse_rows = (
+                        int(state_k.size(0))
+                        * int(state_k.size(1))
+                        * int(state_k.size(2))
+                    )
+                    coarse_begin = int(gqa_union_page1_coarse_offset)
+                    if (
+                        isinstance(gqa_union_page1_k, torch.Tensor)
+                        and coarse_begin >= 0
+                        and coarse_begin + coarse_rows
+                        <= int(gqa_union_page1_k.size(0))
+                    ):
+                        route_state_k = gqa_union_page1_k.narrow(
+                            0, coarse_begin, coarse_rows
+                        ).view_as(state_k)
+                        route_keys_are_means = True
                     _decode_route_coarse_gqa_groups_fixed_prepare_kernel[
                         (route_rows, active_groups)
                     ](
                         q,
-                        state_k,
+                        route_state_k,
                         state_v,
                         counts,
                         cache_indices,
@@ -16917,9 +18371,9 @@ def fused_decode_paged_lod_attention(
                         gqa_union_fixed_slot_offsets,
                         fixed_active_mask,
                         fixed_active_blocks,
-                        state_k.stride(0),
-                        state_k.stride(1),
-                        state_k.stride(2),
+                        route_state_k.stride(0),
+                        route_state_k.stride(1),
+                        route_state_k.stride(2),
                         state_v.stride(0),
                         state_v.stride(1),
                         state_v.stride(2),
@@ -16956,6 +18410,8 @@ def fused_decode_paged_lod_attention(
                         RESET_BLOCK_N=64,
                         RESET_BLOCKS_N=4,
                         INCLUDE_NEW=include_new,
+                        SEPARATE_LOCAL_SINK=gqa_union_local_sink_overlap,
+                        KEYS_ARE_MEANS=route_keys_are_means,
                         num_warps=route_num_warps,
                         num_stages=3,
                         waves_per_eu=waves_per_eu,
@@ -17520,9 +18976,10 @@ def fused_decode_paged_lod_attention(
         buffers["gqa_union_last_score_only"] = bool(gqa_union_score_only)
         buffers["gqa_union_last_eligible"] = bool(gqa_union_leaf)
         buffers["gqa_union_last_mass_cutoff"] = bool(
-            gqa_union_mass or gqa_union_predicted
+            gqa_union_mass or gqa_union_predicted or gqa_union_pilot
         )
         buffers["gqa_union_last_predicted_mass"] = bool(gqa_union_predicted)
+        buffers["gqa_union_last_pilot_z"] = bool(gqa_union_pilot)
         buffers["gqa_union_last_hip"] = bool(gqa_union_hip_exact)
         buffers["gqa_union_last_aiter_final"] = bool(gqa_union_aiter_final)
         buffers["gqa_union_last_group64_padded"] = bool(
@@ -17533,6 +18990,10 @@ def fused_decode_paged_lod_attention(
         )
         buffers["gqa_union_last_fixed_mask_aiter"] = bool(
             gqa_union_fixed_mask and gqa_union_aiter_final
+        )
+        buffers["gqa_union_last_overlap_local_sink"] = bool(
+            gqa_union_local_sink_overlap
+            and gqa_union_aiter_final
         )
         cooperative_hip_eligible = False
         if gqa_cooperative_hip and q.is_cuda:
@@ -17616,11 +19077,13 @@ def fused_decode_paged_lod_attention(
                 and gqa_union_fixed_mask_direct_routes
                 and not gqa_union_mass
                 and not gqa_union_predicted
+                and not gqa_union_pilot
             )
             buffers["gqa_union_last_direct_fixed_routes"] = direct_fixed_routes
             if (
                 not gqa_union_mass
                 and not gqa_union_predicted
+                and not gqa_union_pilot
                 and not direct_fixed_routes
             ):
                 _decode_topk_gqa_union_kernel[(sequence_count,)](
@@ -17717,6 +19180,7 @@ def fused_decode_paged_lod_attention(
                             )
                         ),
                         INCLUDE_NEW=include_new,
+                        SEPARATE_LOCAL_SINK=gqa_union_local_sink_overlap,
                         num_warps=1,
                         waves_per_eu=waves_per_eu,
                     )
@@ -17984,6 +19448,9 @@ def fused_decode_paged_lod_attention(
                         BLOCK_M=16,
                         NUM_SEGMENTS=unified_segments,
                         INCLUDE_NEW=include_new,
+                        PREFIX_SKIP=(
+                            local_len if gqa_union_local_sink_overlap else 0
+                        ),
                         num_warps=scan_num_warps,
                         waves_per_eu=scan_waves_per_eu,
                         num_stages=gqa_union_fixed_mask_scan_num_stages,
@@ -17992,6 +19459,17 @@ def fused_decode_paged_lod_attention(
                 fixed_reduce_begin = (
                     timing_begin() if head_dim != 512 else None
                 )
+                if (
+                    gqa_union_local_sink_overlap
+                    and local_sink_stream is not None
+                ):
+                    # Both scans have now been issued. Delay the only join
+                    # until the existing final reduction, which consumes the
+                    # two segment fields directly and avoids a local reduction
+                    # plus a second branch-merge kernel.
+                    torch.cuda.current_stream(q.device).wait_stream(
+                        local_sink_stream
+                    )
                 if predicted_fixed_prepare:
                     predicted_groups = triton.cdiv(state_len, 64)
                     _reduce_aiter_page1_segments_with_predicted_lse_kernel[
@@ -18054,32 +19532,75 @@ def fused_decode_paged_lod_attention(
                         use_split_d_reduce
                     )
                     if use_split_d_reduce:
-                        _reduce_aiter_page1_segments_with_lse_split_d_kernel[
-                            (
-                                sequence_count,
-                                kv_group_size,
-                                triton.cdiv(
-                                    head_dim,
-                                    gqa_union_fixed_mask_reduce_block_d,
-                                ),
-                            )
-                        ](
-                            fixed_segment_out,
-                            fixed_max_logits,
-                            fixed_exp_sums,
-                            fixed_context_lens,
-                            fixed_out,
-                            buffers["gqa_union_hip_lse"][:sequence_count],
-                            OUTPUT_STRIDE_0=fixed_out.stride(0),
-                            OUTPUT_STRIDE_1=fixed_out.stride(1),
-                            QUERY_ROWS=kv_group_size,
-                            HEAD_DIM=head_dim,
-                            SEGMENTS=unified_segments,
-                            TILE_SIZE=gqa_union_fixed_mask_tile_size,
-                            BLOCK_D=gqa_union_fixed_mask_reduce_block_d,
-                            num_warps=2,
-                            waves_per_eu=waves_per_eu,
+                        reduce_grid = (
+                            sequence_count,
+                            kv_group_size,
+                            triton.cdiv(
+                                head_dim,
+                                gqa_union_fixed_mask_reduce_block_d,
+                            ),
                         )
+                        if gqa_union_local_sink_overlap:
+                            _reduce_remote_local_page1_segments_with_lse_split_d_kernel[
+                                reduce_grid
+                            ](
+                                fixed_segment_out,
+                                fixed_max_logits,
+                                fixed_exp_sums,
+                                fixed_context_lens,
+                                buffers["gqa_local_page1_segment_out"][
+                                    :sequence_count
+                                ],
+                                buffers["gqa_local_page1_max_logits"][
+                                    :sequence_count
+                                ],
+                                buffers["gqa_local_page1_exp_sums"][
+                                    :sequence_count
+                                ],
+                                buffers["gqa_local_page1_context_lens"][
+                                    :sequence_count
+                                ],
+                                fixed_out,
+                                buffers["gqa_union_hip_lse"][:sequence_count],
+                                OUTPUT_STRIDE_0=fixed_out.stride(0),
+                                OUTPUT_STRIDE_1=fixed_out.stride(1),
+                                QUERY_ROWS=kv_group_size,
+                                HEAD_DIM=head_dim,
+                                REMOTE_SEGMENTS=unified_segments,
+                                LOCAL_SEGMENTS=8,
+                                TILE_SIZE=gqa_union_fixed_mask_tile_size,
+                                BLOCK_D=(
+                                    gqa_union_fixed_mask_reduce_block_d
+                                ),
+                                num_warps=2,
+                                waves_per_eu=waves_per_eu,
+                            )
+                        else:
+                            _reduce_aiter_page1_segments_with_lse_split_d_kernel[
+                                reduce_grid
+                            ](
+                                fixed_segment_out,
+                                fixed_max_logits,
+                                fixed_exp_sums,
+                                fixed_context_lens,
+                                fixed_out,
+                                buffers["gqa_union_hip_lse"][:sequence_count],
+                                buffers["gqa_union_epochs"],
+                                buffers["gqa_union_counts"],
+                                buffers["gqa_union_token_counts"],
+                                OUTPUT_STRIDE_0=fixed_out.stride(0),
+                                OUTPUT_STRIDE_1=fixed_out.stride(1),
+                                QUERY_ROWS=kv_group_size,
+                                HEAD_DIM=head_dim,
+                                SEGMENTS=unified_segments,
+                                TILE_SIZE=gqa_union_fixed_mask_tile_size,
+                                BLOCK_D=(
+                                    gqa_union_fixed_mask_reduce_block_d
+                                ),
+                                ADVANCE_QUEUE=gqa_union_pilot,
+                                num_warps=2,
+                                waves_per_eu=waves_per_eu,
+                            )
                     else:
                         _reduce_aiter_page1_segments_with_lse_kernel[
                             (sequence_count, kv_group_size)
@@ -18090,12 +19611,16 @@ def fused_decode_paged_lod_attention(
                             fixed_context_lens,
                             fixed_out,
                             buffers["gqa_union_hip_lse"][:sequence_count],
+                            buffers["gqa_union_epochs"],
+                            buffers["gqa_union_counts"],
+                            buffers["gqa_union_token_counts"],
                             OUTPUT_STRIDE_0=fixed_out.stride(0),
                             OUTPUT_STRIDE_1=fixed_out.stride(1),
                             QUERY_ROWS=kv_group_size,
                             HEAD_DIM=head_dim,
                             SEGMENTS=unified_segments,
                             TILE_SIZE=gqa_union_fixed_mask_tile_size,
+                            ADVANCE_QUEUE=gqa_union_pilot,
                             num_warps=2,
                             waves_per_eu=waves_per_eu,
                         )
@@ -18424,12 +19949,16 @@ def fused_decode_paged_lod_attention(
                         hip_context_lens,
                         aiter_out,
                         buffers["gqa_union_hip_lse"][:sequence_count],
+                        hip_context_lens,
+                        hip_context_lens,
+                        hip_context_lens,
                         OUTPUT_STRIDE_0=aiter_out.stride(0),
                         OUTPUT_STRIDE_1=aiter_out.stride(1),
                         QUERY_ROWS=kv_group_size,
                         HEAD_DIM=head_dim,
                         SEGMENTS=unified_segments,
                         TILE_SIZE=64,
+                        ADVANCE_QUEUE=False,
                         num_warps=2,
                         waves_per_eu=waves_per_eu,
                     )
@@ -18652,6 +20181,8 @@ def fused_decode_paged_lod_attention(
                     local_lens,
                     local_k,
                     local_v,
+                    sink_k,
+                    sink_v,
                     new_k,
                     new_v,
                     local_partial_out,
@@ -18662,6 +20193,12 @@ def fused_decode_paged_lod_attention(
                     local_v.stride(0),
                     local_v.stride(1),
                     local_v.stride(2),
+                    sink_k.stride(0),
+                    sink_k.stride(1),
+                    sink_k.stride(2),
+                    sink_v.stride(0),
+                    sink_v.stride(1),
+                    sink_v.stride(2),
                     new_k.stride(0),
                     new_k.stride(1),
                     new_v.stride(0),
@@ -18676,6 +20213,9 @@ def fused_decode_paged_lod_attention(
                     SCALE_LOG2=float(scale) * math.log2(math.e),
                     BLOCK_N=block_n,
                     INCLUDE_NEW=include_new,
+                    INCLUDE_SINK=False,
+                    SINK_LEN=0,
+                    SINK_BLOCK=1,
                     num_warps=num_warps,
                     waves_per_eu=waves_per_eu,
                 )
@@ -20268,6 +21808,46 @@ def _materialize_aiter_indexed_union_table_kernel(
 
 
 @triton.jit(
+    do_not_specialize=["max_tokens"],
+    do_not_specialize_on_alignment=["max_tokens"],
+)
+def _materialize_fixed_adjacent_aiter_union_table_kernel(
+    union_experts,
+    token_counts,
+    kv_indptr,
+    kv_page_indices,
+    max_tokens,
+    UNION_WIDTH: tl.constexpr,
+    STATE_CAPACITY: tl.constexpr,
+    LEAF_CAPACITY: tl.constexpr,
+    ADJACENT_FACTOR: tl.constexpr,
+    BLOCK_K: tl.constexpr,
+):
+    """Map fixed adjacent centroids directly to chronological leaf indices."""
+
+    sequence = tl.program_id(0).to(tl.int64)
+    token = tl.program_id(1).to(tl.int64) * BLOCK_K + tl.arange(0, BLOCK_K)
+    token_count = tl.load(token_counts + sequence).to(tl.int64)
+    valid = (token < token_count) & (token < max_tokens)
+    union_rank = token // ADJACENT_FACTOR
+    within_group = token - union_rank * ADJACENT_FACTOR
+    expert_id = tl.load(
+        union_experts + sequence * UNION_WIDTH + union_rank,
+        mask=valid & (union_rank < UNION_WIDTH),
+        other=0,
+    ).to(tl.int64)
+    kv_row = expert_id // STATE_CAPACITY
+    slot = expert_id - kv_row * STATE_CAPACITY
+    leaf = slot * ADJACENT_FACTOR + within_group
+    destination = tl.load(kv_indptr + sequence).to(tl.int64) + token
+    tl.store(
+        kv_page_indices + destination,
+        kv_row * LEAF_CAPACITY + leaf,
+        mask=valid & (leaf < LEAF_CAPACITY),
+    )
+
+
+@triton.jit(
     do_not_specialize=["query_len", "max_slot_length"],
     do_not_specialize_on_alignment=["query_len", "max_slot_length"],
 )
@@ -20985,6 +22565,7 @@ def aiter_query_tile_union_paged_leaf_attention(
     num_warps: int = 4,
     waves_per_eu: int = 1,
     mask_queries: bool = False,
+    fixed_adjacent_factor: int = 1,
     timing_events: dict[str, list[tuple[torch.cuda.Event, torch.cuda.Event]]]
     | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -21024,6 +22605,10 @@ def aiter_query_tile_union_paged_leaf_attention(
         raise ValueError("AITER query tile must be a positive power of two")
     if mask_queries and query_tile > 16:
         raise ValueError("masked AITER query unions support at most 16 queries")
+    if fixed_adjacent_factor not in {1, 2, 4, 8, 16, 32}:
+        raise ValueError("fixed adjacent AITER unions require a supported factor")
+    if mask_queries and fixed_adjacent_factor != 1:
+        raise ValueError("masked fixed-adjacent AITER unions are not implemented")
     tile_count = triton.cdiv(query_len, query_tile)
     original_slots = top_slots
     if mask_queries:
@@ -21065,12 +22650,19 @@ def aiter_query_tile_union_paged_leaf_attention(
         )
         kv_row = sequence_batch * kv_heads + sequence_kv_head
         safe_slot = union_slots.clamp(min=0, max=state_capacity - 1).long()
-        union_lengths = torch.gather(
-            slot_lengths[sequence_batch, sequence_kv_head], 1, safe_slot
-        ).to(torch.int32)
-        union_lengths = torch.where(
-            union_slots >= 0, union_lengths, torch.zeros_like(union_lengths)
-        )
+        if fixed_adjacent_factor == 1:
+            union_lengths = torch.gather(
+                slot_lengths[sequence_batch, sequence_kv_head], 1, safe_slot
+            ).to(torch.int32)
+            union_lengths = torch.where(
+                union_slots >= 0, union_lengths, torch.zeros_like(union_lengths)
+            )
+        else:
+            union_lengths = torch.where(
+                union_slots >= 0,
+                torch.full_like(union_slots, fixed_adjacent_factor).to(torch.int32),
+                torch.zeros_like(union_slots, dtype=torch.int32),
+            )
         union_prefix = union_lengths.cumsum(dim=-1, dtype=torch.int32) - union_lengths
         token_counts = union_lengths.sum(dim=-1, dtype=torch.int32)
         if bool((token_counts <= 0).any().item()):
@@ -21116,6 +22708,24 @@ def aiter_query_tile_union_paged_leaf_attention(
                 PAGE_SIZE=page_size,
                 LEAF_CAPACITY=leaf_capacity,
                 BLOCK_K=table_block_k,
+                num_warps=1,
+            )
+        elif fixed_adjacent_factor != 1:
+            kv_query_masks = None
+            fixed_block_k = 128
+            _materialize_fixed_adjacent_aiter_union_table_kernel[
+                (sequences, triton.cdiv(max_k, fixed_block_k))
+            ](
+                union_experts,
+                token_counts,
+                kv_indptr,
+                kv_page_indices,
+                max_k,
+                UNION_WIDTH=union_width,
+                STATE_CAPACITY=state_capacity,
+                LEAF_CAPACITY=leaf_capacity,
+                ADJACENT_FACTOR=fixed_adjacent_factor,
+                BLOCK_K=fixed_block_k,
                 num_warps=1,
             )
         else:
@@ -22109,7 +23719,10 @@ def append_virtual_paged_kv(
                 LEAF_V_TOKEN_STRIDE=int(leaf_v.stride(2)),
                 QUANT_BITS=quant_bits,
                 OPTIMIZE_SCALE=optimize_scale,
-                num_warps=4,
+                num_warps=_virtual_page_quant_num_warps(
+                    quant_bits=quant_bits,
+                    quant_group_size=quant_group_size,
+                ),
             )
 
 
@@ -22267,39 +23880,87 @@ def quantize_virtual_paged_kv(
         raise ValueError("virtual K scale layout does not match token groups")
     if tuple(page_v_scales.shape) != expected_v_scales:
         raise ValueError("virtual V scale layout does not match token groups")
-    _quantize_all_virtual_pages_kernel[
-        (batch * kv_heads * page_capacity, channel_group_count * token_group_count)
-    ](
-        page_indices,
-        leaf_k,
-        leaf_v,
-        page_sum_k,
-        page_sum_v,
-        page_counts,
-        quantized_leaf_k,
-        quantized_leaf_v,
-        page_k_scales,
-        page_v_scales,
-        page_quantized_counts,
-        KV_HEADS=kv_heads,
-        PAGE_CAPACITY=page_capacity,
-        PAGE_SIZE=int(page_indices.size(3)),
-        HEAD_DIM=head_dim,
-        VALUE_DIM=value_dim,
-        GROUP_SIZE=quant_group_size,
-        TOKEN_GROUP_SIZE=quant_token_group_size,
-        CHANNEL_GROUP_COUNT=channel_group_count,
-        LEAF_CAPACITY=leaf_capacity,
-        LEAF_K_BATCH_STRIDE=int(leaf_k.stride(0)),
-        LEAF_K_HEAD_STRIDE=int(leaf_k.stride(1)),
-        LEAF_K_TOKEN_STRIDE=int(leaf_k.stride(2)),
-        LEAF_V_BATCH_STRIDE=int(leaf_v.stride(0)),
-        LEAF_V_HEAD_STRIDE=int(leaf_v.stride(1)),
-        LEAF_V_TOKEN_STRIDE=int(leaf_v.stride(2)),
-        QUANT_BITS=quant_bits,
-        OPTIMIZE_SCALE=optimize_scale,
-        num_warps=4,
+    groups_per_program = _virtual_page_quant_groups_per_program(
+        quant_bits=quant_bits,
+        quant_group_size=quant_group_size,
+        page_size=page_size,
+        quant_token_group_size=quant_token_group_size,
     )
+    num_warps = _virtual_page_quant_num_warps(
+        quant_bits=quant_bits,
+        quant_group_size=quant_group_size,
+    )
+    if groups_per_program > 1:
+        _quantize_all_virtual_pages_grouped_int4_kernel[
+            (
+                batch * kv_heads * page_capacity,
+                triton.cdiv(channel_group_count, groups_per_program),
+            )
+        ](
+            page_indices,
+            leaf_k,
+            leaf_v,
+            page_sum_k,
+            page_sum_v,
+            page_counts,
+            quantized_leaf_k,
+            quantized_leaf_v,
+            page_k_scales,
+            page_v_scales,
+            page_quantized_counts,
+            KV_HEADS=kv_heads,
+            PAGE_CAPACITY=page_capacity,
+            HEAD_DIM=head_dim,
+            VALUE_DIM=value_dim,
+            GROUPS_PER_PROGRAM=groups_per_program,
+            CHANNEL_GROUP_COUNT=channel_group_count,
+            LEAF_CAPACITY=leaf_capacity,
+            LEAF_K_BATCH_STRIDE=int(leaf_k.stride(0)),
+            LEAF_K_HEAD_STRIDE=int(leaf_k.stride(1)),
+            LEAF_K_TOKEN_STRIDE=int(leaf_k.stride(2)),
+            LEAF_V_BATCH_STRIDE=int(leaf_v.stride(0)),
+            LEAF_V_HEAD_STRIDE=int(leaf_v.stride(1)),
+            LEAF_V_TOKEN_STRIDE=int(leaf_v.stride(2)),
+            OPTIMIZE_SCALE=optimize_scale,
+            num_warps=num_warps,
+        )
+    else:
+        _quantize_all_virtual_pages_kernel[
+            (
+                batch * kv_heads * page_capacity,
+                channel_group_count * token_group_count,
+            )
+        ](
+            page_indices,
+            leaf_k,
+            leaf_v,
+            page_sum_k,
+            page_sum_v,
+            page_counts,
+            quantized_leaf_k,
+            quantized_leaf_v,
+            page_k_scales,
+            page_v_scales,
+            page_quantized_counts,
+            KV_HEADS=kv_heads,
+            PAGE_CAPACITY=page_capacity,
+            PAGE_SIZE=int(page_indices.size(3)),
+            HEAD_DIM=head_dim,
+            VALUE_DIM=value_dim,
+            GROUP_SIZE=quant_group_size,
+            TOKEN_GROUP_SIZE=quant_token_group_size,
+            CHANNEL_GROUP_COUNT=channel_group_count,
+            LEAF_CAPACITY=leaf_capacity,
+            LEAF_K_BATCH_STRIDE=int(leaf_k.stride(0)),
+            LEAF_K_HEAD_STRIDE=int(leaf_k.stride(1)),
+            LEAF_K_TOKEN_STRIDE=int(leaf_k.stride(2)),
+            LEAF_V_BATCH_STRIDE=int(leaf_v.stride(0)),
+            LEAF_V_HEAD_STRIDE=int(leaf_v.stride(1)),
+            LEAF_V_TOKEN_STRIDE=int(leaf_v.stride(2)),
+            QUANT_BITS=quant_bits,
+            OPTIMIZE_SCALE=optimize_scale,
+            num_warps=num_warps,
+        )
 
 
 def append_quantized_virtual_paged_kv(
@@ -22427,7 +24088,17 @@ def append_quantized_virtual_paged_kv(
         head_dim // quant_group_size,
         value_dim // quant_group_size,
     )
-    _append_quantized_virtual_pages_kernel[(token_rows, group_count)](
+    groups_per_program = _virtual_page_quant_groups_per_program(
+        quant_bits=quant_bits,
+        quant_group_size=quant_group_size,
+        page_size=page_size,
+        quant_token_group_size=quant_token_group_size,
+    )
+    num_warps = _virtual_page_quant_num_warps(
+        quant_bits=quant_bits,
+        quant_group_size=quant_group_size,
+    )
+    common_args = (
         owners,
         ordinals,
         slot_pages,
@@ -22449,33 +24120,49 @@ def append_quantized_virtual_paged_kv(
         quantized_leaf_v,
         page_k_scales,
         page_v_scales,
-        page_quantized_counts,
-        leaf_offset,
-        TOKENS=tokens,
-        KV_HEADS=kv_heads,
-        STATE_CAPACITY=int(slot_pages.size(2)),
-        INLINE_PAGES_PER_SLOT=int(slot_pages.size(3)),
-        PAGE_CAPACITY=int(page_indices.size(2)),
-        HASH_CAPACITY=int(overflow_page_values.size(2)),
-        HASH_PROBES=hash_probes,
-        PAGE_SIZE=int(page_indices.size(3)),
-        HEAD_DIM=head_dim,
-        VALUE_DIM=value_dim,
-        GROUP_SIZE=quant_group_size,
-        TOKEN_GROUP_SIZE=quant_token_group_size,
-        LEAF_CAPACITY=leaf_capacity,
-        APPEND_K_BATCH_STRIDE=int(append_k.stride(0)),
-        APPEND_K_HEAD_STRIDE=int(append_k.stride(1)),
-        APPEND_K_TOKEN_STRIDE=int(append_k.stride(2)),
-        APPEND_V_BATCH_STRIDE=int(append_v.stride(0)),
-        APPEND_V_HEAD_STRIDE=int(append_v.stride(1)),
-        APPEND_V_TOKEN_STRIDE=int(append_v.stride(2)),
-        QUANT_BITS=quant_bits,
-        QUANTIZED_SUMMARIES=quantized_summaries,
-        OPTIMIZE_SUMMARY_SCALE=optimize_summary_scale,
-        OPTIMIZE_LEAF_SCALE=optimize_leaf_scale,
-        num_warps=4,
     )
+    common_meta = {
+        "TOKENS": tokens,
+        "KV_HEADS": kv_heads,
+        "STATE_CAPACITY": int(slot_pages.size(2)),
+        "INLINE_PAGES_PER_SLOT": int(slot_pages.size(3)),
+        "PAGE_CAPACITY": int(page_indices.size(2)),
+        "HASH_CAPACITY": int(overflow_page_values.size(2)),
+        "HASH_PROBES": hash_probes,
+        "HEAD_DIM": head_dim,
+        "VALUE_DIM": value_dim,
+        "LEAF_CAPACITY": leaf_capacity,
+        "APPEND_K_BATCH_STRIDE": int(append_k.stride(0)),
+        "APPEND_K_HEAD_STRIDE": int(append_k.stride(1)),
+        "APPEND_K_TOKEN_STRIDE": int(append_k.stride(2)),
+        "APPEND_V_BATCH_STRIDE": int(append_v.stride(0)),
+        "APPEND_V_HEAD_STRIDE": int(append_v.stride(1)),
+        "APPEND_V_TOKEN_STRIDE": int(append_v.stride(2)),
+        "QUANTIZED_SUMMARIES": quantized_summaries,
+        "OPTIMIZE_SUMMARY_SCALE": optimize_summary_scale,
+        "OPTIMIZE_LEAF_SCALE": optimize_leaf_scale,
+        "num_warps": num_warps,
+    }
+    if groups_per_program > 1:
+        _append_quantized_virtual_pages_grouped_int4_kernel[
+            (token_rows, triton.cdiv(group_count, groups_per_program))
+        ](
+            *common_args,
+            leaf_offset,
+            GROUPS_PER_PROGRAM=groups_per_program,
+            **common_meta,
+        )
+    else:
+        _append_quantized_virtual_pages_kernel[(token_rows, group_count)](
+            *common_args,
+            page_quantized_counts,
+            leaf_offset,
+            PAGE_SIZE=page_size,
+            GROUP_SIZE=quant_group_size,
+            TOKEN_GROUP_SIZE=quant_token_group_size,
+            QUANT_BITS=quant_bits,
+            **common_meta,
+        )
     _finalize_appended_virtual_page_counts_kernel[(token_rows,)](
         owners,
         ordinals,

@@ -88,6 +88,10 @@ class VLLMLODSettings:
     request_capacity: int | None = None
     prefill_mode: str = "direct"
     routing_geometry: str = "raw"
+    routing_positive_dot_stats: bool = False
+    routing_cutoff_stats_min_state: int = 0
+    routing_cutoff_stats_route_count: int = 0
+    routing_cutoff_stats_normalization: str = "raw"
     prefix_rollback_tokens: int = 1024
     prefill_local_backend: str = "aiter"
     fused_prefill_route_coarse: bool = True
@@ -116,6 +120,7 @@ class VLLMLODSettings:
     static_leaf_cap_divisor: int = 16
     static_cohort_never_readmit: bool = False
     leaf_layout: str = "expert"
+    leaf_union_query_tile: int = 16
     leaf_block_m: int = 16
     leaf_block_n: int = 32
     leaf_num_warps: int = 2
@@ -136,9 +141,13 @@ class VLLMLODSettings:
     decode_gqa_union: bool = False
     decode_gqa_mass_fraction: float | None = None
     decode_gqa_predicted_mass: bool = False
+    decode_gqa_pilot_z: bool = False
+    decode_gqa_pilot_z_route_count: int = 8
+    decode_gqa_pilot_z_margin: float = 0.25
     decode_gqa_union_hip: bool = False
     decode_gqa_staged_fixed_aiter: bool = False
     decode_gqa_fixed_mask_aiter: bool = False
+    decode_gqa_overlap_local_sink: bool = False
     decode_gqa_fixed_mask_block_n: int = 64
     decode_gqa_fixed_mask_segments: int = 128
     decode_gqa_fixed_mask_adaptive_segments: bool = False
@@ -232,6 +241,20 @@ class VLLMLODSettings:
                 "VLLM_LOD_ROUTING_GEOMETRY",
                 "raw",
                 ("auto", "raw", "spherical", "coherence"),
+            ),
+            routing_positive_dot_stats=_boolean(
+                "VLLM_LOD_ROUTING_POSITIVE_DOT_STATS", False
+            ),
+            routing_cutoff_stats_min_state=_integer(
+                "VLLM_LOD_ROUTING_CUTOFF_STATS_MIN_STATE", 0
+            ),
+            routing_cutoff_stats_route_count=_integer(
+                "VLLM_LOD_ROUTING_CUTOFF_STATS_ROUTE_COUNT", 0
+            ),
+            routing_cutoff_stats_normalization=_choice(
+                "VLLM_LOD_ROUTING_CUTOFF_STATS_NORMALIZATION",
+                "raw",
+                ("raw", "lse", "pilot64_lse", "pilot64_z"),
             ),
             dense_leaf_storage=_boolean("VLLM_LOD_DENSE_LEAF_STORAGE", True),
             prefix_rollback_tokens=_integer(
@@ -328,7 +351,12 @@ class VLLMLODSettings:
                 "VLLM_LOD_STATIC_COHORT_NEVER_READMIT", False
             ),
             leaf_layout=_choice(
-                "VLLM_LOD_LEAF_LAYOUT", "expert", ("query", "expert")
+                "VLLM_LOD_LEAF_LAYOUT",
+                "expert",
+                ("query", "expert", "aiter_union", "aiter_masked_union"),
+            ),
+            leaf_union_query_tile=_integer(
+                "VLLM_LOD_LEAF_UNION_QUERY_TILE", 16
             ),
             leaf_block_m=_integer("VLLM_LOD_LEAF_BLOCK_M", 16),
             leaf_block_n=_integer("VLLM_LOD_LEAF_BLOCK_N", 32),
@@ -381,6 +409,15 @@ class VLLMLODSettings:
             decode_gqa_predicted_mass=_boolean(
                 "VLLM_LOD_DECODE_GQA_PREDICTED_MASS", False
             ),
+            decode_gqa_pilot_z=_boolean(
+                "VLLM_LOD_DECODE_GQA_PILOT_Z", False
+            ),
+            decode_gqa_pilot_z_route_count=_integer(
+                "VLLM_LOD_DECODE_GQA_PILOT_Z_ROUTE_COUNT", 8
+            ),
+            decode_gqa_pilot_z_margin=_floating(
+                "VLLM_LOD_DECODE_GQA_PILOT_Z_MARGIN", 0.25
+            ),
             decode_gqa_union_hip=_boolean(
                 "VLLM_LOD_DECODE_GQA_UNION_HIP", False
             ),
@@ -389,6 +426,9 @@ class VLLMLODSettings:
             ),
             decode_gqa_fixed_mask_aiter=_boolean(
                 "VLLM_LOD_DECODE_GQA_FIXED_MASK_AITER", False
+            ),
+            decode_gqa_overlap_local_sink=_boolean(
+                "VLLM_LOD_DECODE_GQA_OVERLAP_LOCAL_SINK", False
             ),
             decode_gqa_fixed_mask_block_n=_integer(
                 "VLLM_LOD_DECODE_GQA_FIXED_MASK_BLOCK_N", 64
@@ -465,9 +505,11 @@ class VLLMLODSettings:
                 decode_gqa_union=False,
                 decode_gqa_mass_fraction=None,
                 decode_gqa_predicted_mass=False,
+                decode_gqa_pilot_z=False,
                 decode_gqa_union_hip=False,
                 decode_gqa_staged_fixed_aiter=False,
                 decode_gqa_fixed_mask_aiter=False,
+                decode_gqa_overlap_local_sink=False,
                 decode_gqa_static_leaf_cap=None,
                 decode_gqa_static_leaf_aiter=False,
                 diagnostic_static_preselected=False,
@@ -529,6 +571,16 @@ class VLLMLODSettings:
         ):
             raise ValueError(
                 "fixed-mask and staged-fixed AITER decode are mutually exclusive"
+            )
+        if settings.decode_gqa_overlap_local_sink and (
+            not settings.decode_gqa_fixed_mask_aiter
+            or settings.decode_gqa_predicted_mass
+            or settings.decode_gqa_pilot_z
+            or settings.decode_gqa_static_leaf_aiter
+        ):
+            raise ValueError(
+                "VLLM_LOD_DECODE_GQA_OVERLAP_LOCAL_SINK currently requires "
+                "top-k fixed-mask AITER decode"
             )
         if settings.decode_gqa_fixed_mask_block_n not in (16, 64, 128):
             raise ValueError(
@@ -640,6 +692,27 @@ class VLLMLODSettings:
                 "VLLM_LOD_DECODE_GQA_PREDICTED_MASS requires mass-fraction, "
                 "GQA-union, and page-size-one HIP decode"
             )
+        if settings.decode_gqa_pilot_z and (
+            not settings.decode_gqa_union
+            or not settings.decode_gqa_union_hip
+            or settings.levels != 2
+            or settings.decode_gqa_predicted_mass
+            or settings.decode_gqa_mass_fraction is not None
+        ):
+            raise ValueError(
+                "VLLM_LOD_DECODE_GQA_PILOT_Z requires two-level GQA-union "
+                "HIP decode and is mutually exclusive with "
+                "mass-fraction routing"
+            )
+        if not math.isfinite(settings.decode_gqa_pilot_z_margin) or (
+            settings.decode_gqa_pilot_z_margin < 0.0
+        ):
+            raise ValueError("pilot-z routing margin must be finite and nonnegative")
+        if not 1 <= settings.decode_gqa_pilot_z_route_count <= 128:
+            raise ValueError(
+                "VLLM_LOD_DECODE_GQA_PILOT_Z_ROUTE_COUNT must be between "
+                "one and 128"
+            )
         if settings.kv_bits not in (0, 4, 8):
             raise ValueError("VLLM_LOD_KV_BITS must be zero, four, or eight")
         if settings.resolved_key_bits not in (0, 2, 3, 4, 8):
@@ -666,15 +739,23 @@ class VLLMLODSettings:
         if not 1 <= settings.open_count <= 8:
             raise ValueError("VLLM_LOD_OPEN_COUNT must be between one and eight")
         if settings.prefill_open_count is not None and not (
-            1 <= settings.prefill_open_count <= 16
+            1 <= settings.prefill_open_count <= 128
         ):
             raise ValueError(
-                "VLLM_LOD_PREFILL_OPEN_COUNT must be between one and sixteen"
+                "VLLM_LOD_PREFILL_OPEN_COUNT must be between one and 128"
             )
         if settings.state_premerge_factor not in {1, 2, 4, 8, 16, 32}:
             raise ValueError(
                 "VLLM_LOD_STATE_PREMERGE_FACTOR must be one, two, four, eight, "
                 "sixteen, or thirty-two"
+            )
+        if settings.routing_cutoff_stats_min_state < 0:
+            raise ValueError(
+                "VLLM_LOD_ROUTING_CUTOFF_STATS_MIN_STATE must be nonnegative"
+            )
+        if settings.routing_cutoff_stats_route_count < 0:
+            raise ValueError(
+                "VLLM_LOD_ROUTING_CUTOFF_STATS_ROUTE_COUNT must be nonnegative"
             )
         if settings.pool_size <= 0:
             raise ValueError("VLLM_LOD_POOL_SIZE must be positive")
@@ -743,6 +824,19 @@ class VLLMLODSettings:
             )
         if settings.leaf_block_m <= 0 or settings.leaf_block_n <= 0:
             raise ValueError("VLLM_LOD leaf block sizes must be positive")
+        if settings.leaf_union_query_tile not in (1, 2, 4, 8, 16):
+            raise ValueError(
+                "VLLM_LOD_LEAF_UNION_QUERY_TILE must be 1, 2, 4, 8, or 16"
+            )
+        if settings.leaf_layout.startswith("aiter_") and (
+            settings.levels != 2
+            or settings.kv_bits != 0
+            or not settings.dense_leaf_storage
+        ):
+            raise ValueError(
+                "AITER union leaf layouts require two-level BF16 dense leaf "
+                "storage"
+            )
         if settings.leaf_num_warps not in (1, 2, 4, 8):
             raise ValueError("VLLM_LOD_LEAF_NUM_WARPS must be 1, 2, 4, or 8")
         if settings.leaf_reduce_num_warps not in (1, 2, 4, 8):
