@@ -974,6 +974,17 @@ within 1.0% of recursive BF16, and costs up to 6.8% in prefill. The complete
 tables and raw records are in
 `artifacts/muse_tier_int4_context_panel_20260830/README.md`.
 
+The matched Gemma-4-26B-A4B-it TP1 panel uses the same 16,384-token aggregate
+budget and per-request threshold, with the validated native `TRITON_ATTN`
+D=512 control. Full attention wins both phases only at 8K. From 16K onward,
+two-tier BF16 wins prefill and recursive three-tier BF16 wins decode. At
+128K/B8, prefill is 137.626/41.845/44.628 seconds for full/two-tier/three-tier
+BF16, while decode is 15.542/11.303/9.812 ms. Recursive INT4 reduces allocated
+LOD cache by 62.5%, but its D=512 prefill is up to 41.4% slower than recursive
+BF16, so it is a capacity rather than latency choice on Gemma. The complete
+tables and raw records are in
+`artifacts/gemma_tier_int4_context_panel_20260830/README.md`.
+
 Set `VLLM_LOD_QUANT_GROUP_SIZE`, `VLLM_LOD_LEAF_QUANT_SCALE_MODE`, and
 `VLLM_LOD_LEAF_APPEND_QUANT_SCALE_MODE` explicitly to override the precision
 policy. Group size 16 plus `l2` reproduces the former quality default; group
