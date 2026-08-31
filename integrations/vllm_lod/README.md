@@ -875,22 +875,29 @@ loader so it cannot be mistaken for the target by the daemon protocol. Set
 `scripts/run_vllm_lod_niah_speed_panel.sh`; the wrapper selects the V2 runner,
 seven draft tokens, and `TRITON_ATTN` for the draft unless overridden.
 
-Pure one-token LOD decode remains full-graph capturable. Multi-token DFlash2
-target verification is intentionally piecewise: semantic LOD state changes for
-the proposed suffix and therefore cannot replay the dummy state used during a
-full-graph capture. The DFlash2 drafter itself still uses its captured graph.
-Long prompt prefill retains the measured top-three route count, but a
-multi-token verification dynamically uses decode's top-eight routes. Using
-prefill top-three for the verifier is invalid even though it is faster: it can
-accept a token that the sequential top-eight LOD model would reject.
+Multi-token DFlash2 target verification can now use the same captured
+fixed-mask path as deeper native MTP. DFlash2 selects one linear seven-token
+path before target verification, so all eight target positions are staged and
+flattened into one LOD launch. Every position retains its own current top-eight
+routes and causal local length; routes are not shared or lagged. The DFlash2
+drafter keeps its native chronological cache and captured graph. Long-prompt
+prefill retains the measured top-three route count, while verification uses
+decode's top eight. Using prefill top three for the verifier remains invalid:
+it can accept a token that sequential top-eight LOD would reject.
 
-The current Qwen3.8-27B-FP8 TP1/B1 decode medians for full versus corrected
-two-tier LOD with DFlash2 are respectively **17.108/23.929 ms at 8K**,
-**8.601/18.634 ms at 16K**, **16.294/20.483 ms at 32K**,
-**16.888/24.810 ms at 64K**, and **19.892/21.262 ms at 128K**. Both corrected
-arms score 8/8 on the matched chat-formatted 8K NIAH-S3 sanity block. The
-protocol, acceptance rates, rejected top-three diagnostic, and raw records are
-in `artifacts/dflash2_qwen38_20260830/README.md`.
+On Qwen3.8-27B-FP8 TP1/B1, the current full/fixed-mask-LOD DFlash2 decode
+medians are **15.722/17.571 ms at 8K**, **9.753/8.774 ms at 16K**,
+**15.088/14.348 ms at 32K**, **19.316/15.091 ms at 64K**, and
+**22.054/14.621 ms at 128K**. Thus LOD is slower at 8K, but 1.11x, 1.05x,
+1.28x, and 1.51x faster from 16K through 128K. Its complete-model verifier
+cycle stays near 40--41.5 ms across the panel; at 128K full attention takes
+about 63.2 ms per verifier cycle, making the target-side comparison 1.52x
+independent of acceptance. The device audit confirms direct fixed routes,
+fixed-mask execution, the page-size-one HIP scan, and the final LSE reduction.
+The matched protocol, prefill table, and raw records are in
+`artifacts/dflash2_qwen38_20260831/README.md`; the older serial verifier and its
+quality controls remain documented in
+`artifacts/dflash2_qwen38_20260830/README.md`.
 
 ### Native MTP target verification
 
