@@ -20988,6 +20988,19 @@ def fused_decode_paged_lod_attention(
                 )
             cooperative_separate_local = True
         else:
+            decode_stripe_override = os.getenv(
+                "VLLM_LOD_DECODE_STRIPE_ROUTE_LEAVES"
+            )
+            if decode_stripe_override is None:
+                stripe_route_leaves = (
+                    speculative_steps <= 1
+                    or os.getenv(
+                        "VLLM_LOD_SPECULATIVE_STRIPE_ROUTE_LEAVES", "1"
+                    )
+                    != "0"
+                )
+            else:
+                stripe_route_leaves = decode_stripe_override != "0"
             _split_decode_paged_lod_attention_kernel[(batch * query_heads, split_kv)](
                 q,
                 cache_indices,
@@ -21075,13 +21088,7 @@ def fused_decode_paged_lod_attention(
                 ),
                 INDEXED=flat_page_indices is not None,
                 INT8_STORAGE=flat_int8,
-                STRIPE_ROUTE_LEAVES=(
-                    speculative_steps > 1
-                    and os.getenv(
-                        "VLLM_LOD_SPECULATIVE_STRIPE_ROUTE_LEAVES", "1"
-                    )
-                    != "0"
-                ),
+                STRIPE_ROUTE_LEAVES=stripe_route_leaves,
                 num_warps=num_warps,
                 waves_per_eu=waves_per_eu,
             )

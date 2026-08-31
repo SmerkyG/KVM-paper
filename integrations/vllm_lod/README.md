@@ -937,6 +937,18 @@ in the delayed profile, and the prior striped check retained 8/8 NIAH-S3.
 Striping is the default for multi-position target verification;
 `VLLM_LOD_SPECULATIVE_STRIPE_ROUTE_LEAVES=0` is the legacy control.
 
+The same balancing is now the default in the portable two-tier decode
+fallback. Instead of assigning one complete selected centroid posting list to
+each split, every split walks a disjoint stripe of every selected posting
+list. This removes the longest-centroid tail without changing which leaves are
+read or how their output/LSE is merged. Set
+`VLLM_LOD_DECODE_STRIPE_ROUTE_LEAVES=0` only to reproduce the legacy fallback.
+The production page-size-1 AITER fixed-list path already flattens all selected
+leaves before partitioning them, and the GQA-cooperative backend already
+partitions every route by page-list split, so neither needs a separate striped
+variant. Matched Qwen and Muse measurements are in
+`artifacts/striped_leaves_20260831/README.md`.
+
 Independent launches of the exact historical source produced 81.6% and 87.5%
 acceptance despite identical temperature-zero input and configuration. Their
 per-verifier-cycle costs remained within 0.7%, so speculative speed comparisons
