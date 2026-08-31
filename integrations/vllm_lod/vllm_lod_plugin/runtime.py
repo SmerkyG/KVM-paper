@@ -665,6 +665,12 @@ class VLLMLODRuntime:
             previous_length = int(computed_lengths[request_row])
             if previous_length <= 0:
                 return False
+            if previous_length + steps > self.request_capacity:
+                raise RuntimeError(
+                    "speculative decode would exceed VLLM_LOD_MAX_CONTEXT: "
+                    f"prefix={previous_length}, proposal={steps}, "
+                    f"capacity={self.request_capacity}"
+                )
             totals = [
                 int(pool.metadata[lod_row].get("total_len", -1))
                 for pool in self.pools.values()
@@ -682,6 +688,19 @@ class VLLMLODRuntime:
         # is much shorter than the refresh interval, so all captured steps see
         # one immutable coarse field and append to its exact recent suffix.
         self._catch_up_decode_rows(catch_ups)
+        if os.getenv("VLLM_LOD_DEBUG_SPECULATIVE_LENGTHS", "0") == "1":
+            for lod_row, previous_length in catch_ups:
+                for name, pool in self.pools.items():
+                    expected = previous_length - int(
+                        pool.metadata[lod_row]["coverage"]
+                    )
+                    actual = int(pool.local_lens[lod_row].item())
+                    if actual != expected:
+                        raise RuntimeError(
+                            "speculative rollback left a stale device-local "
+                            f"length for {name}: actual={actual}, "
+                            f"expected={expected}, prefix={previous_length}"
+                        )
         mapped_rows = self._pad_decode_rows(lod_rows, padded_rows)
         self._set_active_decode_rows(mapped_rows)
         for pool in self.pools.values():
@@ -692,6 +711,17 @@ class VLLMLODRuntime:
             for lod_row, previous_length in catch_ups:
                 metadata = pool.metadata[lod_row]
                 proposed_length = previous_length + steps
+                proposed_recent_length = proposed_length - int(
+                    metadata["coverage"]
+                )
+                if proposed_recent_length > pool.local_capacity:
+                    raise RuntimeError(
+                        "speculative proposal exceeds the decode-local row: "
+                        f"prefix={previous_length}, proposal={steps}, "
+                        f"coverage={metadata['coverage']}, "
+                        f"recent={proposed_recent_length}, "
+                        f"capacity={pool.local_capacity}"
+                    )
                 metadata["total_len"] = proposed_length
                 metadata["recent_len"] = (
                     proposed_length - int(metadata["coverage"])
@@ -1034,6 +1064,12 @@ class VLLMLODRuntime:
             slot = int(raw_slot)
             lod_row = self.lod_row_by_slot[slot]
             length = int(lengths[row])
+            if length + 1 > self.request_capacity:
+                raise RuntimeError(
+                    "decode would exceed VLLM_LOD_MAX_CONTEXT: "
+                    f"prefix={length}, append=1, "
+                    f"capacity={self.request_capacity}"
+                )
             if not reference_pool.ready[lod_row]:
                 missing_slots.append(slot)
             else:

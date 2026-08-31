@@ -237,6 +237,9 @@ def inspect_lod_model(model) -> dict[str, object]:
         "pilot_z_route_threshold_min": None,
         "pilot_z_route_threshold_max": None,
         "speculative_parallel_configured": [],
+        "speculative_parallel_executed": [],
+        "speculative_parallel_execution_counts": [],
+        "speculative_recursive_state_route_backends": [],
         "speculative_shared_route_configured": [],
         "speculative_shared_route_executed": [],
         "speculative_shared_local_configured": [],
@@ -323,6 +326,8 @@ def inspect_lod_model(model) -> dict[str, object]:
             speculative_steps >= 2
             and pool._parallel_speculative_decode_eligible(speculative_steps)
         )
+        parallel_executed = False
+        parallel_execution_count = 0
         shared_route_configured = bool(
             speculative_steps >= 2
             and pool._shared_speculative_route_eligible(speculative_steps)
@@ -333,6 +338,14 @@ def inspect_lod_model(model) -> dict[str, object]:
             decode_buffers = staging.get("decode_buffers")
             if not isinstance(decode_buffers, dict):
                 continue
+            parallel_marker = decode_buffers.get(
+                "speculative_parallel_execution_marker"
+            )
+            if isinstance(parallel_marker, torch.Tensor):
+                marker_count = int(parallel_marker.item())
+                parallel_execution_count += marker_count
+                if marker_count > 0:
+                    parallel_executed = True
             marker = decode_buffers.get("speculative_route_execution_marker")
             if isinstance(marker, torch.Tensor) and int(marker.item()) > 0:
                 shared_route_executed = True
@@ -346,6 +359,13 @@ def inspect_lod_model(model) -> dict[str, object]:
                 shared_local_executed = True
         diagnostics["speculative_parallel_configured"].append(
             parallel_configured
+        )
+        diagnostics["speculative_parallel_executed"].append(parallel_executed)
+        diagnostics["speculative_parallel_execution_counts"].append(
+            parallel_execution_count
+        )
+        diagnostics["speculative_recursive_state_route_backends"].append(
+            pool._speculative_recursive_state_route_backend()
         )
         diagnostics["speculative_shared_route_configured"].append(
             shared_route_configured

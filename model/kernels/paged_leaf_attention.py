@@ -11349,6 +11349,7 @@ def _wide_gqa_local_scores_kernel(
     BLOCK_M: tl.constexpr,
     BLOCK_N: tl.constexpr,
     INCLUDE_NEW: tl.constexpr,
+    LOCAL_LENS_LOGICAL: tl.constexpr,
 ):
     """MFMA QK pass for wide-head local decode, sharing K across GQA heads."""
     batch_kv = tl.program_id(0).to(tl.int64)
@@ -11356,7 +11357,9 @@ def _wide_gqa_local_scores_kernel(
     batch = batch_kv // KV_HEADS
     kv_head = batch_kv - batch * KV_HEADS
     cache_batch = tl.load(cache_indices + batch).to(tl.int64)
-    active_len = tl.load(local_lens + cache_batch).to(tl.int32)
+    active_len = tl.load(
+        local_lens + (batch if LOCAL_LENS_LOGICAL else cache_batch)
+    ).to(tl.int32)
     query_offset = tl.arange(0, BLOCK_M)
     query_valid = query_offset < KV_GROUP_SIZE
     query_head = kv_head * KV_GROUP_SIZE + query_offset
@@ -11434,6 +11437,7 @@ def _wide_gqa_local_value_kernel(
     BLOCK_D: tl.constexpr,
     BLOCK_K: tl.constexpr,
     INCLUDE_NEW: tl.constexpr,
+    LOCAL_LENS_LOGICAL: tl.constexpr,
 ):
     """Tiled MFMA PV pass and current-token append for wide local decode."""
     batch_kv = tl.program_id(0).to(tl.int64)
@@ -11441,7 +11445,9 @@ def _wide_gqa_local_value_kernel(
     batch = batch_kv // KV_HEADS
     kv_head = batch_kv - batch * KV_HEADS
     cache_batch = tl.load(cache_indices + batch).to(tl.int64)
-    active_len = tl.load(local_lens + cache_batch).to(tl.int32)
+    active_len = tl.load(
+        local_lens + (batch if LOCAL_LENS_LOGICAL else cache_batch)
+    ).to(tl.int32)
     query_offset = tl.arange(0, BLOCK_M)
     query_valid = query_offset < KV_GROUP_SIZE
     query_head = kv_head * KV_GROUP_SIZE + query_offset
@@ -19276,6 +19282,7 @@ def fused_decode_paged_lod_attention(
                         BLOCK_M=16,
                         BLOCK_N=score_block_n,
                         INCLUDE_NEW=include_new,
+                        LOCAL_LENS_LOGICAL=local_lens_are_logical,
                         num_warps=4,
                         waves_per_eu=waves_per_eu,
                     )
@@ -19315,6 +19322,7 @@ def fused_decode_paged_lod_attention(
                         BLOCK_D=value_block_d,
                         BLOCK_K=32,
                         INCLUDE_NEW=include_new,
+                        LOCAL_LENS_LOGICAL=local_lens_are_logical,
                         num_warps=4,
                         waves_per_eu=waves_per_eu,
                     )

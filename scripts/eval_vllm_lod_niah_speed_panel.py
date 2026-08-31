@@ -531,6 +531,9 @@ def evaluate_speed(args, tokenizer, llm, length: int) -> dict:
                 "gqa_union_exact_token_count_mean",
                 "gqa_union_exact_token_count_max",
                 "speculative_parallel_configured",
+                "speculative_parallel_executed",
+                "speculative_parallel_execution_counts",
+                "speculative_recursive_state_route_backends",
                 "speculative_shared_route_configured",
                 "speculative_shared_route_executed",
                 "speculative_shared_local_configured",
@@ -548,6 +551,15 @@ def evaluate_speed(args, tokenizer, llm, length: int) -> dict:
         result["gqa_union_marginal_ms_per_target_cycle"] = (
             1000.0 * sum(decodes) / target_cycles
             if target_cycles > 0
+            else None
+        )
+        speculative_target_cycles = max(
+            execution_audit["speculative_parallel_execution_counts"],
+            default=0,
+        )
+        result["speculative_marginal_ms_per_target_cycle"] = (
+            1000.0 * sum(decodes) / speculative_target_cycles
+            if speculative_target_cycles > 0
             else None
         )
         if (
@@ -623,6 +635,14 @@ def evaluate_speed(args, tokenizer, llm, length: int) -> dict:
             raise RuntimeError(
                 "the measured GQA-union path did not run the unified AITER "
                 "leaves/local/coarse final attention"
+            )
+        if (
+            execution_audit["speculative_parallel_configured"] == [True]
+            and execution_audit["speculative_parallel_executed"] != [True]
+        ):
+            raise RuntimeError(
+                "the measured speculative target graph did not execute the "
+                "flattened parallel LOD verifier"
             )
         if (
             execution_audit["speculative_shared_route_configured"] == [True]

@@ -48,6 +48,31 @@ parts of adjacent repetitions and are not used for cycle normalization.
 | 64K | 14.081 s | **8.630 s** | 1.632x |
 | 128K | 42.711 s | **18.083 s** | 2.362x |
 
+## Batch 8
+
+The same panel was repeated at batch eight, using eight distinct real ProLong
+prompts per context and the same 16K aggregate scheduler budget. Each reported
+decode latency is the median complete-model wall time per batch step; throughput
+is eight times the reciprocal latency. Full attention retained a 0.8 vLLM cache
+reservation. LOD used 0.6 because its externally owned eight-request cache and
+captured verifier buffers otherwise collide with vLLM's opportunistic cache
+fill during graph capture. This changes reserved cache capacity, not the
+executed model or attention work.
+
+| context | full decode | fixed-mask LOD decode | full / LOD | full prefill | LOD prefill | full / LOD |
+|---:|---:|---:|---:|---:|---:|---:|
+| 8K | 21.889 ms | **21.661 ms** | 1.010x | **7.969 s** | 8.475 s | 0.940x |
+| 16K | 24.830 ms | **24.528 ms** | 1.012x | 18.089 s | **17.117 s** | 1.057x |
+| 32K | 30.639 ms | **23.798 ms** | 1.287x | 42.480 s | **34.934 s** | 1.216x |
+| 64K | 42.496 ms | **23.766 ms** | 1.788x | 113.520 s | **72.722 s** | 1.561x |
+| 128K | 54.938 ms | **19.746 ms** | 2.782x | 343.913 s | **153.551 s** | 2.240x |
+
+The corresponding LOD decode throughputs are 369.3, 326.2, 336.2, 336.6,
+and 405.1 emitted tokens/s from 8K through 128K. Since DFlash2 acceptance and
+the generated trajectory can differ between full and approximate attention,
+the non-monotonic 128K output-token result should be interpreted as an
+end-to-end outcome rather than a pure attention-kernel curve.
+
 ## Executed path
 
 The post-warmup device audit confirms all of the intended target-side work:
@@ -71,6 +96,11 @@ through 128K. The new fixed-mask verifier is 1.36--2.12x faster than that path.
 - `full_current_b1_8k128k_r3_d256.json`
 - `lod_fixed_current_b1_8k128k_r3_d256.json`
 - `lod_fixed_smoke64_b1_r1_d64.json`
+- `full_current_b8_8k128k_r3_d256.json`
+- `lod_fixed_current_b8_8k128k_r3_d256.json`
 - Full control: cluster run 12224.
 - Fixed-mask LOD: cluster run 12223.
 - Audited 64K smoke: cluster run 12222.
+- Batch-eight full control: cluster run 12225.
+- Batch-eight fixed-mask LOD: cluster run 12227. Run 12226 demonstrated the
+  graph-capture cache-reservation collision and did not enter measurement.

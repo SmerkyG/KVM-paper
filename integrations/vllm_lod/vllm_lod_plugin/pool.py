@@ -2769,6 +2769,9 @@ class VLLMLayerLODPool:
         }
         if self._parallel_speculative_decode_eligible(steps):
             total_rows = rows * steps
+            speculative_route_backend = (
+                self._speculative_recursive_state_route_backend()
+            )
             template = torch.empty(
                 total_rows,
                 self.query_heads,
@@ -2794,7 +2797,10 @@ class VLLMLayerLODPool:
                     if self._speculative_cooperative_leaf_eligible(steps)
                     else None
                 ),
-                materialized_state_route=False,
+                materialized_state_route=bool(
+                    self.settings.levels == 3
+                    and speculative_route_backend == "resplit"
+                ),
                 gqa_union_mass_fraction=(
                     self.settings.decode_gqa_mass_fraction
                     if self.settings.decode_gqa_union
@@ -2860,6 +2866,34 @@ class VLLMLayerLODPool:
                     else self.settings.decode_gqa_fixed_mask_segments
                 ),
             )
+            if self.settings.levels == 3:
+                if bool(self.engine.recursive_materialize_page_scores):
+                    staging["decode_buffers"]["recursive_page_scores"] = (
+                        torch.empty(
+                            total_rows,
+                            self.query_heads,
+                            1,
+                            self.page_capacity,
+                            dtype=torch.float32,
+                            device=self.device,
+                        )
+                    )
+                elif (
+                    self.head_dim in (128, 256, 512)
+                    and 1 < self.query_heads // self.kv_heads <= 16
+                ):
+                    staging["decode_buffers"]["wide_gqa_local_scores"] = (
+                        torch.empty(
+                            total_rows,
+                            self.query_heads,
+                            int(self.engine.local_len) + 1,
+                            dtype=torch.float32,
+                            device=self.device,
+                        )
+                    )
+            staging["decode_buffers"]["speculative_parallel_execution_marker"] = (
+                torch.zeros(1, dtype=torch.int32, device=self.device)
+            )
             staging["decode_buffers"]["speculative_local_partial_out"] = (
                 torch.empty_like(staging["decode_buffers"]["partial_out"])
             )
@@ -2876,17 +2910,43 @@ class VLLMLayerLODPool:
 
     def _parallel_speculative_decode_eligible(self, steps: int) -> bool:
         """Whether one flattened launch can verify all proposal positions."""
-        return bool(
-            os.getenv("VLLM_LOD_SPECULATIVE_PARALLEL", "1") != "0"
-            and steps >= 2
-            and self.settings.levels == 2
+        recursive = self.settings.levels == 3
+        two_level = bool(
+            self.settings.levels == 2
             and (
                 (steps == 2 and not self.settings.decode_gqa_union)
                 or self._speculative_fixed_mask_eligible(steps)
             )
+        )
+        return bool(
+            os.getenv("VLLM_LOD_SPECULATIVE_PARALLEL", "1") != "0"
+            and steps >= 2
+            and (recursive or two_level)
             and not self.settings.decode_gqa_static_leaf_aiter
             and not self._use_cooperative_decode()
         )
+
+    def _speculative_recursive_state_route_backend(self) -> str:
+        """Resolve the recursive route used inside speculative verification.
+
+        The materialized re-split route remains useful for ordinary decode,
+        but its long-context score-table pipeline is not yet safe under
+        speculative verification (including the serial verifier control).
+        Keep the ordinary per-model policy unchanged and default only the
+        speculative recursive path to the grouped producer. The override is
+        retained for targeted re-split validation.
+        """
+        if self.settings.levels != 3:
+            return str(self.engine.recursive_state_route_backend)
+        backend = os.getenv(
+            "VLLM_LOD_SPECULATIVE_RECURSIVE_STATE_ROUTE_BACKEND",
+            "fused",
+        )
+        if backend not in ("fused", "resplit"):
+            raise ValueError(
+                "speculative recursive state-route backend must be fused or resplit"
+            )
+        return backend
 
     def _speculative_fixed_mask_eligible(self, steps: int) -> bool:
         """Whether MTP can reuse the persistent masked page-size-one arena."""
@@ -3003,6 +3063,9 @@ class VLLMLayerLODPool:
         )
 
         if self._parallel_speculative_decode_eligible(steps):
+            staging["decode_buffers"][
+                "speculative_parallel_execution_marker"
+            ].add_(1)
             flat_q = staging["q"].view(
                 rows * steps, self.query_heads, self.head_dim
             )
@@ -3051,6 +3114,9 @@ class VLLMLayerLODPool:
                     )
                     else 1
                 ),
+                recursive_state_route_backend=(
+                    self._speculative_recursive_state_route_backend()
+                ),
             )
             advance_decode_cache_lengths(
                 self.active_indices[:rows], self.local_lens, increment=steps
@@ -3071,6 +3137,9 @@ class VLLMLayerLODPool:
                 staging["v"][step],
                 metadata,
                 staging["out"][step],
+                recursive_state_route_backend=(
+                    self._speculative_recursive_state_route_backend()
+                ),
             )
         output[: rows * steps].view(
             rows, steps, self.query_heads, self.value_dim
@@ -3092,6 +3161,7 @@ class VLLMLayerLODPool:
         store_new_kv: bool = True,
         advance_local_lens: bool = True,
         speculative_steps: int = 1,
+        recursive_state_route_backend: str | None = None,
     ) -> torch.Tensor:
         self.decode_calls += 1
         rows = int(metadata.num_actual_tokens)
@@ -3333,6 +3403,8 @@ class VLLMLayerLODPool:
             ),
             recursive_state_route_backend=(
                 self.engine.recursive_state_route_backend
+                if recursive_state_route_backend is None
+                else recursive_state_route_backend
             ),
             output_buffer=output[:rows].unsqueeze(2),
         )

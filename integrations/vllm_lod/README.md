@@ -899,6 +899,39 @@ The matched protocol, prefill table, and raw records are in
 quality controls remain documented in
 `artifacts/dflash2_qwen38_20260830/README.md`.
 
+Recursive three-tier DFlash2 verification uses the same flattened
+eight-position contract, but every target position performs an independent
+current centroid and page route against the shared immutable recursive
+archive. Proposal K/V is staged before the launch and logical per-position
+recent lengths enforce causality. The wide-GQA local QK/PV kernels must index
+those logical lengths rather than the repeated physical cache row; fixing that
+distinction made both BF16 and INT4 score 8/8 on batch-eight NIAH-S3 at 64K and
+128K. The audit confirms one flattened verifier rather than eight serial
+calls.
+
+For speculative recursive verification only, the grouped (`fused`) state
+router is the safe default. The materialized re-split route currently causes
+an HSA memory fault at 128K under speculative verification, including eager
+and serial-verifier controls, while ordinary non-speculative re-split decode
+passes. This does not change the ordinary recursive auto policy. Set
+`VLLM_LOD_SPECULATIVE_RECURSIVE_STATE_ROUTE_BACKEND=resplit` only for targeted
+diagnosis.
+
+On Qwen3.8-27B-FP8 TP1, three-tier BF16/INT4 target-verifier cycles are
+41.313/41.760 ms at 64K/B1 and 42.085/42.064 ms at 128K/B1. At B8 they are
+62.444/61.133 ms and 58.765/55.036 ms. Thus recursive INT4 has no measured
+decode penalty and is 2.1--6.3% faster in the B8 screen, because only selected
+16-token residual pages are dequantized. INT4 prefill is 7.8--11.2% slower.
+Allocated semantic LOD cache falls from 9.748 to 3.716 GiB at B1 and 77.984 to
+29.731 GiB at B8 (61.9%). The implementation, complete speed tables, quality
+results, and raw records are in
+`artifacts/dflash2_three_tier_20260831/README.md`.
+Three-tier BF16 is not yet an unconditional replacement for fixed-mask
+two-tier: two-tier wins 64K/B8 end-to-end decode (23.766 versus 25.957 ms),
+whereas three-tier wins at 128K/B8 (17.745 versus 19.746 ms). Use three-tier
+for recursive INT4 storage and treat the BF16 crossover as the current TP1
+decision pending a repeated acceptance-matched panel.
+
 ### Native MTP target verification
 
 One-token native MTP produces a two-position target verification. The old LOD

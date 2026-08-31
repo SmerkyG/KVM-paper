@@ -325,6 +325,7 @@ def inspect_lod_model(model) -> dict[str, object]:
     batched_cached_prefill_rows = 0
     routing_geometries = set()
     recursive_state_route_backends = set()
+    speculative_recursive_state_route_backends = set()
     prefill_coarse_direct_gqa_configured = set()
     prefill_coarse_direct_gqa_executed = set()
     state_v_abs_max = 0.0
@@ -353,6 +354,8 @@ def inspect_lod_model(model) -> dict[str, object]:
     decode_gqa_static_leaf_aiter_executed = set()
     decode_gqa_static_leaf_caps = set()
     speculative_parallel_configured = set()
+    speculative_parallel_executed = set()
+    speculative_parallel_execution_counts = set()
     speculative_shared_route_configured = set()
     speculative_shared_route_executed = set()
     speculative_shared_local_configured = set()
@@ -428,6 +431,8 @@ def inspect_lod_model(model) -> dict[str, object]:
                 )
             )
             speculative_parallel_configured.add(parallel_configured)
+            parallel_executed = False
+            parallel_execution_count = 0
             speculative_shared_route_configured.add(
                 bool(
                     speculative_steps >= 2
@@ -442,6 +447,14 @@ def inspect_lod_model(model) -> dict[str, object]:
                 speculative_buffers = staging.get("decode_buffers")
                 if not isinstance(speculative_buffers, dict):
                     continue
+                parallel_marker = speculative_buffers.get(
+                    "speculative_parallel_execution_marker"
+                )
+                if isinstance(parallel_marker, torch.Tensor):
+                    marker_count = int(parallel_marker.item())
+                    parallel_execution_count += marker_count
+                    if marker_count > 0:
+                        parallel_executed = True
                 marker = speculative_buffers.get(
                     "speculative_route_execution_marker"
                 )
@@ -455,6 +468,10 @@ def inspect_lod_model(model) -> dict[str, object]:
                     and int(local_marker.item()) > 0
                 ):
                     shared_local_executed = True
+            speculative_parallel_executed.add(parallel_executed)
+            speculative_parallel_execution_counts.add(
+                parallel_execution_count
+            )
             speculative_shared_route_executed.add(shared_route_executed)
             speculative_shared_local_configured.add(
                 bool(
@@ -486,6 +503,9 @@ def inspect_lod_model(model) -> dict[str, object]:
             state_v_nonfinite += int((~torch.isfinite(state_v)).sum().item())
             recursive_state_route_backends.add(
                 str(engine.recursive_state_route_backend)
+            )
+            speculative_recursive_state_route_backends.add(
+                str(pool._speculative_recursive_state_route_backend())
             )
             prefill_coarse_direct_gqa_configured.add(
                 (
@@ -937,6 +957,9 @@ def inspect_lod_model(model) -> dict[str, object]:
         "recursive_state_route_backends": sorted(
             recursive_state_route_backends
         ),
+        "speculative_recursive_state_route_backends": sorted(
+            speculative_recursive_state_route_backends
+        ),
         "prefill_coarse_direct_gqa_configured": sorted(
             prefill_coarse_direct_gqa_configured
         ),
@@ -1013,6 +1036,10 @@ def inspect_lod_model(model) -> dict[str, object]:
         ),
         "speculative_parallel_configured": sorted(
             speculative_parallel_configured
+        ),
+        "speculative_parallel_executed": sorted(speculative_parallel_executed),
+        "speculative_parallel_execution_counts": sorted(
+            speculative_parallel_execution_counts
         ),
         "speculative_shared_route_configured": sorted(
             speculative_shared_route_configured
@@ -1173,6 +1200,13 @@ def reset_lod_decode_execution_markers(model) -> int:
             speculative_buffers = staging.get("decode_buffers")
             if not isinstance(speculative_buffers, dict):
                 continue
+            parallel_marker = speculative_buffers.get(
+                "speculative_parallel_execution_marker"
+            )
+            if isinstance(parallel_marker, torch.Tensor):
+                with torch.inference_mode():
+                    parallel_marker.zero_()
+                reset += 1
             speculative_marker = speculative_buffers.get(
                 "speculative_route_execution_marker"
             )
