@@ -247,6 +247,72 @@ verifier cycle costs 1.486x one full-attention token, whereas an LOD MTP cycle
 costs only 1.216x one flat-striped LOD token. The higher LOD draft acceptance
 adds to output-token throughput, but cycle-normalized LOD still wins by 1.369x.
 
+## Deeper native MTP
+
+The fixed-mask verifier now accepts an arbitrary number of target positions.
+For `n` native MTP drafts, all `n + 1` target queries and their proposal K/V
+are staged first, then flattened into one fixed-mask LOD launch. Every position
+keeps its own causal local length, route mask, output, and LSE; the persistent
+page-size-one K/V arena and fixed leaf-block metadata are shared. No route is
+lagged. The older striped verifier remains the control: its optimized shared
+route/local kernels cover the two-position MTP-1 case, while MTP-2 and MTP-4
+execute their three and five target positions sequentially.
+
+Qwen3.8 contains one native MTP layer. vLLM implements deeper settings by
+reusing that layer autoregressively and warns that later-position acceptance
+may fall. The LOD custom backend had also incorrectly classified this separate
+draft attention layer as target LOD attention. One draft hid the error because
+vLLM used its draft-prefill path; recurrent draft graph capture failed because
+its chronological K/V group had been externalized. The draft layer is now
+explicitly native in every arm. Only target attention differs between full,
+striped LOD, and fixed-mask LOD.
+
+The matched speed panel used `Qwen/Qwen3.8-27B-FP8`, TP1, batch 1, real
+non-repeating ProLong text, 16K aggregate prefill chunks, 256 emitted tokens,
+three repeats, and native MTP depths 1, 2, and 4. Times below are milliseconds
+per emitted output token, so they include the actual greedy acceptance path.
+
+| context | MTP drafts | full attention | striped LOD | fixed-mask LOD | fixed vs striped | fixed vs full |
+|---:|---:|---:|---:|---:|---:|---:|
+| 64K | 1 | 23.024 | **21.789** | 21.796 | 1.000x | 1.056x |
+| 64K | 2 | 19.440 | 19.899 | **18.491** | **1.076x** | **1.051x** |
+| 64K | 4 | 18.351 | 19.757 | **16.380** | **1.206x** | **1.120x** |
+| 128K | 1 | 29.304 | 25.330 | **23.386** | **1.083x** | **1.253x** |
+| 128K | 2 | 25.675 | 22.835 | **19.977** | **1.143x** | **1.285x** |
+| 128K | 4 | 21.396 | 22.439 | **19.484** | **1.152x** | **1.098x** |
+
+Acceptance can change after harmless floating-point regrouping, so the stable
+implementation comparison is elapsed decode time per verifier cycle. This
+still includes native proposal work, but divides out how many drafts happened
+to be accepted. Full and striped cycle counts come from the stable logged
+identity `cycles = 255 - accepted`; the fixed-mask device epoch counts cycles
+directly across all measured repeats.
+
+| context | MTP drafts | full ms/cycle | striped ms/cycle | fixed ms/cycle | fixed speedup vs striped |
+|---:|---:|---:|---:|---:|---:|
+| 64K | 1 | 41.933 | 40.855 | **39.947** | 1.023x |
+| 64K | 2 | 45.073 | 48.702 | **43.047** | **1.131x** |
+| 64K | 4 | 54.408 | 59.228 | **49.033** | **1.208x** |
+| 128K | 1 | 51.530 | 43.055 | **42.767** | 1.007x |
+| 128K | 2 | 55.471 | 52.946 | **46.903** | **1.129x** |
+| 128K | 4 | 70.885 | 64.333 | **53.321** | **1.207x** |
+
+This confirms the intended scaling effect: one draft has little
+acceptance-independent benefit from the fixed list, but flattening three or
+five verifier positions saves about 13% or 21% versus sequential striped LOD
+at both context lengths. MTP-4 fixed mask is the fastest measured end-to-end
+configuration: 16.380 ms/output at 64K and 19.484 ms/output at 128K. MTP-4 is
+only 2.5% faster than fixed-mask MTP-2 at 128K, however, because recursively
+reusing one MTP head raises proposal cost and lowers late-position acceptance.
+
+The chat-formatted 64K NIAH-S3 check scored **8/8** for full MTP-4,
+**8/8** for striped LOD MTP-4, and **8/8** for fixed-mask LOD MTP-4.
+
+Speed artifacts are `full_mtp{1,2,4}_b1_64k128k_r3_d256.json`,
+`striped_mtp{1,2,4}_b1_64k128k_r3_d256.json`, and
+`fixed_mtp{1,2,4}_b1_64k128k_r3_d256.json`. Quality artifacts are
+`{full,striped,fixed}_mtp4_niah64_b1_n8.json`.
+
 ## Historical coarse-only acceptance experiment
 
 The diagnostic implementation described in this section was subsequently

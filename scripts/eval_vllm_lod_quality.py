@@ -418,15 +418,22 @@ def inspect_lod_model(model) -> dict[str, object]:
             batched_cached_prefills += int(pool.batched_cached_prefill_calls)
             batched_cached_prefill_rows += int(pool.batched_cached_prefill_rows)
             engine = pool.engine
+            speculative_steps = int(
+                getattr(pool, "speculative_decode_steps", 0)
+            )
             parallel_configured = bool(
-                int(getattr(pool, "speculative_decode_steps", 0)) == 2
-                and pool._parallel_speculative_decode_eligible(2)
+                speculative_steps >= 2
+                and pool._parallel_speculative_decode_eligible(
+                    speculative_steps
+                )
             )
             speculative_parallel_configured.add(parallel_configured)
             speculative_shared_route_configured.add(
                 bool(
-                    int(getattr(pool, "speculative_decode_steps", 0)) == 2
-                    and pool._shared_speculative_route_eligible(2)
+                    speculative_steps >= 2
+                    and pool._shared_speculative_route_eligible(
+                        speculative_steps
+                    )
                 )
             )
             shared_route_executed = False
@@ -451,8 +458,10 @@ def inspect_lod_model(model) -> dict[str, object]:
             speculative_shared_route_executed.add(shared_route_executed)
             speculative_shared_local_configured.add(
                 bool(
-                    int(getattr(pool, "speculative_decode_steps", 0)) == 2
-                    and pool._shared_speculative_local_eligible(2)
+                    speculative_steps >= 2
+                    and pool._shared_speculative_local_eligible(
+                        speculative_steps
+                    )
                 )
             )
             speculative_shared_local_executed.add(shared_local_executed)

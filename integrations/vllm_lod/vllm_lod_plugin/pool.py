@@ -2878,10 +2878,10 @@ class VLLMLayerLODPool:
         """Whether one flattened launch can verify all proposal positions."""
         return bool(
             os.getenv("VLLM_LOD_SPECULATIVE_PARALLEL", "1") != "0"
-            and steps == 2
+            and steps >= 2
             and self.settings.levels == 2
             and (
-                not self.settings.decode_gqa_union
+                (steps == 2 and not self.settings.decode_gqa_union)
                 or self._speculative_fixed_mask_eligible(steps)
             )
             and not self.settings.decode_gqa_static_leaf_aiter
@@ -2892,7 +2892,7 @@ class VLLMLayerLODPool:
         """Whether MTP can reuse the persistent masked page-size-one arena."""
         return bool(
             os.getenv("VLLM_LOD_SPECULATIVE_FIXED_MASK_AITER", "1") != "0"
-            and steps == 2
+            and steps >= 2
             and self.settings.levels == 2
             and self.settings.decode_gqa_union
             and self.settings.decode_gqa_union_hip
@@ -2918,6 +2918,7 @@ class VLLMLayerLODPool:
         """Whether both positions fit one native grouped route tile."""
         return bool(
             self._parallel_speculative_decode_eligible(steps)
+            and steps == 2
             and os.getenv("VLLM_LOD_SPECULATIVE_SHARED_ROUTE", "1") != "0"
             and bool(self.engine.decode_route_gqa_grouped)
             and int(self.engine.decode_route_segment_tiles) == 1
@@ -2928,6 +2929,7 @@ class VLLMLayerLODPool:
         """Whether exact pages can be shared by both MTP GQA6 groups."""
         return bool(
             self._parallel_speculative_decode_eligible(steps)
+            and steps == 2
             and os.getenv("VLLM_LOD_SPECULATIVE_COOPERATIVE_LEAVES", "0") != "0"
             and self.settings.decode_gqa_cooperative
             and self.settings.decode_gqa_cooperative_hip
@@ -2941,6 +2943,7 @@ class VLLMLayerLODPool:
         """Whether proposal positions can share one causal local K/V scan."""
         return bool(
             self._parallel_speculative_decode_eligible(steps)
+            and steps == 2
             and os.getenv("VLLM_LOD_SPECULATIVE_SHARED_LOCAL", "1") != "0"
             # Fixed-mask page-size-one attention already consumes the causal
             # local prefix in its unified final scan; a separate shared-local
@@ -2958,11 +2961,11 @@ class VLLMLayerLODPool:
     ) -> torch.Tensor:
         """Verify a uniform proposal inside one replayable target graph.
 
-        The two proposal queries route concurrently against the immutable
-        remote LOD state. Their K/V are staged before that launch, so each
-        query still sees the exact causal local suffix (the second position
-        includes the first). The host truncates rejected tail entries by
-        resetting ``local_lens`` before the next replay; no route is lagged.
+        The proposal queries route concurrently against the immutable remote
+        LOD state. Their K/V are staged before that launch, so each query sees
+        the exact causal local suffix through its own logical length. The host
+        truncates rejected tail entries by resetting ``local_lens`` before the
+        next replay; no route is lagged.
         """
         steps = int(self.speculative_decode_steps)
         if steps <= 1:
@@ -3041,7 +3044,12 @@ class VLLMLayerLODPool:
                 store_new_kv=False,
                 advance_local_lens=False,
                 speculative_steps=(
-                    steps if self._shared_speculative_route_eligible(steps) else 1
+                    steps
+                    if (
+                        self._shared_speculative_route_eligible(steps)
+                        or self._speculative_fixed_mask_eligible(steps)
+                    )
+                    else 1
                 ),
             )
             advance_decode_cache_lengths(

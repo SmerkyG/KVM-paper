@@ -17529,7 +17529,7 @@ def fused_decode_paged_lod_attention(
     batch, query_heads, query_len, head_dim = q.shape
     if query_len != 1:
         raise ValueError("fused LOD decode attention requires one query token")
-    if speculative_steps not in (1, 2) or batch % speculative_steps:
+    if speculative_steps < 1 or batch % speculative_steps:
         raise ValueError("fused LOD speculative batch geometry is inconsistent")
     kv_heads = int(state_k.size(1))
     if query_heads != kv_heads * kv_group_size:

@@ -73,6 +73,40 @@ class VLLMLODRuntime:
             self.max_requests, dtype=torch.long, device=model_state.device
         )
         context = config.compilation_config.static_forward_context
+        # Native MTP/EAGLE is a separate autoregressive draft model.  It is
+        # loaded into the same static forward context as the target before
+        # ModelState is constructed, so selecting layers solely from the
+        # custom backend would accidentally externalize the draft model's own
+        # chronological K/V cache as LOD state.  A single draft token hid that
+        # mistake because vLLM runs position zero through its prefill path;
+        # recurrent positions build draft-only metadata and correctly fail
+        # when that K/V group is absent.  Identify draft layers by object
+        # ownership rather than a model-specific prefix, with the prefix only
+        # as a compatibility fallback for model-state wrappers that do not
+        # expose their target model.
+        target_model = getattr(model_state, "model", None)
+        if target_model is None:
+            target_model = getattr(model_state, "get_model", lambda: None)()
+        target_module_ids = (
+            {id(module) for module in target_model.modules()}
+            if target_model is not None
+            else set()
+        )
+        for name, layer in context.items():
+            separate_draft_layer = bool(
+                target_module_ids and id(layer) not in target_module_ids
+            )
+            prefix_fallback = bool(
+                not target_module_ids
+                and (name.startswith("mtp.") or ".mtp." in name)
+            )
+            if self.speculative_tokens and (
+                separate_draft_layer or prefix_fallback
+            ):
+                impl = getattr(layer, "impl", None)
+                if isinstance(impl, LODAttentionImpl):
+                    impl.lod_eligible = False
+                    layer._vllm_lod_native_speculator = True
         diagnostic_external_empty = os.getenv(
             "VLLM_LOD_DIAGNOSTIC_EXTERNAL_EMPTY_ATTENTION"
         ) in ("skip", "eligible")

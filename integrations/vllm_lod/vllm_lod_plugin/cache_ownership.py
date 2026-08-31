@@ -371,10 +371,23 @@ def _install_v2_external_metadata_hook() -> None:
         **kwargs: Any,
     ) -> Any:
         layers = get_layers_from_vllm_config(vllm_config, Attention)
+        # Draft-model speculators call the same helper with only their own
+        # attention layer names active.  Re-externalizing target-model LOD
+        # layers in that call removes the native MTP layer from the draft
+        # metadata dictionary; one-token MTP never exposes this because it has
+        # no recurrent draft-decode graph.  Match upstream's active-layer
+        # filter before deciding whether this invocation owns any LOD layer.
+        active_layer_names = kwargs.get("active_layer_names")
+        active = (
+            set(active_layer_names)
+            if active_layer_names is not None
+            else None
+        )
         external = {
             name: layer
             for name, layer in layers.items()
             if bool(getattr(layer, "_vllm_lod_external_kv_cache", False))
+            and (active is None or name in active)
         }
         logical_groups: dict[str, int] = {}
         if external:

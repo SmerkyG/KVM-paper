@@ -318,13 +318,14 @@ def inspect_lod_model(model) -> dict[str, object]:
                     pool.engine.recursive_state_route_backend
                 ),
             )
+        speculative_steps = int(getattr(pool, "speculative_decode_steps", 0))
         parallel_configured = bool(
-            int(getattr(pool, "speculative_decode_steps", 0)) == 2
-            and pool._parallel_speculative_decode_eligible(2)
+            speculative_steps >= 2
+            and pool._parallel_speculative_decode_eligible(speculative_steps)
         )
         shared_route_configured = bool(
-            int(getattr(pool, "speculative_decode_steps", 0)) == 2
-            and pool._shared_speculative_route_eligible(2)
+            speculative_steps >= 2
+            and pool._shared_speculative_route_eligible(speculative_steps)
         )
         shared_route_executed = False
         shared_local_executed = False
@@ -354,8 +355,8 @@ def inspect_lod_model(model) -> dict[str, object]:
         )
         diagnostics["speculative_shared_local_configured"].append(
             bool(
-                int(getattr(pool, "speculative_decode_steps", 0)) == 2
-                and pool._shared_speculative_local_eligible(2)
+                speculative_steps >= 2
+                and pool._shared_speculative_local_eligible(speculative_steps)
             )
         )
         diagnostics["speculative_shared_local_executed"].append(
