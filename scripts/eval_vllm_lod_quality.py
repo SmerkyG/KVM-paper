@@ -352,6 +352,11 @@ def inspect_lod_model(model) -> dict[str, object]:
     decode_gqa_static_leaf_aiter_configured = set()
     decode_gqa_static_leaf_aiter_executed = set()
     decode_gqa_static_leaf_caps = set()
+    speculative_parallel_configured = set()
+    speculative_shared_route_configured = set()
+    speculative_shared_route_executed = set()
+    speculative_shared_local_configured = set()
+    speculative_shared_local_executed = set()
     decode_max_open_leaves = set()
     decode_route_cohort = set()
     prefill_route_cohort = set()
@@ -413,6 +418,44 @@ def inspect_lod_model(model) -> dict[str, object]:
             batched_cached_prefills += int(pool.batched_cached_prefill_calls)
             batched_cached_prefill_rows += int(pool.batched_cached_prefill_rows)
             engine = pool.engine
+            parallel_configured = bool(
+                int(getattr(pool, "speculative_decode_steps", 0)) == 2
+                and pool._parallel_speculative_decode_eligible(2)
+            )
+            speculative_parallel_configured.add(parallel_configured)
+            speculative_shared_route_configured.add(
+                bool(
+                    int(getattr(pool, "speculative_decode_steps", 0)) == 2
+                    and pool._shared_speculative_route_eligible(2)
+                )
+            )
+            shared_route_executed = False
+            shared_local_executed = False
+            for staging in pool.speculative_decode_buffers.values():
+                speculative_buffers = staging.get("decode_buffers")
+                if not isinstance(speculative_buffers, dict):
+                    continue
+                marker = speculative_buffers.get(
+                    "speculative_route_execution_marker"
+                )
+                if isinstance(marker, torch.Tensor) and int(marker.item()) > 0:
+                    shared_route_executed = True
+                local_marker = speculative_buffers.get(
+                    "speculative_local_execution_marker"
+                )
+                if (
+                    isinstance(local_marker, torch.Tensor)
+                    and int(local_marker.item()) > 0
+                ):
+                    shared_local_executed = True
+            speculative_shared_route_executed.add(shared_route_executed)
+            speculative_shared_local_configured.add(
+                bool(
+                    int(getattr(pool, "speculative_decode_steps", 0)) == 2
+                    and pool._shared_speculative_local_eligible(2)
+                )
+            )
+            speculative_shared_local_executed.add(shared_local_executed)
             state_split_limits.add(
                 getattr(pool.settings, "state_split_max_leaves", None)
             )
@@ -935,6 +978,21 @@ def inspect_lod_model(model) -> dict[str, object]:
             decode_gqa_static_leaf_caps,
             key=lambda value: -1 if value is None else int(value),
         ),
+        "speculative_parallel_configured": sorted(
+            speculative_parallel_configured
+        ),
+        "speculative_shared_route_configured": sorted(
+            speculative_shared_route_configured
+        ),
+        "speculative_shared_route_executed": sorted(
+            speculative_shared_route_executed
+        ),
+        "speculative_shared_local_configured": sorted(
+            speculative_shared_local_configured
+        ),
+        "speculative_shared_local_executed": sorted(
+            speculative_shared_local_executed
+        ),
         "static_total_centroids": static_total_centroids,
         "static_total_leaves": static_total_leaves,
         "static_opened_centroids": static_opened_centroids,
@@ -1044,6 +1102,26 @@ def reset_lod_decode_execution_markers(model) -> int:
         pool = getattr(module, "_vllm_lod_pool", None)
         if pool is None:
             continue
+        for staging in pool.speculative_decode_buffers.values():
+            speculative_buffers = staging.get("decode_buffers")
+            if not isinstance(speculative_buffers, dict):
+                continue
+            speculative_marker = speculative_buffers.get(
+                "speculative_route_execution_marker"
+            )
+            if isinstance(speculative_marker, torch.Tensor):
+                # Graph staging is allocated while vLLM is in inference mode,
+                # so mutate its device marker under the same mode.
+                with torch.inference_mode():
+                    speculative_marker.zero_()
+                reset += 1
+            local_marker = speculative_buffers.get(
+                "speculative_local_execution_marker"
+            )
+            if isinstance(local_marker, torch.Tensor):
+                with torch.inference_mode():
+                    local_marker.zero_()
+                reset += 1
         for decode_buffers in pool.decode_buffers.values():
             staged_marker = decode_buffers.get("gqa_union_destinations")
             if isinstance(staged_marker, torch.Tensor):

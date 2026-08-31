@@ -50,6 +50,10 @@ class VLLMLODRuntime:
         self.model_state = model_state
         self.settings = VLLMLODSettings.from_environment()
         config = model_state.vllm_config
+        self.speculative_tokens = int(config.num_speculative_tokens or 0)
+        self.hybrid_speculative_full_attention = os.getenv(
+            "VLLM_LOD_SPECULATIVE_FULL_ATTENTION", "0"
+        ) == "1"
         self.prefix_caching = bool(
             getattr(
                 getattr(config, "cache_config", None),
@@ -59,10 +63,6 @@ class VLLMLODRuntime:
         )
         if config.parallel_config.decode_context_parallel_size != 1:
             raise NotImplementedError("vLLM LOD does not yet support DCP")
-        if config.num_speculative_tokens:
-            raise NotImplementedError(
-                "vLLM LOD currently requires speculative decoding to be disabled"
-            )
         self.max_requests = int(model_state.max_num_reqs)
         self.pool_size = min(self.settings.pool_size, self.max_requests)
         self.request_capacity = min(
@@ -104,6 +104,26 @@ class VLLMLODRuntime:
     @property
     def enabled(self) -> bool:
         return bool(self.layers)
+
+    def _set_speculative_verification_routes(self, enabled: bool) -> None:
+        """Use decode-quality routing for a multi-token target verification.
+
+        Ordinary long prefill intentionally opens only three centroids on the
+        current fast path.  A speculative target call is logically decode,
+        however, and must use the same top-eight approximation as sequential
+        one-token decode. Otherwise the verifier itself defines a different
+        sparse model and can accept a token that sequential LOD would reject.
+        """
+        for pool in self.pools.values():
+            pool.engine.prefill_two_level_topk = (
+                self.settings.open_count
+                if enabled
+                else (
+                    self.settings.prefill_open_count
+                    if self.settings.prefill_open_count is not None
+                    else min(3, self.settings.open_count)
+                )
+            )
 
     def _prefix_rollback_tokens(self) -> int:
         cache_config = getattr(self.model_state.vllm_config, "cache_config", None)
@@ -187,6 +207,7 @@ class VLLMLODRuntime:
             name
             for name, layer in self._eligible_layers.items()
             if not bool(getattr(layer, "_vllm_lod_external_kv_cache", False))
+            and not bool(getattr(layer, "_vllm_lod_hybrid_native_kv", False))
         )
         if missing_external:
             raise RuntimeError(
@@ -360,6 +381,8 @@ class VLLMLODRuntime:
         self, req_id: str, *, token_ids: list[int] | None = None
     ) -> None:
         slot = self.req_to_slot.pop(req_id, None)
+        if not self.req_to_slot:
+            self._set_speculative_verification_routes(False)
         if slot is None:
             return
         row = self.lod_row_by_slot.pop(slot, None)
@@ -544,22 +567,104 @@ class VLLMLODRuntime:
 
     def _prepare_dummy_batch(self, rows: int, max_query_len: int) -> None:
         decode_capture = max_query_len == 1
+        speculative_capture = (
+            self.speculative_tokens > 0
+            and max_query_len == self.speculative_tokens + 1
+            and rows % max_query_len == 0
+        )
+        request_rows = rows // max_query_len if speculative_capture else rows
         for pool in self.pools.values():
             pool.decode_enabled = decode_capture
+            pool.hybrid_full_decode = bool(
+                self.hybrid_speculative_full_attention
+                and (decode_capture or speculative_capture)
+            )
+            pool.speculative_decode_steps = (
+                max_query_len if speculative_capture else 0
+            )
             pool.direct_prefill_plan = None
-        if not decode_capture:
+            if speculative_capture:
+                pool.reserve_speculative_decode_buffers(
+                    request_rows, max_query_len
+                )
+        if not decode_capture and not speculative_capture:
             return
-        if rows > self.pool_size:
+        if request_rows > self.pool_size:
             raise RuntimeError(
-                "a captured pure-decode batch exceeds VLLM_LOD_POOL_SIZE; "
+                "a captured decode batch exceeds VLLM_LOD_POOL_SIZE; "
                 "set VLLM_LOD_POOL_SIZE and --max-num-seqs to the same value"
             )
-        self.active_indices[:rows].copy_(
-            torch.arange(rows, device=self.active_indices.device)
+        self.active_indices[:request_rows].copy_(
+            torch.arange(request_rows, device=self.active_indices.device)
         )
         self._active_decode_rows = None
         for pool in self.pools.values():
             pool.local_lens.zero_()
+
+    def _prepare_speculative_decode(
+        self,
+        slots: list[int],
+        computed_lengths: np.ndarray,
+        query_starts: np.ndarray,
+        padded_tokens: int,
+        steps: int,
+    ) -> bool:
+        """Prepare live rows for uniform graph-captured target verification."""
+        if (
+            self.speculative_tokens <= 0
+            or steps != self.speculative_tokens + 1
+            or len(query_starts) != len(slots) + 1
+            or any(
+                int(query_starts[row + 1] - query_starts[row]) != steps
+                for row in range(len(slots))
+            )
+            or padded_tokens % steps
+        ):
+            return False
+        padded_rows = padded_tokens // steps
+        if padded_rows < len(slots) or padded_rows > self.pool_size:
+            return False
+
+        lod_rows = [self._lod_row(slot) for slot in slots]
+        catch_ups: list[tuple[int, int]] = []
+        for request_row, lod_row in enumerate(lod_rows):
+            previous_length = int(computed_lengths[request_row])
+            if previous_length <= 0:
+                return False
+            totals = [
+                int(pool.metadata[lod_row].get("total_len", -1))
+                for pool in self.pools.values()
+            ]
+            if not all(pool.ready[lod_row] for pool in self.pools.values()):
+                return False
+            if any(total < previous_length for total in totals):
+                return False
+            if any(total > previous_length for total in totals):
+                for pool in self.pools.values():
+                    pool.restore_prefix(lod_row, previous_length)
+            catch_ups.append((lod_row, previous_length))
+
+        # Perform any infrequent 4K semantic refresh before replay. A proposal
+        # is much shorter than the refresh interval, so all captured steps see
+        # one immutable coarse field and append to its exact recent suffix.
+        self._catch_up_decode_rows(catch_ups)
+        mapped_rows = self._pad_decode_rows(lod_rows, padded_rows)
+        self._set_active_decode_rows(mapped_rows)
+        for pool in self.pools.values():
+            pool.decode_enabled = False
+            pool.speculative_decode_steps = steps
+            pool.direct_prefill_plan = None
+            pool.reserve_speculative_decode_buffers(padded_rows, steps)
+            for lod_row, previous_length in catch_ups:
+                metadata = pool.metadata[lod_row]
+                proposed_length = previous_length + steps
+                metadata["total_len"] = proposed_length
+                metadata["recent_len"] = (
+                    proposed_length - int(metadata["coverage"])
+                )
+        for lod_row, previous_length in catch_ups:
+            self.logical_lengths[lod_row] = previous_length + steps
+        return True
 
     def _set_active_decode_rows(self, rows: list[int]) -> None:
         """Update the graph-visible row map only when the batch changes."""
@@ -694,11 +799,25 @@ class VLLMLODRuntime:
             if previous_length == 0:
                 compatible = not any(ready)
             else:
-                compatible = all(ready) and all(
+                total_lengths = [
                     int(pool.metadata[lod_row].get("total_len", -1))
-                    == previous_length
                     for pool in self.pools.values()
+                ]
+                compatible = all(ready) and all(
+                    total_length >= previous_length
+                    for total_length in total_lengths
                 )
+                # Speculative verification writes every proposed K/V into the
+                # semantic exact tail.  On the next step vLLM reports only the
+                # committed prefix; discard rejected suffix entries before
+                # evaluating the new proposal.  The common case is a
+                # metadata-only rollback inside the recent exact field.
+                if compatible and any(
+                    total_length > previous_length
+                    for total_length in total_lengths
+                ):
+                    for pool in self.pools.values():
+                        pool.restore_prefix(lod_row, previous_length)
             if not compatible:
                 return False
             plan.append((lod_row, begin, end, previous_length))
@@ -791,22 +910,68 @@ class VLLMLODRuntime:
         kv_cache_config: Any,
     ) -> None:
         self.initialize(kv_cache_config)
-        if not self.enabled or input_batch.num_reqs == 0:
+        if not self.enabled:
+            return
+        max_query_len = _input_batch_max_query_len(input_batch)
+        is_prefilling = bool(np.asarray(input_batch.is_prefilling_np).any())
+        self._set_speculative_verification_routes(
+            self.speculative_tokens > 0
+            and not is_prefilling
+            and max_query_len > 1
+        )
+        if input_batch.num_reqs == 0:
             return
         self._restore_borrowed_dummy_rows()
+        if all(str(req_id).startswith("_warmup_") for req_id in input_batch.req_ids):
+            # V2 runs explicit prefill, speculative, and ordinary decode
+            # warmups after graph setup. They carry request-shaped metadata but
+            # no semantic prompt that should survive into serving-time LOD
+            # state. Exercise the appropriate captured/eager branch using
+            # dummy rows, just as the legacy runner hook does.
+            self._prepare_dummy_batch(
+                int(input_batch.num_tokens_after_padding),
+                max_query_len,
+            )
+            return
+        if self.hybrid_speculative_full_attention and not is_prefilling:
+            # The hybrid control keeps native chronological K/V authoritative
+            # for the entire decode phase. No LOD suffix prediction/rollback is
+            # needed, and avoiding it keeps this a clean measurement of the
+            # native full-attention verifier inside the DFlash2 target graph.
+            for pool in self.pools.values():
+                pool.decode_enabled = False
+                pool.speculative_decode_steps = (
+                    max_query_len if max_query_len > 1 else 0
+                )
+                pool.hybrid_full_decode = True
+                pool.direct_prefill_plan = None
+            return
+        for pool in self.pools.values():
+            pool.hybrid_full_decode = False
         rows = int(input_batch.num_reqs)
         for req_id, slot in zip(input_batch.req_ids, input_batch.idx_mapping_np):
             self.req_to_slot[req_id] = int(slot)
 
         pure_decode = (
-            not bool(np.asarray(input_batch.is_prefilling_np).any())
-            and _input_batch_max_query_len(input_batch) == 1
+            not is_prefilling and max_query_len == 1
         )
         if not pure_decode:
             slots = list(map(int, input_batch.idx_mapping_np))
             query_starts = np.asarray(
                 input_batch.query_start_loc_np[: rows + 1], dtype=np.int64
             )
+            if (
+                not is_prefilling
+                and max_query_len > 1
+                and self._prepare_speculative_decode(
+                    slots,
+                    input_batch.num_computed_tokens_np,
+                    query_starts,
+                    int(input_batch.num_tokens_after_padding),
+                    max_query_len,
+                )
+            ):
+                return
             if self._prepare_direct_prefill(
                 slots, input_batch.num_computed_tokens_np, query_starts
             ):
@@ -817,6 +982,7 @@ class VLLMLODRuntime:
         lengths = input_batch.num_computed_tokens_np
         for pool in self.pools.values():
             pool.decode_enabled = True
+            pool.speculative_decode_steps = 0
             pool.direct_prefill_plan = None
         lod_rows = [self._lod_row(int(slot)) for slot in input_batch.idx_mapping_np]
         padded_rows = int(input_batch.num_tokens_after_padding)

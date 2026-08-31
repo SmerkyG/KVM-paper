@@ -82,22 +82,37 @@ fi
 if [[ "${VLLM_LOD_PANEL_DISABLE_CUSTOM_ALL_REDUCE:-0}" == 1 ]]; then
   args+=(--disable-custom-all-reduce)
 fi
+if [[ -n "${VLLM_LOD_PANEL_SPECULATIVE_MODEL:-}" ]]; then
+  args+=(
+    --speculative-model "$VLLM_LOD_PANEL_SPECULATIVE_MODEL"
+    --speculative-method "${VLLM_LOD_PANEL_SPECULATIVE_METHOD:-dflash}"
+    --num-speculative-tokens "${VLLM_LOD_PANEL_SPECULATIVE_TOKENS:-7}"
+    --speculative-attention-backend \
+      "${VLLM_LOD_PANEL_SPECULATIVE_ATTENTION_BACKEND:-TRITON_ATTN}"
+  )
+fi
 if [[ -n "${VLLM_LOD_PANEL_DECODE_ROUTE_GROUP_SIZE:-}" ]]; then
+  # Speculative target verification is captured during LLM construction.
+  # Configure graph-shaping route geometry before capture as well as through
+  # the post-construction diagnostic hook below.
+  common_route_group_size="$VLLM_LOD_PANEL_DECODE_ROUTE_GROUP_SIZE"
   args+=(
     --lod-decode-route-group-size
-    "$VLLM_LOD_PANEL_DECODE_ROUTE_GROUP_SIZE"
+    "$common_route_group_size"
   )
 fi
 if [[ -n "${VLLM_LOD_PANEL_DECODE_ROUTE_NUM_WARPS:-}" ]]; then
+  common_route_num_warps="$VLLM_LOD_PANEL_DECODE_ROUTE_NUM_WARPS"
   args+=(
     --lod-decode-route-num-warps
-    "$VLLM_LOD_PANEL_DECODE_ROUTE_NUM_WARPS"
+    "$common_route_num_warps"
   )
 fi
 if [[ -n "${VLLM_LOD_PANEL_DECODE_ROUTE_REDUCE_NUM_WARPS:-}" ]]; then
+  common_route_reduce_num_warps="$VLLM_LOD_PANEL_DECODE_ROUTE_REDUCE_NUM_WARPS"
   args+=(
     --lod-decode-route-reduce-num-warps
-    "$VLLM_LOD_PANEL_DECODE_ROUTE_REDUCE_NUM_WARPS"
+    "$common_route_reduce_num_warps"
   )
 fi
 if [[ "$apply_chat_template" == 1 ]]; then
@@ -125,6 +140,23 @@ common_env=(
   PYTHONPATH="$repo/integrations/vllm_lod:$repo"
   VLLM_WEIGHT_CACHE_ID="${VLLM_WEIGHT_CACHE_ID:-dev}"
 )
+if [[ -n "${common_route_group_size:-}" ]]; then
+  common_env+=(VLLM_LOD_DECODE_ROUTE_GROUP_SIZE="$common_route_group_size")
+fi
+if [[ -n "${common_route_num_warps:-}" ]]; then
+  common_env+=(VLLM_LOD_DECODE_ROUTE_NUM_WARPS="$common_route_num_warps")
+fi
+if [[ -n "${common_route_reduce_num_warps:-}" ]]; then
+  common_env+=(
+    VLLM_LOD_DECODE_ROUTE_REDUCE_NUM_WARPS="$common_route_reduce_num_warps"
+  )
+fi
+if [[ -n "${VLLM_LOD_PANEL_SPECULATIVE_MODEL:-}" ]]; then
+  # DFlash parallel drafting uses the V2 model runner.  Without this explicit
+  # selection this pinned vLLM revision falls back to its unrelated legacy
+  # draft-model proposer for the new DFlash2 architecture.
+  common_env+=(VLLM_USE_V2_MODEL_RUNNER=1)
+fi
 if [[ "$mode" == full && -n "${VLLM_LOD_PANEL_FULL_BACKEND:-}" ]]; then
   args+=(--full-attention-backend "$VLLM_LOD_PANEL_FULL_BACKEND")
 fi

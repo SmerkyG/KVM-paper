@@ -64,6 +64,9 @@ def register() -> None:
     if _REGISTERED:
         return
     _add_lod_source_tree()
+    from .dflash2_compat import register_dflash2_compat
+
+    register_dflash2_compat()
     _install_native_attention_skip_diagnostic()
     from vllm.v1.attention.backends.registry import (
         AttentionBackendEnum,

@@ -853,9 +853,97 @@ profiles is therefore the one- versus four-warp prefill leaf-route reduction.
   so eager state-maintenance launches occur once per update interval rather
   than once per token.
 - Sliding-window, encoder, ALiBi, attention-sink, soft-capped, quantized-native
-  KV, speculative decode, and DCP paths remain native or are rejected when a
-  lossless fallback is not available. Tensor parallelism and hybrid recurrent
-  layers do not alter the per-layer LOD contract.
+  KV, and DCP paths remain native or are rejected when a lossless fallback is
+  not available. DFlash2 speculative decode is supported: its draft cache stays
+  native, while target verification appends proposed tokens to LOD and restores
+  the scheduler's committed prefix before the next proposal when necessary.
+  Tensor parallelism and hybrid recurrent layers do not alter the per-layer
+  LOD contract.
+
+### DFlash2 on the pinned vLLM revision
+
+The plugin registers `DFlash2DraftModel` and the path-aware DFlash2 candidate
+selector that are present in newer vLLM releases but absent from the pinned
+ROCm benchmark environment. The large target remains resident in the IPC
+weight cache; the much smaller nested draft model uses vLLM's ordinary model
+loader so it cannot be mistaken for the target by the daemon protocol. Set
+`VLLM_LOD_PANEL_SPECULATIVE_MODEL=z-lab/Qwen3.8-27B-DFlash2` when using
+`scripts/run_vllm_lod_niah_speed_panel.sh`; the wrapper selects the V2 runner,
+seven draft tokens, and `TRITON_ATTN` for the draft unless overridden.
+
+Pure one-token LOD decode remains full-graph capturable. Multi-token DFlash2
+target verification is intentionally piecewise: semantic LOD state changes for
+the proposed suffix and therefore cannot replay the dummy state used during a
+full-graph capture. The DFlash2 drafter itself still uses its captured graph.
+Long prompt prefill retains the measured top-three route count, but a
+multi-token verification dynamically uses decode's top-eight routes. Using
+prefill top-three for the verifier is invalid even though it is faster: it can
+accept a token that the sequential top-eight LOD model would reject.
+
+The current Qwen3.8-27B-FP8 TP1/B1 decode medians for full versus corrected
+two-tier LOD with DFlash2 are respectively **17.108/23.929 ms at 8K**,
+**8.601/18.634 ms at 16K**, **16.294/20.483 ms at 32K**,
+**16.888/24.810 ms at 64K**, and **19.892/21.262 ms at 128K**. Both corrected
+arms score 8/8 on the matched chat-formatted 8K NIAH-S3 sanity block. The
+protocol, acceptance rates, rejected top-three diagnostic, and raw records are
+in `artifacts/dflash2_qwen38_20260830/README.md`.
+
+### Native MTP target verification
+
+One-token native MTP produces a two-position target verification. The old LOD
+adapter transposed those positions and invoked the complete M=1 LOD decoder
+twice serially. That erased most of the target-attention saving: on
+Qwen3.8-27B-FP8 TP1/B1, full/old-LOD MTP took 22.761/22.331 ms per emitted
+token at 64K.
+
+This is a batch-1 comparison. The matched non-speculative batch-1 control at
+64K is 31.404/28.877 ms for full/two-tier LOD (1.087x); the much larger 1.43x
+historical Qwen3.8 win is the batch-8 panel and is not the proper MTP control.
+
+The default two-tier path now stages both proposed K/V entries and verifies
+both positions with one flattened LOD launch. Both positions route against the
+same immutable remote state, while per-position logical recent lengths enforce
+causality: position zero sees its own K/V and position one sees both proposed
+entries. Qwen's two GQA-6 position groups are packed as 12 useful rows in one
+M=16 coarse-scoring tile, so a centroid K/V tile is loaded once. The same
+programs also consume disjoint tiles of the recent suffix. Thus 512 of the
+513/514 visible local entries are loaded once for all 12 verifier rows; only
+the causal mask differs for the newest proposal entry. Local scores never enter
+centroid top-eight selection: they are merged only into the coarse output and
+LSE. This removes a separate local-attention launch without changing routing.
+The normal prefix-restore path truncates any rejected proposal suffix before
+the next verification; routes are never lagged.
+
+The original corrected 64K time was **20.031 ms (1.136x over full MTP)**,
+versus 22.761 ms for full MTP. The pre-local-sharing 128K result remains **21.742 ms
+(1.306x)** versus 28.400 ms for full MTP. It scores 8/8 on chat-formatted
+NIAH-S3 at both 8K and 64K. Device execution markers for both shared routing
+and shared local attention let the benchmark fail rather than silently time a
+different captured path. Set `VLLM_LOD_SPECULATIVE_PARALLEL=0` only to
+reproduce the old serial verifier, or `VLLM_LOD_SPECULATIVE_SHARED_ROUTE=0` to
+retain the parallel artificial batch while scoring its positions
+independently. The original matched panel is in
+`artifacts/mtp_qwen38_20260830/README.md`; the local-sharing implementation,
+profile, and raw records are in `artifacts/mtp_qwen38_20260831/README.md`.
+
+The subsequent balanced exact-list update stripes every selected centroid's
+leaves across all eight exact-attention splits instead of assigning one whole
+centroid to each split. After reconstructing the exact source of the 20.031 ms
+run and applying only this update, the matched 64K result was **19.522
+ms/output**, with 86.1% draft acceptance. Its estimated verifier-cycle cost
+was 36.073 ms versus 37.013 ms for the original result, a 2.5% improvement.
+The exact-leaf kernel fell from 110.331 to **53.041 us per global-layer call**
+in the delayed profile, and the prior striped check retained 8/8 NIAH-S3.
+Striping is the default for multi-position target verification;
+`VLLM_LOD_SPECULATIVE_STRIPE_ROUTE_LEAVES=0` is the legacy control.
+
+Independent launches of the exact historical source produced 81.6% and 87.5%
+acceptance despite identical temperature-zero input and configuration. Their
+per-verifier-cycle costs remained within 0.7%, so speculative speed comparisons
+must report both acceptance and a cycle-normalized latency; ms/output alone can
+look regressed when the greedy trajectory changes. The unsuccessful
+coarse-verifier/self-speculation implementation was removed rather than kept as
+another production path.
 
 Every eligible global layer uses external LOD for prefill and decode, including
 short requests. A captured graph never swaps in native attention and no native

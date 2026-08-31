@@ -47,7 +47,11 @@ class LODMetadataOnlyFullAttentionSpec(FullAttentionSpec):
         # Never accidentally absorb a native full-attention layer into an
         # externally owned group merely because its tensor geometry matches.
         if not specs or not all(type(spec) is cls for spec in specs):
-            raise TypeError(
+            # vLLM treats ValueError/AssertionError as the public signal that
+            # two otherwise same-shaped cache specs need distinct groups.
+            # DFlash2 adds native draft-attention specs alongside the target
+            # model's metadata-only LOD specs, so this distinction matters.
+            raise ValueError(
                 "metadata-only LOD cache specs cannot be merged with native "
                 "K/V cache specs"
             )

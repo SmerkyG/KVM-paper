@@ -84,6 +84,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--full-attention-backend", default="ROCM_AITER_UNIFIED_ATTN"
     )
+    parser.add_argument("--speculative-model")
+    parser.add_argument("--speculative-method", default="dflash")
+    parser.add_argument("--num-speculative-tokens", type=int, default=7)
+    parser.add_argument("--speculative-attention-backend", default="TRITON_ATTN")
     parser.add_argument("--allow-heterogeneous-global-config", action="store_true")
     parser.add_argument("--muse-native-text-config", action="store_true")
     parser.add_argument("--model-impl")
@@ -526,6 +530,11 @@ def evaluate_speed(args, tokenizer, llm, length: int) -> dict:
                 "gqa_union_token_count_max",
                 "gqa_union_exact_token_count_mean",
                 "gqa_union_exact_token_count_max",
+                "speculative_parallel_configured",
+                "speculative_shared_route_configured",
+                "speculative_shared_route_executed",
+                "speculative_shared_local_configured",
+                "speculative_shared_local_executed",
             )
         }
         if (
@@ -602,6 +611,22 @@ def evaluate_speed(args, tokenizer, llm, length: int) -> dict:
                 "the measured GQA-union path did not run the unified AITER "
                 "leaves/local/coarse final attention"
             )
+        if (
+            execution_audit["speculative_shared_route_configured"] == [True]
+            and execution_audit["speculative_shared_route_executed"] != [True]
+        ):
+            raise RuntimeError(
+                "the measured speculative target graph did not execute the "
+                "shared two-position LOD route scorer"
+            )
+        if (
+            execution_audit["speculative_shared_local_configured"] == [True]
+            and execution_audit["speculative_shared_local_executed"] != [True]
+        ):
+            raise RuntimeError(
+                "the measured speculative target graph did not execute the "
+                "shared two-position local attention"
+            )
     if args.profile_lod_phases:
         result["lod_phase_profile"] = llm.apply_model(
             summarize_lod_phase_timers
@@ -650,6 +675,8 @@ def main() -> None:
         os.environ.get("VLLM_LOD_POOL_SIZE", "8")
     ):
         raise ValueError("batch size exceeds VLLM_LOD_POOL_SIZE")
+    if args.speculative_model and args.num_speculative_tokens < 1:
+        raise ValueError("num-speculative-tokens must be positive")
 
     from vllm import LLM
 
@@ -696,6 +723,13 @@ def main() -> None:
         kwargs["model_impl"] = args.model_impl
     if args.language_model_only:
         kwargs["language_model_only"] = True
+    if args.speculative_model:
+        kwargs["speculative_config"] = {
+            "method": args.speculative_method,
+            "model": args.speculative_model,
+            "num_speculative_tokens": args.num_speculative_tokens,
+            "attention_backend": args.speculative_attention_backend,
+        }
     if args.torch_profile_dir is not None:
         profile_dir = args.torch_profile_dir.resolve()
         profile_dir.mkdir(parents=True, exist_ok=True)
@@ -786,6 +820,16 @@ def main() -> None:
         "language_model_only": args.language_model_only,
         "full_attention_backend": (
             args.full_attention_backend if args.mode == "full" else None
+        ),
+        "speculative_model": args.speculative_model,
+        "speculative_method": (
+            args.speculative_method if args.speculative_model else None
+        ),
+        "num_speculative_tokens": (
+            args.num_speculative_tokens if args.speculative_model else None
+        ),
+        "speculative_attention_backend": (
+            args.speculative_attention_backend if args.speculative_model else None
         ),
         "diagnostic_external_empty_attention": os.getenv(
             "VLLM_LOD_DIAGNOSTIC_EXTERNAL_EMPTY_ATTENTION"

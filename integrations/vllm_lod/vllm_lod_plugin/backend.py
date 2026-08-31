@@ -6,7 +6,7 @@ import os
 from typing import Any
 
 import torch
-from vllm.v1.attention.backend import AttentionType
+from vllm.v1.attention.backend import AttentionCGSupport, AttentionType
 
 if torch.version.hip:
     from vllm.v1.attention.backends.rocm_aiter_unified_attn import (
@@ -23,6 +23,22 @@ else:
     from vllm.v1.attention.backends.flash_attn import (
         FlashAttentionImpl as _NativeImpl,
     )
+
+
+_NativeMetadataBuilder = _NativeBackend.get_builder_cls()
+
+
+class LODAttentionMetadataBuilder(_NativeMetadataBuilder):
+    """Expose the graph shapes whose state transitions LOD can replay.
+
+    Ordinary one-token decode and uniform speculative target verification are
+    captured.  The latter replays a fixed sequence of graph-safe one-token LOD
+    transitions against device-resident row maps and recent lengths.  Rejected
+    suffixes are truncated before the next replay, outside the graph.
+    """
+
+    _cudagraph_support = AttentionCGSupport.UNIFORM_BATCH
+
 
 class LODAttentionImpl(_NativeImpl):
     """Delegate native attention except for eligible one-token decode batches."""
@@ -75,6 +91,10 @@ class LODAttentionImpl(_NativeImpl):
     def _uses_external_kv_cache(layer: torch.nn.Module) -> bool:
         return bool(getattr(layer, "_vllm_lod_external_kv_cache", False))
 
+    @staticmethod
+    def _uses_hybrid_native_kv_cache(layer: torch.nn.Module) -> bool:
+        return bool(getattr(layer, "_vllm_lod_hybrid_native_kv", False))
+
     def do_kv_cache_update(
         self,
         layer: torch.nn.Module,
@@ -84,6 +104,10 @@ class LODAttentionImpl(_NativeImpl):
         slot_mapping: torch.Tensor,
     ) -> None:
         if self.lod_eligible:
+            if self._uses_hybrid_native_kv_cache(layer):
+                return super().do_kv_cache_update(
+                    layer, key, value, kv_cache, slot_mapping
+                )
             if not self._uses_external_kv_cache(layer):
                 raise RuntimeError(
                     "eligible LOD attention was not externalized; refusing to "
@@ -111,10 +135,37 @@ class LODAttentionImpl(_NativeImpl):
         output_block_scale: torch.Tensor | None = None,
     ) -> torch.Tensor:
         pool = getattr(layer, "_vllm_lod_pool", None)
-        if self.lod_eligible and not self._uses_external_kv_cache(layer):
+        hybrid_native = self._uses_hybrid_native_kv_cache(layer)
+        if (
+            self.lod_eligible
+            and not self._uses_external_kv_cache(layer)
+            and not hybrid_native
+        ):
             raise RuntimeError(
                 "eligible LOD attention was not externalized; native K/V "
                 "fallback is unsupported"
+            )
+        if (
+            pool is not None
+            and self.lod_eligible
+            and hybrid_native
+            and bool(getattr(pool, "hybrid_full_decode", False))
+            and attn_metadata is not None
+        ):
+            # Native K/V was updated immediately before this call. Delegate
+            # both uniform target verification and the rare one-token fallback
+            # to the unmodified AITER backend so the chronological cache stays
+            # authoritative throughout this intentionally quadratic mode.
+            return super().forward(
+                layer,
+                query,
+                key,
+                value,
+                kv_cache,
+                attn_metadata,
+                output,
+                output_scale=output_scale,
+                output_block_scale=output_block_scale,
             )
         if (
             os.getenv("VLLM_LOD_DIAGNOSTIC_EXTERNAL_EMPTY_ATTENTION")
@@ -127,6 +178,20 @@ class LODAttentionImpl(_NativeImpl):
             # ``skip`` also zeros native layers through the plugin hook, while
             # ``eligible`` preserves them to isolate the unchanged local path.
             return output.zero_()
+        if (
+            pool is not None
+            and int(getattr(pool, "speculative_decode_steps", 0)) > 1
+            and self.lod_eligible
+            and attn_metadata is not None
+            and int(attn_metadata.max_query_len)
+            == int(pool.speculative_decode_steps)
+        ):
+            if output_scale is not None or output_block_scale is not None:
+                raise NotImplementedError(
+                    "speculative LOD decode does not support fused output "
+                    "quantization"
+                )
+            return pool.speculative_decode(query, key, value, output)
         if (
             pool is not None
             and self.lod_eligible
@@ -194,5 +259,13 @@ class LODAttentionBackend(_NativeBackend):
     def get_impl_cls() -> type[LODAttentionImpl]:
         return LODAttentionImpl
 
+    @staticmethod
+    def get_builder_cls() -> type[LODAttentionMetadataBuilder]:
+        return LODAttentionMetadataBuilder
 
-__all__ = ["LODAttentionBackend", "LODAttentionImpl"]
+
+__all__ = [
+    "LODAttentionBackend",
+    "LODAttentionImpl",
+    "LODAttentionMetadataBuilder",
+]

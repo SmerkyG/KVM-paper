@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import fcntl
 import logging
 import math
@@ -437,6 +438,26 @@ class IPCWeightCacheModelLoader:
     def load_model(
         self, vllm_config: Any, model_config: Any, prefix: str = ""
     ) -> nn.Module:
+        # Parallel drafters are nested model loads: vLLM deliberately passes a
+        # draft ModelConfig while retaining the target VllmConfig (the draft
+        # constructor uses its speculative_config to share target weights).
+        # A daemon Worker can only load vllm_config.model_config as its primary
+        # model, so caching this nested call under the target fingerprint would
+        # return the target module tree. Keep the large target daemon-backed
+        # and use vLLM's ordinary loader for the much smaller nested drafter.
+        if model_config is not vllm_config.model_config:
+            from vllm.model_executor.model_loader.default_loader import (
+                DefaultModelLoader,
+            )
+
+            load_config = copy.copy(vllm_config.load_config)
+            load_config.load_format = "auto"
+            load_config.model_loader_extra_config = {}
+            return DefaultModelLoader(load_config).load_model(
+                vllm_config=vllm_config,
+                model_config=model_config,
+                prefix=prefix,
+            )
         from torch.multiprocessing.reductions import rebuild_cuda_tensor
         from vllm.config import set_current_vllm_config
         from vllm.model_executor.model_loader.utils import initialize_model
@@ -548,6 +569,15 @@ class IPCWeightCacheModelLoader:
             auto_start=self.auto_start,
             timeout=self.connect_timeout,
         )
+        # A draft model is loaded after the target has populated this field
+        # with live attention modules.  Those modules are neither part of the
+        # model-construction configuration nor picklable (some contain RLocks).
+        # Send the daemon a shallowly detached compilation config just as it
+        # would have seen during the initial target load.
+        daemon_config = copy.copy(vllm_config)
+        compilation_config = copy.copy(vllm_config.compilation_config)
+        compilation_config.static_forward_context = {}
+        daemon_config.compilation_config = compilation_config
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
             client.settimeout(self.broker_timeout)
             client.connect(str(control))
@@ -565,7 +595,7 @@ class IPCWeightCacheModelLoader:
                     # embeds such callbacks while remaining readable by the
                     # daemon's ordinary pickle.loads.
                     "vllm_config_pickle": cloudpickle.dumps(
-                        vllm_config, protocol=pickle.HIGHEST_PROTOCOL
+                        daemon_config, protocol=pickle.HIGHEST_PROTOCOL
                     ),
                     "backing_load_format": self.backing_load_format,
                     "backing_loader_extra_config": self.backing_loader_extra_config,
@@ -743,6 +773,9 @@ def register_weight_cache_loader() -> None:
 
 def register() -> None:
     """General-plugin entry point for weight-cache-only vLLM runs."""
+    from .dflash2_compat import register_dflash2_compat
+
+    register_dflash2_compat()
     register_weight_cache_loader()
 
 

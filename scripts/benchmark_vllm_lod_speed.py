@@ -236,6 +236,11 @@ def inspect_lod_model(model) -> dict[str, object]:
         "pilot_z_route_threshold_total": 0,
         "pilot_z_route_threshold_min": None,
         "pilot_z_route_threshold_max": None,
+        "speculative_parallel_configured": [],
+        "speculative_shared_route_configured": [],
+        "speculative_shared_route_executed": [],
+        "speculative_shared_local_configured": [],
+        "speculative_shared_local_executed": [],
     }
     for module in model.modules():
         pool = getattr(module, "_vllm_lod_pool", None)
@@ -313,6 +318,49 @@ def inspect_lod_model(model) -> dict[str, object]:
                     pool.engine.recursive_state_route_backend
                 ),
             )
+        parallel_configured = bool(
+            int(getattr(pool, "speculative_decode_steps", 0)) == 2
+            and pool._parallel_speculative_decode_eligible(2)
+        )
+        shared_route_configured = bool(
+            int(getattr(pool, "speculative_decode_steps", 0)) == 2
+            and pool._shared_speculative_route_eligible(2)
+        )
+        shared_route_executed = False
+        shared_local_executed = False
+        for staging in pool.speculative_decode_buffers.values():
+            decode_buffers = staging.get("decode_buffers")
+            if not isinstance(decode_buffers, dict):
+                continue
+            marker = decode_buffers.get("speculative_route_execution_marker")
+            if isinstance(marker, torch.Tensor) and int(marker.item()) > 0:
+                shared_route_executed = True
+            local_marker = decode_buffers.get(
+                "speculative_local_execution_marker"
+            )
+            if (
+                isinstance(local_marker, torch.Tensor)
+                and int(local_marker.item()) > 0
+            ):
+                shared_local_executed = True
+        diagnostics["speculative_parallel_configured"].append(
+            parallel_configured
+        )
+        diagnostics["speculative_shared_route_configured"].append(
+            shared_route_configured
+        )
+        diagnostics["speculative_shared_route_executed"].append(
+            shared_route_executed
+        )
+        diagnostics["speculative_shared_local_configured"].append(
+            bool(
+                int(getattr(pool, "speculative_decode_steps", 0)) == 2
+                and pool._shared_speculative_local_eligible(2)
+            )
+        )
+        diagnostics["speculative_shared_local_executed"].append(
+            shared_local_executed
+        )
         diagnostics["layers"] += 1
         diagnostics["prefill_direct_expert_bucket_calls"] += int(
             getattr(pool.engine, "prefill_direct_expert_bucket_calls", 0)

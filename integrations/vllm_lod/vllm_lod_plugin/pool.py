@@ -9,11 +9,13 @@ from typing import Any
 import torch
 
 from model.kernels.paged_leaf_attention import (
+    advance_decode_cache_lengths,
     fused_decode_paged_lod_attention,
     materialize_page1_coarse_means,
     materialize_page1_fixed_indices,
     materialize_page1_static_cap_indices,
     new_fused_decode_buffers,
+    prepare_speculative_decode_kv,
     rehash_overflow_pages,
     static_cap_page1_decode_attention,
 )
@@ -624,7 +626,10 @@ class VLLMLayerLODPool:
         self.metadata = [dict[str, int | bool]() for _ in range(max_requests)]
         self.decode_buffer_storage: dict[str, torch.Tensor] | None = None
         self.decode_buffers: dict[int, dict[str, torch.Tensor]] = {}
+        self.speculative_decode_buffers: dict[tuple[int, int], dict[str, Any]] = {}
         self.decode_enabled = False
+        self.speculative_decode_steps = 0
+        self.hybrid_full_decode = False
         self.direct_prefill_plan: tuple[tuple[int, int, int, int], ...] | None = None
         self.install_count = 0
         self.batched_install_calls = 0
@@ -2712,6 +2717,243 @@ class VLLMLayerLODPool:
         )
         self._buffers(query, rows)
 
+    def reserve_speculative_decode_buffers(self, rows: int, steps: int) -> None:
+        """Reserve fixed-address request-major/step-major graph staging.
+
+        vLLM lays uniform speculative verification out request-major, while
+        the graph-safe LOD primitive advances one token for every request at a
+        time.  These tiny staging tensors make that transpose explicit and,
+        crucially, keep every pointer stable across graph replay.
+        """
+        if not 1 <= rows <= self.max_requests:
+            raise ValueError("speculative scratch rows exceed the fixed LOD pool")
+        if steps <= 1:
+            raise ValueError("speculative decode requires at least two steps")
+        signature = (rows, steps)
+        if signature in self.speculative_decode_buffers:
+            return
+        self.reserve_decode_buffers(rows)
+        staging: dict[str, Any] = {
+            "q": torch.empty(
+                steps,
+                rows,
+                self.query_heads,
+                self.head_dim,
+                dtype=self.dtype,
+                device=self.device,
+            ),
+            "k": torch.empty(
+                steps,
+                rows,
+                self.kv_heads,
+                self.head_dim,
+                dtype=self.dtype,
+                device=self.device,
+            ),
+            "v": torch.empty(
+                steps,
+                rows,
+                self.kv_heads,
+                self.value_dim,
+                dtype=self.dtype,
+                device=self.device,
+            ),
+            "out": torch.empty(
+                steps,
+                rows,
+                self.query_heads,
+                self.value_dim,
+                dtype=self.dtype,
+                device=self.device,
+            ),
+        }
+        if self._parallel_speculative_decode_eligible(steps):
+            total_rows = rows * steps
+            template = torch.empty(
+                total_rows,
+                self.query_heads,
+                1,
+                self.head_dim,
+                dtype=self.dtype,
+                device=self.device,
+            )
+            staging["cache_indices"] = torch.empty(
+                total_rows, dtype=torch.long, device=self.device
+            )
+            staging["local_lens"] = torch.empty(
+                total_rows, dtype=torch.int32, device=self.device
+            )
+            staging["decode_buffers"] = new_fused_decode_buffers(
+                template,
+                splits=int(self.engine.decode_split_kv),
+                state_capacity=self.state_capacity,
+                route_group_size=int(self.engine.decode_route_group_size),
+                route_segment_tiles=int(self.engine.decode_route_segment_tiles),
+                materialized_state_route=False,
+            )
+            staging["decode_buffers"]["speculative_local_partial_out"] = (
+                torch.empty_like(staging["decode_buffers"]["partial_out"])
+            )
+            staging["decode_buffers"]["speculative_local_partial_lse"] = (
+                torch.empty_like(staging["decode_buffers"]["partial_lse"])
+            )
+            staging["decode_buffers"]["speculative_route_execution_marker"] = (
+                torch.zeros(1, dtype=torch.int32, device=self.device)
+            )
+            staging["decode_buffers"]["speculative_local_execution_marker"] = (
+                torch.zeros(1, dtype=torch.int32, device=self.device)
+            )
+        self.speculative_decode_buffers[signature] = staging
+
+    def _parallel_speculative_decode_eligible(self, steps: int) -> bool:
+        """Whether one flattened launch can verify all proposal positions."""
+        return bool(
+            os.getenv("VLLM_LOD_SPECULATIVE_PARALLEL", "1") != "0"
+            and steps == 2
+            and self.settings.levels == 2
+            and not self.settings.decode_gqa_union
+            and not self.settings.decode_gqa_static_leaf_aiter
+            and not self._use_cooperative_decode()
+        )
+
+    def _shared_speculative_route_eligible(self, steps: int) -> bool:
+        """Whether both positions fit one native grouped route tile."""
+        return bool(
+            self._parallel_speculative_decode_eligible(steps)
+            and os.getenv("VLLM_LOD_SPECULATIVE_SHARED_ROUTE", "1") != "0"
+            and bool(self.engine.decode_route_gqa_grouped)
+            and int(self.engine.decode_route_segment_tiles) == 1
+            and 2 * (self.query_heads // self.kv_heads) <= 16
+        )
+
+    def _shared_speculative_local_eligible(self, steps: int) -> bool:
+        """Whether proposal positions can share one causal local K/V scan."""
+        return bool(
+            self._parallel_speculative_decode_eligible(steps)
+            and os.getenv("VLLM_LOD_SPECULATIVE_SHARED_LOCAL", "1") != "0"
+            and 2 * (self.query_heads // self.kv_heads) <= 16
+        )
+
+    def speculative_decode(
+        self,
+        query: torch.Tensor,
+        key: torch.Tensor,
+        value: torch.Tensor,
+        output: torch.Tensor,
+    ) -> torch.Tensor:
+        """Verify a uniform proposal inside one replayable target graph.
+
+        The two proposal queries route concurrently against the immutable
+        remote LOD state. Their K/V are staged before that launch, so each
+        query still sees the exact causal local suffix (the second position
+        includes the first). The host truncates rejected tail entries by
+        resetting ``local_lens`` before the next replay; no route is lagged.
+        """
+        steps = int(self.speculative_decode_steps)
+        if steps <= 1:
+            raise RuntimeError("speculative LOD decode was not prepared")
+        total_tokens = int(query.size(0))
+        if total_tokens % steps:
+            raise ValueError(
+                "uniform speculative tokens do not divide the padded batch"
+            )
+        rows = total_tokens // steps
+        signature = (rows, steps)
+        staging = self.speculative_decode_buffers.get(signature)
+        if staging is None:
+            raise RuntimeError(
+                "speculative LOD graph staging was not reserved before forward"
+            )
+
+        # One copy per tensor changes vLLM's request-major layout [B, M, H, D]
+        # into step-major [M, B, H, D].  The attention calls below then use
+        # contiguous M=1 inputs and outputs without per-step packing kernels.
+        staging["q"].copy_(
+            query[: rows * steps]
+            .view(rows, steps, self.query_heads, self.head_dim)
+            .permute(1, 0, 2, 3)
+        )
+        staging["k"].copy_(
+            key[: rows * steps]
+            .view(rows, steps, self.kv_heads, self.head_dim)
+            .permute(1, 0, 2, 3)
+        )
+        staging["v"].copy_(
+            value[: rows * steps]
+            .view(rows, steps, self.kv_heads, self.value_dim)
+            .permute(1, 0, 2, 3)
+        )
+
+        if self._parallel_speculative_decode_eligible(steps):
+            flat_q = staging["q"].view(
+                rows * steps, self.query_heads, self.head_dim
+            )
+            flat_k = staging["k"].view(
+                rows * steps, self.kv_heads, self.head_dim
+            )
+            flat_v = staging["v"].view(
+                rows * steps, self.kv_heads, self.value_dim
+            )
+            flat_out = staging["out"].view(
+                rows * steps, self.query_heads, self.value_dim
+            )
+            prepare_speculative_decode_kv(
+                self.active_indices[:rows],
+                self.local_lens,
+                flat_k.unsqueeze(2),
+                flat_v.unsqueeze(2),
+                self.state["recent_k"],
+                self.state["recent_v"],
+                staging["cache_indices"],
+                staging["local_lens"],
+                rows=rows,
+                steps=steps,
+            )
+
+            class _ParallelMetadata:
+                num_actual_tokens = rows * steps
+
+            self.decode(
+                flat_q,
+                flat_k,
+                flat_v,
+                _ParallelMetadata(),
+                flat_out,
+                cache_indices=staging["cache_indices"],
+                local_lens=staging["local_lens"],
+                decode_buffers=staging["decode_buffers"],
+                local_lens_are_logical=True,
+                store_new_kv=False,
+                advance_local_lens=False,
+                speculative_steps=(
+                    steps if self._shared_speculative_route_eligible(steps) else 1
+                ),
+            )
+            advance_decode_cache_lengths(
+                self.active_indices[:rows], self.local_lens, increment=steps
+            )
+            output[: rows * steps].view(
+                rows, steps, self.query_heads, self.value_dim
+            ).copy_(staging["out"].permute(1, 0, 2, 3))
+            return output
+
+        class _Metadata:
+            num_actual_tokens = rows
+
+        metadata = _Metadata()
+        for step in range(steps):
+            self.decode(
+                staging["q"][step],
+                staging["k"][step],
+                staging["v"][step],
+                metadata,
+                staging["out"][step],
+            )
+        output[: rows * steps].view(
+            rows, steps, self.query_heads, self.value_dim
+        ).copy_(staging["out"].permute(1, 0, 2, 3))
+        return output
+
     def decode(
         self,
         query: torch.Tensor,
@@ -2719,6 +2961,14 @@ class VLLMLayerLODPool:
         value: torch.Tensor,
         metadata: Any,
         output: torch.Tensor,
+        *,
+        cache_indices: torch.Tensor | None = None,
+        local_lens: torch.Tensor | None = None,
+        decode_buffers: dict[str, torch.Tensor] | None = None,
+        local_lens_are_logical: bool = False,
+        store_new_kv: bool = True,
+        advance_local_lens: bool = True,
+        speculative_steps: int = 1,
     ) -> torch.Tensor:
         self.decode_calls += 1
         rows = int(metadata.num_actual_tokens)
@@ -2727,6 +2977,12 @@ class VLLMLayerLODPool:
         q = query[:rows].unsqueeze(2)
         k = key[:rows].unsqueeze(2)
         v = value[:rows].unsqueeze(2)
+        if cache_indices is None:
+            cache_indices = self.active_indices[:rows]
+        if local_lens is None:
+            local_lens = self.local_lens
+        if decode_buffers is None:
+            decode_buffers = self._buffers(q, rows)
         page = self.state["page_cache"]
         recursive = self.settings.levels == 3
         indexed_flat = (
@@ -2791,10 +3047,14 @@ class VLLMLayerLODPool:
             # normal local window. The extra storage only receives the current
             # token before the next scheduled catch-up.
             local_len=int(self.engine.local_len),
-            cache_indices=self.active_indices[:rows],
-            local_lens=self.local_lens,
+            cache_indices=cache_indices,
+            local_lens=local_lens,
             new_k=k,
             new_v=v,
+            local_lens_are_logical=local_lens_are_logical,
+            store_new_kv=store_new_kv,
+            advance_local_lens=advance_local_lens,
+            speculative_steps=speculative_steps,
             kv_group_size=self.query_heads // self.kv_heads,
             scale=float(self.engine.scaling),
             hash_probes=int(self.engine._page_lookup_probes(page)),
@@ -2802,7 +3062,7 @@ class VLLMLayerLODPool:
             num_warps=int(self.engine.decode_num_warps),
             waves_per_eu=int(self.engine.leaf_waves_per_eu),
             split_kv=int(self.engine.decode_split_kv),
-            buffers=self._buffers(q, rows),
+            buffers=decode_buffers,
             use_dot=bool(self.engine.decode_use_dot),
             fuse_state_route=True,
             route_group_size=int(self.engine.decode_route_group_size),

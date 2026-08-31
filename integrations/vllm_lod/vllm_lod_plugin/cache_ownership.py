@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import replace
 from typing import Any
 
@@ -37,6 +38,13 @@ def _install_attention_spec_hook() -> None:
             raise NotImplementedError(
                 "authoritative LOD cache requires equal key and value widths"
             )
+        if os.getenv("VLLM_LOD_SPECULATIVE_FULL_ATTENTION", "0") == "1":
+            # Diagnostic/hybrid mode: retain ordinary native chronological K/V
+            # so speculative target verification can use the platform's exact
+            # full-attention graph. LOD still owns prompt attention, but this
+            # mode intentionally gives up its decode memory/asymptotic benefit.
+            self._vllm_lod_hybrid_native_kv = True
+            return spec
         self._vllm_lod_external_kv_cache = True
         # Keep the original full-attention topology visible to the scheduler in
         # every model.  Its manager maintains logical block/hash metadata while
@@ -386,11 +394,19 @@ def _install_v2_external_metadata_hook() -> None:
             raise RuntimeError("V2 did not create the retained metadata group")
 
         # The common metadata (query starts, sequence lengths, and padding) is
-        # identical across groups. Attach to the first group only as a vehicle
-        # for that metadata. Do not add these names to KVCacheGroupSpec: that is
-        # what keeps them out of allocation, block tables, and slot mappings.
+        # identical across groups. Attach to the last populated group only as a
+        # vehicle for that metadata. Some native metadata builders normalize
+        # shared capture buffers in place; placing this allocation-free builder
+        # last prevents it from perturbing later hybrid/GDN groups during
+        # speculative full-graph capture. Do not add these names to
+        # KVCacheGroupSpec: that keeps them out of allocation, block tables,
+        # and slot mappings.
         metadata_group_id = next(
-            (group_id for group_id, groups in enumerate(attn_groups) if groups),
+            (
+                group_id
+                for group_id in range(len(attn_groups) - 1, -1, -1)
+                if attn_groups[group_id]
+            ),
             0,
         )
         by_spec: dict[Any, list[str]] = {}

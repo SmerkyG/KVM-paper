@@ -9925,6 +9925,254 @@ def _decode_route_coarse_gqa_groups_kernel(
 
 
 @triton.jit
+def _decode_route_coarse_gqa_mtp2_groups_kernel(
+    q,
+    state_k,
+    state_v,
+    counts,
+    cache_indices,
+    candidate_scores,
+    candidate_indices,
+    group_out,
+    group_lse,
+    STATE_BATCH_STRIDE,
+    STATE_HEAD_STRIDE,
+    STATE_TOKEN_STRIDE,
+    STATE_V_BATCH_STRIDE,
+    STATE_V_HEAD_STRIDE,
+    STATE_V_TOKEN_STRIDE,
+    COUNT_BATCH_STRIDE,
+    COUNT_HEAD_STRIDE,
+    COUNT_TOKEN_STRIDE,
+    state_len,
+    execution_marker,
+    local_execution_marker,
+    local_lens,
+    local_k,
+    local_v,
+    LOCAL_K_BATCH_STRIDE,
+    LOCAL_K_HEAD_STRIDE,
+    LOCAL_K_TOKEN_STRIDE,
+    LOCAL_V_BATCH_STRIDE,
+    LOCAL_V_HEAD_STRIDE,
+    LOCAL_V_TOKEN_STRIDE,
+    local_len,
+    QUERY_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    KV_GROUP_SIZE: tl.constexpr,
+    REQUEST_ROWS: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    SCALE: tl.constexpr,
+    GROUP_N: tl.constexpr,
+    MAX_GROUPS: tl.constexpr,
+    PROTECTED_LEN: tl.constexpr,
+    MAX_LEAF_TOKENS: tl.constexpr,
+    USE_DOT: tl.constexpr,
+    FUSE_LOCAL: tl.constexpr,
+    SCORE_ONLY: tl.constexpr = False,
+):
+    """Route both MTP positions in one native M=16 state/local tile."""
+    request_kv = tl.program_id(0).to(tl.int64)
+    group = tl.program_id(1).to(tl.int64)
+    request = request_kv // KV_HEADS
+    kv_head = request_kv - request * KV_HEADS
+    cache_batch = tl.load(cache_indices + request).to(tl.int64)
+    tl.store(execution_marker, 1, mask=(request_kv == 0) & (group == 0))
+    if FUSE_LOCAL:
+        tl.store(
+            local_execution_marker,
+            1,
+            mask=(request_kv == 0) & (group == 0),
+        )
+
+    lane = tl.arange(0, 16)
+    query_valid = lane < 2 * KV_GROUP_SIZE
+    step = lane // KV_GROUP_SIZE
+    query_in_group = lane - step * KV_GROUP_SIZE
+    logical_batch = step * REQUEST_ROWS + request
+    query_head = kv_head * KV_GROUP_SIZE + query_in_group
+    query_row = logical_batch * QUERY_HEADS + query_head
+    slot = group * GROUP_N + tl.arange(0, GROUP_N)
+    valid = slot < state_len
+    dim = tl.arange(0, HEAD_DIM)
+    queries = tl.load(
+        q + query_row[:, None] * HEAD_DIM + dim[None, :],
+        mask=query_valid[:, None],
+        other=0.0,
+    ).to(tl.bfloat16)
+    count = tl.load(
+        counts
+        + cache_batch * COUNT_BATCH_STRIDE
+        + kv_head * COUNT_HEAD_STRIDE
+        + slot * COUNT_TOKEN_STRIDE,
+        mask=valid,
+        other=1.0,
+    ).to(tl.float32)
+    valid &= count > 0.0
+    count = tl.where(valid, count, 1.0)
+    keys = tl.load(
+        state_k
+        + cache_batch * STATE_BATCH_STRIDE
+        + kv_head * STATE_HEAD_STRIDE
+        + slot[:, None] * STATE_TOKEN_STRIDE
+        + dim[None, :],
+        mask=valid[:, None],
+        other=0.0,
+    )
+    mean_keys = (keys.to(tl.float32) / count[:, None]).to(keys.dtype)
+    if USE_DOT:
+        scores = tl.dot(queries, tl.trans(mean_keys), out_dtype=tl.float32)
+    else:
+        scores = tl.sum(
+            queries[:, None, :].to(tl.float32)
+            * mean_keys[None, :, :].to(tl.float32),
+            axis=2,
+        )
+    scores = scores * SCALE + tl.log(count)[None, :]
+    scores = tl.where(query_valid[:, None] & valid[None, :], scores, -float("inf"))
+    route_scores = tl.where(slot[None, :] >= PROTECTED_LEN, scores, -float("inf"))
+    if MAX_LEAF_TOKENS:
+        route_scores = tl.where(
+            count[None, :] < MAX_LEAF_TOKENS,
+            route_scores,
+            -float("inf"),
+        )
+
+    candidate_base = (query_row * MAX_GROUPS + group) * 8
+    packed = _pack_route_score_index(route_scores, slot[None, :])
+    block_top = tl.topk(packed, 8, dim=1)
+    block_scores, block_indices = _unpack_route_score_index(block_top)
+    rank = tl.arange(0, 8)
+    tl.store(
+        candidate_scores + candidate_base[:, None] + rank[None, :],
+        block_scores,
+        mask=query_valid[:, None],
+    )
+    tl.store(
+        candidate_indices + candidate_base[:, None] + rank[None, :],
+        block_indices,
+        mask=query_valid[:, None],
+    )
+
+    if not SCORE_ONLY:
+        values = tl.load(
+            state_v
+            + cache_batch * STATE_V_BATCH_STRIDE
+            + kv_head * STATE_V_HEAD_STRIDE
+            + slot[:, None] * STATE_V_TOKEN_STRIDE
+            + dim[None, :],
+            mask=valid[:, None],
+            other=0.0,
+        )
+        mean_values = (values.to(tl.float32) / count[:, None]).to(values.dtype)
+        maximum = tl.max(scores, axis=1)
+        weights = tl.exp(scores - maximum[:, None])
+        weights = tl.where(
+            query_valid[:, None] & valid[None, :], weights, 0.0
+        )
+        denominator = tl.sum(weights, axis=1)
+        weighted_values = tl.dot(
+            weights.to(mean_values.dtype), mean_values, out_dtype=tl.float32
+        )
+        if FUSE_LOCAL:
+            # Proposal K/V has already been staged into the physical request
+            # row.  Spread the 512-token suffix over the first route groups,
+            # so the existing M=16 programs share every local load across
+            # both proposal positions without adding another launch/barrier.
+            base_local_len = tl.load(local_lens + request).to(tl.int32)
+            if group * GROUP_N < base_local_len + 2:
+                local_token = group * GROUP_N + tl.arange(0, GROUP_N)
+                shared_local_valid = (
+                    (local_token < base_local_len + 2)
+                    & (local_token < local_len + 2)
+                )
+                causal_local_valid = local_token[None, :] < (
+                    base_local_len + step[:, None] + 1
+                )
+                local_valid = (
+                    query_valid[:, None]
+                    & shared_local_valid[None, :]
+                    & causal_local_valid
+                )
+                local_keys = tl.load(
+                    local_k
+                    + cache_batch * LOCAL_K_BATCH_STRIDE
+                    + kv_head * LOCAL_K_HEAD_STRIDE
+                    + local_token[:, None] * LOCAL_K_TOKEN_STRIDE
+                    + dim[None, :],
+                    mask=shared_local_valid[:, None],
+                    other=0.0,
+                ).to(queries.dtype)
+                local_values = tl.load(
+                    local_v
+                    + cache_batch * LOCAL_V_BATCH_STRIDE
+                    + kv_head * LOCAL_V_HEAD_STRIDE
+                    + local_token[:, None] * LOCAL_V_TOKEN_STRIDE
+                    + dim[None, :],
+                    mask=shared_local_valid[:, None],
+                    other=0.0,
+                )
+                local_scores = (
+                    tl.dot(
+                        queries,
+                        tl.trans(local_keys),
+                        out_dtype=tl.float32,
+                    )
+                    * SCALE
+                )
+                local_scores = tl.where(
+                    local_valid, local_scores, -float("inf")
+                )
+                local_has_mass = tl.sum(
+                    local_valid.to(tl.int32), axis=1
+                ) > 0
+                local_maximum = tl.max(local_scores, axis=1)
+                combined_maximum = tl.where(
+                    local_has_mass,
+                    tl.maximum(maximum, local_maximum),
+                    maximum,
+                )
+                state_correction = tl.exp(maximum - combined_maximum)
+                local_weights = tl.where(
+                    local_valid,
+                    tl.exp(local_scores - combined_maximum[:, None]),
+                    0.0,
+                )
+                denominator = (
+                    denominator * state_correction
+                    + tl.sum(local_weights, axis=1)
+                )
+                weighted_values = (
+                    weighted_values * state_correction[:, None]
+                    + tl.dot(
+                        local_weights.to(local_values.dtype),
+                        local_values,
+                        out_dtype=tl.float32,
+                    )
+                )
+                maximum = combined_maximum
+        group_row = query_row * MAX_GROUPS + group
+        tl.store(
+            group_out + group_row[:, None] * HEAD_DIM + dim[None, :],
+            tl.where(
+                denominator[:, None] > 0.0,
+                weighted_values / denominator[:, None],
+                0.0,
+            ),
+            mask=query_valid[:, None],
+        )
+        tl.store(
+            group_lse + group_row,
+            tl.where(
+                denominator > 0.0,
+                maximum + tl.log(denominator),
+                -float("inf"),
+            ),
+            mask=query_valid,
+        )
+
+
+@triton.jit
 def _decode_route_coarse_gqa_groups_fixed_prepare_kernel(
     q,
     state_k,
@@ -11944,6 +12192,147 @@ def _gqa_cooperative_split_decode_local_attention_kernel(
 
 
 @triton.jit
+def _mtp2_gqa_split_decode_local_attention_kernel(
+    q,
+    cache_indices,
+    local_lens,
+    local_k,
+    local_v,
+    partial_out,
+    partial_lse,
+    execution_marker,
+    LOCAL_K_BATCH_STRIDE,
+    LOCAL_K_HEAD_STRIDE,
+    LOCAL_K_TOKEN_STRIDE,
+    LOCAL_V_BATCH_STRIDE,
+    LOCAL_V_HEAD_STRIDE,
+    LOCAL_V_TOKEN_STRIDE,
+    local_len,
+    QUERY_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    KV_GROUP_SIZE: tl.constexpr,
+    REQUEST_ROWS: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    LOCAL_SPLITS: tl.constexpr,
+    SCALE_LOG2: tl.constexpr,
+    BLOCK_M: tl.constexpr,
+    QUERY_GROUPS: tl.constexpr,
+    BLOCK_N: tl.constexpr,
+):
+    """Share a causal local tile across both MTP positions and GQA heads."""
+    request_kv_group = tl.program_id(0).to(tl.int64)
+    split = tl.program_id(1).to(tl.int64)
+    request_kv = request_kv_group // QUERY_GROUPS
+    query_group = request_kv_group - request_kv * QUERY_GROUPS
+    request = request_kv // KV_HEADS
+    kv_head = request_kv - request * KV_HEADS
+    cache_batch = tl.load(cache_indices + request).to(tl.int64)
+    base_local_len = tl.load(local_lens + request).to(tl.int32)
+    tl.store(
+        execution_marker,
+        1,
+        mask=(request_kv_group == 0) & (split == 0),
+    )
+
+    query_lane = tl.arange(0, BLOCK_M)
+    # Interleave positions so even a small BLOCK_M shares every K/V load
+    # across both proposal tokens.  For Qwen's GQA=6, BLOCK_M=4 produces
+    # three programs containing two query heads from each position, avoiding
+    # the 16xD FP32 accumulator that spills on the native M=16 formulation.
+    packed_lane = query_group * BLOCK_M + query_lane
+    query_valid = packed_lane < 2 * KV_GROUP_SIZE
+    step = packed_lane % 2
+    query_in_group = packed_lane // 2
+    logical_batch = step * REQUEST_ROWS + request
+    query_head = kv_head * KV_GROUP_SIZE + query_in_group
+    query_row = logical_batch * QUERY_HEADS + query_head
+    dimension = tl.arange(0, HEAD_DIM)
+    queries = tl.load(
+        q + query_row[:, None] * HEAD_DIM + dimension[None, :],
+        mask=query_valid[:, None],
+        other=0.0,
+    ).to(tl.bfloat16)
+    maximum = tl.full((BLOCK_M,), -float("inf"), tl.float32)
+    denominator = tl.zeros((BLOCK_M,), tl.float32)
+    accumulator = tl.zeros((BLOCK_M, HEAD_DIM), tl.float32)
+
+    token_offset = tl.arange(0, BLOCK_N)
+    for local_begin in tl.range(
+        split * BLOCK_N,
+        local_len + 2,
+        LOCAL_SPLITS * BLOCK_N,
+        num_stages=1,
+    ):
+        token = local_begin + token_offset
+        # Proposal K/V is staged before this launch. Position zero sees the
+        # common prefix plus K0; position one sees that same tile plus K1.
+        shared_valid = token < base_local_len + 2
+        causal_valid = token[None, :] < (
+            base_local_len + step[:, None] + 1
+        )
+        valid = query_valid[:, None] & shared_valid[None, :] & causal_valid
+        keys = tl.load(
+            local_k
+            + cache_batch * LOCAL_K_BATCH_STRIDE
+            + kv_head * LOCAL_K_HEAD_STRIDE
+            + token[:, None] * LOCAL_K_TOKEN_STRIDE
+            + dimension[None, :],
+            mask=shared_valid[:, None],
+            other=0.0,
+        ).to(tl.bfloat16)
+        values = tl.load(
+            local_v
+            + cache_batch * LOCAL_V_BATCH_STRIDE
+            + kv_head * LOCAL_V_HEAD_STRIDE
+            + token[:, None] * LOCAL_V_TOKEN_STRIDE
+            + dimension[None, :],
+            mask=shared_valid[:, None],
+            other=0.0,
+        ).to(tl.bfloat16)
+        scores = (
+            tl.dot(queries, tl.trans(keys), out_dtype=tl.float32)
+            * SCALE_LOG2
+        )
+        scores = tl.where(valid, scores, -float("inf"))
+        active = tl.sum(valid.to(tl.int32), axis=1) > 0
+        block_maximum = tl.max(scores, axis=1)
+        new_maximum = tl.where(
+            active, tl.maximum(maximum, block_maximum), maximum
+        )
+        correction = tl.where(
+            active, tl.math.exp2(maximum - new_maximum), 1.0
+        )
+        probabilities = tl.where(
+            valid, tl.math.exp2(scores - new_maximum[:, None]), 0.0
+        )
+        denominator = (
+            denominator * correction + tl.sum(probabilities, axis=1)
+        )
+        value_update = tl.dot(
+            probabilities.to(values.dtype), values, out_dtype=tl.float32
+        )
+        accumulator = accumulator * correction[:, None] + value_update
+        maximum = new_maximum
+
+    partial_row = query_row * LOCAL_SPLITS + split
+    has_mass = denominator > 0.0
+    tl.store(
+        partial_out + partial_row[:, None] * HEAD_DIM + dimension[None, :],
+        tl.where(has_mass[:, None], accumulator / denominator[:, None], 0.0),
+        mask=query_valid[:, None],
+    )
+    tl.store(
+        partial_lse + partial_row,
+        tl.where(
+            has_mass,
+            (maximum + tl.math.log2(denominator)) * 0.6931471805599453,
+            -float("inf"),
+        ),
+        mask=query_valid,
+    )
+
+
+@triton.jit
 def _wide_gqa_indexed_scores_kernel(
     q,
     cache_indices,
@@ -12437,16 +12826,21 @@ def _split_decode_paged_lod_attention_kernel(
     BLOCK_N: tl.constexpr,
     USE_DOT: tl.constexpr,
     INCLUDE_NEW: tl.constexpr,
+    STORE_NEW: tl.constexpr,
+    LOCAL_LENS_LOGICAL: tl.constexpr,
     SEPARATE_LOCAL: tl.constexpr,
     FUSE_FINAL_REDUCE: tl.constexpr,
     INDEXED: tl.constexpr,
     INT8_STORAGE: tl.constexpr,
+    STRIPE_ROUTE_LEAVES: tl.constexpr,
 ):
     query_row = tl.program_id(0).to(tl.int64)
     split = tl.program_id(1).to(tl.int64)
     batch = query_row // QUERY_HEADS
     cache_batch = tl.load(cache_indices + batch).to(tl.int64)
-    active_local_len = tl.load(local_lens + cache_batch).to(tl.int32)
+    active_local_len = tl.load(
+        local_lens + (batch if LOCAL_LENS_LOGICAL else cache_batch)
+    ).to(tl.int32)
     query_head = query_row - batch * QUERY_HEADS
     kv_head = query_head // KV_GROUP_SIZE
     kv_row = cache_batch * KV_HEADS + kv_head
@@ -12522,8 +12916,11 @@ def _split_decode_paged_lod_attention_kernel(
             USE_DOT,
         )
 
-    # Assign whole routed posting lists round-robin to splits.  An inactive
-    # route receives key_count=0 and therefore performs no page loop.
+    # In the balanced path every routed posting list is striped over every
+    # split.  This keeps one unusually large selected centroid from setting
+    # the latency of the entire attention call.  The legacy path assigns one
+    # complete route to one split and is retained as an explicit benchmark
+    # control.
     for route in tl.static_range(0, ROUTE_COUNT):
         routed_slot = tl.load(
             top_slots + batch * TOP_BATCH_STRIDE + query_head * TOP_HEAD_STRIDE + route
@@ -12535,12 +12932,23 @@ def _split_decode_paged_lod_attention_kernel(
             mask=slot_valid,
             other=0,
         ).to(tl.int32)
-        key_count = tl.where(split == route % SPLITS, key_count, 0)
+        if STRIPE_ROUTE_LEAVES:
+            key_begin_offset = split * BLOCK_N
+            key_begin_stride = SPLITS * BLOCK_N
+        else:
+            key_count = tl.where(split == route % SPLITS, key_count, 0)
+            key_begin_offset = 0
+            key_begin_stride = BLOCK_N
         if HASH_PROBES == 0:
             page_table = (
                 slot_pages + (kv_row * STATE_CAPACITY + slot) * INLINE_PAGES_PER_SLOT
             )
-        for key_begin in tl.range(0, key_count, BLOCK_N, num_stages=1):
+        for key_begin in tl.range(
+            key_begin_offset,
+            key_count,
+            key_begin_stride,
+            num_stages=1,
+        ):
             logical_key = key_begin + token_offset
             valid = logical_key < key_count
             page_ordinal = logical_key // PAGE_SIZE
@@ -12683,7 +13091,7 @@ def _split_decode_paged_lod_attention_kernel(
             tl.float32
         )
         maximum = new_maximum
-        if split == 0:
+        if STORE_NEW and split == 0:
             if query_head % KV_GROUP_SIZE == 0:
                 tl.store(
                     local_k
@@ -14859,6 +15267,7 @@ def _reduce_routed_split_decode_lod_attention_kernel(
     SPLITS: tl.constexpr,
     ROUTE_SPLITS: tl.constexpr,
     INCLUDE_SEPARATE_LOCAL: tl.constexpr,
+    SEPARATE_LOCAL_SPLITS: tl.constexpr,
     FUSE_LOCAL_SCAN: tl.constexpr,
     INCLUDE_NEW: tl.constexpr,
     INCLUDE_SINK: tl.constexpr,
@@ -14915,16 +15324,18 @@ def _reduce_routed_split_decode_lod_attention_kernel(
     denominator = tl.full((), 1.0, tl.float32)
     numerator = remainder_out.to(tl.float32)
     if INCLUDE_SEPARATE_LOCAL:
-        local_lse = tl.load(separate_local_lse + query_row)
-        local_value = tl.load(separate_local_out + query_row * HEAD_DIM + dim).to(
-            tl.float32
-        )
-        new_maximum = tl.maximum(maximum, local_lse)
-        old_weight = tl.exp(maximum - new_maximum)
-        new_weight = tl.exp(local_lse - new_maximum)
-        denominator = denominator * old_weight + new_weight
-        numerator = numerator * old_weight + new_weight * local_value
-        maximum = new_maximum
+        for local_split in tl.static_range(0, SEPARATE_LOCAL_SPLITS):
+            local_row = query_row * SEPARATE_LOCAL_SPLITS + local_split
+            local_lse = tl.load(separate_local_lse + local_row)
+            local_value = tl.load(
+                separate_local_out + local_row * HEAD_DIM + dim
+            ).to(tl.float32)
+            new_maximum = tl.maximum(maximum, local_lse)
+            old_weight = tl.exp(maximum - new_maximum)
+            new_weight = tl.exp(local_lse - new_maximum)
+            denominator = denominator * old_weight + new_weight
+            numerator = numerator * old_weight + new_weight * local_value
+            maximum = new_maximum
     if ROUTE_SPLITS == 1:
         for split_index in tl.static_range(0, SPLITS):
             branch_lse = tl.load(partial_lse + query_row * SPLITS + split_index)
@@ -15113,6 +15524,147 @@ def advance_decode_cache_lengths(
             increment=increment,
             num_warps=1,
         )
+
+
+@triton.jit
+def _prepare_speculative_decode_kv_kernel(
+    cache_indices,
+    local_lens,
+    new_k,
+    new_v,
+    local_k,
+    local_v,
+    expanded_cache_indices,
+    expanded_local_lens,
+    NEW_K_BATCH_STRIDE,
+    NEW_K_HEAD_STRIDE,
+    NEW_V_BATCH_STRIDE,
+    NEW_V_HEAD_STRIDE,
+    LOCAL_K_BATCH_STRIDE,
+    LOCAL_K_HEAD_STRIDE,
+    LOCAL_K_TOKEN_STRIDE,
+    LOCAL_V_BATCH_STRIDE,
+    LOCAL_V_HEAD_STRIDE,
+    LOCAL_V_TOKEN_STRIDE,
+    ROWS: tl.constexpr,
+    STEPS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    BLOCK_D: tl.constexpr,
+):
+    """Stage all proposal K/V before parallel speculative attention.
+
+    The second target query must see the first proposal key.  Writing every
+    proposal key in a separate launch provides the required device-wide
+    barrier while the per-position logical lengths preserve causality.
+    """
+    sequence = tl.program_id(0).to(tl.int64)
+    block = tl.program_id(1).to(tl.int64)
+    logical_batch = sequence // KV_HEADS
+    kv_head = sequence - logical_batch * KV_HEADS
+    step = logical_batch // ROWS
+    request = logical_batch - step * ROWS
+    cache_batch = tl.load(cache_indices + request).to(tl.int64)
+    base_length = tl.load(local_lens + cache_batch).to(tl.int32)
+    dimension = block * BLOCK_D + tl.arange(0, BLOCK_D)
+    valid = dimension < HEAD_DIM
+    key = tl.load(
+        new_k
+        + logical_batch * NEW_K_BATCH_STRIDE
+        + kv_head * NEW_K_HEAD_STRIDE
+        + dimension,
+        mask=valid,
+        other=0.0,
+    )
+    value = tl.load(
+        new_v
+        + logical_batch * NEW_V_BATCH_STRIDE
+        + kv_head * NEW_V_HEAD_STRIDE
+        + dimension,
+        mask=valid,
+        other=0.0,
+    )
+    tl.store(
+        local_k
+        + cache_batch * LOCAL_K_BATCH_STRIDE
+        + kv_head * LOCAL_K_HEAD_STRIDE
+        + (base_length + step) * LOCAL_K_TOKEN_STRIDE
+        + dimension,
+        key,
+        mask=valid,
+    )
+    tl.store(
+        local_v
+        + cache_batch * LOCAL_V_BATCH_STRIDE
+        + kv_head * LOCAL_V_HEAD_STRIDE
+        + (base_length + step) * LOCAL_V_TOKEN_STRIDE
+        + dimension,
+        value,
+        mask=valid,
+    )
+    if kv_head == 0 and block == 0:
+        tl.store(expanded_cache_indices + logical_batch, cache_batch)
+        tl.store(expanded_local_lens + logical_batch, base_length + step)
+
+
+def prepare_speculative_decode_kv(
+    cache_indices: torch.Tensor,
+    local_lens: torch.Tensor,
+    new_k: torch.Tensor,
+    new_v: torch.Tensor,
+    local_k: torch.Tensor,
+    local_v: torch.Tensor,
+    expanded_cache_indices: torch.Tensor,
+    expanded_local_lens: torch.Tensor,
+    *,
+    rows: int,
+    steps: int,
+) -> None:
+    """Prepare step-major proposal rows for one parallel LOD verifier call."""
+    total_rows, kv_heads, query_len, head_dim = new_k.shape
+    if query_len != 1 or tuple(new_v.shape[:3]) != (total_rows, kv_heads, 1):
+        raise ValueError("speculative decode K/V must contain one token per row")
+    if total_rows != rows * steps or rows < 1 or steps < 2:
+        raise ValueError("speculative decode row geometry is inconsistent")
+    if tuple(cache_indices.shape) != (rows,):
+        raise ValueError("speculative decode needs one physical cache row per request")
+    if tuple(expanded_cache_indices.shape) != (total_rows,) or tuple(
+        expanded_local_lens.shape
+    ) != (total_rows,):
+        raise ValueError("speculative decode metadata staging has the wrong shape")
+    if int(local_k.size(-1)) != head_dim or int(local_v.size(-1)) != int(
+        new_v.size(-1)
+    ):
+        raise ValueError("speculative decode local K/V dimensions do not match")
+    block_d = min(256, triton.next_power_of_2(head_dim))
+    _prepare_speculative_decode_kv_kernel[
+        (total_rows * kv_heads, triton.cdiv(head_dim, block_d))
+    ](
+        cache_indices,
+        local_lens,
+        new_k,
+        new_v,
+        local_k,
+        local_v,
+        expanded_cache_indices,
+        expanded_local_lens,
+        new_k.stride(0),
+        new_k.stride(1),
+        new_v.stride(0),
+        new_v.stride(1),
+        local_k.stride(0),
+        local_k.stride(1),
+        local_k.stride(2),
+        local_v.stride(0),
+        local_v.stride(1),
+        local_v.stride(2),
+        ROWS=rows,
+        STEPS=steps,
+        KV_HEADS=kv_heads,
+        HEAD_DIM=head_dim,
+        BLOCK_D=block_d,
+        num_warps=1,
+    )
 
 
 @triton.jit
@@ -16882,6 +17434,10 @@ def fused_decode_paged_lod_attention(
     local_lens: torch.Tensor | None = None,
     new_k: torch.Tensor | None = None,
     new_v: torch.Tensor | None = None,
+    local_lens_are_logical: bool = False,
+    store_new_kv: bool = True,
+    advance_local_lens: bool = True,
+    speculative_steps: int = 1,
     kv_group_size: int,
     scale: float,
     hash_probes: int = 8,
@@ -16973,6 +17529,8 @@ def fused_decode_paged_lod_attention(
     batch, query_heads, query_len, head_dim = q.shape
     if query_len != 1:
         raise ValueError("fused LOD decode attention requires one query token")
+    if speculative_steps not in (1, 2) or batch % speculative_steps:
+        raise ValueError("fused LOD speculative batch geometry is inconsistent")
     kv_heads = int(state_k.size(1))
     if query_heads != kv_heads * kv_group_size:
         raise ValueError("query/KV head grouping is inconsistent")
@@ -16998,6 +17556,7 @@ def fused_decode_paged_lod_attention(
         raise ValueError("precomputed decode routing tensors must be supplied together")
     execute_state_route = fuse_state_route
     fuse_state_route = bool(fuse_state_route or precomputed_state_route)
+    route_fused_mtp_local = False
     if precomputed_state_route:
         if top_slots is None:
             raise ValueError("precomputed decode routing requires selected slots")
@@ -17072,8 +17631,12 @@ def fused_decode_paged_lod_attention(
                 int(state_k.size(0)), dtype=torch.int32, device=q.device
             )
         local_lens.fill_(local_len)
-    elif tuple(local_lens.shape) != (int(state_k.size(0)),):
-        raise ValueError("local lengths must contain one value per cache slot")
+    elif tuple(local_lens.shape) != (
+        batch if local_lens_are_logical else int(state_k.size(0)),
+    ):
+        raise ValueError(
+            "local lengths must contain one value per logical row or cache slot"
+        )
     include_new = new_k is not None or new_v is not None
     include_sink = sink_k is not None or sink_v is not None
     gqa_union_page1_arena = any(
@@ -18134,11 +18697,15 @@ def fused_decode_paged_lod_attention(
                     route_kernel = _decode_route_coarse_gqa_segments_kernel
                 elif route_gqa_grouped:
                     scalar_gqa = not route_use_dot and group_size <= 16
-                    route_kernel = (
-                        _decode_route_coarse_scalar_gqa_groups_kernel
-                        if scalar_gqa
-                        else _decode_route_coarse_gqa_groups_kernel
-                    )
+                    if speculative_steps == 2 and 2 * kv_group_size <= 16:
+                        scalar_gqa = False
+                        route_kernel = _decode_route_coarse_gqa_mtp2_groups_kernel
+                    else:
+                        route_kernel = (
+                            _decode_route_coarse_scalar_gqa_groups_kernel
+                            if scalar_gqa
+                            else _decode_route_coarse_gqa_groups_kernel
+                        )
                 else:
                     scalar_gqa = False
                     route_kernel = _decode_route_coarse_groups_kernel
@@ -18146,7 +18713,11 @@ def fused_decode_paged_lod_attention(
                     route_gqa_grouped and not scalar_gqa
                 )
                 route_rows = (
-                    batch * kv_heads if route_gqa_grouped else batch * query_heads
+                    (batch // speculative_steps) * kv_heads
+                    if route_kernel is _decode_route_coarse_gqa_mtp2_groups_kernel
+                    else batch * kv_heads
+                    if route_gqa_grouped
+                    else batch * query_heads
                 )
                 centroid_major_hip = False
                 if (
@@ -18414,6 +18985,68 @@ def fused_decode_paged_lod_attention(
                         KEYS_ARE_MEANS=route_keys_are_means,
                         num_warps=route_num_warps,
                         num_stages=3,
+                        waves_per_eu=waves_per_eu,
+                    )
+                elif route_kernel is _decode_route_coarse_gqa_mtp2_groups_kernel:
+                    execution_marker = buffers.get(
+                        "speculative_route_execution_marker"
+                    )
+                    if not isinstance(execution_marker, torch.Tensor):
+                        raise ValueError(
+                            "shared MTP route execution marker is missing"
+                        )
+                    local_execution_marker = buffers.get(
+                        "speculative_local_execution_marker"
+                    )
+                    if not isinstance(local_execution_marker, torch.Tensor):
+                        raise ValueError(
+                            "shared MTP local execution marker is missing"
+                        )
+                    route_fused_mtp_local = bool(
+                        os.getenv(
+                            "VLLM_LOD_SPECULATIVE_SHARED_LOCAL", "1"
+                        )
+                        != "0"
+                        and os.getenv(
+                            "VLLM_LOD_SPECULATIVE_FUSE_LOCAL_ROUTE", "1"
+                        )
+                        != "0"
+                        and local_lens_are_logical
+                        and not gqa_union_score_only
+                        and route_mass_fraction is None
+                        and route_residual_mass is None
+                        and q.dtype == torch.bfloat16
+                        and local_k.dtype == torch.bfloat16
+                        and local_v.dtype == torch.bfloat16
+                    )
+                    route_kernel[(route_rows, active_groups)](
+                        *route_arguments,
+                        execution_marker,
+                        local_execution_marker,
+                        local_lens,
+                        local_k,
+                        local_v,
+                        local_k.stride(0),
+                        local_k.stride(1),
+                        local_k.stride(2),
+                        local_v.stride(0),
+                        local_v.stride(1),
+                        local_v.stride(2),
+                        local_len,
+                        QUERY_HEADS=query_heads,
+                        KV_HEADS=kv_heads,
+                        KV_GROUP_SIZE=kv_group_size,
+                        REQUEST_ROWS=batch // 2,
+                        HEAD_DIM=head_dim,
+                        SCALE=float(scale),
+                        GROUP_N=group_size,
+                        MAX_GROUPS=max_groups,
+                        PROTECTED_LEN=protected_len,
+                        MAX_LEAF_TOKENS=max_leaf_tokens or 0,
+                        USE_DOT=score_use_dot,
+                        FUSE_LOCAL=route_fused_mtp_local,
+                        SCORE_ONLY=gqa_union_score_only,
+                        num_warps=route_num_warps,
                         waves_per_eu=waves_per_eu,
                     )
                 else:
@@ -18899,6 +19532,7 @@ def fused_decode_paged_lod_attention(
                 SPLITS=split_kv,
                 ROUTE_SPLITS=1,
                 INCLUDE_SEPARATE_LOCAL=True,
+                SEPARATE_LOCAL_SPLITS=1,
                 FUSE_LOCAL_SCAN=False,
                 INCLUDE_NEW=False,
                 INCLUDE_SINK=include_sink,
@@ -18914,9 +19548,27 @@ def fused_decode_paged_lod_attention(
             timing_end("final_reduce", final_reduce_begin)
             timing_end("recursive_total", recursive_total_begin)
             return output
+        shared_mtp_local = bool(
+            speculative_steps == 2
+            and not route_fused_mtp_local
+            and local_lens_are_logical
+            and os.getenv("VLLM_LOD_SPECULATIVE_SHARED_LOCAL", "1") != "0"
+            and fuse_state_route
+            and recursive_page_cache is None
+            and 2 * kv_group_size <= 16
+            and q.dtype == torch.bfloat16
+            and local_k.dtype == torch.bfloat16
+            and local_v.dtype == torch.bfloat16
+            and "speculative_local_execution_marker" in buffers
+            and "speculative_local_partial_out" in buffers
+            and "speculative_local_partial_lse" in buffers
+        )
+        effective_fuse_final_reduce = bool(
+            fuse_final_reduce and not shared_mtp_local
+        )
         fused_completion = (
             buffers["completion"]
-            if fuse_state_route and fuse_final_reduce
+            if fuse_state_route and effective_fuse_final_reduce
             else partial_lse
         )
         if top_slots is None:
@@ -19039,6 +19691,60 @@ def fused_decode_paged_lod_attention(
         final_partial_out = partial_out
         final_partial_lse = partial_lse
         final_route_splits = 1
+        if shared_mtp_local:
+            local_block_m = int(
+                os.getenv("VLLM_LOD_SPECULATIVE_LOCAL_BLOCK_M", "16")
+            )
+            if local_block_m not in (2, 4, 8, 16):
+                raise ValueError(
+                    "VLLM_LOD_SPECULATIVE_LOCAL_BLOCK_M must be 2, 4, 8, or 16"
+                )
+            local_block_n = int(
+                os.getenv("VLLM_LOD_SPECULATIVE_LOCAL_BLOCK_N", "32")
+            )
+            if local_block_n not in (16, 32, 64):
+                raise ValueError(
+                    "VLLM_LOD_SPECULATIVE_LOCAL_BLOCK_N must be 16, 32, or 64"
+                )
+            local_query_groups = triton.cdiv(
+                2 * kv_group_size, local_block_m
+            )
+            shared_local_begin = timing_begin()
+            _mtp2_gqa_split_decode_local_attention_kernel[
+                (
+                    (batch // 2) * kv_heads * local_query_groups,
+                    split_kv,
+                )
+            ](
+                q,
+                cache_indices,
+                local_lens,
+                local_k,
+                local_v,
+                buffers["speculative_local_partial_out"],
+                buffers["speculative_local_partial_lse"],
+                buffers["speculative_local_execution_marker"],
+                local_k.stride(0),
+                local_k.stride(1),
+                local_k.stride(2),
+                local_v.stride(0),
+                local_v.stride(1),
+                local_v.stride(2),
+                local_len,
+                QUERY_HEADS=query_heads,
+                KV_HEADS=kv_heads,
+                KV_GROUP_SIZE=kv_group_size,
+                REQUEST_ROWS=batch // 2,
+                HEAD_DIM=head_dim,
+                LOCAL_SPLITS=split_kv,
+                SCALE_LOG2=float(scale) * math.log2(math.e),
+                BLOCK_M=local_block_m,
+                QUERY_GROUPS=local_query_groups,
+                BLOCK_N=local_block_n,
+                num_warps=4,
+                waves_per_eu=waves_per_eu,
+            )
+            timing_end("mtp_shared_local", shared_local_begin)
         if gqa_union_leaf:
             union_begin = timing_begin()
             sequence_count = batch * kv_heads
@@ -20354,12 +21060,28 @@ def fused_decode_paged_lod_attention(
                 BLOCK_N=block_n,
                 USE_DOT=use_dot,
                 INCLUDE_NEW=include_new,
+                STORE_NEW=store_new_kv,
+                LOCAL_LENS_LOGICAL=local_lens_are_logical,
                 SEPARATE_LOCAL=(
-                    route_residual_mass is not None and reuse_residual_local_attention
+                    route_fused_mtp_local
+                    or shared_mtp_local
+                    or (
+                        route_residual_mass is not None
+                        and reuse_residual_local_attention
+                    )
                 ),
-                FUSE_FINAL_REDUCE=fuse_state_route and fuse_final_reduce,
+                FUSE_FINAL_REDUCE=(
+                    fuse_state_route and effective_fuse_final_reduce
+                ),
                 INDEXED=flat_page_indices is not None,
                 INT8_STORAGE=flat_int8,
+                STRIPE_ROUTE_LEAVES=(
+                    speculative_steps > 1
+                    and os.getenv(
+                        "VLLM_LOD_SPECULATIVE_STRIPE_ROUTE_LEAVES", "1"
+                    )
+                    != "0"
+                ),
                 num_warps=num_warps,
                 waves_per_eu=waves_per_eu,
             )
@@ -20368,7 +21090,7 @@ def fused_decode_paged_lod_attention(
             torch.cuda.current_stream(q.device).wait_stream(
                 precomputed_coarse_stream
             )
-        if fuse_state_route and not fuse_final_reduce:
+        if fuse_state_route and not effective_fuse_final_reduce:
             final_reduce_begin = timing_begin()
             if gqa_union_leaf and gqa_union_unified:
                 if gqa_union_hip_exact:
@@ -20424,13 +21146,23 @@ def fused_decode_paged_lod_attention(
                 final_partial_out,
                 final_partial_lse,
                 (
-                    buffers["route_local_out"]
-                    if reuse_residual_local_attention or cooperative_separate_local
+                    buffers["speculative_local_partial_out"]
+                    if shared_mtp_local
+                    else buffers["route_local_out"]
+                    if (
+                        reuse_residual_local_attention
+                        or cooperative_separate_local
+                    )
                     else partial_out
                 ),
                 (
-                    buffers["route_local_lse"]
-                    if reuse_residual_local_attention or cooperative_separate_local
+                    buffers["speculative_local_partial_lse"]
+                    if shared_mtp_local
+                    else buffers["route_local_lse"]
+                    if (
+                        reuse_residual_local_attention
+                        or cooperative_separate_local
+                    )
                     else partial_lse
                 ),
                 output,
@@ -20466,9 +21198,11 @@ def fused_decode_paged_lod_attention(
                 SPLITS=split_kv,
                 ROUTE_SPLITS=final_route_splits,
                 INCLUDE_SEPARATE_LOCAL=(
-                    reuse_residual_local_attention
+                    shared_mtp_local
+                    or reuse_residual_local_attention
                     or cooperative_separate_local
                 ),
+                SEPARATE_LOCAL_SPLITS=(split_kv if shared_mtp_local else 1),
                 FUSE_LOCAL_SCAN=False,
                 INCLUDE_NEW=False,
                 INCLUDE_SINK=include_sink,
@@ -20476,7 +21210,9 @@ def fused_decode_paged_lod_attention(
                 LOCAL_BLOCK_N=32,
                 SCALE=float(scale),
                 USE_DOT=score_use_dot,
-                ADVANCE_LOCAL=include_new and ragged_local_lens,
+                ADVANCE_LOCAL=(
+                    include_new and ragged_local_lens and advance_local_lens
+                ),
                 SUBTRACT_ROUTES=not gqa_union_leaf,
                 num_warps=final_reduce_num_warps,
                 waves_per_eu=waves_per_eu,
@@ -24274,6 +25010,7 @@ quantize_virtual_paged_kv_int4 = quantize_virtual_paged_kv
 
 __all__ = [
     "advance_decode_cache_lengths",
+    "prepare_speculative_decode_kv",
     "append_paged_kv",
     "append_paged_int8_kv",
     "append_quantized_virtual_paged_kv",
