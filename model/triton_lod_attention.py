@@ -218,6 +218,11 @@ class TritonLODAttentionCore(nn.Module):
     virtual_page_storage = False
     recursive_page_lod = False
     recursive_page_block_n = 16
+    # Keep the query-major residual-page launch independent from the regular
+    # expert/MFMA consumer.  Adaptive recursive prefill may enable the latter
+    # for short prompts, but long prompts must retain the measured one-wave
+    # residual-page geometry.
+    recursive_page_attention_num_warps = 1
     recursive_materialize_page_scores = False
     recursive_page_score_block_n = 16
     recursive_page_score_num_warps = 2
@@ -228,9 +233,12 @@ class TritonLODAttentionCore(nn.Module):
     # required by decode.  Selected centroids are evaluated completely during
     # prefill; decode continues to select one page and retain the centroid
     # residual. vLLM automatically selects it only for the measured Phi
-    # D128/GQA4/KVH2 BF16 geometry; other installers retain the conservative
-    # false default unless they explicitly validate and enable it.
+    # D128/GQA4/KVH2 BF16 geometry, plus a prompt-length-bounded
+    # D256/GQA6/KVH4 geometry; other installers retain the conservative false
+    # default unless they explicitly validate and enable it.
     recursive_prefill_all_leaves = False
+    recursive_prefill_all_leaves_token_limit = 0
+    recursive_prefill_request_total_len = 0
     # Prefill-only quadratic/constant-factor alternative: scan every physical
     # page summary as one dense field and exactly replace its best pages.
     # Decode retains ordinary recursive centroid->page routing.
@@ -7298,6 +7306,14 @@ class TritonLODAttentionCore(nn.Module):
                 self.recursive_page_lod
                 and self.recursive_prefill_all_leaves
                 and int(q.size(2)) > 1
+                and (
+                    self.recursive_prefill_all_leaves_token_limit <= 0
+                    or (
+                        self.recursive_prefill_request_total_len > 0
+                        and self.recursive_prefill_request_total_len
+                        <= self.recursive_prefill_all_leaves_token_limit
+                    )
+                )
             )
             if recursive_prefill_all_leaves:
                 if bool(page_cache.get("quantization_finalized", False)):
@@ -7411,7 +7427,7 @@ class TritonLODAttentionCore(nn.Module):
                         if materialized_page_scores is not None
                         else self.recursive_page_block_n
                     ),
-                    num_warps=self.leaf_num_warps,
+                    num_warps=self.recursive_page_attention_num_warps,
                     waves_per_eu=self.leaf_waves_per_eu,
                     timing_events=getattr(self, "_lod_leaf_timing_events", None),
                     quantized_leaf_k=(

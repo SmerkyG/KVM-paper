@@ -9961,6 +9961,7 @@ def _decode_route_coarse_gqa_mtp2_groups_kernel(
     KV_HEADS: tl.constexpr,
     KV_GROUP_SIZE: tl.constexpr,
     REQUEST_ROWS: tl.constexpr,
+    SPECULATIVE_STEPS: tl.constexpr,
     HEAD_DIM: tl.constexpr,
     SCALE: tl.constexpr,
     GROUP_N: tl.constexpr,
@@ -9971,25 +9972,40 @@ def _decode_route_coarse_gqa_mtp2_groups_kernel(
     FUSE_LOCAL: tl.constexpr,
     SCORE_ONLY: tl.constexpr = False,
 ):
-    """Route both MTP positions in one native M=16 state/local tile."""
-    request_kv = tl.program_id(0).to(tl.int64)
+    """Route each adjacent proposal pair in one native M=16 state/local tile.
+
+    The flattened speculative batch is step-major.  Treating every two steps
+    as an independent pair preserves a distinct current query and route for
+    every position while sharing each centroid/local K/V load across the two
+    positions.  ``SPECULATIVE_STEPS == 2`` is the original MTP path; larger
+    even proposals simply contribute more independent pair groups.
+    """
+    pair_request_kv = tl.program_id(0).to(tl.int64)
     group = tl.program_id(1).to(tl.int64)
-    request = request_kv // KV_HEADS
-    kv_head = request_kv - request * KV_HEADS
-    cache_batch = tl.load(cache_indices + request).to(tl.int64)
-    tl.store(execution_marker, 1, mask=(request_kv == 0) & (group == 0))
+    pair_request = pair_request_kv // KV_HEADS
+    kv_head = pair_request_kv - pair_request * KV_HEADS
+    pair_group = pair_request // REQUEST_ROWS
+    request = pair_request - pair_group * REQUEST_ROWS
+    base_step = pair_group * 2
+    base_logical_batch = base_step * REQUEST_ROWS + request
+    cache_batch = tl.load(cache_indices + base_logical_batch).to(tl.int64)
+    tl.store(
+        execution_marker,
+        1,
+        mask=(pair_request_kv == 0) & (group == 0),
+    )
     if FUSE_LOCAL:
         tl.store(
             local_execution_marker,
             1,
-            mask=(request_kv == 0) & (group == 0),
+            mask=(pair_request_kv == 0) & (group == 0),
         )
 
     lane = tl.arange(0, 16)
     query_valid = lane < 2 * KV_GROUP_SIZE
     step = lane // KV_GROUP_SIZE
     query_in_group = lane - step * KV_GROUP_SIZE
-    logical_batch = step * REQUEST_ROWS + request
+    logical_batch = (base_step + step) * REQUEST_ROWS + request
     query_head = kv_head * KV_GROUP_SIZE + query_in_group
     query_row = logical_batch * QUERY_HEADS + query_head
     slot = group * GROUP_N + tl.arange(0, GROUP_N)
@@ -10076,15 +10092,19 @@ def _decode_route_coarse_gqa_mtp2_groups_kernel(
         )
         if FUSE_LOCAL:
             # Proposal K/V has already been staged into the physical request
-            # row.  Spread the 512-token suffix over the first route groups,
+            # row.  Spread the bounded suffix over the first route groups,
             # so the existing M=16 programs share every local load across
             # both proposal positions without adding another launch/barrier.
-            base_local_len = tl.load(local_lens + request).to(tl.int32)
+            # All proposal tokens may temporarily extend past the ordinary
+            # local limit before the host advances/catches up the cache.
+            base_local_len = tl.load(
+                local_lens + base_logical_batch
+            ).to(tl.int32)
             if group * GROUP_N < base_local_len + 2:
                 local_token = group * GROUP_N + tl.arange(0, GROUP_N)
                 shared_local_valid = (
                     (local_token < base_local_len + 2)
-                    & (local_token < local_len + 2)
+                    & (local_token < local_len + SPECULATIVE_STEPS)
                 )
                 causal_local_valid = local_token[None, :] < (
                     base_local_len + step[:, None] + 1
@@ -18703,7 +18723,11 @@ def fused_decode_paged_lod_attention(
                     route_kernel = _decode_route_coarse_gqa_segments_kernel
                 elif route_gqa_grouped:
                     scalar_gqa = not route_use_dot and group_size <= 16
-                    if speculative_steps == 2 and 2 * kv_group_size <= 16:
+                    if (
+                        speculative_steps >= 2
+                        and speculative_steps % 2 == 0
+                        and 2 * kv_group_size <= 16
+                    ):
                         scalar_gqa = False
                         route_kernel = _decode_route_coarse_gqa_mtp2_groups_kernel
                     else:
@@ -18720,6 +18744,7 @@ def fused_decode_paged_lod_attention(
                 )
                 route_rows = (
                     (batch // speculative_steps) * kv_heads
+                    * (speculative_steps // 2)
                     if route_kernel is _decode_route_coarse_gqa_mtp2_groups_kernel
                     else batch * kv_heads
                     if route_gqa_grouped
@@ -19042,7 +19067,8 @@ def fused_decode_paged_lod_attention(
                         QUERY_HEADS=query_heads,
                         KV_HEADS=kv_heads,
                         KV_GROUP_SIZE=kv_group_size,
-                        REQUEST_ROWS=batch // 2,
+                        REQUEST_ROWS=batch // speculative_steps,
+                        SPECULATIVE_STEPS=speculative_steps,
                         HEAD_DIM=head_dim,
                         SCALE=float(scale),
                         GROUP_N=group_size,
@@ -19227,7 +19253,11 @@ def fused_decode_paged_lod_attention(
             # branch separately; folding its scan into the final reducer makes
             # that kernel register-bound on the target ROCm geometry.
             reuse_separate_local = bool(
-                route_residual_mass is not None and reuse_residual_local_attention
+                route_fused_mtp_local
+                or (
+                    route_residual_mass is not None
+                    and reuse_residual_local_attention
+                )
             )
             if not reuse_separate_local:
                 local_begin = timing_begin()
@@ -19539,7 +19569,7 @@ def fused_decode_paged_lod_attention(
                 ROUTE_COUNT=int(top_slots.size(-1)),
                 SPLITS=split_kv,
                 ROUTE_SPLITS=1,
-                INCLUDE_SEPARATE_LOCAL=True,
+                INCLUDE_SEPARATE_LOCAL=not route_fused_mtp_local,
                 SEPARATE_LOCAL_SPLITS=1,
                 FUSE_LOCAL_SCAN=False,
                 INCLUDE_NEW=False,

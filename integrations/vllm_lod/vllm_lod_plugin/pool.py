@@ -108,11 +108,34 @@ def _recursive_prefill_all_leaves_geometry(
 ) -> bool:
     """Whether recursive prefill should reuse complete-expert attention."""
 
-    # Phi's D128/GQA4 query-major residual-page kernel is badly launch and
-    # vector-op limited. The existing D128 expert/MFMA path can evaluate every
-    # leaf of the selected centroids faster than selecting and evaluating only
-    # one page. Decode still consumes the recursive page archive normally.
-    return levels == 3 and (head_dim, gqa, kv_heads) == (128, 4, 2)
+    # These geometries can evaluate complete selected experts with regular MMA
+    # faster than the query-major one-page residual path.  Phi remains on that
+    # consumer for the complete prefill.  Qwen TP1 crosses over later, so its
+    # automatic policy is bounded by the total-prompt helper below.  Decode
+    # still consumes the recursive page archive normally in both cases.
+    return levels == 3 and (head_dim, gqa, kv_heads) in (
+        (128, 4, 2),
+        (256, 6, 4),
+    )
+
+
+def _recursive_prefill_all_leaves_token_limit(
+    levels: int,
+    head_dim: int,
+    gqa: int,
+    kv_heads: int,
+) -> int:
+    """Largest request that should use complete-expert prefill.
+
+    Zero means that the measured geometry has no request-length cutoff.  With
+    the 16*sqrt(T) schedule, average posting length is sqrt(T)/16.  It first
+    reaches one 16-token residual page at T=64K, when the state has 4096
+    entries.  Past that point page selection can reduce average leaf work.
+    """
+
+    if levels == 3 and (head_dim, gqa, kv_heads) == (256, 6, 4):
+        return 65536
+    return 0
 
 
 def _recursive_state_route_backend(
@@ -414,6 +437,9 @@ class VLLMLayerLODPool:
         # unchanged; assignment batching can change centroid/page membership,
         # so this schedule is covered by the matched ProLong quality artifact.
         self.engine.prefill_state_update_len = settings.prefill_state_update_size
+        recursive_prefill_all_leaves_auto = (
+            settings.recursive_prefill_all_leaves is None
+        )
         recursive_prefill_all_leaves = (
             (
                 settings.kv_bits == 0
@@ -425,6 +451,16 @@ class VLLMLayerLODPool:
             else settings.recursive_prefill_all_leaves
         )
         self.engine.recursive_prefill_all_leaves = recursive_prefill_all_leaves
+        self.engine.recursive_prefill_all_leaves_token_limit = (
+            _recursive_prefill_all_leaves_token_limit(
+                settings.levels, self.head_dim, gqa, self.kv_heads
+            )
+            if (
+                recursive_prefill_all_leaves_auto
+                and recursive_prefill_all_leaves
+            )
+            else 0
+        )
         direct_expert_buckets = (
             (
                 settings.kv_bits == 0
@@ -631,6 +667,7 @@ class VLLMLayerLODPool:
         self.speculative_decode_steps = 0
         self.hybrid_full_decode = False
         self.direct_prefill_plan: tuple[tuple[int, int, int, int], ...] | None = None
+        self.direct_prefill_prompt_lengths: dict[int, int] = {}
         self.install_count = 0
         self.batched_install_calls = 0
         self.direct_prefill_calls = 0
@@ -2167,6 +2204,8 @@ class VLLMLayerLODPool:
         """Run ragged initial or cached prefill into authoritative LOD rows."""
         plan = self.direct_prefill_plan
         self.direct_prefill_plan = None
+        prompt_lengths = self.direct_prefill_prompt_lengths
+        self.direct_prefill_prompt_lengths = {}
         if plan is None:
             raise RuntimeError("direct LOD prefill has no prepared request plan")
         self.direct_prefill_calls += 1
@@ -2186,6 +2225,12 @@ class VLLMLayerLODPool:
                 raise RuntimeError("initial LOD prefill row is already initialized")
 
         for length, group in initial.items():
+            slots = tuple(slot for slot, _, _, _ in group)
+            if any(slot not in prompt_lengths for slot in slots):
+                raise RuntimeError("direct LOD prefill has no total prompt length")
+            self.engine.recursive_prefill_request_total_len = max(
+                prompt_lengths[slot] for slot in slots
+            )
             packed_begin = group[0][1]
             packed_end = packed_begin + len(group) * length
             packed = packed_end <= int(query.size(0)) and all(
@@ -2240,7 +2285,6 @@ class VLLMLayerLODPool:
             )
             if cache is None:
                 raise AssertionError("direct LOD prefill did not return a cache")
-            slots = tuple(slot for slot, _, _, _ in group)
             if tuple(sorted(slots)) == tuple(range(min(slots), max(slots) + 1)):
                 self.install_rows(slots, cache)
             else:
@@ -2289,6 +2333,12 @@ class VLLMLayerLODPool:
             )
             groups.setdefault(signature, []).append(item)
         for group in groups.values():
+            group_slots = tuple(slot for slot, _, _, _ in group)
+            if any(slot not in prompt_lengths for slot in group_slots):
+                raise RuntimeError("cached LOD prefill has no total prompt length")
+            self.engine.recursive_prefill_request_total_len = max(
+                prompt_lengths[slot] for slot in group_slots
+            )
             self._direct_cached_prefill_group(
                 query,
                 key,
@@ -2975,10 +3025,10 @@ class VLLMLayerLODPool:
         )
 
     def _shared_speculative_route_eligible(self, steps: int) -> bool:
-        """Whether both positions fit one native grouped route tile."""
+        """Whether proposal positions fit pairwise native grouped route tiles."""
         return bool(
             self._parallel_speculative_decode_eligible(steps)
-            and steps == 2
+            and steps % 2 == 0
             and os.getenv("VLLM_LOD_SPECULATIVE_SHARED_ROUTE", "1") != "0"
             and bool(self.engine.decode_route_gqa_grouped)
             and int(self.engine.decode_route_segment_tiles) == 1
@@ -3000,16 +3050,15 @@ class VLLMLayerLODPool:
         )
 
     def _shared_speculative_local_eligible(self, steps: int) -> bool:
-        """Whether proposal positions can share one causal local K/V scan."""
+        """Whether pairwise routing can also absorb causal local attention."""
         return bool(
-            self._parallel_speculative_decode_eligible(steps)
-            and steps == 2
+            self._shared_speculative_route_eligible(steps)
             and os.getenv("VLLM_LOD_SPECULATIVE_SHARED_LOCAL", "1") != "0"
+            and os.getenv("VLLM_LOD_SPECULATIVE_FUSE_LOCAL_ROUTE", "1") != "0"
             # Fixed-mask page-size-one attention already consumes the causal
             # local prefix in its unified final scan; a separate shared-local
             # launch would be computed and discarded.
             and not self._speculative_fixed_mask_eligible(steps)
-            and 2 * (self.query_heads // self.kv_heads) <= 16
         )
 
     def speculative_decode(

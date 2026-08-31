@@ -46,6 +46,7 @@ from vllm_lod_plugin.pool import (
     _prefill_hierarchical_route_geometry,
     _prefill_overlap_geometry,
     _recursive_prefill_all_leaves_geometry,
+    _recursive_prefill_all_leaves_token_limit,
     _recursive_state_route_backend,
 )
 from vllm_lod_plugin.runtime import VLLMLODRuntime
@@ -98,10 +99,13 @@ def verify_prefill_geometry_policy() -> None:
     assert _prefill_overlap_geometry(3, 256, 4, 2) == (False, True)
     assert _prefill_overlap_geometry(2, 256, 4, 2) == (False, False)
 
-    # Phi's recursive archive keeps its page-routed decode but uses the faster
-    # complete-expert MFMA consumer during prefill. Other measured geometries
-    # retain page-selecting recursive prefill unless explicitly overridden.
+    # Phi uses complete experts throughout prefill. Qwen TP1 uses them only
+    # through its measured short-context crossover; both retain page-routed
+    # decode and other geometries remain conservative.
     assert _recursive_prefill_all_leaves_geometry(3, 128, 4, 2)
+    assert _recursive_prefill_all_leaves_geometry(3, 256, 6, 4)
+    assert _recursive_prefill_all_leaves_token_limit(3, 128, 4, 2) == 0
+    assert _recursive_prefill_all_leaves_token_limit(3, 256, 6, 4) == 65536
     assert not _recursive_prefill_all_leaves_geometry(2, 128, 4, 2)
     assert not _recursive_prefill_all_leaves_geometry(3, 128, 5, 8)
     assert not _recursive_prefill_all_leaves_geometry(3, 256, 4, 2)

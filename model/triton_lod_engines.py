@@ -407,6 +407,7 @@ class KernelRecursivePagedLODAttention(_KernelLODEngine):
         self.prefill_two_level_topk = min(3, default_open_count)
         self.split_prefill_local_attention = True
         self.leaf_num_warps = 1
+        self.recursive_page_attention_num_warps = self.leaf_num_warps
         self.prefill_route_block_m = 128
         self.prefill_route_num_warps = 8
         # Four-page scans amortize recursive page-selection loop overhead.

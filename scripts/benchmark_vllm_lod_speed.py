@@ -1048,6 +1048,9 @@ def inspect_lod_dispatch(model) -> dict[str, object]:
             prefill_local_kernel = "aiter.ops.mha.flash_attn_func (CK FMHA v3)"
         else:
             prefill_local_kernel = "aten._scaled_dot_product_flash_attention"
+        recursive_all_leaf_limit = int(
+            getattr(engine, "recursive_prefill_all_leaves_token_limit", 0)
+        )
         record = {
             "levels": int(pool.settings.levels),
             "query_heads": int(pool.query_heads),
@@ -1349,8 +1352,17 @@ def inspect_lod_dispatch(model) -> dict[str, object]:
                 if static_prefill
                 else (
                     (
-                        "paged_leaf_attention expert/MFMA over complete selected "
-                        "centroids (recursive page archive retained for decode)"
+                        (
+                            "adaptive recursive prefill: paged_leaf_attention "
+                            "expert/MFMA over complete selected centroids while "
+                            f"prompt_len <= {recursive_all_leaf_limit}, "
+                            "then indexed one-page residual attention"
+                        )
+                        if recursive_all_leaf_limit > 0
+                        else (
+                            "paged_leaf_attention expert/MFMA over complete selected "
+                            "centroids (recursive page archive retained for decode)"
+                        )
                         if bool(
                             getattr(engine, "recursive_prefill_all_leaves", False)
                         )
@@ -1367,12 +1379,18 @@ def inspect_lod_dispatch(model) -> dict[str, object]:
             "configured_recursive_prefill_all_leaves": bool(
                 getattr(engine, "recursive_prefill_all_leaves", False)
             ),
+            "configured_recursive_prefill_all_leaves_token_limit": int(
+                recursive_all_leaf_limit
+            ),
             "prefill_leaf_page_block_n": (
                 int(engine.recursive_page_block_n)
                 if recursive
                 else int(engine.leaf_block_n)
             ),
             "prefill_leaf_num_warps": int(engine.leaf_num_warps),
+            "prefill_recursive_page_num_warps": int(
+                getattr(engine, "recursive_page_attention_num_warps", 1)
+            ),
             "prefill_chunk_len": int(engine.prefill_chunk_len),
             "prefill_state_update_len": int(engine.prefill_state_update_len),
             "prefill_schedule_source": (

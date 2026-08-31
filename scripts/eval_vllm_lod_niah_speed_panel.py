@@ -650,7 +650,7 @@ def evaluate_speed(args, tokenizer, llm, length: int) -> dict:
         ):
             raise RuntimeError(
                 "the measured speculative target graph did not execute the "
-                "shared two-position LOD route scorer"
+                "configured pairwise LOD route scorer"
             )
         if (
             execution_audit["speculative_shared_local_configured"] == [True]
@@ -658,7 +658,7 @@ def evaluate_speed(args, tokenizer, llm, length: int) -> dict:
         ):
             raise RuntimeError(
                 "the measured speculative target graph did not execute the "
-                "shared two-position local attention"
+                "configured pairwise fused local attention"
             )
     if args.profile_lod_phases:
         result["lod_phase_profile"] = llm.apply_model(

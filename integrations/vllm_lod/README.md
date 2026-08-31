@@ -932,6 +932,33 @@ whereas three-tier wins at 128K/B8 (17.745 versus 19.746 ms). Use three-tier
 for recursive INT4 storage and treat the BF16 crossover as the current TP1
 decision pending a repeated acceptance-matched panel.
 
+The short-context TP1/B1 recursive verifier now pairs adjacent DFlash target
+positions in the native M16 state-route tile.  Qwen's eight verifier positions
+become four independent M12 groups instead of eight underfilled M6 scans;
+every position retains its own current route and causal local length.  The same
+programs absorb pairwise local attention.  This lowers the three-tier target
+cycle from 40.693/40.885/40.886/41.195 ms to
+39.754/39.242/39.757/39.676 ms at 8/16/32/64K.  It is now 0.3--2.7% faster
+than the matched two-tier verifier at every one of those lengths.  The
+route-only ablation shows that paired state routing supplies most of the gain;
+local fusion contributes up to another 0.66 ms.
+
+Recursive BF16 prefill on TP1's `(D, GQA, KVH) = (256, 6, 4)` now uses the
+regular complete-expert MFMA consumer for requests whose total prompt is at
+most 64K; longer requests use one-page recursive selection for every chunk.
+The recursive archive is built throughout, so decode and memory semantics do
+not change.  The bound is the natural page crossover: under the 16*sqrt(T)
+schedule, average posting length `sqrt(T)/16` reaches the 16-token page size at
+64K context and 4096 state entries.  This reduces three-tier prefill from
+1.001/2.061/4.212/8.701 seconds
+to 0.994/2.055/4.154/8.531 seconds at 8/16/32/64K.  The automatic path scores
+8/8 on NIAH-S3 at both 8K and 64K, and its device audit confirms pairwise route
+and fused-local execution.  Expert MFMA and recursive-page attention retain
+independent two-wave/one-wave launch geometry; automatic 128K prefill is
+18.316 seconds versus 18.338 seconds for explicit page-only.  Full diagnosis,
+ablations, and raw records are in
+`artifacts/dflash2_three_tier_short_20260831/README.md`.
+
 The matched TP4 DFlash2 panel uses six local query heads, one local KV head,
 head dimension 256, three measured speed repetitions, and the same 16K
 aggregate prefill budget.  Full/recursive-BF16 decode is 9.777/9.219 ms at

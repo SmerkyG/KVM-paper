@@ -359,7 +359,9 @@ class VLLMLODRuntime:
             query_starts = np.asarray(
                 runner.query_start_loc.np[: num_reqs + 1], dtype=np.int64
             )
-            if self._prepare_direct_prefill(req_ids, computed, query_starts):
+            if self._prepare_direct_prefill(
+                req_ids, computed, query_starts, prompt_lengths
+            ):
                 return
             self._use_native_attention(req_ids)
             return
@@ -817,12 +819,15 @@ class VLLMLODRuntime:
         slots: list[int | str],
         computed_lengths: np.ndarray,
         query_starts: np.ndarray,
+        prompt_lengths: np.ndarray,
     ) -> bool:
         """Prepare direct LOD only when every authoritative row advances exactly."""
         if self.settings.prefill_mode != "direct" or len(slots) > self.pool_size:
             return False
         if len(query_starts) != len(slots) + 1:
             raise ValueError("vLLM query boundaries do not match the request batch")
+        if len(prompt_lengths) != len(slots):
+            raise ValueError("vLLM prompt lengths do not match the request batch")
 
         if slots and bool(np.all(computed_lengths == 0)):
             unassigned = sum(slot not in self.lod_row_by_slot for slot in slots)
@@ -890,6 +895,10 @@ class VLLMLODRuntime:
         for pool in self.pools.values():
             pool.decode_enabled = False
             pool.direct_prefill_plan = prepared
+            pool.direct_prefill_prompt_lengths = {
+                lod_row: int(prompt_lengths[request_row])
+                for request_row, (lod_row, _, _, _) in enumerate(prepared)
+            }
         return True
 
     def _pad_decode_rows(self, lod_rows: list[int], padded_rows: int) -> list[int]:
@@ -1037,7 +1046,10 @@ class VLLMLODRuntime:
             ):
                 return
             if self._prepare_direct_prefill(
-                slots, input_batch.num_computed_tokens_np, query_starts
+                slots,
+                input_batch.num_computed_tokens_np,
+                query_starts,
+                input_batch.prefill_len_np[:rows],
             ):
                 return
             self._use_native_attention(slots)

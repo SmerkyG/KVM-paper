@@ -34,6 +34,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--tensor-parallel-size", type=int, default=1)
     parser.add_argument("--allow-heterogeneous-global-config", action="store_true")
     parser.add_argument("--muse-native-text-config", action="store_true")
+    parser.add_argument("--language-model-only", action="store_true")
     parser.add_argument(
         "--concatenate-prolong",
         action="store_true",
@@ -308,6 +309,8 @@ def make_llm(args: argparse.Namespace):
         kwargs["hf_overrides"] = allow_heterogeneous_global_config
     elif args.muse_native_text_config:
         kwargs["hf_overrides"] = muse_native_text_config
+    if args.language_model_only:
+        kwargs["language_model_only"] = True
     return register_llm_shutdown(LLM(**kwargs))
 
 
@@ -1484,6 +1487,7 @@ def main() -> None:
             args.allow_heterogeneous_global_config
         ),
         muse_native_text_config=args.muse_native_text_config,
+        language_model_only=args.language_model_only,
         concatenate_prolong=args.concatenate_prolong,
         static_cohort_never_readmit=(
             os.environ.get("VLLM_LOD_STATIC_COHORT_NEVER_READMIT", "0") == "1"
