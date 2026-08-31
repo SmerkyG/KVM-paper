@@ -2789,7 +2789,76 @@ class VLLMLayerLODPool:
                 state_capacity=self.state_capacity,
                 route_group_size=int(self.engine.decode_route_group_size),
                 route_segment_tiles=int(self.engine.decode_route_segment_tiles),
+                gqa_route_splits=(
+                    int(self.engine.decode_split_kv)
+                    if self._speculative_cooperative_leaf_eligible(steps)
+                    else None
+                ),
                 materialized_state_route=False,
+                gqa_union_mass_fraction=(
+                    self.settings.decode_gqa_mass_fraction
+                    if self.settings.decode_gqa_union
+                    else None
+                ),
+                gqa_union_predicted_mass=(
+                    self.settings.decode_gqa_predicted_mass
+                    if self.settings.decode_gqa_union
+                    else False
+                ),
+                gqa_union_pilot_z=(
+                    self.settings.decode_gqa_pilot_z
+                    if self.settings.decode_gqa_union
+                    else False
+                ),
+                gqa_union_pilot_z_route_count=(
+                    self.settings.decode_gqa_pilot_z_route_count
+                    if self.settings.decode_gqa_union
+                    else 8
+                ),
+                gqa_union_kv_heads=(
+                    self.kv_heads
+                    if self._speculative_fixed_mask_eligible(steps)
+                    else None
+                ),
+                gqa_union_index_capacity=(
+                    self.leaf_capacity
+                    + int(self.engine.local_len)
+                    + 1
+                    + self.state_capacity
+                    + (
+                        int(self.state["sink_k"].size(2))
+                        if isinstance(self.state.get("sink_k"), torch.Tensor)
+                        else 0
+                    )
+                    if self._speculative_fixed_mask_eligible(steps)
+                    else None
+                ),
+                gqa_union_hip=(
+                    self.settings.decode_gqa_union_hip
+                    if self.settings.decode_gqa_union
+                    else False
+                ),
+                gqa_union_fixed_mask=self._speculative_fixed_mask_eligible(
+                    steps
+                ),
+                gqa_union_overlap_local_sink=bool(
+                    self.settings.decode_gqa_overlap_local_sink
+                    and self._speculative_fixed_mask_eligible(steps)
+                ),
+                gqa_union_fixed_mask_tile_size=int(
+                    self.settings.decode_gqa_fixed_mask_block_n
+                ),
+                gqa_union_fixed_mask_segments=int(
+                    max(
+                        self.settings.decode_gqa_fixed_mask_segments,
+                        256,
+                    )
+                    if (
+                        self.settings.decode_gqa_fixed_mask_adaptive_segments
+                        or self._speculative_fixed_mask_adaptive_segments(steps)
+                    )
+                    else self.settings.decode_gqa_fixed_mask_segments
+                ),
             )
             staging["decode_buffers"]["speculative_local_partial_out"] = (
                 torch.empty_like(staging["decode_buffers"]["partial_out"])
@@ -2811,9 +2880,38 @@ class VLLMLayerLODPool:
             os.getenv("VLLM_LOD_SPECULATIVE_PARALLEL", "1") != "0"
             and steps == 2
             and self.settings.levels == 2
-            and not self.settings.decode_gqa_union
+            and (
+                not self.settings.decode_gqa_union
+                or self._speculative_fixed_mask_eligible(steps)
+            )
             and not self.settings.decode_gqa_static_leaf_aiter
             and not self._use_cooperative_decode()
+        )
+
+    def _speculative_fixed_mask_eligible(self, steps: int) -> bool:
+        """Whether MTP can reuse the persistent masked page-size-one arena."""
+        return bool(
+            os.getenv("VLLM_LOD_SPECULATIVE_FIXED_MASK_AITER", "1") != "0"
+            and steps == 2
+            and self.settings.levels == 2
+            and self.settings.decode_gqa_union
+            and self.settings.decode_gqa_union_hip
+            and self.settings.decode_gqa_fixed_mask_aiter
+            and not self.settings.decode_gqa_static_leaf_aiter
+            and self.query_heads % self.kv_heads == 0
+            and 1 < self.query_heads // self.kv_heads <= 8
+            and self.head_dim in (128, 256, 512)
+            and self.dtype == torch.bfloat16
+        )
+
+    def _speculative_fixed_mask_adaptive_segments(self, steps: int) -> bool:
+        """Use the measured low-batch scan geometry for fixed-mask MTP."""
+        return bool(
+            self._speculative_fixed_mask_eligible(steps)
+            and os.getenv(
+                "VLLM_LOD_SPECULATIVE_FIXED_MASK_ADAPTIVE_SEGMENTS", "1"
+            )
+            != "0"
         )
 
     def _shared_speculative_route_eligible(self, steps: int) -> bool:
@@ -2826,11 +2924,28 @@ class VLLMLayerLODPool:
             and 2 * (self.query_heads // self.kv_heads) <= 16
         )
 
+    def _speculative_cooperative_leaf_eligible(self, steps: int) -> bool:
+        """Whether exact pages can be shared by both MTP GQA6 groups."""
+        return bool(
+            self._parallel_speculative_decode_eligible(steps)
+            and os.getenv("VLLM_LOD_SPECULATIVE_COOPERATIVE_LEAVES", "0") != "0"
+            and self.settings.decode_gqa_cooperative
+            and self.settings.decode_gqa_cooperative_hip
+            and self.query_heads == self.kv_heads * 6
+            and self.head_dim == 256
+            and self.dtype == torch.bfloat16
+            and self.request_capacity >= 32768
+        )
+
     def _shared_speculative_local_eligible(self, steps: int) -> bool:
         """Whether proposal positions can share one causal local K/V scan."""
         return bool(
             self._parallel_speculative_decode_eligible(steps)
             and os.getenv("VLLM_LOD_SPECULATIVE_SHARED_LOCAL", "1") != "0"
+            # Fixed-mask page-size-one attention already consumes the causal
+            # local prefix in its unified final scan; a separate shared-local
+            # launch would be computed and discarded.
+            and not self._speculative_fixed_mask_eligible(steps)
             and 2 * (self.query_heads // self.kv_heads) <= 16
         )
 
@@ -3083,7 +3198,10 @@ class VLLMLayerLODPool:
             route_centroid_major_hip=bool(
                 self.settings.decode_centroid_major_hip
             ),
-            gqa_cooperative_leaf=self._use_cooperative_decode(),
+            gqa_cooperative_leaf=(
+                self._use_cooperative_decode()
+                or self._speculative_cooperative_leaf_eligible(speculative_steps)
+            ),
             gqa_cooperative_hip=bool(
                 self.settings.decode_gqa_cooperative_hip
             ),
@@ -3111,6 +3229,9 @@ class VLLMLayerLODPool:
             ),
             gqa_union_fixed_mask_adaptive_segments=bool(
                 self.settings.decode_gqa_fixed_mask_adaptive_segments
+                or self._speculative_fixed_mask_adaptive_segments(
+                    speculative_steps
+                )
             ),
             gqa_union_fixed_mask_reduce_block_d=int(
                 self.settings.decode_gqa_fixed_mask_reduce_block_d
@@ -3166,7 +3287,11 @@ class VLLMLayerLODPool:
             gqa_union_fixed_lengths=page.get(
                 "unified_page1_fixed_lengths"
             ),
-            gqa_cooperative_route_splits=self._decode_route_splits(),
+            gqa_cooperative_route_splits=(
+                int(self.engine.decode_split_kv)
+                if self._speculative_cooperative_leaf_eligible(speculative_steps)
+                else self._decode_route_splits()
+            ),
             protected_len=self.engine._protected_state_len(self.state_capacity),
             # Routing-only guard: large centroids remain live and keep being
             # updated, but decode represents them by their coarse entry instead

@@ -1,0 +1,126 @@
+{
+  "allow_heterogeneous_global_config": false,
+  "apply_chat_template": true,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 219823472640,
+    "device_used_bytes_before_reclaim": 225095712768,
+    "external_lod_layers": 0,
+    "external_lod_layers_with_native_cache": 0,
+    "external_lod_native_cache_bytes": 0,
+    "lod_cache_bytes": 0,
+    "lod_decode_scratch_bytes": 0,
+    "native_cache_bytes": 166740361216,
+    "torch_allocated_bytes": 177904598016,
+    "torch_reclaimable_cached_bytes": 5272240128,
+    "torch_reserved_bytes_after_reclaim": 178180325376,
+    "torch_reserved_bytes_before_reclaim": 183452565504
+  },
+  "batch_size": 1,
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "diagnostic_external_empty_attention": null,
+  "disable_custom_all_reduce": false,
+  "disable_thinking": true,
+  "enable_prefix_caching": false,
+  "full_attention_backend": "ROCM_AITER_UNIFIED_ATTN",
+  "full_attention_dispatch": {
+    "records": [
+      {
+        "attention_callable": "aiter.ops.triton.attention.unified_attention.unified_attention",
+        "head_dim": 256,
+        "implementation_class": "vllm.v1.attention.backends.rocm_aiter_unified_attn.RocmAiterUnifiedAttentionImpl",
+        "kv_cache_dtype": "auto",
+        "kv_group_size": 6,
+        "kv_heads": 4,
+        "layers": 16,
+        "query_heads": 24,
+        "sliding_window": [
+          -1,
+          -1
+        ]
+      }
+    ],
+    "schema_version": 1
+  },
+  "language_model_only": true,
+  "lengths": [
+    131072
+  ],
+  "load_format": "ipc_cache",
+  "lod_diagnostics_before": null,
+  "long_prefill_token_threshold": 16384,
+  "max_new_tokens": 64,
+  "max_num_batched_tokens": 16384,
+  "mode": "full",
+  "model_impl": null,
+  "muse_native_text_config": false,
+  "num_speculative_tokens": 1,
+  "results": {
+    "131072": {
+      "speed": {
+        "decode_timings_seconds": [
+          7.334100179374218,
+          7.325823524966836,
+          7.327745729126036
+        ],
+        "marginal_decode_ms_per_batch_step": 28.736257761278573,
+        "marginal_decode_tokens_per_second": 34.799242417273845,
+        "prefill_prompt_tokens_per_second": 2986.211555816687,
+        "prefill_seconds": 43.89240264799446,
+        "prefill_timings_seconds": [
+          43.89240264799446,
+          43.90814328659326,
+          43.874166642315686
+        ],
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 131072,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London K",
+              "request_index": 0,
+              "sha256": "4a0051e89021e0c36eb743d5606b6df68c47e1d2f65506f885d18a8beaca4b50",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                },
+                {
+                  "length": "65431",
+                  "stream_index": 1
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8192,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 8192
+              }
+            }
+          ],
+          "rejected_candidate_count": 0,
+          "rejected_candidates": []
+        },
+        "prompt_length": 131072,
+        "total_timings_seconds": [
+          51.27458752132952,
+          51.28188046999276,
+          51.24995101708919
+        ]
+      }
+    }
+  },
+  "sample_offset": 0,
+  "samples_per_length": 8,
+  "speculative_attention_backend": "TRITON_ATTN",
+  "speculative_method": "mtp",
+  "speculative_model": "Qwen/Qwen3.8-27B-FP8",
+  "speed_decode_tokens": 256,
+  "speed_prompt_reserve": 0,
+  "speed_repeats": 3,
+  "speed_use_warm_prefix_cache": false,
+  "tensor_parallel_size": 1
+}

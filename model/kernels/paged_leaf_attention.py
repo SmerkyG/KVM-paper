@@ -19551,6 +19551,12 @@ def fused_decode_paged_lod_attention(
         shared_mtp_local = bool(
             speculative_steps == 2
             and not route_fused_mtp_local
+            # The persistent fixed-list scan already includes each target
+            # row's causal local prefix (and sink) in its page-size-one arena.
+            # Launching the generic shared-local branch here is dead work: the
+            # fixed-mask path returns its complete output before that branch is
+            # ever merged.
+            and not gqa_union_fixed_mask
             and local_lens_are_logical
             and os.getenv("VLLM_LOD_SPECULATIVE_SHARED_LOCAL", "1") != "0"
             and fuse_state_route
@@ -19657,7 +19663,17 @@ def fused_decode_paged_lod_attention(
             if device_index is None:
                 device_index = torch.cuda.current_device()
             cooperative_hip_eligible = bool(
-                kv_group_size == 4
+                (
+                    (speculative_steps == 1 and kv_group_size == 4)
+                    or (
+                        speculative_steps == 2
+                        and kv_group_size == 6
+                        and os.getenv(
+                            "VLLM_LOD_SPECULATIVE_COOPERATIVE_LEAVES", "0"
+                        )
+                        != "0"
+                    )
+                )
                 and head_dim == 256
                 and q.dtype == torch.bfloat16
                 and (
@@ -19690,6 +19706,7 @@ def fused_decode_paged_lod_attention(
         cooperative_separate_local = False
         final_partial_out = partial_out
         final_partial_lse = partial_lse
+        final_splits = split_kv
         final_route_splits = 1
         if shared_mtp_local:
             local_block_m = int(
@@ -19926,14 +19943,25 @@ def fused_decode_paged_lod_attention(
                 )
                 # With at most four independent KV scans on this rank, 256
                 # scan programs can repay their larger partial-output field.
-                # The split-D reducer below makes the low-sequence 256-way case
-                # profitable; 512 still pays excessive partial-output traffic.
+                # A one-request MTP verifier has two logical rows and therefore
+                # misses the ordinary low-sequence predicate, but the combined
+                # fixed-list scan benefits from the same 256-way geometry.  The
+                # split-D reducer remains limited to the ordinary low-sequence
+                # case: the measured MTP winner used its normal D reduction.
+                # 512 segments still pay excessive partial-output traffic.
                 unified_segments = allocated_segments
                 if (
                     gqa_union_fixed_mask_adaptive_segments
                     and allocated_segments >= 256
                 ):
-                    unified_segments = 256 if low_sequence_count else 128
+                    single_request_mtp = bool(
+                        speculative_steps == 2 and batch == speculative_steps
+                    )
+                    unified_segments = (
+                        256
+                        if low_sequence_count or single_request_mtp
+                        else 128
+                    )
                 fixed_segment_out = buffers["gqa_union_hip_segment_out"][
                     :sequence_count, :, :unified_segments
                 ]
@@ -20876,7 +20904,8 @@ def fused_decode_paged_lod_attention(
             reuse_separate_local = bool(
                 route_residual_mass is not None and reuse_residual_local_attention
             )
-            if not reuse_separate_local:
+            local_already_fused = bool(route_fused_mtp_local)
+            if not reuse_separate_local and not local_already_fused:
                 local_partial_out = buffers["gqa_local_partial_out"]
                 local_partial_lse = buffers["gqa_local_partial_lse"]
                 _gqa_cooperative_split_decode_local_attention_kernel[
@@ -20941,8 +20970,19 @@ def fused_decode_paged_lod_attention(
                 gqa_cooperative_decode,
             )
 
-            route_partial_out = buffers["gqa_route_partial_out"]
-            route_partial_lse = buffers["gqa_route_partial_lse"]
+            aggregate_cooperative_routes = bool(
+                speculative_steps == 2
+                and os.getenv(
+                    "VLLM_LOD_SPECULATIVE_COOPERATIVE_AGGREGATE", "0"
+                )
+                != "0"
+            )
+            if aggregate_cooperative_routes:
+                route_partial_out = buffers["gqa_local_partial_out"]
+                route_partial_lse = buffers["gqa_local_partial_lse"]
+            else:
+                route_partial_out = buffers["gqa_route_partial_out"]
+                route_partial_lse = buffers["gqa_route_partial_lse"]
             route_partial_lse.fill_(float("-inf"))
             gqa_cooperative_decode(
                 q,
@@ -20964,8 +21004,26 @@ def fused_decode_paged_lod_attention(
                 page_lookup_mode=hash_probes,
                 route_splits=gqa_cooperative_route_splits,
                 adaptive_splits=gqa_cooperative_adaptive_splits,
+                speculative_steps=speculative_steps,
+                gqa_head_group_size=(
+                    2
+                    if aggregate_cooperative_routes
+                    else int(
+                        os.getenv(
+                            "VLLM_LOD_SPECULATIVE_COOPERATIVE_GQA_HEADS", "2"
+                        )
+                    )
+                    if speculative_steps == 2
+                    else kv_group_size
+                ),
+                aggregate_routes=aggregate_cooperative_routes,
             )
-            if (
+            if aggregate_cooperative_routes:
+                final_partial_out = route_partial_out
+                final_partial_lse = route_partial_lse
+                final_splits = 32
+                final_route_splits = 1
+            elif (
                 gqa_cooperative_fused_reduce
                 and gqa_cooperative_route_splits <= 8
             ):
@@ -20986,7 +21044,7 @@ def fused_decode_paged_lod_attention(
                     num_warps=final_reduce_num_warps,
                     waves_per_eu=waves_per_eu,
                 )
-            cooperative_separate_local = True
+            cooperative_separate_local = not local_already_fused
         else:
             decode_stripe_override = os.getenv(
                 "VLLM_LOD_DECODE_STRIPE_ROUTE_LEAVES"
@@ -21202,7 +21260,7 @@ def fused_decode_paged_lod_attention(
                 KV_GROUP_SIZE=kv_group_size,
                 HEAD_DIM=head_dim,
                 ROUTE_COUNT=int(top_slots.size(-1)),
-                SPLITS=split_kv,
+                SPLITS=final_splits,
                 ROUTE_SPLITS=final_route_splits,
                 INCLUDE_SEPARATE_LOCAL=(
                     shared_mtp_local

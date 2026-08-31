@@ -109,6 +109,144 @@ default whenever the verifier has multiple positions. Set
 `VLLM_LOD_SPECULATIVE_STRIPE_ROUTE_LEAVES=0` only to reproduce the legacy
 route-per-split control.
 
+## Cross-position and GQA exact-leaf sharing
+
+The next experiment shared each exact page load across both native-MTP target
+positions and Qwen3.8-27B's GQA6 query heads. This is already the larger,
+higher-GQA Qwen model: a full cooperative block covers 2 positions x 6 query
+heads for one KV head. Independent causal masks, selected-route masks, online
+softmax state, output, and LSE are retained for every row; only the indexed
+K/V page load is shared.
+
+Three launch organizations were evaluated:
+
+1. one fixed candidate program with all 12 rows, plus smaller GQA2/GQA3
+   subgroups to recover occupancy;
+2. an aggregate GQA2 program that deduplicates four rows' route candidates and
+   processes several candidates per workgroup;
+3. 32- and 16-partial aggregate layouts trading posting-list parallelism for
+   fewer workgroups and synchronizations.
+
+The HIP kernels match the independent reference attention numerically (maximum
+synthetic output error `4.77e-7`; aggregate error `2.38e-7`). The end-to-end
+comparison uses the matched current-source striped control. Because tiny
+floating-point regrouping can move the greedy/MTP acceptance trajectory, the
+stable comparison is target-cycle time: marginal decode time covers 255 output
+intervals and the number of verifier cycles is `256 - accepted`.
+
+| 64K Qwen3.8-27B target path | ms/output | accepted/drafted | ms/verifier cycle | vs. matched striped |
+|---|---:|---:|---:|---:|
+| **matched striped leaves** | **19.976** | 115/140 | **36.128** | **1.000x** |
+| cooperative GQA2 subgroups | 20.403 | 116/140 | 37.162 | 1.029x slower |
+| cooperative GQA3 subgroups | 20.599 | 116/140 | 37.520 | 1.039x slower |
+| cooperative full GQA6 | 21.107 | 115/140 | 38.172 | 1.057x slower |
+| aggregate GQA2, 4 route x 8 page | 20.254 | 122/134 | 38.544 | 1.067x slower |
+| aggregate GQA2, 8 route x 4 page | 21.122 | 118/138 | 39.029 | 1.080x slower |
+| aggregate GQA2, 8 route x 2 page | 24.075 | 108/147 | 41.480 | 1.148x slower |
+
+The result is negative even in the favorable GQA6 model. Full 12-row sharing
+loses occupancy with a 12-wave workgroup. GQA2 restores occupancy and comes
+closest, but its route-union checks and shared-memory barriers still cost more
+than the saved page loads. Aggregating candidates avoids the explosion in
+mostly empty candidate workgroups, but repeats route bookkeeping within page
+splits; reducing page splits then exposes long-posting-list tail latency. The
+existing striped kernel's many independent workgroups hide that unevenness
+better than the cooperative variants.
+
+Consequently, striped leaves remain the default. The cooperative implementation
+is retained only as an explicit experiment and requires
+`VLLM_LOD_SPECULATIVE_COOPERATIVE_LEAVES=1`; it is not enabled by default. The
+opt-in defaults to the least-slow GQA2 non-aggregate organization. Wider
+subgroups and aggregate routing remain available only through their diagnostic
+environment controls.
+
+## Current 128K full-MTP comparison
+
+A matched rerun with the current striped implementation used the same 128K
+ProLong prompt hash, TP1, batch 1, native one-token MTP, three repeats, and 256
+output tokens. Full attention used native AITER; the LOD device audit confirmed
+that both the shared two-position route and shared/fused local paths executed.
+
+| 128K target | ms/output | ms/verifier cycle | prefill | prefill tok/s |
+|---|---:|---:|---:|---:|
+| full-attention MTP | 28.736 | 50.887 | 43.892 s | 2,986 |
+| **two-tier striped LOD MTP** | **20.118** | **37.174** | **18.242 s** | **7,185** |
+
+LOD is **1.428x faster per emitted output token**, **1.369x faster per target
+verifier cycle**, and **2.406x faster in prefill**. Full attention accepted
+112 of 143 drafted tokens; LOD accepted 118 of 138, so verifier-cycle
+normalization confirms that the win is not merely an acceptance-rate effect.
+
+## Fixed-mask page-size-one MTP
+
+The non-MTP fixed-mask path is now adapted to the two-position native-MTP
+target. Both proposal K/V entries are staged before attention. The shared
+route scorer handles the two positions together, while retaining independent
+causal rows and top-eight routes. The final AITER-style scan launches eight
+sequences (two positions times four KV heads), with Qwen's six GQA query heads
+inside each M=16 sequence. It reads the persistent page-size-one arena in
+place, fast-fails fixed leaf blocks whose centroid is unopened, and performs
+sink, causal-local, coarse, and selected exact-leaf attention in that one scan.
+There is no compacted or copied K/V list.
+
+The initial adaptation also launched the older shared-local kernel. That work
+was dead: the fixed scan had already included local and sink entries and
+returned its complete output without consuming the standalone partials. The
+launch is now suppressed for this path. For one-request/two-position MTP, the
+default fixed-mask dispatch now uses 256 scan segments; the three-repeat result
+was 0.97% faster per target cycle than 128 segments. The MTP-specific adaptive
+default can be disabled for diagnostic reproduction.
+
+The matched 128K comparison uses the same real, non-repeating ProLong prompt,
+TP1, batch 1, one-token native MTP, three repeats, and 256 emitted tokens per
+repeat. Because harmless floating-point regrouping changes the greedy path and
+draft acceptance between processes, target-cycle time is the authoritative
+kernel comparison. The fixed-mask device epoch counts actual verifier cycles
+after warmup.
+
+| 128K LOD-MTP target path | ms/output | ms/target cycle | prefill |
+|---|---:|---:|---:|
+| striped exact leaves | 20.118 | 37.174 | **18.242 s** |
+| fixed mask, 128 segments | 20.569 | 36.869 | 18.740 s |
+| **fixed mask, 256 segments** | 21.471 | **36.512** | 18.734 s |
+
+The fixed-mask MTP target is **1.8% faster per verifier cycle** than striped
+leaves. The matched full-attention cycle is 50.887 ms, so fixed-mask MTP is
+**1.394x faster than full attention** and improves the striped LOD speedup from
+1.369x to 1.394x.
+Its absolute ms/output is worse in this particular process only because it
+accepted fewer drafts; it is not a slower target kernel. Prefill is 2.7% slower
+than the striped run, reflecting fixed arena/metadata setup rather than decode
+attention.
+
+The final chat-formatted 64K NIAH-S3 check scored **8/8** with the automatic
+256-segment geometry. Its device audit confirmed shared two-position route
+scoring, direct fixed routes, fixed-mask preparation, the AITER-style unified
+final scan, and no shared-local launch.
+
+### Why this is a larger win than non-MTP decode
+
+The August 29 non-MTP two-tier result used a different exact-leaf path: the
+fixed-list, fixed-mask page-size-one AITER kernel. A same-prompt current-code
+rerun reproduces it. The ordinary flat decoder was tested both with and without
+the newer striped posting-list assignment:
+
+| 128K non-MTP target | ms/token | speedup vs full |
+|---|---:|---:|
+| full AITER | 34.254 | - |
+| flat LOD, route assigned | 31.456 | 1.089x |
+| flat LOD, striped | 30.578 | 1.120x |
+| **fixed-mask page-size-one AITER LOD** | **29.409** | **1.165x** |
+
+Thus striping helps the flat one-token decoder by 2.8%, but does not explain
+the MTP result and does not beat the specialized non-MTP AITER path. The MTP
+gain comes primarily from processing both target positions in one LOD pipeline:
+coarse routing and the local suffix are shared/fused, the two positions provide
+better occupancy, and fixed launch/reduction costs are amortized. A full MTP
+verifier cycle costs 1.486x one full-attention token, whereas an LOD MTP cycle
+costs only 1.216x one flat-striped LOD token. The higher LOD draft acceptance
+adds to output-token throughput, but cycle-normalized LOD still wins by 1.369x.
+
 ## Historical coarse-only acceptance experiment
 
 The diagnostic implementation described in this section was subsequently
@@ -178,5 +316,36 @@ coarse acceptance remains opt-in and is not a default path.
   plus only the striped exact-leaf update.
 - `lod_fused_localroute_striped_niah_profile_b1_64k_n8_r1_d64.json`: balanced
   exact-list 8/8 NIAH result and profiled speed phase.
+- `lod_striped_control_current_b1_64k_r3_d256.json`: matched current-source
+  control for cooperative exact-leaf tests.
+- `lod_cooperative_leaves_gqa2_b1_64k_r3_d256.json`: best cooperative subgroup
+  result.
+- `lod_cooperative_leaves_gqa3_fixed_b1_64k_r3_d256.json` and
+  `lod_cooperative_leaves_gqa6_fixed_b1_64k_r3_d256.json`: wider cooperative
+  subgroup results after correcting the wide-block shared-load stride.
+- `lod_cooperative_leaves_aggregate_b1_64k_r3_d256.json`,
+  `lod_cooperative_leaves_aggregate8x4_b1_64k_r3_d256.json`, and
+  `lod_cooperative_leaves_aggregate8x2_b1_64k_r3_d256.json`: aggregate route
+  layouts.
+- `full_current_b1_128k_r3_d256.json` and
+  `lod_striped_current_b1_128k_r3_d256.json`: matched current 128K full-MTP and
+  striped-LOD-MTP comparison.
+- `full_nomtp_current_b1_128k_r3_d256.json`,
+  `lod_nomtp_routeassigned_current_b1_128k_r3_d256.json`,
+  `lod_nomtp_striped_current_b1_128k_r3_d256.json`, and
+  `lod_nomtp_fixedmask_current_b1_128k_r3_d256.json`: matched current non-MTP
+  controls isolating striping and the historical fixed-mask AITER path.
+- `lod_mtp_fixedmask_nolocal_b1_128k_r3_d256.json`: optimized 128-segment
+  fixed-mask MTP control.
+- `lod_mtp_fixedmask_seg256_b1_128k_r3_d256.json`: authoritative 256-segment
+  fixed-mask MTP speed result.
+- `lod_mtp_fixedmask_niah64_b1_n8.json`: chat-formatted 64K NIAH-S3 8/8
+  correctness result.
+- `lod_mtp_fixedmask_smoke_audit_b1_8k_d64.json`: graph execution audit smoke
+  test.
+- `lod_mtp_fixedmask_auto_b1_8k_r1_d64.json`: final automatic 256-segment
+  dispatch audit, including the device-counted target-cycle metric.
+- `lod_mtp_fixedmask_auto_niah64_b1_n8.json`: final automatic 256-segment,
+  chat-formatted 64K NIAH-S3 8/8 result and execution audit.
 - `torch_profile_fused_localroute_striped_64k_delay4/`: balanced exact-list
   delayed trace.

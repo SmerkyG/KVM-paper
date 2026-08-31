@@ -537,6 +537,19 @@ def evaluate_speed(args, tokenizer, llm, length: int) -> dict:
                 "speculative_shared_local_executed",
             )
         }
+        # A native-MTP process can follow a slightly different greedy path
+        # after harmless floating-point regrouping, changing its number of
+        # accepted drafts and therefore its milliseconds per emitted token.
+        # The fixed-mask device epoch advances once per target/verifier cycle
+        # on every measured call, so this reports the acceptance-independent
+        # kernel comparison directly.  ``sum(decodes)`` is intentional because
+        # the epoch is the aggregate since the post-warmup marker reset.
+        target_cycles = execution_audit["gqa_union_epoch_max"]
+        result["gqa_union_marginal_ms_per_target_cycle"] = (
+            1000.0 * sum(decodes) / target_cycles
+            if target_cycles > 0
+            else None
+        )
         if (
             execution_audit["decode_gqa_union_eligible"] == [True]
             and (

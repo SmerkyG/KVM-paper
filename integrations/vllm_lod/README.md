@@ -57,6 +57,10 @@ tile width (16, 64, or 128; default 64), and
 (default 128). For low-row decode,
 `VLLM_LOD_DECODE_GQA_FIXED_MASK_ADAPTIVE_SEGMENTS=1` selects 256 segments when
 the local rank has at most eight real query rows and 128 otherwise.
+The two-position fixed-mask MTP path enables its measured adaptive geometry by
+default: batch-1 MTP uses 256 segments and larger batches use 128. Set
+`VLLM_LOD_SPECULATIVE_FIXED_MASK_ADAPTIVE_SEGMENTS=0` to disable this MTP-only
+default and honor the ordinary fixed segment setting directly.
 `VLLM_LOD_DECODE_GQA_FIXED_MASK_REDUCE_BLOCK_D=64` splits the formerly
 one-program-per-query-head FP32 segment reduction across output dimensions; it
 is applied only in that same at-most-eight-row regime. The two settings are

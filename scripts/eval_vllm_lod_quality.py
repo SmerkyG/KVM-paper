@@ -656,7 +656,31 @@ def inspect_lod_model(model) -> dict[str, object]:
                     static_bin_leaves[-1] += float(
                         active_counts[in_bin].sum().item()
                     )
-            decode_storage = pool.decode_buffer_storage
+            # Parallel speculative verification owns a separate, graph-stable
+            # scratch set whose logical rows are (request, target position).
+            # Fixed-mask execution markers therefore live there rather than in
+            # the ordinary one-token decode storage. Inspect whichever storage
+            # has the largest device-written union epoch so the audit follows
+            # the graph that actually served the measured request.
+            decode_storages = [pool.decode_buffer_storage]
+            decode_storages.extend(
+                speculative_buffers
+                for staging in pool.speculative_decode_buffers.values()
+                if isinstance(
+                    speculative_buffers := staging.get("decode_buffers"),
+                    dict,
+                )
+            )
+
+            def union_epoch(storage: dict[str, object]) -> int:
+                epochs = storage.get("gqa_union_epochs")
+                return (
+                    int(epochs.max().item())
+                    if isinstance(epochs, torch.Tensor)
+                    else -1
+                )
+
+            decode_storage = max(decode_storages, key=union_epoch)
             if isinstance(decode_storage, dict):
                 execution_geometry = decode_storage.get(
                     "gqa_union_fixed_execution_geometry"
@@ -1098,6 +1122,40 @@ def reset_lod_decode_execution_markers(model) -> int:
     warmup, or a different request geometry.
     """
     reset = 0
+
+    def reset_union_buffers(decode_buffers: dict[str, object]) -> bool:
+        staged_marker = decode_buffers.get("gqa_union_destinations")
+        epochs = decode_buffers.get("gqa_union_epochs")
+        stamps = decode_buffers.get("gqa_union_seen_stamps")
+        token_counts = decode_buffers.get("gqa_union_token_counts")
+        exact_token_counts = decode_buffers.get("gqa_union_hip_context_lens")
+        launch_lens = decode_buffers.get("gqa_union_hip_launch_lens")
+        union_counts = decode_buffers.get("gqa_union_counts")
+        execution_geometry = decode_buffers.get(
+            "gqa_union_fixed_execution_geometry"
+        )
+        if not isinstance(epochs, torch.Tensor):
+            return False
+        # Speculative staging tensors are allocated under inference mode, so
+        # use the same mode for both their reset and ordinary decode scratch.
+        with torch.inference_mode():
+            if isinstance(staged_marker, torch.Tensor):
+                staged_marker.reshape(-1)[0].zero_()
+            epochs.zero_()
+            if isinstance(stamps, torch.Tensor):
+                stamps.zero_()
+            if isinstance(token_counts, torch.Tensor):
+                token_counts.zero_()
+            if isinstance(exact_token_counts, torch.Tensor):
+                exact_token_counts.zero_()
+            if isinstance(launch_lens, torch.Tensor):
+                launch_lens.zero_()
+            if isinstance(union_counts, torch.Tensor):
+                union_counts.zero_()
+            if isinstance(execution_geometry, torch.Tensor):
+                execution_geometry.zero_()
+        return True
+
     for module in model.modules():
         pool = getattr(module, "_vllm_lod_pool", None)
         if pool is None:
@@ -1122,37 +1180,11 @@ def reset_lod_decode_execution_markers(model) -> int:
                 with torch.inference_mode():
                     local_marker.zero_()
                 reset += 1
+            if reset_union_buffers(speculative_buffers):
+                reset += 1
         for decode_buffers in pool.decode_buffers.values():
-            staged_marker = decode_buffers.get("gqa_union_destinations")
-            if isinstance(staged_marker, torch.Tensor):
-                staged_marker.reshape(-1)[0].zero_()
-            epochs = decode_buffers.get("gqa_union_epochs")
-            stamps = decode_buffers.get("gqa_union_seen_stamps")
-            token_counts = decode_buffers.get("gqa_union_token_counts")
-            exact_token_counts = decode_buffers.get(
-                "gqa_union_hip_context_lens"
-            )
-            launch_lens = decode_buffers.get("gqa_union_hip_launch_lens")
-            union_counts = decode_buffers.get("gqa_union_counts")
-            execution_geometry = decode_buffers.get(
-                "gqa_union_fixed_execution_geometry"
-            )
-            if not isinstance(epochs, torch.Tensor):
-                continue
-            epochs.zero_()
-            if isinstance(stamps, torch.Tensor):
-                stamps.zero_()
-            if isinstance(token_counts, torch.Tensor):
-                token_counts.zero_()
-            if isinstance(exact_token_counts, torch.Tensor):
-                exact_token_counts.zero_()
-            if isinstance(launch_lens, torch.Tensor):
-                launch_lens.zero_()
-            if isinstance(union_counts, torch.Tensor):
-                union_counts.zero_()
-            if isinstance(execution_geometry, torch.Tensor):
-                execution_geometry.zero_()
-            reset += 1
+            if reset_union_buffers(decode_buffers):
+                reset += 1
     return reset
 
 

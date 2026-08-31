@@ -1,4 +1,4 @@
-"""Lazy loader for the gfx942 four-head cooperative decode leaf kernel."""
+"""Lazy loader for gfx942 shared-page cooperative decode leaf kernels."""
 
 from __future__ import annotations
 
@@ -77,7 +77,7 @@ def _function():
         library = ctypes.CDLL(str(_build_library()))
         function = library.launch_gqa_cooperative_decode
         function.restype = ctypes.c_int
-        function.argtypes = [ctypes.c_void_p] * 15 + [ctypes.c_int] * 14 + [
+        function.argtypes = [ctypes.c_void_p] * 15 + [ctypes.c_int] * 17 + [
             ctypes.c_longlong,
             ctypes.c_longlong,
             ctypes.c_float,
@@ -109,14 +109,38 @@ def gqa_cooperative_decode(
     page_lookup_mode: int,
     route_splits: int,
     adaptive_splits: bool = False,
+    speculative_steps: int = 1,
+    gqa_head_group_size: int | None = None,
+    aggregate_routes: bool = False,
 ) -> None:
-    """Launch the fixed H=256, GQA=4, top-8 gfx942 kernel."""
+    """Launch a shared-page H=256, top-eight gfx942 leaf kernel."""
     batch, query_heads, query_len, head_dim = q.shape
     kv_heads = int(page_k.size(1))
+    if speculative_steps not in (1, 2) or batch % speculative_steps:
+        raise ValueError("HIP cooperative decode has invalid speculative geometry")
+    kv_group_size = query_heads // kv_heads
+    if gqa_head_group_size is None:
+        gqa_head_group_size = kv_group_size
     indexed = page_indices is not None
     page_shape = page_indices if indexed else page_k
-    if query_len != 1 or head_dim != 256 or query_heads != kv_heads * 4:
-        raise ValueError("HIP cooperative decode requires H=256 and GQA group 4")
+    supported_geometry = (speculative_steps, kv_group_size) in {(1, 4), (2, 6)}
+    if (
+        query_len != 1
+        or head_dim != 256
+        or query_heads != kv_heads * kv_group_size
+        or not supported_geometry
+    ):
+        raise ValueError(
+            "HIP cooperative decode requires H=256 and either GQA4 decode "
+            "or two-position GQA6 verification"
+        )
+    invalid_subgroup = (
+        speculative_steps == 1 and gqa_head_group_size != 4
+    ) or (
+        speculative_steps == 2 and gqa_head_group_size not in (2, 3, 6)
+    )
+    if kv_group_size % gqa_head_group_size or invalid_subgroup:
+        raise ValueError("HIP cooperative decode has an unsupported GQA subgroup")
     if page_lookup_mode not in {-1, 0}:
         raise ValueError("HIP cooperative decode supports direct page directories")
     if route_splits not in {4, 8, 16, 32}:
@@ -177,8 +201,16 @@ def gqa_cooperative_decode(
         )
     ):
         raise ValueError("HIP cooperative decode tensors must be on the GPU")
-    expected_out = (batch, query_heads, 8, route_splits, head_dim)
-    expected_lse = (batch, query_heads, 8, route_splits)
+    expected_out = (
+        (batch, query_heads, 32, head_dim)
+        if aggregate_routes
+        else (batch, query_heads, 8, route_splits, head_dim)
+    )
+    expected_lse = (
+        (batch, query_heads, 32)
+        if aggregate_routes
+        else (batch, query_heads, 8, route_splits)
+    )
     if tuple(partial_out.shape) != expected_out:
         raise ValueError("HIP cooperative output workspace has the wrong shape")
     if tuple(partial_lse.shape) != expected_lse:
@@ -213,6 +245,9 @@ def gqa_cooperative_decode(
         int(adaptive_splits),
         int(indexed),
         int(int8_storage),
+        speculative_steps,
+        gqa_head_group_size,
+        int(aggregate_routes),
         top_slots.stride(0),
         top_slots.stride(1),
         scale_log2,
