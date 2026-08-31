@@ -537,11 +537,17 @@ class KernelRecursivePagedLODAttention(_KernelLODEngine):
             )
             remaining = recent_length - overflow_len
             if remaining:
+                # Source and destination are overlapping views of the same
+                # fixed recent-cache row.  PyTorch rejects the otherwise
+                # memmove-like slice copy when a catch-up leaves a non-empty
+                # suffix (notably after repeated speculative generations).
+                # Catch-up runs only at the amortized state-update boundary,
+                # so materialize the short exact suffix before shifting it.
                 recent_k[..., :remaining, :].copy_(
-                    recent_k[..., overflow_len:recent_length, :]
+                    recent_k[..., overflow_len:recent_length, :].clone()
                 )
                 recent_v[..., :remaining, :].copy_(
-                    recent_v[..., overflow_len:recent_length, :]
+                    recent_v[..., overflow_len:recent_length, :].clone()
                 )
             recent_length = remaining
             coverage = target_coverage

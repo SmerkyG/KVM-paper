@@ -156,6 +156,20 @@ if [[ -n "${VLLM_LOD_PANEL_SPECULATIVE_MODEL:-}" ]]; then
   # selection this pinned vLLM revision falls back to its unrelated legacy
   # draft-model proposer for the new DFlash2 architecture.
   common_env+=(VLLM_USE_V2_MODEL_RUNNER=1)
+  if (( tensor_parallel_size > 1 )) && \
+      [[ "${VLLM_LOD_PANEL_ENFORCE_EAGER:-0}" != 1 ]]; then
+    # PyTorch's ROCm ProcessGroupNCCL watchdog polls outstanding HIP events
+    # from a background thread.  Event queries are illegal while another
+    # thread captures the DFlash graph, so TP graph capture can fail even
+    # though vLLM's model collectives use its graph-safe custom all-reduce.
+    # Blocking-wait mode omits that watchdog.  Keep caller overrides so this
+    # workaround can be revisited independently of the benchmark protocol.
+    common_env+=(
+      TORCH_NCCL_BLOCKING_WAIT="${TORCH_NCCL_BLOCKING_WAIT:-1}"
+      TORCH_NCCL_ASYNC_ERROR_HANDLING="${TORCH_NCCL_ASYNC_ERROR_HANDLING:-0}"
+      TORCH_NCCL_ENABLE_MONITORING="${TORCH_NCCL_ENABLE_MONITORING:-0}"
+    )
+  fi
 fi
 if [[ "$mode" == full && -n "${VLLM_LOD_PANEL_FULL_BACKEND:-}" ]]; then
   args+=(--full-attention-backend "$VLLM_LOD_PANEL_FULL_BACKEND")

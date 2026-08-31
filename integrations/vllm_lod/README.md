@@ -932,6 +932,25 @@ whereas three-tier wins at 128K/B8 (17.745 versus 19.746 ms). Use three-tier
 for recursive INT4 storage and treat the BF16 crossover as the current TP1
 decision pending a repeated acceptance-matched panel.
 
+The matched TP4 DFlash2 panel uses six local query heads, one local KV head,
+head dimension 256, three measured speed repetitions, and the same 16K
+aggregate prefill budget.  Full/recursive-BF16 decode is 9.777/9.219 ms at
+64K/B1, 11.702/9.144 ms at 128K/B1, 17.255/13.399 ms at 64K/B8, and
+20.888/13.099 ms at 128K/B8: recursive LOD is 1.06x--1.59x faster.  Prefill is
+5.367/4.401, 14.583/9.447, 43.562/36.954, and 120.436/79.846 seconds in the
+same order, a 1.18x--1.54x speedup.  Full and recursive BF16 both score 8/8
+on NIAH-S3 at 64K and 128K.
+The complete protocol and raw records are in
+`artifacts/dflash2_three_tier_tp4_20260831/README.md`.
+
+On ROCm, multi-GPU DFlash graph capture must not run alongside PyTorch's
+ProcessGroupNCCL watchdog: its background HIP-event query is illegal during
+capture even when model collectives use vLLM's custom all-reduce.  The panel
+wrapper therefore defaults TP DFlash runs to blocking wait, with asynchronous
+error handling and monitoring disabled; explicit caller overrides remain
+available.  Recursive catch-up also uses an overlap-safe suffix shift when a
+speculative update boundary leaves exact recent tokens.
+
 ### Native MTP target verification
 
 One-token native MTP produces a two-position target verification. The old LOD
