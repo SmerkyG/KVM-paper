@@ -1,0 +1,448 @@
+{
+  "allow_heterogeneous_global_config": true,
+  "apply_chat_template": true,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 222660919296,
+    "device_used_bytes_before_reclaim": 225122975744,
+    "external_lod_layers": 0,
+    "external_lod_layers_with_native_cache": 0,
+    "external_lod_native_cache_bytes": 0,
+    "lod_cache_bytes": 0,
+    "lod_decode_scratch_bytes": 0,
+    "native_cache_bytes": 201060646912,
+    "torch_allocated_bytes": 217047634432,
+    "torch_reclaimable_cached_bytes": 2462056448,
+    "torch_reserved_bytes_after_reclaim": 217550159872,
+    "torch_reserved_bytes_before_reclaim": 220012216320
+  },
+  "batch_size": 1,
+  "checkpoint": "google/gemma-4-26B-A4B-it",
+  "diagnostic_external_empty_attention": null,
+  "disable_custom_all_reduce": false,
+  "disable_thinking": true,
+  "enable_prefix_caching": false,
+  "full_attention_backend": "TRITON_ATTN",
+  "full_attention_dispatch": {
+    "records": [
+      {
+        "attention_callable": "vllm.v1.attention.ops.triton_unified_attention.unified_attention",
+        "head_dim": 512,
+        "implementation_class": "vllm.v1.attention.backends.triton_attn.TritonAttentionImpl",
+        "kv_cache_dtype": "auto",
+        "kv_group_size": 4,
+        "kv_heads": 1,
+        "layers": 5,
+        "query_heads": 4,
+        "sliding_window": [
+          -1,
+          -1
+        ]
+      }
+    ],
+    "schema_version": 1
+  },
+  "gpu_memory_utilization": 0.8,
+  "language_model_only": true,
+  "lengths": [
+    8192,
+    16384,
+    32768,
+    65536,
+    131072
+  ],
+  "load_format": "auto",
+  "lod_diagnostics_before": null,
+  "long_prefill_token_threshold": 16384,
+  "max_new_tokens": 64,
+  "max_num_batched_tokens": 16384,
+  "mode": "full",
+  "model_impl": null,
+  "muse_native_text_config": false,
+  "num_speculative_tokens": 15,
+  "results": {
+    "131072": {
+      "speed": {
+        "decode_timings_seconds": [
+          10.02637635730207,
+          10.025650516152382,
+          10.026894600130618
+        ],
+        "marginal_decode_ms_per_batch_step": 39.319122969812035,
+        "marginal_decode_tokens_per_second": 25.432917228793936,
+        "prefill_prompt_tokens_per_second": 22549.86262293088,
+        "prefill_seconds": 5.801188334822655,
+        "prefill_timings_seconds": [
+          5.809880614280701,
+          5.7903091832995415,
+          5.801188334822655
+        ],
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 130816,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London",
+              "request_index": 0,
+              "sha256": "caaeac387c98f0768ddfaaf108930e1de3f6faf96826eb822d68bf753ba89ca7",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                },
+                {
+                  "length": "65431",
+                  "stream_index": 1
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8176,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 8176
+              }
+            }
+          ],
+          "rejected_candidate_count": 0,
+          "rejected_candidates": []
+        },
+        "prompt_length": 130816,
+        "speculative_accepted_tokens_per_repeat": [
+          134,
+          134,
+          134
+        ],
+        "speculative_active_row_cycles_per_repeat": [
+          125,
+          125,
+          125
+        ],
+        "speculative_draft_tokens_per_repeat": [
+          1875,
+          1875,
+          1875
+        ],
+        "speculative_marginal_ms_per_target_cycle": 80.21045726289351,
+        "speculative_target_cycles_per_repeat": [
+          125,
+          125,
+          125
+        ],
+        "total_timings_seconds": [
+          15.908319205977023,
+          15.890400965698063,
+          15.899121813476086
+        ]
+      }
+    },
+    "16384": {
+      "speed": {
+        "decode_timings_seconds": [
+          1.208740864880383,
+          1.2098124222829938,
+          1.2099694600328803
+        ],
+        "marginal_decode_ms_per_batch_step": 4.744362440325466,
+        "marginal_decode_tokens_per_second": 210.77647683497796,
+        "prefill_prompt_tokens_per_second": 53867.490848372596,
+        "prefill_seconds": 0.2994013596326113,
+        "prefill_timings_seconds": [
+          0.2994013596326113,
+          0.2960229916498065,
+          0.30177011899650097
+        ],
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 16128,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London",
+              "request_index": 0,
+              "sha256": "5fa4ba001b20d19918cb38e2a99ee142b3c3ee14a465113feaa89bcd8bc15993",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 1008,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 1008
+              }
+            }
+          ],
+          "rejected_candidate_count": 0,
+          "rejected_candidates": []
+        },
+        "prompt_length": 16128,
+        "speculative_accepted_tokens_per_repeat": [
+          186,
+          186,
+          186
+        ],
+        "speculative_active_row_cycles_per_repeat": [
+          70,
+          70,
+          70
+        ],
+        "speculative_draft_tokens_per_repeat": [
+          1050,
+          1050,
+          1050
+        ],
+        "speculative_marginal_ms_per_target_cycle": 17.278679748553607,
+        "speculative_target_cycles_per_repeat": [
+          70,
+          70,
+          70
+        ],
+        "total_timings_seconds": [
+          1.5243565393611789,
+          1.5219511985778809,
+          1.5279711727052927
+        ]
+      }
+    },
+    "32768": {
+      "speed": {
+        "decode_timings_seconds": [
+          2.1559829898178577,
+          2.1557174837216735,
+          2.156035919673741
+        ],
+        "marginal_decode_ms_per_batch_step": 8.454835254187678,
+        "marginal_decode_tokens_per_second": 118.2755157180266,
+        "prefill_prompt_tokens_per_second": 44897.462595789,
+        "prefill_seconds": 0.7241389183327556,
+        "prefill_timings_seconds": [
+          0.7241389183327556,
+          0.724511032924056,
+          0.7206321116536856
+        ],
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 32512,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London",
+              "request_index": 0,
+              "sha256": "d9f9c2f8d275517d6137206b481aae453069485f123c05d6f1fcc0cb4151ceee",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 2032,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 2032
+              }
+            }
+          ],
+          "rejected_candidate_count": 0,
+          "rejected_candidates": []
+        },
+        "prompt_length": 32512,
+        "speculative_accepted_tokens_per_repeat": [
+          173,
+          173,
+          173
+        ],
+        "speculative_active_row_cycles_per_repeat": [
+          82,
+          82,
+          82
+        ],
+        "speculative_draft_tokens_per_repeat": [
+          1230,
+          1230,
+          1230
+        ],
+        "speculative_marginal_ms_per_target_cycle": 26.291611354525497,
+        "speculative_target_cycles_per_repeat": [
+          82,
+          82,
+          82
+        ],
+        "total_timings_seconds": [
+          2.9044065289199352,
+          2.9043910894542933,
+          2.9009777028113604
+        ]
+      }
+    },
+    "65536": {
+      "speed": {
+        "decode_timings_seconds": [
+          3.8501057932153344,
+          3.850019434466958,
+          3.8501162035390735
+        ],
+        "marginal_decode_ms_per_batch_step": 15.098454091040526,
+        "marginal_decode_tokens_per_second": 66.23194626219404,
+        "prefill_prompt_tokens_per_second": 33940.91021462144,
+        "prefill_seconds": 1.9233426442369819,
+        "prefill_timings_seconds": [
+          1.9233426442369819,
+          1.9262769455090165,
+          1.9185098940506577
+        ],
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 65280,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London",
+              "request_index": 0,
+              "sha256": "ae9857ba496b5842ee3bb6a049a07f55c0f37feb7b7579d4083fcc5430eaa63f",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4080,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4080
+              }
+            }
+          ],
+          "rejected_candidate_count": 0,
+          "rejected_candidates": []
+        },
+        "prompt_length": 65280,
+        "speculative_accepted_tokens_per_repeat": [
+          174,
+          174,
+          174
+        ],
+        "speculative_active_row_cycles_per_repeat": [
+          87,
+          87,
+          87
+        ],
+        "speculative_draft_tokens_per_repeat": [
+          1305,
+          1305,
+          1305
+        ],
+        "speculative_marginal_ms_per_target_cycle": 44.253798587055044,
+        "speculative_target_cycles_per_repeat": [
+          87,
+          87,
+          87
+        ],
+        "total_timings_seconds": [
+          5.813997872173786,
+          5.8166995868086815,
+          5.809083404950798
+        ]
+      }
+    },
+    "8192": {
+      "speed": {
+        "decode_timings_seconds": [
+          0.46116593573242426,
+          0.46138736326247454,
+          0.4612624440342188
+        ],
+        "marginal_decode_ms_per_batch_step": 1.8088723295459561,
+        "marginal_decode_tokens_per_second": 552.8306136735529,
+        "prefill_prompt_tokens_per_second": 61447.495657456966,
+        "prefill_seconds": 0.12915091030299664,
+        "prefill_timings_seconds": [
+          0.1288651041686535,
+          0.13012392818927765,
+          0.12915091030299664
+        ],
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 7936,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London",
+              "request_index": 0,
+              "sha256": "45b984da5963ab9a68f4afdf5a9c435cea84dde92f13ff705782561347c7ff82",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 496,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 496
+              }
+            }
+          ],
+          "rejected_candidate_count": 0,
+          "rejected_candidates": []
+        },
+        "prompt_length": 7936,
+        "speculative_accepted_tokens_per_repeat": [
+          223,
+          223,
+          223
+        ],
+        "speculative_active_row_cycles_per_repeat": [
+          36,
+          36,
+          36
+        ],
+        "speculative_draft_tokens_per_repeat": [
+          540,
+          540,
+          540
+        ],
+        "speculative_marginal_ms_per_target_cycle": 12.813108731751088,
+        "speculative_target_cycles_per_repeat": [
+          36,
+          36,
+          36
+        ],
+        "total_timings_seconds": [
+          0.6023258529603481,
+          0.603655937127769,
+          0.6027087289839983
+        ]
+      }
+    }
+  },
+  "sample_offset": 0,
+  "samples_per_length": 8,
+  "speculative_attention_backend": "TRITON_ATTN",
+  "speculative_method": "dflash",
+  "speculative_model": "z-lab/gemma-4-26B-A4B-it-DFlash",
+  "speed_decode_tokens": 256,
+  "speed_prompt_reserve": 256,
+  "speed_repeats": 3,
+  "speed_use_warm_prefix_cache": false,
+  "tensor_parallel_size": 4
+}

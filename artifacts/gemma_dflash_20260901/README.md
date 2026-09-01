@@ -6,6 +6,18 @@ published Gemma checkpoint, `z-lab/gemma-4-26B-A4B-it-DFlash`, is **original
 DFlash**, not DFlash2: it supplies one anchor plus 15 proposed tokens in a
 16-position target verification.
 
+The matched TP4 follow-up is in
+`../gemma_dflash_tp4_20260901/README.md`. Its quality-selected top-16 prefill
+profile matches full attention at 8/8 NIAH-S3 throughout 8--128K. At 128K,
+verifier-cycle speedup is 5.62x at B1 and 5.27x at B8.
+
+The matched TP2 follow-up is in `../gemma_tp2_20260901/README.md`. TP2 keeps
+the original GQA-8 geometry without KV-head replication. The exact TP1 route
+profiles score 8/8 throughout. At 128K, recursive LOD reduces the TP2 DFlash
+verifier cycle from 69.804 to 17.922 ms at B1 (3.90x) and from 57.982 to
+16.308 ms at B8 (3.56x). The same artifact also contains ordinary greedy
+full/two-tier/three-tier TP2 results.
+
 Five global layers use LOD with `(D, QH, KVH, GQA) = (512, 16, 2, 8)`;
 Gemma's 25 local layers remain native. Recursive verification keeps all 16
 proposal K/V positions staged together. B1 uses one 16-position launch. At B8,
@@ -74,34 +86,60 @@ provides, so AITER is not a valid Gemma full-attention control.
 
 Decode milliseconds are per emitted token at B1 and per emitted batch step at
 B8. End-to-end DFlash decode includes proposal acceptance and can therefore be
-strongly non-monotonic. The LOD target-cycle column divides measured decode
-wall time by target-verifier invocations; at B8 it still reflects the changing
-active-row mix as requests finish on different cycles.
+strongly non-monotonic. Verifier-cycle milliseconds divide measured decode wall
+time by scheduler iterations that actually verify draft tokens. This uses the
+same denominator for full attention and LOD, excludes the initial no-draft
+target invocation, and removes the direct dependence on emitted-token count.
+It includes the drafter and scheduler work surrounding the target invocation
+rather than claiming to isolate an attention kernel. At B8 the average launch
+cost still reflects the changing active-row mix as requests finish on different
+cycles; the raw records therefore retain both launch and active-row counts.
 
 ### Batch one
 
-| context | full prefill (s) | LOD prefill (s) | prefill speedup | full decode (ms) | LOD decode (ms) | decode speedup | LOD target cycle (ms) |
-|---:|---:|---:|---:|---:|---:|---:|---:|
-| 8K | 0.230 | 0.249 | 0.92x | 1.764 | 2.425 | 0.73x | 15.458 |
-| 16K | 0.587 | 0.519 | 1.13x | 8.831 | 5.124 | 1.72x | 15.579 |
-| 32K | 1.661 | 1.226 | 1.35x | 3.131 | 6.590 | 0.48x | 16.728 |
-| 64K | 5.073 | 2.677 | 1.89x | 23.381 | 5.906 | 3.96x | 17.511 |
-| 128K | 17.268 | 6.074 | 2.84x | 55.749 | 4.397 | 12.68x | 20.552 |
+| context | full prefill (s) | LOD prefill (s) | prefill speedup | full decode (ms) | LOD decode (ms) | decode speedup | full verifier cycle (ms) | LOD verifier cycle (ms) | cycle speedup |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 8K | 0.230 | 0.249 | 0.92x | 1.764 | 2.425 | 0.73x | 14.474 | 15.877 | 0.91x |
+| 16K | 0.587 | 0.519 | 1.13x | 8.831 | 5.124 | 1.72x | 18.266 | 15.836 | 1.15x |
+| 32K | 1.661 | 1.226 | 1.35x | 3.131 | 6.590 | 0.48x | 25.926 | 16.666 | 1.56x |
+| 64K | 5.073 | 2.677 | 1.89x | 23.381 | 5.906 | 3.96x | 41.203 | 17.635 | 2.34x |
+| 128K | 17.268 | 6.074 | 2.84x | 55.749 | 4.397 | 12.68x | 72.210 | 20.243 | 3.57x |
+
+The 3.57x B1 verifier-cycle gain at 128K is plausible from the work geometry.
+Each full target invocation evaluates 16 verification positions against about
+131K cached positions in each of Gemma's five global `D=512` attention layers:
+about 10.5 million query-position/cache-position pairs, or 167.8 million
+`D=512` dot products after accounting for 16 query heads.
+Three-tier LOD instead starts from about `16*sqrt(T) = 5,793` coarse entries,
+keeps 512 exact-local positions, and visits page summaries and exact leaves
+only inside routed regions. That is more than a 20x reduction in the regular
+history scan before the selected-page work.
+
+The reduction cannot become a 20x whole-cycle speedup. The other 25
+sliding-attention layers, projections, MoE blocks, normalization, logits,
+DFlash proposal, rejection/sampling, and scheduler work remain. LOD also adds
+coarse and page routing, reductions, and less regular indexed leaf loads. The
+measured 72.210-to-20.243-ms change says that replacing the five long global
+attention paths removes at least 51.967 ms, or 72% of the full cycle; the
+remaining roughly 20 ms is the unchanged work plus LOD's own routing cost.
 
 ### Batch eight
 
-| context | full prefill (s) | LOD prefill (s) | prefill speedup | full decode (ms) | LOD decode (ms) | decode speedup | LOD target cycle (ms) |
-|---:|---:|---:|---:|---:|---:|---:|---:|
-| 8K | 1.808 | 2.136 | 0.85x | 10.541 | 9.825 | 1.07x | 26.854 |
-| 16K | 4.898 | 4.947 | 0.99x | 13.799 | 11.575 | 1.19x | 24.649 |
-| 32K | 12.921 | 10.777 | 1.20x | 13.844 | 9.428 | 1.47x | 23.580 |
-| 64K | 40.135 | 22.839 | 1.76x | 41.769 | 10.773 | 3.88x | 25.972 |
-| 128K | 138.830 | 46.109 | 3.01x | 55.819 | 12.655 | 4.41x | 25.351 |
+| context | full prefill (s) | LOD prefill (s) | prefill speedup | full decode (ms) | LOD decode (ms) | decode speedup | full verifier cycle (ms) | LOD verifier cycle (ms) | cycle speedup |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 8K | 1.808 | 2.136 | 0.85x | 10.541 | 9.825 | 1.07x | 17.357 | 23.549 | 0.74x |
+| 16K | 4.898 | 4.947 | 0.99x | 13.799 | 11.575 | 1.19x | 20.920 | 20.337 | 1.03x |
+| 32K | 12.921 | 10.777 | 1.20x | 13.844 | 9.428 | 1.47x | 26.570 | 20.724 | 1.28x |
+| 64K | 40.135 | 22.839 | 1.76x | 41.769 | 10.773 | 3.88x | 40.226 | 20.617 | 1.95x |
+| 128K | 138.830 | 46.109 | 3.01x | 55.819 | 12.655 | 4.41x | 57.787 | 19.415 | 2.98x |
 
 The very large B1 decode ratios at 64K and 128K, and the B8 ratios at 64K and
 128K, are serving outcomes from favorable greedy/acceptance trajectories, not
-direct claims of equivalent kernel speedups. Prefill and the target-cycle
-column are the cleaner attention-side measurements.
+direct claims of equivalent kernel speedups. Prefill and the verifier-cycle
+columns are the cleaner attention-side measurements. The B8 cycle ratio is
+still workload-dependent because the two paths can leave different numbers of
+active request rows in a launch; see the per-repeat active-row counts in the
+raw cycle-accounted records.
 
 ## Compatibility work
 
@@ -122,11 +160,19 @@ column are the cleaner attention-side measurements.
 
 - Full speed: `full_tp1_b1_8k128k_r3_d256_final.json` (cluster 12333) and
   `full_tp1_b8_8k128k_r3_d256_final.json` (cluster 12331).
+- Cycle-accounted full speed:
+  `full_tp1_b1_8k128k_r3_d256_cycles.json` (cluster 12369) and
+  `full_tp1_b8_8k128k_r3_d256_cycles.json` (cluster 12375).
 - LOD speed: `lod3_top4_tp1_b1_8k128k_r3_d256_final.json` (cluster 12351),
   `lod3_top4_tp1_b8_8k128k_r3_d256_final.json` for B8 8K/16K (cluster 12352),
   `lod3_top4_rows64_tp1_b8_8k64k_r3_d256_final.json` for B8 32K/64K
   (cluster 12356), and
   `lod3_top3_rows64_tp1_b8_128k_r3_d256_final.json` (cluster 12360).
+- Cycle-accounted LOD speed:
+  `lod3_top4_tp1_b1_8k128k_r3_d256_cycles.json` (cluster 12374),
+  `lod3_top4_tp1_b8_8k16k_r3_d256_cycles.json` (cluster 12377),
+  `lod3_top4_rows64_tp1_b8_32k64k_r3_d256_cycles.json` (cluster 12378), and
+  `lod3_top3_rows64_tp1_b8_128k_r3_d256_cycles.json` (cluster 12379).
 - Full NIAH-S3: `full_tp1_b8_niah8_8k128k.json` (cluster 12319).
 - Selected LOD NIAH-S3: `lod3_top4_tp1_b8_niah8_8k128k_final.json` for 8K and
   16K (cluster 12349), `lod3_top4_rows64_tp1_b8_niah8_32k64k.json` for 32K and

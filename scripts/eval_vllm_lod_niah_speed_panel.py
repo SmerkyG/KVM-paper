@@ -37,6 +37,77 @@ from eval_vllm_lod_quality import (
 from vllm_engine_lifecycle import register_llm_shutdown, shutdown_registered_llms
 
 
+class _TargetCycleStatLogger:
+    """Count target/verifier scheduler launches without touching GPU graphs.
+
+    vLLM's speculative counters expose active request rows, but a batched
+    verifier launch may contain several such rows.  ``record`` is invoked once
+    per scheduler iteration, and ``spec_decoding_stats`` is present exactly on
+    iterations that verify drafts.  Keeping both quantities lets the speed
+    panel report a wall-time-per-launch metric for full and custom attention
+    with the same denominator while also recording the changing active-row
+    mix.
+    """
+
+    def __init__(self) -> None:
+        self.reset()
+
+    def reset(self) -> None:
+        self.target_cycles = 0
+        self.active_row_cycles = 0
+        self.draft_tokens = 0
+        self.accepted_tokens = 0
+
+    def snapshot(self) -> tuple[int, int, int, int]:
+        return (
+            self.target_cycles,
+            self.active_row_cycles,
+            self.draft_tokens,
+            self.accepted_tokens,
+        )
+
+    def record(
+        self,
+        scheduler_stats,
+        iteration_stats,
+        mm_cache_stats=None,
+        engine_idx: int = 0,
+    ) -> None:
+        del iteration_stats, mm_cache_stats, engine_idx
+        stats = (
+            getattr(scheduler_stats, "spec_decoding_stats", None)
+            if scheduler_stats is not None
+            else None
+        )
+        if stats is None or int(stats.num_drafts) <= 0:
+            return
+        self.target_cycles += 1
+        self.active_row_cycles += int(stats.num_drafts)
+        self.draft_tokens += int(stats.num_draft_tokens)
+        self.accepted_tokens += int(stats.num_accepted_tokens)
+
+    def log(self) -> None:
+        pass
+
+    def log_engine_initialized(self) -> None:
+        pass
+
+    def record_sleep_state(self, is_awake: int, level: int) -> None:
+        del is_awake, level
+
+
+def install_target_cycle_stat_logger(llm) -> _TargetCycleStatLogger:
+    """Attach a frontend-only scheduler counter to an offline vLLM engine."""
+
+    manager = getattr(llm.llm_engine, "logger_manager", None)
+    if manager is None:
+        raise RuntimeError("target-cycle accounting requires vLLM stat logging")
+    logger = _TargetCycleStatLogger()
+    manager.stat_loggers.append(logger)
+    llm._target_cycle_stat_logger = logger
+    return logger
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkpoint", required=True)
@@ -439,6 +510,8 @@ def evaluate_speed(args, tokenizer, llm, length: int) -> dict:
         # attention dispatch in their cache key.  Reset device-written markers
         # after warmup so the measured call proves which decode graph ran.
         llm.apply_model(reset_lod_decode_execution_markers)
+    target_cycle_logger = llm._target_cycle_stat_logger
+    target_cycle_logger.reset()
     if args.profile_lod_phases:
         installed = llm.apply_model(install_lod_phase_timers)
         if not installed or not all(value > 0 for value in installed):
@@ -456,6 +529,10 @@ def evaluate_speed(args, tokenizer, llm, length: int) -> dict:
     prefills = []
     decodes = []
     totals = []
+    scheduler_target_cycles = []
+    active_row_cycles = []
+    draft_tokens = []
+    accepted_tokens = []
     for _ in range(args.speed_repeats):
         # Keep the ordinary speed result a cold-prefill measurement even when
         # the separate repeated-prefix probe above is enabled.
@@ -465,12 +542,21 @@ def evaluate_speed(args, tokenizer, llm, length: int) -> dict:
             and not llm.reset_prefix_cache()
         ):
             raise RuntimeError("vLLM refused to reset an idle prefix cache")
+        before = target_cycle_logger.snapshot()
         elapsed, prefill_elapsed, decode_elapsed = timed_generate(
             llm, prompts, params
         )
+        after = target_cycle_logger.snapshot()
         totals.append(elapsed)
         prefills.append(prefill_elapsed)
         decodes.append(decode_elapsed)
+        deltas = tuple(
+            end - begin for begin, end in zip(before, after, strict=True)
+        )
+        scheduler_target_cycles.append(deltas[0])
+        active_row_cycles.append(deltas[1])
+        draft_tokens.append(deltas[2])
+        accepted_tokens.append(deltas[3])
     if args.torch_profile_dir is not None:
         llm.stop_profile()
     prompt_tokens = prompt_length * args.batch_size
@@ -491,8 +577,18 @@ def evaluate_speed(args, tokenizer, llm, length: int) -> dict:
         "prefill_timings_seconds": prefills,
         "decode_timings_seconds": decodes,
         "total_timings_seconds": totals,
+        "speculative_target_cycles_per_repeat": scheduler_target_cycles,
+        "speculative_active_row_cycles_per_repeat": active_row_cycles,
+        "speculative_draft_tokens_per_repeat": draft_tokens,
+        "speculative_accepted_tokens_per_repeat": accepted_tokens,
         "prompt_corpus": prompt_corpus,
     }
+    total_target_cycles = sum(scheduler_target_cycles)
+    result["speculative_marginal_ms_per_target_cycle"] = (
+        1000.0 * sum(decodes) / total_target_cycles
+        if total_target_cycles > 0
+        else None
+    )
     if prefix_probe is not None:
         result["prefix_cache_probe"] = prefix_probe
     if args.mode == "lod":
@@ -560,13 +656,14 @@ def evaluate_speed(args, tokenizer, llm, length: int) -> dict:
             if target_cycles > 0
             else None
         )
-        speculative_target_cycles = max(
+        lod_execution_target_cycles = max(
             execution_audit["speculative_parallel_execution_counts"],
             default=0,
         )
-        result["speculative_marginal_ms_per_target_cycle"] = (
-            1000.0 * sum(decodes) / speculative_target_cycles
-            if speculative_target_cycles > 0
+        result["lod_execution_target_cycles"] = lod_execution_target_cycles
+        result["lod_execution_marginal_ms_per_target_cycle"] = (
+            1000.0 * sum(decodes) / lod_execution_target_cycles
+            if lod_execution_target_cycles > 0
             else None
         )
         if (
@@ -786,6 +883,7 @@ def main() -> None:
     elif args.full_attention_backend:
         kwargs["attention_config"] = {"backend": args.full_attention_backend}
     llm = register_llm_shutdown(LLM(**kwargs))
+    install_target_cycle_stat_logger(llm)
     if args.mode == "lod" and any(
         value is not None
         for value in (
