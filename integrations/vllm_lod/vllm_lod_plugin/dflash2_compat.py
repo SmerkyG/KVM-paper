@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-"""DFlash2 support for the vLLM revision used by the LOD benchmarks.
+"""DFlash and DFlash2 support for the vLLM revision used by the LOD benchmarks.
 
 The benchmark environment already contains vLLM's DFlash model runner, but it
-predates the small DFlash2 model and path-selector additions.  Keep the
-compatibility code in the plugin so full-attention and CUSTOM-attention runs
-load exactly the same drafter without modifying the installed vLLM package.
+predates the Gemma4 fixes and the small DFlash2 model/path-selector additions.
+Keep the compatibility code in the plugin so full-attention and CUSTOM-attention
+runs load exactly the same drafter without modifying the installed vLLM package.
 """
 
 from __future__ import annotations
@@ -324,6 +324,209 @@ class DFlash2Qwen3ForCausalLM(DFlashQwen3ForCausalLM):
         return ids, values
 
 
+class DFlashGemmaCompatQwen3Model(DFlashQwen3Model):
+    """Original DFlash draft model with Gemma4 target embedding semantics."""
+
+    def __init__(
+        self,
+        *,
+        vllm_config: VllmConfig,
+        start_layer_id: int = 0,
+        prefix: str = "",
+    ) -> None:
+        super().__init__(
+            vllm_config=vllm_config,
+            start_layer_id=start_layer_id,
+            prefix=prefix,
+        )
+        target_config = vllm_config.model_config.hf_text_config
+        self.input_embedding_scale = (
+            float(target_config.hidden_size) ** 0.5
+            if str(getattr(target_config, "model_type", "")).startswith("gemma4")
+            else 1.0
+        )
+        # DFlash operates on text/query tokens whose context K/V is prewritten.
+        # It must not inherit the Gemma4 target's multimodal-prefix masking.
+        for layer in self.layers:
+            layer.self_attn.attn.use_mm_prefix = False
+
+    def embed_input_ids(self, input_ids: torch.Tensor) -> torch.Tensor:
+        return super().embed_input_ids(input_ids) * self.input_embedding_scale
+
+
+class DFlashGemmaCompatForCausalLM(DFlashQwen3ForCausalLM):
+    """Original DFlash head with Gemma4 normalization and logit soft-capping."""
+
+    def __init__(self, *, vllm_config: VllmConfig, prefix: str = "") -> None:
+        previous = _dflash_model.DFlashQwen3Model
+        _dflash_model.DFlashQwen3Model = DFlashGemmaCompatQwen3Model
+        try:
+            super().__init__(vllm_config=vllm_config, prefix=prefix)
+        finally:
+            _dflash_model.DFlashQwen3Model = previous
+        softcap = float(getattr(self.config, "final_logit_softcapping", 0.0) or 0.0)
+        self.logits_processor = LogitsProcessor(
+            self.config.draft_vocab_size,
+            scale=float(getattr(self.config, "logit_scale", 1.0)),
+            soft_cap=softcap if softcap > 0 else None,
+        )
+
+
+@triton.jit
+def _prepare_dflash_inputs_gemma_compat_kernel(
+    out_input_ids_ptr,
+    out_query_positions_ptr,
+    out_query_start_loc_ptr,
+    out_seq_lens_ptr,
+    out_query_slot_mapping_ptr,
+    out_context_positions_ptr,
+    out_context_slot_mapping_ptr,
+    out_sample_indices_ptr,
+    out_sample_pos_ptr,
+    out_sample_idx_mapping_ptr,
+    out_temperature_ptr,
+    out_seeds_ptr,
+    target_positions_ptr,
+    target_query_start_loc_ptr,
+    idx_mapping_ptr,
+    last_sampled_ptr,
+    next_prefill_tokens_ptr,
+    num_sampled_ptr,
+    num_rejected_ptr,
+    temperature_ptr,
+    seeds_ptr,
+    block_table_ptr,
+    block_table_stride,
+    parallel_drafting_token_id,
+    block_size,
+    num_query_per_req,
+    num_speculative_steps,
+    max_num_reqs,
+    max_num_tokens,
+    max_model_len,
+    SAMPLE_FROM_ANCHOR: tl.constexpr,
+    PAD_SLOT_ID: tl.constexpr,
+    BLOCK_SIZE: tl.constexpr,
+):
+    """Prepare compact DFlash rows without retaining rejected target suffixes."""
+    req_idx = tl.program_id(0)
+    block_idx = tl.program_id(1)
+    num_reqs = tl.num_programs(0)
+    req_state_idx = tl.load(idx_mapping_ptr + req_idx)
+
+    ctx_start = tl.load(target_query_start_loc_ptr + req_idx)
+    ctx_end = tl.load(target_query_start_loc_ptr + req_idx + 1)
+    num_ctx = ctx_end - ctx_start
+    num_rejected = tl.load(num_rejected_ptr + req_idx)
+    valid_ctx_end = ctx_end - num_rejected
+    num_valid_ctx = valid_ctx_end - ctx_start
+
+    num_sampled = tl.load(num_sampled_ptr + req_idx)
+    if num_sampled > 0:
+        bonus_token = tl.load(last_sampled_ptr + req_state_idx).to(tl.int32)
+    else:
+        bonus_token = tl.load(next_prefill_tokens_ptr + req_state_idx).to(tl.int32)
+
+    # A fully rejected target row can occur during batch verification.  Use
+    # the scheduled row's first position as the next-position anchor then.
+    fallback_last_pos = tl.load(target_positions_ptr + ctx_start) - 1
+    last_valid_pos_idx = tl.maximum(valid_ctx_end - 1, ctx_start)
+    last_valid_pos = tl.load(
+        target_positions_ptr + last_valid_pos_idx,
+        mask=num_valid_ctx > 0,
+        other=fallback_last_pos,
+    )
+    query_base = req_idx * num_query_per_req
+
+    j = block_idx * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
+    is_ctx = j < num_ctx
+    is_valid_ctx = j < num_valid_ctx
+    is_query = (j >= num_ctx) & (j < num_ctx + num_query_per_req)
+    query_off = j - num_ctx
+
+    ctx_pos_idx = ctx_start + tl.where(is_valid_ctx, j, 0)
+    ctx_pos = tl.load(target_positions_ptr + ctx_pos_idx, mask=is_valid_ctx, other=0)
+    ctx_block_num = tl.minimum(ctx_pos // block_size, block_table_stride - 1)
+    ctx_block_id = tl.load(
+        block_table_ptr + req_idx * block_table_stride + ctx_block_num,
+        mask=is_valid_ctx,
+        other=0,
+    ).to(tl.int64)
+    ctx_slot = ctx_block_id * block_size + (ctx_pos % block_size)
+    tl.store(
+        out_context_positions_ptr + ctx_start + j,
+        tl.where(is_valid_ctx, ctx_pos, 0),
+        mask=is_ctx,
+    )
+    tl.store(
+        out_context_slot_mapping_ptr + ctx_start + j,
+        tl.where(is_valid_ctx, ctx_slot, PAD_SLOT_ID),
+        mask=is_ctx,
+    )
+
+    query_pos = last_valid_pos + 1 + query_off
+    query_idx = query_base + query_off
+    is_bonus = is_query & (query_off == 0)
+    input_id = tl.where(is_bonus, bonus_token, parallel_drafting_token_id)
+    q_block_num = tl.minimum(query_pos // block_size, block_table_stride - 1)
+    q_block_id = tl.load(
+        block_table_ptr + req_idx * block_table_stride + q_block_num,
+        mask=is_query,
+        other=0,
+    ).to(tl.int64)
+    q_slot = q_block_id * block_size + (query_pos % block_size)
+    tl.store(out_input_ids_ptr + query_idx, input_id, mask=is_query)
+    tl.store(
+        out_query_positions_ptr + query_idx,
+        tl.minimum(query_pos, max_model_len - 1),
+        mask=is_query,
+    )
+    tl.store(out_query_slot_mapping_ptr + query_idx, q_slot, mask=is_query)
+
+    sample_off = 0 if SAMPLE_FROM_ANCHOR else 1
+    is_sample = is_query & (query_off >= sample_off)
+    sample_idx = req_idx * num_speculative_steps + (query_off - sample_off)
+    sample_pos = query_pos + 1 if SAMPLE_FROM_ANCHOR else query_pos
+    tl.store(out_sample_indices_ptr + sample_idx, query_idx, mask=is_sample)
+    tl.store(out_sample_pos_ptr + sample_idx, sample_pos, mask=is_sample)
+    tl.store(out_sample_idx_mapping_ptr + sample_idx, req_state_idx, mask=is_sample)
+
+    if block_idx == 0:
+        tl.store(out_query_start_loc_ptr + req_idx, query_base)
+        tl.store(
+            out_seq_lens_ptr + req_idx,
+            tl.minimum(last_valid_pos + 1 + num_query_per_req, max_model_len),
+        )
+        tl.store(
+            out_temperature_ptr + req_state_idx,
+            tl.load(temperature_ptr + req_state_idx),
+        )
+        tl.store(out_seeds_ptr + req_state_idx, tl.load(seeds_ptr + req_state_idx))
+        if req_idx == num_reqs - 1:
+            last_query_end = num_reqs * num_query_per_req
+            for i in range(num_reqs, max_num_reqs + 1, BLOCK_SIZE):
+                block = i + tl.arange(0, BLOCK_SIZE)
+                mask = block < max_num_reqs + 1
+                tl.store(out_query_start_loc_ptr + block, last_query_end, mask=mask)
+            for i in range(num_reqs, max_num_reqs, BLOCK_SIZE):
+                block = i + tl.arange(0, BLOCK_SIZE)
+                mask = block < max_num_reqs
+                tl.store(out_seq_lens_ptr + block, 0, mask=mask)
+            pad_start = num_reqs * num_speculative_steps
+            pad_end = max_num_reqs * num_speculative_steps
+            for i in range(pad_start, pad_end, BLOCK_SIZE):
+                block = i + tl.arange(0, BLOCK_SIZE)
+                mask = block < pad_end
+                tl.store(out_sample_indices_ptr + block, 0, mask=mask)
+                tl.store(out_sample_pos_ptr + block, 0, mask=mask)
+                tl.store(out_sample_idx_mapping_ptr + block, -1, mask=mask)
+            q_pad_start = num_reqs * num_query_per_req
+            for i in range(q_pad_start, max_num_tokens, BLOCK_SIZE):
+                block = i + tl.arange(0, BLOCK_SIZE)
+                mask = block < max_num_tokens
+                tl.store(out_query_slot_mapping_ptr + block, PAD_SLOT_ID, mask=mask)
+
+
 _TL_RAND_MIN = tl.constexpr(4.6566127342e-10) if HAS_TRITON else 4.6566127342e-10
 _DRAFT_NOISE_SALT = tl.constexpr(1 << 30) if HAS_TRITON else (1 << 30)
 
@@ -554,13 +757,26 @@ def _is_dflash2(vllm_config: VllmConfig) -> bool:
 
 
 def register_dflash2_compat() -> None:
-    """Register the model and select its path-aware speculator, idempotently."""
+    """Register compatible DFlash models/speculators, idempotently."""
     from vllm import ModelRegistry
     from vllm.v1.worker.gpu import spec_decode
 
     ModelRegistry.register_model(
+        "DFlashDraftModel",
+        "vllm_lod_plugin.dflash2_compat:DFlashGemmaCompatForCausalLM",
+    )
+    ModelRegistry.register_model(
         "DFlash2DraftModel",
         "vllm_lod_plugin.dflash2_compat:DFlash2Qwen3ForCausalLM",
+    )
+    # The pinned V2 runner writes rejected target tokens back into the draft
+    # cache and does not handle a fully rejected row safely. Replace only the
+    # Triton preparation kernel; the surrounding speculator and fixed buffer
+    # layout stay unchanged.
+    from vllm.v1.worker.gpu.spec_decode.dflash import speculator as dflash_speculator
+
+    dflash_speculator._prepare_dflash_inputs_kernel = (
+        _prepare_dflash_inputs_gemma_compat_kernel
     )
     if getattr(spec_decode, "_vllm_lod_dflash2_installed", False):
         return
@@ -585,6 +801,7 @@ def register_dflash2_compat() -> None:
 EntryClass = DFlash2Qwen3ForCausalLM
 
 __all__ = [
+    "DFlashGemmaCompatForCausalLM",
     "DFlash2Qwen3ForCausalLM",
     "DFlash2Speculator",
     "register_dflash2_compat",

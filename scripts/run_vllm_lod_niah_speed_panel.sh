@@ -17,7 +17,13 @@ if [[ -z "$speed_prompt_reserve" ]]; then
   # OLMo advertises exactly 64K positions, so its 64K panel must leave room
   # for the 64 generated timing tokens. Other panel checkpoints either have a
   # larger advertised limit or already use an explicit override.
-  if [[ "$checkpoint" == allenai/Olmo-* ]]; then
+  if [[ "$checkpoint" == google/gemma-4-* ]]; then
+    # Gemma DFlash may finish the last accepted speculative block slightly
+    # beyond the requested output count. Keep the established panel's 256
+    # prompt-token reserve so the verifier never becomes ragged at the model
+    # boundary (for example, a final 6-position block instead of 16).
+    speed_prompt_reserve=256
+  elif [[ "$checkpoint" == allenai/Olmo-* ]]; then
     speed_prompt_reserve=64
   else
     speed_prompt_reserve=0
@@ -194,6 +200,14 @@ if [[ "$mode" == lod ]]; then
     VLLM_LOD_PREFILL_LOCAL_WINDOW="${VLLM_LOD_PANEL_PREFILL_LOCAL_WINDOW:-4864}"
     VLLM_LOD_PREFILL_STATE_UPDATE_SIZE="${VLLM_LOD_PANEL_PREFILL_STATE_UPDATE_SIZE:-4096}"
   )
+  if [[ "$checkpoint" == google/gemma-4-* ]] &&
+      [[ "${VLLM_LOD_PANEL_SPECULATIVE_MODEL:-}" == *gemma-4-*DFlash* ]] &&
+      [[ -z "${VLLM_LOD_PREFILL_OPEN_COUNT:-}" ]]; then
+    # Gemma's D=512 global layers need one more prefill route than the Qwen
+    # speculative default to keep the exact verifier on the full-attention NIAH
+    # baseline. Explicit experiment overrides still take precedence.
+    common_env+=(VLLM_LOD_PREFILL_OPEN_COUNT=4)
+  fi
 fi
 
 exec env "${common_env[@]}" "$vllm_root/bin/python" "${args[@]}"

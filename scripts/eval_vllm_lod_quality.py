@@ -316,6 +316,7 @@ def make_llm(args: argparse.Namespace):
 
 def inspect_lod_model(model) -> dict[str, object]:
     """Run in the vLLM worker and prove that LOD pools are attached."""
+    diagnostic_rows = int(os.getenv("VLLM_LOD_PANEL_BATCH_SIZE", "1"))
     custom_layers = []
     eligible_layers = []
     pooled_layers = []
@@ -440,12 +441,13 @@ def inspect_lod_model(model) -> dict[str, object]:
                 bool(
                     speculative_steps >= 2
                     and pool._shared_speculative_route_eligible(
-                        speculative_steps
+                        speculative_steps, diagnostic_rows
                     )
                 )
             )
             shared_route_executed = False
             shared_local_executed = False
+            # Include smaller row signatures reached as this batch drains.
             for staging in pool.speculative_decode_buffers.values():
                 speculative_buffers = staging.get("decode_buffers")
                 if not isinstance(speculative_buffers, dict):
@@ -480,7 +482,7 @@ def inspect_lod_model(model) -> dict[str, object]:
                 bool(
                     speculative_steps >= 2
                     and pool._shared_speculative_local_eligible(
-                        speculative_steps
+                        speculative_steps, diagnostic_rows
                     )
                 )
             )

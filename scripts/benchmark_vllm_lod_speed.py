@@ -182,6 +182,7 @@ def timed_generate(
 def inspect_lod_model(model) -> dict[str, object]:
     import torch
 
+    diagnostic_rows = int(os.getenv("VLLM_LOD_PANEL_BATCH_SIZE", "1"))
     diagnostics = {
         "layers": 0,
         "installs": 0,
@@ -330,10 +331,15 @@ def inspect_lod_model(model) -> dict[str, object]:
         parallel_execution_count = 0
         shared_route_configured = bool(
             speculative_steps >= 2
-            and pool._shared_speculative_route_eligible(speculative_steps)
+            and pool._shared_speculative_route_eligible(
+                speculative_steps, diagnostic_rows
+            )
         )
         shared_route_executed = False
         shared_local_executed = False
+        # A batch can shrink as requests finish at different speculative
+        # cycles. Markers were reset after graph warmup, so aggregate every
+        # row signature that actually executed during the measured calls.
         for staging in pool.speculative_decode_buffers.values():
             decode_buffers = staging.get("decode_buffers")
             if not isinstance(decode_buffers, dict):
@@ -376,7 +382,9 @@ def inspect_lod_model(model) -> dict[str, object]:
         diagnostics["speculative_shared_local_configured"].append(
             bool(
                 speculative_steps >= 2
-                and pool._shared_speculative_local_eligible(speculative_steps)
+                and pool._shared_speculative_local_eligible(
+                    speculative_steps, diagnostic_rows
+                )
             )
         )
         diagnostics["speculative_shared_local_executed"].append(

@@ -110,7 +110,23 @@ def cache_namespace(cache_dir: str | os.PathLike[str] | None, cache_id: str) -> 
         raise ValueError(
             "Weight-cache id must contain only letters, digits, '.', '_', and '-'"
         )
-    return root / cache_id
+    # Linux sockaddr_un normally leaves only 107 pathname bytes.  The shard
+    # filename already uses a digest, but a descriptive experiment cache id can
+    # still make the parent directory overflow that limit. Preserve short ids
+    # verbatim and compact only ids that would leave less than a small safety
+    # margin for ``gpu-<digest>.sock``.
+    shard_name_bytes = len("gpu-" + "0" * 24 + ".sock")
+    component_budget = 100 - len(os.fsencode(str(root))) - 2 - shard_name_bytes
+    if component_budget < 17:
+        raise ValueError(
+            "Weight-cache directory is too long for Unix-domain shard sockets"
+        )
+    component = cache_id
+    if len(os.fsencode(component)) > component_budget:
+        digest = hashlib.sha256(cache_id.encode()).hexdigest()[:16]
+        prefix_budget = component_budget - len(digest) - 1
+        component = f"{cache_id[:prefix_budget]}-{digest}"
+    return root / component
 
 
 def control_socket_path(

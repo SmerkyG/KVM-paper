@@ -680,7 +680,22 @@ class VLLMLODRuntime:
             if not all(pool.ready[lod_row] for pool in self.pools.values()):
                 return False
             if any(total < previous_length for total in totals):
-                return False
+                # Mixed prefill/decode scheduling can run an accepted target
+                # prefix through the captured LOD append before this host-side
+                # bookkeeping row is visited again.  The device-local exact
+                # suffix is authoritative in that case, just as it is for the
+                # ordinary one-token catch-up path.  Accept the lag only when
+                # every layer proves that the required exact K/V already
+                # exists; the uncommon recovery sync avoids treating a truly
+                # missing semantic prefix as a valid speculative row.
+                for pool in self.pools.values():
+                    coverage = int(pool.metadata[lod_row]["coverage"])
+                    required_recent = previous_length - coverage
+                    if not 0 <= required_recent <= pool.local_capacity:
+                        return False
+                    actual_recent = int(pool.local_lens[lod_row].item())
+                    if actual_recent < required_recent:
+                        return False
             if any(total > previous_length for total in totals):
                 for pool in self.pools.values():
                     pool.restore_prefix(lod_row, previous_length)

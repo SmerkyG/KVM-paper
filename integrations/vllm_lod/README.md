@@ -858,11 +858,41 @@ profiles is therefore the one- versus four-warp prefill leaf-route reduction.
   than once per token.
 - Sliding-window, encoder, ALiBi, attention-sink, soft-capped, quantized-native
   KV, and DCP paths remain native or are rejected when a lossless fallback is
-  not available. DFlash2 speculative decode is supported: its draft cache stays
-  native, while target verification appends proposed tokens to LOD and restores
-  the scheduler's committed prefix before the next proposal when necessary.
+  not available. DFlash and DFlash2 speculative decode are supported: their
+  draft caches stay native, while target verification appends proposed tokens
+  to LOD and restores the scheduler's committed prefix before the next proposal
+  when necessary.
   Tensor parallelism and hybrid recurrent layers do not alter the per-layer
   LOD contract.
+
+### Original DFlash on Gemma 4
+
+The public `z-lab/gemma-4-26B-A4B-it-DFlash` checkpoint is the original
+16-position DFlash design (one anchor plus 15 proposed tokens), not DFlash2.
+The plugin registers its `DFlashDraftModel` on the pinned vLLM revision and
+retains Gemma's target embedding scale and final-logit soft cap.  Draft layers
+do not inherit the target's multimodal-prefix mask.  The input-preparation
+kernel masks rejected target suffixes out of the draft cache and handles a
+fully rejected row without reading an invalid last context position.
+
+Recursive target verification stages all 16 proposal positions together. The
+conservative D=512 default bounds one routing/attention launch to 32 flattened
+rows, so B1 stays one parallel launch while B8 uses four four-position chunks,
+rather than 16 serial target calls. Individually validated 32K, 64K, and 128K
+B8 profiles raise that bound to 64 rows and use two eight-position chunks.
+Every position still receives its own current route and causal recent length;
+routes are neither shared across chunks nor lagged. The panel wrapper defaults
+Gemma DFlash to prefill top four and decode top eight. The validated 128K
+high-throughput profile explicitly uses prefill top three; a mid-prompt
+top-four-to-top-three switch was rejected because it scored 7/8 on NIAH-S3
+even though either fixed profile scored 8/8. Complete TP1 B1/B8 speed and
+NIAH-S3 results are recorded in
+`artifacts/gemma_dflash_20260901/README.md`.
+At B8, the selected LOD profiles reduce prefill from 40.135 to 22.839 seconds
+at 64K (1.76x) and from 138.830 to 46.109 seconds at 128K (3.01x). Their
+end-to-end speculative decode results are 10.773 versus 41.769 ms at 64K and
+12.655 versus 55.819 ms at 128K, though those ratios include acceptance
+trajectory; the LOD target cycle is a steadier 25.972/25.351 ms.
 
 ### DFlash2 on the pinned vLLM revision
 

@@ -250,6 +250,13 @@ def make_speed_prompts(
 def allow_heterogeneous_global_config(config):
     """Expose Gemma-4's nested text model as a heterogeneous causal LM."""
     text_config = getattr(config, "text_config", config)
+    # vLLM applies the target's ``hf_overrides`` callback while constructing a
+    # speculative draft config too.  A DFlash drafter is a Qwen-shaped model
+    # with its own mixed layer_types; rewriting that config as Gemma4 changes
+    # its registered architecture to ``DFlashGemma4ForCausalLM`` and prevents
+    # the real ``DFlashDraftModel`` implementation from loading.
+    if not str(getattr(text_config, "model_type", "")).startswith("gemma4"):
+        return config
     # vLLM probes hf_overrides once with a skeletal PreTrainedConfig merely to
     # discover whether the override changes model_type.
     if not hasattr(text_config, "layer_types"):
@@ -842,6 +849,7 @@ def main() -> None:
         "disable_thinking": args.disable_thinking,
         "max_num_batched_tokens": max_num_batched_tokens,
         "long_prefill_token_threshold": long_prefill_token_threshold,
+        "gpu_memory_utilization": args.gpu_memory_utilization,
         "tensor_parallel_size": args.tensor_parallel_size,
         "disable_custom_all_reduce": args.disable_custom_all_reduce,
         "enable_prefix_caching": args.enable_prefix_caching,

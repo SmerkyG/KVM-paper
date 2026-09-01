@@ -2819,11 +2819,13 @@ class VLLMLayerLODPool:
         }
         if self._parallel_speculative_decode_eligible(steps):
             total_rows = rows * steps
+            parallel_steps = self._parallel_speculative_chunk_steps(steps, rows)
+            parallel_rows = rows * parallel_steps
             speculative_route_backend = (
                 self._speculative_recursive_state_route_backend()
             )
             template = torch.empty(
-                total_rows,
+                parallel_rows,
                 self.query_heads,
                 1,
                 self.head_dim,
@@ -2920,7 +2922,7 @@ class VLLMLayerLODPool:
                 if bool(self.engine.recursive_materialize_page_scores):
                     staging["decode_buffers"]["recursive_page_scores"] = (
                         torch.empty(
-                            total_rows,
+                            parallel_rows,
                             self.query_heads,
                             1,
                             self.page_capacity,
@@ -2934,7 +2936,7 @@ class VLLMLayerLODPool:
                 ):
                     staging["decode_buffers"]["wide_gqa_local_scores"] = (
                         torch.empty(
-                            total_rows,
+                            parallel_rows,
                             self.query_heads,
                             int(self.engine.local_len) + 1,
                             dtype=torch.float32,
@@ -2957,6 +2959,37 @@ class VLLMLayerLODPool:
                 torch.zeros(1, dtype=torch.int32, device=self.device)
             )
         self.speculative_decode_buffers[signature] = staging
+
+    def _parallel_speculative_chunk_steps(
+        self, steps: int, rows: int = 1
+    ) -> int:
+        """Bound one recursive flattened verifier launch to a tested depth.
+
+        Original Gemma DFlash supplies sixteen positions. B1 therefore stays
+        one launch, while the conservative D=512 B8 default consumes the
+        immutable remote state in four four-position chunks rather than
+        falling back to sixteen serial verifier calls. All proposal K/V remains
+        staged at once. Narrower Qwen DFlash2 retains its validated 64-row
+        bound; Gemma can opt into that bound for individually validated
+        high-throughput profiles.
+        """
+        if self.settings.levels != 3:
+            return steps
+        default_maximum_rows = 32 if self.head_dim >= 512 else 64
+        maximum_rows = int(
+            os.getenv(
+                "VLLM_LOD_SPECULATIVE_PARALLEL_MAX_ROWS",
+                str(default_maximum_rows),
+            )
+        )
+        if maximum_rows < 1:
+            raise ValueError(
+                "VLLM_LOD_SPECULATIVE_PARALLEL_MAX_ROWS must be positive"
+            )
+        maximum = min(steps, max(1, maximum_rows // rows))
+        while steps % maximum:
+            maximum -= 1
+        return maximum
 
     def _parallel_speculative_decode_eligible(self, steps: int) -> bool:
         """Whether one flattened launch can verify all proposal positions."""
@@ -3024,10 +3057,13 @@ class VLLMLayerLODPool:
             != "0"
         )
 
-    def _shared_speculative_route_eligible(self, steps: int) -> bool:
+    def _shared_speculative_route_eligible(
+        self, steps: int, rows: int = 1
+    ) -> bool:
         """Whether proposal positions fit pairwise native grouped route tiles."""
         return bool(
             self._parallel_speculative_decode_eligible(steps)
+            and self._parallel_speculative_chunk_steps(steps, rows) == steps
             and steps % 2 == 0
             and os.getenv("VLLM_LOD_SPECULATIVE_SHARED_ROUTE", "1") != "0"
             and bool(self.engine.decode_route_gqa_grouped)
@@ -3049,10 +3085,12 @@ class VLLMLayerLODPool:
             and self.request_capacity >= 32768
         )
 
-    def _shared_speculative_local_eligible(self, steps: int) -> bool:
+    def _shared_speculative_local_eligible(
+        self, steps: int, rows: int = 1
+    ) -> bool:
         """Whether pairwise routing can also absorb causal local attention."""
         return bool(
-            self._shared_speculative_route_eligible(steps)
+            self._shared_speculative_route_eligible(steps, rows)
             and os.getenv("VLLM_LOD_SPECULATIVE_SHARED_LOCAL", "1") != "0"
             and os.getenv("VLLM_LOD_SPECULATIVE_FUSE_LOCAL_ROUTE", "1") != "0"
             # Fixed-mask page-size-one attention already consumes the causal
@@ -3140,33 +3178,39 @@ class VLLMLayerLODPool:
                 steps=steps,
             )
 
-            class _ParallelMetadata:
-                num_actual_tokens = rows * steps
+            parallel_steps = self._parallel_speculative_chunk_steps(steps, rows)
 
-            self.decode(
-                flat_q,
-                flat_k,
-                flat_v,
-                _ParallelMetadata(),
-                flat_out,
-                cache_indices=staging["cache_indices"],
-                local_lens=staging["local_lens"],
-                decode_buffers=staging["decode_buffers"],
-                local_lens_are_logical=True,
-                store_new_kv=False,
-                advance_local_lens=False,
-                speculative_steps=(
-                    steps
-                    if (
-                        self._shared_speculative_route_eligible(steps)
-                        or self._speculative_fixed_mask_eligible(steps)
-                    )
-                    else 1
-                ),
-                recursive_state_route_backend=(
-                    self._speculative_recursive_state_route_backend()
-                ),
-            )
+            class _ParallelMetadata:
+                num_actual_tokens = rows * parallel_steps
+
+            for step_begin in range(0, steps, parallel_steps):
+                begin = step_begin * rows
+                end = begin + parallel_steps * rows
+                self.decode(
+                    flat_q[begin:end],
+                    flat_k[begin:end],
+                    flat_v[begin:end],
+                    _ParallelMetadata(),
+                    flat_out[begin:end],
+                    cache_indices=staging["cache_indices"][begin:end],
+                    local_lens=staging["local_lens"][begin:end],
+                    decode_buffers=staging["decode_buffers"],
+                    local_lens_are_logical=True,
+                    store_new_kv=False,
+                    advance_local_lens=False,
+                    speculative_steps=(
+                        steps
+                        if parallel_steps == steps
+                        and (
+                            self._shared_speculative_route_eligible(steps, rows)
+                            or self._speculative_fixed_mask_eligible(steps)
+                        )
+                        else 1
+                    ),
+                    recursive_state_route_backend=(
+                        self._speculative_recursive_state_route_backend()
+                    ),
+                )
             advance_decode_cache_lengths(
                 self.active_indices[:rows], self.local_lens, increment=steps
             )
