@@ -970,6 +970,17 @@ on NIAH-S3 at 64K and 128K.
 The complete protocol and raw records are in
 `artifacts/dflash2_three_tier_tp4_20260831/README.md`.
 
+The final post-optimization three-repeat matrix retests three-tier BF16 at
+TP1/TP4 and B1/B8 over 8--128K.  Target-verifier cycles are 39.33--40.56 ms
+at TP1/B1, 50.22--57.15 ms at TP1/B8, 25.07--25.48 ms at TP4/B1, and
+30.33--32.25 ms at TP4/B8.  At 64K/128K this improves the previous recursive
+cycles by 3.6%/3.6%, 15.2%/14.5%, 3.8%/3.1%, and 5.2%/5.1%, respectively.
+Against hash-matched historical full-attention controls, current end-to-end
+LOD speedups are 1.51x/2.08x, 1.83x/2.56x, 1.10x/1.28x, and 1.40x/1.63x in
+the same geometry order.  The full prefill, decode, and cycle tables plus
+execution audits are in
+`artifacts/dflash2_three_tier_matrix_20260831/README.md`.
+
 On ROCm, multi-GPU DFlash graph capture must not run alongside PyTorch's
 ProcessGroupNCCL watchdog: its background HIP-event query is illegal during
 capture even when model collectives use vLLM's custom all-reduce.  The panel
