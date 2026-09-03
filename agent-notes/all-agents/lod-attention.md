@@ -1,6 +1,6 @@
 # Lod Attention
 
-Topic hints: Materialize TP QKV views before AITER GQA union
+Topic hints: Reuse query-normalized route logits for exact coarse attention
 
 ## Lessons
 
@@ -25,3 +25,5 @@ Topic hints: Materialize TP QKV views before AITER GQA union
 - For long-context speed sweeps on MoE models, use deterministic natural-text prompts such as concatenated 64K ProLong documents; repeating a short sentence can distort expert routing and make the timing unrepresentative.
 
 - In vLLM tensor-parallel LOD decode, per-rank Q/K/V head shards can be non-contiguous views; materialize them with contiguous() before the AITER GQA-union path, whose route and metadata kernels require dense tensors.
+
+- For query-only RMS-normalized LOD routing, recover raw coarse-attention dots by multiplying each route-logit row by that query's pre-normalization RMS inside the coarse kernel; this avoids both a second state QK scan and a state-sized temporary.
