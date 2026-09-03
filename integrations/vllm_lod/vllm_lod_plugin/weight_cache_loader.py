@@ -774,8 +774,10 @@ def register_weight_cache_loader() -> None:
 def register() -> None:
     """General-plugin entry point for weight-cache-only vLLM runs."""
     from .dflash2_compat import register_dflash2_compat
+    from .model_compat import register_k2_horizon
 
     register_dflash2_compat()
+    register_k2_horizon()
     register_weight_cache_loader()
 
 

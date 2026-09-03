@@ -289,6 +289,9 @@ def make_llm(args: argparse.Namespace):
 
     kwargs = {
         "model": args.checkpoint,
+        # Tokenizer construction already opts into checkpoint code above. Keep
+        # vLLM config loading consistent for architectures such as K2 Horizon.
+        "trust_remote_code": True,
         "load_format": os.getenv("VLLM_WEIGHT_CACHE_LOAD_FORMAT", "ipc_cache"),
         "dtype": "bfloat16",
         "max_model_len": args.length + args.max_new_tokens,

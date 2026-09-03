@@ -56,10 +56,24 @@ The current generic Hugging Face LOD path is compelling for decode but not for
 prefill: prefill is 2.26-3.15x slower than SDPA in this sweep. Its transient
 BF16 prefill working set is also large; batch 8 at 64K exceeded the 256 GiB
 device, so that matched row uses batch 4. These peak allocations are not a
-measurement of the vLLM INT4 persistent-cache implementation. This installed
-vLLM 0.27.1 build does not yet contain the new K2 Horizon architecture, so this
-panel intentionally compares the model through the model-independent HF
-backend.
+measurement of the vLLM INT4 persistent-cache implementation. The released
+vLLM 0.27.1 build does not contain K2 Horizon, so this historical panel used
+the model-independent HF backend. The vLLM LOD plugin now backports the
+upstream architecture on older vLLM releases and defers to native support when
+available.
+
+## vLLM backport validation
+
+The conditional backport was exercised with vLLM `0.27.1+rocm723`. Native
+attention resolved `K2HorizonForCausalLM` and scored 8/8 on the 8K NIAH-S3
+smoke panel. LOD installed its cache on all 28 attention layers, ran both
+direct prefill and decode, and scored 6/8 on the same panel. A retained-prefix
+test reused all 28 semantic cache rows on the second request without rebuilding
+the shared prefix. On a fixed 46-token prompt, native vLLM and Hugging Face
+produced mean cross-entropies of 3.20680 and 3.21104 respectively. The small
+NIAH panel is a compatibility smoke test rather than a new quality result; the
+historical Hugging Face results above remain the more complete matched
+comparison.
 
 The 8K and 16K timing files use a full 1,025-token warmup. The 32K and 64K
 records used a 257-token warmup but were retained because all three measured

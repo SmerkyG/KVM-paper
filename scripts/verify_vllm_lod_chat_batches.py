@@ -132,6 +132,7 @@ def main() -> None:
     ) + 3 * args.decode_tokens + 32
     llm_kwargs = dict(
         model=args.checkpoint,
+        trust_remote_code=True,
         load_format=os.getenv("VLLM_WEIGHT_CACHE_LOAD_FORMAT", "ipc_cache"),
         dtype="bfloat16",
         max_model_len=max_length,

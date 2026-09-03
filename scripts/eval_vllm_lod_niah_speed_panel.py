@@ -839,6 +839,9 @@ def main() -> None:
     )
     kwargs = {
         "model": args.checkpoint,
+        # The tokenizer is already loaded with trust_remote_code above; the
+        # model config must use the same policy for K2 Horizon checkpoints.
+        "trust_remote_code": True,
         "load_format": os.getenv("VLLM_WEIGHT_CACHE_LOAD_FORMAT", "ipc_cache"),
         "dtype": "bfloat16",
         "max_model_len": max_model_len,

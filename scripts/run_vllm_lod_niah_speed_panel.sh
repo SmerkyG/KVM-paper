@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 checkpoint=${1:?checkpoint required}
 mode=${2:?mode (full or lod) required}
 output=${3:?output path required}
@@ -8,7 +9,7 @@ lengths=${4:-8192,16384,32768,65536,131072}
 samples=${5:-64}
 speed_repeats=${6:-3}
 apply_chat_template=${7:-1}
-repo=${8:-/home/dan/subusers/agent/kvm-paper-dg/branches/lod-diffusion-gemma/code}
+repo=${8:-$(cd -- "$script_dir/.." && pwd)}
 tensor_parallel_size=${9:-1}
 vllm_root=/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1
 batch_size=${VLLM_LOD_PANEL_BATCH_SIZE:-8}

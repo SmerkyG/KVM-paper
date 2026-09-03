@@ -57,6 +57,7 @@ def main() -> None:
     llm = register_llm_shutdown(
         LLM(
             model=args.checkpoint,
+            trust_remote_code=True,
             load_format=os.getenv("VLLM_WEIGHT_CACHE_LOAD_FORMAT", "ipc_cache"),
             dtype="bfloat16",
             max_model_len=args.common_tokens + 128,

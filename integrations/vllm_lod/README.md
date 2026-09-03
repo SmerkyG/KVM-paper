@@ -495,6 +495,16 @@ Install the plugin editable into the environment that provides vLLM:
 uv add --editable /absolute/path/to/code/integrations/vllm_lod
 ```
 
+The integration is currently validated against vLLM 0.27.1 for ROCm. K2
+Horizon support landed upstream after vLLM 0.28.0, so the plugin includes the
+upstream `K2HorizonForCausalLM` implementation from
+[vLLM commit `1f76efaa`](https://github.com/vllm-project/vllm/commit/1f76efaa2195485b92cb04215aba6fb8f5fe523d)
+for older installations. It registers that backport lazily and automatically
+uses vLLM's native model when a newer installation already provides it. Thus
+`IFM/K2-Horizon-0.9B` works with the same ordinary and `CUSTOM` LOD launch
+commands below. The published checkpoint currently requires vLLM's
+`--trust-remote-code` option to load its configuration.
+
 ### Reuse loaded weights while developing
 
 The package also registers an `ipc_cache` model loader. A long-lived, GPU-light

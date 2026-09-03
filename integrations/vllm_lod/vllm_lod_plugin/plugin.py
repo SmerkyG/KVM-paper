@@ -87,6 +87,13 @@ def register() -> None:
         "MuseGlimmerForCausalLM",
         "vllm_lod_plugin.muse_glimmer:MuseGlimmerForCausalLM",
     )
+    # K2 Horizon support landed after vLLM 0.28.0. Backport the upstream model
+    # on older releases, while automatically deferring to native support after
+    # an eventual vLLM upgrade. The weight-cache-only plugin calls this too so
+    # native-attention K2 runs do not install the LOD lifecycle hooks.
+    from .model_compat import register_k2_horizon
+
+    register_k2_horizon()
     from .cache_ownership import install_cache_ownership_hooks
     from .runtime import install_model_state_hooks, install_tp_safe_vocab_padding
 

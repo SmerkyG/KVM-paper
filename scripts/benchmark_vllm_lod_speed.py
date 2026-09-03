@@ -1967,6 +1967,9 @@ def main() -> None:
     )
     kwargs = {
         "model": args.checkpoint,
+        # Match the trusted tokenizer load so custom checkpoint configs (for
+        # example K2 Horizon) reach the plugin's registered native model.
+        "trust_remote_code": True,
         "load_format": os.getenv("VLLM_WEIGHT_CACHE_LOAD_FORMAT", "ipc_cache"),
         "dtype": "bfloat16",
         "max_model_len": max(prompt_lengths) + args.decode_tokens + 16,

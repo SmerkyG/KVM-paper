@@ -278,6 +278,9 @@ def main() -> None:
     verify_prefill_geometry_policy()
     register()
     register()
+    from vllm import ModelRegistry
+
+    assert "K2HorizonForCausalLM" in ModelRegistry.get_supported_archs()
     verify_metadata_only_scheduler_cache()
     verify_cache_ownership_invariant()
     from vllm.v1.attention.backends.registry import AttentionBackendEnum
