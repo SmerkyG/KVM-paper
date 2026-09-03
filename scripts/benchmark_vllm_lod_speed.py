@@ -985,7 +985,7 @@ def inspect_lod_dispatch(model) -> dict[str, object]:
             engine.fused_prefill_route_coarse
             and int(pool.head_dim) <= 512
             and int(pool.value_dim) <= 256
-            and engine.routing_normalization == "none"
+            and engine.routing_normalization in {"none", "query"}
             and int(engine.routing_rope_fast_pairs) == 0
             and not bool(engine.routing_rope_jensen)
             and float(engine.routing_count_bias) == 1.0

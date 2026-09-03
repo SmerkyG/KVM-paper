@@ -98,6 +98,7 @@ def main() -> None:
         default="raw",
     )
     parser.add_argument("--normalized-qk", action="store_true")
+    parser.add_argument("--gqa-union", action="store_true")
     parser.add_argument("--prefill-only", action="store_true")
     parser.add_argument(
         "--physical-pages",
@@ -139,6 +140,8 @@ def main() -> None:
         leaf_block_n=32,
         leaf_num_warps=1,
         dense_leaf_storage=not args.physical_pages,
+        decode_gqa_union=args.gqa_union,
+        decode_gqa_union_hip=args.gqa_union,
     )
     active = torch.zeros(4, dtype=torch.long, device=device)
     pool = VLLMLayerLODPool(
@@ -300,12 +303,32 @@ def main() -> None:
     # with or accumulate into either live request.
     metadata = SimpleNamespace(num_actual_tokens=4)
     active.copy_(torch.tensor([1, 0, 2, 3], dtype=torch.long, device=device))
-    for step in range(12):
+    # The optional AITER-union case is a focused strided-QKV addressing check.
+    # Its longer-horizon approximation is covered by the dedicated union
+    # verifier; keep the established twelve-step state-update check on the
+    # ordinary pool path.
+    decode_steps = 1 if args.gqa_union else 12
+    for step in range(decode_steps):
         pool.catch_up_many([(0, length + step), (1, length + step)])
         pool.local_lens[2:].zero_()
-        query = torch.randn(4, 8, 128, dtype=torch.bfloat16, device=device)
-        new_key = torch.randn(4, 2, 128, dtype=torch.bfloat16, device=device)
-        new_value = torch.randn_like(new_key)
+        query_storage = torch.randn(
+            4, 8, 256, dtype=torch.bfloat16, device=device
+        )
+        query = query_storage[..., ::2]
+        assert not query.is_contiguous()
+        if args.gqa_union:
+            new_key_storage = torch.randn(
+                4, 2, 256, dtype=torch.bfloat16, device=device
+            )
+            new_value_storage = torch.randn_like(new_key_storage)
+            new_key = new_key_storage[..., ::2]
+            new_value = new_value_storage[..., ::2]
+            assert not new_key.is_contiguous() and not new_value.is_contiguous()
+        else:
+            new_key = torch.randn(
+                4, 2, 128, dtype=torch.bfloat16, device=device
+            )
+            new_value = torch.randn_like(new_key)
         expected = []
         for batch_row, pool_row in enumerate((1, 0)):
             reference = _clone_cache(pool._row_cache(pool_row))
@@ -317,9 +340,9 @@ def main() -> None:
             # rows. Zero-count padding must therefore be semantically inert.
             reference.state["state_len"] = pool.state_capacity
             output, _ = pool.engine(
-                query[batch_row : batch_row + 1].unsqueeze(2),
-                new_key[batch_row : batch_row + 1].unsqueeze(2),
-                new_value[batch_row : batch_row + 1].unsqueeze(2),
+                query[batch_row : batch_row + 1].contiguous().unsqueeze(2),
+                new_key[batch_row : batch_row + 1].contiguous().unsqueeze(2),
+                new_value[batch_row : batch_row + 1].contiguous().unsqueeze(2),
                 cache=reference,
                 use_cache=True,
             )

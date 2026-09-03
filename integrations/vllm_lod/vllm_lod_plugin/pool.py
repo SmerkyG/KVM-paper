@@ -3260,9 +3260,16 @@ class VLLMLayerLODPool:
         rows = int(metadata.num_actual_tokens)
         if rows == 0:
             return output
-        q = query[:rows].unsqueeze(2)
+        # Tensor-parallel head shards can be strided views. Decode routing
+        # flattens each query row, so keep that tiny tensor dense for every
+        # backend. The AITER GQA-union metadata path additionally requires
+        # dense per-rank K/V tensors.
+        q = query[:rows].unsqueeze(2).contiguous()
         k = key[:rows].unsqueeze(2)
         v = value[:rows].unsqueeze(2)
+        if self.settings.decode_gqa_union and self.settings.decode_gqa_union_hip:
+            k = k.contiguous()
+            v = v.contiguous()
         if cache_indices is None:
             cache_indices = self.active_indices[:rows]
         if local_lens is None:

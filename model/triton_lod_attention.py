@@ -4061,7 +4061,7 @@ class TritonLODAttentionCore(nn.Module):
                 and self.reuse_route_logits_for_coarse
                 and int(q.size(-1)) <= 512
                 and int(state_v.size(-1)) <= 256
-                and self.routing_normalization == "none"
+                and self.routing_normalization in {"none", "query"}
                 and self.routing_rope_fast_pairs == 0
                 and not self.routing_rope_jensen
                 and self.routing_count_bias == 1.0
@@ -4078,14 +4078,21 @@ class TritonLODAttentionCore(nn.Module):
             ):
                 if local_k is None or local_v is None:
                     raise AssertionError("fused prefill routing has no local KV")
+                query_normalized_routing = self.routing_normalization == "query"
                 fused_state_qk = bool(
                     self.prefill_int8_route_mma
+                    and not query_normalized_routing
                     and getattr(self, "mla_state_key_normalization", "none") == "none"
+                )
+                query_rms = (
+                    q.detach().float().square().mean(dim=-1, keepdim=True).sqrt()
+                    if query_normalized_routing
+                    else None
                 )
                 logits = (
                     q
                     if fused_state_qk
-                    else self._state_route_logits(
+                    else self._state_routing_logits(
                         q,
                         state_k,
                         counts,
@@ -4144,7 +4151,10 @@ class TritonLODAttentionCore(nn.Module):
                         and self.fused_prefill_external_recompute
                     ),
                     state_k=(state_k.contiguous() if fused_state_qk else None),
-                    int8_qk=fused_state_qk,
+                    int8_qk=bool(self.prefill_int8_route_mma and fused_state_qk),
+                    route_logit_scale=(
+                        query_rms.contiguous() if query_rms is not None else None
+                    ),
                     hierarchical_route_only=(
                         self.prefill_hierarchical_route
                         and not fused_state_qk
@@ -4176,7 +4186,11 @@ class TritonLODAttentionCore(nn.Module):
                     # group buffers. Reuse those logits in the established
                     # coarse kernel so stable mode remains numerically
                     # identical to the quality baseline.
-                    self._lod_prefill_route_logits = logits
+                    self._lod_prefill_route_logits = (
+                        (logits, query_rms)
+                        if query_rms is not None
+                        else logits
+                    )
                 else:
                     self._lod_prefill_fused_coarse = (
                         coarse_output,
@@ -4275,7 +4289,7 @@ class TritonLODAttentionCore(nn.Module):
                         new_k=new_k,
                     )
                     if (
-                        self.routing_normalization == "none"
+                        self.routing_normalization in {"none", "query"}
                         and self.routing_rope_fast_pairs == 0
                         and not self.routing_rope_jensen
                         and self.routing_count_bias == 1.0
@@ -4283,7 +4297,20 @@ class TritonLODAttentionCore(nn.Module):
                         and self.reuse_route_logits_for_coarse
                         and int(q.size(2)) > 1
                     ):
-                        self._lod_prefill_route_logits = logits
+                        query_rms = (
+                            q.detach()
+                            .float()
+                            .square()
+                            .mean(dim=-1, keepdim=True)
+                            .sqrt()
+                            if self.routing_normalization == "query"
+                            else None
+                        )
+                        self._lod_prefill_route_logits = (
+                            (logits, query_rms)
+                            if query_rms is not None
+                            else logits
+                        )
                     if (
                         self.prefill_hierarchical_route
                         and int(q.size(2)) > 1
@@ -4507,7 +4534,7 @@ class TritonLODAttentionCore(nn.Module):
                 )
                 self._lod_decode_route_logits = (logits, query_rms)
             if (
-                self.routing_normalization == "none"
+                self.routing_normalization in {"none", "query"}
                 and self.routing_rope_fast_pairs == 0
                 and not self.routing_rope_jensen
                 and self.routing_count_bias == 1.0
@@ -4516,7 +4543,14 @@ class TritonLODAttentionCore(nn.Module):
                 and int(q.size(2)) > 1
                 and route_count <= 16
             ):
-                self._lod_prefill_route_logits = logits
+                query_rms = (
+                    q.detach().float().square().mean(dim=-1, keepdim=True).sqrt()
+                    if self.routing_normalization == "query"
+                    else None
+                )
+                self._lod_prefill_route_logits = (
+                    (logits, query_rms) if query_rms is not None else logits
+                )
             logits = logits * self.scaling
             query_counts = self._repeat_kv(counts.detach()[..., :state_len, :]).squeeze(
                 -1
@@ -5878,9 +5912,14 @@ class TritonLODAttentionCore(nn.Module):
                     scale=self.scaling,
                 )
             return coarse_output, coarse_lse
-        route_logits = getattr(self, "_lod_prefill_route_logits", None)
-        if route_logits is not None:
+        route_logits_payload = getattr(self, "_lod_prefill_route_logits", None)
+        if route_logits_payload is not None:
             del self._lod_prefill_route_logits
+            route_logit_scale = None
+            if isinstance(route_logits_payload, tuple):
+                route_logits, route_logit_scale = route_logits_payload
+            else:
+                route_logits = route_logits_payload
             logits_already_masked = bool(
                 getattr(self, "_lod_prefill_route_logits_masked", False)
             )
@@ -5898,6 +5937,13 @@ class TritonLODAttentionCore(nn.Module):
                 state_len,
             ):
                 raise AssertionError("LOD prefill route-logit shape drifted")
+            if route_logit_scale is not None and tuple(route_logit_scale.shape) != (
+                int(q.size(0)),
+                int(q.size(1)),
+                query_len,
+                1,
+            ):
+                raise AssertionError("LOD prefill route-logit scale shape drifted")
             coarse_local_k = (
                 local_k if include_local else local_k[..., :0, :].contiguous()
             )
@@ -5939,6 +5985,8 @@ class TritonLODAttentionCore(nn.Module):
                 else coarse_top_slots
             )
             if int(q.size(-1)) > 512 or int(state_v.size(-1)) > 256:
+                if route_logit_scale is not None:
+                    route_logits = route_logits.float() * route_logit_scale
                 return self._gemm_coarse_attention(
                     q,
                     route_logits,
@@ -5990,6 +6038,11 @@ class TritonLODAttentionCore(nn.Module):
                 int8_state_pv=int8_state_pv,
                 max_grouped_rows=self.prefill_coarse_max_grouped_rows,
                 direct_gqa_rows=self.prefill_coarse_direct_gqa,
+                route_logit_scale=(
+                    route_logit_scale.contiguous()
+                    if route_logit_scale is not None
+                    else None
+                ),
                 timing_events=getattr(self, "_lod_phase_timing_events", None),
             )
             return coarse_output, coarse_lse
@@ -6004,9 +6057,9 @@ class TritonLODAttentionCore(nn.Module):
                 state_len,
             ):
                 raise AssertionError("LOD decode route-logit shape drifted")
-            if query_rms is not None:
-                route_logits = route_logits.float() * query_rms
             if int(q.size(-1)) > 512 or int(state_v.size(-1)) > 256:
+                if query_rms is not None:
+                    route_logits = route_logits.float() * query_rms
                 return self._gemm_coarse_attention(
                     q,
                     route_logits,
@@ -6043,6 +6096,9 @@ class TritonLODAttentionCore(nn.Module):
                 precompute_mean_values=query_len > 1,
                 int8_state_pv=int8_state_pv,
                 max_grouped_rows=self.coarse_max_grouped_rows,
+                route_logit_scale=(
+                    query_rms.contiguous() if query_rms is not None else None
+                ),
             )
         if (
             query_len > 1

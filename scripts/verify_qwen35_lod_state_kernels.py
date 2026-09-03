@@ -155,6 +155,15 @@ def verify_route_logits_coarse_attention(
     corrected_scores = route_logits.float() * scale
     corrected_scores += repeated_counts.log().unsqueeze(2)
     top_slots = corrected_scores.topk(8, dim=-1, sorted=False).indices.contiguous()
+    query_rms = q.float().square().mean(dim=-1, keepdim=True).sqrt()
+    normalized_route_logits = (route_logits.float() / query_rms).to(q.dtype)
+    normalized_route_scores = (
+        normalized_route_logits.float() * scale
+        + repeated_counts.log().unsqueeze(2)
+    )
+    normalized_top_slots = normalized_route_scores.topk(
+        8, dim=-1, sorted=False
+    ).indices.contiguous()
 
     actual_output, actual_lse = route_logits_coarse_attention(
         q.contiguous(),
@@ -180,6 +189,19 @@ def verify_route_logits_coarse_attention(
         kv_group_size=kv_group_size,
         scale=scale,
         precompute_mean_values=True,
+    )
+    scaled_output, scaled_lse = route_logits_coarse_attention(
+        q.contiguous(),
+        normalized_route_logits.contiguous(),
+        state_v.contiguous(),
+        counts.contiguous(),
+        local_k.contiguous(),
+        local_v.contiguous(),
+        normalized_top_slots,
+        state_len=state_len,
+        kv_group_size=kv_group_size,
+        scale=scale,
+        route_logit_scale=query_rms.contiguous(),
     )
     warp2_output, warp2_lse = route_logits_coarse_attention(
         q.contiguous(),
@@ -344,6 +366,16 @@ def verify_route_logits_coarse_attention(
     repeated_local_v = local_v.float().repeat_interleave(kv_group_size, dim=1)
     values = torch.cat((mean_state_v, repeated_local_v), dim=2)
     expected_output = torch.matmul(weights, values)
+    scaled_state_scores = (
+        normalized_route_logits.float() * query_rms * scale
+        + repeated_counts.log().unsqueeze(2)
+    )
+    scaled_state_scores.scatter_(-1, normalized_top_slots, float("-inf"))
+    scaled_scores = torch.cat((scaled_state_scores, local_scores), dim=-1)
+    scaled_expected_lse = torch.logsumexp(scaled_scores, dim=-1)
+    scaled_expected_output = torch.matmul(
+        torch.softmax(scaled_scores, dim=-1), values
+    )
     zero_route_scores = torch.cat((corrected_scores, local_scores), dim=-1)
     zero_route_expected_lse = torch.logsumexp(zero_route_scores, dim=-1)
     zero_route_expected_output = torch.matmul(
@@ -386,6 +418,12 @@ def verify_route_logits_coarse_attention(
         ),
         "output_mean_abs": float(
             (actual_output.float() - expected_output).abs().mean().item()
+        ),
+        "scaled_output_max_abs": float(
+            (scaled_output.float() - scaled_expected_output).abs().max().item()
+        ),
+        "scaled_lse_max_abs": float(
+            (scaled_lse - scaled_expected_lse).abs().max().item()
         ),
         "lse_max_abs": float((actual_lse - expected_lse).abs().max().item()),
         "lse_mean_abs": float((actual_lse - expected_lse).abs().mean().item()),
@@ -473,10 +511,24 @@ def verify_route_logits_topk_coarse_attention(
         max_leaf_tokens: int | None,
         residual_mass: float | None = None,
         route_count_bias: float = 1.0,
+        query_normalized_routing: bool = False,
     ) -> dict[str, float]:
-        candidate_scores = (
-            route_logits.float() * scale
-            + route_count_bias * repeated_counts.log().unsqueeze(2)
+        kernel_route_logits = route_logits
+        route_logit_scale = None
+        coarse_state_scores = corrected_scores
+        if query_normalized_routing:
+            route_logit_scale = (
+                q.float().square().mean(dim=-1, keepdim=True).sqrt()
+            )
+            kernel_route_logits = (
+                route_logits.float() / route_logit_scale
+            ).to(route_logits.dtype)
+            coarse_state_scores = (
+                kernel_route_logits.float() * route_logit_scale * scale
+                + repeated_counts.log().unsqueeze(2)
+            )
+        candidate_scores = kernel_route_logits.float() * scale + (
+            route_count_bias * repeated_counts.log().unsqueeze(2)
         )
         if max_leaf_tokens is not None:
             candidate_scores = candidate_scores.masked_fill(
@@ -506,7 +558,7 @@ def verify_route_logits_topk_coarse_attention(
         actual_slots, actual_output, actual_lse = (
             route_logits_topk_coarse_attention(
                 q.contiguous(),
-                route_logits.contiguous(),
+                kernel_route_logits.contiguous(),
                 state_v.contiguous(),
                 counts.contiguous(),
                 local_k.contiguous(),
@@ -523,9 +575,14 @@ def verify_route_logits_topk_coarse_attention(
                     else None
                 ),
                 residual_mass=residual_mass,
+                route_logit_scale=(
+                    route_logit_scale.contiguous()
+                    if route_logit_scale is not None
+                    else None
+                ),
             )
         )
-        state_scores = corrected_scores.clone()
+        state_scores = coarse_state_scores.clone()
         opened = expected_slots >= 0
         actual_opened = actual_slots >= 0
         opened_slots = F.one_hot(
@@ -570,6 +627,9 @@ def verify_route_logits_topk_coarse_attention(
     result = {
         "top8": compare(8, None),
         "top8_count2": compare(8, None, route_count_bias=2.0),
+        "top8_query_normalized": compare(
+            8, None, query_normalized_routing=True
+        ),
         "top3_cap8": compare(3, 8),
         "top2_cap8": compare(2, 8),
         "top8_residual05_cap8": compare(8, 8, 0.05),
@@ -1248,6 +1308,10 @@ def main() -> None:
         raise AssertionError("fused route-logit coarse output differs materially")
     if result["route_logits_coarse_attention"]["lse_max_abs"] > 0.02:
         raise AssertionError("fused route-logit coarse LSE differs materially")
+    if result["route_logits_coarse_attention"]["scaled_output_max_abs"] > 0.02:
+        raise AssertionError("scaled route-logit coarse output differs materially")
+    if result["route_logits_coarse_attention"]["scaled_lse_max_abs"] > 0.02:
+        raise AssertionError("scaled route-logit coarse LSE differs materially")
     # The synthetic state deliberately spans a much wider centroid-norm range
     # than the model.  A single outlier coordinate is therefore not a useful
     # INT8 criterion; bound the aggregate output perturbation here and cover

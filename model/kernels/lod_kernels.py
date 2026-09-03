@@ -1904,6 +1904,7 @@ def _scaled_coherence_maxsim_kernel(
 def _route_logits_coarse_attention_kernel(
     q,
     route_logits,
+    route_logit_scale,
     state_v,
     state_v_scales,
     counts,
@@ -1951,6 +1952,7 @@ def _route_logits_coarse_attention_kernel(
     ROUTE_COUNT: tl.constexpr,
     STATE_V_IS_MEAN: tl.constexpr,
     INT8_STATE_PV: tl.constexpr,
+    HAS_ROUTE_LOGIT_SCALE: tl.constexpr,
     SCALE: tl.constexpr,
     BLOCK_M: tl.constexpr,
     BLOCK_N: tl.constexpr,
@@ -2004,6 +2006,16 @@ def _route_logits_coarse_attention_kernel(
     maximum = tl.where(query_valid, -float("inf"), 0.0).to(tl.float32)
     denominator = tl.where(query_valid, 0.0, 1.0).to(tl.float32)
     accumulator = tl.zeros((ROW_COUNT, VALUE_BLOCK_DIM), tl.float32)
+    route_scale = tl.full((ROW_COUNT,), 1.0, tl.float32)
+    if HAS_ROUTE_LOGIT_SCALE:
+        scale_row = (
+            (batch * QUERY_HEADS + query_head) * query_len + query
+        ).to(tl.int64)
+        route_scale = tl.load(
+            route_logit_scale + scale_row,
+            mask=query_valid,
+            other=1.0,
+        ).to(tl.float32)
 
     for state_begin in tl.range(0, state_len, BLOCK_N, num_stages=1):
         slot = state_begin + token_offset
@@ -2040,7 +2052,10 @@ def _route_logits_coarse_attention_kernel(
             mask=query_valid[:, None] & state_valid[None, :],
             other=-float("inf"),
         ).to(tl.float32)
-        scores = scores * SCALE + tl.log(count)[None, :]
+        scores = (
+            scores * route_scale[:, None] * SCALE
+            + tl.log(count)[None, :]
+        )
         routed = tl.zeros((ROW_COUNT, BLOCK_N), dtype=tl.int1)
         for route in tl.static_range(0, ROUTE_COUNT):
             selected = tl.load(
@@ -2288,6 +2303,7 @@ def _subtract_selected_coarse_from_full_kernel(
 def _route_logits_topk_coarse_attention_kernel(
     q,
     route_logits,
+    route_logit_scale,
     state_k,
     state_v,
     counts,
@@ -2348,6 +2364,7 @@ def _route_logits_topk_coarse_attention_kernel(
     USE_EXTERNAL_LOCAL_LSE: tl.constexpr,
     FUSED_STATE_QK: tl.constexpr,
     INT8_QK: tl.constexpr,
+    HAS_ROUTE_LOGIT_SCALE: tl.constexpr,
     SCALE: tl.constexpr,
     ROUTE_COUNT_BIAS: tl.constexpr,
     BLOCK_M: tl.constexpr,
@@ -2405,6 +2422,16 @@ def _route_logits_topk_coarse_attention_kernel(
             mask=query_valid[:, None] & (tail_dim[None, :] < HEAD_DIM),
             other=0.0,
         )
+    route_scale = tl.full((ROW_COUNT,), 1.0, tl.float32)
+    if HAS_ROUTE_LOGIT_SCALE:
+        scale_row = (
+            (batch * QUERY_HEADS + query_head) * query_len + query
+        ).to(tl.int64)
+        route_scale = tl.load(
+            route_logit_scale + scale_row,
+            mask=query_valid,
+            other=1.0,
+        ).to(tl.float32)
     maximum = tl.where(query_valid, -float("inf"), 0.0).to(tl.float32)
     denominator = tl.where(query_valid, 0.0, 1.0).to(tl.float32)
     accumulator = tl.zeros((ROW_COUNT, VALUE_BLOCK_DIM), tl.float32)
@@ -2496,7 +2523,7 @@ def _route_logits_topk_coarse_attention_kernel(
         route_dot_scores = (
             scores.to(tl.bfloat16) * SCALE
         ).to(tl.bfloat16).to(tl.float32)
-        dot_scores = scores * SCALE
+        dot_scores = scores * route_scale[:, None] * SCALE
         scores = dot_scores + tl.log(count)[None, :]
         route_scores = (
             route_dot_scores + ROUTE_COUNT_BIAS * tl.log(count)[None, :]
@@ -2640,7 +2667,10 @@ def _route_logits_topk_coarse_attention_kernel(
         selected_logits.to(tl.bfloat16) * SCALE
     ).to(tl.bfloat16).to(tl.float32)
     top_route_scores += ROUTE_COUNT_BIAS * tl.log(selected_counts)
-    top_scores = selected_logits * SCALE + tl.log(selected_counts)
+    top_scores = (
+        selected_logits * route_scale[:, None] * SCALE
+        + tl.log(selected_counts)
+    )
     top_indices = tl.where(selected_valid, top_indices, -1)
 
     for local_begin in tl.range(0, local_len, BLOCK_N, num_stages=1):
@@ -2933,7 +2963,10 @@ def _route_logits_topk_coarse_attention_kernel(
                     mask=query_valid[:, None] & state_valid[None, :],
                     other=-float("inf"),
                 ).to(tl.float32)
-            scores = scores * SCALE + tl.log(count)[None, :]
+            scores = (
+                scores * route_scale[:, None] * SCALE
+                + tl.log(count)[None, :]
+            )
             routed = tl.zeros((ROW_COUNT, BLOCK_N), dtype=tl.int1)
             for route in tl.static_range(0, OPEN_COUNT):
                 selected_slot = tl.max(
@@ -5428,11 +5461,14 @@ def route_logits_coarse_attention(
     head_major: bool | None = None,
     max_grouped_rows: int = 8,
     direct_gqa_rows: bool = False,
+    route_logit_scale: torch.Tensor | None = None,
     timing_events: dict[str, list[tuple[torch.cuda.Event, torch.cuda.Event]]]
     | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Compute the coarse state/local branch while reusing routing logits."""
     tensors = (q, route_logits, state_v, counts, local_k, local_v, top_slots)
+    if route_logit_scale is not None:
+        tensors = (*tensors, route_logit_scale)
     if not all(tensor.is_cuda for tensor in tensors):
         raise ValueError("LOD Triton coarse attention requires CUDA tensors")
     if not all(tensor.is_contiguous() for tensor in tensors):
@@ -5445,6 +5481,13 @@ def route_logits_coarse_attention(
         raise ValueError("query heads do not match the requested GQA grouping")
     if tuple(route_logits.shape) != (batch, query_heads, query_len, state_len):
         raise ValueError("routing logits have the wrong shape")
+    if route_logit_scale is not None and tuple(route_logit_scale.shape) != (
+        batch,
+        query_heads,
+        query_len,
+        1,
+    ):
+        raise ValueError("routing-logit scales have the wrong shape")
     if tuple(top_slots.shape[:3]) != (batch, query_heads, query_len):
         raise ValueError("top-slot routes have the wrong shape")
     # Routing itself has an optimized top-eight fast path, but this coarse
@@ -5610,6 +5653,7 @@ def route_logits_coarse_attention(
     _route_logits_coarse_attention_kernel[grid](
         q,
         route_logits,
+        route_logit_scale if route_logit_scale is not None else counts,
         kernel_state_v,
         state_v_scales,
         counts,
@@ -5657,6 +5701,7 @@ def route_logits_coarse_attention(
         ROUTE_COUNT=int(top_slots.size(-1)),
         STATE_V_IS_MEAN=precompute_mean_values,
         INT8_STATE_PV=int8_state_pv,
+        HAS_ROUTE_LOGIT_SCALE=route_logit_scale is not None,
         SCALE=scale,
         BLOCK_M=block_m,
         BLOCK_N=block_n,
@@ -5758,6 +5803,7 @@ def route_logits_topk_coarse_attention(
     route_only: bool = False,
     state_k: torch.Tensor | None = None,
     int8_qk: bool = False,
+    route_logit_scale: torch.Tensor | None = None,
     hierarchical_route_only: bool | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Select top-k routes and form their coarse remainder in one scan."""
@@ -5765,6 +5811,8 @@ def route_logits_topk_coarse_attention(
     tensors = (q, state_v, counts, local_k, local_v) + (
         (state_k,) if fused_state_qk else (route_logits,)
     )
+    if route_logit_scale is not None:
+        tensors = (*tensors, route_logit_scale)
     if not all(tensor.is_cuda for tensor in tensors):
         raise ValueError("fused LOD prefill routing requires CUDA tensors")
     if not all(tensor.is_contiguous() for tensor in tensors):
@@ -5787,6 +5835,15 @@ def route_logits_topk_coarse_attention(
         raise ValueError("fused state key width differs from the query")
     if int8_qk and (not fused_state_qk or head_dim % 32):
         raise ValueError("INT8 fused routing requires aligned state keys")
+    if route_logit_scale is not None and fused_state_qk:
+        raise ValueError("fused state QK cannot rescale materialized route logits")
+    if route_logit_scale is not None and tuple(route_logit_scale.shape) != (
+        batch,
+        query_heads,
+        query_len,
+        1,
+    ):
+        raise ValueError("routing-logit scales have the wrong shape")
     if not 0 < topk <= 16:
         raise ValueError("fused LOD prefill routing requires top-k in [1, 16]")
     if max_leaf_tokens is not None and max_leaf_tokens <= 0:
@@ -5939,6 +5996,7 @@ def route_logits_topk_coarse_attention(
     _route_logits_topk_coarse_attention_kernel[grid](
         q,
         route_logits,
+        route_logit_scale if route_logit_scale is not None else counts,
         state_k if fused_state_qk else state_v,
         state_v,
         counts,
@@ -5999,6 +6057,7 @@ def route_logits_topk_coarse_attention(
         USE_EXTERNAL_LOCAL_LSE=use_external_local_lse,
         FUSED_STATE_QK=fused_state_qk,
         INT8_QK=int8_qk,
+        HAS_ROUTE_LOGIT_SCALE=route_logit_scale is not None,
         SCALE=scale,
         ROUTE_COUNT_BIAS=route_count_bias,
         BLOCK_M=block_m,
