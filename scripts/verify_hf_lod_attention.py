@@ -1227,6 +1227,27 @@ def _check_sliding_layer_selection() -> None:
     print("full/sliding attention selection and mixed cache passed")
 
 
+@torch.no_grad()
+def _check_attention_interface_metadata_fallback() -> None:
+    """Remote modules may use AttentionInterface without advertising it."""
+    model = LlamaForCausalLM(LlamaConfig(**_common_config())).eval()
+    model.config._attn_implementation = "sdpa"
+    model.set_attn_implementation = lambda implementation: None
+    installed = install_hf_lod_attention(
+        model, config=_lod_config(), open_count=2
+    )
+    if installed != ["model.layers.0.self_attn"]:
+        raise AssertionError("metadata fallback installed the wrong layer")
+    attention = model.model.layers[0].self_attn
+    if attention.config._attn_implementation != "lod":
+        raise AssertionError("metadata fallback did not select the LOD backend")
+    token = torch.tensor([[1, 3, 4, 5]])
+    output = model(token, use_cache=False).logits
+    if not bool(torch.isfinite(output).all()):
+        raise AssertionError("metadata fallback produced non-finite logits")
+    print("AttentionInterface metadata fallback passed")
+
+
 def main() -> None:
     _check_deepseek_v2_mla_adapter()
     _check_glm4_moe_lite_mla_adapter()
@@ -1251,6 +1272,7 @@ def main() -> None:
     _check_qwen35_moe_hybrid_cache_factory()
     _check_partial_dense_cache()
     _check_sliding_layer_selection()
+    _check_attention_interface_metadata_fallback()
 
 
 if __name__ == "__main__":

@@ -1,0 +1,89 @@
+{
+  "acceleration": null,
+  "attention_layers": [
+    "model.layers.0.self_attn",
+    "model.layers.1.self_attn",
+    "model.layers.2.self_attn",
+    "model.layers.3.self_attn",
+    "model.layers.4.self_attn",
+    "model.layers.5.self_attn",
+    "model.layers.6.self_attn",
+    "model.layers.7.self_attn",
+    "model.layers.8.self_attn",
+    "model.layers.9.self_attn",
+    "model.layers.10.self_attn",
+    "model.layers.11.self_attn",
+    "model.layers.12.self_attn",
+    "model.layers.13.self_attn",
+    "model.layers.14.self_attn",
+    "model.layers.15.self_attn",
+    "model.layers.16.self_attn",
+    "model.layers.17.self_attn",
+    "model.layers.18.self_attn",
+    "model.layers.19.self_attn",
+    "model.layers.20.self_attn",
+    "model.layers.21.self_attn",
+    "model.layers.22.self_attn",
+    "model.layers.23.self_attn",
+    "model.layers.24.self_attn",
+    "model.layers.25.self_attn",
+    "model.layers.26.self_attn",
+    "model.layers.27.self_attn"
+  ],
+  "batch_size": 4,
+  "checkpoint": "IFM/K2-Horizon-0.9B",
+  "decode_tokens": 1025,
+  "kv_bits": 0,
+  "length": 65536,
+  "median_decode_ms_per_step": 16.13467909577416,
+  "median_prefill_seconds": 16.82424176763743,
+  "mode": "lod",
+  "peak_memory_gib": 136.65804862976074,
+  "records": [
+    {
+      "decode_ms_per_step": 16.385524435559425,
+      "decode_seconds": 16.79516254644841,
+      "final_tokens": [
+        13778,
+        71,
+        326,
+        222
+      ],
+      "prefill_seconds": 16.816631264053285,
+      "repeat": 0
+    },
+    {
+      "decode_ms_per_step": 16.029135178683735,
+      "decode_seconds": 16.429863558150828,
+      "final_tokens": [
+        9810,
+        567,
+        387,
+        222
+      ],
+      "prefill_seconds": 18.19423121586442,
+      "repeat": 1
+    },
+    {
+      "decode_ms_per_step": 16.13467909577416,
+      "decode_seconds": 16.538046073168516,
+      "final_tokens": [
+        9810,
+        21851,
+        387,
+        222
+      ],
+      "prefill_seconds": 16.82424176763743,
+      "repeat": 2
+    }
+  ],
+  "repeats": 3,
+  "resolved_state_policies": [
+    [
+      "cosine",
+      "none",
+      "all"
+    ]
+  ],
+  "warmup_decode_tokens": 257
+}

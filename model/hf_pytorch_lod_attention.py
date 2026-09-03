@@ -1063,6 +1063,14 @@ def install_hf_lod_attention(
         if submodel_key is not None:
             implementation = {submodel_key: backend_name}
         model.set_attn_implementation(implementation)
+        # Some remote-code models dispatch through ``AttentionInterface`` but
+        # omit the corresponding Transformers capability flag.  In that case
+        # ``set_attn_implementation`` only warns and leaves the module on its
+        # native backend.  Select the registered backend directly on any
+        # compatible module for which the model-level setter was a no-op.
+        for _, module in compatible:
+            if module.config._attn_implementation != backend_name:
+                module.config._attn_implementation = backend_name
     else:
         # Keep the model-level backend and mask construction unchanged for
         # sliding/local layers. Only full-attention modules receive a shallow

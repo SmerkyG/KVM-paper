@@ -1,0 +1,66 @@
+{
+  "acceleration": null,
+  "attention_layers": [],
+  "batch_size": 8,
+  "checkpoint": "IFM/K2-Horizon-0.9B",
+  "decode_tokens": 1025,
+  "kv_bits": null,
+  "length": 16384,
+  "median_decode_ms_per_step": 27.844677309437497,
+  "median_prefill_seconds": 1.3746518092229962,
+  "mode": "full",
+  "peak_memory_gib": 14.431194305419922,
+  "records": [
+    {
+      "decode_ms_per_step": 28.53663101338032,
+      "decode_seconds": 29.250046788714826,
+      "final_tokens": [
+        28527,
+        200,
+        865,
+        23,
+        222,
+        63,
+        200,
+        258
+      ],
+      "prefill_seconds": 1.3754923585802317,
+      "repeat": 0
+    },
+    {
+      "decode_ms_per_step": 27.844677309437497,
+      "decode_seconds": 28.540794242173433,
+      "final_tokens": [
+        28527,
+        200,
+        865,
+        23,
+        222,
+        63,
+        200,
+        258
+      ],
+      "prefill_seconds": 1.3746518092229962,
+      "repeat": 1
+    },
+    {
+      "decode_ms_per_step": 27.840490256686035,
+      "decode_seconds": 28.536502513103187,
+      "final_tokens": [
+        28527,
+        200,
+        865,
+        23,
+        222,
+        63,
+        200,
+        258
+      ],
+      "prefill_seconds": 1.3708233153447509,
+      "repeat": 2
+    }
+  ],
+  "repeats": 3,
+  "resolved_state_policies": [],
+  "warmup_decode_tokens": 1025
+}
