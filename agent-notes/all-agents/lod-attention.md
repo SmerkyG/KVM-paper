@@ -1,6 +1,6 @@
 # Lod Attention
 
-Topic hints: Reuse query-normalized route logits for exact coarse attention
+Topic hints: Compare LOD speed per attention call, not by layer count
 
 ## Lessons
 
@@ -27,3 +27,5 @@ Topic hints: Reuse query-normalized route logits for exact coarse attention
 - In vLLM tensor-parallel LOD decode, per-rank Q/K/V head shards can be non-contiguous views; materialize them with contiguous() before the AITER GQA-union path, whose route and metadata kernels require dense tensors.
 
 - For query-only RMS-normalized LOD routing, recover raw coarse-attention dots by multiplying each route-logit row by that query's pre-normalization RMS inside the coarse kernel; this avoids both a second state QK scan and a state-sized temporary.
+
+- When explaining full-versus-LOD speed differences across models, do not use the number of attention layers as a causal explanation because it multiplies both paths; compare per-call costs and head geometry, while treating non-attention layers only as dilution of the end-to-end ratio.
