@@ -2526,10 +2526,18 @@ class TritonLODAttentionCore(nn.Module):
         return logits
 
     @staticmethod
-    def _routing_rms_normalize(tensor: torch.Tensor) -> torch.Tensor:
-        inverse_rms = torch.rsqrt(
-            tensor.detach().float().square().mean(dim=-1, keepdim=True).clamp_min(1e-12)
+    def _routing_rms(tensor: torch.Tensor) -> torch.Tensor:
+        return (
+            tensor.detach()
+            .float()
+            .square()
+            .mean(dim=-1, keepdim=True)
+            .clamp_min(1e-12)
+            .sqrt()
         )
+
+    def _routing_rms_normalize(self, tensor: torch.Tensor) -> torch.Tensor:
+        inverse_rms = self._routing_rms(tensor).reciprocal()
         # Keep route logits in the same dtype as the normal fused path.  The
         # normalization statistics themselves are computed in FP32.
         return (tensor.detach().float() * inverse_rms).to(tensor.dtype)
@@ -4085,7 +4093,7 @@ class TritonLODAttentionCore(nn.Module):
                     and getattr(self, "mla_state_key_normalization", "none") == "none"
                 )
                 query_rms = (
-                    q.detach().float().square().mean(dim=-1, keepdim=True).sqrt()
+                    self._routing_rms(q)
                     if query_normalized_routing
                     else None
                 )
@@ -4298,11 +4306,7 @@ class TritonLODAttentionCore(nn.Module):
                         and int(q.size(2)) > 1
                     ):
                         query_rms = (
-                            q.detach()
-                            .float()
-                            .square()
-                            .mean(dim=-1, keepdim=True)
-                            .sqrt()
+                            self._routing_rms(q)
                             if self.routing_normalization == "query"
                             else None
                         )
@@ -4528,7 +4532,7 @@ class TritonLODAttentionCore(nn.Module):
                 # query-only routing, recover the raw attention logits with
                 # the scalar query RMS; no state-sized tensor is added.
                 query_rms = (
-                    q.detach().float().square().mean(dim=-1, keepdim=True).sqrt()
+                    self._routing_rms(q)
                     if self.routing_normalization == "query"
                     else None
                 )
@@ -4544,7 +4548,7 @@ class TritonLODAttentionCore(nn.Module):
                 and route_count <= 16
             ):
                 query_rms = (
-                    q.detach().float().square().mean(dim=-1, keepdim=True).sqrt()
+                    self._routing_rms(q)
                     if self.routing_normalization == "query"
                     else None
                 )
