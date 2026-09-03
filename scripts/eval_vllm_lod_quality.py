@@ -23,6 +23,10 @@ from transformers import AutoTokenizer
 from vllm_engine_lifecycle import register_llm_shutdown, shutdown_registered_llms
 
 
+PROLONG_DATASET = "Seerkfang/prolong-64k-512-new"
+PROLONG_DATASET_REVISION = "97295b7d7fe48dc0aa6ba373af3a8b9d945e505b"
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkpoint", default="Qwen/Qwen3.5-0.8B")
@@ -30,6 +34,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--eval", choices=("prolong", "niah_s3"), required=True)
     parser.add_argument("--length", type=int, default=8192)
     parser.add_argument("--samples", type=int, default=8)
+    parser.add_argument(
+        "--sample-offset",
+        type=int,
+        default=0,
+        help="start at this sample in the deterministic ProLong or NIAH cohort",
+    )
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--tensor-parallel-size", type=int, default=1)
     parser.add_argument("--allow-heterogeneous-global-config", action="store_true")
@@ -67,13 +77,22 @@ def select_prolong_tokens(
     length: int,
     samples: int,
     *,
+    sample_offset: int = 0,
     concatenate: bool = False,
 ) -> tuple[list[list[int]], list[list[int]]]:
+    if sample_offset < 0:
+        raise ValueError("sample_offset must be nonnegative")
+    if concatenate and sample_offset:
+        raise ValueError("sample_offset is not supported with concatenated ProLong")
     if concatenate:
         # Streaming shuffle order can depend on which remote/cache shards are
         # visible.  Draw explicit row indices from the materialized dataset so
         # independent configurations always evaluate byte-identical prompts.
-        dataset = load_dataset("Seerkfang/prolong-64k-512-new", split="train")
+        dataset = load_dataset(
+            PROLONG_DATASET,
+            revision=PROLONG_DATASET_REVISION,
+            split="train",
+        )
         generator = random.Random(42)
         used_indices: set[int] = set()
 
@@ -112,10 +131,14 @@ def select_prolong_tokens(
             selected_indices.append(source_indices)
         return selected, selected_indices
     dataset = load_dataset(
-        "Seerkfang/prolong-64k-512-new", split="train", streaming=True
+        PROLONG_DATASET,
+        revision=PROLONG_DATASET_REVISION,
+        split="train",
+        streaming=True,
     ).shuffle(seed=42, buffer_size=1_000)
     selected: list[list[int]] = []
     selected_indices: list[list[int]] = []
+    eligible_documents = 0
     for stream_index, document in enumerate(dataset):
         token_count = document.get("length")
         if token_count is not None and int(token_count) < length:
@@ -128,8 +151,10 @@ def select_prolong_tokens(
             return_attention_mask=False,
         )["input_ids"]
         if len(token_ids) == length:
-            selected.append(token_ids)
-            selected_indices.append([stream_index])
+            if eligible_documents >= sample_offset:
+                selected.append(token_ids)
+                selected_indices.append([stream_index])
+            eligible_documents += 1
         if len(selected) == samples:
             break
     if len(selected) != samples:
@@ -1269,6 +1294,7 @@ def evaluate_prolong(args: argparse.Namespace, tokenizer, llm) -> dict:
         tokenizer,
         args.length,
         args.samples,
+        sample_offset=args.sample_offset,
         concatenate=args.concatenate_prolong,
     )
     prompts = [{"prompt_token_ids": token_ids} for token_ids in sequences]
@@ -1294,7 +1320,7 @@ def evaluate_prolong(args: argparse.Namespace, tokenizer, llm) -> dict:
     total_nll = 0.0
     total_tokens = 0
     for sample, (token_ids, output, sample_sources) in enumerate(
-        zip(sequences, outputs, source_indices)
+        zip(sequences, outputs, source_indices), start=args.sample_offset
     ):
         prompt_logprobs = output.prompt_logprobs
         if prompt_logprobs is None or len(prompt_logprobs) != len(token_ids):
@@ -1322,6 +1348,8 @@ def evaluate_prolong(args: argparse.Namespace, tokenizer, llm) -> dict:
     loss = total_nll / total_tokens
     return {
         "eval": "prolong",
+        "dataset": PROLONG_DATASET,
+        "dataset_revision": PROLONG_DATASET_REVISION,
         "loss": loss,
         "perplexity": math.exp(loss),
         "prediction_tokens": total_tokens,
@@ -1344,6 +1372,7 @@ def evaluate_niah_s3(args: argparse.Namespace, tokenizer, llm) -> dict:
         args.checkpoint,
         args.length,
         args.samples,
+        sample_offset=args.sample_offset,
         apply_chat_template=args.apply_chat_template,
         disable_thinking=args.disable_thinking,
     )
@@ -1414,6 +1443,8 @@ def main() -> None:
         )
     if args.samples < 1 or args.batch_size < 1:
         raise ValueError("samples and batch size must be positive")
+    if args.sample_offset < 0:
+        raise ValueError("sample offset must be nonnegative")
     if args.mode == "lod" and args.batch_size > int(
         os.environ.get("VLLM_LOD_POOL_SIZE", "8")
     ):
@@ -1481,6 +1512,7 @@ def main() -> None:
         mode=args.mode,
         length=args.length,
         requested_samples=args.samples,
+        sample_offset=args.sample_offset,
         batch_size=args.batch_size,
         tensor_parallel_size=args.tensor_parallel_size,
         max_num_batched_tokens=args.max_num_batched_tokens,

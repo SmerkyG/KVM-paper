@@ -75,6 +75,19 @@ NIAH panel is a compatibility smoke test rather than a new quality result; the
 historical Hugging Face results above remain the more complete matched
 comparison.
 
+The native vLLM and BF16 two-level LOD paths were also compared on the pinned
+64K ProLong documents 8--15 (524,280 predicted tokens). Both modes consumed
+the same source indices and K2 token hashes.
+
+| 64K subset | Full CE | LOD CE | CE delta | Full PPL | LOD PPL |
+|---|---:|---:|---:|---:|---:|
+| ProLong 8--15 | 1.03174 | 1.03259 | +0.00085 | 2.80593 | 2.80833 |
+
+The largest per-document CE increase was 0.00459; three of eight documents
+improved under LOD. This run used direct LOD prefill with three opened regions,
+top-8 decode routing, the `16 * sqrt(T)` state schedule, and 16K vLLM scheduler
+chunks.
+
 The 8K and 16K timing files use a full 1,025-token warmup. The 32K and 64K
 records used a 257-token warmup but were retained because all three measured
 repetitions were already stable. The benchmark helper now defaults to warming

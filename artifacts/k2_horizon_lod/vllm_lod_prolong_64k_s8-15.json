@@ -1,0 +1,765 @@
+{
+  "allow_heterogeneous_global_config": false,
+  "apply_chat_template": false,
+  "attention_exercised": "direct_lod_prefill",
+  "batch_size": 8,
+  "checkpoint": "IFM/K2-Horizon-0.9B",
+  "concatenate_prolong": false,
+  "decode_static_leaf_cap_min": 16,
+  "disable_thinking": false,
+  "elapsed_seconds": 77.58121730497805,
+  "enforce_eager": true,
+  "eval": "prolong",
+  "language_model_only": false,
+  "length": 65536,
+  "lod_diagnostics_after": {
+    "batched_cached_prefill_rows": 0,
+    "batched_cached_prefills": 0,
+    "catch_up_batches": 0,
+    "catch_up_rows": 0,
+    "custom_impl_sliding_windows": {
+      "(-1, -1)": 28
+    },
+    "custom_layers": [
+      "model.layers.0.self_attn.attn",
+      "model.layers.1.self_attn.attn",
+      "model.layers.2.self_attn.attn",
+      "model.layers.3.self_attn.attn",
+      "model.layers.4.self_attn.attn",
+      "model.layers.5.self_attn.attn",
+      "model.layers.6.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.8.self_attn.attn",
+      "model.layers.9.self_attn.attn",
+      "model.layers.10.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.12.self_attn.attn",
+      "model.layers.13.self_attn.attn",
+      "model.layers.14.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.16.self_attn.attn",
+      "model.layers.17.self_attn.attn",
+      "model.layers.18.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.20.self_attn.attn",
+      "model.layers.21.self_attn.attn",
+      "model.layers.22.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.24.self_attn.attn",
+      "model.layers.25.self_attn.attn",
+      "model.layers.26.self_attn.attn",
+      "model.layers.27.self_attn.attn"
+    ],
+    "decode_calls": 84,
+    "decode_centroid_major_hip_configured": [
+      false
+    ],
+    "decode_centroid_major_hip_executed": [
+      false
+    ],
+    "decode_gqa_direct_fixed_routes_configured": [
+      true
+    ],
+    "decode_gqa_direct_fixed_routes_executed": [],
+    "decode_gqa_fixed_mask_configured": [
+      false
+    ],
+    "decode_gqa_fixed_mask_executed": [],
+    "decode_gqa_overlap_local_sink_configured": [
+      false
+    ],
+    "decode_gqa_overlap_local_sink_executed": [
+      false
+    ],
+    "decode_gqa_staged_fixed_configured": [
+      false
+    ],
+    "decode_gqa_staged_fixed_executed": [],
+    "decode_gqa_static_leaf_aiter_configured": [
+      false
+    ],
+    "decode_gqa_static_leaf_aiter_executed": [],
+    "decode_gqa_static_leaf_caps": [
+      null
+    ],
+    "decode_gqa_union_aiter_final": [
+      false
+    ],
+    "decode_gqa_union_configured": [
+      false
+    ],
+    "decode_gqa_union_eligible": [
+      false
+    ],
+    "decode_gqa_union_hip_configured": [
+      false
+    ],
+    "decode_gqa_union_hip_executed": [
+      false
+    ],
+    "decode_gqa_union_pilot_z": [
+      false
+    ],
+    "decode_gqa_union_pilot_z_configured": [
+      false
+    ],
+    "decode_gqa_union_predicted_mass": [
+      false
+    ],
+    "decode_gqa_union_requested": [
+      false
+    ],
+    "decode_gqa_union_score_only": [
+      false
+    ],
+    "decode_max_open_leaves": [
+      1024
+    ],
+    "decode_open_counts": [
+      8
+    ],
+    "decode_route_cohort": [
+      false
+    ],
+    "direct_prefill_calls": 896,
+    "effective_decode_route_leaf_limits": [
+      1024
+    ],
+    "eligible_layers": [
+      "model.layers.0.self_attn.attn",
+      "model.layers.1.self_attn.attn",
+      "model.layers.2.self_attn.attn",
+      "model.layers.3.self_attn.attn",
+      "model.layers.4.self_attn.attn",
+      "model.layers.5.self_attn.attn",
+      "model.layers.6.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.8.self_attn.attn",
+      "model.layers.9.self_attn.attn",
+      "model.layers.10.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.12.self_attn.attn",
+      "model.layers.13.self_attn.attn",
+      "model.layers.14.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.16.self_attn.attn",
+      "model.layers.17.self_attn.attn",
+      "model.layers.18.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.20.self_attn.attn",
+      "model.layers.21.self_attn.attn",
+      "model.layers.22.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.24.self_attn.attn",
+      "model.layers.25.self_attn.attn",
+      "model.layers.26.self_attn.attn",
+      "model.layers.27.self_attn.attn"
+    ],
+    "gqa_route_mass_threshold_hits": {
+      "16": 0,
+      "32": 0,
+      "64": 0,
+      "128": 0,
+      "256": 0
+    },
+    "gqa_route_max_mass": null,
+    "gqa_union_centroid_count_max": 0,
+    "gqa_union_centroid_count_mean": 0.0,
+    "gqa_union_effective_segments": [],
+    "gqa_union_epoch_max": 0,
+    "gqa_union_exact_token_count_max": 0,
+    "gqa_union_exact_token_count_mean": 0.0,
+    "gqa_union_nonempty_sequences": 0,
+    "gqa_union_runtime_kv_heads": [],
+    "gqa_union_runtime_sequence_counts": [],
+    "gqa_union_sequence_count": 0,
+    "gqa_union_split_d_reduce": [],
+    "gqa_union_token_count_max": 0,
+    "gqa_union_token_count_mean": 0.0,
+    "install_count": 224,
+    "pooled_layers": [
+      "model.layers.0.self_attn.attn",
+      "model.layers.1.self_attn.attn",
+      "model.layers.2.self_attn.attn",
+      "model.layers.3.self_attn.attn",
+      "model.layers.4.self_attn.attn",
+      "model.layers.5.self_attn.attn",
+      "model.layers.6.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.8.self_attn.attn",
+      "model.layers.9.self_attn.attn",
+      "model.layers.10.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.12.self_attn.attn",
+      "model.layers.13.self_attn.attn",
+      "model.layers.14.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.16.self_attn.attn",
+      "model.layers.17.self_attn.attn",
+      "model.layers.18.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.20.self_attn.attn",
+      "model.layers.21.self_attn.attn",
+      "model.layers.22.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.24.self_attn.attn",
+      "model.layers.25.self_attn.attn",
+      "model.layers.26.self_attn.attn",
+      "model.layers.27.self_attn.attn"
+    ],
+    "prefill_coarse_direct_gqa_configured": [
+      [
+        false,
+        64,
+        32,
+        8
+      ]
+    ],
+    "prefill_coarse_direct_gqa_executed": [],
+    "prefill_open_counts": [
+      3
+    ],
+    "prefill_route_cohort": [
+      false
+    ],
+    "recursive_state_route_backends": [
+      "fused"
+    ],
+    "routing_geometries": [
+      [
+        "cosine",
+        "none",
+        "query"
+      ]
+    ],
+    "selected_route_count_max": 0.0,
+    "speculative_parallel_configured": [
+      false
+    ],
+    "speculative_parallel_executed": [
+      false
+    ],
+    "speculative_parallel_execution_counts": [
+      0
+    ],
+    "speculative_recursive_state_route_backends": [
+      "fused"
+    ],
+    "speculative_shared_local_configured": [
+      false
+    ],
+    "speculative_shared_local_executed": [
+      false
+    ],
+    "speculative_shared_route_configured": [
+      false
+    ],
+    "speculative_shared_route_executed": [
+      false
+    ],
+    "split_posting_len_max": 0,
+    "split_scheduled_state_len_max": 0,
+    "split_state_len_max": 0,
+    "state_centroids_at_or_above_open_limit": 0,
+    "state_count_max": 0.0,
+    "state_split_limits": [
+      null
+    ],
+    "state_v_abs_max": 5920.0,
+    "state_v_nonfinite": 0,
+    "static_leaf_count_distribution": [
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "1",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "2",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "3-4",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "5-8",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "9-16",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "17-32",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "33-64",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "65-128",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "129-256",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "257-512",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "513-1024",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": ">1024",
+        "leaf_fraction": 0.0
+      }
+    ],
+    "static_opened_centroid_fraction": 0.0,
+    "static_opened_centroids": 0,
+    "static_opened_leaf_fraction": 0.0,
+    "static_opened_leaves": 0.0,
+    "static_total_centroids": 0,
+    "static_total_leaves": 0.0
+  },
+  "lod_diagnostics_before": {
+    "batched_cached_prefill_rows": 0,
+    "batched_cached_prefills": 0,
+    "catch_up_batches": 0,
+    "catch_up_rows": 0,
+    "custom_impl_sliding_windows": {
+      "(-1, -1)": 28
+    },
+    "custom_layers": [
+      "model.layers.0.self_attn.attn",
+      "model.layers.1.self_attn.attn",
+      "model.layers.2.self_attn.attn",
+      "model.layers.3.self_attn.attn",
+      "model.layers.4.self_attn.attn",
+      "model.layers.5.self_attn.attn",
+      "model.layers.6.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.8.self_attn.attn",
+      "model.layers.9.self_attn.attn",
+      "model.layers.10.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.12.self_attn.attn",
+      "model.layers.13.self_attn.attn",
+      "model.layers.14.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.16.self_attn.attn",
+      "model.layers.17.self_attn.attn",
+      "model.layers.18.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.20.self_attn.attn",
+      "model.layers.21.self_attn.attn",
+      "model.layers.22.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.24.self_attn.attn",
+      "model.layers.25.self_attn.attn",
+      "model.layers.26.self_attn.attn",
+      "model.layers.27.self_attn.attn"
+    ],
+    "decode_calls": 84,
+    "decode_centroid_major_hip_configured": [
+      false
+    ],
+    "decode_centroid_major_hip_executed": [
+      false
+    ],
+    "decode_gqa_direct_fixed_routes_configured": [
+      true
+    ],
+    "decode_gqa_direct_fixed_routes_executed": [],
+    "decode_gqa_fixed_mask_configured": [
+      false
+    ],
+    "decode_gqa_fixed_mask_executed": [],
+    "decode_gqa_overlap_local_sink_configured": [
+      false
+    ],
+    "decode_gqa_overlap_local_sink_executed": [
+      false
+    ],
+    "decode_gqa_staged_fixed_configured": [
+      false
+    ],
+    "decode_gqa_staged_fixed_executed": [],
+    "decode_gqa_static_leaf_aiter_configured": [
+      false
+    ],
+    "decode_gqa_static_leaf_aiter_executed": [],
+    "decode_gqa_static_leaf_caps": [
+      null
+    ],
+    "decode_gqa_union_aiter_final": [
+      false
+    ],
+    "decode_gqa_union_configured": [
+      false
+    ],
+    "decode_gqa_union_eligible": [
+      false
+    ],
+    "decode_gqa_union_hip_configured": [
+      false
+    ],
+    "decode_gqa_union_hip_executed": [
+      false
+    ],
+    "decode_gqa_union_pilot_z": [
+      false
+    ],
+    "decode_gqa_union_pilot_z_configured": [
+      false
+    ],
+    "decode_gqa_union_predicted_mass": [
+      false
+    ],
+    "decode_gqa_union_requested": [
+      false
+    ],
+    "decode_gqa_union_score_only": [
+      false
+    ],
+    "decode_max_open_leaves": [
+      1024
+    ],
+    "decode_open_counts": [
+      8
+    ],
+    "decode_route_cohort": [
+      false
+    ],
+    "direct_prefill_calls": 0,
+    "effective_decode_route_leaf_limits": [
+      1024
+    ],
+    "eligible_layers": [
+      "model.layers.0.self_attn.attn",
+      "model.layers.1.self_attn.attn",
+      "model.layers.2.self_attn.attn",
+      "model.layers.3.self_attn.attn",
+      "model.layers.4.self_attn.attn",
+      "model.layers.5.self_attn.attn",
+      "model.layers.6.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.8.self_attn.attn",
+      "model.layers.9.self_attn.attn",
+      "model.layers.10.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.12.self_attn.attn",
+      "model.layers.13.self_attn.attn",
+      "model.layers.14.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.16.self_attn.attn",
+      "model.layers.17.self_attn.attn",
+      "model.layers.18.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.20.self_attn.attn",
+      "model.layers.21.self_attn.attn",
+      "model.layers.22.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.24.self_attn.attn",
+      "model.layers.25.self_attn.attn",
+      "model.layers.26.self_attn.attn",
+      "model.layers.27.self_attn.attn"
+    ],
+    "gqa_route_mass_threshold_hits": {
+      "16": 0,
+      "32": 0,
+      "64": 0,
+      "128": 0,
+      "256": 0
+    },
+    "gqa_route_max_mass": null,
+    "gqa_union_centroid_count_max": 0,
+    "gqa_union_centroid_count_mean": 0.0,
+    "gqa_union_effective_segments": [],
+    "gqa_union_epoch_max": 0,
+    "gqa_union_exact_token_count_max": 0,
+    "gqa_union_exact_token_count_mean": 0.0,
+    "gqa_union_nonempty_sequences": 0,
+    "gqa_union_runtime_kv_heads": [],
+    "gqa_union_runtime_sequence_counts": [],
+    "gqa_union_sequence_count": 0,
+    "gqa_union_split_d_reduce": [],
+    "gqa_union_token_count_max": 0,
+    "gqa_union_token_count_mean": 0.0,
+    "install_count": 0,
+    "pooled_layers": [
+      "model.layers.0.self_attn.attn",
+      "model.layers.1.self_attn.attn",
+      "model.layers.2.self_attn.attn",
+      "model.layers.3.self_attn.attn",
+      "model.layers.4.self_attn.attn",
+      "model.layers.5.self_attn.attn",
+      "model.layers.6.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.8.self_attn.attn",
+      "model.layers.9.self_attn.attn",
+      "model.layers.10.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.12.self_attn.attn",
+      "model.layers.13.self_attn.attn",
+      "model.layers.14.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.16.self_attn.attn",
+      "model.layers.17.self_attn.attn",
+      "model.layers.18.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.20.self_attn.attn",
+      "model.layers.21.self_attn.attn",
+      "model.layers.22.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.24.self_attn.attn",
+      "model.layers.25.self_attn.attn",
+      "model.layers.26.self_attn.attn",
+      "model.layers.27.self_attn.attn"
+    ],
+    "prefill_coarse_direct_gqa_configured": [
+      [
+        false,
+        64,
+        32,
+        8
+      ]
+    ],
+    "prefill_coarse_direct_gqa_executed": [],
+    "prefill_open_counts": [
+      3
+    ],
+    "prefill_route_cohort": [
+      false
+    ],
+    "recursive_state_route_backends": [
+      "fused"
+    ],
+    "routing_geometries": [
+      [
+        "cosine",
+        "none",
+        "query"
+      ]
+    ],
+    "selected_route_count_max": 0.0,
+    "speculative_parallel_configured": [
+      false
+    ],
+    "speculative_parallel_executed": [
+      false
+    ],
+    "speculative_parallel_execution_counts": [
+      0
+    ],
+    "speculative_recursive_state_route_backends": [
+      "fused"
+    ],
+    "speculative_shared_local_configured": [
+      false
+    ],
+    "speculative_shared_local_executed": [
+      false
+    ],
+    "speculative_shared_route_configured": [
+      false
+    ],
+    "speculative_shared_route_executed": [
+      false
+    ],
+    "split_posting_len_max": 0,
+    "split_scheduled_state_len_max": 0,
+    "split_state_len_max": 0,
+    "state_centroids_at_or_above_open_limit": 0,
+    "state_count_max": 0.0,
+    "state_split_limits": [
+      null
+    ],
+    "state_v_abs_max": 0.0,
+    "state_v_nonfinite": 0,
+    "static_leaf_count_distribution": [
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "1",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "2",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "3-4",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "5-8",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "9-16",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "17-32",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "33-64",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "65-128",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "129-256",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "257-512",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "513-1024",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": ">1024",
+        "leaf_fraction": 0.0
+      }
+    ],
+    "static_opened_centroid_fraction": 0.0,
+    "static_opened_centroids": 0,
+    "static_opened_leaf_fraction": 0.0,
+    "static_opened_leaves": 0.0,
+    "static_total_centroids": 0,
+    "static_total_leaves": 0.0
+  },
+  "lod_prefill_route_block_m": null,
+  "lod_prefill_route_num_warps": null,
+  "lod_recursive_page_block_n": null,
+  "lod_recursive_state_route_backend": null,
+  "long_prefill_token_threshold": 16384,
+  "loss": 1.0325914091962696,
+  "max_num_batched_tokens": 16384,
+  "mode": "lod",
+  "muse_native_text_config": false,
+  "perplexity": 2.808333955732956,
+  "prediction_tokens": 524280,
+  "prefill_open_count": 3,
+  "prefill_route_cohort": false,
+  "prefill_static_leaf_cap_min": 16,
+  "requested_samples": 8,
+  "sample_offset": 8,
+  "samples": [
+    {
+      "loss": 2.448194195589169,
+      "perplexity": 11.567439314626759,
+      "sample": 8,
+      "source_indices": [
+        17
+      ],
+      "token_sha256": "40b6c29a9f0802a6e32ed943ae56d15f3a3f147aa3e923e47d00b157f4d7b43a",
+      "tokens": 65536
+    },
+    {
+      "loss": 2.5970424177265534,
+      "perplexity": 13.423976749674997,
+      "sample": 9,
+      "source_indices": [
+        23
+      ],
+      "token_sha256": "5c3a3d0f69d187d3e7def01d7db8665aa2d72725daa802888be7927400f73d3d",
+      "tokens": 65536
+    },
+    {
+      "loss": 0.17170058270753188,
+      "perplexity": 1.187322275165531,
+      "sample": 10,
+      "source_indices": [
+        24
+      ],
+      "token_sha256": "2edc1ef4e231c1bfdc9e32c54600b28d47e16cfce3d73f79fa42f537ac2d71aa",
+      "tokens": 65536
+    },
+    {
+      "loss": 0.031816711348048636,
+      "perplexity": 1.0323282739059687,
+      "sample": 11,
+      "source_indices": [
+        31
+      ],
+      "token_sha256": "5757d7bc687f026e85ed3d651b1d4de6a0b6330991b1b3d4fd406e726505cd4d",
+      "tokens": 65536
+    },
+    {
+      "loss": 1.302165429276871,
+      "perplexity": 3.677250879081856,
+      "sample": 12,
+      "source_indices": [
+        34
+      ],
+      "token_sha256": "1f80e183ea2cf4e30a718dd1c737e489ea16fbc0acab232bb455f46e62292fcb",
+      "tokens": 65536
+    },
+    {
+      "loss": 0.8196772371158391,
+      "perplexity": 2.269767122709293,
+      "sample": 13,
+      "source_indices": [
+        37
+      ],
+      "token_sha256": "2e84c015a5c4bd6426f157b82a83c29b65a6b0c3f72931d938a62daeb54b20cb",
+      "tokens": 65536
+    },
+    {
+      "loss": 0.3745674050279422,
+      "perplexity": 1.4543621287706108,
+      "sample": 14,
+      "source_indices": [
+        39
+      ],
+      "token_sha256": "b9d94fca92925c7e20d4a92c8fb423a278d09890547f289ee69dbc1687a16481",
+      "tokens": 65536
+    },
+    {
+      "loss": 0.5155672947782011,
+      "perplexity": 1.674588217539116,
+      "sample": 15,
+      "source_indices": [
+        41
+      ],
+      "token_sha256": "0faede26b51df782b2d6d773b394f76712200f6c992894d106649842ab756935",
+      "tokens": 65536
+    }
+  ],
+  "state_split_max_leaves": null,
+  "static_cohort_never_readmit": false,
+  "static_leaf_cap_divisor": 16,
+  "tensor_parallel_size": 1
+}
