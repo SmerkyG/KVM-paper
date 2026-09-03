@@ -22,7 +22,6 @@ from model.hf_pytorch_lod_attention import (
 )
 from model.pytorch_lod_attention import LODConfig
 from model.pytorch_lod_attention_paged import PagedLODConfig
-from model.slabbed_lod_attention import SlabbedLODConfig
 from scripts.eval_qwen35_lod_lmeval import patch_hotpotqa_download
 
 
@@ -39,6 +38,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--local-window", type=int, default=512)
     parser.add_argument("--state-min-size", type=int, default=256)
     parser.add_argument("--state-size-offset", type=int, default=0)
+    parser.add_argument(
+        "--state-premerge-factor",
+        type=int,
+        choices=(1, 2, 4),
+        default=1,
+        help=(
+            "merge each consecutive group into an atomic first-tier centroid "
+            "before state routing"
+        ),
+    )
     parser.add_argument("--protected-prefix", type=int, default=1)
     parser.add_argument(
         "--mla-state-key-normalization",
@@ -153,22 +162,6 @@ def parse_args() -> argparse.Namespace:
         "--engine-backend", choices=("torch", "kernel"), default="kernel"
     )
     parser.add_argument("--recursive-pages", action="store_true")
-    parser.add_argument("--slabbed", action="store_true")
-    parser.add_argument("--slab-size", type=int, default=4096)
-    parser.add_argument("--slots-per-slab", type=int, default=256)
-    parser.add_argument("--slab-local-slabs", type=int, default=2)
-    parser.add_argument("--slab-routing-chunk-size", type=int, default=4096)
-    parser.add_argument("--slab-query-chunk-size", type=int, default=4096)
-    parser.add_argument("--slab-merge-group-slabs", type=int, default=0)
-    parser.add_argument("--slab-merged-slots-per-group", type=int, default=0)
-    parser.add_argument("--slab-merge-budget-growth-factor", type=float, default=0.0)
-    parser.add_argument("--slab-coarse-variance-bias", type=float, default=0.0)
-    parser.add_argument("--slab-exact-closed-mass-oracle", action="store_true")
-    parser.add_argument(
-        "--slab-seed-selection",
-        choices=("prefix", "strided"),
-        default="strided",
-    )
     parser.add_argument("--kv-bits", type=int, choices=(0, 4), default=0)
     parser.add_argument(
         "--left-padding-mode",
@@ -180,6 +173,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--apply-chat-template", action="store_true")
     parser.add_argument("--disable-thinking", action="store_true")
     parser.add_argument("--log-samples", action="store_true")
+    parser.add_argument(
+        "--warmup-evaluations",
+        type=int,
+        default=0,
+        help="discard this many complete lm-eval passes before timing",
+    )
+    parser.add_argument(
+        "--timing-repetitions",
+        type=int,
+        default=1,
+        help="number of complete post-warmup lm-eval passes to time",
+    )
     parser.add_argument(
         "--use-upstream-code",
         action="store_true",
@@ -202,7 +207,7 @@ def load_model(
     config = composite_config.get_text_config(decoder=True)
     is_muse_glimmer = getattr(composite_config, "model_type", None) == "muse_glimmer"
     is_qwen35 = type(config).__module__.startswith(
-        "transformers.models.qwen3_5."
+        ("transformers.models.qwen3_5.", "transformers.models.qwen3_5_moe.")
     )
     if is_qwen35:
         from scripts.probe_qwen35_lod_niah import enable_fla_fast_path
@@ -269,6 +274,10 @@ def load_model(
 
 def main() -> None:
     args = parse_args()
+    if args.warmup_evaluations < 0:
+        raise ValueError("warmup evaluations cannot be negative")
+    if args.timing_repetitions <= 0:
+        raise ValueError("timing repetitions must be positive")
     if args.batch_size < 1:
         raise ValueError("batch size must be positive")
     if args.ruler_length is not None and args.ruler_length < 1:
@@ -279,12 +288,6 @@ def main() -> None:
         raise ValueError("open count must be in [0, 128]")
     if args.kv_bits and not args.recursive_pages:
         raise ValueError("KV quantization requires --recursive-pages")
-    if args.slabbed and args.recursive_pages:
-        raise ValueError("--slabbed and --recursive-pages are mutually exclusive")
-    if args.slabbed and args.engine_backend != "torch":
-        raise ValueError("--slabbed currently requires --engine-backend torch")
-    if args.slabbed and args.left_padding_mode != "exact":
-        raise ValueError("--slabbed currently requires --left-padding-mode exact")
     if (
         args.routing_leaf_mass_top_p is not None
         or args.routing_leaf_mass_review_top_p is not None
@@ -322,6 +325,7 @@ def main() -> None:
             "state_growth_factor": args.state_growth_factor,
             "state_min_size": args.state_min_size,
             "state_size_offset": args.state_size_offset,
+            "state_premerge_factor": args.state_premerge_factor,
             "protected_prefix": args.protected_prefix,
             "mla_state_key_normalization": args.mla_state_key_normalization,
             "mla_recursive_page_key_normalization": (
@@ -358,27 +362,11 @@ def main() -> None:
             "routing_leaf_mass_min_routes": args.routing_leaf_mass_min_routes,
             "max_routes": args.open_count,
         }
-        if args.slabbed:
-            config = SlabbedLODConfig(
-                **config_kwargs,
-                slab_size=args.slab_size,
-                slots_per_slab=args.slots_per_slab,
-                local_slabs=args.slab_local_slabs,
-                routing_chunk_size=args.slab_routing_chunk_size,
-                query_chunk_size=args.slab_query_chunk_size,
-                seed_selection=args.slab_seed_selection,
-                merge_group_slabs=args.slab_merge_group_slabs,
-                merged_slots_per_group=args.slab_merged_slots_per_group,
-                merge_budget_growth_factor=args.slab_merge_budget_growth_factor,
-                coarse_variance_bias=args.slab_coarse_variance_bias,
-                exact_closed_mass_oracle=args.slab_exact_closed_mass_oracle,
-            )
-        elif args.recursive_pages:
-            config = PagedLODConfig(
-                **config_kwargs, page_size=16, kv_bits=args.kv_bits
-            )
-        else:
-            config = LODConfig(**config_kwargs)
+        config = (
+            PagedLODConfig(**config_kwargs, page_size=16, kv_bits=args.kv_bits)
+            if args.recursive_pages
+            else LODConfig(**config_kwargs)
+        )
         installed = install_hf_lod_attention(
             model,
             config=config,
@@ -426,20 +414,36 @@ def main() -> None:
     gen_kwargs = {}
     if args.max_gen_toks is not None:
         gen_kwargs["max_gen_toks"] = args.max_gen_toks
-    evaluation_start = time.perf_counter()
-    results = evaluator.simple_evaluate(
-        model=lm,
-        tasks=args.tasks,
-        batch_size=args.batch_size,
-        limit=args.limit,
-        bootstrap_iters=0,
-        log_samples=args.log_samples,
-        gen_kwargs=gen_kwargs or None,
-        apply_chat_template=args.apply_chat_template,
-        metadata=metadata,
-        confirm_run_unsafe_code=True,
-    )
-    evaluation_seconds = time.perf_counter() - evaluation_start
+    evaluation_kwargs = {
+        "model": lm,
+        "tasks": args.tasks,
+        "batch_size": args.batch_size,
+        "limit": args.limit,
+        "bootstrap_iters": 0,
+        "log_samples": args.log_samples,
+        "gen_kwargs": gen_kwargs or None,
+        "apply_chat_template": args.apply_chat_template,
+        "metadata": metadata,
+        "confirm_run_unsafe_code": True,
+    }
+    for warmup_index in range(args.warmup_evaluations):
+        print(
+            f"warmup evaluation {warmup_index + 1}/{args.warmup_evaluations}"
+        )
+        evaluator.simple_evaluate(**evaluation_kwargs)
+    evaluation_seconds_samples = []
+    results = None
+    for repetition in range(args.timing_repetitions):
+        evaluation_start = time.perf_counter()
+        results = evaluator.simple_evaluate(**evaluation_kwargs)
+        evaluation_seconds_samples.append(time.perf_counter() - evaluation_start)
+        print(
+            f"timed evaluation {repetition + 1}/{args.timing_repetitions}: "
+            f"{evaluation_seconds_samples[-1]:.6f} seconds"
+        )
+    evaluation_seconds = sorted(evaluation_seconds_samples)[
+        len(evaluation_seconds_samples) // 2
+    ]
     dynamic_open_statistics = (
         pop_hf_lod_dynamic_open_statistics(model)
         if args.mode == "lod"
@@ -464,6 +468,7 @@ def main() -> None:
         "local_window": args.local_window,
         "state_min_size": args.state_min_size,
         "state_size_offset": args.state_size_offset,
+        "state_premerge_factor": args.state_premerge_factor,
         "protected_prefix": args.protected_prefix,
         "mla_state_key_normalization": args.mla_state_key_normalization,
         "mla_recursive_page_key_normalization": (
@@ -500,34 +505,6 @@ def main() -> None:
         ),
         "engine_backend": args.engine_backend,
         "recursive_pages": args.recursive_pages,
-        "slabbed": args.slabbed,
-        "slab_size": args.slab_size if args.slabbed else None,
-        "slots_per_slab": args.slots_per_slab if args.slabbed else None,
-        "slab_local_slabs": args.slab_local_slabs if args.slabbed else None,
-        "slab_routing_chunk_size": (
-            args.slab_routing_chunk_size if args.slabbed else None
-        ),
-        "slab_query_chunk_size": (
-            args.slab_query_chunk_size if args.slabbed else None
-        ),
-        "slab_seed_selection": (
-            args.slab_seed_selection if args.slabbed else None
-        ),
-        "slab_merge_group_slabs": (
-            args.slab_merge_group_slabs if args.slabbed else None
-        ),
-        "slab_merged_slots_per_group": (
-            args.slab_merged_slots_per_group if args.slabbed else None
-        ),
-        "slab_merge_budget_growth_factor": (
-            args.slab_merge_budget_growth_factor if args.slabbed else None
-        ),
-        "slab_coarse_variance_bias": (
-            args.slab_coarse_variance_bias if args.slabbed else None
-        ),
-        "slab_exact_closed_mass_oracle": (
-            args.slab_exact_closed_mass_oracle if args.slabbed else None
-        ),
         "kv_bits": args.kv_bits,
         "left_padding_mode": args.left_padding_mode,
         "max_gen_toks": args.max_gen_toks,
@@ -536,6 +513,9 @@ def main() -> None:
         "use_upstream_code": args.use_upstream_code,
         "attention_layers": installed,
         "evaluation_seconds": evaluation_seconds,
+        "evaluation_seconds_samples": evaluation_seconds_samples,
+        "warmup_evaluations": args.warmup_evaluations,
+        "timing_repetitions": args.timing_repetitions,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(

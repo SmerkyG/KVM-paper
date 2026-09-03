@@ -51,11 +51,17 @@ from .pytorch_lod_attention_fast import (
 
 @dataclass(frozen=True)
 class PagedLODConfig(LODConfig):
-    """LOD settings plus optional chronological pages and INT4 storage."""
+    """LOD settings plus optional chronological pages and quantized storage."""
 
     page_size: int | None = 16
     kv_bits: int = 0
     quant_group_size: int = 32
+    page_summary_quant_bits: int = 8
+    recursive_materialize_page_scores: bool = False
+    recursive_page_score_block_n: int = 16
+    recursive_page_score_num_warps: int = 2
+    recursive_page_select_block_n: int = 64
+    recursive_state_route_backend: str = "fused"
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -63,12 +69,33 @@ class PagedLODConfig(LODConfig):
             raise ValueError("page_size must be positive or None")
         if self.page_size is not None and self.chunk_size % self.page_size:
             raise ValueError("page_size must divide chunk_size for causal prefill")
-        if self.kv_bits not in (0, 4):
-            raise ValueError("kv_bits must be zero or four")
+        if self.kv_bits not in (0, 4, 8):
+            raise ValueError("kv_bits must be zero, four, or eight")
         if self.kv_bits and self.page_size is None:
-            raise ValueError("INT4 storage requires pages")
+            raise ValueError("quantized storage requires pages")
         if self.quant_group_size <= 0:
             raise ValueError("quant_group_size must be positive")
+        if self.page_summary_quant_bits not in (0, 8):
+            raise ValueError("page-summary quantization supports zero or eight bits")
+        if self.recursive_materialize_page_scores and self.page_summary_quant_bits:
+            raise ValueError(
+                "materialized page scores currently require BF16 page summaries"
+            )
+        valid_blocks = (16, 32, 64, 128)
+        if self.recursive_page_score_block_n not in valid_blocks:
+            raise ValueError("page-score block size must be 16, 32, 64, or 128")
+        if self.recursive_page_select_block_n not in valid_blocks:
+            raise ValueError("page-select block size must be 16, 32, 64, or 128")
+        if self.recursive_page_score_num_warps not in (1, 2, 4, 8):
+            raise ValueError("page-score warps must be one, two, four, or eight")
+        if self.recursive_state_route_backend not in ("fused", "resplit"):
+            raise ValueError(
+                "recursive state-route backend must be 'fused' or 'resplit'"
+            )
+        if self.leaf_seal_capacity is not None:
+            raise ValueError("sealed exact leaves require flat two-level LOD")
+        if self.prefill_int8_leaf_mma:
+            raise ValueError("native INT8 leaf MMA requires flat two-level LOD")
 
 
 def _tensor_bytes(tensor: torch.Tensor | None) -> int:

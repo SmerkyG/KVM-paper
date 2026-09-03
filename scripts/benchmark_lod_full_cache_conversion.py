@@ -48,7 +48,7 @@ def main() -> None:
     parser.add_argument("--length", type=int, default=8192)
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--repetitions", type=int, default=5)
-    parser.add_argument("--kv-bits", type=int, choices=(0, 4), default=4)
+    parser.add_argument("--kv-bits", type=int, choices=(0, 4, 8), default=4)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     if not torch.cuda.is_available():

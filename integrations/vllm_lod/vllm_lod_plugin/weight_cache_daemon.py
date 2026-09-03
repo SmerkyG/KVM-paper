@@ -312,6 +312,12 @@ def _run_rank(
     worker = None
     try:
         _assert_ipc_allocator()
+        # Register the requested CUSTOM attention implementation so the
+        # retained module tree exactly matches the client, but suppress its
+        # serving-only LOD pools in this backing process.  Otherwise a B*T
+        # semantic cache is retained beside the weights and defeats the
+        # daemon's GPU-light contract.
+        os.environ["VLLM_LOD_WEIGHT_CACHE_BACKING"] = "1"
         import torch
         from vllm.config import set_current_vllm_config
         from vllm.plugins import load_general_plugins

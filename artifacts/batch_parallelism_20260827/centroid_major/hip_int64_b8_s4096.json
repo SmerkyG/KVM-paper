@@ -1,0 +1,40 @@
+{
+  "active_groups": 128,
+  "batch_size": 8,
+  "correctness": {
+    "top8_row_agreement": 1.0,
+    "top8_slot_agreement": 1.0
+  },
+  "device": "AMD Instinct MI325X",
+  "gqa": 4,
+  "head_dim": 256,
+  "kv_heads": 2,
+  "measurements": {
+    "hip_centroid_major": {
+      "reduce_us_median": 6.560000125318766,
+      "score_us_median": 36.999499425292015,
+      "total_us_median": 43.5589998960495
+    },
+    "hip_centroid_major_postdot_mean": {
+      "reduce_us_median": 6.560000125318766,
+      "score_us_median": 28.99949997663498,
+      "total_us_median": 35.5795007199049
+    },
+    "triton_mfma_w1": {
+      "reduce_us_median": 6.479999981820583,
+      "score_us_median": 48.85900020599365,
+      "total_us_median": 55.39900064468384
+    },
+    "triton_mfma_w2": {
+      "reduce_us_median": 6.479999981820583,
+      "score_us_median": 43.579498305916786,
+      "total_us_median": 50.179498270154
+    },
+    "triton_mfma_w4": {
+      "reduce_us_median": 6.479000207036734,
+      "score_us_median": 43.039001524448395,
+      "total_us_median": 49.598999321460724
+    }
+  },
+  "slots": 4096
+}

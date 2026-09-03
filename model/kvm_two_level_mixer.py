@@ -235,8 +235,25 @@ def _expert_leaf_attention(
         rows = batch * query_heads * query_len
         query_row = torch.arange(rows, device=q.device, dtype=torch.long)
         query_row = query_row.unsqueeze(-1).expand(rows, route_count).reshape(-1)
-        bh_for_row = torch.div(query_row, query_len, rounding_mode="floor")
+        route_position = torch.arange(
+            rows * route_count, device=q.device, dtype=torch.long
+        )
         route_slot = top_slots.reshape(-1)
+        valid_route = route_slot.ge(0)
+        route_position = route_position[valid_route]
+        query_row = query_row[valid_route]
+        route_slot = route_slot[valid_route]
+        if not int(route_slot.numel()):
+            return (
+                q.new_zeros(batch, query_heads, query_len, int(exact_v.size(-1))),
+                torch.full(
+                    (batch, query_heads, query_len),
+                    float("-inf"),
+                    dtype=torch.float32,
+                    device=q.device,
+                ),
+            )
+        bh_for_row = torch.div(query_row, query_len, rounding_mode="floor")
         expert_id = bh_for_row * state_len + route_slot
         order = expert_id.argsort(stable=False)
         sorted_expert = expert_id[order]
@@ -295,8 +312,14 @@ def _expert_leaf_attention(
         max_k,
         scale,
     )
-    route_out = packed_out.squeeze(1).index_select(0, inverse_order)
-    route_lse = packed_lse.index_select(0, inverse_order)
+    valid_route_out = packed_out.squeeze(1).index_select(0, inverse_order)
+    valid_route_lse = packed_lse.index_select(0, inverse_order)
+    route_out = packed_out.new_zeros(
+        rows * route_count, int(packed_v.size(-1))
+    )
+    route_lse = packed_lse.new_full((rows * route_count,), float("-inf"))
+    route_out.index_copy_(0, route_position, valid_route_out)
+    route_lse.index_copy_(0, route_position, valid_route_lse)
     route_out = route_out.reshape(rows, route_count, int(packed_v.size(-1)))
     route_lse = route_lse.reshape(rows, route_count)
     route_weight = torch.softmax(route_lse.float(), dim=-1).to(route_out.dtype)

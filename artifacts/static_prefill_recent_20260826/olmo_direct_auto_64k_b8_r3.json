@@ -1,0 +1,1051 @@
+{
+  "allow_heterogeneous_global_config": false,
+  "apply_chat_template": false,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 223831130112,
+    "device_used_bytes_before_reclaim": 232674820096,
+    "external_lod_layers": 16,
+    "external_lod_layers_with_native_cache": 0,
+    "external_lod_native_cache_bytes": 0,
+    "lod_cache_bytes": 47931597504,
+    "lod_decode_scratch_bytes": 464897536,
+    "native_cache_bytes": 53942943744,
+    "torch_allocated_bytes": 105229502464,
+    "torch_reclaimable_cached_bytes": 8843689984,
+    "torch_reserved_bytes_after_reclaim": 107349016576,
+    "torch_reserved_bytes_before_reclaim": 116192706560
+  },
+  "batch_size": 8,
+  "checkpoint": "allenai/Olmo-3-1125-32B",
+  "diagnostic_external_empty_attention": null,
+  "disable_thinking": false,
+  "enable_prefix_caching": false,
+  "full_attention_backend": null,
+  "language_model_only": false,
+  "lengths": [
+    65536
+  ],
+  "load_format": "ipc_cache",
+  "lod_diagnostics_after": {
+    "batched_cached_prefill_rows": 5280,
+    "batched_cached_prefills": 1744,
+    "catch_up_batches": 160,
+    "catch_up_rows": 288,
+    "custom_impl_sliding_windows": {
+      "(-1, -1)": 16,
+      "(4095, 0)": 48
+    },
+    "custom_layers": [
+      "model.layers.0.self_attn.attn",
+      "model.layers.1.self_attn.attn",
+      "model.layers.2.self_attn.attn",
+      "model.layers.3.self_attn.attn",
+      "model.layers.4.self_attn.attn",
+      "model.layers.5.self_attn.attn",
+      "model.layers.6.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.8.self_attn.attn",
+      "model.layers.9.self_attn.attn",
+      "model.layers.10.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.12.self_attn.attn",
+      "model.layers.13.self_attn.attn",
+      "model.layers.14.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.16.self_attn.attn",
+      "model.layers.17.self_attn.attn",
+      "model.layers.18.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.20.self_attn.attn",
+      "model.layers.21.self_attn.attn",
+      "model.layers.22.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.24.self_attn.attn",
+      "model.layers.25.self_attn.attn",
+      "model.layers.26.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.28.self_attn.attn",
+      "model.layers.29.self_attn.attn",
+      "model.layers.30.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.32.self_attn.attn",
+      "model.layers.33.self_attn.attn",
+      "model.layers.34.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.36.self_attn.attn",
+      "model.layers.37.self_attn.attn",
+      "model.layers.38.self_attn.attn",
+      "model.layers.39.self_attn.attn",
+      "model.layers.40.self_attn.attn",
+      "model.layers.41.self_attn.attn",
+      "model.layers.42.self_attn.attn",
+      "model.layers.43.self_attn.attn",
+      "model.layers.44.self_attn.attn",
+      "model.layers.45.self_attn.attn",
+      "model.layers.46.self_attn.attn",
+      "model.layers.47.self_attn.attn",
+      "model.layers.48.self_attn.attn",
+      "model.layers.49.self_attn.attn",
+      "model.layers.50.self_attn.attn",
+      "model.layers.51.self_attn.attn",
+      "model.layers.52.self_attn.attn",
+      "model.layers.53.self_attn.attn",
+      "model.layers.54.self_attn.attn",
+      "model.layers.55.self_attn.attn",
+      "model.layers.56.self_attn.attn",
+      "model.layers.57.self_attn.attn",
+      "model.layers.58.self_attn.attn",
+      "model.layers.59.self_attn.attn",
+      "model.layers.60.self_attn.attn",
+      "model.layers.61.self_attn.attn",
+      "model.layers.62.self_attn.attn",
+      "model.layers.63.self_attn.attn"
+    ],
+    "decode_calls": 128,
+    "decode_gqa_fixed_mask_configured": [
+      false
+    ],
+    "decode_gqa_fixed_mask_executed": [],
+    "decode_gqa_staged_fixed_configured": [
+      false
+    ],
+    "decode_gqa_staged_fixed_executed": [],
+    "decode_gqa_static_leaf_aiter_configured": [
+      false
+    ],
+    "decode_gqa_static_leaf_aiter_executed": [],
+    "decode_gqa_static_leaf_caps": [
+      null
+    ],
+    "decode_gqa_union_aiter_final": [
+      false
+    ],
+    "decode_gqa_union_configured": [
+      false
+    ],
+    "decode_gqa_union_eligible": [
+      false
+    ],
+    "decode_gqa_union_hip_configured": [
+      false
+    ],
+    "decode_gqa_union_hip_executed": [
+      false
+    ],
+    "decode_gqa_union_predicted_mass": [
+      false
+    ],
+    "decode_gqa_union_requested": [
+      false
+    ],
+    "decode_gqa_union_score_only": [
+      false
+    ],
+    "decode_max_open_leaves": [
+      1024
+    ],
+    "decode_open_counts": [
+      8
+    ],
+    "decode_route_cohort": [
+      false
+    ],
+    "direct_prefill_calls": 2080,
+    "effective_decode_route_leaf_limits": [
+      1024
+    ],
+    "eligible_layers": [
+      "model.layers.3.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.39.self_attn.attn",
+      "model.layers.43.self_attn.attn",
+      "model.layers.47.self_attn.attn",
+      "model.layers.51.self_attn.attn",
+      "model.layers.55.self_attn.attn",
+      "model.layers.59.self_attn.attn",
+      "model.layers.63.self_attn.attn"
+    ],
+    "gqa_route_mass_threshold_hits": {
+      "16": 0,
+      "32": 0,
+      "64": 0,
+      "128": 0,
+      "256": 0
+    },
+    "gqa_route_max_mass": null,
+    "gqa_union_centroid_count_max": 0,
+    "gqa_union_centroid_count_mean": 0.0,
+    "gqa_union_epoch_max": 0,
+    "gqa_union_exact_token_count_max": 0,
+    "gqa_union_exact_token_count_mean": 0.0,
+    "gqa_union_nonempty_sequences": 0,
+    "gqa_union_sequence_count": 0,
+    "gqa_union_token_count_max": 0,
+    "gqa_union_token_count_mean": 0.0,
+    "install_count": 640,
+    "pooled_layers": [
+      "model.layers.3.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.39.self_attn.attn",
+      "model.layers.43.self_attn.attn",
+      "model.layers.47.self_attn.attn",
+      "model.layers.51.self_attn.attn",
+      "model.layers.55.self_attn.attn",
+      "model.layers.59.self_attn.attn",
+      "model.layers.63.self_attn.attn"
+    ],
+    "prefill_coarse_direct_gqa_configured": [
+      [
+        true,
+        128,
+        16,
+        8
+      ]
+    ],
+    "prefill_coarse_direct_gqa_executed": [
+      [
+        128,
+        16,
+        8
+      ]
+    ],
+    "recursive_state_route_backends": [
+      "fused"
+    ],
+    "routing_geometries": [
+      [
+        "none",
+        "coherence",
+        "none"
+      ]
+    ],
+    "selected_route_count_max": 0.0,
+    "state_centroids_at_or_above_open_limit": 0,
+    "state_count_max": 0.0,
+    "state_v_abs_max": 20224.0,
+    "state_v_nonfinite": 0,
+    "static_leaf_count_distribution": [
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "1",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "2",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "3-4",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "5-8",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "9-16",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "17-32",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "33-64",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "65-128",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "129-256",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "257-512",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "513-1024",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": ">1024",
+        "leaf_fraction": 0.0
+      }
+    ],
+    "static_opened_centroid_fraction": 0.0,
+    "static_opened_centroids": 0,
+    "static_opened_leaf_fraction": 0.0,
+    "static_opened_leaves": 0.0,
+    "static_total_centroids": 0,
+    "static_total_leaves": 0.0
+  },
+  "lod_diagnostics_before": {
+    "batched_cached_prefill_rows": 0,
+    "batched_cached_prefills": 0,
+    "catch_up_batches": 32,
+    "catch_up_rows": 48,
+    "custom_impl_sliding_windows": {
+      "(-1, -1)": 16,
+      "(4095, 0)": 48
+    },
+    "custom_layers": [
+      "model.layers.0.self_attn.attn",
+      "model.layers.1.self_attn.attn",
+      "model.layers.2.self_attn.attn",
+      "model.layers.3.self_attn.attn",
+      "model.layers.4.self_attn.attn",
+      "model.layers.5.self_attn.attn",
+      "model.layers.6.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.8.self_attn.attn",
+      "model.layers.9.self_attn.attn",
+      "model.layers.10.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.12.self_attn.attn",
+      "model.layers.13.self_attn.attn",
+      "model.layers.14.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.16.self_attn.attn",
+      "model.layers.17.self_attn.attn",
+      "model.layers.18.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.20.self_attn.attn",
+      "model.layers.21.self_attn.attn",
+      "model.layers.22.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.24.self_attn.attn",
+      "model.layers.25.self_attn.attn",
+      "model.layers.26.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.28.self_attn.attn",
+      "model.layers.29.self_attn.attn",
+      "model.layers.30.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.32.self_attn.attn",
+      "model.layers.33.self_attn.attn",
+      "model.layers.34.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.36.self_attn.attn",
+      "model.layers.37.self_attn.attn",
+      "model.layers.38.self_attn.attn",
+      "model.layers.39.self_attn.attn",
+      "model.layers.40.self_attn.attn",
+      "model.layers.41.self_attn.attn",
+      "model.layers.42.self_attn.attn",
+      "model.layers.43.self_attn.attn",
+      "model.layers.44.self_attn.attn",
+      "model.layers.45.self_attn.attn",
+      "model.layers.46.self_attn.attn",
+      "model.layers.47.self_attn.attn",
+      "model.layers.48.self_attn.attn",
+      "model.layers.49.self_attn.attn",
+      "model.layers.50.self_attn.attn",
+      "model.layers.51.self_attn.attn",
+      "model.layers.52.self_attn.attn",
+      "model.layers.53.self_attn.attn",
+      "model.layers.54.self_attn.attn",
+      "model.layers.55.self_attn.attn",
+      "model.layers.56.self_attn.attn",
+      "model.layers.57.self_attn.attn",
+      "model.layers.58.self_attn.attn",
+      "model.layers.59.self_attn.attn",
+      "model.layers.60.self_attn.attn",
+      "model.layers.61.self_attn.attn",
+      "model.layers.62.self_attn.attn",
+      "model.layers.63.self_attn.attn"
+    ],
+    "decode_calls": 128,
+    "decode_gqa_fixed_mask_configured": [
+      false
+    ],
+    "decode_gqa_fixed_mask_executed": [],
+    "decode_gqa_staged_fixed_configured": [
+      false
+    ],
+    "decode_gqa_staged_fixed_executed": [],
+    "decode_gqa_static_leaf_aiter_configured": [
+      false
+    ],
+    "decode_gqa_static_leaf_aiter_executed": [],
+    "decode_gqa_static_leaf_caps": [
+      null
+    ],
+    "decode_gqa_union_aiter_final": [
+      false
+    ],
+    "decode_gqa_union_configured": [
+      false
+    ],
+    "decode_gqa_union_eligible": [
+      false
+    ],
+    "decode_gqa_union_hip_configured": [
+      false
+    ],
+    "decode_gqa_union_hip_executed": [
+      false
+    ],
+    "decode_gqa_union_predicted_mass": [
+      false
+    ],
+    "decode_gqa_union_requested": [
+      false
+    ],
+    "decode_gqa_union_score_only": [
+      false
+    ],
+    "decode_max_open_leaves": [
+      1024
+    ],
+    "decode_open_counts": [
+      8
+    ],
+    "decode_route_cohort": [
+      false
+    ],
+    "direct_prefill_calls": 16,
+    "effective_decode_route_leaf_limits": [
+      1024
+    ],
+    "eligible_layers": [
+      "model.layers.3.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.39.self_attn.attn",
+      "model.layers.43.self_attn.attn",
+      "model.layers.47.self_attn.attn",
+      "model.layers.51.self_attn.attn",
+      "model.layers.55.self_attn.attn",
+      "model.layers.59.self_attn.attn",
+      "model.layers.63.self_attn.attn"
+    ],
+    "gqa_route_mass_threshold_hits": {
+      "16": 0,
+      "32": 0,
+      "64": 0,
+      "128": 0,
+      "256": 0
+    },
+    "gqa_route_max_mass": null,
+    "gqa_union_centroid_count_max": 0,
+    "gqa_union_centroid_count_mean": 0.0,
+    "gqa_union_epoch_max": 0,
+    "gqa_union_exact_token_count_max": 0,
+    "gqa_union_exact_token_count_mean": 0.0,
+    "gqa_union_nonempty_sequences": 0,
+    "gqa_union_sequence_count": 0,
+    "gqa_union_token_count_max": 0,
+    "gqa_union_token_count_mean": 0.0,
+    "install_count": 128,
+    "pooled_layers": [
+      "model.layers.3.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.39.self_attn.attn",
+      "model.layers.43.self_attn.attn",
+      "model.layers.47.self_attn.attn",
+      "model.layers.51.self_attn.attn",
+      "model.layers.55.self_attn.attn",
+      "model.layers.59.self_attn.attn",
+      "model.layers.63.self_attn.attn"
+    ],
+    "prefill_coarse_direct_gqa_configured": [
+      [
+        true,
+        128,
+        16,
+        8
+      ]
+    ],
+    "prefill_coarse_direct_gqa_executed": [],
+    "recursive_state_route_backends": [
+      "fused"
+    ],
+    "routing_geometries": [
+      [
+        "none",
+        "coherence",
+        "none"
+      ]
+    ],
+    "selected_route_count_max": 0.0,
+    "state_centroids_at_or_above_open_limit": 0,
+    "state_count_max": 0.0,
+    "state_v_abs_max": 59.25,
+    "state_v_nonfinite": 0,
+    "static_leaf_count_distribution": [
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "1",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "2",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "3-4",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "5-8",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "9-16",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "17-32",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "33-64",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "65-128",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "129-256",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "257-512",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "513-1024",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": ">1024",
+        "leaf_fraction": 0.0
+      }
+    ],
+    "static_opened_centroid_fraction": 0.0,
+    "static_opened_centroids": 0,
+    "static_opened_leaf_fraction": 0.0,
+    "static_opened_leaves": 0.0,
+    "static_total_centroids": 0,
+    "static_total_leaves": 0.0
+  },
+  "lod_dispatch": {
+    "records": [
+      {
+        "configured_decode_geometry_tuning": true,
+        "configured_decode_hierarchical_route": false,
+        "configured_decode_max_open_leaves": 1024,
+        "configured_decode_route_cohort": false,
+        "configured_diagnostic_static_preselected": false,
+        "configured_gqa_fixed_mask_aiter": false,
+        "configured_gqa_fixed_mask_block_n": 64,
+        "configured_gqa_fixed_mask_segments": 128,
+        "configured_gqa_mass_fraction": null,
+        "configured_gqa_predicted_mass": false,
+        "configured_gqa_staged_fixed_aiter": false,
+        "configured_gqa_static_leaf_aiter": false,
+        "configured_gqa_union_decode": false,
+        "configured_gqa_union_hip": false,
+        "configured_leaf_block_n": 16,
+        "configured_open_count": 8,
+        "configured_prefill_coarse_block_m": 16,
+        "configured_prefill_coarse_block_n": 32,
+        "configured_prefill_coarse_max_grouped_rows": 128,
+        "configured_prefill_coarse_num_warps": 8,
+        "configured_prefill_hierarchical_route": true,
+        "configured_prefill_leaf_visit_cap": null,
+        "configured_prefill_local_backend": "aiter",
+        "configured_prefill_overlap_coarse_leaf": false,
+        "configured_prefill_overlap_local_lod": false,
+        "configured_prefill_static_leaf_aiter": true,
+        "configured_prefill_static_leaf_cap_min": 16,
+        "configured_route_group_size": 32,
+        "configured_route_num_warps": 2,
+        "configured_route_parallel_reduce": false,
+        "configured_route_post_dot_normalize": false,
+        "configured_route_post_pv_normalize": false,
+        "configured_route_reduce_num_warps": 4,
+        "configured_route_segment_tiles": 1,
+        "configured_route_use_dot": true,
+        "decode_split_kv": 8,
+        "effective_decode_route_leaf_limit": 1024,
+        "effective_leaf_page_block_n": 16,
+        "effective_prefill_local_kernel": "aiter.ops.mha.flash_attn_func (CK FMHA v3)",
+        "effective_prefill_open_count": 3,
+        "effective_route_group_size": 32,
+        "effective_route_num_warps": 2,
+        "effective_route_reduce_num_warps": 4,
+        "effective_route_segment_tiles": 1,
+        "effective_route_segment_width": 32,
+        "effective_route_use_dot": true,
+        "engine_long_d128_override_bypassed_by_vllm_pool": true,
+        "engine_long_d128_override_exists": true,
+        "exact_leaf_kernel": "flat two-tier leaf dispatch",
+        "final_reduce_kernel": "_reduce_routed_split_decode_lod_attention_kernel",
+        "final_reduce_num_warps": 4,
+        "hash_probes": -1,
+        "head_dim": 128,
+        "kv_group_size": 5,
+        "kv_heads": 8,
+        "layers": 16,
+        "leaf_dtype": "torch.bfloat16",
+        "leaf_num_warps": 2,
+        "levels": 2,
+        "local_capacity": 4864,
+        "local_kernels": [
+          "_mask_decode_routes_residual_mass_kernel"
+        ],
+        "local_score_block_m": 16,
+        "local_score_block_n": 32,
+        "local_score_num_warps": 4,
+        "local_value_block_d": 32,
+        "local_value_block_k": 32,
+        "local_value_block_m": 16,
+        "local_value_num_warps": 4,
+        "local_window": 512,
+        "materialize_page_scores": false,
+        "observed_context_len": 0,
+        "page_capacity": 8480,
+        "page_route_kernels": [
+          "inline page-summary scoring in exact-leaf kernel"
+        ],
+        "page_score_block_n": 16,
+        "page_score_num_warps": 2,
+        "page_select_block_n": 64,
+        "pool_request_capacity": 65616,
+        "prefill_chunk_len": 4096,
+        "prefill_fused_route_eligible": false,
+        "prefill_leaf_kernel": "AITER mha_batch_prefill_func, page-size-one indexed concatenation of every centroid at or below the static cap",
+        "prefill_leaf_num_warps": 2,
+        "prefill_leaf_page_block_n": 32,
+        "prefill_mode": "direct",
+        "prefill_route_kernels": [
+          "_state_route_logits (all centroids)",
+          "_route_logits_coarse_attention_kernel (only centroids above the static leaf cap)"
+        ],
+        "prefill_schedule_source": "VLLM_LOD_PREFILL_* settings",
+        "prefill_state_update_len": 4096,
+        "query_heads": 40,
+        "requested_decode_hierarchical_route": null,
+        "route_gqa_grouped": true,
+        "state_capacity": 4352,
+        "state_pv_block_d": 128,
+        "state_pv_block_n": 64,
+        "state_pv_splits": 8,
+        "state_route_backend": "fused",
+        "state_route_kernels": [
+          "_decode_route_coarse_gqa_groups_kernel",
+          "_reduce_decode_route_coarse_kernel"
+        ],
+        "state_route_math": "mfma_m16",
+        "state_score_block_n": 64,
+        "state_score_num_stages": 3,
+        "state_score_num_warps": 2,
+        "state_topk_block_n": 128,
+        "state_topk_num_warps": 2
+      }
+    ],
+    "schema_version": 6
+  },
+  "lod_speed_diagnostics": {
+    "batched_cached_prefill_rows": 5280,
+    "batched_cached_prefills": 1744,
+    "batched_install_calls": 304,
+    "cached_prefill_candidate_calls": 2000,
+    "cached_prefill_candidate_rows": 8032,
+    "cached_prefill_noncontiguous": 0,
+    "cached_prefill_nonpacked_calls": 0,
+    "cached_prefill_nonuniform_lengths": 176,
+    "cached_prefill_nonuniform_previous": 1264,
+    "cached_prefill_packed_calls": 4496,
+    "cached_prefill_unready": 0,
+    "catch_up_batches": 160,
+    "catch_up_rows": 288,
+    "decode_calls": 128,
+    "decode_gqa_cooperative": false,
+    "decode_route_cohort": false,
+    "dense_leaf_storage": true,
+    "direct_prefills": 2080,
+    "effective_decode_route_leaf_limit": 1024,
+    "external_kv_cache": true,
+    "installs": 640,
+    "kv_bits": 0,
+    "layers": 16,
+    "leaf_num_warps": 2,
+    "leaf_seal_capacity": null,
+    "levels": 2,
+    "open_count": 8,
+    "page_summary_quant_bits": 8,
+    "prefill_chunk_len": 4096,
+    "prefill_int8_coarse_mma": false,
+    "prefill_int8_leaf_mma": false,
+    "prefill_int8_pv_mma": false,
+    "prefill_state_update_len": 4096,
+    "prefill_static_leaf_aiter": true,
+    "prefill_static_leaf_cap_min": 16,
+    "recursive_materialize_page_scores": false,
+    "recursive_page_score_block_n": 16,
+    "recursive_page_score_num_warps": 2,
+    "recursive_page_select_block_n": 64,
+    "recursive_state_route_backend": "fused",
+    "retained_prefix_reuses": 0,
+    "retained_restore_attempts": 0,
+    "retained_restore_fail_coverage": 0,
+    "retained_restore_fail_no_row": 0,
+    "retained_restore_fail_short": 0,
+    "retained_restore_fail_tokens": 0,
+    "retained_restore_last_coverage": 0,
+    "retained_restore_last_prefix": 0,
+    "retained_restore_last_total": 0,
+    "retained_restore_rebuild_tokens": 0,
+    "retained_restore_rebuilds": 0,
+    "static_prefill_calls": 8928,
+    "static_prefill_cap_max_observed": 16,
+    "static_prefill_cap_min_observed": 16,
+    "static_prefill_exact_tokens_max": 23832,
+    "static_prefill_exact_tokens_min": 4674,
+    "static_prefill_layers_executed": 16
+  },
+  "long_prefill_token_threshold": 4096,
+  "max_new_tokens": 64,
+  "max_num_batched_tokens": 16384,
+  "mode": "lod",
+  "model_impl": null,
+  "muse_native_text_config": false,
+  "results": {
+    "65536": {
+      "speed": {
+        "decode_timings_seconds": [
+          0.07997007947415113,
+          0.11955525353550911,
+          0.1197714563459158
+        ],
+        "lod_decode_execution_audit": {
+          "decode_gqa_fixed_mask_configured": [
+            false
+          ],
+          "decode_gqa_fixed_mask_executed": [],
+          "decode_gqa_staged_fixed_configured": [
+            false
+          ],
+          "decode_gqa_staged_fixed_executed": [],
+          "decode_gqa_static_leaf_aiter_configured": [
+            false
+          ],
+          "decode_gqa_static_leaf_aiter_executed": [],
+          "decode_gqa_union_aiter_final": [
+            false
+          ],
+          "decode_gqa_union_configured": [
+            false
+          ],
+          "decode_gqa_union_eligible": [
+            false
+          ],
+          "decode_gqa_union_hip_configured": [
+            false
+          ],
+          "decode_gqa_union_hip_executed": [
+            false
+          ],
+          "decode_gqa_union_predicted_mass": [
+            false
+          ],
+          "decode_gqa_union_requested": [
+            false
+          ],
+          "decode_gqa_union_score_only": [
+            false
+          ],
+          "decode_max_open_leaves": [
+            1024
+          ],
+          "decode_open_counts": [
+            8
+          ],
+          "decode_route_cohort": [
+            false
+          ],
+          "effective_decode_route_leaf_limits": [
+            1024
+          ],
+          "gqa_union_centroid_count_max": 0,
+          "gqa_union_centroid_count_mean": 0.0,
+          "gqa_union_epoch_max": 0,
+          "gqa_union_exact_token_count_max": 0,
+          "gqa_union_exact_token_count_mean": 0.0,
+          "gqa_union_nonempty_sequences": 0,
+          "gqa_union_sequence_count": 0,
+          "gqa_union_token_count_max": 0,
+          "gqa_union_token_count_mean": 0.0
+        },
+        "marginal_decode_ms_per_batch_step": 119.55525353550911,
+        "marginal_decode_tokens_per_second": 66.91466718042565,
+        "prefill_prompt_tokens_per_second": 7387.396655075032,
+        "prefill_seconds": 70.9012964181602,
+        "prefill_timings_seconds": [
+          71.45276570226997,
+          70.9012964181602,
+          70.86894120648503
+        ],
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 65472,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London Kegan Paul, Trench",
+              "request_index": 0,
+              "sha256": "7203eabdab5e9fb20048ccb329dce560956ae6302a93fb982c1c0dc5f872cb72",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4092,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4092
+              }
+            },
+            {
+              "decoded_prefix": "steam engine had gone by, there were still all the boxcars and flatcars and tank cars to admire, and at last the caboose\u2014this one painted yellow instead of the more usual red. \"Wow!\" Alec's eyes shone. \"I want to make one of those go when I get big.\" \"Maybe you will,\" Mort said. \"It's a good job.\" For all the sense he made to his son, he might as well have started speaking Eskimo. Alec couldn't imagine that being an engineer was work, and often hard work to boot. He would have paid, and paid anything he happened to have",
+              "request_index": 1,
+              "sha256": "7a12119ae2d6ad1b046f73ba7c49b9bb6163af285b5ef75726c40f0766b02b9b",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "65431",
+                  "stream_index": 1
+                },
+                {
+                  "length": "65626",
+                  "stream_index": 2
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4092,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4092
+              }
+            },
+            {
+              "decoded_prefix": "1); # # Structure for table \"news_categories\" # DROP TABLE IF EXISTS `news_categories`; CREATE TABLE `news_categories` ( `id` int(11) NOT NULL AUTO_INCREMENT, `title` varchar(255) NOT NULL, `seo_url` varchar(255) NOT NULL, `rank` int(11) NOT NULL, `isActive` int(11) NOT NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8; # # Data for table \"news_categories\" # INSERT INTO `news_categories` VALUES (3,'M\u00fczik",
+              "request_index": 2,
+              "sha256": "d209d7d311262e7305fcea0625a931fadb799ec9a4a51c7d48b51fb8aac2d7ae",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "68110",
+                  "stream_index": 3
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4092,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4092
+              }
+            },
+            {
+              "decoded_prefix": "Sausage Hall Sausage Hall: home to millionaire Kevan de Vries, grandson of a Dutch immigrant farmer. De Vries has built up a huge farming and food packing empire which extends, via the banana trade, to the West Indies. But sleazy MD, Tony Sentance, manages to persuade de Vries to branch out into the luxury holiday trade. De Vries and wife, Joanna, take the first cruise out to explore the potentially lucrative possibilities. However, back at home, a break-in at Sausage Hall uncovers a truly gruesome historical discovery. And when a young employee of de V",
+              "request_index": 3,
+              "sha256": "9704465a95b197bb8f408242da958aa141770f3faebbae12d014379d98934f5c",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "65449",
+                  "stream_index": 5
+                },
+                {
+                  "length": "1617",
+                  "stream_index": 6
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4092,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4092
+              }
+            },
+            {
+              "decoded_prefix": "## Contents Cover About the Book About the Author Title Page Dedication Epigraph Introduction Getting Inspiralized Ready, Set, Spiralize! Breakfasts Chorizo and Avocado Courgette Frittata with Manchego-Pea Shoot Salad Pesto Sun-Dried Tomato Egg Muffins Blueberry Sweet Potato Waffles Ham and Swede Breakfast in a Frying Pan Cinnamon-Walnut Protein Muffins Huevos Rancheros 'Bagel' Breakfast Buns Savoy Cabbage Breakfast Burrito Kohlr",
+              "request_index": 4,
+              "sha256": "e3b9a1536e278b63848b95ebeee9f0206671bd0292f890a8e9d0d99fb088018d",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "67588",
+                  "stream_index": 7
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4092,
+                "max_identical_block_occurrences": 3,
+                "unique_block_ratio": 0.989980449657869,
+                "unique_blocks": 4051
+              }
+            },
+            {
+              "decoded_prefix": "_Cover illustrations:_ Front: \u00a9 Terry O'Neill Back: \u00a9 News UK First published as _Roger Moore as James Bond 007_ in 1973 by Pan Books Ltd. This edition published 2018 The History Press The Mill, Brimscombe Port Stroud, Gloucestershire, GL5 2QG www.thehistorypress.co.uk \u00a9 Miramont Investments Ltd, 2018 Live and Let Die \u00a9 1973 Danjaq LLC and United Artists Corporation, All Rights Reserved The right of Roger Moore to be identified as the Author of this work has",
+              "request_index": 5,
+              "sha256": "e8a0f3e17f4e62415b556a1c1d1f1f98a5422fa27d9a97b0981fe93f939b9948",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "65718",
+                  "stream_index": 8
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4092,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4092
+              }
+            },
+            {
+              "decoded_prefix": "device { //In the next step we associate the GPU memory with the Kernel arguments //my_dev::dev_mem<uint> counts(devContext, 512), countx(devContext, 512); //Memory that should be alloced outside the function: //devMemCounts and devMemCountsx // make sure previous reset has finished. this->devMemCountsx.waitForCopyEvent(); //Kernel configuration parameters setupParams sParam; sParam.jobs = (N / 64) / 480 ; //64=32*2 2 items per look, 480",
+              "request_index": 6,
+              "sha256": "b9111a8a7bdb76970fb4e8a948373b71ca4a7479677402f513f1e40702476371",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "66365",
+                  "stream_index": 9
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4092,
+                "max_identical_block_occurrences": 4,
+                "unique_block_ratio": 0.9872922776148583,
+                "unique_blocks": 4040
+              }
+            },
+            {
+              "decoded_prefix": "Do you have information on the knowledge and skills of young children? Differences among demographic groups in the acquisition of cognitive skills have been demonstrated at relatively early ages in the Early Childhood Longitudinal Survey's Birth Cohort (ECLS-B) study as well as its Kindergarten Class (ECLS-K) studies. In 2003\u201304, about 64 percent of 2-year-olds demonstrated proficiency in expressive vocabulary, which measured toddlers' ability to communicate using gestures, words, and sentences. The percentage of 2-year-olds demonstrating expressive vocabulary was higher for females (69 percent) than for males (59 percent). Also, a",
+              "request_index": 7,
+              "sha256": "91e07267d4b5825d75ff5b72bf7645e5100b2883cc98a8b3293731fecde394a9",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "912",
+                  "stream_index": 10
+                },
+                {
+                  "length": "66633",
+                  "stream_index": 11
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4092,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4092
+              }
+            }
+          ],
+          "rejected_candidate_count": 1,
+          "rejected_candidates": [
+            {
+              "prospective_request_index": 3,
+              "reason": "unique_block_ratio_below_0.95",
+              "source_documents": [
+                {
+                  "length": "66409",
+                  "stream_index": 4
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4092,
+                "max_identical_block_occurrences": 10,
+                "unique_block_ratio": 0.9354838709677419,
+                "unique_blocks": 3828
+              }
+            }
+          ]
+        },
+        "prompt_length": 65472,
+        "total_timings_seconds": [
+          71.54551783390343,
+          71.03504975419492,
+          71.00240115635097
+        ]
+      }
+    }
+  },
+  "sample_offset": 0,
+  "samples_per_length": 8,
+  "speed_decode_tokens": 2,
+  "speed_prompt_reserve": 64,
+  "speed_repeats": 3,
+  "tensor_parallel_size": 1
+}

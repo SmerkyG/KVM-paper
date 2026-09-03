@@ -8,6 +8,8 @@ import json
 import time
 from pathlib import Path
 
+from vllm_engine_lifecycle import register_llm_shutdown, shutdown_registered_llms
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
@@ -44,7 +46,7 @@ def main() -> None:
     }
     if loader_extra is not None:
         llm_kwargs["model_loader_extra_config"] = loader_extra
-    llm = LLM(**llm_kwargs)
+    llm = register_llm_shutdown(LLM(**llm_kwargs))
     initialized = time.perf_counter()
     outputs = llm.generate(
         ["The capital of France is"],
@@ -70,4 +72,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    finally:
+        shutdown_registered_llms()

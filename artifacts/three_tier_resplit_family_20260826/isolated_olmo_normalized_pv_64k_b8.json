@@ -1,0 +1,150 @@
+{
+  "device": "AMD Instinct MI325X",
+  "records": [
+    {
+      "aiter_import_error": null,
+      "batch_size": 8,
+      "context_length": 65536,
+      "controlled_equal_count": 16,
+      "geometry": {
+        "gqa": 5,
+        "head_dim": 128,
+        "kv_heads": 8,
+        "name": "olmo"
+      },
+      "live_page_length": 4096,
+      "page_capacity": 4096,
+      "random_counts": false,
+      "route_group_size": 64,
+      "score_dtype": "fp32",
+      "state_length": 4096,
+      "times_ms": {
+        "aiter_coarse_attention_ms": 0.052916340827941895,
+        "aiter_fixed_exact_pages_ms": 0.02389600992202759,
+        "aiter_page_attention_ms": 0.0508031702041626,
+        "current_route_exact_pv_max_abs": 0.00016659870743751526,
+        "current_route_total_ms": 0.1189648389816284,
+        "dense_centroid_pv_ms": 0.01689172029495239,
+        "dense_centroid_qk_ms": 0.03257667064666748,
+        "dense_centroid_softmax_ms": 0.00912024974822998,
+        "dense_centroid_topk_ms": 0.05343953132629395,
+        "dense_page_global_topk_ms": 0.056645078659057616,
+        "dense_page_pv_ms": 0.016756130456924437,
+        "dense_page_qk_ms": 0.026860361099243165,
+        "dense_page_softmax_ms": 0.00917704999446869,
+        "exposed_score_coarse_total_ms": 0.11202817201614379,
+        "flat_page_exposed_score_total_before_correction_ms": 0.1333346301317215,
+        "flat_page_total_before_correction_ms": 0.15820461988449097,
+        "normalized_pv_route": {
+          "coarse_lse_max_abs": 9.5367431640625e-07,
+          "exact_pv_max_abs": 7.955357432365417e-05,
+          "route_ms": 0.07622435092926025,
+          "top8_exact": true
+        },
+        "normalized_pv_sweep": {
+          "baseline": {
+            "exact_pv_max_abs": 7.954798638820648e-05,
+            "pv_reduce_ms": 0.00867106020450592,
+            "pv_split_ms": 0.020844459533691406,
+            "softmax_ms": 0.012497400045394897,
+            "total_ms": 0.033002660274505616
+          },
+          "triton_s4_n128_d128_w4": {
+            "exact_pv_max_abs": 7.954984903335571e-05,
+            "normalized_pv_ms": 0.02649996995925903,
+            "pv_reduce_ms": 0.010191429853439331,
+            "total_ms": 0.02513519048690796
+          },
+          "triton_s4_n128_d32_w2": {
+            "exact_pv_max_abs": 7.954984903335571e-05,
+            "normalized_pv_ms": 0.04197532176971436,
+            "pv_reduce_ms": 0.00848986029624939,
+            "total_ms": 0.040288538932800294
+          },
+          "triton_s4_n128_d64_w2": {
+            "exact_pv_max_abs": 7.954984903335571e-05,
+            "normalized_pv_ms": 0.029340319633483887,
+            "pv_reduce_ms": 0.009737840294837952,
+            "total_ms": 0.028685929775238036
+          },
+          "triton_s4_n64_d128_w2": {
+            "exact_pv_max_abs": 7.954798638820648e-05,
+            "normalized_pv_ms": 0.036607799530029295,
+            "pv_reduce_ms": 0.009736239910125732,
+            "total_ms": 0.03483342885971069
+          },
+          "triton_s4_n64_d32_w1": {
+            "exact_pv_max_abs": 7.954798638820648e-05,
+            "normalized_pv_ms": 0.03928735971450806,
+            "pv_reduce_ms": 0.008555060029029846,
+            "total_ms": 0.037336189746856686
+          },
+          "triton_s4_n64_d64_w1": {
+            "exact_pv_max_abs": 7.954798638820648e-05,
+            "normalized_pv_ms": 0.04421167850494385,
+            "pv_reduce_ms": 0.008475059866905213,
+            "total_ms": 0.04188971996307373
+          },
+          "triton_s8_n128_d128_w4": {
+            "exact_pv_max_abs": 7.954798638820648e-05,
+            "normalized_pv_ms": 0.02790795087814331,
+            "pv_reduce_ms": 0.009954230189323425,
+            "total_ms": 0.026686758995056153
+          },
+          "triton_s8_n128_d32_w2": {
+            "exact_pv_max_abs": 7.954798638820648e-05,
+            "normalized_pv_ms": 0.04096252918243408,
+            "pv_reduce_ms": 0.008497459888458252,
+            "total_ms": 0.03972495079040527
+          },
+          "triton_s8_n128_d64_w2": {
+            "exact_pv_max_abs": 7.954798638820648e-05,
+            "normalized_pv_ms": 0.031001899242401123,
+            "pv_reduce_ms": 0.010905829668045043,
+            "total_ms": 0.030265910625457762
+          },
+          "triton_s8_n64_d128_w2": {
+            "exact_pv_max_abs": 7.955357432365417e-05,
+            "normalized_pv_ms": 0.026501169204711916,
+            "pv_reduce_ms": 0.010064229965209961,
+            "total_ms": 0.025457580089569092
+          },
+          "triton_s8_n64_d32_w1": {
+            "exact_pv_max_abs": 7.955357432365417e-05,
+            "normalized_pv_ms": 0.037627389430999754,
+            "pv_reduce_ms": 0.008550660014152526,
+            "total_ms": 0.037997779846191404
+          },
+          "triton_s8_n64_d64_w1": {
+            "exact_pv_max_abs": 7.955357432365417e-05,
+            "normalized_pv_ms": 0.028998329639434814,
+            "pv_reduce_ms": 0.010006639957427978,
+            "total_ms": 0.02783313989639282
+          }
+        },
+        "production_resplit_exact_pv_max_abs": 7.954798638820648e-05,
+        "production_resplit_lse_reference_max_abs": 9.5367431640625e-07,
+        "production_resplit_pv_reference_max_abs": 4.470348358154297e-08,
+        "production_resplit_route_ms": 0.08897294044494629,
+        "production_resplit_stages_ms": {
+          "route_state_lse_reduce": 0.008207900067791343,
+          "route_state_lse_tile": 0.01033462006598711,
+          "route_state_pv_reduce": 0.0074827400362119075,
+          "route_state_pv_split": 0.02853067995980382,
+          "route_state_scores": 0.030865410100668667,
+          "route_state_softmax": 0.018900500051677226,
+          "route_state_topk_reduce": 0.007391860038042069,
+          "route_state_topk_tile": 0.029200389869511127
+        },
+        "production_resplit_top8_exact": true,
+        "production_resplit_vs_old_coarse_lse_max_abs": 9.5367431640625e-07,
+        "production_resplit_vs_old_coarse_out_max_abs": 0.00016550906002521515,
+        "production_resplit_vs_old_top8_set_fraction": 1.0,
+        "resplit_route_total_ms": 0.13893254280090334,
+        "route_groups_cached_mean_control_ms": 0.08812456130981446,
+        "route_groups_sum_count_ms": 0.09577881813049316,
+        "route_reduce_ms": 0.023186020851135254
+      }
+    }
+  ]
+}

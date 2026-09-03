@@ -538,6 +538,109 @@ def verify_default_leaf_storage() -> None:
         raise AssertionError("default exact leaves were not stored in BF16")
 
 
+def verify_adjacent_pair_premerge() -> None:
+    torch.manual_seed(41)
+    config = LODConfig(
+        chunk_size=4,
+        local_window=8,
+        state_growth_factor=8.0,
+        state_min_size=0,
+        protected_prefix=0,
+        max_routes=8,
+        leaf_dtype=torch.float32,
+        state_premerge_factor=2,
+    )
+    attention = TwoLevelLODAttention(config, default_open_count=8)
+    query = torch.randn(1, 2, 12, 4)
+    key = torch.randn(1, 1, 12, 4)
+    value = torch.randn(1, 1, 12, 3)
+    output, cache = attention(query, key, value, use_cache=True)
+    if cache is None or cache.owner is None:
+        raise AssertionError("paired two-level attention did not return ownership")
+    expected_owner = torch.arange(8).div(2, rounding_mode="floor").view(1, 1, 8)
+    torch.testing.assert_close(cache.owner, expected_owner)
+    expected_key_sum = key[..., :8, :].reshape(1, 1, 4, 2, 4).sum(dim=3)
+    expected_value_sum = value[..., :8, :].reshape(1, 1, 4, 2, 3).sum(dim=3)
+    torch.testing.assert_close(cache.state.key_sum, expected_key_sum)
+    torch.testing.assert_close(cache.state.value_sum, expected_value_sum)
+    torch.testing.assert_close(cache.state.count, torch.full((1, 1, 4), 2.0))
+    torch.testing.assert_close(
+        output,
+        dense_causal_attention(query, key, value),
+        atol=1e-5,
+        rtol=1e-5,
+    )
+    if cache.leaf_key is None or int(cache.leaf_key.size(2)) != 12:
+        raise AssertionError("pair premerge altered the exact leaf archive")
+
+    padded_attention = TwoLevelLODAttention(
+        LODConfig(
+            chunk_size=4,
+            local_window=8,
+            state_growth_factor=8.0,
+            state_min_size=0,
+            protected_prefix=1,
+            max_routes=8,
+            state_premerge_factor=2,
+        )
+    )
+    padded_key = torch.arange(8, dtype=torch.float32).view(2, 1, 4, 1)
+    padded_state, padded_owner = padded_attention._initialize_state(
+        padded_key,
+        padded_key,
+        torch.tensor([0, 1]),
+    )
+    torch.testing.assert_close(
+        padded_state.key_sum[..., 0],
+        torch.tensor([[[1.0, 5.0, 0.0]], [[11.0, 7.0, 0.0]]]),
+    )
+    torch.testing.assert_close(
+        padded_state.count,
+        torch.tensor([[[2.0, 2.0, -0.0]], [[2.0, 1.0, -1.0]]]),
+    )
+    torch.testing.assert_close(
+        padded_owner,
+        torch.tensor([[[0, 0, 1, 1]], [[2, 0, 0, 1]]]),
+    )
+
+    factor_four = TwoLevelLODAttention(
+        LODConfig(
+            chunk_size=4,
+            local_window=8,
+            state_growth_factor=8.0,
+            state_min_size=0,
+            protected_prefix=0,
+            max_routes=8,
+            leaf_dtype=torch.float32,
+            state_premerge_factor=4,
+        ),
+        default_open_count=8,
+    )
+    factor_four_output, factor_four_cache = factor_four(
+        query, key, value, use_cache=True
+    )
+    if factor_four_cache is None or factor_four_cache.owner is None:
+        raise AssertionError("factor-four premerge did not return ownership")
+    torch.testing.assert_close(
+        factor_four_cache.owner,
+        torch.tensor([[[0, 0, 0, 0, 1, 1, 1, 1]]]),
+    )
+    torch.testing.assert_close(
+        factor_four_cache.state.key_sum,
+        key[..., :8, :].reshape(1, 1, 2, 4, 4).sum(dim=3),
+    )
+    torch.testing.assert_close(
+        factor_four_cache.state.count,
+        torch.full((1, 1, 2), 4.0),
+    )
+    torch.testing.assert_close(
+        factor_four_output,
+        dense_causal_attention(query, key, value),
+        atol=1e-5,
+        rtol=1e-5,
+    )
+
+
 def verify_legacy_positional_config() -> None:
     config = LODConfig(128, 512, 8.0, 192, 3, 6, torch.float16)
     expected = (128, 512, 8.0, 192, 3, 6, torch.float16)
@@ -567,6 +670,8 @@ def main() -> None:
     print("prefill/decode cache parity and no-leaf cache checks passed")
     verify_default_leaf_storage()
     print("default BF16 leaf storage check passed")
+    verify_adjacent_pair_premerge()
+    print("adjacent group premerge ownership and exact-leaf parity passed")
     verify_legacy_positional_config()
     print("legacy positional LODConfig compatibility passed")
 

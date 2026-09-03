@@ -1,0 +1,219 @@
+{
+  "batch_size": 1,
+  "slots": 4096,
+  "head_dim": 256,
+  "kv_heads": 2,
+  "gqa": 4,
+  "measurements": [
+    {
+      "axis": "mfma_gqa",
+      "group_n": 16,
+      "num_warps": 1,
+      "programs": 512,
+      "score_us_median": 24.020000360906124,
+      "reduce_us_median": 13.579499907791615,
+      "total_us_median": 37.67950087785721,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 16,
+      "num_warps": 1,
+      "programs": 2048,
+      "score_us_median": 33.579498529434204,
+      "reduce_us_median": 9.039499796926975,
+      "total_us_median": 42.68000088632107,
+      "top_slot_agreement": 0.984375
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 16,
+      "num_warps": 2,
+      "programs": 512,
+      "score_us_median": 24.320000782608986,
+      "reduce_us_median": 15.49999974668026,
+      "total_us_median": 40.01899994909763,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 16,
+      "num_warps": 2,
+      "programs": 2048,
+      "score_us_median": 29.019499197602272,
+      "reduce_us_median": 10.279500391334295,
+      "total_us_median": 39.83900137245655,
+      "top_slot_agreement": 0.984375
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 16,
+      "num_warps": 4,
+      "programs": 512,
+      "score_us_median": 23.50000012665987,
+      "reduce_us_median": 15.920000150799751,
+      "total_us_median": 39.41950015723705,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 16,
+      "num_warps": 4,
+      "programs": 2048,
+      "score_us_median": 29.079499654471874,
+      "reduce_us_median": 10.480000171810389,
+      "total_us_median": 41.11950099468231,
+      "top_slot_agreement": 0.984375
+    },
+    {
+      "axis": "scalar_gqa",
+      "group_n": 16,
+      "num_warps": 1,
+      "programs": 512,
+      "score_us_median": 31.83949925005436,
+      "reduce_us_median": 9.019999764859676,
+      "total_us_median": 40.99950008094311,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "scalar_gqa",
+      "group_n": 16,
+      "num_warps": 2,
+      "programs": 512,
+      "score_us_median": 32.21900016069412,
+      "reduce_us_median": 9.07950010150671,
+      "total_us_median": 41.559500619769096,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "scalar_gqa",
+      "group_n": 16,
+      "num_warps": 4,
+      "programs": 512,
+      "score_us_median": 30.99999949336052,
+      "reduce_us_median": 9.980000089854002,
+      "total_us_median": 41.0194993019104,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 32,
+      "num_warps": 1,
+      "programs": 256,
+      "score_us_median": 29.599499888718128,
+      "reduce_us_median": 7.999999914318323,
+      "total_us_median": 37.899499759078026,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 32,
+      "num_warps": 1,
+      "programs": 1024,
+      "score_us_median": 35.0589994341135,
+      "reduce_us_median": 6.440000142902136,
+      "total_us_median": 41.73949919641018,
+      "top_slot_agreement": 0.984375
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 32,
+      "num_warps": 2,
+      "programs": 256,
+      "score_us_median": 25.319000706076622,
+      "reduce_us_median": 12.980000115931034,
+      "total_us_median": 38.25949877500534,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 32,
+      "num_warps": 2,
+      "programs": 1024,
+      "score_us_median": 30.038999393582344,
+      "reduce_us_median": 7.900000084191561,
+      "total_us_median": 38.25899958610535,
+      "top_slot_agreement": 0.984375
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 32,
+      "num_warps": 4,
+      "programs": 256,
+      "score_us_median": 23.97949993610382,
+      "reduce_us_median": 15.00000013038516,
+      "total_us_median": 39.11949880421162,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 32,
+      "num_warps": 4,
+      "programs": 1024,
+      "score_us_median": 30.279499478638172,
+      "reduce_us_median": 8.49999999627471,
+      "total_us_median": 39.35999982059002,
+      "top_slot_agreement": 0.984375
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 64,
+      "num_warps": 1,
+      "programs": 128,
+      "score_us_median": 40.74000008404255,
+      "reduce_us_median": 6.039999891072512,
+      "total_us_median": 46.9990000128746,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 64,
+      "num_warps": 1,
+      "programs": 512,
+      "score_us_median": 40.63950106501579,
+      "reduce_us_median": 6.000000052154064,
+      "total_us_median": 46.77999950945377,
+      "top_slot_agreement": 0.984375
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 64,
+      "num_warps": 2,
+      "programs": 128,
+      "score_us_median": 30.620000325143337,
+      "reduce_us_median": 7.2200000286102295,
+      "total_us_median": 38.11999969184399,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 64,
+      "num_warps": 2,
+      "programs": 512,
+      "score_us_median": 37.20000013709068,
+      "reduce_us_median": 6.019999971613288,
+      "total_us_median": 43.300000950694084,
+      "top_slot_agreement": 0.984375
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 64,
+      "num_warps": 4,
+      "programs": 128,
+      "score_us_median": 26.839999482035637,
+      "reduce_us_median": 13.0195003002882,
+      "total_us_median": 39.57949951291084,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 64,
+      "num_warps": 4,
+      "programs": 512,
+      "score_us_median": 32.19950012862682,
+      "reduce_us_median": 6.899500032886863,
+      "total_us_median": 39.458999410271645,
+      "top_slot_agreement": 0.984375
+    }
+  ]
+}

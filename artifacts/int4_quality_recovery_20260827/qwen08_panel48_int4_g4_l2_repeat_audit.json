@@ -1,0 +1,48 @@
+{
+  "date": "2026-08-27",
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "panel_examples": 48,
+  "reference_format": "BF16 LOD",
+  "reference_runs": 4,
+  "candidate_format": "INT4 leaves, four-channel page-wide L2 scales, INT8 page summaries",
+  "candidate_runs": 3,
+  "mean_distribution_comparison": {
+    "reference_correct": 9,
+    "candidate_correct": 9,
+    "prediction_agreement": 45,
+    "prediction_agreement_rate": 0.9375,
+    "reference_correct_candidate_wrong": 0,
+    "candidate_correct_reference_wrong": 0,
+    "mean_js_divergence": 0.0019352190798819196,
+    "max_js_divergence": 0.010725507335631672,
+    "mean_correct_margin_delta": 0.05590702095560942,
+    "mean_correct_margin_drop": 0.06461846868917927,
+    "rms_correct_margin_delta": 0.27204310231695006
+  },
+  "reference_repeat_stability": {
+    "pairwise_prediction_agreement_rate": 0.9027777777777778,
+    "mean_js_divergence": 0.0006958876474058422,
+    "rms_correct_margin_delta": 0.16594573860445258
+  },
+  "candidate_repeat_stability": {
+    "pairwise_prediction_agreement_rate": 0.8888888888888888,
+    "mean_js_divergence": 0.0015336083796049884,
+    "rms_correct_margin_delta": 0.23763720338682273
+  },
+  "prolong_8x8k": {
+    "bf16_ce": 1.925133679454462,
+    "candidate_ce": 1.9252820357013931,
+    "ce_delta": 0.0001483562469311026
+  },
+  "niah_s3_8k_batch8": {
+    "correct": 64,
+    "total": 64,
+    "accuracy": 1.0
+  },
+  "single_candidate_run": {
+    "prediction_agreement": 43,
+    "prediction_agreement_rate": 0.8958333333333334,
+    "mean_js_divergence": 0.001910163060223199,
+    "rms_correct_margin_delta": 0.262568506025704
+  }
+}

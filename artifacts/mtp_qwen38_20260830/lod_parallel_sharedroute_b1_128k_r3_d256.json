@@ -1,0 +1,1017 @@
+{
+  "allow_heterogeneous_global_config": false,
+  "apply_chat_template": true,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 221062889472,
+    "device_used_bytes_before_reclaim": 225397702656,
+    "external_lod_layers": 16,
+    "external_lod_layers_with_native_cache": 0,
+    "external_lod_native_cache_bytes": 0,
+    "lod_cache_bytes": 10762728136,
+    "lod_decode_scratch_bytes": 84388032,
+    "native_cache_bytes": 156653060096,
+    "torch_allocated_bytes": 170055018496,
+    "torch_reclaimable_cached_bytes": 4334813184,
+    "torch_reserved_bytes_after_reclaim": 171437981696,
+    "torch_reserved_bytes_before_reclaim": 175772794880
+  },
+  "batch_size": 1,
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "diagnostic_external_empty_attention": null,
+  "disable_custom_all_reduce": false,
+  "disable_thinking": true,
+  "enable_prefix_caching": false,
+  "full_attention_backend": null,
+  "language_model_only": true,
+  "lengths": [
+    131072
+  ],
+  "load_format": "ipc_cache",
+  "lod_diagnostics_after": {
+    "batched_cached_prefill_rows": 0,
+    "batched_cached_prefills": 0,
+    "catch_up_batches": 64,
+    "catch_up_rows": 64,
+    "custom_impl_sliding_windows": {
+      "(-1, -1)": 16
+    },
+    "custom_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn",
+      "language_model.model.layers.27.self_attn.attn",
+      "language_model.model.layers.31.self_attn.attn",
+      "language_model.model.layers.35.self_attn.attn",
+      "language_model.model.layers.39.self_attn.attn",
+      "language_model.model.layers.43.self_attn.attn",
+      "language_model.model.layers.47.self_attn.attn",
+      "language_model.model.layers.51.self_attn.attn",
+      "language_model.model.layers.55.self_attn.attn",
+      "language_model.model.layers.59.self_attn.attn",
+      "language_model.model.layers.63.self_attn.attn"
+    ],
+    "decode_calls": 48,
+    "decode_centroid_major_hip_configured": [
+      false
+    ],
+    "decode_centroid_major_hip_executed": [
+      false
+    ],
+    "decode_gqa_direct_fixed_routes_configured": [
+      true
+    ],
+    "decode_gqa_direct_fixed_routes_executed": [],
+    "decode_gqa_fixed_mask_configured": [
+      false
+    ],
+    "decode_gqa_fixed_mask_executed": [],
+    "decode_gqa_overlap_local_sink_configured": [
+      false
+    ],
+    "decode_gqa_overlap_local_sink_executed": [
+      false
+    ],
+    "decode_gqa_staged_fixed_configured": [
+      false
+    ],
+    "decode_gqa_staged_fixed_executed": [],
+    "decode_gqa_static_leaf_aiter_configured": [
+      false
+    ],
+    "decode_gqa_static_leaf_aiter_executed": [],
+    "decode_gqa_static_leaf_caps": [
+      null
+    ],
+    "decode_gqa_union_aiter_final": [
+      false
+    ],
+    "decode_gqa_union_configured": [
+      false
+    ],
+    "decode_gqa_union_eligible": [
+      false
+    ],
+    "decode_gqa_union_hip_configured": [
+      false
+    ],
+    "decode_gqa_union_hip_executed": [
+      false
+    ],
+    "decode_gqa_union_pilot_z": [
+      false
+    ],
+    "decode_gqa_union_pilot_z_configured": [
+      false
+    ],
+    "decode_gqa_union_predicted_mass": [
+      false
+    ],
+    "decode_gqa_union_requested": [
+      false
+    ],
+    "decode_gqa_union_score_only": [
+      false
+    ],
+    "decode_max_open_leaves": [
+      1024
+    ],
+    "decode_open_counts": [
+      8
+    ],
+    "decode_route_cohort": [
+      false
+    ],
+    "direct_prefill_calls": 512,
+    "effective_decode_route_leaf_limits": [
+      1024
+    ],
+    "eligible_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn",
+      "language_model.model.layers.27.self_attn.attn",
+      "language_model.model.layers.31.self_attn.attn",
+      "language_model.model.layers.35.self_attn.attn",
+      "language_model.model.layers.39.self_attn.attn",
+      "language_model.model.layers.43.self_attn.attn",
+      "language_model.model.layers.47.self_attn.attn",
+      "language_model.model.layers.51.self_attn.attn",
+      "language_model.model.layers.55.self_attn.attn",
+      "language_model.model.layers.59.self_attn.attn",
+      "language_model.model.layers.63.self_attn.attn"
+    ],
+    "gqa_route_mass_threshold_hits": {
+      "16": 0,
+      "32": 0,
+      "64": 0,
+      "128": 0,
+      "256": 0
+    },
+    "gqa_route_max_mass": null,
+    "gqa_union_centroid_count_max": 0,
+    "gqa_union_centroid_count_mean": 0.0,
+    "gqa_union_effective_segments": [],
+    "gqa_union_epoch_max": 0,
+    "gqa_union_exact_token_count_max": 0,
+    "gqa_union_exact_token_count_mean": 0.0,
+    "gqa_union_nonempty_sequences": 0,
+    "gqa_union_runtime_kv_heads": [],
+    "gqa_union_runtime_sequence_counts": [],
+    "gqa_union_sequence_count": 0,
+    "gqa_union_split_d_reduce": [],
+    "gqa_union_token_count_max": 0,
+    "gqa_union_token_count_mean": 0.0,
+    "install_count": 64,
+    "pooled_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn",
+      "language_model.model.layers.27.self_attn.attn",
+      "language_model.model.layers.31.self_attn.attn",
+      "language_model.model.layers.35.self_attn.attn",
+      "language_model.model.layers.39.self_attn.attn",
+      "language_model.model.layers.43.self_attn.attn",
+      "language_model.model.layers.47.self_attn.attn",
+      "language_model.model.layers.51.self_attn.attn",
+      "language_model.model.layers.55.self_attn.attn",
+      "language_model.model.layers.59.self_attn.attn",
+      "language_model.model.layers.63.self_attn.attn"
+    ],
+    "prefill_coarse_direct_gqa_configured": [
+      [
+        true,
+        64,
+        16,
+        8
+      ]
+    ],
+    "prefill_coarse_direct_gqa_executed": [
+      [
+        64,
+        16,
+        8
+      ]
+    ],
+    "prefill_open_counts": [
+      3
+    ],
+    "prefill_route_cohort": [
+      false
+    ],
+    "recursive_state_route_backends": [
+      "fused"
+    ],
+    "routing_geometries": [
+      [
+        "none",
+        "coherence",
+        "none"
+      ]
+    ],
+    "selected_route_count_max": 0.0,
+    "speculative_parallel_configured": [
+      true
+    ],
+    "speculative_shared_route_configured": [
+      true
+    ],
+    "speculative_shared_route_executed": [
+      true
+    ],
+    "split_posting_len_max": 0,
+    "split_scheduled_state_len_max": 0,
+    "split_state_len_max": 0,
+    "state_centroids_at_or_above_open_limit": 0,
+    "state_count_max": 0.0,
+    "state_split_limits": [
+      null
+    ],
+    "state_v_abs_max": 78848.0,
+    "state_v_nonfinite": 0,
+    "static_leaf_count_distribution": [
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "1",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "2",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "3-4",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "5-8",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "9-16",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "17-32",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "33-64",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "65-128",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "129-256",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "257-512",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "513-1024",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": ">1024",
+        "leaf_fraction": 0.0
+      }
+    ],
+    "static_opened_centroid_fraction": 0.0,
+    "static_opened_centroids": 0,
+    "static_opened_leaf_fraction": 0.0,
+    "static_opened_leaves": 0.0,
+    "static_total_centroids": 0,
+    "static_total_leaves": 0.0
+  },
+  "lod_diagnostics_before": {
+    "batched_cached_prefill_rows": 0,
+    "batched_cached_prefills": 0,
+    "catch_up_batches": 0,
+    "catch_up_rows": 0,
+    "custom_impl_sliding_windows": {
+      "(-1, -1)": 16
+    },
+    "custom_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn",
+      "language_model.model.layers.27.self_attn.attn",
+      "language_model.model.layers.31.self_attn.attn",
+      "language_model.model.layers.35.self_attn.attn",
+      "language_model.model.layers.39.self_attn.attn",
+      "language_model.model.layers.43.self_attn.attn",
+      "language_model.model.layers.47.self_attn.attn",
+      "language_model.model.layers.51.self_attn.attn",
+      "language_model.model.layers.55.self_attn.attn",
+      "language_model.model.layers.59.self_attn.attn",
+      "language_model.model.layers.63.self_attn.attn"
+    ],
+    "decode_calls": 48,
+    "decode_centroid_major_hip_configured": [
+      false
+    ],
+    "decode_centroid_major_hip_executed": [
+      false
+    ],
+    "decode_gqa_direct_fixed_routes_configured": [
+      true
+    ],
+    "decode_gqa_direct_fixed_routes_executed": [],
+    "decode_gqa_fixed_mask_configured": [
+      false
+    ],
+    "decode_gqa_fixed_mask_executed": [],
+    "decode_gqa_overlap_local_sink_configured": [
+      false
+    ],
+    "decode_gqa_overlap_local_sink_executed": [
+      false
+    ],
+    "decode_gqa_staged_fixed_configured": [
+      false
+    ],
+    "decode_gqa_staged_fixed_executed": [],
+    "decode_gqa_static_leaf_aiter_configured": [
+      false
+    ],
+    "decode_gqa_static_leaf_aiter_executed": [],
+    "decode_gqa_static_leaf_caps": [
+      null
+    ],
+    "decode_gqa_union_aiter_final": [
+      false
+    ],
+    "decode_gqa_union_configured": [
+      false
+    ],
+    "decode_gqa_union_eligible": [
+      false
+    ],
+    "decode_gqa_union_hip_configured": [
+      false
+    ],
+    "decode_gqa_union_hip_executed": [
+      false
+    ],
+    "decode_gqa_union_pilot_z": [
+      false
+    ],
+    "decode_gqa_union_pilot_z_configured": [
+      false
+    ],
+    "decode_gqa_union_predicted_mass": [
+      false
+    ],
+    "decode_gqa_union_requested": [
+      false
+    ],
+    "decode_gqa_union_score_only": [
+      false
+    ],
+    "decode_max_open_leaves": [
+      1024
+    ],
+    "decode_open_counts": [
+      8
+    ],
+    "decode_route_cohort": [
+      false
+    ],
+    "direct_prefill_calls": 0,
+    "effective_decode_route_leaf_limits": [
+      1024
+    ],
+    "eligible_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn",
+      "language_model.model.layers.27.self_attn.attn",
+      "language_model.model.layers.31.self_attn.attn",
+      "language_model.model.layers.35.self_attn.attn",
+      "language_model.model.layers.39.self_attn.attn",
+      "language_model.model.layers.43.self_attn.attn",
+      "language_model.model.layers.47.self_attn.attn",
+      "language_model.model.layers.51.self_attn.attn",
+      "language_model.model.layers.55.self_attn.attn",
+      "language_model.model.layers.59.self_attn.attn",
+      "language_model.model.layers.63.self_attn.attn"
+    ],
+    "gqa_route_mass_threshold_hits": {
+      "16": 0,
+      "32": 0,
+      "64": 0,
+      "128": 0,
+      "256": 0
+    },
+    "gqa_route_max_mass": null,
+    "gqa_union_centroid_count_max": 0,
+    "gqa_union_centroid_count_mean": 0.0,
+    "gqa_union_effective_segments": [],
+    "gqa_union_epoch_max": 0,
+    "gqa_union_exact_token_count_max": 0,
+    "gqa_union_exact_token_count_mean": 0.0,
+    "gqa_union_nonempty_sequences": 0,
+    "gqa_union_runtime_kv_heads": [],
+    "gqa_union_runtime_sequence_counts": [],
+    "gqa_union_sequence_count": 0,
+    "gqa_union_split_d_reduce": [],
+    "gqa_union_token_count_max": 0,
+    "gqa_union_token_count_mean": 0.0,
+    "install_count": 0,
+    "pooled_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn",
+      "language_model.model.layers.27.self_attn.attn",
+      "language_model.model.layers.31.self_attn.attn",
+      "language_model.model.layers.35.self_attn.attn",
+      "language_model.model.layers.39.self_attn.attn",
+      "language_model.model.layers.43.self_attn.attn",
+      "language_model.model.layers.47.self_attn.attn",
+      "language_model.model.layers.51.self_attn.attn",
+      "language_model.model.layers.55.self_attn.attn",
+      "language_model.model.layers.59.self_attn.attn",
+      "language_model.model.layers.63.self_attn.attn"
+    ],
+    "prefill_coarse_direct_gqa_configured": [
+      [
+        true,
+        64,
+        16,
+        8
+      ]
+    ],
+    "prefill_coarse_direct_gqa_executed": [],
+    "prefill_open_counts": [
+      3
+    ],
+    "prefill_route_cohort": [
+      false
+    ],
+    "recursive_state_route_backends": [
+      "fused"
+    ],
+    "routing_geometries": [
+      [
+        "none",
+        "coherence",
+        "none"
+      ]
+    ],
+    "selected_route_count_max": 0.0,
+    "speculative_parallel_configured": [
+      false
+    ],
+    "speculative_shared_route_configured": [
+      false
+    ],
+    "speculative_shared_route_executed": [
+      true
+    ],
+    "split_posting_len_max": 0,
+    "split_scheduled_state_len_max": 0,
+    "split_state_len_max": 0,
+    "state_centroids_at_or_above_open_limit": 0,
+    "state_count_max": 0.0,
+    "state_split_limits": [
+      null
+    ],
+    "state_v_abs_max": 0.0,
+    "state_v_nonfinite": 0,
+    "static_leaf_count_distribution": [
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "1",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "2",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "3-4",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "5-8",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "9-16",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "17-32",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "33-64",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "65-128",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "129-256",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "257-512",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "513-1024",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": ">1024",
+        "leaf_fraction": 0.0
+      }
+    ],
+    "static_opened_centroid_fraction": 0.0,
+    "static_opened_centroids": 0,
+    "static_opened_leaf_fraction": 0.0,
+    "static_opened_leaves": 0.0,
+    "static_total_centroids": 0,
+    "static_total_leaves": 0.0
+  },
+  "lod_dispatch": {
+    "records": [
+      {
+        "configured_decode_centroid_major_hip": false,
+        "configured_decode_geometry_tuning": true,
+        "configured_decode_hierarchical_route": false,
+        "configured_decode_max_open_leaves": 1024,
+        "configured_decode_route_cohort": false,
+        "configured_diagnostic_static_preselected": false,
+        "configured_gqa_fixed_mask_adaptive_segments": false,
+        "configured_gqa_fixed_mask_aiter": false,
+        "configured_gqa_fixed_mask_block_n": 64,
+        "configured_gqa_fixed_mask_direct_routes": true,
+        "configured_gqa_fixed_mask_reduce_block_d": 0,
+        "configured_gqa_fixed_mask_scan_num_stages": 2,
+        "configured_gqa_fixed_mask_scan_num_warps": 2,
+        "configured_gqa_fixed_mask_scan_waves_per_eu": 2,
+        "configured_gqa_fixed_mask_segments": 128,
+        "configured_gqa_mass_fraction": null,
+        "configured_gqa_pilot_z": false,
+        "configured_gqa_pilot_z_margin": 0.25,
+        "configured_gqa_pilot_z_route_count": 8,
+        "configured_gqa_predicted_mass": false,
+        "configured_gqa_staged_fixed_aiter": false,
+        "configured_gqa_static_leaf_aiter": false,
+        "configured_gqa_union_decode": false,
+        "configured_gqa_union_hip": false,
+        "configured_leaf_block_n": 16,
+        "configured_open_count": 8,
+        "configured_prefill_coarse_block_m": 16,
+        "configured_prefill_coarse_block_n": 32,
+        "configured_prefill_coarse_max_grouped_rows": 64,
+        "configured_prefill_coarse_num_warps": 8,
+        "configured_prefill_direct_expert_buckets": false,
+        "configured_prefill_hierarchical_route": true,
+        "configured_prefill_leaf_visit_cap": null,
+        "configured_prefill_local_backend": "aiter",
+        "configured_prefill_overlap_coarse_leaf": false,
+        "configured_prefill_overlap_local_lod": false,
+        "configured_prefill_static_leaf_aiter": false,
+        "configured_prefill_static_leaf_cap_min": 16,
+        "configured_recursive_prefill_all_leaves": false,
+        "configured_route_group_size": 32,
+        "configured_route_num_warps": 2,
+        "configured_route_parallel_reduce": false,
+        "configured_route_post_dot_normalize": false,
+        "configured_route_post_pv_normalize": false,
+        "configured_route_reduce_num_warps": 4,
+        "configured_route_segment_tiles": 1,
+        "configured_route_use_dot": true,
+        "configured_state_premerge_factor": 1,
+        "configured_static_cohort_never_readmit": false,
+        "configured_static_leaf_cap_divisor": 16,
+        "decode_split_kv": 8,
+        "effective_decode_route_leaf_limit": 1024,
+        "effective_leaf_page_block_n": 16,
+        "effective_prefill_local_kernel": "aiter.ops.mha.flash_attn_func (CK FMHA v3)",
+        "effective_prefill_open_count": 3,
+        "effective_route_group_size": 32,
+        "effective_route_num_warps": 2,
+        "effective_route_reduce_num_warps": 4,
+        "effective_route_segment_tiles": 1,
+        "effective_route_segment_width": 32,
+        "effective_route_use_dot": true,
+        "engine_long_d128_override_bypassed_by_vllm_pool": false,
+        "engine_long_d128_override_exists": false,
+        "exact_leaf_kernel": "flat two-tier leaf dispatch",
+        "final_reduce_kernel": "_reduce_routed_split_decode_lod_attention_kernel",
+        "final_reduce_num_warps": 4,
+        "hash_probes": -1,
+        "head_dim": 256,
+        "kv_group_size": 6,
+        "kv_heads": 4,
+        "layers": 16,
+        "leaf_dtype": "torch.bfloat16",
+        "leaf_num_warps": 2,
+        "levels": 2,
+        "local_capacity": 4864,
+        "local_kernels": [
+          "_mask_decode_routes_residual_mass_kernel"
+        ],
+        "local_score_block_m": 16,
+        "local_score_block_n": 32,
+        "local_score_num_warps": 4,
+        "local_value_block_d": 32,
+        "local_value_block_k": 32,
+        "local_value_block_m": 16,
+        "local_value_num_warps": 4,
+        "local_window": 512,
+        "materialize_page_scores": false,
+        "observed_context_len": 0,
+        "page_capacity": 14128,
+        "page_route_kernels": [
+          "inline page-summary scoring in exact-leaf kernel"
+        ],
+        "page_score_block_n": 16,
+        "page_score_num_warps": 2,
+        "page_select_block_n": 64,
+        "pool_request_capacity": 131344,
+        "prefill_chunk_len": 4096,
+        "prefill_direct_expert_bucket_calls": 0,
+        "prefill_fused_route_eligible": true,
+        "prefill_leaf_kernel": "expert",
+        "prefill_leaf_num_warps": 2,
+        "prefill_leaf_page_block_n": 32,
+        "prefill_mode": "direct",
+        "prefill_route_kernels": [
+          "_route_logits_tile_topk_kernel",
+          "_reduce_route_logits_tile_topk_kernel",
+          "_route_logits_coarse_attention_kernel"
+        ],
+        "prefill_schedule_source": "VLLM_LOD_PREFILL_* settings",
+        "prefill_state_update_len": 4096,
+        "query_heads": 24,
+        "requested_decode_hierarchical_route": null,
+        "requested_recursive_prefill_all_leaves": null,
+        "route_gqa_grouped": true,
+        "state_capacity": 5888,
+        "state_pv_block_d": 128,
+        "state_pv_block_n": 64,
+        "state_pv_splits": 8,
+        "state_route_backend": "fused",
+        "state_route_kernels": [
+          "_decode_route_coarse_gqa_groups_kernel",
+          "_reduce_decode_route_coarse_kernel"
+        ],
+        "state_route_math": "mfma_m16",
+        "state_score_block_n": 32,
+        "state_score_num_stages": 3,
+        "state_score_num_warps": 2,
+        "state_topk_block_n": 128,
+        "state_topk_num_warps": 2
+      }
+    ],
+    "schema_version": 6
+  },
+  "lod_speed_diagnostics": {
+    "batched_cached_prefill_rows": 0,
+    "batched_cached_prefills": 0,
+    "batched_install_calls": 64,
+    "cached_prefill_candidate_calls": 448,
+    "cached_prefill_candidate_rows": 448,
+    "cached_prefill_noncontiguous": 0,
+    "cached_prefill_nonpacked_calls": 0,
+    "cached_prefill_nonuniform_lengths": 0,
+    "cached_prefill_nonuniform_previous": 0,
+    "cached_prefill_packed_calls": 448,
+    "cached_prefill_unready": 0,
+    "catch_up_batches": 64,
+    "catch_up_rows": 64,
+    "decode_calls": 48,
+    "decode_gqa_cooperative": false,
+    "decode_route_cohort": false,
+    "dense_leaf_storage": true,
+    "direct_prefills": 512,
+    "effective_decode_route_leaf_limit": 1024,
+    "external_kv_cache": true,
+    "installs": 64,
+    "kv_bits": 0,
+    "layers": 16,
+    "leaf_num_warps": 2,
+    "leaf_seal_capacity": null,
+    "levels": 2,
+    "open_count": 8,
+    "page_summary_quant_bits": 8,
+    "pilot_z_copy_calls": 0,
+    "pilot_z_engine_bound_finite": 0,
+    "pilot_z_record_calls": 0,
+    "pilot_z_route_threshold_finite": 0,
+    "pilot_z_route_threshold_max": null,
+    "pilot_z_route_threshold_min": null,
+    "pilot_z_route_threshold_total": 0,
+    "positive_dot_blocks": 0,
+    "positive_dot_blocks_empty": 0,
+    "positive_dot_blocks_under_k": 0,
+    "positive_dot_population": 0,
+    "positive_dot_population_positive": 0,
+    "positive_dot_route_counts": [],
+    "prefill_chunk_len": 4096,
+    "prefill_direct_expert_bucket_calls": 0,
+    "prefill_direct_expert_buckets": false,
+    "prefill_int8_coarse_mma": false,
+    "prefill_int8_leaf_mma": false,
+    "prefill_int8_pv_mma": false,
+    "prefill_state_update_len": 4096,
+    "prefill_static_leaf_aiter": false,
+    "prefill_static_leaf_cap_min": 16,
+    "recursive_materialize_page_scores": false,
+    "recursive_page_score_block_n": 16,
+    "recursive_page_score_num_warps": 2,
+    "recursive_page_select_block_n": 64,
+    "recursive_state_route_backend": "fused",
+    "retained_prefix_reuses": 0,
+    "retained_restore_attempts": 0,
+    "retained_restore_fail_coverage": 0,
+    "retained_restore_fail_no_row": 0,
+    "retained_restore_fail_short": 0,
+    "retained_restore_fail_tokens": 0,
+    "retained_restore_last_coverage": 0,
+    "retained_restore_last_prefix": 0,
+    "retained_restore_last_total": 0,
+    "retained_restore_rebuild_tokens": 0,
+    "retained_restore_rebuilds": 0,
+    "routing_cutoff_simulations": [],
+    "routing_segment_cutoff_simulations": [],
+    "speculative_parallel_configured": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "speculative_shared_route_configured": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "speculative_shared_route_executed": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "static_cohort_never_readmit": false,
+    "static_leaf_cap_divisor": 16,
+    "static_prefill_archive_tokens": 0,
+    "static_prefill_calls": 0,
+    "static_prefill_cap_max_observed": null,
+    "static_prefill_cap_min_observed": null,
+    "static_prefill_exact_tokens_max": null,
+    "static_prefill_exact_tokens_min": null,
+    "static_prefill_layers_executed": 0,
+    "static_prefill_permanent_exact_fraction": null,
+    "static_prefill_permanent_exact_tokens": 0
+  },
+  "long_prefill_token_threshold": 16384,
+  "max_new_tokens": 64,
+  "max_num_batched_tokens": 16384,
+  "mode": "lod",
+  "model_impl": null,
+  "muse_native_text_config": false,
+  "num_speculative_tokens": 1,
+  "results": {
+    "131072": {
+      "speed": {
+        "decode_timings_seconds": [
+          5.162162564694881,
+          5.134227400179952,
+          5.131103041116148
+        ],
+        "lod_decode_execution_audit": {
+          "decode_centroid_major_hip_configured": [
+            false
+          ],
+          "decode_centroid_major_hip_executed": [
+            false
+          ],
+          "decode_gqa_direct_fixed_routes_configured": [
+            true
+          ],
+          "decode_gqa_direct_fixed_routes_executed": [],
+          "decode_gqa_fixed_mask_configured": [
+            false
+          ],
+          "decode_gqa_fixed_mask_executed": [],
+          "decode_gqa_overlap_local_sink_configured": [
+            false
+          ],
+          "decode_gqa_overlap_local_sink_executed": [
+            false
+          ],
+          "decode_gqa_staged_fixed_configured": [
+            false
+          ],
+          "decode_gqa_staged_fixed_executed": [],
+          "decode_gqa_static_leaf_aiter_configured": [
+            false
+          ],
+          "decode_gqa_static_leaf_aiter_executed": [],
+          "decode_gqa_union_aiter_final": [
+            false
+          ],
+          "decode_gqa_union_configured": [
+            false
+          ],
+          "decode_gqa_union_eligible": [
+            false
+          ],
+          "decode_gqa_union_hip_configured": [
+            false
+          ],
+          "decode_gqa_union_hip_executed": [
+            false
+          ],
+          "decode_gqa_union_predicted_mass": [
+            false
+          ],
+          "decode_gqa_union_requested": [
+            false
+          ],
+          "decode_gqa_union_score_only": [
+            false
+          ],
+          "decode_max_open_leaves": [
+            1024
+          ],
+          "decode_open_counts": [
+            8
+          ],
+          "decode_route_cohort": [
+            false
+          ],
+          "effective_decode_route_leaf_limits": [
+            1024
+          ],
+          "gqa_union_centroid_count_max": 0,
+          "gqa_union_centroid_count_mean": 0.0,
+          "gqa_union_effective_segments": [],
+          "gqa_union_epoch_max": 0,
+          "gqa_union_exact_token_count_max": 0,
+          "gqa_union_exact_token_count_mean": 0.0,
+          "gqa_union_nonempty_sequences": 0,
+          "gqa_union_runtime_kv_heads": [],
+          "gqa_union_runtime_sequence_counts": [],
+          "gqa_union_sequence_count": 0,
+          "gqa_union_split_d_reduce": [],
+          "gqa_union_token_count_max": 0,
+          "gqa_union_token_count_mean": 0.0,
+          "speculative_parallel_configured": [
+            true
+          ],
+          "speculative_shared_route_configured": [
+            true
+          ],
+          "speculative_shared_route_executed": [
+            true
+          ]
+        },
+        "marginal_decode_ms_per_batch_step": 20.13422509874491,
+        "marginal_decode_tokens_per_second": 49.666674286974974,
+        "prefill_prompt_tokens_per_second": 7138.847199072175,
+        "prefill_seconds": 18.360387376975268,
+        "prefill_timings_seconds": [
+          18.373791330959648,
+          18.360387376975268,
+          18.332870815880597
+        ],
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 131072,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London K",
+              "request_index": 0,
+              "sha256": "4a0051e89021e0c36eb743d5606b6df68c47e1d2f65506f885d18a8beaca4b50",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                },
+                {
+                  "length": "65431",
+                  "stream_index": 1
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8192,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 8192
+              }
+            }
+          ],
+          "rejected_candidate_count": 0,
+          "rejected_candidates": []
+        },
+        "prompt_length": 131072,
+        "total_timings_seconds": [
+          23.540577715728432,
+          23.499740709085017,
+          23.468803503084928
+        ]
+      }
+    }
+  },
+  "sample_offset": 0,
+  "samples_per_length": 8,
+  "speculative_attention_backend": "TRITON_ATTN",
+  "speculative_method": "mtp",
+  "speculative_model": "Qwen/Qwen3.8-27B-FP8",
+  "speed_decode_tokens": 256,
+  "speed_prompt_reserve": 0,
+  "speed_repeats": 3,
+  "speed_use_warm_prefix_cache": false,
+  "tensor_parallel_size": 1
+}

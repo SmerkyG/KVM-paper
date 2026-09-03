@@ -1,0 +1,677 @@
+{
+  "allow_heterogeneous_global_config": false,
+  "apply_chat_template": false,
+  "attention_exercised": "direct_lod_prefill",
+  "batch_size": 8,
+  "checkpoint": "meta-models/Muse-Glimmer-30B",
+  "concatenate_prolong": true,
+  "decode_static_leaf_cap_min": 16,
+  "disable_thinking": false,
+  "elapsed_seconds": 9.040767750702798,
+  "enforce_eager": false,
+  "eval": "prolong",
+  "length": 8192,
+  "lod_diagnostics_after": {
+    "batched_cached_prefill_rows": 78,
+    "batched_cached_prefills": 26,
+    "catch_up_batches": 26,
+    "catch_up_rows": 39,
+    "custom_impl_sliding_windows": {
+      "(-1, -1)": 13,
+      "(2047, 0)": 39
+    },
+    "custom_layers": [
+      "model.layers.0.self_attn.attn",
+      "model.layers.1.self_attn.attn",
+      "model.layers.2.self_attn.attn",
+      "model.layers.3.self_attn.attn",
+      "model.layers.4.self_attn.attn",
+      "model.layers.5.self_attn.attn",
+      "model.layers.6.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.8.self_attn.attn",
+      "model.layers.9.self_attn.attn",
+      "model.layers.10.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.12.self_attn.attn",
+      "model.layers.13.self_attn.attn",
+      "model.layers.14.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.16.self_attn.attn",
+      "model.layers.17.self_attn.attn",
+      "model.layers.18.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.20.self_attn.attn",
+      "model.layers.21.self_attn.attn",
+      "model.layers.22.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.24.self_attn.attn",
+      "model.layers.25.self_attn.attn",
+      "model.layers.26.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.28.self_attn.attn",
+      "model.layers.29.self_attn.attn",
+      "model.layers.30.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.32.self_attn.attn",
+      "model.layers.33.self_attn.attn",
+      "model.layers.34.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.36.self_attn.attn",
+      "model.layers.37.self_attn.attn",
+      "model.layers.38.self_attn.attn",
+      "model.layers.39.self_attn.attn",
+      "model.layers.40.self_attn.attn",
+      "model.layers.41.self_attn.attn",
+      "model.layers.42.self_attn.attn",
+      "model.layers.43.self_attn.attn",
+      "model.layers.44.self_attn.attn",
+      "model.layers.45.self_attn.attn",
+      "model.layers.46.self_attn.attn",
+      "model.layers.47.self_attn.attn",
+      "model.layers.48.self_attn.attn",
+      "model.layers.49.self_attn.attn",
+      "model.layers.50.self_attn.attn",
+      "model.layers.51.self_attn.attn"
+    ],
+    "decode_calls": 104,
+    "decode_gqa_fixed_mask_configured": [
+      false
+    ],
+    "decode_gqa_fixed_mask_executed": [],
+    "decode_gqa_staged_fixed_configured": [
+      false
+    ],
+    "decode_gqa_staged_fixed_executed": [],
+    "decode_gqa_static_leaf_aiter_configured": [
+      false
+    ],
+    "decode_gqa_static_leaf_aiter_executed": [],
+    "decode_gqa_static_leaf_caps": [
+      null
+    ],
+    "decode_gqa_union_aiter_final": [],
+    "decode_gqa_union_configured": [
+      false
+    ],
+    "decode_gqa_union_eligible": [],
+    "decode_gqa_union_hip_configured": [
+      false
+    ],
+    "decode_gqa_union_hip_executed": [],
+    "decode_gqa_union_predicted_mass": [],
+    "decode_gqa_union_requested": [],
+    "decode_gqa_union_score_only": [],
+    "decode_max_open_leaves": [
+      1024
+    ],
+    "decode_open_counts": [
+      8
+    ],
+    "decode_route_cohort": [
+      false
+    ],
+    "direct_prefill_calls": 78,
+    "effective_decode_route_leaf_limits": [
+      1024
+    ],
+    "eligible_layers": [
+      "model.layers.3.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.39.self_attn.attn",
+      "model.layers.43.self_attn.attn",
+      "model.layers.47.self_attn.attn",
+      "model.layers.51.self_attn.attn"
+    ],
+    "gqa_route_mass_threshold_hits": {
+      "16": 0,
+      "32": 0,
+      "64": 0,
+      "128": 0,
+      "256": 0
+    },
+    "gqa_route_max_mass": null,
+    "gqa_union_centroid_count_max": 0,
+    "gqa_union_centroid_count_mean": 0.0,
+    "gqa_union_epoch_max": 0,
+    "gqa_union_exact_token_count_max": 0,
+    "gqa_union_exact_token_count_mean": 0.0,
+    "gqa_union_nonempty_sequences": 0,
+    "gqa_union_sequence_count": 0,
+    "gqa_union_token_count_max": 0,
+    "gqa_union_token_count_mean": 0.0,
+    "install_count": 208,
+    "pooled_layers": [
+      "model.layers.3.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.39.self_attn.attn",
+      "model.layers.43.self_attn.attn",
+      "model.layers.47.self_attn.attn",
+      "model.layers.51.self_attn.attn"
+    ],
+    "prefill_coarse_direct_gqa_configured": [
+      [
+        false,
+        64,
+        32,
+        8
+      ]
+    ],
+    "prefill_coarse_direct_gqa_executed": [],
+    "prefill_open_counts": [
+      3
+    ],
+    "prefill_route_cohort": [
+      false
+    ],
+    "recursive_state_route_backends": [
+      "fused"
+    ],
+    "routing_geometries": [
+      [
+        "none",
+        "coherence",
+        "none"
+      ]
+    ],
+    "selected_route_count_max": 0.0,
+    "split_posting_len_max": 0,
+    "split_scheduled_state_len_max": 0,
+    "split_state_len_max": 0,
+    "state_centroids_at_or_above_open_limit": 0,
+    "state_count_max": 0.0,
+    "state_split_limits": [
+      null
+    ],
+    "state_v_abs_max": 720.0,
+    "state_v_nonfinite": 0,
+    "static_leaf_count_distribution": [
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "1",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "2",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "3-4",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "5-8",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "9-16",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "17-32",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "33-64",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "65-128",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "129-256",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "257-512",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "513-1024",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": ">1024",
+        "leaf_fraction": 0.0
+      }
+    ],
+    "static_opened_centroid_fraction": 0.0,
+    "static_opened_centroids": 0,
+    "static_opened_leaf_fraction": 0.0,
+    "static_opened_leaves": 0.0,
+    "static_total_centroids": 0,
+    "static_total_leaves": 0.0
+  },
+  "lod_diagnostics_before": {
+    "batched_cached_prefill_rows": 0,
+    "batched_cached_prefills": 0,
+    "catch_up_batches": 26,
+    "catch_up_rows": 39,
+    "custom_impl_sliding_windows": {
+      "(-1, -1)": 13,
+      "(2047, 0)": 39
+    },
+    "custom_layers": [
+      "model.layers.0.self_attn.attn",
+      "model.layers.1.self_attn.attn",
+      "model.layers.2.self_attn.attn",
+      "model.layers.3.self_attn.attn",
+      "model.layers.4.self_attn.attn",
+      "model.layers.5.self_attn.attn",
+      "model.layers.6.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.8.self_attn.attn",
+      "model.layers.9.self_attn.attn",
+      "model.layers.10.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.12.self_attn.attn",
+      "model.layers.13.self_attn.attn",
+      "model.layers.14.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.16.self_attn.attn",
+      "model.layers.17.self_attn.attn",
+      "model.layers.18.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.20.self_attn.attn",
+      "model.layers.21.self_attn.attn",
+      "model.layers.22.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.24.self_attn.attn",
+      "model.layers.25.self_attn.attn",
+      "model.layers.26.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.28.self_attn.attn",
+      "model.layers.29.self_attn.attn",
+      "model.layers.30.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.32.self_attn.attn",
+      "model.layers.33.self_attn.attn",
+      "model.layers.34.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.36.self_attn.attn",
+      "model.layers.37.self_attn.attn",
+      "model.layers.38.self_attn.attn",
+      "model.layers.39.self_attn.attn",
+      "model.layers.40.self_attn.attn",
+      "model.layers.41.self_attn.attn",
+      "model.layers.42.self_attn.attn",
+      "model.layers.43.self_attn.attn",
+      "model.layers.44.self_attn.attn",
+      "model.layers.45.self_attn.attn",
+      "model.layers.46.self_attn.attn",
+      "model.layers.47.self_attn.attn",
+      "model.layers.48.self_attn.attn",
+      "model.layers.49.self_attn.attn",
+      "model.layers.50.self_attn.attn",
+      "model.layers.51.self_attn.attn"
+    ],
+    "decode_calls": 104,
+    "decode_gqa_fixed_mask_configured": [
+      false
+    ],
+    "decode_gqa_fixed_mask_executed": [],
+    "decode_gqa_staged_fixed_configured": [
+      false
+    ],
+    "decode_gqa_staged_fixed_executed": [],
+    "decode_gqa_static_leaf_aiter_configured": [
+      false
+    ],
+    "decode_gqa_static_leaf_aiter_executed": [],
+    "decode_gqa_static_leaf_caps": [
+      null
+    ],
+    "decode_gqa_union_aiter_final": [],
+    "decode_gqa_union_configured": [
+      false
+    ],
+    "decode_gqa_union_eligible": [],
+    "decode_gqa_union_hip_configured": [
+      false
+    ],
+    "decode_gqa_union_hip_executed": [],
+    "decode_gqa_union_predicted_mass": [],
+    "decode_gqa_union_requested": [],
+    "decode_gqa_union_score_only": [],
+    "decode_max_open_leaves": [
+      1024
+    ],
+    "decode_open_counts": [
+      8
+    ],
+    "decode_route_cohort": [
+      false
+    ],
+    "direct_prefill_calls": 13,
+    "effective_decode_route_leaf_limits": [
+      1024
+    ],
+    "eligible_layers": [
+      "model.layers.3.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.39.self_attn.attn",
+      "model.layers.43.self_attn.attn",
+      "model.layers.47.self_attn.attn",
+      "model.layers.51.self_attn.attn"
+    ],
+    "gqa_route_mass_threshold_hits": {
+      "16": 0,
+      "32": 0,
+      "64": 0,
+      "128": 0,
+      "256": 0
+    },
+    "gqa_route_max_mass": null,
+    "gqa_union_centroid_count_max": 0,
+    "gqa_union_centroid_count_mean": 0.0,
+    "gqa_union_epoch_max": 0,
+    "gqa_union_exact_token_count_max": 0,
+    "gqa_union_exact_token_count_mean": 0.0,
+    "gqa_union_nonempty_sequences": 0,
+    "gqa_union_sequence_count": 0,
+    "gqa_union_token_count_max": 0,
+    "gqa_union_token_count_mean": 0.0,
+    "install_count": 104,
+    "pooled_layers": [
+      "model.layers.3.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.39.self_attn.attn",
+      "model.layers.43.self_attn.attn",
+      "model.layers.47.self_attn.attn",
+      "model.layers.51.self_attn.attn"
+    ],
+    "prefill_coarse_direct_gqa_configured": [
+      [
+        false,
+        64,
+        32,
+        8
+      ]
+    ],
+    "prefill_coarse_direct_gqa_executed": [],
+    "prefill_open_counts": [
+      3
+    ],
+    "prefill_route_cohort": [
+      false
+    ],
+    "recursive_state_route_backends": [
+      "fused"
+    ],
+    "routing_geometries": [
+      [
+        "none",
+        "coherence",
+        "none"
+      ]
+    ],
+    "selected_route_count_max": 0.0,
+    "split_posting_len_max": 0,
+    "split_scheduled_state_len_max": 0,
+    "split_state_len_max": 0,
+    "state_centroids_at_or_above_open_limit": 0,
+    "state_count_max": 0.0,
+    "state_split_limits": [
+      null
+    ],
+    "state_v_abs_max": 10.5,
+    "state_v_nonfinite": 9216,
+    "static_leaf_count_distribution": [
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "1",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "2",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "3-4",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "5-8",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "9-16",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "17-32",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "33-64",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "65-128",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "129-256",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "257-512",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "513-1024",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": ">1024",
+        "leaf_fraction": 0.0
+      }
+    ],
+    "static_opened_centroid_fraction": 0.0,
+    "static_opened_centroids": 0,
+    "static_opened_leaf_fraction": 0.0,
+    "static_opened_leaves": 0.0,
+    "static_total_centroids": 0,
+    "static_total_leaves": 0.0
+  },
+  "lod_prefill_route_block_m": null,
+  "lod_prefill_route_num_warps": null,
+  "lod_recursive_page_block_n": null,
+  "lod_recursive_state_route_backend": null,
+  "long_prefill_token_threshold": 4096,
+  "loss": 2.1609089238670043,
+  "max_num_batched_tokens": 16384,
+  "mode": "lod",
+  "muse_native_text_config": true,
+  "perplexity": 8.67902264531884,
+  "prediction_tokens": 65528,
+  "prefill_open_count": 3,
+  "prefill_route_cohort": false,
+  "prefill_static_leaf_cap_min": 16,
+  "requested_samples": 8,
+  "samples": [
+    {
+      "loss": 2.2385487460424223,
+      "perplexity": 9.379709065279812,
+      "sample": 0,
+      "source_indices": [
+        1867825,
+        419610,
+        4614226,
+        4108603,
+        3744854
+      ],
+      "token_sha256": "a51db98d0d91838ba75a58b39bdfd1c0f4d03b5f4901e2507e79be92221967e7",
+      "tokens": 8192
+    },
+    {
+      "loss": 2.2427000456449875,
+      "perplexity": 9.418727981364766,
+      "sample": 1,
+      "source_indices": [
+        2341057,
+        1719583,
+        1458591,
+        7078673,
+        533224,
+        499914,
+        1571945,
+        3668136,
+        3903402
+      ],
+      "token_sha256": "8d70d989ca1c4f0bb8b7ff9598c46ddbabd4785ce759d23a6fe092807fa93f8e",
+      "tokens": 8192
+    },
+    {
+      "loss": 1.8863033474228825,
+      "perplexity": 6.594944346702345,
+      "sample": 2,
+      "source_indices": [
+        8478454,
+        445199,
+        3335942,
+        7038374,
+        3698379
+      ],
+      "token_sha256": "9aaad9c6f1fa345d0692d94104cc4ae1d05d7e04574e53422da1f24d7625bdd7",
+      "tokens": 8192
+    },
+    {
+      "loss": 1.9975029132921187,
+      "perplexity": 7.370628003014512,
+      "sample": 3,
+      "source_indices": [
+        7536477,
+        4667265,
+        109031
+      ],
+      "token_sha256": "fe092e4604ec17a0533cd221affb647190b06c68992b91f82a0a286ef71e772d",
+      "tokens": 8192
+    },
+    {
+      "loss": 2.2598548461141448,
+      "perplexity": 9.58169824508461,
+      "sample": 4,
+      "source_indices": [
+        2678638,
+        7090293,
+        5708456,
+        4661907,
+        2608513,
+        3612365,
+        5647119,
+        1714803,
+        1556017,
+        6374122,
+        1622631
+      ],
+      "token_sha256": "e9b98b2b808923ed6afaf5f9adf6f9de86fc86b9dc737fdae0ca7e620b03a204",
+      "tokens": 8192
+    },
+    {
+      "loss": 2.1850324189627357,
+      "perplexity": 8.890936783647557,
+      "sample": 5,
+      "source_indices": [
+        6022674,
+        5770619,
+        4437923,
+        728977,
+        7707870,
+        2094235,
+        6350753
+      ],
+      "token_sha256": "3355d7ee71e51cb4f1c4f36c1fa02263ac32b812fbaf924ef20ef67df1df89e3",
+      "tokens": 8192
+    },
+    {
+      "loss": 2.2055798912979347,
+      "perplexity": 9.075512853150032,
+      "sample": 6,
+      "source_indices": [
+        1322047,
+        4918715,
+        6067228,
+        3226067,
+        1166941,
+        768805
+      ],
+      "token_sha256": "016141e2ac472c3eb5dc7021aa5f2f7a6100911fc18a2ea727d324c2784f5114",
+      "tokens": 8192
+    },
+    {
+      "loss": 2.2717491821588087,
+      "perplexity": 9.69634666565472,
+      "sample": 7,
+      "source_indices": [
+        3823498,
+        4855124,
+        1338687,
+        3905582,
+        1694522,
+        6377459,
+        4663623,
+        7606962,
+        6120868,
+        2728882
+      ],
+      "token_sha256": "cc558c6bb6869b838fe76c10be9049be6b43a5b9c11950058e39f2d72a9c8da3",
+      "tokens": 8192
+    }
+  ],
+  "state_split_max_leaves": null,
+  "static_cohort_never_readmit": false,
+  "static_leaf_cap_divisor": 16,
+  "tensor_parallel_size": 1
+}

@@ -1,0 +1,219 @@
+{
+  "batch_size": 2,
+  "slots": 4096,
+  "head_dim": 256,
+  "kv_heads": 2,
+  "gqa": 4,
+  "measurements": [
+    {
+      "axis": "mfma_gqa",
+      "group_n": 16,
+      "num_warps": 1,
+      "programs": 1024,
+      "score_us_median": 27.93950028717518,
+      "reduce_us_median": 9.840000420808792,
+      "total_us_median": 37.819501012563705,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 16,
+      "num_warps": 1,
+      "programs": 4096,
+      "score_us_median": 33.76000002026558,
+      "reduce_us_median": 8.999999612569809,
+      "total_us_median": 42.839499190449715,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 16,
+      "num_warps": 2,
+      "programs": 1024,
+      "score_us_median": 24.098999798297882,
+      "reduce_us_median": 12.45900010690093,
+      "total_us_median": 36.538999527692795,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 16,
+      "num_warps": 2,
+      "programs": 4096,
+      "score_us_median": 35.01950018107891,
+      "reduce_us_median": 8.979500271379948,
+      "total_us_median": 44.23950053751469,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 16,
+      "num_warps": 4,
+      "programs": 1024,
+      "score_us_median": 25.999500416219234,
+      "reduce_us_median": 9.960000403225422,
+      "total_us_median": 36.04000061750412,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 16,
+      "num_warps": 4,
+      "programs": 4096,
+      "score_us_median": 35.079000517725945,
+      "reduce_us_median": 9.07950010150671,
+      "total_us_median": 44.078998267650604,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "scalar_gqa",
+      "group_n": 16,
+      "num_warps": 1,
+      "programs": 1024,
+      "score_us_median": 35.979000851511955,
+      "reduce_us_median": 8.840000256896019,
+      "total_us_median": 44.75900158286095,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "scalar_gqa",
+      "group_n": 16,
+      "num_warps": 2,
+      "programs": 1024,
+      "score_us_median": 32.239001244306564,
+      "reduce_us_median": 8.739500306546688,
+      "total_us_median": 41.01950116455555,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "scalar_gqa",
+      "group_n": 16,
+      "num_warps": 4,
+      "programs": 1024,
+      "score_us_median": 34.19950045645237,
+      "reduce_us_median": 8.820000104606152,
+      "total_us_median": 43.02000068128109,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 32,
+      "num_warps": 1,
+      "programs": 512,
+      "score_us_median": 28.579499572515488,
+      "reduce_us_median": 6.3599999994039536,
+      "total_us_median": 34.979499876499176,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 32,
+      "num_warps": 1,
+      "programs": 2048,
+      "score_us_median": 40.51950015127659,
+      "reduce_us_median": 6.3599999994039536,
+      "total_us_median": 46.918999403715134,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 32,
+      "num_warps": 2,
+      "programs": 512,
+      "score_us_median": 27.999499812722206,
+      "reduce_us_median": 6.399999838322401,
+      "total_us_median": 34.37949903309345,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 32,
+      "num_warps": 2,
+      "programs": 2048,
+      "score_us_median": 35.979000851511955,
+      "reduce_us_median": 6.279999855905771,
+      "total_us_median": 42.299000546336174,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 32,
+      "num_warps": 4,
+      "programs": 512,
+      "score_us_median": 26.319999247789383,
+      "reduce_us_median": 7.1000000461936,
+      "total_us_median": 33.37950073182583,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 32,
+      "num_warps": 4,
+      "programs": 2048,
+      "score_us_median": 35.859500989317894,
+      "reduce_us_median": 6.239499896764755,
+      "total_us_median": 42.119499295949936,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 64,
+      "num_warps": 1,
+      "programs": 256,
+      "score_us_median": 39.69950042665005,
+      "reduce_us_median": 5.819499958306551,
+      "total_us_median": 45.559000223875046,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 64,
+      "num_warps": 1,
+      "programs": 1024,
+      "score_us_median": 41.31950065493584,
+      "reduce_us_median": 5.799999926239252,
+      "total_us_median": 47.1195001155138,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 64,
+      "num_warps": 2,
+      "programs": 256,
+      "score_us_median": 29.89900019019842,
+      "reduce_us_median": 5.840000230818987,
+      "total_us_median": 35.77899932861328,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 64,
+      "num_warps": 2,
+      "programs": 1024,
+      "score_us_median": 38.67949917912483,
+      "reduce_us_median": 5.840000230818987,
+      "total_us_median": 44.45900022983551,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 64,
+      "num_warps": 4,
+      "programs": 256,
+      "score_us_median": 26.898999698460102,
+      "reduce_us_median": 6.3599999994039536,
+      "total_us_median": 32.95950032770634,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 64,
+      "num_warps": 4,
+      "programs": 1024,
+      "score_us_median": 38.65999914705753,
+      "reduce_us_median": 5.799999926239252,
+      "total_us_median": 44.539500027894974,
+      "top_slot_agreement": 1.0
+    }
+  ]
+}

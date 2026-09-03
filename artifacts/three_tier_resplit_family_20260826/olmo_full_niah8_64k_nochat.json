@@ -1,0 +1,130 @@
+{
+  "allow_heterogeneous_global_config": false,
+  "apply_chat_template": false,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 218691010560,
+    "device_used_bytes_before_reclaim": 223325716480,
+    "external_lod_layers": 0,
+    "external_lod_layers_with_native_cache": 0,
+    "external_lod_native_cache_bytes": 0,
+    "lod_cache_bytes": 0,
+    "lod_decode_scratch_bytes": 0,
+    "native_cache_bytes": 150680371200,
+    "torch_allocated_bytes": 150939969024,
+    "torch_reclaimable_cached_bytes": 4634705920,
+    "torch_reserved_bytes_after_reclaim": 151091412992,
+    "torch_reserved_bytes_before_reclaim": 155726118912
+  },
+  "batch_size": 8,
+  "checkpoint": "allenai/Olmo-3-1125-32B",
+  "diagnostic_external_empty_attention": null,
+  "disable_thinking": false,
+  "enable_prefix_caching": false,
+  "full_attention_backend": "ROCM_AITER_UNIFIED_ATTN",
+  "full_attention_dispatch": {
+    "records": [
+      {
+        "attention_callable": "aiter.ops.triton.attention.unified_attention.unified_attention",
+        "head_dim": 128,
+        "implementation_class": "vllm.v1.attention.backends.rocm_aiter_unified_attn.RocmAiterUnifiedAttentionImpl",
+        "kv_cache_dtype": "auto",
+        "kv_group_size": 5,
+        "kv_heads": 8,
+        "layers": 16,
+        "query_heads": 40,
+        "sliding_window": [
+          -1,
+          -1
+        ]
+      }
+    ],
+    "schema_version": 1
+  },
+  "language_model_only": false,
+  "lengths": [
+    65536
+  ],
+  "load_format": "ipc_cache",
+  "lod_diagnostics_before": null,
+  "long_prefill_token_threshold": 4096,
+  "max_new_tokens": 64,
+  "max_num_batched_tokens": 16384,
+  "mode": "full",
+  "model_impl": null,
+  "muse_native_text_config": false,
+  "results": {
+    "65536": {
+      "quality": {
+        "accuracy": 1.0,
+        "correct": 8,
+        "elapsed_seconds": 69.08665137551725,
+        "input_tokens": 520316,
+        "samples": [
+          {
+            "exact": true,
+            "index": 0,
+            "input_tokens": 65042,
+            "response": " 101bb5fa-6a67-4623-9ad1-daaaef8d9ff0.",
+            "target": "101bb5fa-6a67-4623-9ad1-daaaef8d9ff0"
+          },
+          {
+            "exact": true,
+            "index": 1,
+            "input_tokens": 65037,
+            "response": ": ca9571e4-07dc-42b1-b45d-a406bbf9bb01.",
+            "target": "ca9571e4-07dc-42b1-b45d-a406bbf9bb01"
+          },
+          {
+            "exact": true,
+            "index": 2,
+            "input_tokens": 65047,
+            "response": ": eb561699-7f22-4d12-87b6-e08e6ac1ca75.",
+            "target": "eb561699-7f22-4d12-87b6-e08e6ac1ca75"
+          },
+          {
+            "exact": true,
+            "index": 3,
+            "input_tokens": 65042,
+            "response": ": 5bf80676-1f12-40e9-9201-1caa5a3da367.",
+            "target": "5bf80676-1f12-40e9-9201-1caa5a3da367"
+          },
+          {
+            "exact": true,
+            "index": 4,
+            "input_tokens": 65037,
+            "response": ": f96d4403-d48c-43f3-828d-042b2d8b5b41.",
+            "target": "f96d4403-d48c-43f3-828d-042b2d8b5b41"
+          },
+          {
+            "exact": true,
+            "index": 5,
+            "input_tokens": 65040,
+            "response": ": 353e0c86-24ae-4a79-a4b8-298798ba0f0e.",
+            "target": "353e0c86-24ae-4a79-a4b8-298798ba0f0e"
+          },
+          {
+            "exact": true,
+            "index": 6,
+            "input_tokens": 65038,
+            "response": ": e6a1a40b-f031-44b9-bb6b-0095ac7b7ab2.",
+            "target": "e6a1a40b-f031-44b9-bb6b-0095ac7b7ab2"
+          },
+          {
+            "exact": true,
+            "index": 7,
+            "input_tokens": 65033,
+            "response": ": eecb325b-064f-468d-b080-e0035e7f503c.",
+            "target": "eecb325b-064f-468d-b080-e0035e7f503c"
+          }
+        ],
+        "total": 8
+      }
+    }
+  },
+  "sample_offset": 0,
+  "samples_per_length": 8,
+  "speed_decode_tokens": 64,
+  "speed_prompt_reserve": 64,
+  "speed_repeats": 1,
+  "tensor_parallel_size": 1
+}

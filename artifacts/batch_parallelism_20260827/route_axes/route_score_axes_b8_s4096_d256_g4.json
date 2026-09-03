@@ -1,0 +1,219 @@
+{
+  "batch_size": 8,
+  "slots": 4096,
+  "head_dim": 256,
+  "kv_heads": 2,
+  "gqa": 4,
+  "measurements": [
+    {
+      "axis": "mfma_gqa",
+      "group_n": 16,
+      "num_warps": 1,
+      "programs": 4096,
+      "score_us_median": 41.13900102674961,
+      "reduce_us_median": 9.379999712109566,
+      "total_us_median": 50.51900073885918,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 16,
+      "num_warps": 1,
+      "programs": 16384,
+      "score_us_median": 68.71850043535233,
+      "reduce_us_median": 9.539499878883362,
+      "total_us_median": 78.03849875926971,
+      "top_slot_agreement": 0.9921875
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 16,
+      "num_warps": 2,
+      "programs": 4096,
+      "score_us_median": 38.339000195264816,
+      "reduce_us_median": 9.039499796926975,
+      "total_us_median": 47.299500554800034,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 16,
+      "num_warps": 2,
+      "programs": 16384,
+      "score_us_median": 72.57900014519691,
+      "reduce_us_median": 9.399999864399433,
+      "total_us_median": 82.0389986038208,
+      "top_slot_agreement": 0.9921875
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 16,
+      "num_warps": 4,
+      "programs": 4096,
+      "score_us_median": 40.75950011610985,
+      "reduce_us_median": 9.299499914050102,
+      "total_us_median": 49.95900020003319,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 16,
+      "num_warps": 4,
+      "programs": 16384,
+      "score_us_median": 77.25850120186806,
+      "reduce_us_median": 9.419499896466732,
+      "total_us_median": 86.69799938797951,
+      "top_slot_agreement": 0.9921875
+    },
+    {
+      "axis": "scalar_gqa",
+      "group_n": 16,
+      "num_warps": 1,
+      "programs": 4096,
+      "score_us_median": 51.43899843096733,
+      "reduce_us_median": 8.999999612569809,
+      "total_us_median": 60.53899973630905,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "scalar_gqa",
+      "group_n": 16,
+      "num_warps": 2,
+      "programs": 4096,
+      "score_us_median": 54.83900010585785,
+      "reduce_us_median": 8.999999612569809,
+      "total_us_median": 64.25900012254715,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "scalar_gqa",
+      "group_n": 16,
+      "num_warps": 4,
+      "programs": 4096,
+      "score_us_median": 58.53950046002865,
+      "reduce_us_median": 9.199999738484621,
+      "total_us_median": 67.69900023937225,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 32,
+      "num_warps": 1,
+      "programs": 2048,
+      "score_us_median": 48.67950081825256,
+      "reduce_us_median": 6.519999820739031,
+      "total_us_median": 55.298998951911926,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 32,
+      "num_warps": 1,
+      "programs": 8192,
+      "score_us_median": 75.71849972009659,
+      "reduce_us_median": 6.639999803155661,
+      "total_us_median": 82.43849873542786,
+      "top_slot_agreement": 0.9921875
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 32,
+      "num_warps": 2,
+      "programs": 2048,
+      "score_us_median": 42.798999696969986,
+      "reduce_us_median": 6.539999973028898,
+      "total_us_median": 49.379000440239906,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 32,
+      "num_warps": 2,
+      "programs": 8192,
+      "score_us_median": 75.23900270462036,
+      "reduce_us_median": 6.739999866113067,
+      "total_us_median": 82.19899982213974,
+      "top_slot_agreement": 0.9921875
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 32,
+      "num_warps": 4,
+      "programs": 2048,
+      "score_us_median": 42.03899949789047,
+      "reduce_us_median": 6.499999901279807,
+      "total_us_median": 48.558998852968216,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 32,
+      "num_warps": 4,
+      "programs": 8192,
+      "score_us_median": 78.13850045204163,
+      "reduce_us_median": 6.639999803155661,
+      "total_us_median": 84.97850224375725,
+      "top_slot_agreement": 0.9921875
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 64,
+      "num_warps": 1,
+      "programs": 1024,
+      "score_us_median": 45.61899974942207,
+      "reduce_us_median": 6.039999891072512,
+      "total_us_median": 51.65950022637844,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 64,
+      "num_warps": 1,
+      "programs": 4096,
+      "score_us_median": 122.35850095748901,
+      "reduce_us_median": 6.039999891072512,
+      "total_us_median": 128.47799807786942,
+      "top_slot_agreement": 0.9921875
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 64,
+      "num_warps": 2,
+      "programs": 1024,
+      "score_us_median": 52.278999239206314,
+      "reduce_us_median": 6.060000043362379,
+      "total_us_median": 58.359500020742416,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 64,
+      "num_warps": 2,
+      "programs": 4096,
+      "score_us_median": 86.45850047469139,
+      "reduce_us_median": 6.0800001956522465,
+      "total_us_median": 92.49849990010262,
+      "top_slot_agreement": 0.9921875
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 64,
+      "num_warps": 4,
+      "programs": 1024,
+      "score_us_median": 42.07950085401535,
+      "reduce_us_median": 6.039999891072512,
+      "total_us_median": 48.1989998370409,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 64,
+      "num_warps": 4,
+      "programs": 4096,
+      "score_us_median": 82.91799947619438,
+      "reduce_us_median": 6.0800001956522465,
+      "total_us_median": 89.13899958133698,
+      "top_slot_agreement": 0.9921875
+    }
+  ]
+}

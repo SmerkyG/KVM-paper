@@ -151,6 +151,65 @@ def pop_qwen35_dynamic_open_statistics(model: nn.Module) -> dict[str, dict]:
     return result
 
 
+def pop_qwen35_static_leaf_cap_statistics(model: nn.Module) -> dict[str, object]:
+    """Collect and clear decode mass/geometry stats for static leaf-cap routing."""
+    records: list[dict[str, torch.Tensor]] = []
+    for module in model.modules():
+        if not isinstance(module, Qwen3_5TwoLevelAttention):
+            continue
+        records.extend(getattr(module, "_lod_static_leaf_cap_stats", ()))
+        if hasattr(module, "_lod_static_leaf_cap_stats"):
+            delattr(module, "_lod_static_leaf_cap_stats")
+    if not records:
+        return {}
+
+    def total(name: str) -> torch.Tensor:
+        return torch.stack([record[name] for record in records]).sum(dim=0)
+
+    mass_rows = total("mass_rows").clamp_min(1)
+    total_centroids = total("total_centroids").clamp_min(1)
+    total_leaves = total("total_leaves").clamp_min(1)
+    labels = (
+        "1",
+        "2",
+        "3-4",
+        "5-8",
+        "9-16",
+        "17-32",
+        "33-64",
+        "65-128",
+        "129-256",
+        "257-512",
+        "513-1024",
+        ">1024",
+    )
+    mass_fraction = (total("mass") / mass_rows).float().cpu().tolist()
+    centroid_fraction = (
+        total("centroids").float() / total_centroids
+    ).cpu().tolist()
+    leaf_fraction = (total("leaves").float() / total_leaves).cpu().tolist()
+    return {
+        "decode_layer_query_rows": int(mass_rows.item()),
+        "opened_leaf_fraction": float(
+            (total("opened_leaves") / total_leaves).item()
+        ),
+        "opened_centroid_fraction": float(
+            (total("opened_centroids") / total_centroids).item()
+        ),
+        "bins": [
+            {
+                "leaf_count": label,
+                "attention_mass_fraction": float(mass),
+                "centroid_fraction": float(centroids),
+                "leaf_fraction": float(leaves),
+            }
+            for label, mass, centroids, leaves in zip(
+                labels, mass_fraction, centroid_fraction, leaf_fraction
+            )
+        ],
+    }
+
+
 def qwen35_page_quantization_statistics(model: nn.Module) -> dict[str, int | float]:
     """Summarize how much of the paged leaf archive has been quantized."""
     layers = active_pages = quantized_pages = 0
@@ -236,5 +295,6 @@ __all__ = [
     "Qwen3_5TwoLevelAttention",
     "graft_qwen35_two_level_attention",
     "pop_qwen35_dynamic_open_statistics",
+    "pop_qwen35_static_leaf_cap_statistics",
     "qwen35_page_quantization_statistics",
 ]

@@ -3,8 +3,8 @@
 The backend starts at Hugging Face's post-QKV/post-position-encoding attention
 interface.  Projections, positional encoding, output gating, and output
 projection therefore remain model-owned.  ``HFLODCache`` owns every tensor
-used by LOD attention, including exact BF16 or INT4 leaves; Hugging Face's
-cache API is used only for lifecycle and generation bookkeeping.
+used by LOD attention, including exact BF16, INT4, or native INT8 leaves;
+Hugging Face's cache API is used only for lifecycle and generation bookkeeping.
 
 Left-padded batches are partitioned only at the attention boundary, preserving
 batching through the rest of the model while keeping padding out of every LOD
@@ -36,10 +36,6 @@ from .pytorch_lod_attention_paged import (
     PagedLODConfig,
     PagedTwoLevelLODAttention,
 )
-from .slabbed_lod_attention import (
-    SlabbedLODConfig,
-    SlabbedTwoLevelLODAttention,
-)
 from .triton_lod_engines import (
     KernelCoarseLODAttention,
     KernelLODCache,
@@ -52,7 +48,7 @@ from .triton_lod_engines import (
 class HFLODSettings:
     """Configuration installed on each compatible HF attention module."""
 
-    config: LODConfig | PagedLODConfig | SlabbedLODConfig
+    config: LODConfig | PagedLODConfig
     open_count: int
     engine_backend: str
     backend_name: str
@@ -61,13 +57,6 @@ class HFLODSettings:
     def __post_init__(self) -> None:
         if self.engine_backend not in ("torch", "kernel"):
             raise ValueError("engine_backend must be 'torch' or 'kernel'")
-        if (
-            isinstance(self.config, SlabbedLODConfig)
-            and self.engine_backend != "torch"
-        ):
-            raise ValueError(
-                "slabbed LOD is currently available only in the torch backend"
-            )
         if self.left_padding_mode not in ("exact", "chunk_aligned"):
             raise ValueError(
                 "left_padding_mode must be 'exact' or 'chunk_aligned'"
@@ -84,6 +73,19 @@ class HFLODSettings:
             raise ValueError(
                 "custom state clustering currently requires the kernel backend"
             )
+        if self.engine_backend != "kernel" and (
+            self.config.leaf_seal_capacity is not None
+            or self.config.prefill_int8_leaf_mma
+            or self.config.prefill_int8_coarse_mma
+        ):
+            raise ValueError(
+                "sealed or native INT8 LOD prefill requires the kernel backend"
+            )
+        if self.open_count == 0 and (
+            self.config.leaf_seal_capacity is not None
+            or self.config.prefill_int8_leaf_mma
+        ):
+            raise ValueError("exact-leaf controls require at least one open route")
         if (
             (
                 self.config.routing_leaf_mass_review_top_p is not None
@@ -149,11 +151,7 @@ def _build_engine(
         return engine
 
     if settings.engine_backend == "torch":
-        if isinstance(config, SlabbedLODConfig):
-            engine = SlabbedTwoLevelLODAttention(
-                config, default_open_count=settings.open_count
-            )
-        elif settings.open_count == 0:
+        if settings.open_count == 0:
             engine = FastCoarseLODAttention(config)
         elif isinstance(config, PagedLODConfig):
             engine = PagedTwoLevelLODAttention(
@@ -271,6 +269,8 @@ def _clear_engine_derived_state(engine: nn.Module | None) -> None:
             setattr(engine, attribute, None)
     for attribute in (
         "_lod_decode_attention_buffers",
+        "_lod_premerge_buffers",
+        "_lod_premerge_owner_buffer",
         "_lod_route_buffers",
         "_lod_state_maxsim_buffers",
         "_lod_state_update_buffers",
@@ -911,7 +911,7 @@ def _compatible_attention_modules(model: nn.Module):
 def install_hf_lod_attention(
     model: nn.Module,
     *,
-    config: LODConfig | PagedLODConfig | SlabbedLODConfig | None = None,
+    config: LODConfig | PagedLODConfig | None = None,
     open_count: int = 8,
     leaf_dtype: torch.dtype | None = None,
     engine_backend: str = "torch",

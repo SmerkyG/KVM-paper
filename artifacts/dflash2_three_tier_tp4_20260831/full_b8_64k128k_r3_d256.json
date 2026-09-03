@@ -1,0 +1,612 @@
+{
+  "allow_heterogeneous_global_config": false,
+  "apply_chat_template": true,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 211667648512,
+    "device_used_bytes_before_reclaim": 215048257536,
+    "external_lod_layers": 0,
+    "external_lod_layers_with_native_cache": 0,
+    "external_lod_native_cache_bytes": 0,
+    "lod_cache_bytes": 0,
+    "lod_decode_scratch_bytes": 0,
+    "native_cache_bytes": 189754572800,
+    "torch_allocated_bytes": 191923485184,
+    "torch_reclaimable_cached_bytes": 3380609024,
+    "torch_reserved_bytes_after_reclaim": 192149454848,
+    "torch_reserved_bytes_before_reclaim": 195530063872
+  },
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "diagnostic_external_empty_attention": null,
+  "disable_custom_all_reduce": false,
+  "disable_thinking": true,
+  "enable_prefix_caching": false,
+  "full_attention_backend": "ROCM_AITER_UNIFIED_ATTN",
+  "full_attention_dispatch": {
+    "records": [
+      {
+        "attention_callable": "aiter.ops.triton.attention.unified_attention.unified_attention",
+        "head_dim": 256,
+        "implementation_class": "vllm.v1.attention.backends.rocm_aiter_unified_attn.RocmAiterUnifiedAttentionImpl",
+        "kv_cache_dtype": "auto",
+        "kv_group_size": 6,
+        "kv_heads": 1,
+        "layers": 16,
+        "query_heads": 6,
+        "sliding_window": [
+          -1,
+          -1
+        ]
+      }
+    ],
+    "schema_version": 1
+  },
+  "language_model_only": true,
+  "lengths": [
+    65536,
+    131072
+  ],
+  "load_format": "ipc_cache",
+  "lod_diagnostics_before": null,
+  "long_prefill_token_threshold": 16384,
+  "max_new_tokens": 64,
+  "max_num_batched_tokens": 16384,
+  "mode": "full",
+  "model_impl": null,
+  "muse_native_text_config": false,
+  "num_speculative_tokens": 7,
+  "results": {
+    "131072": {
+      "speed": {
+        "decode_timings_seconds": [
+          5.318892585113645,
+          5.328494623303413,
+          5.326451661065221
+        ],
+        "marginal_decode_ms_per_batch_step": 20.88804572966753,
+        "marginal_decode_tokens_per_second": 382.9941825834624,
+        "prefill_prompt_tokens_per_second": 8706.474149860904,
+        "prefill_seconds": 120.43635367788374,
+        "prefill_timings_seconds": [
+          120.43635367788374,
+          120.46188590768725,
+          120.39393454510719
+        ],
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 131072,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London K",
+              "request_index": 0,
+              "sha256": "4a0051e89021e0c36eb743d5606b6df68c47e1d2f65506f885d18a8beaca4b50",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                },
+                {
+                  "length": "65431",
+                  "stream_index": 1
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8192,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 8192
+              }
+            },
+            {
+              "decoded_prefix": "ulegu glance at him. Rukn chose that moment to bow deeply. His father had ordered it, though Rukn resented even the idea. The warrior stared coldly at him and Rukn watched as his eyes flickered around the inside of the tent, taking in every detail. Hulegu had yet to enter the shaded awning. He stood on the threshold glaring in, while his ten thousand continued to make an appalling racket all around them. Dust drifted in wisps through the air, visible in the light of the setting sun. Rukn struggled to remain calm. 'You must be thirsty,",
+              "request_index": 1,
+              "sha256": "72bd6102a410f91965acdf580a41c9406c7aa4f7f95429653aa3c07066beec5a",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "65626",
+                  "stream_index": 2
+                },
+                {
+                  "length": "68110",
+                  "stream_index": 3
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8192,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 8192
+              }
+            },
+            {
+              "decoded_prefix": "Repo: playpark777/spafac-test ======================= File: app/assets/javascripts/profiles.coffee ======================= <gh_stars>0 $ -> $('.add-identification-attachment').click -> li_count = $(\"ul.list-unstyled.identification-attachments>li\").size() + 1 input = document.createElement('input') input.setAttribute('type', 'file') input.setAttribute('id', \"identification_image\" + li_count) input.setAttribute('name', \"identification[image\" + li_count + \"]\") input.setAttribute('class', 'row",
+              "request_index": 2,
+              "sha256": "50661c2b546eeb8fb239993b25f847ffe854a2814c6852a498c0cf58783a72da",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "66409",
+                  "stream_index": 4
+                },
+                {
+                  "length": "65449",
+                  "stream_index": 5
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8192,
+                "max_identical_block_occurrences": 7,
+                "unique_block_ratio": 0.9718017578125,
+                "unique_blocks": 7961
+              }
+            },
+            {
+              "decoded_prefix": "[Graduate School of Business Creation] Aiming to become a \u201ctax accountant x MBA\u201d who can work with managers to create a \u201cfuture vision for a company\u201d \u201cTax Accountant Exam Subject Exemption Briefing\u201d will be held on October 28th (Sat) NSG Group\u2019s Business Creation Graduate University (3-1-46 Yoneyama, Chuo-ku, Niigata City) will be offering a tax accountant exam subject exemption from 10:30 on Saturday, October 28, 2023 for those aiming to pass the tax accountant exam. An information",
+              "request_index": 3,
+              "sha256": "b8497a01328cd8b471b80e09b52aa2455ba2ded82ea3a9eed611a5301c67a3da",
+              "source_document_count": 3,
+              "source_documents": [
+                {
+                  "length": "1617",
+                  "stream_index": 6
+                },
+                {
+                  "length": "67588",
+                  "stream_index": 7
+                },
+                {
+                  "length": "65718",
+                  "stream_index": 8
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8192,
+                "max_identical_block_occurrences": 4,
+                "unique_block_ratio": 0.9957275390625,
+                "unique_blocks": 8157
+              }
+            },
+            {
+              "decoded_prefix": "device { //In the next step we associate the GPU memory with the Kernel arguments //my_dev::dev_mem<uint> counts(devContext, 512), countx(devContext, 512); //Memory that should be alloced outside the function: //devMemCounts and devMemCountsx // make sure previous reset has finished. this->devMemCountsx.waitForCopyEvent(); //Kernel configuration parameters setupParams sParam; sParam.jobs = (N / 64) / 480 ; //",
+              "request_index": 4,
+              "sha256": "1d926aab0cf211b779255bf0ac33ac67650bb1e39f38261c136a48cff38234d2",
+              "source_document_count": 3,
+              "source_documents": [
+                {
+                  "length": "66365",
+                  "stream_index": 9
+                },
+                {
+                  "length": "912",
+                  "stream_index": 10
+                },
+                {
+                  "length": "66633",
+                  "stream_index": 11
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8192,
+                "max_identical_block_occurrences": 4,
+                "unique_block_ratio": 0.991455078125,
+                "unique_blocks": 8122
+              }
+            },
+            {
+              "decoded_prefix": "Whatever kind of Passover Seder one attends, there is a fifth question, usually only whispered, that arises sometime after those famous four questions which begin the long Maggid (literally, telling) section of the haggadah are recited: \u201cWhen do we eat?\u201d Of course, the haggadah itself says that \u201cwhoever elaborates in the retelling of the story of the exodus is surely praised\u201d and illustrates the point with the famous story of the five sages of the 2nd century, who stayed up all night doing just that: It happened that Rabbi Eliezer, Rabbi Joshua, Rabbi",
+              "request_index": 5,
+              "sha256": "db6002fb2a0922a6e3b99f48dd3b188deaafddef6348a76eea3392f806ae4758",
+              "source_document_count": 7,
+              "source_documents": [
+                {
+                  "length": "2691",
+                  "stream_index": 12
+                },
+                {
+                  "length": "1396",
+                  "stream_index": 13
+                },
+                {
+                  "length": "995",
+                  "stream_index": 14
+                },
+                {
+                  "length": "727",
+                  "stream_index": 15
+                },
+                {
+                  "length": "65970",
+                  "stream_index": 16
+                },
+                {
+                  "length": "1349",
+                  "stream_index": 17
+                },
+                {
+                  "length": "65549",
+                  "stream_index": 18
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8192,
+                "max_identical_block_occurrences": 4,
+                "unique_block_ratio": 0.99267578125,
+                "unique_blocks": 8132
+              }
+            },
+            {
+              "decoded_prefix": "**LOUISE ALLAN** is a debut author from Western Australia. In 2014, this novel was awarded a Varuna residential fellowship and shortlisted for the City of Fremantle-TAG Hungerford Award. Louise grew up in Tasmania but now lives in Perth with her husband, children and dogs. Her first career was as a doctor before she took up writing in 2010. She has had several of her short stories, essays and articles published in literary anthologies and medical journals. She also has a passion for music. You can find her at her website: louisej",
+              "request_index": 6,
+              "sha256": "38e502376e369ea5996a19359442acbd5f4ed9eb9e804fdbd4e54aca260cf4ba",
+              "source_document_count": 3,
+              "source_documents": [
+                {
+                  "length": "65672",
+                  "stream_index": 22
+                },
+                {
+                  "length": "2192",
+                  "stream_index": 23
+                },
+                {
+                  "length": "66851",
+                  "stream_index": 24
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8192,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 8192
+              }
+            },
+            {
+              "decoded_prefix": "## How Nancy Drew Saved My Life ## LAUREN BARATZ-LOGSTED For my mother, Lucille Baratz, one of the world's greatest ladies, and the woman who gave me my first Nancy Drew. Mom, if I keep putting off dedicating a book to you, will you stay with us forever? ## Contents Prologue Chapter 1 Chapter 2 Chapter 3 Chapter 4 Chapter 5 Chapter 6 Chapter 7 Chapter 8 Chapter 9 Chapter 10 Chapter 11",
+              "request_index": 7,
+              "sha256": "523fa69cf9c361fb0edb8d450066600f44fedf00cd370ab0cdb87ac26a812714",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "65604",
+                  "stream_index": 33
+                },
+                {
+                  "length": "66948",
+                  "stream_index": 34
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8192,
+                "max_identical_block_occurrences": 15,
+                "unique_block_ratio": 0.9671630859375,
+                "unique_blocks": 7923
+              }
+            }
+          ],
+          "rejected_candidate_count": 3,
+          "rejected_candidates": [
+            {
+              "prospective_request_index": 6,
+              "reason": "unique_block_ratio_below_0.95",
+              "source_documents": [
+                {
+                  "length": "65565",
+                  "stream_index": 19
+                },
+                {
+                  "length": "801",
+                  "stream_index": 20
+                },
+                {
+                  "length": "66129",
+                  "stream_index": 21
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8192,
+                "max_identical_block_occurrences": 47,
+                "unique_block_ratio": 0.7501220703125,
+                "unique_blocks": 6145
+              }
+            },
+            {
+              "prospective_request_index": 7,
+              "reason": "unique_block_ratio_below_0.95",
+              "source_documents": [
+                {
+                  "length": "67567",
+                  "stream_index": 25
+                },
+                {
+                  "length": "69990",
+                  "stream_index": 26
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8192,
+                "max_identical_block_occurrences": 16,
+                "unique_block_ratio": 0.9354248046875,
+                "unique_blocks": 7663
+              }
+            },
+            {
+              "prospective_request_index": 7,
+              "reason": "unique_block_ratio_below_0.95",
+              "source_documents": [
+                {
+                  "length": "66033",
+                  "stream_index": 27
+                },
+                {
+                  "length": "684",
+                  "stream_index": 28
+                },
+                {
+                  "length": "843",
+                  "stream_index": 29
+                },
+                {
+                  "length": "970",
+                  "stream_index": 30
+                },
+                {
+                  "length": "1553",
+                  "stream_index": 31
+                },
+                {
+                  "length": "80254",
+                  "stream_index": 32
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8192,
+                "max_identical_block_occurrences": 98,
+                "unique_block_ratio": 0.822265625,
+                "unique_blocks": 6736
+              }
+            }
+          ]
+        },
+        "prompt_length": 131072,
+        "total_timings_seconds": [
+          125.7862335704267,
+          125.82057715859264,
+          125.75104193482548
+        ]
+      }
+    },
+    "65536": {
+      "speed": {
+        "decode_timings_seconds": [
+          4.375030579045415,
+          4.400065923109651,
+          4.40076807141304
+        ],
+        "marginal_decode_ms_per_batch_step": 17.255160482782944,
+        "marginal_decode_tokens_per_second": 463.62941729706506,
+        "prefill_prompt_tokens_per_second": 12035.529922060407,
+        "prefill_seconds": 43.56168805155903,
+        "prefill_timings_seconds": [
+          43.54861770104617,
+          43.56168805155903,
+          43.572858737781644
+        ],
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 65536,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London K",
+              "request_index": 0,
+              "sha256": "60616cd41a41250e75d360dc85c4b1105fc54e1702c226b3091d45421c20437e",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4096,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4096
+              }
+            },
+            {
+              "decoded_prefix": "steam engine had gone by, there were still all the boxcars and flatcars and tank cars to admire, and at last the caboose\u2014this one painted yellow instead of the more usual red. \"Wow!\" Alec's eyes shone. \"I want to make one of those go when I get big.\" \"Maybe you will,\" Mort said. \"It's a good job.\" For all the sense he made to his son, he might as well have started speaking Eskimo. Alec couldn't imagine that being an engineer was work, and often hard work to boot. He would have paid, and paid anything he",
+              "request_index": 1,
+              "sha256": "2830abda9892cc86b5f29771df62ec913e0580a6ad4b594b81fcb12256be2c36",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "65431",
+                  "stream_index": 1
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4096,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4096
+              }
+            },
+            {
+              "decoded_prefix": "ulegu glance at him. Rukn chose that moment to bow deeply. His father had ordered it, though Rukn resented even the idea. The warrior stared coldly at him and Rukn watched as his eyes flickered around the inside of the tent, taking in every detail. Hulegu had yet to enter the shaded awning. He stood on the threshold glaring in, while his ten thousand continued to make an appalling racket all around them. Dust drifted in wisps through the air, visible in the light of the setting sun. Rukn struggled to remain calm. 'You must be thirsty,",
+              "request_index": 2,
+              "sha256": "d67e2400d5904a77998c980c4114e3ed36266101ab86025578a53203ba57763b",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "65626",
+                  "stream_index": 2
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4096,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4096
+              }
+            },
+            {
+              "decoded_prefix": "1); # # Structure for table \"news_categories\" # DROP TABLE IF EXISTS `news_categories`; CREATE TABLE `news_categories` ( `id` int(11) NOT NULL AUTO_INCREMENT, `title` varchar(255) NOT NULL, `seo_url` varchar(255) NOT NULL, `rank` int(11) NOT NULL, `isActive` int(11) NOT NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8; # #",
+              "request_index": 3,
+              "sha256": "452818df7084077768cad261940303de0e52573b354079f855945f322b537c5c",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "68110",
+                  "stream_index": 3
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4096,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4096
+              }
+            },
+            {
+              "decoded_prefix": "Sausage Hall Sausage Hall: home to millionaire Kevan de Vries, grandson of a Dutch immigrant farmer. De Vries has built up a huge farming and food packing empire which extends, via the banana trade, to the West Indies. But sleazy MD, Tony Sentance, manages to persuade de Vries to branch out into the luxury holiday trade. De Vries and wife, Joanna, take the first cruise out to explore the potentially lucrative possibilities. However, back at home, a break-in at Sausage Hall uncovers a truly gruesome historical discovery. And when a young employee of de V",
+              "request_index": 4,
+              "sha256": "80de23429ba03fee02bb2841c51bec751af876c324551b296f757fe697d68442",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "65449",
+                  "stream_index": 5
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4096,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4096
+              }
+            },
+            {
+              "decoded_prefix": "[Graduate School of Business Creation] Aiming to become a \u201ctax accountant x MBA\u201d who can work with managers to create a \u201cfuture vision for a company\u201d \u201cTax Accountant Exam Subject Exemption Briefing\u201d will be held on October 28th (Sat) NSG Group\u2019s Business Creation Graduate University (3-1-46 Yoneyama, Chuo-ku, Niigata City) will be offering a tax accountant exam subject exemption from 10:30 on Saturday, October 28, 2023 for those aiming to pass the tax accountant exam. An information",
+              "request_index": 5,
+              "sha256": "65c9c6d90e0ab1baf2a52470dac9d13796a6c5e064f9cb5d71b1df41b810b50e",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "1617",
+                  "stream_index": 6
+                },
+                {
+                  "length": "67588",
+                  "stream_index": 7
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4096,
+                "max_identical_block_occurrences": 4,
+                "unique_block_ratio": 0.9921875,
+                "unique_blocks": 4064
+              }
+            },
+            {
+              "decoded_prefix": "_Cover illustrations:_ Front: \u00a9 Terry O'Neill Back: \u00a9 News UK First published as _Roger Moore as James Bond 007_ in 1973 by Pan Books Ltd. This edition published 2018 The History Press The Mill, Brimscombe Port Stroud, Gloucestershire, GL5 2QG www.thehistorypress.co.uk \u00a9 Miramont Investments Ltd, 2018 Live and Let Die \u00a9 1973 Danjaq LLC and United Artists Corporation, All Rights Reserved The right of Roger",
+              "request_index": 6,
+              "sha256": "5f10d7c5671eb5e852bcdc429ba21cfdfbe75158da405a0a49de44114c88356d",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "65718",
+                  "stream_index": 8
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4096,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4096
+              }
+            },
+            {
+              "decoded_prefix": "device { //In the next step we associate the GPU memory with the Kernel arguments //my_dev::dev_mem<uint> counts(devContext, 512), countx(devContext, 512); //Memory that should be alloced outside the function: //devMemCounts and devMemCountsx // make sure previous reset has finished. this->devMemCountsx.waitForCopyEvent(); //Kernel configuration parameters setupParams sParam; sParam.jobs = (N / 64) / 480 ; //",
+              "request_index": 7,
+              "sha256": "ee8b40b0ed722a1a06de53196ac921fac1c929920d96aed39195f4203de62ae0",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "66365",
+                  "stream_index": 9
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4096,
+                "max_identical_block_occurrences": 4,
+                "unique_block_ratio": 0.98486328125,
+                "unique_blocks": 4034
+              }
+            }
+          ],
+          "rejected_candidate_count": 1,
+          "rejected_candidates": [
+            {
+              "prospective_request_index": 4,
+              "reason": "unique_block_ratio_below_0.95",
+              "source_documents": [
+                {
+                  "length": "66409",
+                  "stream_index": 4
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4096,
+                "max_identical_block_occurrences": 7,
+                "unique_block_ratio": 0.94775390625,
+                "unique_blocks": 3882
+              }
+            }
+          ]
+        },
+        "prompt_length": 65536,
+        "total_timings_seconds": [
+          47.92776949610561,
+          47.9655396649614,
+          47.97696366533637
+        ]
+      }
+    }
+  },
+  "sample_offset": 0,
+  "samples_per_length": 8,
+  "speculative_attention_backend": "TRITON_ATTN",
+  "speculative_method": "dflash",
+  "speculative_model": "z-lab/Qwen3.8-27B-DFlash2",
+  "speed_decode_tokens": 256,
+  "speed_prompt_reserve": 0,
+  "speed_repeats": 3,
+  "speed_use_warm_prefix_cache": false,
+  "tensor_parallel_size": 4
+}

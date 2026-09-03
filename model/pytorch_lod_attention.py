@@ -52,6 +52,12 @@ class LODConfig:
     # surface so older callers using positional LODConfig arguments retain
     # their meaning. New code should continue to pass these options by name.
     state_size_offset: int = 0
+    state_premerge_factor: int = 1
+    # Experimental overcomplete state: keep every posting list at or below
+    # this many exact leaves by routing overflow assignments into additional
+    # affinity-stratified child centroids. Scheduled centroid appends continue
+    # independently at the ordinary state-growth rate.
+    state_split_max_leaves: int | None = None
     state_clustering_policy: str = "manual"
     state_clustering_normalization: str = "none"
     state_clustering_radial_bias: float = 0.0
@@ -80,6 +86,14 @@ class LODConfig:
     routing_leaf_mass_min_routes: int = 1
     mla_state_key_normalization: str = "none"
     mla_recursive_page_key_normalization: bool = False
+    # Flat kernel-backend archive controls. Sealing stops exact-leaf growth
+    # without freezing the centroid sum/count. Native INT8 uses signed K/V
+    # pages and real INT8 MMA in the expert-layout prefill kernels.
+    leaf_paged_directory: bool = True
+    leaf_seal_capacity: int | None = None
+    prefill_int8_leaf_mma: bool = False
+    prefill_int8_coarse_mma: bool = False
+    prefill_int8_pv_mma: bool = True
 
     def __post_init__(self) -> None:
         if self.chunk_size <= 0:
@@ -94,8 +108,24 @@ class LODConfig:
             raise ValueError("state_min_size cannot be negative")
         if self.state_size_offset < 0:
             raise ValueError("state_size_offset cannot be negative")
+        if self.state_premerge_factor not in {1, 2, 4, 8, 16, 32}:
+            raise ValueError(
+                "state_premerge_factor must be one, two, four, eight, sixteen, or "
+                "thirty-two"
+            )
+        if (
+            self.state_split_max_leaves is not None
+            and self.state_split_max_leaves <= 0
+        ):
+            raise ValueError("state_split_max_leaves must be positive")
+        if self.state_split_max_leaves is not None and self.state_premerge_factor != 1:
+            raise ValueError(
+                "state posting-list splitting requires unmerged token leaves"
+            )
         if self.protected_prefix < 0:
             raise ValueError("protected_prefix cannot be negative")
+        if self.leaf_seal_capacity is not None and self.leaf_seal_capacity <= 0:
+            raise ValueError("leaf_seal_capacity must be positive")
         if self.state_clustering_policy not in {
             "manual",
             "qk_norm_aware",
@@ -961,6 +991,62 @@ def _gather_sequence(tensor: torch.Tensor, index: torch.Tensor) -> torch.Tensor:
     )
 
 
+def _sum_adjacent_groups(tensor: torch.Tensor, factor: int) -> torch.Tensor:
+    """Sum consecutive sequence entries into fixed, non-overlapping groups."""
+    if factor == 1:
+        return tensor
+    length = int(tensor.size(2))
+    groups = (length + factor - 1) // factor
+    padded_length = groups * factor
+    if padded_length != length:
+        tensor = F.pad(tensor, (0, 0, 0, padded_length - length))
+    return tensor.reshape(
+        *tensor.shape[:2], groups, factor, int(tensor.size(-1))
+    ).sum(dim=3)
+
+
+def _premerge_adjacent_state_inputs(
+    key: torch.Tensor,
+    value: torch.Tensor,
+    factor: int,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Form atomic adjacent-token centroids before learned state routing.
+
+    Returned K/V tensors are sums, counts recover their means, and membership
+    maps every original leaf to its fixed adjacent group. The exact leaf
+    archive is intentionally not modified by this operation.
+    """
+    if factor not in {1, 2, 4, 8, 16, 32}:
+        raise ValueError(
+            "adjacent state premerge factor must be one, two, four, eight, sixteen, "
+            "or thirty-two"
+        )
+    length = int(key.size(2))
+    if length != int(value.size(2)):
+        raise ValueError("adjacent state premerge K/V lengths differ")
+    grouped_key = _sum_adjacent_groups(key, factor)
+    grouped_value = _sum_adjacent_groups(value, factor)
+    groups = int(grouped_key.size(2))
+    count = torch.full(
+        (*key.shape[:2], groups, 1),
+        float(factor),
+        dtype=torch.float32,
+        device=key.device,
+    )
+    if groups and length % factor:
+        count[..., -1, 0] = float(length % factor)
+    membership = (
+        torch.div(
+            torch.arange(length, device=key.device, dtype=torch.long),
+            factor,
+            rounding_mode="floor",
+        )
+        .view(1, 1, length)
+        .expand(*key.shape[:2], length)
+    )
+    return grouped_key, grouped_value, count, membership
+
+
 class _PytorchLODAttention(nn.Module):
     """Shared causal state/cache lifecycle for the two public variants."""
 
@@ -1041,6 +1127,39 @@ class _PytorchLODAttention(nn.Module):
                 value,
                 source[:, None, :].expand(-1, int(value.size(1)), -1),
             ).masked_fill(~valid[:, None, :, None], 0)
+            if self.config.state_premerge_factor > 1:
+                key, value, _, _ = _premerge_adjacent_state_inputs(
+                    key,
+                    value,
+                    self.config.state_premerge_factor,
+                )
+                grouped_count = _sum_adjacent_groups(
+                    valid[:, None, :, None].float(),
+                    self.config.state_premerge_factor,
+                )[..., 0]
+                grouped_count = grouped_count.expand(
+                    -1, int(key.size(1)), -1
+                )
+                grouped_slots = int(key.size(2))
+                key = torch.cat((key, torch.zeros_like(key[..., :1, :])), dim=2)
+                value = torch.cat(
+                    (value, torch.zeros_like(value[..., :1, :])), dim=2
+                )
+                dummy_count = -valid_starts[:, None, None].expand(
+                    -1, int(key.size(1)), 1
+                ).float()
+                count = torch.cat((grouped_count, dummy_count), dim=2)
+                physical = position.unsqueeze(0).expand(int(key.size(0)), -1)
+                owner = torch.where(
+                    physical >= valid_starts.unsqueeze(1),
+                    torch.div(
+                        physical - valid_starts.unsqueeze(1),
+                        self.config.state_premerge_factor,
+                        rounding_mode="floor",
+                    ),
+                    torch.full_like(physical, grouped_slots),
+                )[:, None, :].expand(-1, int(key.size(1)), -1)
+                return LODState(key_sum=key, value_sum=value, count=count), owner
             count = valid[:, None, :].expand(-1, int(key.size(1)), -1).float()
             dummy_slot = valid_count.clamp_max(length - 1)
             dummy = F.one_hot(dummy_slot, num_classes=length).to(count.dtype)
@@ -1052,6 +1171,13 @@ class _PytorchLODAttention(nn.Module):
                 valid_count.unsqueeze(1),
             )[:, None, :].expand(-1, int(key.size(1)), -1)
             return LODState(key_sum=key, value_sum=value, count=count), owner
+        if self.config.state_premerge_factor > 1:
+            key, value, count, owner = _premerge_adjacent_state_inputs(
+                key,
+                value,
+                self.config.state_premerge_factor,
+            )
+            return LODState(key_sum=key, value_sum=value, count=count[..., 0]), owner
         count = torch.ones(
             *key.shape[:2], length, dtype=torch.float32, device=key.device
         )
@@ -1077,15 +1203,32 @@ class _PytorchLODAttention(nn.Module):
                 *overflow_key.shape[:3], dtype=torch.long, device=overflow_key.device
             )
             return state, owner
+        (
+            overflow_key,
+            overflow_value,
+            overflow_count,
+            overflow_membership,
+        ) = _premerge_adjacent_state_inputs(
+            overflow_key,
+            overflow_value,
+            self.config.state_premerge_factor,
+        )
+        overflow_mean_key = overflow_key / overflow_count.to(
+            overflow_key.dtype
+        ).clamp_min(1)
+        grouped_overflow_length = int(overflow_key.size(2))
         current_size = state.slot_count
         desired_size = self._desired_state_size(
             context_length, available_context, current_size
         )
-        append_count = min(max(desired_size - current_size, 0), overflow_length)
+        append_count = min(
+            max(desired_size - current_size, 0), grouped_overflow_length
+        )
 
         with torch.no_grad():
             similarity = torch.matmul(
-                overflow_key.detach(), state.mean_key.detach().transpose(-1, -2)
+                overflow_mean_key.detach(),
+                state.mean_key.detach().transpose(-1, -2),
             )
             similarity.masked_fill_(state.count.le(0.5).unsqueeze(-2), -torch.inf)
             max_similarity = similarity.max(dim=-1).values
@@ -1093,15 +1236,15 @@ class _PytorchLODAttention(nn.Module):
             append_index = torch.sort(order[..., :append_count], dim=-1).values
             merge_index = torch.sort(order[..., append_count:], dim=-1).values
 
-        owner = torch.full(
+        grouped_owner = torch.full(
             overflow_key.shape[:3], -1, dtype=torch.long, device=overflow_key.device
         )
         if append_count:
             append_key = _gather_sequence(overflow_key, append_index)
             append_value = _gather_sequence(overflow_value, append_index)
-            append_count_tensor = torch.ones(
-                *append_key.shape[:3], dtype=torch.float32, device=append_key.device
-            )
+            append_count_tensor = _gather_sequence(
+                overflow_count, append_index
+            )[..., 0]
             state = LODState(
                 key_sum=torch.cat((state.key_sum, append_key), dim=2),
                 value_sum=torch.cat((state.value_sum, append_value), dim=2),
@@ -1117,19 +1260,22 @@ class _PytorchLODAttention(nn.Module):
                 .view(1, 1, append_count)
                 .expand_as(append_index)
             )
-            owner.scatter_(2, append_index, append_slot)
+            grouped_owner.scatter_(2, append_index, append_slot)
 
         merge_key = _gather_sequence(overflow_key, merge_index)
         merge_value = _gather_sequence(overflow_value, merge_index)
         if int(merge_key.size(2)) == 0:
-            return state, owner
+            return state, grouped_owner.gather(2, overflow_membership)
+        merge_count = _gather_sequence(overflow_count, merge_index)
+        merge_mean_key = merge_key / merge_count.to(merge_key.dtype).clamp_min(1)
 
         protected = min(self.config.protected_prefix, state.slot_count)
         if protected >= state.slot_count:
             raise ValueError("all state slots are protected from merging")
         with torch.no_grad():
             route_score = torch.matmul(
-                merge_key.detach(), state.mean_key.detach().transpose(-1, -2)
+                merge_mean_key.detach(),
+                state.mean_key.detach().transpose(-1, -2),
             )
             route_score.masked_fill_(state.count.le(0.5).unsqueeze(-2), -torch.inf)
             route_score[..., :protected] = -torch.inf
@@ -1143,10 +1289,13 @@ class _PytorchLODAttention(nn.Module):
                 assignment_value, merge_value
             ),
             count=state.count
-            + assignment.float().transpose(-1, -2).sum(dim=-1),
+            + torch.matmul(
+                assignment.float().transpose(-1, -2),
+                merge_count.float(),
+            )[..., 0],
         )
-        owner.scatter_(2, merge_index, destination)
-        return state, owner
+        grouped_owner.scatter_(2, merge_index, destination)
+        return state, grouped_owner.gather(2, overflow_membership)
 
     def _compress_to(
         self,
@@ -1237,7 +1386,14 @@ class _PytorchLODAttention(nn.Module):
             leaf_value,
             max_routes=self.config.max_routes,
             open_count=open_count,
-            route_protected_prefix=self.config.protected_prefix,
+            # A protected singleton is already exact in the coarse branch.
+            # A protected fixed group is not, so it must remain eligible for
+            # detailed opening even though state updates cannot merge into it.
+            route_protected_prefix=(
+                self.config.protected_prefix
+                if self.config.state_premerge_factor == 1
+                else 0
+            ),
             routing_normalization=self.config.routing_normalization,
             routing_rope_dim=self.config.routing_rope_dim,
             routing_rope_fast_pairs=self.config.routing_rope_fast_pairs,

@@ -1,0 +1,219 @@
+{
+  "batch_size": 8,
+  "slots": 1024,
+  "head_dim": 256,
+  "kv_heads": 2,
+  "gqa": 4,
+  "measurements": [
+    {
+      "axis": "mfma_gqa",
+      "group_n": 16,
+      "num_warps": 1,
+      "programs": 1024,
+      "score_us_median": 28.339499607682228,
+      "reduce_us_median": 6.279999855905771,
+      "total_us_median": 34.71899963915348,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 16,
+      "num_warps": 1,
+      "programs": 4096,
+      "score_us_median": 34.43950042128563,
+      "reduce_us_median": 6.060000043362379,
+      "total_us_median": 40.45899957418442,
+      "top_slot_agreement": 0.990234375
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 16,
+      "num_warps": 2,
+      "programs": 1024,
+      "score_us_median": 24.740000255405903,
+      "reduce_us_median": 11.460000183433294,
+      "total_us_median": 36.27900034189224,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 16,
+      "num_warps": 2,
+      "programs": 4096,
+      "score_us_median": 35.15950031578541,
+      "reduce_us_median": 6.039999891072512,
+      "total_us_median": 41.1789994686842,
+      "top_slot_agreement": 0.990234375
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 16,
+      "num_warps": 4,
+      "programs": 1024,
+      "score_us_median": 25.8390000090003,
+      "reduce_us_median": 10.01999992877245,
+      "total_us_median": 35.91949865221977,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 16,
+      "num_warps": 4,
+      "programs": 4096,
+      "score_us_median": 35.35949997603893,
+      "reduce_us_median": 6.039999891072512,
+      "total_us_median": 41.398998349905014,
+      "top_slot_agreement": 0.990234375
+    },
+    {
+      "axis": "scalar_gqa",
+      "group_n": 16,
+      "num_warps": 1,
+      "programs": 1024,
+      "score_us_median": 37.13949955999851,
+      "reduce_us_median": 6.000000052154064,
+      "total_us_median": 43.099500238895416,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "scalar_gqa",
+      "group_n": 16,
+      "num_warps": 2,
+      "programs": 1024,
+      "score_us_median": 32.78000093996525,
+      "reduce_us_median": 6.0789999552071095,
+      "total_us_median": 38.93899917602539,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "scalar_gqa",
+      "group_n": 16,
+      "num_warps": 4,
+      "programs": 1024,
+      "score_us_median": 35.17950139939785,
+      "reduce_us_median": 6.039999891072512,
+      "total_us_median": 41.17949865758419,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 32,
+      "num_warps": 1,
+      "programs": 512,
+      "score_us_median": 29.639500193297863,
+      "reduce_us_median": 6.379500031471252,
+      "total_us_median": 36.5190003067255,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 32,
+      "num_warps": 1,
+      "programs": 2048,
+      "score_us_median": 41.2990003824234,
+      "reduce_us_median": 6.039999891072512,
+      "total_us_median": 47.29899950325489,
+      "top_slot_agreement": 0.990234375
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 32,
+      "num_warps": 2,
+      "programs": 512,
+      "score_us_median": 28.94000057131052,
+      "reduce_us_median": 6.979500176385045,
+      "total_us_median": 36.499498412013054,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 32,
+      "num_warps": 2,
+      "programs": 2048,
+      "score_us_median": 36.6395004093647,
+      "reduce_us_median": 6.019500084221363,
+      "total_us_median": 42.67999902367592,
+      "top_slot_agreement": 0.990234375
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 32,
+      "num_warps": 4,
+      "programs": 512,
+      "score_us_median": 26.539500802755356,
+      "reduce_us_median": 9.500000160187483,
+      "total_us_median": 36.320000886917114,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 32,
+      "num_warps": 4,
+      "programs": 2048,
+      "score_us_median": 36.13949939608574,
+      "reduce_us_median": 6.039999891072512,
+      "total_us_median": 42.29949973523617,
+      "top_slot_agreement": 0.990234375
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 64,
+      "num_warps": 1,
+      "programs": 256,
+      "score_us_median": 40.47900065779686,
+      "reduce_us_median": 6.039999891072512,
+      "total_us_median": 46.519000083208084,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 64,
+      "num_warps": 1,
+      "programs": 1024,
+      "score_us_median": 44.200001284480095,
+      "reduce_us_median": 6.399499950930476,
+      "total_us_median": 50.639498978853226,
+      "top_slot_agreement": 0.990234375
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 64,
+      "num_warps": 2,
+      "programs": 256,
+      "score_us_median": 31.980000436306,
+      "reduce_us_median": 6.120000034570694,
+      "total_us_median": 38.11950050294399,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 64,
+      "num_warps": 2,
+      "programs": 1024,
+      "score_us_median": 44.51899975538254,
+      "reduce_us_median": 6.3599999994039536,
+      "total_us_median": 50.89900083839893,
+      "top_slot_agreement": 0.990234375
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 64,
+      "num_warps": 4,
+      "programs": 256,
+      "score_us_median": 27.45950035750866,
+      "reduce_us_median": 6.279999855905771,
+      "total_us_median": 33.76000002026558,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 64,
+      "num_warps": 4,
+      "programs": 1024,
+      "score_us_median": 40.17950035631657,
+      "reduce_us_median": 6.3599999994039536,
+      "total_us_median": 46.51999846100807,
+      "top_slot_agreement": 0.990234375
+    }
+  ]
+}

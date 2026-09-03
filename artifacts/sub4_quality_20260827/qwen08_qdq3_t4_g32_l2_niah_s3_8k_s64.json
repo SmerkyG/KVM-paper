@@ -1,0 +1,875 @@
+{
+  "accuracy": 1.0,
+  "allow_heterogeneous_global_config": false,
+  "apply_chat_template": false,
+  "attention_exercised": "direct_lod_prefill_and_decode",
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "concatenate_prolong": false,
+  "correct": 64,
+  "decode_static_leaf_cap_min": 16,
+  "disable_thinking": false,
+  "elapsed_seconds": 10.093039912171662,
+  "enforce_eager": false,
+  "eval": "niah_s3",
+  "length": 8192,
+  "lod_diagnostics_after": {
+    "batched_cached_prefill_rows": 120,
+    "batched_cached_prefills": 60,
+    "catch_up_batches": 126,
+    "catch_up_rows": 126,
+    "custom_impl_sliding_windows": {
+      "(-1, -1)": 6
+    },
+    "custom_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "decode_calls": 48,
+    "decode_gqa_fixed_mask_configured": [
+      false
+    ],
+    "decode_gqa_fixed_mask_executed": [],
+    "decode_gqa_staged_fixed_configured": [
+      false
+    ],
+    "decode_gqa_staged_fixed_executed": [],
+    "decode_gqa_static_leaf_aiter_configured": [
+      false
+    ],
+    "decode_gqa_static_leaf_aiter_executed": [],
+    "decode_gqa_static_leaf_caps": [
+      null
+    ],
+    "decode_gqa_union_aiter_final": [],
+    "decode_gqa_union_configured": [
+      false
+    ],
+    "decode_gqa_union_eligible": [],
+    "decode_gqa_union_hip_configured": [
+      false
+    ],
+    "decode_gqa_union_hip_executed": [],
+    "decode_gqa_union_predicted_mass": [],
+    "decode_gqa_union_requested": [],
+    "decode_gqa_union_score_only": [],
+    "decode_max_open_leaves": [
+      1024
+    ],
+    "decode_open_counts": [
+      8
+    ],
+    "decode_route_cohort": [
+      false
+    ],
+    "direct_prefill_calls": 222,
+    "effective_decode_route_leaf_limits": [
+      1024
+    ],
+    "eligible_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "gqa_route_mass_threshold_hits": {
+      "16": 0,
+      "32": 0,
+      "64": 0,
+      "128": 0,
+      "256": 0
+    },
+    "gqa_route_max_mass": null,
+    "gqa_union_centroid_count_max": 0,
+    "gqa_union_centroid_count_mean": 0.0,
+    "gqa_union_epoch_max": 0,
+    "gqa_union_exact_token_count_max": 0,
+    "gqa_union_exact_token_count_mean": 0.0,
+    "gqa_union_nonempty_sequences": 0,
+    "gqa_union_sequence_count": 0,
+    "gqa_union_token_count_max": 0,
+    "gqa_union_token_count_mean": 0.0,
+    "install_count": 384,
+    "pooled_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "prefill_coarse_direct_gqa_configured": [
+      [
+        false,
+        64,
+        32,
+        8
+      ]
+    ],
+    "prefill_coarse_direct_gqa_executed": [],
+    "prefill_open_counts": [
+      3
+    ],
+    "prefill_route_cohort": [
+      false
+    ],
+    "recursive_state_route_backends": [
+      "fused"
+    ],
+    "routing_geometries": [
+      [
+        "none",
+        "coherence",
+        "none"
+      ]
+    ],
+    "selected_route_count_max": 0.0,
+    "split_posting_len_max": 0,
+    "split_scheduled_state_len_max": 0,
+    "split_state_len_max": 0,
+    "state_centroids_at_or_above_open_limit": 0,
+    "state_count_max": 0.0,
+    "state_split_limits": [
+      null
+    ],
+    "state_v_abs_max": 876.0,
+    "state_v_nonfinite": 0,
+    "static_leaf_count_distribution": [
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "1",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "2",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "3-4",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "5-8",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "9-16",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "17-32",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "33-64",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "65-128",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "129-256",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "257-512",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "513-1024",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": ">1024",
+        "leaf_fraction": 0.0
+      }
+    ],
+    "static_opened_centroid_fraction": 0.0,
+    "static_opened_centroids": 0,
+    "static_opened_leaf_fraction": 0.0,
+    "static_opened_leaves": 0.0,
+    "static_total_centroids": 0,
+    "static_total_leaves": 0.0
+  },
+  "lod_diagnostics_before": {
+    "batched_cached_prefill_rows": 0,
+    "batched_cached_prefills": 0,
+    "catch_up_batches": 0,
+    "catch_up_rows": 0,
+    "custom_impl_sliding_windows": {
+      "(-1, -1)": 6
+    },
+    "custom_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "decode_calls": 48,
+    "decode_gqa_fixed_mask_configured": [
+      false
+    ],
+    "decode_gqa_fixed_mask_executed": [],
+    "decode_gqa_staged_fixed_configured": [
+      false
+    ],
+    "decode_gqa_staged_fixed_executed": [],
+    "decode_gqa_static_leaf_aiter_configured": [
+      false
+    ],
+    "decode_gqa_static_leaf_aiter_executed": [],
+    "decode_gqa_static_leaf_caps": [
+      null
+    ],
+    "decode_gqa_union_aiter_final": [],
+    "decode_gqa_union_configured": [
+      false
+    ],
+    "decode_gqa_union_eligible": [],
+    "decode_gqa_union_hip_configured": [
+      false
+    ],
+    "decode_gqa_union_hip_executed": [],
+    "decode_gqa_union_predicted_mass": [],
+    "decode_gqa_union_requested": [],
+    "decode_gqa_union_score_only": [],
+    "decode_max_open_leaves": [
+      1024
+    ],
+    "decode_open_counts": [
+      8
+    ],
+    "decode_route_cohort": [
+      false
+    ],
+    "direct_prefill_calls": 0,
+    "effective_decode_route_leaf_limits": [
+      1024
+    ],
+    "eligible_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "gqa_route_mass_threshold_hits": {
+      "16": 0,
+      "32": 0,
+      "64": 0,
+      "128": 0,
+      "256": 0
+    },
+    "gqa_route_max_mass": null,
+    "gqa_union_centroid_count_max": 0,
+    "gqa_union_centroid_count_mean": 0.0,
+    "gqa_union_epoch_max": 0,
+    "gqa_union_exact_token_count_max": 0,
+    "gqa_union_exact_token_count_mean": 0.0,
+    "gqa_union_nonempty_sequences": 0,
+    "gqa_union_sequence_count": 0,
+    "gqa_union_token_count_max": 0,
+    "gqa_union_token_count_mean": 0.0,
+    "install_count": 0,
+    "pooled_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "prefill_coarse_direct_gqa_configured": [
+      [
+        false,
+        64,
+        32,
+        8
+      ]
+    ],
+    "prefill_coarse_direct_gqa_executed": [],
+    "prefill_open_counts": [
+      3
+    ],
+    "prefill_route_cohort": [
+      false
+    ],
+    "recursive_state_route_backends": [
+      "fused"
+    ],
+    "routing_geometries": [
+      [
+        "none",
+        "coherence",
+        "none"
+      ]
+    ],
+    "selected_route_count_max": 0.0,
+    "split_posting_len_max": 0,
+    "split_scheduled_state_len_max": 0,
+    "split_state_len_max": 0,
+    "state_centroids_at_or_above_open_limit": 0,
+    "state_count_max": 0.0,
+    "state_split_limits": [
+      null
+    ],
+    "state_v_abs_max": 0.0,
+    "state_v_nonfinite": 0,
+    "static_leaf_count_distribution": [
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "1",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "2",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "3-4",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "5-8",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "9-16",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "17-32",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "33-64",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "65-128",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "129-256",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "257-512",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "513-1024",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": ">1024",
+        "leaf_fraction": 0.0
+      }
+    ],
+    "static_opened_centroid_fraction": 0.0,
+    "static_opened_centroids": 0,
+    "static_opened_leaf_fraction": 0.0,
+    "static_opened_leaves": 0.0,
+    "static_total_centroids": 0,
+    "static_total_leaves": 0.0
+  },
+  "lod_prefill_route_block_m": null,
+  "lod_prefill_route_num_warps": null,
+  "lod_recursive_page_block_n": null,
+  "lod_recursive_state_route_backend": null,
+  "long_prefill_token_threshold": 4096,
+  "max_num_batched_tokens": 16384,
+  "mode": "lod",
+  "muse_native_text_config": false,
+  "prefill_open_count": 3,
+  "prefill_route_cohort": false,
+  "prefill_static_leaf_cap_min": 16,
+  "requested_samples": 64,
+  "samples": [
+    {
+      "exact": true,
+      "index": 0,
+      "input_tokens": 7451,
+      "response": ": 9a6a5f92-cca7-4147-b6be-1f723405095c.",
+      "target": "9a6a5f92-cca7-4147-b6be-1f723405095c"
+    },
+    {
+      "exact": true,
+      "index": 1,
+      "input_tokens": 7454,
+      "response": ": 6288e1a5-cc45-4821-98a6-416d1775336d.",
+      "target": "6288e1a5-cc45-4821-98a6-416d1775336d"
+    },
+    {
+      "exact": true,
+      "index": 2,
+      "input_tokens": 7456,
+      "response": ": 2fcd81b5-d24b-4ce4-b07b-f3262f120554.",
+      "target": "2fcd81b5-d24b-4ce4-b07b-f3262f120554"
+    },
+    {
+      "exact": true,
+      "index": 3,
+      "input_tokens": 7448,
+      "response": ": **c1f254b8-adc0-4a7a-96fe-baa011af923d**",
+      "target": "c1f254b8-adc0-4a7a-96fe-baa011af923d"
+    },
+    {
+      "exact": true,
+      "index": 4,
+      "input_tokens": 7451,
+      "response": ": b306d1a8-e5ee-4c76-948b-2758d7ab7928.",
+      "target": "b306d1a8-e5ee-4c76-948b-2758d7ab7928"
+    },
+    {
+      "exact": true,
+      "index": 5,
+      "input_tokens": 7452,
+      "response": ": cfc6e625-8594-4927-868f-f53d864a7a50.",
+      "target": "cfc6e625-8594-4927-868f-f53d864a7a50"
+    },
+    {
+      "exact": true,
+      "index": 6,
+      "input_tokens": 7456,
+      "response": ": 6b5f5241-f323-4a74-9344-749096fd35d0.",
+      "target": "6b5f5241-f323-4a74-9344-749096fd35d0"
+    },
+    {
+      "exact": true,
+      "index": 7,
+      "input_tokens": 7448,
+      "response": ": ff0ac0f1-a425-499a-a905-d7507e1ea9c5.",
+      "target": "ff0ac0f1-a425-499a-a905-d7507e1ea9c5"
+    },
+    {
+      "exact": true,
+      "index": 8,
+      "input_tokens": 7450,
+      "response": ": 964a870c-7c87-4b74-9d87-8f9f9cdf5a86.",
+      "target": "964a870c-7c87-4b74-9d87-8f9f9cdf5a86"
+    },
+    {
+      "exact": true,
+      "index": 9,
+      "input_tokens": 7449,
+      "response": ": 1dfc8352-4562-4e7f-bb42-e0b20426465e.",
+      "target": "1dfc8352-4562-4e7f-bb42-e0b20426465e"
+    },
+    {
+      "exact": true,
+      "index": 10,
+      "input_tokens": 7447,
+      "response": ": 0febd845-d0df-4e43-ad16-ee18552116dd.",
+      "target": "0febd845-d0df-4e43-ad16-ee18552116dd"
+    },
+    {
+      "exact": true,
+      "index": 11,
+      "input_tokens": 7456,
+      "response": ": 92e8e269-d12e-4bc4-8b94-75b138018b47.",
+      "target": "92e8e269-d12e-4bc4-8b94-75b138018b47"
+    },
+    {
+      "exact": true,
+      "index": 12,
+      "input_tokens": 7450,
+      "response": ": 9b38fe80-3042-4325-a28f-5ab01fdb8b32.",
+      "target": "9b38fe80-3042-4325-a28f-5ab01fdb8b32"
+    },
+    {
+      "exact": true,
+      "index": 13,
+      "input_tokens": 7454,
+      "response": ": fb0323a1-d576-4415-9ec1-7dbe176ea1b1.",
+      "target": "fb0323a1-d576-4415-9ec1-7dbe176ea1b1"
+    },
+    {
+      "exact": true,
+      "index": 14,
+      "input_tokens": 7450,
+      "response": ": f87f43fd-f606-4541-b1d0-b6640589f877.",
+      "target": "f87f43fd-f606-4541-b1d0-b6640589f877"
+    },
+    {
+      "exact": true,
+      "index": 15,
+      "input_tokens": 7456,
+      "response": " 0fa34266-ccfd-4a9b-ba26-d85135e8579a.\n\nThe special magic uuid for phobic-ruin is: **0fa34266-ccfd-4a9b-ba",
+      "target": "0fa34266-ccfd-4a9b-ba26-d85135e8579a"
+    },
+    {
+      "exact": true,
+      "index": 16,
+      "input_tokens": 7452,
+      "response": ": 11ebcd49-428a-4c22-95fd-b76a19fbeb1d.",
+      "target": "11ebcd49-428a-4c22-95fd-b76a19fbeb1d"
+    },
+    {
+      "exact": true,
+      "index": 17,
+      "input_tokens": 7451,
+      "response": ": 2e295065-6fa2-41e9-99ac-dd984d125e7f.",
+      "target": "2e295065-6fa2-41e9-99ac-dd984d125e7f"
+    },
+    {
+      "exact": true,
+      "index": 18,
+      "input_tokens": 7455,
+      "response": ": fcfcfa81-b306-4700-99d5-f97098b33c6e.",
+      "target": "fcfcfa81-b306-4700-99d5-f97098b33c6e"
+    },
+    {
+      "exact": true,
+      "index": 19,
+      "input_tokens": 7448,
+      "response": ": 78601602-bb4a-46cb-a786-ab375bca47be.",
+      "target": "78601602-bb4a-46cb-a786-ab375bca47be"
+    },
+    {
+      "exact": true,
+      "index": 20,
+      "input_tokens": 7452,
+      "response": ": **c470f0e7-f76f-4fb8-b412-fc12ac322c12**",
+      "target": "c470f0e7-f76f-4fb8-b412-fc12ac322c12"
+    },
+    {
+      "exact": true,
+      "index": 21,
+      "input_tokens": 7456,
+      "response": ": 1e01a934-402d-4baf-878b-9f6b57a1cb71.",
+      "target": "1e01a934-402d-4baf-878b-9f6b57a1cb71"
+    },
+    {
+      "exact": true,
+      "index": 22,
+      "input_tokens": 7457,
+      "response": ": ae68690a-78bc-4175-8361-524c2cc0f859.",
+      "target": "ae68690a-78bc-4175-8361-524c2cc0f859"
+    },
+    {
+      "exact": true,
+      "index": 23,
+      "input_tokens": 7450,
+      "response": ": a859890c-d670-4668-a37e-0edc5b6e4ae7.",
+      "target": "a859890c-d670-4668-a37e-0edc5b6e4ae7"
+    },
+    {
+      "exact": true,
+      "index": 24,
+      "input_tokens": 7447,
+      "response": ": bdd7d19b-753c-4c99-832f-06cab0d9c2aa.",
+      "target": "bdd7d19b-753c-4c99-832f-06cab0d9c2aa"
+    },
+    {
+      "exact": true,
+      "index": 25,
+      "input_tokens": 7452,
+      "response": ": 3d792fa1-2284-47a4-87e7-f5938b5885ca. Most will self-destruct before you can destroy them. And it certainly doesn't matter how many of them there are, any more than it matters",
+      "target": "3d792fa1-2284-47a4-87e7-f5938b5885ca"
+    },
+    {
+      "exact": true,
+      "index": 26,
+      "input_tokens": 7450,
+      "response": ": 971c702d-5bf4-4c04-ac64-2b4c49b25ded.\n\n<think>\nThinking Process:\n\n1.  **Analyze the Request:**\n    *   Input: A long text containing a series of articles",
+      "target": "971c702d-5bf4-4c04-ac64-2b4c49b25ded"
+    },
+    {
+      "exact": true,
+      "index": 27,
+      "input_tokens": 7452,
+      "response": ": 6a174c1c-bf9c-4545-a355-18f74f6fa985.",
+      "target": "6a174c1c-bf9c-4545-a355-18f74f6fa985"
+    },
+    {
+      "exact": true,
+      "index": 28,
+      "input_tokens": 7457,
+      "response": ": 28fafd04-559b-4975-b2d6-50af313b32b7.",
+      "target": "28fafd04-559b-4975-b2d6-50af313b32b7"
+    },
+    {
+      "exact": true,
+      "index": 29,
+      "input_tokens": 7451,
+      "response": ": e01bbf50-b5d9-4ef7-a0ef-147172b8ff39.",
+      "target": "e01bbf50-b5d9-4ef7-a0ef-147172b8ff39"
+    },
+    {
+      "exact": true,
+      "index": 30,
+      "input_tokens": 7452,
+      "response": ": 9145de05-b3ab-4b2c-9f26-f51766faf989.",
+      "target": "9145de05-b3ab-4b2c-9f26-f51766faf989"
+    },
+    {
+      "exact": true,
+      "index": 31,
+      "input_tokens": 7455,
+      "response": ": b3969057-425c-4200-905a-da6b720299e3.",
+      "target": "b3969057-425c-4200-905a-da6b720299e3"
+    },
+    {
+      "exact": true,
+      "index": 32,
+      "input_tokens": 7448,
+      "response": ": 8fb83bab-e875-4cd3-bcbd-7025e28bc9ff.",
+      "target": "8fb83bab-e875-4cd3-bcbd-7025e28bc9ff"
+    },
+    {
+      "exact": true,
+      "index": 33,
+      "input_tokens": 7454,
+      "response": ": d675ebf7-4fe3-4c9a-9371-0f577e9cf84f.",
+      "target": "d675ebf7-4fe3-4c9a-9371-0f577e9cf84f"
+    },
+    {
+      "exact": true,
+      "index": 34,
+      "input_tokens": 7451,
+      "response": ": f689a4a5-ffda-4336-8c6e-90373020da5c.",
+      "target": "f689a4a5-ffda-4336-8c6e-90373020da5c"
+    },
+    {
+      "exact": true,
+      "index": 35,
+      "input_tokens": 7449,
+      "response": ": 6ae04d52-adb3-48cb-b315-8c0c66dd7794.",
+      "target": "6ae04d52-adb3-48cb-b315-8c0c66dd7794"
+    },
+    {
+      "exact": true,
+      "index": 36,
+      "input_tokens": 7455,
+      "response": ": 009a815b-c137-4be5-b7a2-8e0a03a89879.",
+      "target": "009a815b-c137-4be5-b7a2-8e0a03a89879"
+    },
+    {
+      "exact": true,
+      "index": 37,
+      "input_tokens": 7453,
+      "response": ": 32d1f81b-a636-425c-9bbd-750d1e707c52.",
+      "target": "32d1f81b-a636-425c-9bbd-750d1e707c52"
+    },
+    {
+      "exact": true,
+      "index": 38,
+      "input_tokens": 7453,
+      "response": ": 79c147c7-19a5-411b-aea6-0b99fa7ff8bf.",
+      "target": "79c147c7-19a5-411b-aea6-0b99fa7ff8bf"
+    },
+    {
+      "exact": true,
+      "index": 39,
+      "input_tokens": 7451,
+      "response": ": **ccc14d51-73f6-40d8-a9f4-1cc04653a560**",
+      "target": "ccc14d51-73f6-40d8-a9f4-1cc04653a560"
+    },
+    {
+      "exact": true,
+      "index": 40,
+      "input_tokens": 7451,
+      "response": ": **a699bae0-d138-4150-8557-716aa7502a81**",
+      "target": "a699bae0-d138-4150-8557-716aa7502a81"
+    },
+    {
+      "exact": true,
+      "index": 41,
+      "input_tokens": 7451,
+      "response": ": 0ad40415-04c1-4982-99ea-d9264745dd9e.",
+      "target": "0ad40415-04c1-4982-99ea-d9264745dd9e"
+    },
+    {
+      "exact": true,
+      "index": 42,
+      "input_tokens": 7453,
+      "response": ": f24dfdd8-5091-4bdc-8ef0-66d44279b14d.",
+      "target": "f24dfdd8-5091-4bdc-8ef0-66d44279b14d"
+    },
+    {
+      "exact": true,
+      "index": 43,
+      "input_tokens": 7451,
+      "response": ": b65d1226-7e96-4cf3-a7c5-cb879b8b71a1.",
+      "target": "b65d1226-7e96-4cf3-a7c5-cb879b8b71a1"
+    },
+    {
+      "exact": true,
+      "index": 44,
+      "input_tokens": 7457,
+      "response": ": 35354579-2da4-4da1-89b5-b368df14c612.",
+      "target": "35354579-2da4-4da1-89b5-b368df14c612"
+    },
+    {
+      "exact": true,
+      "index": 45,
+      "input_tokens": 7452,
+      "response": ": 555a4085-4578-4ab3-a6a9-74652371ea2c.",
+      "target": "555a4085-4578-4ab3-a6a9-74652371ea2c"
+    },
+    {
+      "exact": true,
+      "index": 46,
+      "input_tokens": 7458,
+      "response": ": 9edb95f2-c787-4dfb-9697-f17c17fd3736.",
+      "target": "9edb95f2-c787-4dfb-9697-f17c17fd3736"
+    },
+    {
+      "exact": true,
+      "index": 47,
+      "input_tokens": 7453,
+      "response": ": 955d0e77-fb5e-4866-a640-211e29f2c3c7.",
+      "target": "955d0e77-fb5e-4866-a640-211e29f2c3c7"
+    },
+    {
+      "exact": true,
+      "index": 48,
+      "input_tokens": 7454,
+      "response": ": 4b1cb8bd-2130-460c-8c69-778ffd42f697.",
+      "target": "4b1cb8bd-2130-460c-8c69-778ffd42f697"
+    },
+    {
+      "exact": true,
+      "index": 49,
+      "input_tokens": 7454,
+      "response": ": 4ed13553-0c5a-476f-af0a-81ed3d5d60bc.",
+      "target": "4ed13553-0c5a-476f-af0a-81ed3d5d60bc"
+    },
+    {
+      "exact": true,
+      "index": 50,
+      "input_tokens": 7459,
+      "response": ": 4c9a0ae1-5419-4efc-95e7-3e3f673617d9.",
+      "target": "4c9a0ae1-5419-4efc-95e7-3e3f673617d9"
+    },
+    {
+      "exact": true,
+      "index": 51,
+      "input_tokens": 7455,
+      "response": ": 79585e69-7b2e-4b82-a89d-c8158f928dc5.",
+      "target": "79585e69-7b2e-4b82-a89d-c8158f928dc5"
+    },
+    {
+      "exact": true,
+      "index": 52,
+      "input_tokens": 7451,
+      "response": ": 7f6b8793-b318-4d4c-9db2-b4527aa56a18.",
+      "target": "7f6b8793-b318-4d4c-9db2-b4527aa56a18"
+    },
+    {
+      "exact": true,
+      "index": 53,
+      "input_tokens": 7449,
+      "response": ": e4f7625e-afe6-490a-bc18-a40b55c7ed9d.",
+      "target": "e4f7625e-afe6-490a-bc18-a40b55c7ed9d"
+    },
+    {
+      "exact": true,
+      "index": 54,
+      "input_tokens": 7453,
+      "response": ": f97ccc57-ce5d-4807-a025-719990823eda.",
+      "target": "f97ccc57-ce5d-4807-a025-719990823eda"
+    },
+    {
+      "exact": true,
+      "index": 55,
+      "input_tokens": 7449,
+      "response": ": 0fa7ee05-3897-4df5-bff7-73ce32b2c492.",
+      "target": "0fa7ee05-3897-4df5-bff7-73ce32b2c492"
+    },
+    {
+      "exact": true,
+      "index": 56,
+      "input_tokens": 7452,
+      "response": ": 4a31b243-84dd-4da6-8e75-1eb764d09913.",
+      "target": "4a31b243-84dd-4da6-8e75-1eb764d09913"
+    },
+    {
+      "exact": true,
+      "index": 57,
+      "input_tokens": 7463,
+      "response": ": 6c4c3935-379d-4da1-ade6-c5e9b6e355f6.",
+      "target": "6c4c3935-379d-4da1-ade6-c5e9b6e355f6"
+    },
+    {
+      "exact": true,
+      "index": 58,
+      "input_tokens": 7450,
+      "response": ": 95d18051-42cb-4d1d-bfc5-73d5fd0ba70e.",
+      "target": "95d18051-42cb-4d1d-bfc5-73d5fd0ba70e"
+    },
+    {
+      "exact": true,
+      "index": 59,
+      "input_tokens": 7451,
+      "response": ": d26d5396-1058-4e8c-9d71-73e55bc7fdeb.\n\nThe special magic uuid for empty-harp is: d26d5396-1058-4e8c",
+      "target": "d26d5396-1058-4e8c-9d71-73e55bc7fdeb"
+    },
+    {
+      "exact": true,
+      "index": 60,
+      "input_tokens": 7449,
+      "response": ": 65e04993-7f41-4fed-9e70-e79933a1d1c2.",
+      "target": "65e04993-7f41-4fed-9e70-e79933a1d1c2"
+    },
+    {
+      "exact": true,
+      "index": 61,
+      "input_tokens": 7448,
+      "response": ": **cc249558-f2ad-485f-bf3e-0ba10ac728b4**",
+      "target": "cc249558-f2ad-485f-bf3e-0ba10ac728b4"
+    },
+    {
+      "exact": true,
+      "index": 62,
+      "input_tokens": 7460,
+      "response": ": 5c949381-60c6-43ed-b55a-3ac132ae2a20.",
+      "target": "5c949381-60c6-43ed-b55a-3ac132ae2a20"
+    },
+    {
+      "exact": true,
+      "index": 63,
+      "input_tokens": 7452,
+      "response": ": 7ce71b48-fba5-4e59-98a3-3736fd1ac7ce.",
+      "target": "7ce71b48-fba5-4e59-98a3-3736fd1ac7ce"
+    }
+  ],
+  "state_split_max_leaves": null,
+  "static_cohort_never_readmit": false,
+  "static_leaf_cap_divisor": 16,
+  "tensor_parallel_size": 1,
+  "total": 64
+}

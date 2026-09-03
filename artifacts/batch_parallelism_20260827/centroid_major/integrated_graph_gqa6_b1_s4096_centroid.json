@@ -1,0 +1,157 @@
+{
+  "geometry": {
+    "batch": 1,
+    "kv_heads": 4,
+    "gqa": 6,
+    "head_dim": 256,
+    "state_len": 4096,
+    "local_limit": 512,
+    "active_local": 173,
+    "leaf_count_mean": 16.05080223083496,
+    "splits": 8,
+    "union_final": "unified",
+    "mass_fraction": null,
+    "hip_union": true,
+    "unified_arena": true,
+    "group64_padded": false,
+    "staged_fixed_aiter": false,
+    "fixed_mask_aiter": true,
+    "fixed_mask_block_n": 64,
+    "fixed_mask_segments": 128,
+    "cuda_graph_timing": true
+  },
+  "correctness": {
+    "max_abs": 0.01507568359375,
+    "mean_abs": 0.0027452665381133556,
+    "hip_vs_triton_max_abs": null,
+    "hip_vs_triton_mean_abs": null,
+    "manual_shared_union": null,
+    "manual_fixed_mask": {
+      "max_abs": 0.00030679255723953247,
+      "mean_abs": 4.5467411837307736e-05
+    },
+    "oversized_route_excluded": null
+  },
+  "timing_ms": {
+    "baseline_two_tier": 0.08963578542073568,
+    "gqa_union": 0.0904925791422526,
+    "speedup": 0.9905318896904236
+  },
+  "phase_microseconds": {
+    "baseline": {
+      "route_groups": 130.51800429821014,
+      "route_reduce": 80.35899698734283,
+      "leaf_local": 70.47899812459946,
+      "final_reduce": 48.5990010201931
+    },
+    "gqa_union": {
+      "route_groups": 190.31700491905212,
+      "route_reduce": 32.32000023126602,
+      "gqa_union_fixed_mask_prepare": 42.27900132536888,
+      "gqa_union_fixed_mask_scan": 99.11800175905228,
+      "gqa_union_fixed_mask_reduce": 7.439999841153622,
+      "gqa_union_fixed_mask_attention": 201.5170007944107,
+      "gqa_union_indices": 243.11600625514984,
+      "leaf_local": 257.5959861278534
+    }
+  },
+  "kernel_profile": null,
+  "union": {
+    "initial_counts": [
+      47,
+      47,
+      47,
+      48
+    ],
+    "initial_epochs": [
+      2,
+      2,
+      2,
+      2
+    ],
+    "epochs": [
+      308,
+      308,
+      308,
+      308
+    ],
+    "route_valid_counts": [
+      [
+        [
+          8
+        ],
+        [
+          8
+        ],
+        [
+          8
+        ],
+        [
+          8
+        ],
+        [
+          8
+        ],
+        [
+          8
+        ],
+        [
+          8
+        ],
+        [
+          8
+        ],
+        [
+          8
+        ],
+        [
+          8
+        ],
+        [
+          8
+        ],
+        [
+          8
+        ],
+        [
+          8
+        ],
+        [
+          8
+        ],
+        [
+          8
+        ],
+        [
+          8
+        ],
+        [
+          8
+        ],
+        [
+          8
+        ],
+        [
+          8
+        ],
+        [
+          8
+        ],
+        [
+          8
+        ],
+        [
+          8
+        ],
+        [
+          8
+        ],
+        [
+          8
+        ]
+      ]
+    ],
+    "mean_centroids": 47.25,
+    "mean_tokens_including_local": 70285.5
+  }
+}

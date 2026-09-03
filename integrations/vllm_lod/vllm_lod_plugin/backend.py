@@ -6,32 +6,16 @@ import os
 from typing import Any
 
 import torch
-from vllm.v1.attention.backend import AttentionType
-
-from .config import VLLMLODSettings
+from vllm.v1.attention.backend import AttentionCGSupport, AttentionType
 
 if torch.version.hip:
     from vllm.v1.attention.backends.rocm_aiter_unified_attn import (
-        RocmAiterUnifiedAttentionBackend as _AiterNativeBackend,
+        RocmAiterUnifiedAttentionBackend as _NativeBackend,
     )
     from vllm.v1.attention.backends.rocm_aiter_unified_attn import (
         RocmAiterUnifiedAttentionImpl as _NativeImpl,
     )
-    from vllm.v1.attention.backends.rocm_attn import (
-        RocmAttentionBackend as _NativeBackend,
-    )
-    from vllm.v1.attention.backends.rocm_attn import (
-        RocmAttentionImpl as _TritonNativeImpl,
-    )
-    from vllm.v1.attention.ops.triton_unified_attention import (
-        unified_attention as _triton_unified_attention,
-    )
 
-    if bool(int(os.getenv("VLLM_LOD_ROCM_PACKED_CACHE", "0"))):
-        _NativeBackend = _AiterNativeBackend
-        NATIVE_LAYOUT = "flash"
-    else:
-        NATIVE_LAYOUT = "rocm"
 else:
     from vllm.v1.attention.backends.flash_attn import (
         FlashAttentionBackend as _NativeBackend,
@@ -40,73 +24,20 @@ else:
         FlashAttentionImpl as _NativeImpl,
     )
 
-    NATIVE_LAYOUT = "flash"
+
+_NativeMetadataBuilder = _NativeBackend.get_builder_cls()
 
 
-if torch.version.hip:
+class LODAttentionMetadataBuilder(_NativeMetadataBuilder):
+    """Expose the graph shapes whose state transitions LOD can replay.
 
-    class _LegacyLayoutTritonDecodeImpl:
-        """Use vLLM's Triton decoder on the ROCm K/V planes."""
+    Ordinary one-token decode and uniform speculative target verification are
+    captured.  The latter replays a fixed sequence of graph-safe one-token LOD
+    transitions against device-resident row maps and recent lengths.  Rejected
+    suffixes are truncated before the next replay, outside the graph.
+    """
 
-        def __init__(self, fallback: Any) -> None:
-            self.fallback = fallback
-
-        def forward(
-            self,
-            layer: torch.nn.Module,
-            query: torch.Tensor,
-            key: torch.Tensor,
-            value: torch.Tensor,
-            kv_cache: torch.Tensor,
-            attn_metadata: Any,
-            output: torch.Tensor,
-            output_scale: torch.Tensor | None = None,
-            output_block_scale: torch.Tensor | None = None,
-        ) -> torch.Tensor:
-            if attn_metadata is None or int(attn_metadata.max_query_len) != 1:
-                return self.fallback.forward(
-                    layer,
-                    query,
-                    key,
-                    value,
-                    kv_cache,
-                    attn_metadata,
-                    output,
-                    output_scale=output_scale,
-                    output_block_scale=output_block_scale,
-                )
-            if output_block_scale is not None:
-                raise NotImplementedError(
-                    "Triton local decode does not support block-scaled output"
-                )
-
-            num_actual_tokens = attn_metadata.num_actual_tokens
-            key_cache, value_cache = kv_cache[0], kv_cache[1]
-            _triton_unified_attention(
-                q=query[:num_actual_tokens],
-                k=key_cache,
-                v=value_cache,
-                out=output[:num_actual_tokens],
-                cu_seqlens_q=attn_metadata.query_start_loc,
-                max_seqlen_q=attn_metadata.max_query_len,
-                seqused_k=attn_metadata.seq_lens,
-                max_seqlen_k=attn_metadata.max_seq_len,
-                softmax_scale=self.fallback.scale,
-                causal=attn_metadata.causal,
-                window_size=self.fallback.sliding_window,
-                block_table=attn_metadata.block_table,
-                softcap=self.fallback.logits_soft_cap,
-                q_descale=None,
-                k_descale=None,
-                v_descale=None,
-                alibi_slopes=self.fallback.alibi_slopes,
-                sinks=self.fallback.sinks,
-                output_scale=output_scale,
-                mm_prefix_clamp_sliding_window=getattr(
-                    layer, "mm_prefix_clamp_sliding_window", False
-                ),
-            )
-            return output
+    _cudagraph_support = AttentionCGSupport.UNIFORM_BATCH
 
 
 class LODAttentionImpl(_NativeImpl):
@@ -114,13 +45,6 @@ class LODAttentionImpl(_NativeImpl):
 
     supports_dcp = False
     supports_pcp = False
-
-    def _split_kv_cache(
-        self, kv_cache: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        if NATIVE_LAYOUT == "flash":
-            return super()._split_kv_cache(kv_cache)
-        return kv_cache[0], kv_cache[1]
 
     def __init__(
         self,
@@ -163,47 +87,13 @@ class LODAttentionImpl(_NativeImpl):
             and not logits_soft_cap
             and kv_cache_dtype in ("auto", "float16", "bfloat16")
         )
-        self.lod_authoritative = (
-            VLLMLODSettings.from_environment().cache_ownership == "lod"
-        )
-        # Gemma-4 does not expose its local/global distinction through the
-        # backend constructor on every vLLM path. AITER's unified capture
-        # faults for its 256-wide local heads, so prepare the ROCm Triton
-        # implementation for every 256-wide layer. LOD-owned global layers
-        # still take the direct prefill/decode branches below; only native
-        # fallthrough (the local layers) uses this implementation.
-        self._triton_swa = None
-        if torch.version.hip and head_size == 256:
-            fallback = _TritonNativeImpl(
-                num_heads,
-                head_size,
-                scale,
-                num_kv_heads,
-                alibi_slopes,
-                sliding_window,
-                kv_cache_dtype,
-                logits_soft_cap,
-                attn_type,
-                kv_sharing_target_layer_name,
-                sinks=sinks,
-            )
-            self._triton_swa = _LegacyLayoutTritonDecodeImpl(fallback)
+    @staticmethod
+    def _uses_external_kv_cache(layer: torch.nn.Module) -> bool:
+        return bool(getattr(layer, "_vllm_lod_external_kv_cache", False))
 
     @staticmethod
-    def _uses_authoritative_lod(layer: torch.nn.Module) -> bool:
-        pool = getattr(layer, "_vllm_lod_pool", None)
-        return (
-            pool is not None
-            and pool.settings.cache_ownership == "lod"
-            and (
-                getattr(pool, "direct_prefill_plan", None) is not None
-                or bool(getattr(pool, "decode_enabled", False))
-            )
-        )
-
-    @staticmethod
-    def _uses_placeholder_cache(layer: torch.nn.Module) -> bool:
-        return bool(getattr(layer, "_vllm_lod_native_placeholder_cache", False))
+    def _uses_hybrid_native_kv_cache(layer: torch.nn.Module) -> bool:
+        return bool(getattr(layer, "_vllm_lod_hybrid_native_kv", False))
 
     def do_kv_cache_update(
         self,
@@ -213,19 +103,24 @@ class LODAttentionImpl(_NativeImpl):
         kv_cache: torch.Tensor,
         slot_mapping: torch.Tensor,
     ) -> None:
-        if self.lod_eligible and (
-            self._uses_authoritative_lod(layer)
-            or self._uses_placeholder_cache(layer)
-        ):
+        if self.lod_eligible:
+            if self._uses_hybrid_native_kv_cache(layer):
+                return super().do_kv_cache_update(
+                    layer, key, value, kv_cache, slot_mapping
+                )
+            if not self._uses_external_kv_cache(layer):
+                raise RuntimeError(
+                    "eligible LOD attention was not externalized; refusing to "
+                    "write a native chronological K/V cache"
+                )
             return
         super().do_kv_cache_update(layer, key, value, kv_cache, slot_mapping)
 
     def fused_rope_kvcache_supported(self) -> bool:
-        return (
-            False
-            if self.lod_eligible and self.lod_authoritative
-            else super().fused_rope_kvcache_supported()
-        )
+        # The platform fusion cannot independently suppress its chronological
+        # cache write. Keep RoPE separate so authoritative LOD can skip that
+        # redundant write while native-only layers retain the normal updater.
+        return False if self.lod_eligible else super().fused_rope_kvcache_supported()
 
     def forward(
         self,
@@ -240,20 +135,72 @@ class LODAttentionImpl(_NativeImpl):
         output_block_scale: torch.Tensor | None = None,
     ) -> torch.Tensor:
         pool = getattr(layer, "_vllm_lod_pool", None)
+        hybrid_native = self._uses_hybrid_native_kv_cache(layer)
         if (
             self.lod_eligible
-            and self._uses_placeholder_cache(layer)
-            and (
-                pool is None
-                or (
-                    getattr(pool, "direct_prefill_plan", None) is None
-                    and not pool.decode_enabled
-                )
-            )
+            and not self._uses_external_kv_cache(layer)
+            and not hybrid_native
         ):
-            # Warmup/capture rows have no logical request and their output is
-            # discarded. The scheduler-visible placeholder is intentionally
-            # too small for native remote attention.
+            raise RuntimeError(
+                "eligible LOD attention was not externalized; native K/V "
+                "fallback is unsupported"
+            )
+        if (
+            pool is not None
+            and self.lod_eligible
+            and hybrid_native
+            and bool(getattr(pool, "hybrid_full_decode", False))
+            and attn_metadata is not None
+        ):
+            # Native K/V was updated immediately before this call. Delegate
+            # both uniform target verification and the rare one-token fallback
+            # to the unmodified AITER backend so the chronological cache stays
+            # authoritative throughout this intentionally quadratic mode.
+            return super().forward(
+                layer,
+                query,
+                key,
+                value,
+                kv_cache,
+                attn_metadata,
+                output,
+                output_scale=output_scale,
+                output_block_scale=output_block_scale,
+            )
+        if (
+            os.getenv("VLLM_LOD_DIAGNOSTIC_EXTERNAL_EMPTY_ATTENTION")
+            in ("skip", "eligible")
+            and self.lod_eligible
+            and self._uses_external_kv_cache(layer)
+        ):
+            # Benchmark-only control: exercise CUSTOM dispatch and externally
+            # owned metadata with eligible attention arithmetic held at zero.
+            # ``skip`` also zeros native layers through the plugin hook, while
+            # ``eligible`` preserves them to isolate the unchanged local path.
+            return output.zero_()
+        if (
+            pool is not None
+            and int(getattr(pool, "speculative_decode_steps", 0)) > 1
+            and self.lod_eligible
+            and attn_metadata is not None
+            and int(attn_metadata.max_query_len)
+            == int(pool.speculative_decode_steps)
+        ):
+            if output_scale is not None or output_block_scale is not None:
+                raise NotImplementedError(
+                    "speculative LOD decode does not support fused output "
+                    "quantization"
+                )
+            return pool.speculative_decode(query, key, value, output)
+        if (
+            pool is not None
+            and self.lod_eligible
+            and self._uses_external_kv_cache(layer)
+            and getattr(pool, "direct_prefill_plan", None) is None
+            and not pool.decode_enabled
+        ):
+            # Uncaptured/capture warmups have no logical request. Their output
+            # is discarded. External layers intentionally have no native K/V.
             return output.zero_()
         if (
             pool is not None
@@ -278,46 +225,30 @@ class LODAttentionImpl(_NativeImpl):
                     "LOD decode does not support fused output quantization"
                 )
             return pool.decode(query, key, value, attn_metadata, output)
-        native = self._triton_swa
-        if native is None:
-            result = super().forward(
-                layer,
-                query,
-                key,
-                value,
-                kv_cache,
-                attn_metadata,
-                output,
-                output_scale=output_scale,
-                output_block_scale=output_block_scale,
-            )
-        else:
-            result = native.forward(
-                layer,
-                query,
-                key,
-                value,
-                kv_cache,
-                attn_metadata,
-                output,
-                output_scale=output_scale,
-                output_block_scale=output_block_scale,
-            )
-        if pool is not None:
-            pool.record_native_appends(key, value)
+        result = super().forward(
+            layer,
+            query,
+            key,
+            value,
+            kv_cache,
+            attn_metadata,
+            output,
+            output_scale=output_scale,
+            output_block_scale=output_block_scale,
+        )
         return result
 
 
 class LODAttentionBackend(_NativeBackend):
-    """Use ROCm's cache layout with AITER attention math where supported."""
+    """Retain the platform-native cache layout and metadata builder."""
 
     forward_includes_kv_cache_update = False
 
     @classmethod
     def get_supported_head_sizes(cls) -> list[int]:
-        # Gemma-4's full-attention layers use 512-wide global heads. Those
-        # layers enter LOD rather than ROCm paged attention; the model's
-        # 256-wide sliding layers continue through the native implementation.
+        # LOD handles wide global heads without entering ROCmAttention's
+        # paged-attention kernel. Gemma-4 uses 512-wide heads only on those
+        # global layers; its 256-wide sliding layers retain the native path.
         return sorted(set(super().get_supported_head_sizes()) | {512})
 
     @staticmethod
@@ -328,5 +259,13 @@ class LODAttentionBackend(_NativeBackend):
     def get_impl_cls() -> type[LODAttentionImpl]:
         return LODAttentionImpl
 
+    @staticmethod
+    def get_builder_cls() -> type[LODAttentionMetadataBuilder]:
+        return LODAttentionMetadataBuilder
 
-__all__ = ["NATIVE_LAYOUT", "LODAttentionBackend", "LODAttentionImpl"]
+
+__all__ = [
+    "LODAttentionBackend",
+    "LODAttentionImpl",
+    "LODAttentionMetadataBuilder",
+]

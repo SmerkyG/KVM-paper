@@ -1,0 +1,65 @@
+{
+  "model": "Qwen/Qwen3.5-35B-A3B",
+  "examples_per_run": 503,
+  "repeats": 2,
+  "scheduler": {
+    "batch_size": 8,
+    "max_num_batched_tokens": 16384,
+    "long_prefill_token_threshold": 4096,
+    "max_input_tokens": 262016,
+    "max_output_tokens": 32
+  },
+  "quality": {
+    "historical_full_attention": {"correct": 250, "count": 503, "accuracy": 0.4970178926},
+    "historical_int4_lod": {"correct": 236, "count": 503, "accuracy": 0.4691848907},
+    "historical_bf16_two_level": {"correct": 243, "count": 503, "accuracy": 0.4831013917},
+    "latest_bf16": [
+      {"correct": 230, "count": 503, "accuracy": 0.4572564612},
+      {"correct": 240, "count": 503, "accuracy": 0.4771371769}
+    ],
+    "latest_int8": [
+      {"correct": 240, "count": 503, "accuracy": 0.4771371769},
+      {"correct": 236, "count": 503, "accuracy": 0.4691848907}
+    ],
+    "latest_bf16_mean": {"correct": 235.0, "count": 503, "accuracy": 0.4671968191},
+    "latest_int8_mean": {"correct": 238.0, "count": 503, "accuracy": 0.4731610338},
+    "repeat_prediction_agreement": {
+      "bf16": {"equal": 460, "count": 503},
+      "int8": {"equal": 458, "count": 503}
+    }
+  },
+  "timing_seconds": {
+    "historical_full_attention": {
+      "slowest_shard_wall": 1355.0170693770,
+      "aggregate_shard_wall": 9080.4479725214,
+      "summed_request": 51369.4699247116
+    },
+    "latest_bf16_mean": {
+      "slowest_shard_wall": 527.9501596824,
+      "aggregate_shard_wall": 3583.1817309981,
+      "summed_request": 21314.5942026092
+    },
+    "latest_int8_mean": {
+      "slowest_shard_wall": 460.2917147772,
+      "aggregate_shard_wall": 3135.2140218158,
+      "summed_request": 18843.9163225379
+    }
+  },
+  "speedup": {
+    "bf16_vs_full": {
+      "slowest_shard_wall": 2.5665624766,
+      "aggregate_shard_wall": 2.5341857193,
+      "summed_request": 2.4100608924
+    },
+    "int8_vs_full": {
+      "slowest_shard_wall": 2.9438224193,
+      "aggregate_shard_wall": 2.8962769078,
+      "summed_request": 2.7260506280
+    },
+    "int8_vs_bf16": {
+      "slowest_shard_wall": 1.1469903601,
+      "aggregate_shard_wall": 1.1428826568,
+      "summed_request": 1.1311127601
+    }
+  }
+}

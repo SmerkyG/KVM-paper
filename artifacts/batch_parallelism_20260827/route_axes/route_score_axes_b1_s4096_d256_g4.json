@@ -1,0 +1,219 @@
+{
+  "batch_size": 1,
+  "slots": 4096,
+  "head_dim": 256,
+  "kv_heads": 2,
+  "gqa": 4,
+  "measurements": [
+    {
+      "axis": "mfma_gqa",
+      "group_n": 16,
+      "num_warps": 1,
+      "programs": 512,
+      "score_us_median": 23.879999294877052,
+      "reduce_us_median": 13.339499942958355,
+      "total_us_median": 37.33900003135204,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 16,
+      "num_warps": 1,
+      "programs": 2048,
+      "score_us_median": 32.49900043010712,
+      "reduce_us_median": 9.039999917149544,
+      "total_us_median": 41.51950031518936,
+      "top_slot_agreement": 0.984375
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 16,
+      "num_warps": 2,
+      "programs": 512,
+      "score_us_median": 23.698999546468258,
+      "reduce_us_median": 14.379499945789576,
+      "total_us_median": 38.03899884223938,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 16,
+      "num_warps": 2,
+      "programs": 2048,
+      "score_us_median": 27.878999710083008,
+      "reduce_us_median": 9.859499987214804,
+      "total_us_median": 37.79949992895126,
+      "top_slot_agreement": 0.984375
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 16,
+      "num_warps": 4,
+      "programs": 512,
+      "score_us_median": 22.540000267326832,
+      "reduce_us_median": 15.03949984908104,
+      "total_us_median": 37.819501012563705,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 16,
+      "num_warps": 4,
+      "programs": 2048,
+      "score_us_median": 28.279999271035194,
+      "reduce_us_median": 9.800000116229057,
+      "total_us_median": 38.07950019836426,
+      "top_slot_agreement": 0.984375
+    },
+    {
+      "axis": "scalar_gqa",
+      "group_n": 16,
+      "num_warps": 1,
+      "programs": 512,
+      "score_us_median": 31.238999217748642,
+      "reduce_us_median": 8.919999934732914,
+      "total_us_median": 40.0799997150898,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "scalar_gqa",
+      "group_n": 16,
+      "num_warps": 2,
+      "programs": 512,
+      "score_us_median": 31.58000111579895,
+      "reduce_us_median": 8.940000087022781,
+      "total_us_median": 40.41899926960468,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "scalar_gqa",
+      "group_n": 16,
+      "num_warps": 4,
+      "programs": 512,
+      "score_us_median": 30.159500427544117,
+      "reduce_us_median": 8.919999934732914,
+      "total_us_median": 39.07899931073189,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 32,
+      "num_warps": 1,
+      "programs": 256,
+      "score_us_median": 28.2600000500679,
+      "reduce_us_median": 6.439999910071492,
+      "total_us_median": 34.73999910056591,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 32,
+      "num_warps": 1,
+      "programs": 1024,
+      "score_us_median": 34.05950032174587,
+      "reduce_us_median": 6.300000008195639,
+      "total_us_median": 40.39900004863739,
+      "top_slot_agreement": 0.984375
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 32,
+      "num_warps": 2,
+      "programs": 256,
+      "score_us_median": 23.959499783813953,
+      "reduce_us_median": 10.040000081062317,
+      "total_us_median": 33.9794997125864,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 32,
+      "num_warps": 2,
+      "programs": 1024,
+      "score_us_median": 29.160000383853912,
+      "reduce_us_median": 6.320000160485506,
+      "total_us_median": 35.43899953365326,
+      "top_slot_agreement": 0.984375
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 32,
+      "num_warps": 4,
+      "programs": 256,
+      "score_us_median": 23.17999955266714,
+      "reduce_us_median": 10.660000145435333,
+      "total_us_median": 33.87949988245964,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 32,
+      "num_warps": 4,
+      "programs": 1024,
+      "score_us_median": 29.400000348687172,
+      "reduce_us_median": 6.279999855905771,
+      "total_us_median": 35.75949929654598,
+      "top_slot_agreement": 0.984375
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 64,
+      "num_warps": 1,
+      "programs": 128,
+      "score_us_median": 39.61949981749058,
+      "reduce_us_median": 5.880000069737434,
+      "total_us_median": 45.47950066626072,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 64,
+      "num_warps": 1,
+      "programs": 512,
+      "score_us_median": 39.47899863123894,
+      "reduce_us_median": 5.880000069737434,
+      "total_us_median": 45.39899900555611,
+      "top_slot_agreement": 0.984375
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 64,
+      "num_warps": 2,
+      "programs": 128,
+      "score_us_median": 29.919500462710857,
+      "reduce_us_median": 5.919999908655882,
+      "total_us_median": 35.85899993777275,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 64,
+      "num_warps": 2,
+      "programs": 512,
+      "score_us_median": 36.3989993929863,
+      "reduce_us_median": 5.840000230818987,
+      "total_us_median": 42.238999158144,
+      "top_slot_agreement": 0.984375
+    },
+    {
+      "axis": "mfma_gqa",
+      "group_n": 64,
+      "num_warps": 4,
+      "programs": 128,
+      "score_us_median": 26.67950000613928,
+      "reduce_us_median": 6.639999803155661,
+      "total_us_median": 33.419499173760414,
+      "top_slot_agreement": 1.0
+    },
+    {
+      "axis": "query_major_vector",
+      "group_n": 64,
+      "num_warps": 4,
+      "programs": 512,
+      "score_us_median": 31.199999153614044,
+      "reduce_us_median": 5.919999908655882,
+      "total_us_median": 37.13900037109852,
+      "top_slot_agreement": 0.984375
+    }
+  ]
+}

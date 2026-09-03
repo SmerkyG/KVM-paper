@@ -1,0 +1,63 @@
+{
+  "batch": 8,
+  "query_len": 512,
+  "results": {
+    "muse_g16": {
+      "divide_in_kernel_lse_max_abs": 0.0,
+      "divide_in_kernel_ms": 3.9382171630859375,
+      "divide_in_kernel_output_max_abs": 0.0,
+      "grouped_ms": 2.779152679443359,
+      "head_major_ms": 23.748738098144532,
+      "lse_max_abs": 0.0,
+      "output_max_abs": 3.0517578125e-05,
+      "recomputed_qk_lse_max_abs": 1.9073486328125e-06,
+      "recomputed_qk_ms": 4.9226936340332035,
+      "recomputed_qk_output_max_abs": 3.0517578125e-05,
+      "sweep_ms": {
+        "n128_rows16_w2": 2.2725652694702148,
+        "n128_rows16_w4": 3.2868080139160156,
+        "n128_rows32_w2": 2.1864751815795898,
+        "n128_rows32_w4": 2.689458656311035,
+        "n128_rows64_w2": 3.3812374114990233,
+        "n128_rows64_w4": 2.6653005599975588,
+        "n128_rows8_w2": 2.280653190612793,
+        "n128_rows8_w4": 3.2919761657714846,
+        "n32_rows16_w2": 3.429275894165039,
+        "n32_rows16_w4": 4.266130828857422,
+        "n32_rows32_w2": 2.751534652709961,
+        "n32_rows32_w4": 3.4055740356445314,
+        "n32_rows64_w2": 3.506719970703125,
+        "n32_rows64_w4": 2.7798788070678713,
+        "n32_rows8_w2": 3.429093933105469,
+        "n32_rows8_w4": 4.268337249755859,
+        "n64_rows16_w2": 3.1028621673583983,
+        "n64_rows16_w4": 3.999925231933594,
+        "n64_rows32_w2": 3.029464340209961,
+        "n64_rows32_w4": 3.090256118774414,
+        "n64_rows64_w2": 10.899630737304687,
+        "n64_rows64_w4": 3.4542476654052736,
+        "n64_rows8_w2": 3.101348114013672,
+        "n64_rows8_w4": 4.003291320800781
+      }
+    },
+    "olmo_g5": {
+      "divide_in_kernel_lse_max_abs": 0.0,
+      "divide_in_kernel_ms": 10.661492919921875,
+      "divide_in_kernel_output_max_abs": 0.0,
+      "grouped_ms": 5.885666275024414,
+      "head_major_ms": 32.94019470214844,
+      "lse_max_abs": 0.0,
+      "output_max_abs": 3.0517578125e-05
+    },
+    "phi_g4": {
+      "divide_in_kernel_lse_max_abs": 0.0,
+      "divide_in_kernel_ms": 2.102153205871582,
+      "divide_in_kernel_output_max_abs": 0.0,
+      "grouped_ms": 1.1507725715637207,
+      "head_major_ms": 6.007036590576172,
+      "lse_max_abs": 0.0,
+      "output_max_abs": 3.0517578125e-05
+    }
+  },
+  "state_len": 4352
+}

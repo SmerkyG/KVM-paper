@@ -11,8 +11,8 @@ import torch
 from transformers import AutoTokenizer
 
 from model.qwen35_two_level_attention import Qwen3_5TwoLevelAttention
-from scripts.compare_qwen35_lod_loss import select_sequences
 from scripts.probe_qwen35_lod_niah import load_text_model
+from scripts.profile_qwen35_prefill_total import select_profile_sequence
 
 
 def parse_args() -> argparse.Namespace:
@@ -63,14 +63,7 @@ def main() -> None:
     torch.cuda.set_device(0)
     device = torch.device("cuda", 0)
     tokenizer = AutoTokenizer.from_pretrained(args.checkpoint, trust_remote_code=True)
-    _, sequence = select_sequences(
-        tokenizer,
-        args.dataset,
-        args.sequence_length,
-        samples=1,
-        rank=0,
-        world_size=1,
-    )[0]
+    sequence = select_profile_sequence(tokenizer, args.dataset, args.sequence_length)
     model = load_text_model(
         args.checkpoint,
         "two_level",
@@ -116,7 +109,20 @@ def main() -> None:
         unique_fraction = torch.cat(
             [item["unique_slot_fraction"].float().cpu() for item in route_stats]
         )
-        counts = attention._lod_state["counts"].float().cpu().flatten()
+        state_counts = attention._lod_state["counts"].float().cpu().squeeze(-1)
+        counts = state_counts.flatten()
+        ever_selected = attention._lod_ever_selected_slots.cpu()
+        kv_group_size = int(ever_selected.size(1)) // int(state_counts.size(1))
+        ever_selected_by_kv = ever_selected.view(
+            int(ever_selected.size(0)),
+            int(state_counts.size(1)),
+            kv_group_size,
+            int(ever_selected.size(2)),
+        ).any(dim=2)
+        live = state_counts.gt(0)
+        hot = ever_selected_by_kv & live
+        total_leaf_count = state_counts.masked_select(live).sum()
+        hot_leaf_count = state_counts.masked_select(hot).sum()
         layer_records.append(
             {
                 "layer": attention.layer_idx,
@@ -136,6 +142,15 @@ def main() -> None:
                 ),
                 "unique_slots_selected_per_chunk_head_fraction": summarize(
                     unique_fraction
+                ),
+                "ever_selected_centroid_fraction": float(
+                    hot.sum().item() / max(1, live.sum().item())
+                ),
+                "ever_selected_leaf_fraction": float(
+                    hot_leaf_count.item() / max(1.0, total_leaf_count.item())
+                ),
+                "never_selected_leaf_count": int(
+                    (total_leaf_count - hot_leaf_count).item()
                 ),
             }
         )
@@ -164,6 +179,17 @@ def main() -> None:
                 torch.cat(all_unique_fraction)
             ),
             "page_layout": page_layout(torch.cat(all_counts)),
+            "ever_selected_centroid_fraction": float(
+                sum(
+                    layer["ever_selected_centroid_fraction"]
+                    for layer in layer_records
+                )
+                / len(layer_records)
+            ),
+            "ever_selected_leaf_fraction": float(
+                sum(layer["ever_selected_leaf_fraction"] for layer in layer_records)
+                / len(layer_records)
+            ),
         },
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)

@@ -5,13 +5,22 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 from transformers import AutoTokenizer
 
+from vllm_engine_lifecycle import register_llm_shutdown, shutdown_registered_llms
+
 
 def inspect_lod_counters(model) -> dict[str, int]:
-    counters = {"layers": 0, "installs": 0, "direct_prefills": 0, "decodes": 0}
+    counters = {
+        "layers": 0,
+        "installs": 0,
+        "direct_prefills": 0,
+        "decodes": 0,
+        "retained_prefix_reuses": 0,
+    }
     for module in model.modules():
         pool = getattr(module, "_vllm_lod_pool", None)
         if pool is None:
@@ -20,6 +29,7 @@ def inspect_lod_counters(model) -> dict[str, int]:
         counters["installs"] += int(pool.install_count)
         counters["direct_prefills"] += int(pool.direct_prefill_calls)
         counters["decodes"] += int(pool.decode_calls)
+        counters["retained_prefix_reuses"] += int(pool.retained_reuse_count)
     return counters
 
 
@@ -44,16 +54,19 @@ def main() -> None:
     suffix_b = tokenizer(" Second distinct continuation.", add_special_tokens=False)[
         "input_ids"
     ]
-    llm = LLM(
-        model=args.checkpoint,
-        dtype="bfloat16",
-        max_model_len=args.common_tokens + 128,
-        max_num_seqs=1,
-        max_num_batched_tokens=args.common_tokens + 128,
-        gpu_memory_utilization=0.8,
-        enforce_eager=True,
-        enable_prefix_caching=True,
-        attention_config={"backend": "CUSTOM"},
+    llm = register_llm_shutdown(
+        LLM(
+            model=args.checkpoint,
+            load_format=os.getenv("VLLM_WEIGHT_CACHE_LOAD_FORMAT", "ipc_cache"),
+            dtype="bfloat16",
+            max_model_len=args.common_tokens + 128,
+            max_num_seqs=1,
+            max_num_batched_tokens=args.common_tokens + 128,
+            gpu_memory_utilization=0.8,
+            enforce_eager=True,
+            enable_prefix_caching=True,
+            attention_config={"backend": "CUSTOM"},
+        )
     )
     params = SamplingParams(temperature=0, max_tokens=2, detokenize=False)
     before = llm.apply_model(inspect_lod_counters)[0]
@@ -75,13 +88,14 @@ def main() -> None:
             "the uncached request did not use direct LOD prefill on every layer: "
             f"before={before}, after={after_first}"
         )
-    if after_second["direct_prefills"] != after_first["direct_prefills"]:
-        raise RuntimeError(
-            "the native prefix-cache hit incorrectly entered direct LOD prefill: "
-            f"first={after_first}, second={after_second}"
-        )
-    if after_second["installs"] - after_first["installs"] != layers:
-        raise RuntimeError("the native prefix-cache hit was not rebuilt for LOD decode")
+    if (
+        after_second["retained_prefix_reuses"]
+        - after_first["retained_prefix_reuses"]
+        != layers
+    ):
+        raise RuntimeError("the prefix-cache hit did not reuse the retained LOD row")
+    if after_second["installs"] != after_first["installs"]:
+        raise RuntimeError("the retained LOD row was rebuilt instead of reused")
     if not first[0].outputs[0].token_ids or not second[0].outputs[0].token_ids:
         raise RuntimeError("prefix-cache verification produced no tokens")
 
@@ -99,4 +113,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    finally:
+        shutdown_registered_llms()

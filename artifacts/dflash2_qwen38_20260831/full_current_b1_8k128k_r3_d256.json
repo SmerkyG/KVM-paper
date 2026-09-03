@@ -1,0 +1,342 @@
+{
+  "allow_heterogeneous_global_config": false,
+  "apply_chat_template": true,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 218951057408,
+    "device_used_bytes_before_reclaim": 225018118144,
+    "external_lod_layers": 0,
+    "external_lod_layers_with_native_cache": 0,
+    "external_lod_native_cache_bytes": 0,
+    "lod_cache_bytes": 0,
+    "lod_decode_scratch_bytes": 0,
+    "native_cache_bytes": 169882419200,
+    "torch_allocated_bytes": 174423161344,
+    "torch_reclaimable_cached_bytes": 6067060736,
+    "torch_reserved_bytes_after_reclaim": 174560641024,
+    "torch_reserved_bytes_before_reclaim": 180627701760
+  },
+  "batch_size": 1,
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "diagnostic_external_empty_attention": null,
+  "disable_custom_all_reduce": false,
+  "disable_thinking": true,
+  "enable_prefix_caching": false,
+  "full_attention_backend": "ROCM_AITER_UNIFIED_ATTN",
+  "full_attention_dispatch": {
+    "records": [
+      {
+        "attention_callable": "aiter.ops.triton.attention.unified_attention.unified_attention",
+        "head_dim": 256,
+        "implementation_class": "vllm.v1.attention.backends.rocm_aiter_unified_attn.RocmAiterUnifiedAttentionImpl",
+        "kv_cache_dtype": "auto",
+        "kv_group_size": 6,
+        "kv_heads": 4,
+        "layers": 16,
+        "query_heads": 24,
+        "sliding_window": [
+          -1,
+          -1
+        ]
+      }
+    ],
+    "schema_version": 1
+  },
+  "language_model_only": true,
+  "lengths": [
+    8192,
+    16384,
+    32768,
+    65536,
+    131072
+  ],
+  "load_format": "ipc_cache",
+  "lod_diagnostics_before": null,
+  "long_prefill_token_threshold": 16384,
+  "max_new_tokens": 64,
+  "max_num_batched_tokens": 16384,
+  "mode": "full",
+  "model_impl": null,
+  "muse_native_text_config": false,
+  "num_speculative_tokens": 7,
+  "results": {
+    "131072": {
+      "speed": {
+        "decode_timings_seconds": [
+          5.62625331338495,
+          5.623688455671072,
+          5.623526956886053
+        ],
+        "marginal_decode_ms_per_batch_step": 22.05368021831793,
+        "marginal_decode_tokens_per_second": 45.34390587424014,
+        "prefill_prompt_tokens_per_second": 3068.7761448153674,
+        "prefill_seconds": 42.71148947160691,
+        "prefill_timings_seconds": [
+          42.73458943981677,
+          42.696423802524805,
+          42.71148947160691
+        ],
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 131072,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London K",
+              "request_index": 0,
+              "sha256": "4a0051e89021e0c36eb743d5606b6df68c47e1d2f65506f885d18a8beaca4b50",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                },
+                {
+                  "length": "65431",
+                  "stream_index": 1
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8192,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 8192
+              }
+            }
+          ],
+          "rejected_candidate_count": 0,
+          "rejected_candidates": []
+        },
+        "prompt_length": 131072,
+        "total_timings_seconds": [
+          48.42394281644374,
+          48.38308880291879,
+          48.397935695014894
+        ]
+      }
+    },
+    "16384": {
+      "speed": {
+        "decode_timings_seconds": [
+          2.4871009113267064,
+          2.486404240131378,
+          2.4878067318350077
+        ],
+        "marginal_decode_ms_per_batch_step": 9.753336907163554,
+        "marginal_decode_tokens_per_second": 102.52901232864497,
+        "prefill_prompt_tokens_per_second": 7367.8525846665325,
+        "prefill_seconds": 2.223714414983988,
+        "prefill_timings_seconds": [
+          2.223714414983988,
+          2.2177214305847883,
+          2.223952262662351
+        ],
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 16384,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London K",
+              "request_index": 0,
+              "sha256": "93f3cb01ed581b709ffa9c6061df9538d20e37fa6e9f6b6d97117b25447e0740",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 1024,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 1024
+              }
+            }
+          ],
+          "rejected_candidate_count": 0,
+          "rejected_candidates": []
+        },
+        "prompt_length": 16384,
+        "total_timings_seconds": [
+          4.752279763109982,
+          4.745521537959576,
+          4.753208311274648
+        ]
+      }
+    },
+    "32768": {
+      "speed": {
+        "decode_timings_seconds": [
+          3.84739644266665,
+          3.8507095901295543,
+          3.84703731816262
+        ],
+        "marginal_decode_ms_per_batch_step": 15.087829186928039,
+        "marginal_decode_tokens_per_second": 66.27858703930656,
+        "prefill_prompt_tokens_per_second": 6190.478883386726,
+        "prefill_seconds": 5.293290005065501,
+        "prefill_timings_seconds": [
+          5.288390317000449,
+          5.293290005065501,
+          5.2973701329901814
+        ],
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 32768,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London K",
+              "request_index": 0,
+              "sha256": "a62c7f4b56a3e4e421c7a3d0573cb52e3077e1206fda0f66a0af6fa62ffc7536",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 2048,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 2048
+              }
+            }
+          ],
+          "rejected_candidate_count": 0,
+          "rejected_candidates": []
+        },
+        "prompt_length": 32768,
+        "total_timings_seconds": [
+          9.180481625720859,
+          9.18866546265781,
+          9.189067168161273
+        ]
+      }
+    },
+    "65536": {
+      "speed": {
+        "decode_timings_seconds": [
+          4.925029743462801,
+          4.925727823749185,
+          4.925692253746092
+        ],
+        "marginal_decode_ms_per_batch_step": 19.316440210768988,
+        "marginal_decode_tokens_per_second": 51.76937308782682,
+        "prefill_prompt_tokens_per_second": 4654.261019204057,
+        "prefill_seconds": 14.08086046949029,
+        "prefill_timings_seconds": [
+          14.08086046949029,
+          14.084514614194632,
+          14.078788725659251
+        ],
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 65536,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London K",
+              "request_index": 0,
+              "sha256": "60616cd41a41250e75d360dc85c4b1105fc54e1702c226b3091d45421c20437e",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4096,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4096
+              }
+            }
+          ],
+          "rejected_candidate_count": 0,
+          "rejected_candidates": []
+        },
+        "prompt_length": 65536,
+        "total_timings_seconds": [
+          19.057077896781266,
+          19.061659169383347,
+          19.055642505176365
+        ]
+      }
+    },
+    "8192": {
+      "speed": {
+        "decode_timings_seconds": [
+          4.008333422243595,
+          4.009066012687981,
+          4.009316379204392
+        ],
+        "marginal_decode_ms_per_batch_step": 15.72182750073718,
+        "marginal_decode_tokens_per_second": 63.60583716830063,
+        "prefill_prompt_tokens_per_second": 8284.101228676216,
+        "prefill_seconds": 0.9888821700587869,
+        "prefill_timings_seconds": [
+          0.9888821700587869,
+          0.9886242831125855,
+          0.990236452780664
+        ],
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 8192,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London K",
+              "request_index": 0,
+              "sha256": "a64fee8bfd1036992595fae939af35ebb6fcd46c6a0cf218e4e3fdd7ed268868",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 512,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 512
+              }
+            }
+          ],
+          "rejected_candidate_count": 0,
+          "rejected_candidates": []
+        },
+        "prompt_length": 8192,
+        "total_timings_seconds": [
+          5.036801282316446,
+          5.037341305054724,
+          5.0390826826915145
+        ]
+      }
+    }
+  },
+  "sample_offset": 0,
+  "samples_per_length": 1,
+  "speculative_attention_backend": "TRITON_ATTN",
+  "speculative_method": "dflash",
+  "speculative_model": "z-lab/Qwen3.8-27B-DFlash2",
+  "speed_decode_tokens": 256,
+  "speed_prompt_reserve": 0,
+  "speed_repeats": 3,
+  "speed_use_warm_prefix_cache": false,
+  "tensor_parallel_size": 1
+}

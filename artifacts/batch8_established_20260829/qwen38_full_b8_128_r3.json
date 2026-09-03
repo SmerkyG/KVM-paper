@@ -1,0 +1,399 @@
+{
+  "allow_heterogeneous_global_config": false,
+  "apply_chat_template": true,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 245819768832,
+    "device_used_bytes_before_reclaim": 251215740928,
+    "external_lod_layers": 0,
+    "external_lod_layers_with_native_cache": 0,
+    "external_lod_native_cache_bytes": 0,
+    "lod_cache_bytes": 0,
+    "lod_decode_scratch_bytes": 0,
+    "native_cache_bytes": 204635897856,
+    "torch_allocated_bytes": 205064700416,
+    "torch_reclaimable_cached_bytes": 5395972096,
+    "torch_reserved_bytes_after_reclaim": 205223100416,
+    "torch_reserved_bytes_before_reclaim": 210619072512
+  },
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "diagnostic_external_empty_attention": null,
+  "disable_custom_all_reduce": false,
+  "disable_thinking": true,
+  "enable_prefix_caching": false,
+  "full_attention_backend": "ROCM_AITER_UNIFIED_ATTN",
+  "full_attention_dispatch": {
+    "records": [
+      {
+        "attention_callable": "aiter.ops.triton.attention.unified_attention.unified_attention",
+        "head_dim": 256,
+        "implementation_class": "vllm.v1.attention.backends.rocm_aiter_unified_attn.RocmAiterUnifiedAttentionImpl",
+        "kv_cache_dtype": "auto",
+        "kv_group_size": 6,
+        "kv_heads": 4,
+        "layers": 16,
+        "query_heads": 24,
+        "sliding_window": [
+          -1,
+          -1
+        ]
+      }
+    ],
+    "schema_version": 1
+  },
+  "language_model_only": true,
+  "lengths": [
+    131072
+  ],
+  "load_format": "ipc_cache",
+  "lod_diagnostics_before": null,
+  "long_prefill_token_threshold": 16384,
+  "max_new_tokens": 64,
+  "max_num_batched_tokens": 16384,
+  "mode": "full",
+  "model_impl": null,
+  "muse_native_text_config": false,
+  "results": {
+    "131072": {
+      "speed": {
+        "decode_timings_seconds": [
+          18.294901189859957,
+          18.32581359287724,
+          18.304054785054177
+        ],
+        "marginal_decode_ms_per_batch_step": 71.78060700021246,
+        "marginal_decode_tokens_per_second": 111.45071537185972,
+        "prefill_prompt_tokens_per_second": 3064.969830231253,
+        "prefill_seconds": 341.4480591872707,
+        "prefill_timings_seconds": [
+          341.4480591872707,
+          341.4636100050993,
+          341.25692831585184
+        ],
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 130816,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London K",
+              "request_index": 0,
+              "sha256": "bb69b2d2c81bdab8d61fa2dad4b52367ec15cf6318327c23ff706b0fbda7ef73",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                },
+                {
+                  "length": "65431",
+                  "stream_index": 1
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8176,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 8176
+              }
+            },
+            {
+              "decoded_prefix": "ulegu glance at him. Rukn chose that moment to bow deeply. His father had ordered it, though Rukn resented even the idea. The warrior stared coldly at him and Rukn watched as his eyes flickered around the inside of the tent, taking in every detail. Hulegu had yet to enter the shaded awning. He stood on the threshold glaring in, while his ten thousand continued to make an appalling racket all around them. Dust drifted in wisps through the air, visible in the light of the setting sun. Rukn struggled to remain calm. 'You must be thirsty,",
+              "request_index": 1,
+              "sha256": "f21eed18e5c6b9e796d07edad4283d4f117940bad76a5ef53722e65406911da6",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "65626",
+                  "stream_index": 2
+                },
+                {
+                  "length": "68110",
+                  "stream_index": 3
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8176,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 8176
+              }
+            },
+            {
+              "decoded_prefix": "Repo: playpark777/spafac-test ======================= File: app/assets/javascripts/profiles.coffee ======================= <gh_stars>0 $ -> $('.add-identification-attachment').click -> li_count = $(\"ul.list-unstyled.identification-attachments>li\").size() + 1 input = document.createElement('input') input.setAttribute('type', 'file') input.setAttribute('id', \"identification_image\" + li_count) input.setAttribute('name', \"identification[image\" + li_count + \"]\") input.setAttribute('class', 'row",
+              "request_index": 2,
+              "sha256": "89490299c3d53f506befe1d77c985585be665852c57b9a6b7eb002c51ea74a01",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "66409",
+                  "stream_index": 4
+                },
+                {
+                  "length": "65449",
+                  "stream_index": 5
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8176,
+                "max_identical_block_occurrences": 7,
+                "unique_block_ratio": 0.9717465753424658,
+                "unique_blocks": 7945
+              }
+            },
+            {
+              "decoded_prefix": "[Graduate School of Business Creation] Aiming to become a \u201ctax accountant x MBA\u201d who can work with managers to create a \u201cfuture vision for a company\u201d \u201cTax Accountant Exam Subject Exemption Briefing\u201d will be held on October 28th (Sat) NSG Group\u2019s Business Creation Graduate University (3-1-46 Yoneyama, Chuo-ku, Niigata City) will be offering a tax accountant exam subject exemption from 10:30 on Saturday, October 28, 2023 for those aiming to pass the tax accountant exam. An information",
+              "request_index": 3,
+              "sha256": "882919a342c4ada47b8d693ab2d34d6dcf273ce26e8d9dd6077f63687254175a",
+              "source_document_count": 3,
+              "source_documents": [
+                {
+                  "length": "1617",
+                  "stream_index": 6
+                },
+                {
+                  "length": "67588",
+                  "stream_index": 7
+                },
+                {
+                  "length": "65718",
+                  "stream_index": 8
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8176,
+                "max_identical_block_occurrences": 4,
+                "unique_block_ratio": 0.9957191780821918,
+                "unique_blocks": 8141
+              }
+            },
+            {
+              "decoded_prefix": "device { //In the next step we associate the GPU memory with the Kernel arguments //my_dev::dev_mem<uint> counts(devContext, 512), countx(devContext, 512); //Memory that should be alloced outside the function: //devMemCounts and devMemCountsx // make sure previous reset has finished. this->devMemCountsx.waitForCopyEvent(); //Kernel configuration parameters setupParams sParam; sParam.jobs = (N / 64) / 480 ; //",
+              "request_index": 4,
+              "sha256": "6a49138a601e884b4807d6b4e2f9dbb2a12fab5ccb38dcbf94af5fb82d789e29",
+              "source_document_count": 3,
+              "source_documents": [
+                {
+                  "length": "66365",
+                  "stream_index": 9
+                },
+                {
+                  "length": "912",
+                  "stream_index": 10
+                },
+                {
+                  "length": "66633",
+                  "stream_index": 11
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8176,
+                "max_identical_block_occurrences": 4,
+                "unique_block_ratio": 0.9914383561643836,
+                "unique_blocks": 8106
+              }
+            },
+            {
+              "decoded_prefix": "Whatever kind of Passover Seder one attends, there is a fifth question, usually only whispered, that arises sometime after those famous four questions which begin the long Maggid (literally, telling) section of the haggadah are recited: \u201cWhen do we eat?\u201d Of course, the haggadah itself says that \u201cwhoever elaborates in the retelling of the story of the exodus is surely praised\u201d and illustrates the point with the famous story of the five sages of the 2nd century, who stayed up all night doing just that: It happened that Rabbi Eliezer, Rabbi Joshua, Rabbi",
+              "request_index": 5,
+              "sha256": "04b58e714268db7ba14244d050568b0ed7a68d2a21b309f86d6615b91107c6c3",
+              "source_document_count": 7,
+              "source_documents": [
+                {
+                  "length": "2691",
+                  "stream_index": 12
+                },
+                {
+                  "length": "1396",
+                  "stream_index": 13
+                },
+                {
+                  "length": "995",
+                  "stream_index": 14
+                },
+                {
+                  "length": "727",
+                  "stream_index": 15
+                },
+                {
+                  "length": "65970",
+                  "stream_index": 16
+                },
+                {
+                  "length": "1349",
+                  "stream_index": 17
+                },
+                {
+                  "length": "65549",
+                  "stream_index": 18
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8176,
+                "max_identical_block_occurrences": 4,
+                "unique_block_ratio": 0.9926614481409002,
+                "unique_blocks": 8116
+              }
+            },
+            {
+              "decoded_prefix": "**LOUISE ALLAN** is a debut author from Western Australia. In 2014, this novel was awarded a Varuna residential fellowship and shortlisted for the City of Fremantle-TAG Hungerford Award. Louise grew up in Tasmania but now lives in Perth with her husband, children and dogs. Her first career was as a doctor before she took up writing in 2010. She has had several of her short stories, essays and articles published in literary anthologies and medical journals. She also has a passion for music. You can find her at her website: louisej",
+              "request_index": 6,
+              "sha256": "4e74940c182a0326934b96c3bb12ed909fbc068b609aab4679891746a3285ad8",
+              "source_document_count": 3,
+              "source_documents": [
+                {
+                  "length": "65672",
+                  "stream_index": 22
+                },
+                {
+                  "length": "2192",
+                  "stream_index": 23
+                },
+                {
+                  "length": "66851",
+                  "stream_index": 24
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8176,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 8176
+              }
+            },
+            {
+              "decoded_prefix": "## How Nancy Drew Saved My Life ## LAUREN BARATZ-LOGSTED For my mother, Lucille Baratz, one of the world's greatest ladies, and the woman who gave me my first Nancy Drew. Mom, if I keep putting off dedicating a book to you, will you stay with us forever? ## Contents Prologue Chapter 1 Chapter 2 Chapter 3 Chapter 4 Chapter 5 Chapter 6 Chapter 7 Chapter 8 Chapter 9 Chapter 10 Chapter 11",
+              "request_index": 7,
+              "sha256": "d5b74d7319027873d833067a872f392b9a93b26609276f4210b6b76c9bf01fb3",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "65604",
+                  "stream_index": 33
+                },
+                {
+                  "length": "66948",
+                  "stream_index": 34
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8176,
+                "max_identical_block_occurrences": 15,
+                "unique_block_ratio": 0.9675880626223092,
+                "unique_blocks": 7911
+              }
+            }
+          ],
+          "rejected_candidate_count": 3,
+          "rejected_candidates": [
+            {
+              "prospective_request_index": 6,
+              "reason": "unique_block_ratio_below_0.95",
+              "source_documents": [
+                {
+                  "length": "65565",
+                  "stream_index": 19
+                },
+                {
+                  "length": "801",
+                  "stream_index": 20
+                },
+                {
+                  "length": "66129",
+                  "stream_index": 21
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8176,
+                "max_identical_block_occurrences": 47,
+                "unique_block_ratio": 0.7502446183953033,
+                "unique_blocks": 6134
+              }
+            },
+            {
+              "prospective_request_index": 7,
+              "reason": "unique_block_ratio_below_0.95",
+              "source_documents": [
+                {
+                  "length": "67567",
+                  "stream_index": 25
+                },
+                {
+                  "length": "69990",
+                  "stream_index": 26
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8176,
+                "max_identical_block_occurrences": 15,
+                "unique_block_ratio": 0.9355430528375733,
+                "unique_blocks": 7649
+              }
+            },
+            {
+              "prospective_request_index": 7,
+              "reason": "unique_block_ratio_below_0.95",
+              "source_documents": [
+                {
+                  "length": "66033",
+                  "stream_index": 27
+                },
+                {
+                  "length": "684",
+                  "stream_index": 28
+                },
+                {
+                  "length": "843",
+                  "stream_index": 29
+                },
+                {
+                  "length": "970",
+                  "stream_index": 30
+                },
+                {
+                  "length": "1553",
+                  "stream_index": 31
+                },
+                {
+                  "length": "80254",
+                  "stream_index": 32
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8176,
+                "max_identical_block_occurrences": 96,
+                "unique_block_ratio": 0.8225293542074364,
+                "unique_blocks": 6725
+              }
+            }
+          ]
+        },
+        "prompt_length": 130816,
+        "total_timings_seconds": [
+          359.74769921274856,
+          359.79383184807375,
+          359.56579014705494
+        ]
+      }
+    }
+  },
+  "sample_offset": 0,
+  "samples_per_length": 8,
+  "speed_decode_tokens": 256,
+  "speed_prompt_reserve": 256,
+  "speed_repeats": 3,
+  "speed_use_warm_prefix_cache": false,
+  "tensor_parallel_size": 1
+}

@@ -1,0 +1,130 @@
+{
+  "allow_heterogeneous_global_config": true,
+  "apply_chat_template": true,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 223210373120,
+    "device_used_bytes_before_reclaim": 223751438336,
+    "external_lod_layers": 0,
+    "external_lod_layers_with_native_cache": 0,
+    "external_lod_native_cache_bytes": 0,
+    "lod_cache_bytes": 0,
+    "lod_decode_scratch_bytes": 0,
+    "native_cache_bytes": 202415308800,
+    "torch_allocated_bytes": 217613818368,
+    "torch_reclaimable_cached_bytes": 541065216,
+    "torch_reserved_bytes_after_reclaim": 218120585216,
+    "torch_reserved_bytes_before_reclaim": 218661650432
+  },
+  "batch_size": 1,
+  "checkpoint": "google/gemma-4-26B-A4B-it",
+  "diagnostic_external_empty_attention": null,
+  "disable_custom_all_reduce": false,
+  "disable_thinking": true,
+  "enable_prefix_caching": false,
+  "full_attention_backend": "TRITON_ATTN",
+  "full_attention_dispatch": {
+    "records": [
+      {
+        "attention_callable": "vllm.v1.attention.ops.triton_unified_attention.unified_attention",
+        "head_dim": 512,
+        "implementation_class": "vllm.v1.attention.backends.triton_attn.TritonAttentionImpl",
+        "kv_cache_dtype": "auto",
+        "kv_group_size": 4,
+        "kv_heads": 1,
+        "layers": 5,
+        "query_heads": 4,
+        "sliding_window": [
+          -1,
+          -1
+        ]
+      }
+    ],
+    "schema_version": 1
+  },
+  "gpu_memory_utilization": 0.8,
+  "language_model_only": true,
+  "lengths": [
+    8192
+  ],
+  "load_format": "auto",
+  "lod_diagnostics_before": null,
+  "long_prefill_token_threshold": 8272,
+  "max_new_tokens": 64,
+  "max_num_batched_tokens": 8192,
+  "mode": "full",
+  "model_impl": null,
+  "muse_native_text_config": false,
+  "num_speculative_tokens": 15,
+  "results": {
+    "8192": {
+      "speed": {
+        "decode_timings_seconds": [
+          0.30557167809456587
+        ],
+        "marginal_decode_ms_per_batch_step": 4.850344096739141,
+        "marginal_decode_tokens_per_second": 206.1709396395803,
+        "prefill_prompt_tokens_per_second": 61315.00282364254,
+        "prefill_seconds": 0.1294299867004156,
+        "prefill_timings_seconds": [
+          0.1294299867004156
+        ],
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 7936,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London",
+              "request_index": 0,
+              "sha256": "45b984da5963ab9a68f4afdf5a9c435cea84dde92f13ff705782561347c7ff82",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 496,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 496
+              }
+            }
+          ],
+          "rejected_candidate_count": 0,
+          "rejected_candidates": []
+        },
+        "prompt_length": 7936,
+        "speculative_accepted_tokens_per_repeat": [
+          40
+        ],
+        "speculative_active_row_cycles_per_repeat": [
+          24
+        ],
+        "speculative_draft_tokens_per_repeat": [
+          360
+        ],
+        "speculative_marginal_ms_per_target_cycle": 12.732153253940245,
+        "speculative_target_cycles_per_repeat": [
+          24
+        ],
+        "total_timings_seconds": [
+          0.4469207124784589
+        ]
+      }
+    }
+  },
+  "sample_offset": 0,
+  "samples_per_length": 8,
+  "speculative_attention_backend": "TRITON_ATTN",
+  "speculative_method": "dflash",
+  "speculative_model": "z-lab/gemma-4-26B-A4B-it-DFlash",
+  "speed_decode_tokens": 64,
+  "speed_prompt_reserve": 256,
+  "speed_repeats": 1,
+  "speed_use_warm_prefix_cache": false,
+  "tensor_parallel_size": 4
+}

@@ -116,21 +116,8 @@ and reads head-major key and value views over that storage. Conversion indexes
 the request block table in chronological order only after constructing those
 canonical views.
 
-The current adapter uses one mode for an entire attention batch. Authoritative
-mode uses LOD for prefill and decode. An automatic short-context native mode
-would require an LOD/native graph discriminator in vLLM's scheduler; a Python
-length check cannot change a graph after it has been captured.
-
-`VLLM_LOD_CACHE_OWNERSHIP=dual` preserves the complementary rebuild path for
-diagnosis: native K/V remains authoritative and LOD can be reconstructed before
-decode. It does not save server cache memory. Both ownership modes use the same
-architecture-aware routing geometry: normalized-key attention modules use
-coherence-corrected raw centroids, while unnormalized-key modules use spherical
-centroids. Exact protected K/V remains outside clustered state.
-
-In dual mode, rebuild conversion batches requests with the same logical prefix
-length and leaves the source vLLM blocks untouched. In mixed native
-prefill/decode batches, an already-exact one-token LOD copy consumes the current
-post-RoPE K/V directly instead of being discarded and rebuilt. Ordinary decode
-tokens advance the device-local tail inside the captured graph; eager catch-up
-runs only when coverage crosses a state-update boundary.
+The vLLM adapter now supports only externally owned semantic state for eligible
+CUSTOM layers. The former dual-cache conversion and mixed native/LOD execution
+paths were removed along with their placeholder cache geometries. Ordinary
+decode tokens advance the device-local tail inside the captured graph; eager
+catch-up runs only when coverage crosses a state-update boundary.

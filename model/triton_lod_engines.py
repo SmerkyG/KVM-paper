@@ -65,6 +65,8 @@ class _KernelLODEngine(TritonLODAttentionCore):
         self.state_growth_factor = config.state_growth_factor
         self.state_min_len = config.state_min_size
         self.state_size_offset = config.state_size_offset
+        self.state_premerge_factor = config.state_premerge_factor
+        self.state_split_max_leaves = config.state_split_max_leaves
         self.sink_len = config.protected_prefix
         self.state_clustering_normalization = (
             config.state_clustering_normalization
@@ -102,6 +104,11 @@ class _KernelLODEngine(TritonLODAttentionCore):
         self.mla_recursive_page_key_normalization = (
             config.mla_recursive_page_key_normalization
         )
+        self.leaf_paged_directory = config.leaf_paged_directory
+        self.leaf_seal_capacity = config.leaf_seal_capacity
+        self.prefill_int8_leaf_mma = config.prefill_int8_leaf_mma
+        self.prefill_int8_coarse_mma = config.prefill_int8_coarse_mma
+        self.prefill_int8_pv_mma = config.prefill_int8_pv_mma
         self.mla_key_norm_weight = None
         self.mla_key_norm_epsilon = 0.0
         self.collect_dynamic_open_stats = (
@@ -271,6 +278,9 @@ class KernelTwoLevelLODAttention(_KernelLODEngine):
         self.leaf_page_size = 16
         self.virtual_page_storage = False
         self.recursive_page_lod = False
+        if config.prefill_int8_leaf_mma:
+            self.leaf_layout = "expert"
+            self.leaf_num_warps = 2
 
 
 class KernelCoarseLODAttention(_KernelLODEngine):
@@ -318,6 +328,8 @@ class KernelCoarseLODAttention(_KernelLODEngine):
         *,
         logical_prefill_len: int | None = None,
         prefill_valid_starts: torch.Tensor | None = None,
+        output_buffer: torch.Tensor | None = None,
+        finalize_cache_for_decode: bool = True,
     ) -> torch.Tensor:
         output = super()._prefill_attention(
             query,
@@ -325,6 +337,8 @@ class KernelCoarseLODAttention(_KernelLODEngine):
             value,
             logical_prefill_len=logical_prefill_len,
             prefill_valid_starts=prefill_valid_starts,
+            output_buffer=output_buffer,
+            finalize_cache_for_decode=finalize_cache_for_decode,
         )
         # The common prefill path records these tensors for exact leaf opening.
         # Low-LOD attention never reads them, so retain typed empty sentinels.
@@ -347,7 +361,7 @@ class KernelCoarseLODAttention(_KernelLODEngine):
 
 
 class KernelRecursivePagedLODAttention(_KernelLODEngine):
-    """Fast recursive one-page-per-region LOD with optional INT4 K/V."""
+    """Fast recursive one-page-per-region LOD with optional INT4/INT8 K/V."""
 
     def __init__(
         self,
@@ -372,6 +386,16 @@ class KernelRecursivePagedLODAttention(_KernelLODEngine):
         self.leaf_page_size = config.page_size
         self.virtual_page_storage = True
         self.recursive_page_lod = True
+        self.page_summary_quant_bits = config.page_summary_quant_bits
+        self.recursive_materialize_page_scores = (
+            config.recursive_materialize_page_scores
+        )
+        self.recursive_page_score_block_n = config.recursive_page_score_block_n
+        self.recursive_page_score_num_warps = (
+            config.recursive_page_score_num_warps
+        )
+        self.recursive_page_select_block_n = config.recursive_page_select_block_n
+        self.recursive_state_route_backend = config.recursive_state_route_backend
         # Amortize prefill routing and state maintenance without changing the
         # smaller decode-local field.  The extra exact lookback preserves three
         # decode chunks before each large causal prefill region.
@@ -383,6 +407,7 @@ class KernelRecursivePagedLODAttention(_KernelLODEngine):
         self.prefill_two_level_topk = min(3, default_open_count)
         self.split_prefill_local_attention = True
         self.leaf_num_warps = 1
+        self.recursive_page_attention_num_warps = self.leaf_num_warps
         self.prefill_route_block_m = 128
         self.prefill_route_num_warps = 8
         # Four-page scans amortize recursive page-selection loop overhead.
@@ -441,6 +466,7 @@ class KernelRecursivePagedLODAttention(_KernelLODEngine):
             raise TypeError("LOD key-norm sum cache is invalid")
 
         state_len = int(state["state_len"])
+        scheduled_state_len = int(state.get("scheduled_state_len", state_len))
         coverage = int(state["coverage"])
         if recent_length is None:
             recent_length = total_length - coverage
@@ -465,6 +491,17 @@ class KernelRecursivePagedLODAttention(_KernelLODEngine):
             if overflow_len > recent_length:
                 raise AssertionError("LOD decode-local cache underflowed during catch-up")
             state_capacity = int(state["state_capacity"])
+            update_ctx_len = exact_floor + target_coverage
+            next_scheduled_state_len = (
+                self._next_scheduled_state_len(
+                    scheduled_state_len,
+                    ctx_len=update_ctx_len,
+                    available_context=target_coverage,
+                    overflow_len=overflow_len,
+                )
+                if self.state_split_max_leaves is not None
+                else scheduled_state_len
+            )
             (
                 state_k,
                 state_v,
@@ -480,10 +517,16 @@ class KernelRecursivePagedLODAttention(_KernelLODEngine):
                 recent_k[..., :overflow_len, :],
                 recent_v[..., :overflow_len, :],
                 state_len=state_len,
-                ctx_len=exact_floor + target_coverage,
+                ctx_len=update_ctx_len,
                 available_context=target_coverage,
                 state_capacity=state_capacity,
                 clustering_query_scale=None,
+                scheduled_state_len=scheduled_state_len,
+            )
+            scheduled_state_len = (
+                next_scheduled_state_len
+                if self.state_split_max_leaves is not None
+                else state_len
             )
             if old_slot_remap is not None:
                 raise AssertionError("paged state remapping is unsupported")
@@ -495,11 +538,17 @@ class KernelRecursivePagedLODAttention(_KernelLODEngine):
             )
             remaining = recent_length - overflow_len
             if remaining:
+                # Source and destination are overlapping views of the same
+                # fixed recent-cache row.  PyTorch rejects the otherwise
+                # memmove-like slice copy when a catch-up leaves a non-empty
+                # suffix (notably after repeated speculative generations).
+                # Catch-up runs only at the amortized state-update boundary,
+                # so materialize the short exact suffix before shifting it.
                 recent_k[..., :remaining, :].copy_(
-                    recent_k[..., overflow_len:recent_length, :]
+                    recent_k[..., overflow_len:recent_length, :].clone()
                 )
                 recent_v[..., :remaining, :].copy_(
-                    recent_v[..., overflow_len:recent_length, :]
+                    recent_v[..., overflow_len:recent_length, :].clone()
                 )
             recent_length = remaining
             coverage = target_coverage
@@ -509,6 +558,7 @@ class KernelRecursivePagedLODAttention(_KernelLODEngine):
             state_v=state_v.detach(),
             counts=counts.detach(),
             state_len=state_len,
+            scheduled_state_len=scheduled_state_len,
             coverage=coverage,
             recent_k=recent_k.detach(),
             recent_v=recent_v.detach(),
@@ -517,6 +567,14 @@ class KernelRecursivePagedLODAttention(_KernelLODEngine):
         )
         if key_norm_sums is not None:
             state["key_norm_sums"] = key_norm_sums.detach()
+
+
+# Cache catch-up archives exact recent tokens through the common semantic-page
+# updater and does not depend on recursive page selection. Serving uses the
+# same graph-safe operation for flat two-tier caches.
+KernelTwoLevelLODAttention.catch_up_cache = (  # type: ignore[attr-defined]
+    KernelRecursivePagedLODAttention.catch_up_cache
+)
 
 
 __all__ = [

@@ -11,17 +11,115 @@ import torch.nn.functional as F
 
 from model.kernels.lod_kernels import (
     apply_residual_mass_opening,
+    expand_adjacent_group_owners,
     merge_state_in_place,
     new_route_buffers,
     new_state_delta_buffers,
     new_state_maxsim_buffers,
     prepare_state_clustering_keys,
+    premerge_adjacent_kv,
     route_logits_coarse_attention,
     route_logits_topk_coarse_attention,
     route_top8_scores_grouped,
     route_top8_state_grouped,
     streaming_state_maxsim,
 )
+from model.pytorch_lod_attention import _sum_adjacent_groups
+
+
+def verify_adjacent_premerge_kernels() -> dict[str, dict[str, float | bool]]:
+    results = {}
+    for factor in (2, 4, 8, 16, 32):
+        batch, heads, length, key_dim, value_dim = 2, 3, 257, 128, 64
+        key_storage = torch.randn(
+            batch,
+            heads,
+            length + 5,
+            key_dim,
+            device="cuda",
+            dtype=torch.bfloat16,
+        )
+        value_storage = torch.randn(
+            batch,
+            heads,
+            length + 5,
+            value_dim,
+            device="cuda",
+            dtype=torch.bfloat16,
+        )
+        key = key_storage[..., 2 : 2 + length, :]
+        value = value_storage[..., 2 : 2 + length, :]
+        groups = (length + factor - 1) // factor
+        key_workspace = torch.empty(
+            batch,
+            heads,
+            groups + 7,
+            key_dim,
+            device="cuda",
+            dtype=key.dtype,
+        )
+        value_workspace = torch.empty(
+            batch,
+            heads,
+            groups + 7,
+            value_dim,
+            device="cuda",
+            dtype=value.dtype,
+        )
+        count_workspace = torch.empty(
+            batch,
+            heads,
+            groups + 7,
+            1,
+            device="cuda",
+            dtype=torch.float32,
+        )
+        actual_key, actual_value, actual_count = premerge_adjacent_kv(
+            key,
+            value,
+            factor,
+            grouped_key=key_workspace,
+            grouped_value=value_workspace,
+            grouped_count=count_workspace,
+        )
+        expected_key = _sum_adjacent_groups(key, factor)
+        expected_value = _sum_adjacent_groups(value, factor)
+        expected_count = torch.full_like(actual_count, float(factor))
+        expected_count[..., -1, 0] = float(length % factor or factor)
+        group_owners = torch.randint(
+            0,
+            97,
+            (batch, heads, groups),
+            device="cuda",
+            dtype=torch.long,
+        )
+        owner_workspace = torch.empty(
+            batch,
+            heads,
+            length + 31,
+            device="cuda",
+            dtype=torch.long,
+        )
+        actual_owners = expand_adjacent_group_owners(
+            group_owners,
+            length,
+            factor,
+            output=owner_workspace,
+        )
+        expected_owners = group_owners.repeat_interleave(factor, dim=2)[
+            ..., :length
+        ]
+        results[str(factor)] = {
+            "key_max_abs": float(
+                (actual_key - expected_key).abs().max().item()
+            ),
+            "value_max_abs": float(
+                (actual_value - expected_value).abs().max().item()
+            ),
+            "counts_exact": bool(torch.equal(actual_count, expected_count)),
+            "owners_exact": bool(torch.equal(actual_owners, expected_owners)),
+        }
+    return results
 
 
 def verify_route_logits_coarse_attention(
@@ -96,6 +194,22 @@ def verify_route_logits_coarse_attention(
         scale=scale,
         num_warps=2,
         precompute_mean_values=True,
+    )
+    int8_output, int8_lse = route_logits_coarse_attention(
+        q.contiguous(),
+        route_logits.contiguous(),
+        state_v.contiguous(),
+        counts.contiguous(),
+        local_k.contiguous(),
+        local_v.contiguous(),
+        top_slots,
+        state_len=state_len,
+        kv_group_size=kv_group_size,
+        scale=scale,
+        block_n=64,
+        num_warps=2,
+        precompute_mean_values=True,
+        int8_state_pv=True,
     )
     zero_route_output, zero_route_lse = route_logits_coarse_attention(
         q.contiguous(),
@@ -257,6 +371,15 @@ def verify_route_logits_coarse_attention(
         ),
         "warp2_lse_max_abs": float(
             (warp2_lse - precomputed_lse).abs().max().item()
+        ),
+        "int8_output_max_abs": float(
+            (int8_output.float() - expected_output).abs().max().item()
+        ),
+        "int8_output_mean_abs": float(
+            (int8_output.float() - expected_output).abs().mean().item()
+        ),
+        "int8_lse_max_abs": float(
+            (int8_lse - expected_lse).abs().max().item()
         ),
         "output_max_abs": float(
             (actual_output.float() - expected_output).abs().max().item()
@@ -1060,6 +1183,7 @@ def main() -> None:
         "buffers_cleared": bool(delta_buffers_cleared),
         "routing": route_results,
         "streaming_state_maxsim": maxsim_result,
+        "adjacent_premerge": verify_adjacent_premerge_kernels(),
         "streaming_state_geometries": verify_streaming_state_geometries(),
         "incremental_state_geometries": verify_incremental_state_geometries(),
         "key_norm_update_max_abs": key_norm_update_max_abs,
@@ -1087,6 +1211,16 @@ def main() -> None:
     print(json.dumps(result, indent=2, sort_keys=True))
     if not result["counts_exact"] or not result["owners_exact"]:
         raise AssertionError("fused state metadata differs from the reference")
+    for factor, premerge_result in result["adjacent_premerge"].items():
+        if (
+            premerge_result["key_max_abs"] != 0.0
+            or premerge_result["value_max_abs"] != 0.0
+            or not premerge_result["counts_exact"]
+            or not premerge_result["owners_exact"]
+        ):
+            raise AssertionError(
+                f"fused adjacent premerge factor {factor} differs from reference"
+            )
     if min(item["slot_recall"] for item in route_results.values()) < 0.999:
         raise AssertionError(
             "fused top-8 routing differs materially from the reference"
@@ -1114,6 +1248,14 @@ def main() -> None:
         raise AssertionError("fused route-logit coarse output differs materially")
     if result["route_logits_coarse_attention"]["lse_max_abs"] > 0.02:
         raise AssertionError("fused route-logit coarse LSE differs materially")
+    # The synthetic state deliberately spans a much wider centroid-norm range
+    # than the model.  A single outlier coordinate is therefore not a useful
+    # INT8 criterion; bound the aggregate output perturbation here and cover
+    # model-level sensitivity with the paired CE/NIAH probes.
+    if result["route_logits_coarse_attention"]["int8_output_mean_abs"] > 0.03:
+        raise AssertionError("INT8 route-logit coarse output differs materially")
+    if result["route_logits_coarse_attention"]["int8_lse_max_abs"] > 0.02:
+        raise AssertionError("INT8 route-logit coarse LSE differs materially")
     if result["route_logits_coarse_attention"]["split_output_max_abs"] > 0.02:
         raise AssertionError("split local/coarse output differs materially")
     if result["route_logits_coarse_attention"]["split_lse_max_abs"] > 0.02:

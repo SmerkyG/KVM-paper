@@ -1,0 +1,135 @@
+{
+  "allow_heterogeneous_global_config": true,
+  "apply_chat_template": true,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 192191397888,
+    "device_used_bytes_before_reclaim": 193890091008,
+    "external_lod_layers": 0,
+    "external_lod_layers_with_native_cache": 0,
+    "external_lod_native_cache_bytes": 0,
+    "lod_cache_bytes": 0,
+    "lod_decode_scratch_bytes": 0,
+    "native_cache_bytes": 135067074560,
+    "torch_allocated_bytes": 136802809344,
+    "torch_reclaimable_cached_bytes": 1698693120,
+    "torch_reserved_bytes_after_reclaim": 136866430976,
+    "torch_reserved_bytes_before_reclaim": 138565124096
+  },
+  "batch_size": 1,
+  "checkpoint": "google/gemma-4-26B-A4B-it",
+  "diagnostic_external_empty_attention": null,
+  "disable_custom_all_reduce": false,
+  "disable_thinking": true,
+  "enable_prefix_caching": true,
+  "full_attention_backend": "TRITON_ATTN",
+  "full_attention_dispatch": {
+    "records": [
+      {
+        "attention_callable": "vllm.v1.attention.ops.triton_unified_attention.unified_attention",
+        "head_dim": 512,
+        "implementation_class": "vllm.v1.attention.backends.triton_attn.TritonAttentionImpl",
+        "kv_cache_dtype": "auto",
+        "kv_group_size": 8,
+        "kv_heads": 2,
+        "layers": 5,
+        "query_heads": 16,
+        "sliding_window": [
+          -1,
+          -1
+        ]
+      }
+    ],
+    "schema_version": 1
+  },
+  "language_model_only": true,
+  "lengths": [
+    65536
+  ],
+  "load_format": "ipc_cache",
+  "lod_diagnostics_before": null,
+  "long_prefill_token_threshold": 16384,
+  "max_new_tokens": 64,
+  "max_num_batched_tokens": 16384,
+  "mode": "full",
+  "model_impl": null,
+  "muse_native_text_config": false,
+  "results": {
+    "65536": {
+      "speed": {
+        "decode_timings_seconds": [
+          2.4214096223004162,
+          2.417815621010959,
+          2.418065727688372,
+          2.421726668253541,
+          2.419526138342917
+        ],
+        "marginal_decode_ms_per_batch_step": 9.488337797423204,
+        "marginal_decode_tokens_per_second": 105.39253780273033,
+        "prefill_prompt_tokens_per_second": 1341420.4577903156,
+        "prefill_seconds": 0.04866483109071851,
+        "prefill_timings_seconds": [
+          0.04808895895257592,
+          0.04935416113585234,
+          0.04866483109071851,
+          0.048420344945043325,
+          0.049217942636460066
+        ],
+        "prefix_cache_probe": {
+          "decode_seconds": 2.422731304075569,
+          "elapsed_seconds": 2.4835330611094832,
+          "matching_output_prefix_tokens": [
+            256
+          ],
+          "matching_output_requests": 1,
+          "output_requests": 1,
+          "outputs_match_cold": true,
+          "prefill_seconds": 0.053057591896504164
+        },
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 65280,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London",
+              "request_index": 0,
+              "sha256": "ae9857ba496b5842ee3bb6a049a07f55c0f37feb7b7579d4083fcc5430eaa63f",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4080,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4080
+              }
+            }
+          ],
+          "rejected_candidate_count": 0,
+          "rejected_candidates": []
+        },
+        "prompt_length": 65280,
+        "total_timings_seconds": [
+          2.4768060920760036,
+          2.4750222163274884,
+          2.4739405708387494,
+          2.477086997590959,
+          2.475850655231625
+        ]
+      }
+    }
+  },
+  "sample_offset": 0,
+  "samples_per_length": 1,
+  "speed_decode_tokens": 256,
+  "speed_prompt_reserve": 256,
+  "speed_repeats": 5,
+  "speed_use_warm_prefix_cache": true,
+  "tensor_parallel_size": 1
+}

@@ -50,7 +50,7 @@ def main() -> None:
     )
     config = composite_config.get_text_config(decoder=True)
     is_qwen35 = type(config).__module__.startswith(
-        "transformers.models.qwen3_5."
+        ("transformers.models.qwen3_5.", "transformers.models.qwen3_5_moe.")
     )
     if is_qwen35:
         from scripts.probe_qwen35_lod_niah import enable_fla_fast_path

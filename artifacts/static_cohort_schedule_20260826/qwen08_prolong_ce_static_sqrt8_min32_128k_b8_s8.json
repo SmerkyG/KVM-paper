@@ -1,0 +1,446 @@
+{
+  "apply_chat_template": false,
+  "attention_exercised": "direct_lod_prefill",
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.5-0.8B",
+  "concatenate_prolong": true,
+  "disable_thinking": false,
+  "elapsed_seconds": 28.27725717239082,
+  "enforce_eager": false,
+  "eval": "prolong",
+  "length": 131072,
+  "lod_diagnostics_after": {
+    "batched_cached_prefill_rows": 1116,
+    "batched_cached_prefills": 372,
+    "catch_up_batches": 0,
+    "catch_up_rows": 0,
+    "custom_impl_sliding_windows": {
+      "(-1, -1)": 6
+    },
+    "custom_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "decode_calls": 48,
+    "decode_gqa_fixed_mask_configured": [
+      false
+    ],
+    "decode_gqa_fixed_mask_executed": [],
+    "decode_gqa_staged_fixed_configured": [
+      false
+    ],
+    "decode_gqa_staged_fixed_executed": [],
+    "decode_gqa_static_leaf_aiter_configured": [
+      true
+    ],
+    "decode_gqa_static_leaf_aiter_executed": [
+      true
+    ],
+    "decode_gqa_static_leaf_caps": [
+      46
+    ],
+    "decode_gqa_union_aiter_final": [],
+    "decode_gqa_union_configured": [
+      true
+    ],
+    "decode_gqa_union_eligible": [],
+    "decode_gqa_union_hip_configured": [
+      true
+    ],
+    "decode_gqa_union_hip_executed": [],
+    "decode_gqa_union_predicted_mass": [],
+    "decode_gqa_union_requested": [],
+    "decode_gqa_union_score_only": [],
+    "decode_max_open_leaves": [
+      1024
+    ],
+    "decode_open_counts": [
+      8
+    ],
+    "decode_route_cohort": [
+      false
+    ],
+    "direct_prefill_calls": 390,
+    "effective_decode_route_leaf_limits": [
+      1024
+    ],
+    "eligible_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "gqa_route_mass_threshold_hits": {
+      "16": 0,
+      "32": 0,
+      "64": 0,
+      "128": 0,
+      "256": 0
+    },
+    "gqa_route_max_mass": null,
+    "gqa_union_centroid_count_max": 0,
+    "gqa_union_centroid_count_mean": 0.0,
+    "gqa_union_epoch_max": 1,
+    "gqa_union_exact_token_count_max": 0,
+    "gqa_union_exact_token_count_mean": 0.0,
+    "gqa_union_nonempty_sequences": 96,
+    "gqa_union_sequence_count": 96,
+    "gqa_union_token_count_max": 1,
+    "gqa_union_token_count_mean": 1.0,
+    "install_count": 48,
+    "pooled_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "prefill_coarse_direct_gqa_configured": [
+      [
+        false,
+        64,
+        32,
+        8
+      ]
+    ],
+    "prefill_coarse_direct_gqa_executed": [],
+    "recursive_state_route_backends": [
+      "fused"
+    ],
+    "routing_geometries": [
+      [
+        "none",
+        "coherence",
+        "none"
+      ]
+    ],
+    "selected_route_count_max": 0.0,
+    "state_centroids_at_or_above_open_limit": 0,
+    "state_count_max": 0.0,
+    "state_v_abs_max": 42752.0,
+    "state_v_nonfinite": 0,
+    "static_leaf_count_distribution": [
+      {
+        "centroid_fraction": 0.06770781338391402,
+        "leaf_count": "1",
+        "leaf_fraction": 0.0030460852915109708
+      },
+      {
+        "centroid_fraction": 0.061855262720042596,
+        "leaf_count": "2",
+        "leaf_fraction": 0.005565573500526971
+      },
+      {
+        "centroid_fraction": 0.12085288343149979,
+        "leaf_count": "3-4",
+        "leaf_fraction": 0.01895075812014947
+      },
+      {
+        "centroid_fraction": 0.1889537785764201,
+        "leaf_count": "5-8",
+        "leaf_fraction": 0.05417400234741784
+      },
+      {
+        "centroid_fraction": 0.21217887923862766,
+        "leaf_count": "9-16",
+        "leaf_fraction": 0.11471722822051356
+      },
+      {
+        "centroid_fraction": 0.17843624172240524,
+        "leaf_count": "17-32",
+        "leaf_fraction": 0.18601779950536554
+      },
+      {
+        "centroid_fraction": 0.10758169445276364,
+        "leaf_count": "33-64",
+        "leaf_fraction": 0.21643299155049345
+      },
+      {
+        "centroid_fraction": 0.043401217929519814,
+        "leaf_count": "65-128",
+        "leaf_fraction": 0.17051378209734597
+      },
+      {
+        "centroid_fraction": 0.01312352334364913,
+        "leaf_count": "129-256",
+        "leaf_fraction": 0.10164231295511163
+      },
+      {
+        "centroid_fraction": 0.004130478187081961,
+        "leaf_count": "257-512",
+        "leaf_fraction": 0.06429387335920284
+      },
+      {
+        "centroid_fraction": 0.0015140927090612625,
+        "leaf_count": "513-1024",
+        "leaf_fraction": 0.04662264883946536
+      },
+      {
+        "centroid_fraction": 0.0002641343050148082,
+        "leaf_count": ">1024",
+        "leaf_fraction": 0.018022944212896425
+      }
+    ],
+    "static_opened_centroid_fraction": 0.89591236564507,
+    "static_opened_centroids": 430769,
+    "static_opened_leaf_fraction": 0.49710315464213856,
+    "static_opened_leaves": 5312784.0,
+    "static_total_centroids": 480816,
+    "static_total_leaves": 10687488.0
+  },
+  "lod_diagnostics_before": {
+    "batched_cached_prefill_rows": 0,
+    "batched_cached_prefills": 0,
+    "catch_up_batches": 0,
+    "catch_up_rows": 0,
+    "custom_impl_sliding_windows": {
+      "(-1, -1)": 6
+    },
+    "custom_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "decode_calls": 48,
+    "decode_gqa_fixed_mask_configured": [
+      false
+    ],
+    "decode_gqa_fixed_mask_executed": [],
+    "decode_gqa_staged_fixed_configured": [
+      false
+    ],
+    "decode_gqa_staged_fixed_executed": [],
+    "decode_gqa_static_leaf_aiter_configured": [
+      true
+    ],
+    "decode_gqa_static_leaf_aiter_executed": [
+      true
+    ],
+    "decode_gqa_static_leaf_caps": [
+      null
+    ],
+    "decode_gqa_union_aiter_final": [],
+    "decode_gqa_union_configured": [
+      true
+    ],
+    "decode_gqa_union_eligible": [],
+    "decode_gqa_union_hip_configured": [
+      true
+    ],
+    "decode_gqa_union_hip_executed": [],
+    "decode_gqa_union_predicted_mass": [],
+    "decode_gqa_union_requested": [],
+    "decode_gqa_union_score_only": [],
+    "decode_max_open_leaves": [
+      1024
+    ],
+    "decode_open_counts": [
+      8
+    ],
+    "decode_route_cohort": [
+      false
+    ],
+    "direct_prefill_calls": 0,
+    "effective_decode_route_leaf_limits": [
+      1024
+    ],
+    "eligible_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "gqa_route_mass_threshold_hits": {
+      "16": 0,
+      "32": 0,
+      "64": 0,
+      "128": 0,
+      "256": 0
+    },
+    "gqa_route_max_mass": null,
+    "gqa_union_centroid_count_max": 0,
+    "gqa_union_centroid_count_mean": 0.0,
+    "gqa_union_epoch_max": 1,
+    "gqa_union_exact_token_count_max": 0,
+    "gqa_union_exact_token_count_mean": 0.0,
+    "gqa_union_nonempty_sequences": 96,
+    "gqa_union_sequence_count": 96,
+    "gqa_union_token_count_max": 1,
+    "gqa_union_token_count_mean": 1.0,
+    "install_count": 0,
+    "pooled_layers": [
+      "language_model.model.layers.3.self_attn.attn",
+      "language_model.model.layers.7.self_attn.attn",
+      "language_model.model.layers.11.self_attn.attn",
+      "language_model.model.layers.15.self_attn.attn",
+      "language_model.model.layers.19.self_attn.attn",
+      "language_model.model.layers.23.self_attn.attn"
+    ],
+    "prefill_coarse_direct_gqa_configured": [
+      [
+        false,
+        64,
+        32,
+        8
+      ]
+    ],
+    "prefill_coarse_direct_gqa_executed": [],
+    "recursive_state_route_backends": [
+      "fused"
+    ],
+    "routing_geometries": [
+      [
+        "none",
+        "coherence",
+        "none"
+      ]
+    ],
+    "selected_route_count_max": 0.0,
+    "state_centroids_at_or_above_open_limit": 0,
+    "state_count_max": 0.0,
+    "state_v_abs_max": 0.0,
+    "state_v_nonfinite": 0,
+    "static_leaf_count_distribution": [
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "1",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "2",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "3-4",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "5-8",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "9-16",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "17-32",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "33-64",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "65-128",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "129-256",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "257-512",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "513-1024",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": ">1024",
+        "leaf_fraction": 0.0
+      }
+    ],
+    "static_opened_centroid_fraction": 0.0,
+    "static_opened_centroids": 0,
+    "static_opened_leaf_fraction": 0.0,
+    "static_opened_leaves": 0.0,
+    "static_total_centroids": 0,
+    "static_total_leaves": 0.0
+  },
+  "lod_prefill_route_block_m": null,
+  "lod_prefill_route_num_warps": null,
+  "lod_recursive_page_block_n": null,
+  "lod_recursive_state_route_backend": null,
+  "long_prefill_token_threshold": 4096,
+  "loss": 1.3240811502107228,
+  "max_num_batched_tokens": 16384,
+  "mode": "lod",
+  "perplexity": 3.758730059471136,
+  "prediction_tokens": 1048568,
+  "requested_samples": 8,
+  "samples": [
+    {
+      "loss": 0.7444823962969636,
+      "perplexity": 2.1053514152172204,
+      "sample": 0,
+      "tokens": 131072
+    },
+    {
+      "loss": 0.5185293777314437,
+      "perplexity": 1.6795558403753172,
+      "sample": 1,
+      "tokens": 131072
+    },
+    {
+      "loss": 1.7887737574340274,
+      "perplexity": 5.982112446064388,
+      "sample": 2,
+      "tokens": 131072
+    },
+    {
+      "loss": 1.6692248972209756,
+      "perplexity": 5.3080519164802755,
+      "sample": 3,
+      "tokens": 131072
+    },
+    {
+      "loss": 2.5512102891481905,
+      "perplexity": 12.822613465097895,
+      "sample": 4,
+      "tokens": 131072
+    },
+    {
+      "loss": 0.33684309693364284,
+      "perplexity": 1.4005193007254646,
+      "sample": 5,
+      "tokens": 131072
+    },
+    {
+      "loss": 1.356675213734373,
+      "perplexity": 3.8832608026281874,
+      "sample": 6,
+      "tokens": 131072
+    },
+    {
+      "loss": 1.626910173186165,
+      "perplexity": 5.088128967925252,
+      "sample": 7,
+      "tokens": 131072
+    }
+  ],
+  "static_cohort_never_readmit": false
+}

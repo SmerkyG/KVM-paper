@@ -38,8 +38,8 @@ class LODServerConfig:
     left_padding_mode: str = "chunk_aligned"
 
     def __post_init__(self) -> None:
-        if self.kv_bits not in (0, 4):
-            raise ValueError("kv_bits must be 0 (BF16) or 4")
+        if self.kv_bits not in (0, 4, 8):
+            raise ValueError("kv_bits must be 0 (BF16), 4, or 8")
         if not 0 <= self.open_count <= 8:
             raise ValueError("open_count must be in [0, 8]")
         if self.engine_backend not in ("torch", "kernel"):
@@ -55,6 +55,8 @@ class LODServerConfig:
             max_routes=8,
             page_size=self.page_size,
             kv_bits=self.kv_bits,
+            state_clustering_policy="qk_norm_aware",
+            routing_normalization="qk_norm_aware",
         )
 
 
@@ -130,7 +132,7 @@ class LODModelManager(ModelManager):
             get_text_config(decoder=True) if callable(get_text_config) else config
         )
         is_qwen35 = type(text_config).__module__.startswith(
-            "transformers.models.qwen3_5."
+            ("transformers.models.qwen3_5.", "transformers.models.qwen3_5_moe.")
         )
         if is_qwen35:
             from scripts.probe_qwen35_lod_niah import enable_fla_fast_path
