@@ -610,6 +610,7 @@ def evaluate_speed(args, tokenizer, llm, length: int) -> dict:
                 "decode_gqa_staged_fixed_executed",
                 "decode_gqa_fixed_mask_configured",
                 "decode_gqa_fixed_mask_executed",
+                "decode_gqa_cooperative_effective",
                 "decode_gqa_overlap_local_sink_configured",
                 "decode_gqa_overlap_local_sink_executed",
                 "decode_gqa_direct_fixed_routes_configured",
@@ -696,6 +697,7 @@ def evaluate_speed(args, tokenizer, llm, length: int) -> dict:
             )
         if (
             execution_audit["decode_gqa_fixed_mask_configured"] == [True]
+            and execution_audit["decode_gqa_cooperative_effective"] != [True]
             and execution_audit["decode_gqa_fixed_mask_executed"] != [True]
         ):
             raise RuntimeError(
@@ -725,6 +727,7 @@ def evaluate_speed(args, tokenizer, llm, length: int) -> dict:
             execution_audit["decode_gqa_union_hip_configured"] == [True]
             and execution_audit["decode_gqa_static_leaf_aiter_configured"]
             != [True]
+            and execution_audit["decode_gqa_cooperative_effective"] != [True]
             and execution_audit["decode_gqa_union_hip_executed"] != [True]
         ):
             raise RuntimeError(

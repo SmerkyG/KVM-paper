@@ -53,13 +53,14 @@ kernel first reads the block byte; a fully inactive tile exits without loading
 its lane mask or K/V and without issuing QK or PV MFMA. Partially active tiles
 retain the ordinary AITER-shaped online softmax, including `log(count)` on
 unopened coarse entries. The production fixed scan uses 256 segments for D=256
-heads and 128 for D=512 heads. K2's D=128/GQA8 geometry instead builds the
-compact union of the eight routes from each related query head and feeds only
-those exact leaves, the local field, sinks, and unopened coarse entries to the
-same page-size-one AITER kernel. This avoids scanning K2's nearly dense fixed
-owner mask. Both paths require two-level BF16 GQA-union decode. The controls
-described below are experimental-profile diagnostics and are not accepted by
-production.
+heads and 128 for D=512 heads. K2's D=128/GQA8 and Qwen3.5-0.8B's D=256/GQA4
+geometries instead build the compact union of the eight routes from each
+related query head and feed only those exact leaves, the local field, sinks,
+and unopened coarse entries to the same page-size-one AITER kernel. This avoids
+scanning their nearly dense fixed owner masks. Qwen3.8's D=256/GQA6 geometry
+retains fixed-mask scan because compact-union leaf attention is slower there.
+Both paths require two-level BF16 GQA-union decode. The controls described below
+are experimental-profile diagnostics and are not accepted by production.
 `VLLM_LOD_DECODE_GQA_FIXED_MASK_BLOCK_N` selects the experimental fast-fail
 tile width (16, 64, or 128; default 64), and
 `VLLM_LOD_DECODE_GQA_FIXED_MASK_SEGMENTS` selects 8--512 split segments
@@ -597,13 +598,14 @@ the row is observed again.
 The optional `VLLM_LOD_MAX_CONTEXT` caps each LOD row. It defaults to vLLM's
 `max_model_len`. Production fixes 256-token state chunks, a 512-token decode
 local window, a `16 * sqrt(T)` state schedule, dense BF16 leaves, top-eight
-GQA-union decode, and automatic spherical/coherence routing. Qwen and Gemma use
-the persistent fixed-mask union; K2's D=128/GQA8/KV8 heads use the compact
-selected union. Qwen uses top-three 16K exact-first prefill, Gemma's D=512 heads
-use their validated top-three 4K schedule, and K2 uses top-four 16K exact-first
-prefill. These choices are resolved from attention geometry and audited during
-pool construction. The remaining tuning discussion in this document describes
-the explicit `VLLM_LOD_PROFILE=experimental` research surface.
+GQA-union decode, and automatic spherical/coherence routing. Qwen3.8 and Gemma
+use the persistent fixed-mask union; Qwen3.5-0.8B's D=256/GQA4 and K2's
+D=128/GQA8/KV8 heads use the compact selected union. Qwen uses top-three 16K
+exact-first prefill, Gemma's D=512 heads use their validated top-three 4K
+schedule, and K2 uses top-four 16K exact-first prefill. These choices are
+resolved from attention geometry and audited during pool construction. The
+remaining tuning discussion in this document describes the explicit
+`VLLM_LOD_PROFILE=experimental` research surface.
 Routed two-level D=128/GQA=16 prefill automatically overlaps its independent
 coarse, exact-leaf, and exact-local branches on separate GPU streams after
 routing. Static-cohort prefill is excluded because keeping its larger AITER

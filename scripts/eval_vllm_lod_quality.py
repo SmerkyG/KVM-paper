@@ -384,6 +384,7 @@ def inspect_lod_model(model) -> dict[str, object]:
     decode_gqa_staged_fixed_executed = set()
     decode_gqa_fixed_mask_configured = set()
     decode_gqa_fixed_mask_executed = set()
+    decode_gqa_cooperative_effective = set()
     decode_gqa_overlap_local_sink_configured = set()
     decode_gqa_overlap_local_sink_executed = set()
     decode_gqa_direct_fixed_routes_configured = set()
@@ -589,6 +590,15 @@ def inspect_lod_model(model) -> dict[str, object]:
                         "decode_gqa_fixed_mask_aiter",
                         False,
                     )
+                )
+            )
+            cooperative_dispatch = getattr(
+                engine, "_last_decode_gqa_cooperative_dispatch", None
+            )
+            decode_gqa_cooperative_effective.add(
+                bool(
+                    isinstance(cooperative_dispatch, dict)
+                    and cooperative_dispatch.get("enabled", False)
                 )
             )
             decode_gqa_overlap_local_sink_configured.add(
@@ -1040,6 +1050,9 @@ def inspect_lod_model(model) -> dict[str, object]:
         ),
         "decode_gqa_fixed_mask_executed": sorted(
             decode_gqa_fixed_mask_executed
+        ),
+        "decode_gqa_cooperative_effective": sorted(
+            decode_gqa_cooperative_effective
         ),
         "decode_gqa_overlap_local_sink_configured": sorted(
             decode_gqa_overlap_local_sink_configured

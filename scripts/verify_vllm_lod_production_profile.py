@@ -87,13 +87,21 @@ def verify_tuning_requires_explicit_override() -> None:
 
 
 def verify_model_geometries() -> None:
-    qwen = _production_geometry_overrides(256, 6)
-    assert qwen["prefill_open_count"] == 3
-    assert qwen["prefill_chunk_size"] == 16_384
-    assert qwen["prefill_exact_first_chunk"] is True
-    assert qwen["prefill_overlap_coarse_leaf"] is True
-    assert qwen["decode_gqa_fixed_mask_segments"] == 256
-    assert qwen["decode_gqa_fixed_mask_reduce_block_d"] == 64
+    qwen38 = _production_geometry_overrides(256, 6)
+    assert qwen38["prefill_open_count"] == 3
+    assert qwen38["prefill_chunk_size"] == 16_384
+    assert qwen38["prefill_exact_first_chunk"] is True
+    assert qwen38["prefill_overlap_coarse_leaf"] is True
+    assert qwen38["decode_gqa_fixed_mask_aiter"] is True
+    assert qwen38["decode_gqa_fixed_mask_segments"] == 256
+    assert qwen38["decode_gqa_fixed_mask_reduce_block_d"] == 64
+
+    qwen35 = _production_geometry_overrides(256, 4)
+    assert qwen35["prefill_open_count"] == 3
+    assert qwen35["prefill_chunk_size"] == 16_384
+    assert qwen35["decode_gqa_cooperative"] is False
+    assert qwen35["decode_gqa_cooperative_hip"] is False
+    assert qwen35["decode_gqa_fixed_mask_aiter"] is False
 
     gemma = _production_geometry_overrides(512, 8)
     assert gemma["prefill_open_count"] == 3
@@ -146,12 +154,13 @@ def verify_scheduler_guard() -> None:
 
 def verify_pool_startup_audit() -> None:
     geometries = (
-        ("qwen", 24, 4, 256, 3, 16_384, 256),
+        ("qwen35", 8, 2, 256, 3, 16_384, 256),
+        ("qwen38", 24, 4, 256, 3, 16_384, 256),
         ("gemma", 16, 2, 512, 3, 4_096, 128),
         ("k2", 64, 8, 128, 4, 16_384, 128),
     )
     for name, query_heads, kv_heads, head_dim, topk, chunk, segments in geometries:
-        normalized_keys = name in {"qwen", "gemma"}
+        normalized_keys = name in {"qwen35", "qwen38", "gemma"}
         layer = torch.nn.Module()
         layer.num_heads = query_heads
         layer.num_kv_heads = kv_heads
@@ -175,7 +184,7 @@ def verify_pool_startup_audit() -> None:
         assert pool.settings.prefill_open_count == topk
         assert pool.engine.prefill_chunk_len == chunk
         assert pool.settings.decode_gqa_fixed_mask_segments == segments
-        if name == "k2":
+        if name in {"qwen35", "k2"}:
             assert pool.settings.decode_gqa_union
             assert pool.settings.decode_gqa_union_hip
             assert not pool.settings.decode_gqa_cooperative
@@ -183,7 +192,9 @@ def verify_pool_startup_audit() -> None:
             assert not pool.settings.decode_gqa_fixed_mask_aiter
             assert pool.engine.decode_route_group_size == 64
             assert pool.engine.decode_route_segment_tiles == 1
-            assert pool.engine.decode_route_num_warps == 1
+            assert pool.engine.decode_route_num_warps == (
+                1 if name == "k2" else 2
+            )
             assert pool.engine.decode_route_reduce_num_warps == 2
         assert (
             pool.engine.state_clustering_normalization,

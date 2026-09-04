@@ -52,6 +52,8 @@ def _production_geometry_overrides(
 
     gemma_wide = head_dim == 512
     k2 = (head_dim, gqa) == (128, 8)
+    qwen_small = (head_dim, gqa) == (256, 4)
+    compact_union = k2 or qwen_small
     if gemma_wide:
         prefill_chunk = 4_096
         prefill_local = 4_864
@@ -93,12 +95,12 @@ def _production_geometry_overrides(
         "prefill_overlap_local_lod": False,
         "fused_state_update": fused_state,
         "fused_state_maxsim": fused_state,
-        # K2's D=128/GQA8 geometry can compact its selected GQA union cheaply.
+        # D128/GQA8 and D256/GQA4 can compact their selected GQA union cheaply.
         # Feeding that compact list to the unified exact scan avoids both the
-        # full-context fixed mask and the cooperative kernel's tiny workgroups.
-        "decode_gqa_cooperative": not k2,
-        "decode_gqa_cooperative_hip": not k2,
-        "decode_gqa_fixed_mask_aiter": not k2,
+        # full-context fixed mask and the cooperative kernel's small workgroups.
+        "decode_gqa_cooperative": not compact_union,
+        "decode_gqa_cooperative_hip": not compact_union,
+        "decode_gqa_fixed_mask_aiter": not compact_union,
         "decode_gqa_fixed_mask_segments": fixed_segments,
         "decode_gqa_fixed_mask_adaptive_segments": True,
         "decode_gqa_fixed_mask_reduce_block_d": fixed_reduce_d,
@@ -440,14 +442,16 @@ class VLLMLayerLODPool:
                 self.engine.decode_route_post_pv_normalize = False
         elif (
             settings.decode_geometry_tuning
-            and (self.head_dim, gqa) == (128, 8)
+            and (self.head_dim, gqa) in {(128, 8), (256, 4)}
         ):
-            # D128/GQA8 needs only one native 64-key producer tile.  This is
-            # the same exact top-eight selector as the default N=32 geometry,
-            # but halves the intermediate group field and its reduction work.
+            # Both compact-union geometries need one native 64-key producer
+            # tile. This is the same exact top-eight selector as the default
+            # N=32 geometry, but halves its intermediate group field.
             self.engine.decode_route_group_size = 64
             self.engine.decode_route_segment_tiles = 1
-            self.engine.decode_route_num_warps = 1
+            self.engine.decode_route_num_warps = (
+                1 if self.head_dim == 128 else 2
+            )
             self.engine.decode_route_reduce_num_warps = 2
         flat_int8 = settings.levels == 2 and settings.kv_bits == 8
         self.engine.leaf_key_quant_bits = (
