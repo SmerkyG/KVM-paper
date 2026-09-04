@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from hashlib import sha256
 from typing import Any
 
 import numpy as np
@@ -50,6 +52,15 @@ class VLLMLODRuntime:
         self.model_state = model_state
         self.settings = VLLMLODSettings.from_environment()
         config = model_state.vllm_config
+        if not isinstance(config.additional_config, dict):
+            raise TypeError(
+                "vLLM LOD requires dict-valued additional_config so its "
+                "compile-time settings can participate in the graph-cache key"
+            )
+        settings_json = json.dumps(asdict(self.settings), sort_keys=True)
+        config.additional_config["lod_attention_compile_settings"] = sha256(
+            settings_json.encode()
+        ).hexdigest()
         self.speculative_tokens = int(config.num_speculative_tokens or 0)
         self.hybrid_speculative_full_attention = os.getenv(
             "VLLM_LOD_SPECULATIVE_FULL_ATTENTION", "0"
@@ -188,6 +199,15 @@ class VLLMLODRuntime:
             decode_sizes.add(self.pool_size)
         norm_flags = self._attention_norm_flags()
         prefix_rollback_tokens = self._prefix_rollback_tokens()
+        # One FIFO stream is shared across layers.  Each layer's attention
+        # output can feed the next layer immediately while its independent
+        # semantic-cache maintenance runs behind it; a per-row event makes the
+        # next scheduler chunk or decode wait only when that row is consumed.
+        deferred_prefill_stream = (
+            torch.cuda.Stream(device=self.model_state.device)
+            if self.settings.prefill_defer_cache_updates
+            else None
+        )
         for name, layer in self.layers.items():
             has_query_norm, has_key_norm = norm_flags.get(name, (False, False))
             pool = VLLMLayerLODPool(
@@ -204,6 +224,7 @@ class VLLMLODRuntime:
             )
             for rows in sorted(decode_sizes):
                 pool.reserve_decode_buffers(rows)
+            pool.deferred_prefill_stream = deferred_prefill_stream
             self.pools[name] = pool
             self.borrowed_dummy_lens[name] = torch.zeros_like(pool.local_lens)
             layer._vllm_lod_pool = pool
@@ -765,6 +786,9 @@ class VLLMLODRuntime:
         """Skip layer-by-layer host work between state-update boundaries."""
         if not requests:
             return
+        rows = tuple(row for row, _ in requests)
+        for pool in self.pools.values():
+            pool.wait_deferred_prefill(rows)
         if self.settings.diagnostic_static_preselected:
             # Timing-only upper bound: the prefill-selected compact tables and
             # their local suffix remain immutable for the entire decode.

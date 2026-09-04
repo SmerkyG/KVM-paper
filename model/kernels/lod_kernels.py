@@ -5872,12 +5872,12 @@ def route_logits_topk_coarse_attention(
     use_hierarchical_route_only = (
         route_only
         and not fused_state_qk
-        and topk == 3
+        and topk in (2, 3)
         and hierarchical_route_only is not False
     )
     if hierarchical_route_only is True and not use_hierarchical_route_only:
         raise ValueError(
-            "forced hierarchical routing requires materialized top-3 "
+            "forced hierarchical routing requires materialized top-2/top-3 "
             "route-only execution"
         )
     if use_hierarchical_route_only:
@@ -6094,8 +6094,10 @@ def route_logits_hierarchical_topk(
     kv_heads = int(counts.size(1))
     if query_heads != kv_heads * kv_group_size:
         raise ValueError("query heads do not match the requested GQA grouping")
-    if topk != 3:
-        raise ValueError("hierarchical route selection currently supports top-3")
+    if topk not in (2, 3):
+        raise ValueError(
+            "hierarchical route selection currently supports top-2/top-3"
+        )
     if not 0 < state_len <= logit_state_len or state_len > int(counts.size(2)):
         raise ValueError("active route state exceeds the supplied storage")
     if protected_len < 0 or protected_len + topk > state_len:

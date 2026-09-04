@@ -71,6 +71,8 @@ class VLLMLODSettings:
     local_window: int = 512
     state_growth_factor: float = 16.0
     state_premerge_factor: int = 1
+    fused_state_update: bool = False
+    fused_state_maxsim: bool = False
     state_min_size: int = 256
     state_split_max_leaves: int | None = None
     protected_prefix: int = 1
@@ -102,6 +104,8 @@ class VLLMLODSettings:
     prefill_coarse_direct_gqa: bool | None = None
     prefill_coarse_block_n: int = 32
     prefill_coarse_num_warps: int = 8
+    prefill_aiter_coarse: bool = False
+    prefill_fused_state_qk: bool = False
     prefill_overlap_coarse_leaf: bool | None = None
     prefill_overlap_local_lod: bool | None = None
     prefill_int8_route_mma: bool = False
@@ -113,6 +117,9 @@ class VLLMLODSettings:
     prefill_chunk_size: int = 4096
     prefill_local_window: int = 4864
     prefill_state_update_size: int = 4096
+    prefill_exact_first_chunk: bool = False
+    prefill_overlap_exact_state: bool = False
+    prefill_defer_cache_updates: bool = False
     recursive_prefill_all_leaves: bool | None = None
     prefill_static_leaf_aiter: bool = False
     prefill_static_leaf_cap_min: int = 16
@@ -193,6 +200,8 @@ class VLLMLODSettings:
             local_window=_integer("VLLM_LOD_LOCAL_WINDOW", 512),
             state_growth_factor=_floating("VLLM_LOD_STATE_FACTOR", 16.0),
             state_premerge_factor=_integer("VLLM_LOD_STATE_PREMERGE_FACTOR", 1),
+            fused_state_update=_boolean("VLLM_LOD_FUSED_STATE_UPDATE", False),
+            fused_state_maxsim=_boolean("VLLM_LOD_FUSED_STATE_MAXSIM", False),
             state_min_size=_integer("VLLM_LOD_STATE_MIN", 256),
             state_split_max_leaves=(
                 _integer("VLLM_LOD_STATE_SPLIT_MAX_LEAVES", 0) or None
@@ -200,7 +209,9 @@ class VLLMLODSettings:
             protected_prefix=_integer("VLLM_LOD_PROTECTED_PREFIX", 1),
             open_count=_integer("VLLM_LOD_OPEN_COUNT", 8),
             prefill_open_count=(
-                _integer("VLLM_LOD_PREFILL_OPEN_COUNT", 0) or None
+                _integer("VLLM_LOD_PREFILL_OPEN_COUNT", 0)
+                if os.getenv("VLLM_LOD_PREFILL_OPEN_COUNT") is not None
+                else None
             ),
             kv_bits=kv_bits,
             key_bits=(
@@ -293,6 +304,12 @@ class VLLMLODSettings:
             prefill_coarse_num_warps=_integer(
                 "VLLM_LOD_PREFILL_COARSE_NUM_WARPS", 8
             ),
+            prefill_aiter_coarse=_boolean(
+                "VLLM_LOD_PREFILL_AITER_COARSE", False
+            ),
+            prefill_fused_state_qk=_boolean(
+                "VLLM_LOD_PREFILL_FUSED_STATE_QK", False
+            ),
             prefill_overlap_coarse_leaf=(
                 _boolean("VLLM_LOD_PREFILL_OVERLAP_COARSE_LEAF", False)
                 if os.getenv("VLLM_LOD_PREFILL_OVERLAP_COARSE_LEAF") is not None
@@ -328,6 +345,15 @@ class VLLMLODSettings:
             prefill_state_update_size=_integer(
                 "VLLM_LOD_PREFILL_STATE_UPDATE_SIZE", 4096
             ),
+            prefill_exact_first_chunk=_boolean(
+                "VLLM_LOD_PREFILL_EXACT_FIRST_CHUNK", False
+            ),
+            prefill_overlap_exact_state=_boolean(
+                "VLLM_LOD_PREFILL_OVERLAP_EXACT_STATE", False
+            ),
+            prefill_defer_cache_updates=_boolean(
+                "VLLM_LOD_PREFILL_DEFER_CACHE_UPDATES", False
+            ),
             recursive_prefill_all_leaves=(
                 _boolean("VLLM_LOD_RECURSIVE_PREFILL_ALL_LEAVES", False)
                 if os.getenv(
@@ -353,7 +379,16 @@ class VLLMLODSettings:
             leaf_layout=_choice(
                 "VLLM_LOD_LEAF_LAYOUT",
                 "expert",
-                ("query", "expert", "aiter_union", "aiter_masked_union"),
+                (
+                    "query",
+                    "query_tile",
+                    "gqa_tile",
+                    "expert",
+                    "expert_tiny",
+                    "aiter_varlen",
+                    "aiter_union",
+                    "aiter_masked_union",
+                ),
             ),
             leaf_union_query_tile=_integer(
                 "VLLM_LOD_LEAF_UNION_QUERY_TILE", 16
@@ -739,10 +774,10 @@ class VLLMLODSettings:
         if not 1 <= settings.open_count <= 8:
             raise ValueError("VLLM_LOD_OPEN_COUNT must be between one and eight")
         if settings.prefill_open_count is not None and not (
-            1 <= settings.prefill_open_count <= 128
+            0 <= settings.prefill_open_count <= 128
         ):
             raise ValueError(
-                "VLLM_LOD_PREFILL_OPEN_COUNT must be between one and 128"
+                "VLLM_LOD_PREFILL_OPEN_COUNT must be between zero and 128"
             )
         if settings.state_premerge_factor not in {1, 2, 4, 8, 16, 32}:
             raise ValueError(

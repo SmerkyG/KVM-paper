@@ -303,6 +303,8 @@ class VLLMLayerLODPool:
         self.engine.routing_positive_dot_stats = (
             settings.routing_positive_dot_stats
         )
+        self.engine.fused_state_update = settings.fused_state_update
+        self.engine.fused_state_maxsim = settings.fused_state_maxsim
         self.engine.routing_cutoff_stats_min_state = (
             settings.routing_cutoff_stats_min_state
         )
@@ -428,6 +430,8 @@ class VLLMLayerLODPool:
         self.engine.prefill_coarse_max_grouped_rows = coarse_grouped_rows
         self.engine.prefill_coarse_route_block_n = coarse_block_n
         self.engine.prefill_coarse_route_num_warps = coarse_num_warps
+        self.engine.prefill_aiter_coarse = settings.prefill_aiter_coarse
+        self.engine.prefill_fused_state_qk = settings.prefill_fused_state_qk
         # Scheduler chunks are already presented as one contiguous prefill
         # field.  Use the serving-wide update batch for both flat and
         # recursive LOD; the recursive engine's old 5 * chunk_size default
@@ -437,6 +441,10 @@ class VLLMLayerLODPool:
         # unchanged; assignment batching can change centroid/page membership,
         # so this schedule is covered by the matched ProLong quality artifact.
         self.engine.prefill_state_update_len = settings.prefill_state_update_size
+        self.engine.prefill_exact_first_chunk = settings.prefill_exact_first_chunk
+        self.engine.prefill_overlap_exact_state = (
+            settings.prefill_overlap_exact_state
+        )
         recursive_prefill_all_leaves_auto = (
             settings.recursive_prefill_all_leaves is None
         )
@@ -642,9 +650,18 @@ class VLLMLayerLODPool:
         self.decode_local_capacity = (
             local_window + int(self.engine.decode_state_update_len)
         )
-        self.local_capacity = max(
-            self.decode_local_capacity,
-            int(self.engine.prefill_local_len),
+        # Exact-first prefill advances the persistent state to within the
+        # decode-local tail before installing a row.  Its much wider local
+        # field is temporary attention workspace, not persistent per-request
+        # cache.  Reserving it for every pool row multiplies a 16K prefill
+        # block by max_requests and can consume tens of GiB per rank.
+        self.local_capacity = (
+            self.decode_local_capacity
+            if self.engine.prefill_exact_first_chunk
+            else max(
+                self.decode_local_capacity,
+                int(self.engine.prefill_local_len),
+            )
         )
         self.leaf_capacity = _round_up(request_capacity, settings.chunk_size) + max(
             settings.chunk_size, int(self.engine.decode_cache_headroom)
@@ -668,6 +685,10 @@ class VLLMLayerLODPool:
         self.hybrid_full_decode = False
         self.direct_prefill_plan: tuple[tuple[int, int, int, int], ...] | None = None
         self.direct_prefill_prompt_lengths: dict[int, int] = {}
+        self.deferred_prefill_stream: torch.cuda.Stream | None = None
+        self.deferred_prefill_events: list[torch.cuda.Event | None] = [
+            None
+        ] * max_requests
         self.install_count = 0
         self.batched_install_calls = 0
         self.direct_prefill_calls = 0
@@ -981,22 +1002,6 @@ class VLLMLayerLODPool:
                     ),
                     "leaf_k": leaf_k,
                     "leaf_v": leaf_v,
-                    # The shared virtual-page append primitive maintains these
-                    # summaries. Flat two-tier attention does not consume them,
-                    # but retaining them keeps append graph-safe and makes the
-                    # storage interchangeable with the recursive allocator.
-                    "page_sum_k": torch.zeros(
-                        r, h, self.page_capacity, d,
-                        dtype=self.dtype, device=self.device,
-                    ),
-                    "page_sum_v": torch.zeros(
-                        r, h, self.page_capacity, d,
-                        dtype=self.dtype, device=self.device,
-                    ),
-                    "page_counts": torch.zeros(
-                        r, h, self.page_capacity,
-                        dtype=torch.int32, device=self.device,
-                    ),
                     "quantization_finalized": False,
                     "summary_quantization_finalized": False,
                 }
@@ -1302,6 +1307,7 @@ class VLLMLayerLODPool:
     def reset(self, slot: int) -> None:
         if not 0 <= slot < self.max_requests:
             raise IndexError("vLLM request slot is outside the LOD pool")
+        self.wait_deferred_prefill((slot,))
         self._snapshot_static_cohort_eviction(slot)
         self.ready[slot] = False
         self.clean[slot] = True
@@ -1336,6 +1342,7 @@ class VLLMLayerLODPool:
         """Reset one contiguous row range with one launch per cache field."""
         if not 0 <= start < stop <= self.max_requests:
             raise IndexError("vLLM request row range is outside the LOD pool")
+        self.wait_deferred_prefill(tuple(range(start, stop)))
         for slot in range(start, stop):
             self._snapshot_static_cohort_eviction(slot)
             self.ready[slot] = False
@@ -1525,6 +1532,30 @@ class VLLMLayerLODPool:
             return
         slices = tuple(slice(0, min(a, b)) for a, b in zip(target.shape, source.shape))
         target[slices].copy_(source[slices])
+
+    def _validate_recent_capacity(self, source: dict[str, object]) -> None:
+        recent_len = int(source["recent_len"])
+        expected_recent_len = int(source["total_len"]) - int(source["coverage"])
+        if recent_len != expected_recent_len:
+            raise ValueError(
+                "LOD exact-tail metadata drifted: "
+                f"recent={recent_len}, expected={expected_recent_len}"
+            )
+        recent_k = source.get("recent_k")
+        recent_v = source.get("recent_v")
+        if not isinstance(recent_k, torch.Tensor) or not isinstance(
+            recent_v, torch.Tensor
+        ):
+            raise TypeError("LOD cache lacks recent K/V tensors")
+        if (
+            recent_len > self.local_capacity
+            or recent_len > int(recent_k.size(2))
+            or recent_len > int(recent_v.size(2))
+        ):
+            raise ValueError(
+                "LOD exact tail exceeds its fixed cache row: "
+                f"recent={recent_len}, capacity={self.local_capacity}"
+            )
 
     @staticmethod
     def _copy_range(
@@ -1857,8 +1888,12 @@ class VLLMLayerLODPool:
             raise ValueError("converted prefix exceeds VLLM_LOD_MAX_CONTEXT")
         if int(source["state_k"].size(0)) != len(slots):
             raise ValueError("converted LOD batch differs from its pool row range")
+        self._validate_recent_capacity(source)
         self.batched_install_calls += 1
-        if not all(self.clean[slot] for slot in slots):
+        pool_backed = bool(source.get("pool_backed", False))
+        if pool_backed and slots != tuple(range(start, stop)):
+            raise ValueError("pool-backed LOD installation requires ascending rows")
+        if not pool_backed and not all(self.clean[slot] for slot in slots):
             self._reset_range(start, stop)
         ascending = slots == tuple(range(start, stop))
         slot_indices = (
@@ -1880,27 +1915,68 @@ class VLLMLayerLODPool:
             tensor_names.extend(("sink_k", "sink_v"))
         if "key_norm_sums" in source:
             tensor_names.append("key_norm_sums")
-        for name in tensor_names:
-            copy(self.state[name], source[name])
+        if pool_backed:
+            for name in tensor_names:
+                destination = self.state[name][start:stop]
+                value = source[name]
+                if (
+                    not isinstance(value, torch.Tensor)
+                    or value.data_ptr() != destination.data_ptr()
+                    or tuple(value.shape) != tuple(destination.shape)
+                ):
+                    raise RuntimeError(
+                        f"pool-backed LOD state tensor {name} does not alias its rows"
+                    )
+        else:
+            for name in tensor_names:
+                copy(self.state[name], source[name])
 
         destination_page = self.state["page_cache"]
-        for name, value in source_page.items():
-            if name in ("overflow_page_keys", "overflow_page_values") or (
-                name.startswith("unified_page1_")
-            ):
-                continue
-            destination = destination_page.get(name)
-            if (
-                isinstance(value, torch.Tensor)
-                and isinstance(destination, torch.Tensor)
-                and value.ndim
-            ):
-                copy(destination, value)
+        if pool_backed:
+            for name, value in source_page.items():
+                if name.startswith("unified_page1_"):
+                    continue
+                destination = destination_page.get(name)
+                if not isinstance(value, torch.Tensor) or not value.ndim:
+                    continue
+                if not isinstance(destination, torch.Tensor):
+                    raise RuntimeError(
+                        f"pool-backed LOD page tensor {name} has no destination"
+                    )
+                destination_rows = destination[start:stop]
+                if (
+                    value.data_ptr() != destination_rows.data_ptr()
+                    or tuple(value.shape) != tuple(destination_rows.shape)
+                ):
+                    raise RuntimeError(
+                        f"pool-backed LOD page tensor {name} does not alias its rows"
+                    )
+        else:
+            for name, value in source_page.items():
+                if name in ("overflow_page_keys", "overflow_page_values") or (
+                    name.startswith("unified_page1_")
+                ):
+                    continue
+                destination = destination_page.get(name)
+                if (
+                    isinstance(value, torch.Tensor)
+                    and isinstance(destination, torch.Tensor)
+                    and value.ndim
+                ):
+                    copy(destination, value)
         source_keys = source_page["overflow_page_keys"]
         source_values = source_page["overflow_page_values"]
         destination_keys = destination_page["overflow_page_keys"]
         destination_values = destination_page["overflow_page_values"]
-        if int(source_keys.size(2)) == int(destination_keys.size(2)):
+        if pool_backed:
+            if (
+                source_keys.data_ptr()
+                != destination_keys[start:stop].data_ptr()
+                or source_values.data_ptr()
+                != destination_values[start:stop].data_ptr()
+            ):
+                raise RuntimeError("pool-backed LOD overflow table does not alias rows")
+        elif int(source_keys.size(2)) == int(destination_keys.size(2)):
             copy(destination_keys, source_keys)
             copy(destination_values, source_values)
             destination_page["overflow_used"].logical_or_(source_page["overflow_used"])
@@ -1916,7 +1992,8 @@ class VLLMLayerLODPool:
                     source_slot=source_slot,
                     destination_slot=destination_slot,
                 )
-        destination_page["overflow_flag"].logical_or_(source_page["overflow_flag"])
+        if not pool_backed:
+            destination_page["overflow_flag"].logical_or_(source_page["overflow_flag"])
         self._persist_decode_pilot_z_bound(slots)
         recent_len = int(source["recent_len"])
         if ascending:
@@ -1943,6 +2020,58 @@ class VLLMLayerLODPool:
         self._record_split_state(source, source_page)
         self._refresh_unified_page1_coarse(slots)
 
+    def _initial_prefill_storage(
+        self, slots: tuple[int, ...]
+    ) -> dict[str, object] | None:
+        """Return authoritative row views for allocation-free initial prefill."""
+        if not slots or slots != tuple(range(slots[0], slots[0] + len(slots))):
+            return None
+        if not (
+            self.settings.levels == 2
+            and self.settings.dense_leaf_storage
+            and self.settings.kv_bits == 0
+            and self.engine.virtual_page_storage
+            and not self.engine.recursive_page_lod
+            and not self.engine.leaf_key_quant_bits
+            and not self.engine.leaf_value_quant_bits
+        ):
+            return None
+        start, stop = slots[0], slots[-1] + 1
+        if not all(self.clean[slot] for slot in slots):
+            self._reset_range(start, stop)
+        storage: dict[str, object] = {
+            name: self.state[name][start:stop]
+            for name in ("state_k", "state_v", "counts", "recent_k", "recent_v")
+        }
+        if "key_norm_sums" in self.state:
+            storage["key_norm_sums"] = self.state["key_norm_sums"][start:stop]
+        page_pool = self.state["page_cache"]
+        page: dict[str, object] = {}
+        for name, value in page_pool.items():
+            if name.startswith("unified_page1_"):
+                continue
+            page[name] = (
+                value[start:stop]
+                if isinstance(value, torch.Tensor) and value.ndim
+                else value
+            )
+        storage["page_cache"] = page
+        return storage
+
+    def wait_deferred_prefill(self, slots: tuple[int, ...]) -> None:
+        """Make the foreground stream consume any deferred cache builds."""
+        current = torch.cuda.current_stream(self.device)
+        seen: set[int] = set()
+        for slot in slots:
+            event = self.deferred_prefill_events[slot]
+            if event is None:
+                continue
+            identity = id(event)
+            if identity not in seen:
+                current.wait_event(event)
+                seen.add(identity)
+            self.deferred_prefill_events[slot] = None
+
     def install(
         self, slot: int, converted: KernelLODCache, *, source_slot: int = 0
     ) -> None:
@@ -1952,6 +2081,7 @@ class VLLMLayerLODPool:
             raise TypeError("converted LOD cache has no semantic page archive")
         if int(source["total_len"]) > self.request_capacity:
             raise ValueError("converted prefix exceeds VLLM_LOD_MAX_CONTEXT")
+        self._validate_recent_capacity(source)
         self.reset(slot)
         tensor_names = ["state_k", "state_v", "counts", "recent_k", "recent_v"]
         if "sink_k" in source:
@@ -2051,6 +2181,7 @@ class VLLMLayerLODPool:
             raise ValueError("updated prefix exceeds VLLM_LOD_MAX_CONTEXT")
         if int(source["state_k"].size(0)) != len(slots):
             raise ValueError("updated LOD batch does not match its pool rows")
+        self._validate_recent_capacity(source)
         tensor_names = ["state_k", "state_v", "counts", "recent_k", "recent_v"]
         if "sink_k" in source:
             tensor_names.extend(("sink_k", "sink_v"))
@@ -2107,6 +2238,8 @@ class VLLMLayerLODPool:
         value: torch.Tensor,
         output: torch.Tensor,
         plan: tuple[tuple[int, int, int, int], ...],
+        *,
+        finalize_cache_for_decode: bool,
     ) -> None:
         """Advance one contiguous equal-length/equal-history cache group."""
         length = plan[0][2] - plan[0][1]
@@ -2169,21 +2302,47 @@ class VLLMLayerLODPool:
             if packed
             else None
         )
-        result, cache = self.engine(
-            q,
-            k,
-            v,
-            cache=cache,
-            use_cache=True,
-            output_buffer=output_view,
-            finalize_cache_for_decode=False,
+        defer_cache_update = bool(
+            self.settings.prefill_defer_cache_updates
+            and self.deferred_prefill_stream is not None
         )
+        # The final state/page update does not contribute to this layer's
+        # output.  Queue it behind the attention work and let subsequent model
+        # layers hide it; _range_cache and decode consume the completion event.
+        if defer_cache_update:
+            self.engine._lod_prefill_deferred_update_stream = (
+                self.deferred_prefill_stream
+            )
+        try:
+            result, cache = self.engine(
+                q,
+                k,
+                v,
+                cache=cache,
+                use_cache=True,
+                output_buffer=output_view,
+                finalize_cache_for_decode=finalize_cache_for_decode,
+            )
+        finally:
+            if defer_cache_update:
+                del self.engine._lod_prefill_deferred_update_stream
         if cache is None:
             raise AssertionError("batched cached LOD prefill did not return a cache")
         if len(slots) > 1:
             self.batched_cached_prefill_calls += 1
             self.batched_cached_prefill_rows += len(slots)
-        self._synchronize_rows(slots, cache)
+        if defer_cache_update:
+            deferred = self.deferred_prefill_stream
+            if deferred is None:
+                raise AssertionError("deferred prefill stream is missing")
+            with torch.cuda.stream(deferred):
+                self._synchronize_rows(slots, cache)
+                completed = torch.cuda.Event()
+                completed.record(deferred)
+            for slot in slots:
+                self.deferred_prefill_events[slot] = completed
+        else:
+            self._synchronize_rows(slots, cache)
         self.engine.reset_runtime_cache()
         if packed:
             if output_view is None:
@@ -2209,14 +2368,21 @@ class VLLMLayerLODPool:
         if plan is None:
             raise RuntimeError("direct LOD prefill has no prepared request plan")
         self.direct_prefill_calls += 1
-        initial: dict[int, list[tuple[int, int, int, int]]] = {}
+        initial: dict[
+            tuple[int, bool], list[tuple[int, int, int, int]]
+        ] = {}
         cached: list[tuple[int, int, int, int]] = []
         for item in plan:
             slot, begin, end, previous_length = item
             if end <= begin:
                 continue
             if previous_length == 0 and not self.ready[slot]:
-                initial.setdefault(end - begin, []).append(item)
+                if slot not in prompt_lengths:
+                    raise RuntimeError("direct LOD prefill has no total prompt length")
+                length = end - begin
+                initial.setdefault(
+                    (length, length >= prompt_lengths[slot]), []
+                ).append(item)
             elif previous_length > 0 and self.ready[slot]:
                 cached.append(item)
             elif previous_length > 0:
@@ -2224,10 +2390,8 @@ class VLLMLayerLODPool:
             else:
                 raise RuntimeError("initial LOD prefill row is already initialized")
 
-        for length, group in initial.items():
+        for (length, finalize_cache_for_decode), group in initial.items():
             slots = tuple(slot for slot, _, _, _ in group)
-            if any(slot not in prompt_lengths for slot in slots):
-                raise RuntimeError("direct LOD prefill has no total prompt length")
             self.engine.recursive_prefill_request_total_len = max(
                 prompt_lengths[slot] for slot in slots
             )
@@ -2275,22 +2439,79 @@ class VLLMLayerLODPool:
                 if packed
                 else None
             )
-            result, cache = self.engine(
-                q,
-                k,
-                v,
-                use_cache=True,
-                output_buffer=output_view,
-                finalize_cache_for_decode=False,
+            prefill_storage = self._initial_prefill_storage(slots)
+            defer_cache = bool(
+                self.settings.prefill_defer_cache_updates
+                and self.engine.prefill_exact_first_chunk
+                and length <= int(self.engine.prefill_chunk_len)
+                and prefill_storage is not None
+                and self.deferred_prefill_stream is not None
             )
+            if defer_cache:
+                result = self.engine._exact_attention(q, k, v, causal=True)
+                if output_view is not None:
+                    output_view.copy_(result)
+                    result = output_view
+                foreground = torch.cuda.current_stream(self.device)
+                deferred = self.deferred_prefill_stream
+                if deferred is None:
+                    raise AssertionError("deferred prefill stream is missing")
+                deferred.wait_stream(foreground)
+                q.record_stream(deferred)
+                k.record_stream(deferred)
+                v.record_stream(deferred)
+                with torch.cuda.stream(deferred):
+                    self.engine._lod_prefill_storage = prefill_storage
+                    try:
+                        cache = self.engine.build_cache_from_bf16(
+                            k,
+                            v,
+                            clustering_query=(
+                                q
+                                if self.engine.state_clustering_query_metric
+                                != "none"
+                                else None
+                            ),
+                            finalize_cache_for_decode=finalize_cache_for_decode,
+                        )
+                    finally:
+                        del self.engine._lod_prefill_storage
+                    self.install_rows(slots, cache)
+                    self.engine.reset_runtime_cache()
+                    completed = torch.cuda.Event()
+                    completed.record(deferred)
+                for slot in slots:
+                    self.deferred_prefill_events[slot] = completed
+            else:
+                if prefill_storage is not None:
+                    self.engine._lod_prefill_storage = prefill_storage
+                try:
+                    result, cache = self.engine(
+                        q,
+                        k,
+                        v,
+                        use_cache=True,
+                        output_buffer=output_view,
+                        finalize_cache_for_decode=finalize_cache_for_decode,
+                    )
+                except Exception:
+                    if prefill_storage is not None:
+                        self._reset_range(slots[0], slots[-1] + 1)
+                    raise
+                finally:
+                    if prefill_storage is not None:
+                        del self.engine._lod_prefill_storage
             if cache is None:
                 raise AssertionError("direct LOD prefill did not return a cache")
-            if tuple(sorted(slots)) == tuple(range(min(slots), max(slots) + 1)):
-                self.install_rows(slots, cache)
-            else:
-                for source_slot, (slot, _, _, _) in enumerate(group):
-                    self.install(slot, cache, source_slot=source_slot)
-            self.engine.reset_runtime_cache()
+            if not defer_cache:
+                if tuple(sorted(slots)) == tuple(
+                    range(min(slots), max(slots) + 1)
+                ):
+                    self.install_rows(slots, cache)
+                else:
+                    for source_slot, (slot, _, _, _) in enumerate(group):
+                        self.install(slot, cache, source_slot=source_slot)
+                self.engine.reset_runtime_cache()
             if packed:
                 if output_view is None or result.data_ptr() != output_view.data_ptr():
                     raise AssertionError("LOD prefill did not use its output buffer")
@@ -2324,6 +2545,7 @@ class VLLMLayerLODPool:
             signature = (
                 end - begin,
                 previous_length,
+                int(end - begin + previous_length >= prompt_lengths[slot]),
                 int(metadata["state_len"]),
                 int(metadata.get("scheduled_state_len", metadata["state_len"])),
                 int(metadata["coverage"]),
@@ -2345,6 +2567,10 @@ class VLLMLayerLODPool:
                 value,
                 output,
                 tuple(group),
+                finalize_cache_for_decode=bool(
+                    group[0][2] - group[0][1] + group[0][3]
+                    >= prompt_lengths[group[0][0]]
+                ),
             )
         return output
 
@@ -2357,6 +2583,7 @@ class VLLMLayerLODPool:
             raise ValueError("LOD cache row indices must be nonempty and unique")
         if any(not 0 <= slot < self.max_requests for slot in slots):
             raise IndexError("LOD cache row index is outside the fixed pool")
+        self.wait_deferred_prefill(slots)
         metadata = self.metadata[slots[0]]
         scalar_names = (
             "state_len",
@@ -2411,6 +2638,7 @@ class VLLMLayerLODPool:
     def _range_cache(self, start: int, stop: int) -> KernelLODCache:
         if not 0 <= start < stop <= self.max_requests:
             raise IndexError("LOD cache row range is outside the fixed pool")
+        self.wait_deferred_prefill(tuple(range(start, stop)))
         metadata = self.metadata[start]
         scalar_names = (
             "state_len",

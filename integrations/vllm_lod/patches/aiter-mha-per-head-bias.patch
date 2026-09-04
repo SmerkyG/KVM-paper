@@ -16,15 +16,17 @@ index caa071860..b17a903c1 100644
 -        TORCH_CHECK(bias.sizes() == torch::IntArrayRef({seqlen_q, seqlen_k}), "bias shape should be [sq, sk]");
 +        TORCH_CHECK(
 +            bias.sizes() == torch::IntArrayRef({seqlen_q, seqlen_k}) ||
-+                bias.sizes() == torch::IntArrayRef({b, h, seqlen_q, seqlen_k}),
-+            "bias shape should be [sq, sk] or [batch, heads, sq, sk]");
++                bias.sizes() == torch::IntArrayRef({b, h, seqlen_q, seqlen_k}) ||
++                bias.sizes() == torch::IntArrayRef({b, h, 1, seqlen_k}),
++            "bias shape should be [sq, sk], [batch, heads, sq, sk], or "
++            "[batch, heads, 1, sk]");
          bias_ptr = bias.data_ptr();
 -        stride_bias = bias.stride(0);
 +        if (bias.dim() == 2) {
 +            stride_bias = bias.stride(0);
 +        }
 +        else {
-+            stride_bias = bias.stride(2);
++            stride_bias = bias.size(2) == 1 ? 0 : bias.stride(2);
 +            nhead_stride_bias = bias.stride(1);
 +            batch_stride_bias = bias.stride(0);
 +        }

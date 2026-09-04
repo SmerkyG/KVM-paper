@@ -1,0 +1,121 @@
+{
+  "allow_heterogeneous_global_config": false,
+  "apply_chat_template": false,
+  "attention_exercised": "native_prefill",
+  "batch_size": 8,
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "concatenate_prolong": false,
+  "dataset": "Seerkfang/prolong-64k-512-new",
+  "dataset_revision": "97295b7d7fe48dc0aa6ba373af3a8b9d945e505b",
+  "decode_static_leaf_cap_min": null,
+  "disable_thinking": false,
+  "elapsed_seconds": 167.68822833150625,
+  "enforce_eager": false,
+  "eval": "prolong",
+  "language_model_only": true,
+  "length": 65536,
+  "lod_diagnostics_after": null,
+  "lod_diagnostics_before": null,
+  "lod_prefill_route_block_m": null,
+  "lod_prefill_route_num_warps": null,
+  "lod_recursive_page_block_n": null,
+  "lod_recursive_state_route_backend": null,
+  "long_prefill_token_threshold": 16384,
+  "loss": 0.8013942068757333,
+  "max_num_batched_tokens": 16384,
+  "mode": "full",
+  "muse_native_text_config": false,
+  "perplexity": 2.228645956980265,
+  "prediction_tokens": 524280,
+  "prefill_open_count": null,
+  "prefill_route_cohort": null,
+  "prefill_static_leaf_cap_min": null,
+  "requested_samples": 8,
+  "sample_offset": 8,
+  "samples": [
+    {
+      "loss": 1.9751506763764721,
+      "perplexity": 7.207705602967905,
+      "sample": 8,
+      "source_indices": [
+        17
+      ],
+      "token_sha256": "f0c5660bc383da0e71fa1c05a4837535f5fba6ecc852fbf92e2e11e023224326",
+      "tokens": 65536
+    },
+    {
+      "loss": 2.1085242698710474,
+      "perplexity": 8.236078083460676,
+      "sample": 9,
+      "source_indices": [
+        23
+      ],
+      "token_sha256": "2240d630f962eeeff5379df79fc378eddc10cb66a61a9999e323f939eed8b3f1",
+      "tokens": 65536
+    },
+    {
+      "loss": 0.09938278699361289,
+      "perplexity": 1.1044890026759056,
+      "sample": 10,
+      "source_indices": [
+        24
+      ],
+      "token_sha256": "b37fcff6cbaa29407f2abd32371588e121fbe08978217a1a9fe6807cdd1a2d18",
+      "tokens": 65536
+    },
+    {
+      "loss": 0.017628945651856135,
+      "perplexity": 1.0177852526726328,
+      "sample": 11,
+      "source_indices": [
+        31
+      ],
+      "token_sha256": "b9178dac989dfa44a3c3b4cca85856a3300527ef33d354081591e5d8632670e5",
+      "tokens": 65536
+    },
+    {
+      "loss": 0.9696790861334863,
+      "perplexity": 2.6370980422188146,
+      "sample": 12,
+      "source_indices": [
+        34
+      ],
+      "token_sha256": "8b206f26b0c7968666432c9dee64aeb0b3a2bc817276c9bb66ac1ea684462958",
+      "tokens": 65536
+    },
+    {
+      "loss": 0.5983853711866445,
+      "perplexity": 1.8191791287519563,
+      "sample": 13,
+      "source_indices": [
+        37
+      ],
+      "token_sha256": "53d7e591ac9e464a082fe4ef2f3e3c5c88697dfea74bd73412440f26f327cd1d",
+      "tokens": 65536
+    },
+    {
+      "loss": 0.27545490371773446,
+      "perplexity": 1.3171297058065008,
+      "sample": 14,
+      "source_indices": [
+        39
+      ],
+      "token_sha256": "c7c6896df637a251fd84b7809fcaa8ad41c9360e435c50ec091c14293918a2c9",
+      "tokens": 65536
+    },
+    {
+      "loss": 0.3669476150750126,
+      "perplexity": 1.4433223088038956,
+      "sample": 15,
+      "source_indices": [
+        41
+      ],
+      "token_sha256": "83e65b72bf3d202b37359cc9b7ed1f01f532530ab620c8d3ba31bc9985413864",
+      "tokens": 65536
+    }
+  ],
+  "state_split_max_leaves": null,
+  "static_cohort_never_readmit": null,
+  "static_leaf_cap_divisor": null,
+  "tensor_parallel_size": 1
+}

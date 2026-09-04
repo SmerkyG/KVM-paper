@@ -15,7 +15,8 @@ import triton.language as tl
     do_not_specialize_on_alignment=["QUERY_LEN", "STATE_LEN"],
 )
 def _remove_prefill_routes_kernel(
-    route_logits,
+    q,
+    mean_k,
     mean_v,
     counts,
     slots,
@@ -41,6 +42,12 @@ def _remove_prefill_routes_kernel(
     kv_head = query_head // KV_GROUP_SIZE
     dim = tl.arange(0, BLOCK_D)
     valid_dim = dim < HEAD_DIM
+    query_row = (batch * QUERY_HEADS + query_head) * QUERY_LEN + query
+    query_value = tl.load(
+        q + query_row * HEAD_DIM + dim,
+        mask=valid_dim,
+        other=0.0,
+    )
     full_lse = tl.load(attention_lse + row).to(tl.float32)
     aiter_row = (batch * QUERY_LEN + query) * QUERY_HEADS + query_head
     remainder = tl.load(
@@ -62,20 +69,17 @@ def _remove_prefill_routes_kernel(
             mask=valid_slot,
             other=1.0,
         ).to(tl.float32)
+        key = tl.load(
+            mean_k + state_row + dim,
+            mask=valid_slot & valid_dim,
+            other=0.0,
+        )
         value = tl.load(
             mean_v + state_row + dim,
             mask=valid_slot & valid_dim,
             other=0.0,
         )
-        score = (
-            tl.load(
-                route_logits + row * STATE_LEN + safe_slot,
-                mask=valid_slot,
-                other=0.0,
-            ).to(tl.float32)
-            * SCALE
-            + tl.log(count)
-        )
+        score = tl.sum(query_value * key, axis=0) * SCALE + tl.log(count)
         mass = tl.where(valid_slot, tl.exp(score - full_lse), 0.0)
         selected_mass += mass
         selected_value += mass * value
@@ -97,7 +101,6 @@ def aiter_prefill_coarse_attention(
     state_v: torch.Tensor,
     counts: torch.Tensor,
     top_slots: torch.Tensor,
-    route_logits: torch.Tensor,
     *,
     state_len: int,
     kv_group_size: int,
@@ -109,7 +112,7 @@ def aiter_prefill_coarse_attention(
     per-batch, per-head bias.  That represents ``log(count)`` without
     materializing a query-by-state bias tensor or repeating GQA K/V heads.
     """
-    tensors = (q, mean_k, state_v, counts, top_slots, route_logits)
+    tensors = (q, mean_k, state_v, counts, top_slots)
     if not all(tensor.is_cuda for tensor in tensors):
         raise ValueError("AITER coarse prefill requires CUDA tensors")
     if not all(tensor.is_contiguous() for tensor in tensors):
@@ -132,28 +135,23 @@ def aiter_prefill_coarse_attention(
         raise ValueError("AITER coarse prefill state exceeds its storage")
     if tuple(top_slots.shape[:3]) != (batch, query_heads, query_len):
         raise ValueError("AITER coarse prefill routes differ from its queries")
-    if tuple(route_logits.shape) != (
-        batch,
-        query_heads,
-        query_len,
-        state_len,
-    ):
-        raise ValueError("AITER coarse prefill logits differ from its state")
-
     active_counts = counts[..., :state_len, :].clamp_min(1.0)
     mean_v = (
         state_v[..., :state_len, :] / active_counts.to(state_v.dtype)
     ).contiguous()
-    q_aiter = q.permute(0, 2, 1, 3).contiguous()
-    k_aiter = mean_k.permute(0, 2, 1, 3).contiguous()
-    v_aiter = mean_v.permute(0, 2, 1, 3).contiguous()
+    # CK's FMHA interface consumes the tensor strides for the batch, token,
+    # and head axes; only the feature axis has to be contiguous.  Preserve
+    # these permutations as views.  Materializing q_aiter is especially
+    # expensive for prefill because it copies every query head in the chunk.
+    q_aiter = q.permute(0, 2, 1, 3)
+    k_aiter = mean_k.permute(0, 2, 1, 3)
+    v_aiter = mean_v.permute(0, 2, 1, 3)
     log_count_bias = (
         active_counts[..., 0]
         .log()
         .to(q.dtype)
         .repeat_interleave(kv_group_size, dim=1)
         .unsqueeze(2)
-        .expand(batch, query_heads, query_len, state_len)
     )
 
     original_dlopen_flags = sys.getdlopenflags()
@@ -188,7 +186,8 @@ def aiter_prefill_coarse_attention(
         output.copy_(attention_out.permute(0, 2, 1, 3))
         return output, attention_lse
     _remove_prefill_routes_kernel[(batch * query_heads * query_len,)](
-        route_logits,
+        q,
+        mean_k,
         mean_v,
         active_counts,
         top_slots,

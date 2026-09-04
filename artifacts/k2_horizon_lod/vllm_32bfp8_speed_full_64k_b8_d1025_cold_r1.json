@@ -1,0 +1,299 @@
+{
+  "allow_heterogeneous_global_config": false,
+  "apply_chat_template": true,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 245631025152,
+    "device_used_bytes_before_reclaim": 245631025152,
+    "external_lod_layers": 0,
+    "external_lod_layers_with_native_cache": 0,
+    "external_lod_native_cache_bytes": 0,
+    "lod_cache_bytes": 0,
+    "lod_decode_scratch_bytes": 0,
+    "native_cache_bytes": 183374970880,
+    "torch_allocated_bytes": 222168624128,
+    "torch_reclaimable_cached_bytes": 4387241984,
+    "torch_reserved_bytes_after_reclaim": 224607076352,
+    "torch_reserved_bytes_before_reclaim": 228994318336
+  },
+  "batch_size": 8,
+  "checkpoint": "/home/dan/subusers/agent/.cache/huggingface/hub/models--IFM--K2-Horizon-32B-FP8/snapshots/ff78aa18915bbfd44fc9c76859500436f8d35944",
+  "diagnostic_external_empty_attention": null,
+  "disable_custom_all_reduce": false,
+  "disable_thinking": true,
+  "enable_prefix_caching": false,
+  "full_attention_backend": "ROCM_AITER_UNIFIED_ATTN",
+  "full_attention_dispatch": {
+    "records": [
+      {
+        "attention_callable": "aiter.ops.triton.attention.unified_attention.unified_attention",
+        "head_dim": 128,
+        "implementation_class": "vllm.v1.attention.backends.rocm_aiter_unified_attn.RocmAiterUnifiedAttentionImpl",
+        "kv_cache_dtype": "auto",
+        "kv_group_size": 8,
+        "kv_heads": 8,
+        "layers": 64,
+        "query_heads": 64,
+        "sliding_window": [
+          -1,
+          -1
+        ]
+      }
+    ],
+    "schema_version": 1
+  },
+  "gpu_memory_utilization": 0.9,
+  "language_model_only": false,
+  "lengths": [
+    65536
+  ],
+  "load_format": "auto",
+  "lod_diagnostics_before": null,
+  "long_prefill_token_threshold": 4096,
+  "max_new_tokens": 64,
+  "max_num_batched_tokens": 16384,
+  "mode": "full",
+  "model_impl": null,
+  "muse_native_text_config": false,
+  "num_speculative_tokens": null,
+  "results": {
+    "65536": {
+      "speed": {
+        "decode_timings_seconds": [
+          70.50754870288074
+        ],
+        "marginal_decode_ms_per_batch_step": 68.85502803015697,
+        "marginal_decode_tokens_per_second": 116.18614106868387,
+        "prefill_prompt_tokens_per_second": 3793.147809590669,
+        "prefill_seconds": 136.0600814698264,
+        "prefill_timings_seconds": [
+          136.0600814698264
+        ],
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 64512,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London Kegan Paul, Trench, Truebner &",
+              "request_index": 0,
+              "sha256": "7e0bff3f3b82747109ca7010e00b2f3ef3cae2def0a388582922d6e36609ff67",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                },
+                {
+                  "length": "65431",
+                  "stream_index": 1
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4032,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4032
+              }
+            },
+            {
+              "decoded_prefix": "ulegu glance at him. Rukn chose that moment to bow deeply. His father had ordered it, though Rukn resented even the idea. The warrior stared coldly at him and Rukn watched as his eyes flickered around the inside of the tent, taking in every detail. Hulegu had yet to enter the shaded awning. He stood on the threshold glaring in, while his ten thousand continued to make an appalling racket all around them. Dust drifted in wisps through the air, visible in the light of the setting sun. Rukn struggled to remain calm. 'You must be thirsty, my lord,' Rukn went on,",
+              "request_index": 1,
+              "sha256": "6c9b1e8682c7b853cdfb7f662d3fa718a1757600f18459add3a1e7c8ae6d2f20",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "65626",
+                  "stream_index": 2
+                },
+                {
+                  "length": "68110",
+                  "stream_index": 3
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4032,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4032
+              }
+            },
+            {
+              "decoded_prefix": "Repo: playpark777/spafac-test ======================= File: app/assets/javascripts/profiles.coffee ======================= <gh_stars>0 $ -> $('.add-identification-attachment').click -> li_count = $(\"ul.list-unstyled.identification-attachments>li\").size() + 1 input = document.createElement('input') input.setAttribute('type', 'file') input.setAttribute('id', \"identification_image\" + li_count) input.setAttribute('name', \"identification[image\" + li_count + \"]\") input.setAttribute('class', 'row-space-top-2-file')",
+              "request_index": 2,
+              "sha256": "fda71db8250af76878c6ce6d7c6945cb77f2d10f91093651182da7233055b4af",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "66409",
+                  "stream_index": 4
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4032,
+                "max_identical_block_occurrences": 10,
+                "unique_block_ratio": 0.951140873015873,
+                "unique_blocks": 3835
+              }
+            },
+            {
+              "decoded_prefix": "Sausage Hall Sausage Hall: home to millionaire Kevan de Vries, grandson of a Dutch immigrant farmer. De Vries has built up a huge farming and food packing empire which extends, via the banana trade, to the West Indies. But sleazy MD, Tony Sentance, manages to persuade de Vries to branch out into the luxury holiday trade. De Vries and wife, Joanna, take the first cruise out to explore the potentially lucrative possibilities. However, back at home, a break-in at Sausage Hall uncovers a truly gruesome historical discovery. And when a young employee of de Vries is found dead in the",
+              "request_index": 3,
+              "sha256": "53b776dd1bc4e5e0aba31760970970014e73dfb9af70d2be6e66b4a6d99bc2f6",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "65449",
+                  "stream_index": 5
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4032,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4032
+              }
+            },
+            {
+              "decoded_prefix": "[Graduate School of Business Creation] Aiming to become a \u201ctax accountant x MBA\u201d who can work with managers to create a \u201cfuture vision for a company\u201d \u201cTax Accountant Exam Subject Exemption Briefing\u201d will be held on October 28th (Sat) NSG Group\u2019s Business Creation Graduate University (3-1-46 Yoneyama, Chuo-ku, Niigata City) will be offering a tax accountant exam subject exemption from 10:30 on Saturday, October 28, 2023 for those aiming to pass the tax accountant exam. An information session will be held online (free of charge, reservation required",
+              "request_index": 4,
+              "sha256": "b2220dffc739be609f2f8c9e3dfca769e92647b142692212936e334ad67c34ac",
+              "source_document_count": 3,
+              "source_documents": [
+                {
+                  "length": "1617",
+                  "stream_index": 6
+                },
+                {
+                  "length": "67588",
+                  "stream_index": 7
+                },
+                {
+                  "length": "65718",
+                  "stream_index": 8
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4032,
+                "max_identical_block_occurrences": 3,
+                "unique_block_ratio": 0.9940476190476191,
+                "unique_blocks": 4008
+              }
+            },
+            {
+              "decoded_prefix": "device { //In the next step we associate the GPU memory with the Kernel arguments //my_dev::dev_mem<uint> counts(devContext, 512), countx(devContext, 512); //Memory that should be alloced outside the function: //devMemCounts and devMemCountsx // make sure previous reset has finished. this->devMemCountsx.waitForCopyEvent(); //Kernel configuration parameters setupParams sParam; sParam.jobs = (N / 64) / 480 ; //64=32*2 2 items per look,",
+              "request_index": 5,
+              "sha256": "b2b10d6f9f2f0dd30fb75a91bd09d8296744c50e384e992731ad1f0037f3f984",
+              "source_document_count": 1,
+              "source_documents": [
+                {
+                  "length": "66365",
+                  "stream_index": 9
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4032,
+                "max_identical_block_occurrences": 4,
+                "unique_block_ratio": 0.9885912698412699,
+                "unique_blocks": 3986
+              }
+            },
+            {
+              "decoded_prefix": "Do you have information on the knowledge and skills of young children? Differences among demographic groups in the acquisition of cognitive skills have been demonstrated at relatively early ages in the Early Childhood Longitudinal Survey's Birth Cohort (ECLS-B) study as well as its Kindergarten Class (ECLS-K) studies. In 2003\u201304, about 64 percent of 2-year-olds demonstrated proficiency in expressive vocabulary, which measured toddlers' ability to communicate using gestures, words, and sentences. The percentage of 2-year-olds demonstrating expressive vocabulary was higher for females (69 percent) than for males (59 percent). Also, a higher percentage of White (",
+              "request_index": 6,
+              "sha256": "b3b8118dd4484cc33ac6a830c0ee7ebed8b31aa31653a7d22e9a4da4fa7a3c90",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "912",
+                  "stream_index": 10
+                },
+                {
+                  "length": "66633",
+                  "stream_index": 11
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4032,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4032
+              }
+            },
+            {
+              "decoded_prefix": "Whatever kind of Passover Seder one attends, there is a fifth question, usually only whispered, that arises sometime after those famous four questions which begin the long Maggid (literally, telling) section of the haggadah are recited: \u201cWhen do we eat?\u201d Of course, the haggadah itself says that \u201cwhoever elaborates in the retelling of the story of the exodus is surely praised\u201d and illustrates the point with the famous story of the five sages of the 2nd century, who stayed up all night doing just that: It happened that Rabbi Eliezer, Rabbi Joshua, Rabbi Elazar ben Azary",
+              "request_index": 7,
+              "sha256": "2f6a2b1efb133bd8c63eba1ebd2079b9dc9067dfd12e6a0b930b960cb7d42df4",
+              "source_document_count": 5,
+              "source_documents": [
+                {
+                  "length": "2691",
+                  "stream_index": 12
+                },
+                {
+                  "length": "1396",
+                  "stream_index": 13
+                },
+                {
+                  "length": "995",
+                  "stream_index": 14
+                },
+                {
+                  "length": "727",
+                  "stream_index": 15
+                },
+                {
+                  "length": "65970",
+                  "stream_index": 16
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 4032,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 4032
+              }
+            }
+          ],
+          "rejected_candidate_count": 0,
+          "rejected_candidates": []
+        },
+        "prompt_length": 64512,
+        "speculative_accepted_tokens_per_repeat": [
+          0
+        ],
+        "speculative_active_row_cycles_per_repeat": [
+          0
+        ],
+        "speculative_draft_tokens_per_repeat": [
+          0
+        ],
+        "speculative_marginal_ms_per_target_cycle": null,
+        "speculative_target_cycles_per_repeat": [
+          0
+        ],
+        "total_timings_seconds": [
+          206.57453544344753
+        ]
+      }
+    }
+  },
+  "sample_offset": 0,
+  "samples_per_length": 8,
+  "speculative_attention_backend": null,
+  "speculative_method": null,
+  "speculative_model": null,
+  "speed_decode_tokens": 1025,
+  "speed_prompt_reserve": 1024,
+  "speed_repeats": 1,
+  "speed_use_warm_prefix_cache": false,
+  "tensor_parallel_size": 1
+}

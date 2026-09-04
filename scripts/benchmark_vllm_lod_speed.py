@@ -1433,6 +1433,7 @@ def install_lod_phase_timers(model) -> int:
         "state_update": "_update_state",
         "page_append": "_append_page_cache",
         "local": "_prefill_local_attention",
+        "exact_front": "_exact_attention",
     }
     installed = 0
     for module in model.modules():
@@ -1461,6 +1462,7 @@ def install_lod_phase_timers(model) -> int:
             events[f"{name}_decode"] = []
             events[f"{name}_prefill"] = []
         engine._lod_phase_timing_events = events
+        events["pool_install"] = []
         # The fused recursive decode path has its own phase boundaries inside
         # one engine call.  Share the same event sink so its route, local,
         # exact-leaf, and final-reduction costs appear in the profile.
@@ -1508,6 +1510,23 @@ def install_lod_phase_timers(model) -> int:
                 return result
 
             setattr(engine, method_name, timed)
+        original_install_rows = pool.install_rows
+
+        def timed_install_rows(
+            *args,
+            __original=original_install_rows,
+            __events=events,
+            **kwargs,
+        ):
+            begin = torch.cuda.Event(enable_timing=True)
+            end = torch.cuda.Event(enable_timing=True)
+            begin.record()
+            result = __original(*args, **kwargs)
+            end.record()
+            __events["pool_install"].append((begin, end))
+            return result
+
+        pool.install_rows = timed_install_rows
         installed += 1
     return installed
 

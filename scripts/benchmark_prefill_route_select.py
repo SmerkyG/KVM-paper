@@ -327,7 +327,7 @@ def main() -> None:
             (8, 1024, 2, 2),
         )
     for block_m, block_n, tile_warps, reduce_warps in (
-        hierarchical_configs if args.topk == 3 else ()
+        hierarchical_configs if args.topk in (2, 3) else ()
     ):
         label = f"hier_m{block_m}_n{block_n}_tw{tile_warps}_rw{reduce_warps}"
 

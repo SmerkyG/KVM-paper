@@ -8,6 +8,7 @@ import json
 import torch
 
 from model.kernels.paged_leaf_attention import (
+    gqa_tile_masked_paged_leaf_attention,
     query_major_paged_leaf_attention,
     query_tile_masked_paged_leaf_attention,
 )
@@ -74,6 +75,33 @@ def main() -> None:
         num_warps=1,
     )
     results = {}
+    gqa_out, gqa_lse = gqa_tile_masked_paged_leaf_attention(
+        q,
+        page_k,
+        page_v,
+        slot_pages,
+        overflow_keys,
+        overflow_values,
+        overflow_used,
+        lengths,
+        top_slots,
+        kv_group_size=query_heads // kv_heads,
+        scale=scale,
+        hash_probes=0,
+        block_n=32,
+        num_warps=2,
+    )
+    torch.cuda.synchronize(device)
+    gqa_output_error = float(
+        (gqa_out.float() - reference_out.float()).abs().max().item()
+    )
+    gqa_lse_error = float((gqa_lse - reference_lse).abs().max().item())
+    results["gqa"] = {
+        "max_output_error": gqa_output_error,
+        "max_lse_error": gqa_lse_error,
+    }
+    if gqa_output_error > 0.02 or gqa_lse_error > 0.005:
+        raise AssertionError(results)
     for query_tile in (2, 4, 8):
         actual_out, actual_lse = query_tile_masked_paged_leaf_attention(
             q,

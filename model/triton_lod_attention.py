@@ -30,10 +30,12 @@ from .kernels.paged_leaf_attention import (
     aiter_varlen_paged_leaf_attention,
     dense_page_summary_attention,
     fused_decode_paged_lod_attention,
+    gqa_tile_masked_paged_leaf_attention,
     materialize_page_summary_scores_gqa,
     new_fused_decode_buffers,
     paged_leaf_attention,
     query_major_paged_leaf_attention,
+    query_tile_masked_paged_leaf_attention,
     query_major_indexed_residual_page_attention,
     query_major_residual_page_attention,
     query_tile_slot_unions,
@@ -111,6 +113,8 @@ class TritonLODAttentionCore(nn.Module):
     prefill_chunk_len = 256
     prefill_local_len = 512
     prefill_state_update_len = 256
+    prefill_exact_first_chunk = False
+    prefill_overlap_exact_state = False
     # Query-independent prefill alternative: every 4K catch-up rebuild opens
     # all exact leaves of centroids in the scheduled small-posting cohort and
     # leaves larger centroids in the count-corrected coarse branch.
@@ -363,6 +367,8 @@ class TritonLODAttentionCore(nn.Module):
     prefill_coarse_direct_gqa = False
     prefill_coarse_route_block_n = 32
     prefill_coarse_route_num_warps = 8
+    prefill_aiter_coarse = False
+    prefill_fused_state_qk = False
     fused_prefill_route_coarse = False
     fused_prefill_stable_recompute = True
     fused_prefill_external_recompute = True
@@ -4088,7 +4094,11 @@ class TritonLODAttentionCore(nn.Module):
                     raise AssertionError("fused prefill routing has no local KV")
                 query_normalized_routing = self.routing_normalization == "query"
                 fused_state_qk = bool(
-                    self.prefill_int8_route_mma
+                    (
+                        self.prefill_int8_route_mma
+                        or self.prefill_aiter_coarse
+                        or self.prefill_fused_state_qk
+                    )
                     and not query_normalized_routing
                     and getattr(self, "mla_state_key_normalization", "none") == "none"
                 )
@@ -4154,9 +4164,12 @@ class TritonLODAttentionCore(nn.Module):
                     num_warps=self.fused_prefill_num_warps,
                     stable_recompute=self.fused_prefill_stable_recompute,
                     route_only=(
-                        not fused_state_qk
-                        and self.fused_prefill_stable_recompute
-                        and self.fused_prefill_external_recompute
+                        self.prefill_aiter_coarse
+                        or (
+                            not fused_state_qk
+                            and self.fused_prefill_stable_recompute
+                            and self.fused_prefill_external_recompute
+                        )
                     ),
                     state_k=(state_k.contiguous() if fused_state_qk else None),
                     int8_qk=bool(self.prefill_int8_route_mma and fused_state_qk),
@@ -4168,7 +4181,7 @@ class TritonLODAttentionCore(nn.Module):
                         and not fused_state_qk
                         and self.fused_prefill_stable_recompute
                         and self.fused_prefill_external_recompute
-                        and route_count == 3
+                        and route_count in (2, 3)
                     ),
                 )
                 if route_select_begin is not None:
@@ -4185,7 +4198,9 @@ class TritonLODAttentionCore(nn.Module):
                     if not hasattr(self, "_lod_dynamic_prefill_histograms"):
                         self._lod_dynamic_prefill_histograms = []
                     self._lod_dynamic_prefill_histograms.append(histogram)
-                if (
+                if self.prefill_aiter_coarse:
+                    self._lod_prefill_aiter_routes = True
+                elif (
                     not fused_state_qk
                     and self.fused_prefill_stable_recompute
                     and self.fused_prefill_external_recompute
@@ -4235,7 +4250,11 @@ class TritonLODAttentionCore(nn.Module):
                     buffers = new_route_buffers(
                         q,
                         state_capacity=state_capacity,
-                        query_capacity=max(self.chunk_len, self.prefill_chunk_len),
+                        query_capacity=(
+                            max(self.chunk_len, self.prefill_chunk_len)
+                            if int(q.size(2)) > 1
+                            else 1
+                        ),
                         include_lse=needs_lse_buffers,
                     )
                     self._lod_route_buffers = buffers
@@ -4318,7 +4337,7 @@ class TritonLODAttentionCore(nn.Module):
                     if (
                         self.prefill_hierarchical_route
                         and int(q.size(2)) > 1
-                        and route_count == 3
+                        and route_count in (2, 3)
                         and dynamic_residual is None
                     ):
                         hierarchical_block_n = min(
@@ -4748,6 +4767,7 @@ class TritonLODAttentionCore(nn.Module):
         sequence_capacity: int,
         virtual_k: torch.Tensor | None = None,
         virtual_v: torch.Tensor | None = None,
+        destination: dict[str, torch.Tensor | int] | None = None,
     ) -> dict[str, torch.Tensor | int]:
         batch, kv_heads, _, head_dim = k.shape
         raw_page_key_summaries = bool(
@@ -4787,6 +4807,28 @@ class TritonLODAttentionCore(nn.Module):
         page_capacity = (
             sequence_capacity + page_size - 1
         ) // page_size + state_capacity
+        if destination is not None and (
+            not self.virtual_page_storage
+            or self.recursive_page_lod
+            or flat_int8_mma
+            or self.leaf_key_quant_bits
+            or self.leaf_value_quant_bits
+        ):
+            raise ValueError(
+                "direct prefill storage currently requires flat BF16 virtual pages"
+            )
+
+        def destination_tensor(name: str) -> torch.Tensor:
+            if destination is None:
+                raise AssertionError("direct prefill page destination is missing")
+            value = destination.get(name)
+            if not isinstance(value, torch.Tensor):
+                raise TypeError(f"direct prefill page destination lacks {name}")
+            if value.ndim and tuple(value.shape[:2]) != (batch, kv_heads):
+                raise ValueError(
+                    f"direct prefill page destination {name} has wrong batch/head shape"
+                )
+            return value
         paged_page_directory = bool(self.leaf_paged_directory)
         if (
             paged_page_directory
@@ -4816,24 +4858,29 @@ class TritonLODAttentionCore(nn.Module):
             # without a separate directory allocator.
             directory_page_capacity = max(1, page_capacity)
             slot_page_dtype = torch.int32
-            overflow_page_keys = torch.full(
-                (batch, kv_heads, 1),
-                -1,
-                dtype=torch.int32,
-                device=k.device,
-            )
-            overflow_page_values = torch.full(
-                (
-                    batch,
-                    kv_heads,
-                    directory_page_capacity,
-                    _PAGE_DIRECTORY_SIZE,
-                ),
-                -1,
-                dtype=torch.int32,
-                device=k.device,
-            )
-            overflow_used = torch.zeros((), dtype=torch.int32, device=k.device)
+            if destination is None:
+                overflow_page_keys = torch.full(
+                    (batch, kv_heads, 1),
+                    -1,
+                    dtype=torch.int32,
+                    device=k.device,
+                )
+                overflow_page_values = torch.full(
+                    (
+                        batch,
+                        kv_heads,
+                        directory_page_capacity,
+                        _PAGE_DIRECTORY_SIZE,
+                    ),
+                    -1,
+                    dtype=torch.int32,
+                    device=k.device,
+                )
+                overflow_used = torch.zeros((), dtype=torch.int32, device=k.device)
+            else:
+                overflow_page_keys = destination_tensor("overflow_page_keys")
+                overflow_page_values = destination_tensor("overflow_page_values")
+                overflow_used = destination_tensor("overflow_used")
         else:
             slot_page_capacity = self.leaf_inline_pages_per_slot
             slot_page_dtype = (
@@ -4844,72 +4891,109 @@ class TritonLODAttentionCore(nn.Module):
             # Most contexts never overflow the compact inline posting lists.
             # Keep only a sentinel allocation until a slot actually needs the
             # hash table; kernels with HASH_PROBES=0 never dereference it.
-            overflow_page_keys = torch.full(
-                (batch, kv_heads, 1),
-                -1,
-                dtype=torch.int32,
-                device=k.device,
-            )
-            overflow_page_values = torch.full(
-                (batch, kv_heads, 1),
-                -1,
-                dtype=torch.int32,
-                device=k.device,
-            )
-            overflow_used = torch.zeros((), dtype=torch.int32, device=k.device)
+            if destination is None:
+                overflow_page_keys = torch.full(
+                    (batch, kv_heads, 1),
+                    -1,
+                    dtype=torch.int32,
+                    device=k.device,
+                )
+                overflow_page_values = torch.full(
+                    (batch, kv_heads, 1),
+                    -1,
+                    dtype=torch.int32,
+                    device=k.device,
+                )
+                overflow_used = torch.zeros((), dtype=torch.int32, device=k.device)
+            else:
+                overflow_page_keys = destination_tensor("overflow_page_keys")
+                overflow_page_values = destination_tensor("overflow_page_values")
+                overflow_used = destination_tensor("overflow_used")
+        destination_slot_pages = (
+            destination_tensor("slot_pages") if destination is not None else None
+        )
+        destination_slot_capacity = (
+            int(destination_slot_pages.size(-1))
+            if destination_slot_pages is not None
+            else slot_page_capacity
+        )
         cache: dict[str, torch.Tensor | int] = {
             # These pages are allocated from per-region postings below.  This
             # is a semantic contract, not a description of the physical flat
             # leaf backing used by virtual-page storage.
             "region_owned_pages": True,
-            "slot_pages": torch.full(
-                (
-                    batch,
-                    kv_heads,
-                    state_capacity,
-                    slot_page_capacity,
-                ),
-                -1,
-                dtype=slot_page_dtype,
-                device=k.device,
+            "slot_pages": (
+                destination_slot_pages
+                if destination_slot_pages is not None
+                else torch.full(
+                    (
+                        batch,
+                        kv_heads,
+                        state_capacity,
+                        slot_page_capacity,
+                    ),
+                    -1,
+                    dtype=slot_page_dtype,
+                    device=k.device,
+                )
             ),
             "overflow_page_keys": overflow_page_keys,
             "overflow_page_values": overflow_page_values,
-            "overflow_hash_capacity": hash_capacity,
-            "overflow_flag": torch.zeros((), dtype=torch.int32, device=k.device),
+            "overflow_hash_capacity": (
+                int(destination.get("overflow_hash_capacity", hash_capacity))
+                if destination is not None
+                else hash_capacity
+            ),
+            "overflow_flag": (
+                destination_tensor("overflow_flag")
+                if destination is not None
+                else torch.zeros((), dtype=torch.int32, device=k.device)
+            ),
             "overflow_used": overflow_used,
             "overflow_active": False,
-            "overflow_safe_until": slot_page_capacity * page_size,
+            "overflow_safe_until": destination_slot_capacity * page_size,
             "paged_page_directory": paged_page_directory,
             "page_directory_size": _PAGE_DIRECTORY_SIZE,
-            "slot_lengths": torch.zeros(
-                batch,
-                kv_heads,
-                state_capacity,
-                dtype=torch.int32,
-                device=k.device,
+            "slot_lengths": (
+                destination_tensor("slot_lengths")
+                if destination is not None
+                else torch.zeros(
+                    batch,
+                    kv_heads,
+                    state_capacity,
+                    dtype=torch.int32,
+                    device=k.device,
+                )
             ),
             # Diagnostic state for the monotone static cohort. Zero is an
             # unseen centroid slot, one is still exact-leaf eligible, and
             # minus one means its leaves crossed a prior schedule limit and
             # must never be re-admitted. The compact allocator can consume
             # this field directly once eviction is enabled.
-            "static_cohort_status": torch.zeros(
-                batch,
-                kv_heads,
-                (
-                    state_capacity
-                    if (
-                        os.getenv("LOD_STATIC_COHORT_EVICTION_DIAGNOSTICS") == "1"
-                        or self.static_cohort_never_readmit
-                    )
-                    else 0
-                ),
-                dtype=torch.int8,
-                device=k.device,
+            "static_cohort_status": (
+                destination_tensor("static_cohort_status")
+                if destination is not None
+                else torch.zeros(
+                    batch,
+                    kv_heads,
+                    (
+                        state_capacity
+                        if (
+                            os.getenv("LOD_STATIC_COHORT_EVICTION_DIAGNOSTICS") == "1"
+                            or self.static_cohort_never_readmit
+                        )
+                        else 0
+                    ),
+                    dtype=torch.int8,
+                    device=k.device,
+                )
             ),
-            "next_page": torch.zeros(
-                batch, kv_heads, dtype=torch.int32, device=k.device
+            "next_page": (
+                destination_tensor("next_page")
+                if destination is not None
+                else torch.zeros(
+                    batch, kv_heads, dtype=torch.int32, device=k.device
+                )
             ),
             "page_size": page_size,
             "leaf_capacity": sequence_capacity,
@@ -4958,6 +5042,14 @@ class TritonLODAttentionCore(nn.Module):
                     device=v.device,
                 )
                 flat_leaf_capacity = sequence_capacity
+            elif destination is not None:
+                flat_leaf_k = destination_tensor("leaf_k")
+                flat_leaf_v = destination_tensor("leaf_v")
+                if int(flat_leaf_k.size(2)) < sequence_capacity or int(
+                    flat_leaf_v.size(2)
+                ) < sequence_capacity:
+                    raise ValueError("direct prefill leaf destination is too small")
+                flat_leaf_capacity = int(flat_leaf_k.size(2))
             elif virtual_native_quant:
                 flat_leaf_k = virtual_k.detach()
                 flat_leaf_v = virtual_v.detach()
@@ -4978,11 +5070,15 @@ class TritonLODAttentionCore(nn.Module):
             cache.update(
                 leaf_k=flat_leaf_k,
                 leaf_v=flat_leaf_v,
-                page_indices=torch.full(
-                    (batch, kv_heads, page_capacity, page_size),
-                    -1,
-                    dtype=torch.int32,
-                    device=k.device,
+                page_indices=(
+                    destination_tensor("page_indices")
+                    if destination is not None
+                    else torch.full(
+                        (batch, kv_heads, page_capacity, page_size),
+                        -1,
+                        dtype=torch.int32,
+                        device=k.device,
+                    )
                 ),
                 leaf_capacity=flat_leaf_capacity,
                 leaf_quant_bits=(
@@ -5105,8 +5201,7 @@ class TritonLODAttentionCore(nn.Module):
                     prefill_int8_leaf_mma=True,
                 )
         needs_page_summaries = (
-            self.virtual_page_storage
-            or self.recursive_page_lod
+            self.recursive_page_lod
             or bool(self.leaf_key_quant_bits or self.leaf_value_quant_bits)
         )
         if needs_page_summaries:
@@ -5516,11 +5611,13 @@ class TritonLODAttentionCore(nn.Module):
         if virtual_pages:
             leaf_k = cache.get("leaf_k")
             leaf_v = cache.get("leaf_v")
-            if not all(
-                isinstance(value, torch.Tensor)
-                for value in (leaf_k, leaf_v, page_sum_k, page_sum_v, page_counts)
-            ):
+            if not all(isinstance(value, torch.Tensor) for value in (leaf_k, leaf_v)):
                 raise TypeError("virtual page cache tensors are incomplete")
+            summaries = (page_sum_k, page_sum_v, page_counts)
+            if any(isinstance(value, torch.Tensor) for value in summaries) and not all(
+                isinstance(value, torch.Tensor) for value in summaries
+            ):
+                raise TypeError("virtual page summary tensors are incomplete")
             if bool(cache.get("prefill_int8_leaf_mma", False)):
                 append_virtual_paged_kv(
                     leaf_k,
@@ -5724,6 +5821,8 @@ class TritonLODAttentionCore(nn.Module):
             raise TypeError("paged LOD cache is incomplete")
         leaf_function = {
             "query": query_major_paged_leaf_attention,
+            "query_tile": query_tile_masked_paged_leaf_attention,
+            "gqa_tile": gqa_tile_masked_paged_leaf_attention,
             "expert": paged_leaf_attention,
             "expert_tiny": paged_leaf_attention,
             "aiter_varlen": aiter_varlen_paged_leaf_attention,
@@ -5743,6 +5842,23 @@ class TritonLODAttentionCore(nn.Module):
             )
             leaf_kwargs = {
                 "block_n": block_n,
+                "hash_probes": self._page_lookup_probes(cache),
+                "num_warps": self.leaf_num_warps,
+                "waves_per_eu": self.leaf_waves_per_eu,
+                "timing_events": getattr(self, "_lod_leaf_timing_events", None),
+            }
+        elif self.leaf_layout == "query_tile":
+            leaf_kwargs = {
+                "block_m": self.leaf_union_query_tile,
+                "block_n": self.leaf_block_n,
+                "hash_probes": self._page_lookup_probes(cache),
+                "num_warps": self.leaf_num_warps,
+                "waves_per_eu": self.leaf_waves_per_eu,
+                "timing_events": getattr(self, "_lod_leaf_timing_events", None),
+            }
+        elif self.leaf_layout == "gqa_tile":
+            leaf_kwargs = {
+                "block_n": self.leaf_block_n,
                 "hash_probes": self._page_lookup_probes(cache),
                 "num_warps": self.leaf_num_warps,
                 "waves_per_eu": self.leaf_waves_per_eu,
@@ -5916,6 +6032,32 @@ class TritonLODAttentionCore(nn.Module):
                     scale=self.scaling,
                 )
             return coarse_output, coarse_lse
+        if getattr(self, "_lod_prefill_aiter_routes", False):
+            del self._lod_prefill_aiter_routes
+            if include_local:
+                raise AssertionError("AITER coarse attention requires split local")
+            from .kernels.aiter_prefill_attention import (
+                aiter_prefill_coarse_attention,
+            )
+
+            active_counts = counts[..., :state_len, :]
+            mean_k = self._mean(
+                state_k.detach()[..., :state_len, :], active_counts
+            )
+            mean_k = self._mla_normalize_key(
+                mean_k, state_centroid=True
+            ).contiguous()
+            self._lod_prefill_aiter_coarse_executed = True
+            return aiter_prefill_coarse_attention(
+                q.contiguous(),
+                mean_k,
+                state_v.contiguous(),
+                counts.contiguous(),
+                top_slots.contiguous(),
+                state_len=state_len,
+                kv_group_size=self.num_key_value_groups,
+                scale=self.scaling,
+            )
         route_logits_payload = getattr(self, "_lod_prefill_route_logits", None)
         if route_logits_payload is not None:
             del self._lod_prefill_route_logits
@@ -6000,6 +6142,29 @@ class TritonLODAttentionCore(nn.Module):
                     coarse_local_v,
                     coarse_top_slots,
                     state_len=state_len,
+                )
+            if self.prefill_aiter_coarse and query_len > 1 and not include_local:
+                from .kernels.aiter_prefill_attention import (
+                    aiter_prefill_coarse_attention,
+                )
+
+                active_counts = counts[..., :state_len, :]
+                mean_k = self._mean(
+                    state_k.detach()[..., :state_len, :], active_counts
+                )
+                mean_k = self._mla_normalize_key(
+                    mean_k, state_centroid=True
+                ).contiguous()
+                self._lod_prefill_aiter_coarse_executed = True
+                return aiter_prefill_coarse_attention(
+                    q.contiguous(),
+                    mean_k,
+                    state_v.contiguous(),
+                    counts.contiguous(),
+                    coarse_top_slots.contiguous(),
+                    state_len=state_len,
+                    kv_group_size=self.num_key_value_groups,
+                    scale=self.scaling,
                 )
             int8_state_pv = self.prefill_int8_coarse_mma and query_len > 1
             if self.prefill_coarse_direct_gqa and query_len > 1:
@@ -6138,6 +6303,29 @@ class TritonLODAttentionCore(nn.Module):
                 ),
                 torch.logaddexp(coarse_lse, local_lse),
             )
+        if self.prefill_aiter_coarse and query_len > 1 and not include_local:
+            from .kernels.aiter_prefill_attention import (
+                aiter_prefill_coarse_attention,
+            )
+
+            active_counts = counts[..., :state_len, :]
+            mean_k = self._mean(
+                state_k.detach()[..., :state_len, :], active_counts
+            )
+            mean_k = self._mla_normalize_key(
+                mean_k, state_centroid=True
+            ).contiguous()
+            self._lod_prefill_aiter_coarse_executed = True
+            return aiter_prefill_coarse_attention(
+                q.contiguous(),
+                mean_k,
+                state_v.contiguous(),
+                counts.contiguous(),
+                top_slots.contiguous(),
+                state_len=state_len,
+                kv_group_size=self.num_key_value_groups,
+                scale=self.scaling,
+            )
         route_logits = self._state_route_logits(
             q,
             state_k,
@@ -6156,6 +6344,23 @@ class TritonLODAttentionCore(nn.Module):
                 state_len=state_len,
             )
         int8_state_pv = self.prefill_int8_coarse_mma and query_len > 1
+        prefill_direct_gqa = bool(
+            query_len > 1 and self.prefill_coarse_direct_gqa
+        )
+        if prefill_direct_gqa:
+            self._lod_prefill_coarse_direct_gqa_executed = (
+                self.prefill_coarse_max_grouped_rows,
+                (
+                    self.prefill_int8_coarse_block_n
+                    if int8_state_pv
+                    else self.prefill_coarse_route_block_n
+                ),
+                (
+                    self.prefill_int8_coarse_num_warps
+                    if int8_state_pv
+                    else self.prefill_coarse_route_num_warps
+                ),
+            )
         retain_large_route_coarse = query_len > 1 and int(top_slots.size(-1)) > 16
         kernel_top_slots = (
             torch.empty(
@@ -6182,16 +6387,25 @@ class TritonLODAttentionCore(nn.Module):
             block_n=(
                 self.prefill_int8_coarse_block_n
                 if int8_state_pv
+                else self.prefill_coarse_route_block_n
+                if query_len > 1
                 else self.coarse_route_block_n
             ),
             num_warps=(
                 self.prefill_int8_coarse_num_warps
                 if int8_state_pv
+                else self.prefill_coarse_route_num_warps
+                if query_len > 1
                 else self.coarse_route_num_warps
             ),
             precompute_mean_values=query_len > 1,
             int8_state_pv=int8_state_pv,
-            max_grouped_rows=self.coarse_max_grouped_rows,
+            max_grouped_rows=(
+                self.prefill_coarse_max_grouped_rows
+                if query_len > 1
+                else self.coarse_max_grouped_rows
+            ),
+            direct_gqa_rows=prefill_direct_gqa,
         )
         if not include_local or int(local_k.size(2)) == 0:
             return coarse_output, coarse_lse
@@ -6749,18 +6963,62 @@ class TritonLODAttentionCore(nn.Module):
                 coarse_local_k = local_k[..., : local_len + 1, :].contiguous()
                 coarse_local_v = local_v[..., : local_len + 1, :].contiguous()
             no_slots = torch.empty(*q.shape[:3], 0, dtype=torch.long, device=q.device)
+            split_local = local_branch is not None
             coarse_output, coarse_lse = self._coarse_attention(
                 q,
-                coarse_local_k,
-                coarse_local_v,
+                (
+                    coarse_local_k[..., :0, :]
+                    if split_local
+                    else coarse_local_k
+                ),
+                (
+                    coarse_local_v[..., :0, :]
+                    if split_local
+                    else coarse_local_v
+                ),
                 state_k,
                 state_v,
                 counts,
                 no_slots,
                 state_len=state_len,
                 state_capacity=state_capacity,
-                include_local=True,
+                include_local=not split_local,
             )
+            if split_local:
+                local_stream = getattr(
+                    self, "_lod_prefill_local_stream_pending", None
+                )
+                if local_stream is not None:
+                    del self._lod_prefill_local_stream_pending
+                    torch.cuda.current_stream(q.device).wait_stream(local_stream)
+                local_output, local_lse = local_branch
+                self._record_decode_previous_total_lse(
+                    page_cache,
+                    q,
+                    coarse_lse,
+                    local_lse,
+                    sink_k=sink_k,
+                )
+                if sink_k is not None and sink_v is not None:
+                    return merge_attention_branches_with_sink(
+                        q,
+                        sink_k,
+                        sink_v,
+                        coarse_output,
+                        coarse_lse,
+                        local_output,
+                        local_lse,
+                        kv_group_size=self.num_key_value_groups,
+                        scale=self.scaling,
+                        output_buffer=output_buffer,
+                    )
+                return merge_attention_branches(
+                    coarse_output,
+                    coarse_lse,
+                    local_output,
+                    local_lse,
+                    output_buffer=output_buffer,
+                )
             if sink_k is not None and sink_v is not None:
                 return merge_attention_branches_with_sink(
                     q,
@@ -7672,6 +7930,15 @@ class TritonLODAttentionCore(nn.Module):
         causal: bool,
         valid_starts: torch.Tensor | None = None,
     ) -> torch.Tensor:
+        if (
+            valid_starts is None
+            and self.prefill_local_attention_backend == "aiter"
+        ):
+            # The exact front is ordinary causal GQA. Reuse the native-GQA CK
+            # path used by the local branch instead of physically repeating
+            # K/V once per query head for PyTorch SDPA.
+            output, _ = self._prefill_local_attention(q, k, v, query_offset=0)
+            return output
         k = self._mla_normalize_key(k, state_centroid=False)
         if valid_starts is not None:
             query_len = int(q.size(2))
@@ -7796,11 +8063,18 @@ class TritonLODAttentionCore(nn.Module):
                 else:
                     raise ValueError(
                         "AITER local attention requires a full local query field "
-                        "or its suffix queries"
+                        "or its suffix queries: "
+                        f"supplied_query_len={supplied_query_len}, "
+                        f"key_len={key_len}, query_offset={query_offset}, "
+                        f"suffix_query_len={query_len}"
                     )
-                dense_q = actual_q.permute(0, 2, 1, 3).contiguous()
-                dense_k = k.permute(0, 2, 1, 3).contiguous()
-                dense_v = v.permute(0, 2, 1, 3).contiguous()
+                # CK consumes arbitrary batch/token/head strides and only
+                # requires the feature dimension to be contiguous.  Keeping
+                # these as views avoids copying the full local Q/K/V fields
+                # once per attention layer and prefill chunk.
+                dense_q = actual_q.permute(0, 2, 1, 3)
+                dense_k = k.permute(0, 2, 1, 3)
+                dense_v = v.permute(0, 2, 1, 3)
                 try:
                     output, lse = flash_attn_func(
                         dense_q,
@@ -7868,6 +8142,7 @@ class TritonLODAttentionCore(nn.Module):
         clustering_query: torch.Tensor | None = None,
         logical_prefill_len: int | None = None,
         prefill_valid_starts: torch.Tensor | None = None,
+        finalize_cache_for_decode: bool = True,
     ) -> dict[str, object]:
         """Construct LOD state from an existing post-RoPE BF16 K/V prefix.
 
@@ -7883,6 +8158,7 @@ class TritonLODAttentionCore(nn.Module):
             logical_prefill_len=logical_prefill_len,
             prefill_valid_starts=prefill_valid_starts,
             build_cache_only=True,
+            finalize_cache_for_decode=finalize_cache_for_decode,
         )
         state = getattr(self, "_lod_state", None)
         if not isinstance(state, dict):
@@ -7922,6 +8198,9 @@ class TritonLODAttentionCore(nn.Module):
             or int(output_buffer.stride(-1)) != 1
         ):
             raise ValueError("prefill output buffer has incompatible geometry")
+        prefill_storage = getattr(self, "_lod_prefill_storage", None)
+        if prefill_storage is not None and not isinstance(prefill_storage, dict):
+            raise TypeError("direct prefill storage must be a tensor dictionary")
         prefill_chunk_len = self.prefill_chunk_len
         prefill_local_len = self.prefill_local_len
         prefill_state_update_len = self.prefill_state_update_len
@@ -7976,22 +8255,49 @@ class TritonLODAttentionCore(nn.Module):
         exact_lookback = prefill_local_len - prefill_chunk_len
         if getattr(self, "_lod_collect_stats", False):
             self._lod_route_stats = []
-        front_len = min(attention_len, exact_lookback + self.chunk_len)
+        front_len = min(
+            attention_len,
+            exact_lookback
+            + (
+                prefill_chunk_len
+                if self.prefill_exact_first_chunk
+                else self.chunk_len
+            ),
+        )
         outputs = []
+        defer_exact_front = bool(
+            self.prefill_exact_first_chunk
+            and self.prefill_overlap_exact_state
+            and not build_cache_only
+        )
+        exact_front_stream = None
         if not build_cache_only:
             if q is None:
                 raise AssertionError("attention prefill query is missing")
-            exact_front = self._exact_attention(
-                q[..., :front_len, :],
-                k[..., :front_len, :],
-                v[..., :front_len, :],
-                causal=True,
-                valid_starts=prefill_valid_starts,
-            )
-            if output_buffer is None:
-                outputs.append(exact_front)
+            if defer_exact_front:
+                exact_front_stream = getattr(
+                    self, "_lod_prefill_exact_front_stream", None
+                )
+                if exact_front_stream is None:
+                    exact_front_stream = torch.cuda.Stream(device=k.device)
+                    self._lod_prefill_exact_front_stream = exact_front_stream
+                foreground_stream = torch.cuda.current_stream(k.device)
+                exact_front_stream.wait_stream(foreground_stream)
+                exact_context = torch.cuda.stream(exact_front_stream)
             else:
-                output_buffer[..., :front_len, :].copy_(exact_front)
+                exact_context = torch.cuda.stream(torch.cuda.current_stream(k.device))
+            with exact_context:
+                exact_front = self._exact_attention(
+                    q[..., :front_len, :],
+                    k[..., :front_len, :],
+                    v[..., :front_len, :],
+                    causal=True,
+                    valid_starts=prefill_valid_starts,
+                )
+                if output_buffer is None:
+                    outputs.append(exact_front)
+                else:
+                    output_buffer[..., :front_len, :].copy_(exact_front)
 
         initial_len = min(prefill_len, self.chunk_len)
         separated_sink_len = (
@@ -8180,20 +8486,49 @@ class TritonLODAttentionCore(nn.Module):
                 dtype=torch.bool,
                 device=k.device,
             )
-        state_k = _pad_sequence(initial_state_k, state_capacity).clone()
-        state_v = _pad_sequence(initial_state_v, state_capacity).clone()
-        counts = torch.zeros(
-            batch_size,
-            self.config.num_key_value_heads,
-            state_capacity,
-            1,
-            dtype=torch.float32,
-            device=k.device,
-        )
+        if prefill_storage is None:
+            state_k = _pad_sequence(initial_state_k, state_capacity).clone()
+            state_v = _pad_sequence(initial_state_v, state_capacity).clone()
+            counts = torch.zeros(
+                batch_size,
+                self.config.num_key_value_heads,
+                state_capacity,
+                1,
+                dtype=torch.float32,
+                device=k.device,
+            )
+        else:
+            state_k = prefill_storage.get("state_k")
+            state_v = prefill_storage.get("state_v")
+            counts = prefill_storage.get("counts")
+            if not all(
+                isinstance(value, torch.Tensor)
+                for value in (state_k, state_v, counts)
+            ):
+                raise TypeError("direct prefill storage lacks state tensors")
+            if (
+                tuple(state_k.shape[:2])
+                != (batch_size, self.config.num_key_value_heads)
+                or tuple(state_v.shape[:2]) != tuple(state_k.shape[:2])
+                or tuple(counts.shape[:2]) != tuple(state_k.shape[:2])
+                or int(state_k.size(2)) < state_capacity
+                or int(state_v.size(2)) < state_capacity
+                or int(counts.size(2)) < state_capacity
+            ):
+                raise ValueError("direct prefill state storage has incompatible shape")
+            state_k[..., :initial_state_len, :].copy_(initial_state_k)
+            state_v[..., :initial_state_len, :].copy_(initial_state_v)
         counts[..., :initial_state_len, :].copy_(initial_counts)
         key_norm_sums = None
         if self.state_clustering_centroid_rescale != "none":
-            key_norm_sums = torch.zeros_like(counts)
+            if prefill_storage is None:
+                key_norm_sums = torch.zeros_like(counts)
+            else:
+                key_norm_sums = prefill_storage.get("key_norm_sums")
+                if not isinstance(key_norm_sums, torch.Tensor):
+                    raise TypeError(
+                        "direct prefill storage lacks key-norm sums"
+                    )
             if initial_key_norm_sums is None:
                 raise AssertionError("initial constituent norms are missing")
             if initial_valid is not None:
@@ -8217,8 +8552,96 @@ class TritonLODAttentionCore(nn.Module):
                 sequence_capacity=sequence_capacity,
                 virtual_k=archive_k if self.virtual_page_storage else None,
                 virtual_v=archive_v if self.virtual_page_storage else None,
+                destination=(
+                    prefill_storage.get("page_cache")
+                    if prefill_storage is not None
+                    else None
+                ),
             )
             owners = None
+
+        # The first large prefill block has no genuinely remote history: its
+        # entire causal prefix can be handled by the same exact attention call
+        # with only ``exact_lookback`` additional keys.  Build the state needed
+        # by the following block after that exact call instead of paying a
+        # route/coarse/leaf pass over the nearly empty first remote partition.
+        if self.prefill_exact_first_chunk:
+            first_remote_begin = front_len
+            first_remote_state_coverage = max(
+                initial_len, first_remote_begin - exact_lookback
+            )
+            append_begin = state_coverage
+            append_owner_parts = []
+            while state_coverage < first_remote_state_coverage:
+                update_end = min(
+                    first_remote_state_coverage,
+                    state_coverage + prefill_state_update_len,
+                )
+                update_ctx_len = exact_lookback + update_end
+                next_scheduled_state_len = (
+                    self._next_scheduled_state_len(
+                        scheduled_state_len,
+                        ctx_len=update_ctx_len,
+                        available_context=update_end,
+                        overflow_len=update_end - state_coverage,
+                    )
+                    if self.state_split_max_leaves is not None
+                    else scheduled_state_len
+                )
+                (
+                    state_k,
+                    state_v,
+                    counts,
+                    state_len,
+                    new_owners,
+                    old_slot_remap,
+                ) = self._update_state(
+                    state_k,
+                    state_v,
+                    counts,
+                    key_norm_sums,
+                    k[..., state_coverage:update_end, :],
+                    v[..., state_coverage:update_end, :],
+                    state_len=state_len,
+                    ctx_len=update_ctx_len,
+                    available_context=update_end,
+                    state_capacity=state_capacity,
+                    clustering_query_scale=clustering_query_scale,
+                    scheduled_state_len=scheduled_state_len,
+                )
+                scheduled_state_len = (
+                    next_scheduled_state_len
+                    if self.state_split_max_leaves is not None
+                    else state_len
+                )
+                if page_cache is not None:
+                    if old_slot_remap is not None:
+                        raise AssertionError("paged state remapping is unsupported")
+                    append_owner_parts.append(
+                        new_owners.clone()
+                        if self.state_premerge_factor > 1
+                        else new_owners
+                    )
+                else:
+                    if owners is None:
+                        raise AssertionError("packed LOD owner archive is missing")
+                    if old_slot_remap is not None:
+                        owners = torch.gather(old_slot_remap, 2, owners)
+                    owners = torch.cat((owners, new_owners), dim=2)
+                state_coverage = update_end
+            if page_cache is not None and append_owner_parts:
+                self._append_page_cache(
+                    page_cache,
+                    k[..., append_begin:state_coverage, :],
+                    v[..., append_begin:state_coverage, :],
+                    (
+                        append_owner_parts[0]
+                        if len(append_owner_parts) == 1
+                        else torch.cat(append_owner_parts, dim=2)
+                    ),
+                )
+        if exact_front_stream is not None:
+            torch.cuda.current_stream(k.device).wait_stream(exact_front_stream)
 
         for query_begin in range(front_len, attention_len, prefill_chunk_len):
             query_end = min(attention_len, query_begin + prefill_chunk_len)
@@ -8458,10 +8881,33 @@ class TritonLODAttentionCore(nn.Module):
         if page_cache is not None:
             recent_capacity = max(
                 self.local_len + self.decode_state_update_len,
-                self.prefill_local_len if not finalize_cache_for_decode else 0,
+                (
+                    0
+                    if self.prefill_exact_first_chunk
+                    else self.prefill_local_len
+                )
+                if not finalize_cache_for_decode
+                else 0,
+                recent_len,
             )
-            buffered_k = k.new_empty(*k.shape[:2], recent_capacity, int(k.size(-1)))
-            buffered_v = v.new_empty(*v.shape[:2], recent_capacity, int(v.size(-1)))
+            if prefill_storage is None:
+                buffered_k = k.new_empty(
+                    *k.shape[:2], recent_capacity, int(k.size(-1))
+                )
+                buffered_v = v.new_empty(
+                    *v.shape[:2], recent_capacity, int(v.size(-1))
+                )
+            else:
+                buffered_k = prefill_storage.get("recent_k")
+                buffered_v = prefill_storage.get("recent_v")
+                if not isinstance(buffered_k, torch.Tensor) or not isinstance(
+                    buffered_v, torch.Tensor
+                ):
+                    raise TypeError("direct prefill storage lacks recent K/V")
+                if int(buffered_k.size(2)) < recent_capacity or int(
+                    buffered_v.size(2)
+                ) < recent_capacity:
+                    raise ValueError("direct prefill recent K/V storage is too small")
             buffered_k[..., :recent_len, :].copy_(recent_k)
             buffered_v[..., :recent_len, :].copy_(recent_v)
             recent_k = buffered_k
@@ -8542,6 +8988,8 @@ class TritonLODAttentionCore(nn.Module):
             "recent_len": recent_len,
             "total_len": prefill_len,
         }
+        if prefill_storage is not None:
+            self._lod_state["pool_backed"] = True
         if key_norm_sums is not None:
             self._lod_state["key_norm_sums"] = key_norm_sums.detach()
         if sink_k is not None and sink_v is not None:
@@ -8720,7 +9168,16 @@ class TritonLODAttentionCore(nn.Module):
 
         outputs = []
         query_begin = 0
-        front_len = exact_lookback + self.chunk_len
+        # Exact-first initial prefill ends at the configured prefill-block
+        # boundary.  Continue cached scheduler chunks from that same boundary;
+        # using the legacy ``lookback + decode chunk`` origin here splits an
+        # otherwise aligned 16K continuation into a tiny leading block plus a
+        # second routed block, doubling route/leaf launch overhead.
+        front_len = (
+            prefill_chunk_len
+            if self.prefill_exact_first_chunk
+            else exact_lookback + self.chunk_len
+        )
         if previous_total_len < front_len:
             front_query_end = min(turn_len, front_len - previous_total_len)
             initial_state_k = self._mean(
@@ -8843,60 +9300,84 @@ class TritonLODAttentionCore(nn.Module):
             )
             query_begin = query_end
 
-        if finalize_cache_for_decode:
-            decode_coverage = max(
-                state_coverage,
-                self._bswa_begin(total_len + 1),
-            )
+        deferred_update_stream = getattr(
+            self, "_lod_prefill_deferred_update_stream", None
+        )
+        if deferred_update_stream is not None:
+            # The routed output above depends only on the pre-update cache.
+            # Preserve its K/V temporaries until the deferred final update has
+            # consumed them, without making the foreground stream wait.
+            foreground_stream = torch.cuda.current_stream(q.device)
+            deferred_update_stream.wait_stream(foreground_stream)
+            working_k.record_stream(deferred_update_stream)
+            working_v.record_stream(deferred_update_stream)
+            if clustering_query_scale is not None:
+                clustering_query_scale.record_stream(deferred_update_stream)
+            update_context = torch.cuda.stream(deferred_update_stream)
         else:
-            completed_blocks = max(
-                0,
-                (total_len - front_len) // prefill_chunk_len,
+            update_context = torch.cuda.stream(torch.cuda.current_stream(q.device))
+        with update_context:
+            if finalize_cache_for_decode:
+                decode_coverage = max(
+                    state_coverage,
+                    self._bswa_begin(total_len + 1),
+                )
+            else:
+                # A scheduler chunk may stop anywhere inside a logical LOD
+                # query block.  Keeping that whole unfinished block exact can
+                # exceed the fixed per-request local row by many thousands of
+                # tokens.  Advance through the partial block and retain only
+                # the configured exact lookback; its earlier tokens are now
+                # represented by state/pages for the next continuation.
+                decode_coverage = max(
+                    state_coverage,
+                    total_len - exact_lookback,
+                )
+            update_to(
+                decode_coverage,
+                context_length_for=lambda update_end: min(
+                    total_len, update_end + self.local_len
+                ),
             )
-            next_query_begin = front_len + completed_blocks * prefill_chunk_len
-            decode_coverage = max(
-                state_coverage,
-                next_query_begin - exact_lookback,
+            tail_begin = state_coverage - initial_coverage
+            tail_k = working_k[..., tail_begin:, :]
+            tail_v = working_v[..., tail_begin:, :]
+            tail_len = int(tail_k.size(2))
+            if tail_len > int(recent_k.size(2)):
+                recent_capacity = max(
+                    tail_len,
+                    self.local_len + self.decode_state_update_len,
+                    (
+                        0
+                        if self.prefill_exact_first_chunk
+                        else self.prefill_local_len
+                    )
+                    if not finalize_cache_for_decode
+                    else 0,
+                )
+                recent_k = new_k.new_empty(
+                    *new_k.shape[:2], recent_capacity, int(new_k.size(-1))
+                )
+                recent_v = new_v.new_empty(
+                    *new_v.shape[:2], recent_capacity, int(new_v.size(-1))
+                )
+            recent_k[..., :tail_len, :].copy_(tail_k)
+            recent_v[..., :tail_len, :].copy_(tail_v)
+            cache.update(
+                state_k=state_k.detach(),
+                state_v=state_v.detach(),
+                counts=counts.detach(),
+                state_len=state_len,
+                scheduled_state_len=scheduled_state_len,
+                coverage=state_coverage,
+                state_capacity=state_capacity,
+                recent_k=recent_k.detach(),
+                recent_v=recent_v.detach(),
+                recent_len=tail_len,
+                total_len=total_len,
             )
-        update_to(
-            decode_coverage,
-            context_length_for=lambda update_end: min(
-                total_len, update_end + self.local_len
-            ),
-        )
-        tail_begin = state_coverage - initial_coverage
-        tail_k = working_k[..., tail_begin:, :]
-        tail_v = working_v[..., tail_begin:, :]
-        tail_len = int(tail_k.size(2))
-        if tail_len > int(recent_k.size(2)):
-            recent_capacity = max(
-                tail_len,
-                self.local_len + self.decode_state_update_len,
-                self.prefill_local_len if not finalize_cache_for_decode else 0,
-            )
-            recent_k = new_k.new_empty(
-                *new_k.shape[:2], recent_capacity, int(new_k.size(-1))
-            )
-            recent_v = new_v.new_empty(
-                *new_v.shape[:2], recent_capacity, int(new_v.size(-1))
-            )
-        recent_k[..., :tail_len, :].copy_(tail_k)
-        recent_v[..., :tail_len, :].copy_(tail_v)
-        cache.update(
-            state_k=state_k.detach(),
-            state_v=state_v.detach(),
-            counts=counts.detach(),
-            state_len=state_len,
-            scheduled_state_len=scheduled_state_len,
-            coverage=state_coverage,
-            state_capacity=state_capacity,
-            recent_k=recent_k.detach(),
-            recent_v=recent_v.detach(),
-            recent_len=tail_len,
-            total_len=total_len,
-        )
-        if key_norm_sums is not None:
-            cache["key_norm_sums"] = key_norm_sums.detach()
+            if key_norm_sums is not None:
+                cache["key_norm_sums"] = key_norm_sums.detach()
         if output_buffer is not None:
             return output_buffer
         if len(outputs) == 1:

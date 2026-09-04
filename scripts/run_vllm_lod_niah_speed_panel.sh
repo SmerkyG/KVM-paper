@@ -70,6 +70,12 @@ fi
 if [[ "${VLLM_LOD_PANEL_PROFILE_PHASES:-0}" == 1 ]]; then
   args+=(--profile-lod-phases)
 fi
+if [[ "${VLLM_LOD_PANEL_PROFILE_LOD_TOTAL:-0}" == 1 ]]; then
+  args+=(--profile-lod-total)
+fi
+if [[ "${VLLM_LOD_PANEL_PROFILE_FULL_ATTENTION:-0}" == 1 ]]; then
+  args+=(--profile-full-attention)
+fi
 if [[ -n "${VLLM_LOD_PANEL_TORCH_PROFILE_DIR:-}" ]]; then
   args+=(
     --torch-profile-dir "$VLLM_LOD_PANEL_TORCH_PROFILE_DIR"
@@ -144,7 +150,7 @@ common_env=(
   HF_HUB_OFFLINE=1
   HF_DATASETS_OFFLINE=1
   LMEVAL_PACKAGE_ROOT="$repo/.venv/lib/python3.12/site-packages/lm_eval"
-  PYTHONPATH="$repo/integrations/vllm_lod:$repo"
+  PYTHONPATH="$repo/integrations/vllm_lod:$repo${PYTHONPATH:+:$PYTHONPATH}"
   VLLM_WEIGHT_CACHE_ID="${VLLM_WEIGHT_CACHE_ID:-dev}"
 )
 if [[ -n "${common_route_group_size:-}" ]]; then

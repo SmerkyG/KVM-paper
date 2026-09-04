@@ -175,9 +175,42 @@ def _install_core_cache_sizing_hook() -> None:
 
     if getattr(utils, "_vllm_lod_metadata_sizing_installed", False):
         return
+    original_configs = utils.get_kv_cache_configs
     original_config = utils.get_kv_cache_config_from_groups
     original_pool_bytes = utils._pool_bytes_per_block
     original_concurrency = utils.get_max_concurrency_for_kv_cache_config
+
+    def get_configs(
+        vllm_config: Any,
+        kv_cache_specs: list[dict[str, Any]],
+        available_memory: list[int],
+    ) -> list[Any]:
+        # Upstream rejects a non-positive physical-cache budget before calling
+        # get_kv_cache_config_from_groups().  An all-LOD worker has no physical
+        # cache to fund, however: its specs are scheduler metadata and the LOD
+        # pool has already been allocated by the model.  Supply only the
+        # admission-accounting bytes required by those logical specs.  Mixed
+        # workers retain upstream's exact physical-memory check.
+        adjusted_memory = list(available_memory)
+        for worker, specs in enumerate(kv_cache_specs):
+            if not specs or not all(
+                isinstance(spec, LODMetadataOnlyFullAttentionSpec)
+                for spec in specs.values()
+            ):
+                continue
+            metadata_bytes = sum(
+                max(1, int(spec.max_memory_usage_bytes(vllm_config)))
+                for spec in specs.values()
+            )
+            if adjusted_memory[worker] < metadata_bytes:
+                logger.info(
+                    "Replacing the all-LOD worker's physical KV budget (%d "
+                    "bytes) with %d bytes of scheduler-only metadata capacity",
+                    adjusted_memory[worker],
+                    metadata_bytes,
+                )
+                adjusted_memory[worker] = metadata_bytes
+        return original_configs(vllm_config, kv_cache_specs, adjusted_memory)
 
     def get_config(
         vllm_config: Any,
@@ -221,6 +254,7 @@ def _install_core_cache_sizing_hook() -> None:
         )
         return original_concurrency(vllm_config, physical_config)
 
+    utils.get_kv_cache_configs = get_configs
     utils.get_kv_cache_config_from_groups = get_config
     utils._pool_bytes_per_block = pool_bytes
     utils.get_max_concurrency_for_kv_cache_config = concurrency
