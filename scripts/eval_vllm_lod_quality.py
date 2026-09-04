@@ -247,7 +247,14 @@ def select_niah_s3(
             encoded = tokenizer.apply_chat_template(
                 [
                     {"role": "user", "content": document["input"]},
-                    {"role": "assistant", "content": document["gen_prefix"]},
+                    {
+                        "role": "assistant",
+                        "content": document["gen_prefix"],
+                        # K2 Horizon requires every assistant turn to carry a
+                        # string-valued reasoning field.  An empty value is the
+                        # faithful representation of lm-eval's answer prefix.
+                        "think": "",
+                    },
                 ],
                 tokenize=True,
                 add_generation_prompt=False,
@@ -355,6 +362,7 @@ def inspect_lod_model(model) -> dict[str, object]:
     catch_up_rows = 0
     batched_cached_prefills = 0
     batched_cached_prefill_rows = 0
+    lod_profiles = set()
     routing_geometries = set()
     recursive_state_route_backends = set()
     speculative_recursive_state_route_backends = set()
@@ -445,6 +453,7 @@ def inspect_lod_model(model) -> dict[str, object]:
         pool = getattr(module, "_vllm_lod_pool", None)
         if pool is not None:
             pooled_layers.append(name)
+            lod_profiles.add(str(getattr(pool.settings, "profile", "experimental")))
             install_count += int(pool.install_count)
             direct_prefill_calls += int(pool.direct_prefill_calls)
             decode_calls += int(pool.decode_calls)
@@ -986,6 +995,7 @@ def inspect_lod_model(model) -> dict[str, object]:
         "catch_up_rows": catch_up_rows,
         "batched_cached_prefills": batched_cached_prefills,
         "batched_cached_prefill_rows": batched_cached_prefill_rows,
+        "lod_profiles": sorted(lod_profiles),
         "routing_geometries": sorted(routing_geometries),
         "recursive_state_route_backends": sorted(
             recursive_state_route_backends
@@ -1277,6 +1287,11 @@ def configure_lod_model(
         pool = getattr(module, "_vllm_lod_pool", None)
         if pool is None:
             continue
+        if pool.settings.profile == "production":
+            raise RuntimeError(
+                "evaluation kernel overrides require "
+                "VLLM_LOD_PROFILE=experimental"
+            )
         if route_block_m is not None:
             pool.engine.prefill_route_block_m = route_block_m
         if route_num_warps is not None:

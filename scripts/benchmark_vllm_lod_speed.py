@@ -1060,6 +1060,7 @@ def inspect_lod_dispatch(model) -> dict[str, object]:
             getattr(engine, "recursive_prefill_all_leaves_token_limit", 0)
         )
         record = {
+            "lod_profile": str(getattr(pool.settings, "profile", "experimental")),
             "levels": int(pool.settings.levels),
             "query_heads": int(pool.query_heads),
             "kv_heads": int(pool.kv_heads),
@@ -1197,6 +1198,12 @@ def inspect_lod_dispatch(model) -> dict[str, object]:
             "configured_state_premerge_factor": int(
                 pool.settings.state_premerge_factor
             ),
+            "configured_fused_state_update": bool(
+                pool.settings.fused_state_update
+            ),
+            "configured_fused_state_maxsim": bool(
+                pool.settings.fused_state_maxsim
+            ),
             "effective_prefill_open_count": int(
                 engine.prefill_two_level_topk
                 if engine.prefill_two_level_topk is not None
@@ -1328,6 +1335,12 @@ def inspect_lod_dispatch(model) -> dict[str, object]:
             "final_reduce_num_warps": int(engine.decode_final_reduce_num_warps),
             "decode_split_kv": int(engine.decode_split_kv),
             "prefill_mode": pool.settings.prefill_mode,
+            "configured_prefill_exact_first_chunk": bool(
+                engine.prefill_exact_first_chunk
+            ),
+            "configured_prefill_defer_cache_updates": bool(
+                pool.settings.prefill_defer_cache_updates
+            ),
             "configured_prefill_static_leaf_aiter": static_prefill,
             "configured_prefill_static_leaf_cap_min": int(
                 getattr(pool.settings, "prefill_static_leaf_cap_min", 16)
@@ -1865,6 +1878,28 @@ def configure_lod_model(
         pool = getattr(module, "_vllm_lod_pool", None)
         if pool is None:
             continue
+        requested_override = direct_prefill_route or any(
+            value is not None
+            for value in (
+                leaf_num_warps,
+                recursive_page_block_n,
+                recursive_state_route_backend,
+                prefill_chunk_len,
+                prefill_state_update_len,
+                decode_route_group_size,
+                decode_route_num_warps,
+                decode_route_reduce_num_warps,
+                decode_final_reduce_num_warps,
+                decode_block_n,
+                decode_num_warps,
+                decode_use_dot,
+            )
+        )
+        if requested_override and pool.settings.profile == "production":
+            raise RuntimeError(
+                "benchmark kernel overrides require "
+                "VLLM_LOD_PROFILE=experimental"
+            )
         if leaf_num_warps is not None:
             pool.engine.leaf_num_warps = int(leaf_num_warps)
         if recursive_page_block_n is not None:

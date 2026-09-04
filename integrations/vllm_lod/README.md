@@ -20,13 +20,20 @@ External semantic ownership is the only supported cache mode. The plugin does
 not expose the older dual-cache, bounded-staging, or 1x1/1x1x1 placeholder
 paths, so a CUSTOM attention run cannot silently select their slower geometry.
 
-The default `VLLM_LOD_LEVELS=2` path is the current flat BF16 implementation
-shared with the Hugging Face benchmark. Exact leaves are stored once in a
-dense chronological pool; compact per-centroid page tables index that pool.
-It opens all exact pages in each of the top-eight centroids. Set
-`VLLM_LOD_DENSE_LEAF_STORAGE=0` only for matched comparisons with the older
-region-owned physical-page layout. `VLLM_LOD_LEVELS=3` retains the older
-recursive page-summary implementation and its INT4/INT8 storage modes.
+The default `VLLM_LOD_PROFILE=production` path is the current flat BF16
+implementation shared with the Hugging Face benchmark. Exact leaves are stored
+once in a dense chronological pool; compact per-centroid page tables index that
+pool. It opens all exact pages in each of the top-eight centroids. Production
+attention settings are locked: setting any `VLLM_LOD_*` tuning variable causes
+startup to fail rather than silently selecting a different implementation.
+Only resource sizing through `VLLM_LOD_POOL_SIZE` and `VLLM_LOD_MAX_CONTEXT`
+remains configurable. Historical kernels and tuning controls are available only
+after the explicit research opt-in `VLLM_LOD_PROFILE=experimental`.
+Production also rejects scheduler budgets below the resolved prefill chunk,
+because smaller incoming slices change when the LOD state is updated. That
+minimum is 16K for Qwen/K2 and 4K for Gemma; a common launch should use
+`--max-num-batched-tokens 16384` or larger and either
+`--long-prefill-token-threshold 0` or a threshold of at least 16384.
 
 When GQA-union decode and its AITER path are enabled, one indexed M16/N64
 attention call consumes exact leaves, the local window, protected sinks, and
@@ -45,12 +52,14 @@ byte per list entry and one byte per 64-entry block. The M16/N64 page-size-one
 kernel first reads the block byte; a fully inactive tile exits without loading
 its lane mask or K/V and without issuing QK or PV MFMA. Partially active tiles
 retain the ordinary AITER-shaped online softmax, including `log(count)` on
-unopened coarse entries. The default long fixed scan uses 128 independent
-segments at the measured batch-8 geometry. The route-dependent compact leaf-list
-construction and coarse/leaf correction merge are therefore absent. This
-option requires two-level BF16 GQA-union decode with
-`VLLM_LOD_DECODE_GQA_UNION_HIP=1` and is mutually exclusive with
-`VLLM_LOD_DECODE_GQA_STAGED_FIXED_AITER=1`.
+unopened coarse entries. The production fixed scan uses 256 segments for D=256
+heads and 128 for D=512 heads. K2's D=128/GQA8 geometry instead builds the
+compact union of the eight routes from each related query head and feeds only
+those exact leaves, the local field, sinks, and unopened coarse entries to the
+same page-size-one AITER kernel. This avoids scanning K2's nearly dense fixed
+owner mask. Both paths require two-level BF16 GQA-union decode. The controls
+described below are experimental-profile diagnostics and are not accepted by
+production.
 `VLLM_LOD_DECODE_GQA_FIXED_MASK_BLOCK_N` selects the experimental fast-fail
 tile width (16, 64, or 128; default 64), and
 `VLLM_LOD_DECODE_GQA_FIXED_MASK_SEGMENTS` selects 8--512 split segments
@@ -318,29 +327,13 @@ scans are at most four. A matched seven-repeat 64K real-ProLong run falls from
 makes optimized two-tier 1.099x faster. Full methodology and raw artifact names
 are in `artifacts/batch_parallelism_20260827/README.md`.
 
-The exact common LOD settings for the two-tier decode reference are:
+The exact common LOD settings for the two-tier decode reference are installed
+by the production profile. A normal launch should specify only resource sizes:
 
 ```bash
 VLLM_LOD_POOL_SIZE=8
-VLLM_LOD_LEVELS=2
-VLLM_LOD_KV_BITS=0
 VLLM_LOD_MAX_CONTEXT=131200
-VLLM_LOD_STATE_FACTOR=16
-VLLM_LOD_DENSE_LEAF_STORAGE=1
-VLLM_LOD_PREFILL_MODE=direct
-VLLM_LOD_PREFILL_CHUNK_SIZE=4096
-VLLM_LOD_PREFILL_LOCAL_WINDOW=4864
-VLLM_LOD_PREFILL_STATE_UPDATE_SIZE=4096
-VLLM_LOD_LEAF_BLOCK_N=32
-VLLM_LOD_DECODE_GEOMETRY_TUNING=1
-VLLM_LOD_DECODE_SPLIT_KV=8
-VLLM_LOD_DECODE_GQA_UNION=1
-VLLM_LOD_DECODE_GQA_UNION_HIP=1
-VLLM_LOD_DECODE_GQA_FIXED_MASK_BLOCK_N=64
-VLLM_LOD_DECODE_GQA_FIXED_MASK_SEGMENTS=128
-VLLM_LOD_DECODE_GQA_FIXED_MASK_ADAPTIVE_SEGMENTS=1
-VLLM_LOD_DECODE_GQA_FIXED_MASK_REDUCE_BLOCK_D=64
-VLLM_LOD_DECODE_GQA_FIXED_MASK_DIRECT_ROUTES=1
+VLLM_LOD_PROFILE=production
 ```
 
 For gfx942 D=256/GQA4 or GQA6 layers using grouped 32-centroid score-only routing,
@@ -359,23 +352,15 @@ though it was faster in eager microbenchmarks; CUDA-graph replay removes that
 apparent launch-overhead advantage. The GQA4 Qwen3.5-0.8B B1 path retained a
 2.71% end-to-end gain.
 
-The unrestricted top-eight preset used by every high-quality reference row adds:
-
-```bash
-VLLM_LOD_OPEN_COUNT=8
-VLLM_LOD_DECODE_MAX_OPEN_LEAVES=1024
-VLLM_LOD_DECODE_ROUTE_COHORT=0
-VLLM_LOD_DECODE_GQA_PREDICTED_MASS=0
-VLLM_LOD_DECODE_GQA_STATIC_LEAF_AITER=0
-VLLM_LOD_DECODE_GQA_FIXED_MASK_AITER=1
-```
+The production profile hard-codes unrestricted top-eight decode, a 1024-leaf
+guard, no route cohort or predicted-mass approximation, and fixed-mask AITER.
+None of those settings should be repeated in a production launch.
 
 Leave `VLLM_LOD_DECODE_HIERARCHICAL_ROUTE` unset so geometry dispatch selects
 Muse's validated segmented route and the grouped route on the other rows.
-Set `VLLM_LOD_ROUTING_GEOMETRY=auto` to use the current automatic
-spherical/coherence-aware policy. Leaving it unset selects the conservative
-`raw` default and reproduces the archived August 25 routing geometry rather
-than the current table.
+Production always uses the current automatic spherical/coherence-aware policy.
+The archived `raw` geometry is available only after selecting the experimental
+profile explicitly.
 
 `VLLM_LOD_ROUTING_POSITIVE_DOT_STATS=1` is a diagnostic-only switch that
 records positive routing-dot density and the number of 64-centroid tiles with
@@ -396,6 +381,7 @@ their wall-clock times are invalid as speed measurements.
 The optional static 64K speed diagnostic instead adds:
 
 ```bash
+VLLM_LOD_PROFILE=experimental
 VLLM_LOD_DECODE_GQA_FIXED_MASK_AITER=0
 VLLM_LOD_DECODE_GQA_STATIC_LEAF_AITER=1
 VLLM_LOD_DECODE_GQA_STATIC_LEAF_CAP=16
@@ -450,6 +436,7 @@ check. Muse INT8 retained the full 64/64 score of its BF16 reference. Enable
 the memory-balanced recursive path explicitly:
 
 ```bash
+VLLM_LOD_PROFILE=experimental
 VLLM_LOD_LEVELS=3
 VLLM_LOD_KV_BITS=8
 VLLM_LOD_ROUTING_GEOMETRY=auto
@@ -582,12 +569,14 @@ Then select the registered custom backend:
 
 ```bash
 VLLM_PLUGINS=lod_attention \
+VLLM_LOD_PROFILE=production \
 VLLM_LOD_POOL_SIZE=8 \
-VLLM_LOD_LEVELS=2 \
-VLLM_LOD_KV_BITS=0 \
 vllm serve MODEL \
   --attention-backend CUSTOM \
   --kv-cache-dtype bfloat16 \
+  --max-num-batched-tokens 16384 \
+  --long-prefill-token-threshold 16384 \
+  --gpu-memory-utilization 0.9 \
   --enable-prefix-caching \
   --max-num-seqs 8
 ```
@@ -606,17 +595,15 @@ the dummy append is placed just beyond the retained tail and discarded before
 the row is observed again.
 
 The optional `VLLM_LOD_MAX_CONTEXT` caps each LOD row. It defaults to vLLM's
-`max_model_len`. Other settings are `VLLM_LOD_CHUNK_SIZE` (256),
-`VLLM_LOD_LOCAL_WINDOW` (512), `VLLM_LOD_STATE_FACTOR` (16),
-`VLLM_LOD_STATE_MIN` (256), `VLLM_LOD_OPEN_COUNT` (8), and
-`VLLM_LOD_QUANT_GROUP_SIZE` (32). Both paths use 4,096-token prefill state
-updates. This replaces recursive LOD's former 1,280-token update batch, which
-split each 4,096-token archive step into four state-update launches. The
-two-tier path additionally defaults to 4,096-token prefill chunks, a
-4,864-token prefill local field, expert-layout BF16 leaf attention, and the
-two-level page directory. These are configurable with `VLLM_LOD_PREFILL_CHUNK_SIZE`,
-`VLLM_LOD_PREFILL_LOCAL_WINDOW`, `VLLM_LOD_PREFILL_STATE_UPDATE_SIZE`,
-`VLLM_LOD_LEAF_LAYOUT`, and `VLLM_LOD_LEAF_PAGED_DIRECTORY`.
+`max_model_len`. Production fixes 256-token state chunks, a 512-token decode
+local window, a `16 * sqrt(T)` state schedule, dense BF16 leaves, top-eight
+GQA-union decode, and automatic spherical/coherence routing. Qwen and Gemma use
+the persistent fixed-mask union; K2's D=128/GQA8/KV8 heads use the compact
+selected union. Qwen uses top-three 16K exact-first prefill, Gemma's D=512 heads
+use their validated top-three 4K schedule, and K2 uses top-four 16K exact-first
+prefill. These choices are resolved from attention geometry and audited during
+pool construction. The remaining tuning discussion in this document describes
+the explicit `VLLM_LOD_PROFILE=experimental` research surface.
 Routed two-level D=128/GQA=16 prefill automatically overlaps its independent
 coarse, exact-leaf, and exact-local branches on separate GPU streams after
 routing. Static-cohort prefill is excluded because keeping its larger AITER
@@ -758,10 +745,10 @@ option: scheduler specs and model markers must match exactly, and startup fails
 if an eligible layer has an unsupported spec, loses its virtual group, or
 appears in any native GPU K/V tensor. The plugin retains and exactly verifies
 the corresponding semantic LOD row before accepting a prefix hit.
-`VLLM_LOD_ROUTING_GEOMETRY=raw` matches the current two-tier HF configuration.
-`auto` selects coherence-aware state routing for
+Production uses automatic routing: it selects coherence-aware state routing for
 attention modules with normalized keys and spherical routing for unnormalized
-keys. `raw`, `spherical`, and `coherence` are explicit diagnostic overrides.
+keys. Under the experimental profile, `VLLM_LOD_ROUTING_GEOMETRY` may select
+`raw`, `spherical`, or `coherence` for diagnostics.
 
 At 32K and above, two-tier decode can group one or more efficient native-width
 centroid tiles behind each program and reduce the shorter candidate and
@@ -1360,7 +1347,7 @@ graph-capture warmups from being mistaken for an LOD result.
 Warm batch throughput can be reproduced with:
 
 ```bash
-VLLM_LOD_KV_BITS=0 python scripts/benchmark_vllm_lod_speed.py \
+VLLM_LOD_PROFILE=production python scripts/benchmark_vllm_lod_speed.py \
   --mode lod --length 8192 --batch-size 8 --decode-tokens 1025 --repeats 5 \
   --max-num-batched-tokens 65536 --long-prefill-token-threshold 8192 \
   --output artifacts/vllm_lod_speed/lod_b8_8k_d1025.json

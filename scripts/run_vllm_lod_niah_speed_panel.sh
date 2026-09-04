@@ -13,6 +13,9 @@ repo=${8:-$(cd -- "$script_dir/.." && pwd)}
 tensor_parallel_size=${9:-1}
 vllm_root=/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1
 batch_size=${VLLM_LOD_PANEL_BATCH_SIZE:-8}
+lod_profile=${VLLM_LOD_PANEL_PROFILE:-production}
+long_prefill_threshold=${VLLM_LOD_PANEL_LONG_PREFILL_THRESHOLD:-16384}
+max_batched_tokens=${VLLM_LOD_PANEL_MAX_BATCHED_TOKENS:-16384}
 speed_prompt_reserve=${VLLM_LOD_PANEL_SPEED_PROMPT_RESERVE:-}
 if [[ -z "$speed_prompt_reserve" ]]; then
   # OLMo advertises exactly 64K positions, so its 64K panel must leave room
@@ -39,6 +42,29 @@ if [[ "$apply_chat_template" != 0 && "$apply_chat_template" != 1 ]]; then
   echo "apply_chat_template must be zero or one" >&2
   exit 2
 fi
+if [[ "$lod_profile" != production && "$lod_profile" != experimental ]]; then
+  echo "VLLM_LOD_PANEL_PROFILE must be production or experimental" >&2
+  exit 2
+fi
+if [[ "$mode" == lod && "$lod_profile" == production ]]; then
+  tuning_overrides=(
+    VLLM_LOD_PANEL_LEVELS
+    VLLM_LOD_PANEL_KV_BITS
+    VLLM_LOD_PANEL_ROUTING_GEOMETRY
+    VLLM_LOD_PANEL_PREFILL_CHUNK_SIZE
+    VLLM_LOD_PANEL_PREFILL_LOCAL_WINDOW
+    VLLM_LOD_PANEL_PREFILL_STATE_UPDATE_SIZE
+    VLLM_LOD_PANEL_DECODE_ROUTE_GROUP_SIZE
+    VLLM_LOD_PANEL_DECODE_ROUTE_NUM_WARPS
+    VLLM_LOD_PANEL_DECODE_ROUTE_REDUCE_NUM_WARPS
+  )
+  for variable in "${tuning_overrides[@]}"; do
+    if [[ -v "$variable" ]]; then
+      echo "$variable requires VLLM_LOD_PANEL_PROFILE=experimental" >&2
+      exit 2
+    fi
+  done
+fi
 
 cd "$repo"
 mkdir -p "$(dirname "$output")"
@@ -52,12 +78,12 @@ args=(
   --sample-offset "${VLLM_LOD_PANEL_SAMPLE_OFFSET:-0}"
   --batch-size "$batch_size"
   --max-new-tokens 64
-  --speed-decode-tokens "${VLLM_LOD_PANEL_SPEED_DECODE_TOKENS:-64}"
+  --speed-decode-tokens "${VLLM_LOD_PANEL_SPEED_DECODE_TOKENS:-1025}"
   --speed-prompt-reserve "$speed_prompt_reserve"
   --speed-repeats "$speed_repeats"
-  --max-num-batched-tokens "${VLLM_LOD_PANEL_MAX_BATCHED_TOKENS:-16384}"
-  --long-prefill-token-threshold "${VLLM_LOD_PANEL_LONG_PREFILL_THRESHOLD:-16384}"
-  --gpu-memory-utilization "${VLLM_LOD_PANEL_GPU_MEMORY_UTILIZATION:-0.8}"
+  --max-num-batched-tokens "$max_batched_tokens"
+  --long-prefill-token-threshold "$long_prefill_threshold"
+  --gpu-memory-utilization "${VLLM_LOD_PANEL_GPU_MEMORY_UTILIZATION:-0.9}"
   --tensor-parallel-size "$tensor_parallel_size"
   --output "$output"
 )
@@ -195,25 +221,24 @@ fi
 if [[ "$mode" == lod ]]; then
   common_env+=(
     VLLM_PLUGINS=lod_attention
+    VLLM_LOD_PROFILE="$lod_profile"
     VLLM_LOD_POOL_SIZE="${VLLM_LOD_PANEL_POOL_SIZE:-$batch_size}"
-    VLLM_LOD_LEVELS="${VLLM_LOD_PANEL_LEVELS:-2}"
-    VLLM_LOD_KV_BITS="${VLLM_LOD_PANEL_KV_BITS:-0}"
-    VLLM_LOD_MAX_CONTEXT="${VLLM_LOD_PANEL_MAX_CONTEXT:-131200}"
-    VLLM_LOD_STATE_FACTOR=16
-    VLLM_LOD_DENSE_LEAF_STORAGE=1
-    VLLM_LOD_PREFILL_MODE=direct
-    VLLM_LOD_ROUTING_GEOMETRY="${VLLM_LOD_PANEL_ROUTING_GEOMETRY:-auto}"
-    VLLM_LOD_PREFILL_CHUNK_SIZE="${VLLM_LOD_PANEL_PREFILL_CHUNK_SIZE:-4096}"
-    VLLM_LOD_PREFILL_LOCAL_WINDOW="${VLLM_LOD_PANEL_PREFILL_LOCAL_WINDOW:-4864}"
-    VLLM_LOD_PREFILL_STATE_UPDATE_SIZE="${VLLM_LOD_PANEL_PREFILL_STATE_UPDATE_SIZE:-4096}"
   )
-  if [[ "$checkpoint" == google/gemma-4-* ]] &&
-      [[ "${VLLM_LOD_PANEL_SPECULATIVE_MODEL:-}" == *gemma-4-*DFlash* ]] &&
-      [[ -z "${VLLM_LOD_PREFILL_OPEN_COUNT:-}" ]]; then
-    # Gemma's D=512 global layers need one more prefill route than the Qwen
-    # speculative default to keep the exact verifier on the full-attention NIAH
-    # baseline. Explicit experiment overrides still take precedence.
-    common_env+=(VLLM_LOD_PREFILL_OPEN_COUNT=4)
+  if [[ -n "${VLLM_LOD_PANEL_MAX_CONTEXT:-}" ]]; then
+    common_env+=(VLLM_LOD_MAX_CONTEXT="$VLLM_LOD_PANEL_MAX_CONTEXT")
+  fi
+  if [[ "$lod_profile" == experimental ]]; then
+    common_env+=(
+      VLLM_LOD_LEVELS="${VLLM_LOD_PANEL_LEVELS:-2}"
+      VLLM_LOD_KV_BITS="${VLLM_LOD_PANEL_KV_BITS:-0}"
+      VLLM_LOD_STATE_FACTOR=16
+      VLLM_LOD_DENSE_LEAF_STORAGE=1
+      VLLM_LOD_PREFILL_MODE=direct
+      VLLM_LOD_ROUTING_GEOMETRY="${VLLM_LOD_PANEL_ROUTING_GEOMETRY:-auto}"
+      VLLM_LOD_PREFILL_CHUNK_SIZE="${VLLM_LOD_PANEL_PREFILL_CHUNK_SIZE:-4096}"
+      VLLM_LOD_PREFILL_LOCAL_WINDOW="${VLLM_LOD_PANEL_PREFILL_LOCAL_WINDOW:-4864}"
+      VLLM_LOD_PREFILL_STATE_UPDATE_SIZE="${VLLM_LOD_PANEL_PREFILL_STATE_UPDATE_SIZE:-4096}"
+    )
   fi
 fi
 

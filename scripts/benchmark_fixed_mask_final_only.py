@@ -247,6 +247,9 @@ def main() -> None:
                 context_lens,
                 output,
                 output_lse,
+                context_lens,
+                context_lens,
+                context_lens,
                 OUTPUT_STRIDE_0=output.stride(0),
                 OUTPUT_STRIDE_1=output.stride(1),
                 QUERY_ROWS=gqa,
@@ -254,6 +257,7 @@ def main() -> None:
                 SEGMENTS=segments,
                 TILE_SIZE=tile_size,
                 BLOCK_D=args.reduce_block_d,
+                ADVANCE_QUEUE=False,
                 num_warps=2,
                 waves_per_eu=1,
             )
@@ -265,12 +269,16 @@ def main() -> None:
                 context_lens,
                 output,
                 output_lse,
+                context_lens,
+                context_lens,
+                context_lens,
                 OUTPUT_STRIDE_0=output.stride(0),
                 OUTPUT_STRIDE_1=output.stride(1),
                 QUERY_ROWS=gqa,
                 HEAD_DIM=head_dim,
                 SEGMENTS=segments,
                 TILE_SIZE=tile_size,
+                ADVANCE_QUEUE=False,
                 num_warps=2,
                 waves_per_eu=1,
             )
@@ -292,12 +300,16 @@ def main() -> None:
             context_lens,
             output,
             output_lse,
+            context_lens,
+            context_lens,
+            context_lens,
             OUTPUT_STRIDE_0=output.stride(0),
             OUTPUT_STRIDE_1=output.stride(1),
             QUERY_ROWS=gqa,
             HEAD_DIM=head_dim,
             SEGMENTS=segments,
             TILE_SIZE=tile_size,
+            ADVANCE_QUEUE=False,
             num_warps=2,
             waves_per_eu=1,
         )
@@ -321,7 +333,13 @@ def main() -> None:
     token = torch.arange(length, device=device)
     token_block = torch.div(token, tile_size, rounding_mode="floor")
     block = torch.arange(block_count, device=device)
-    for label, divisor in (("zero", 0), ("quarter", 4), ("all", 1)):
+    for label, divisor in (
+        ("zero", 0),
+        ("sixteenth", 16),
+        ("eighth", 8),
+        ("quarter", 4),
+        ("all", 1),
+    ):
         if divisor == 0:
             block_values = torch.zeros_like(block, dtype=torch.uint8)
             lane_values = torch.zeros_like(token, dtype=torch.uint8)

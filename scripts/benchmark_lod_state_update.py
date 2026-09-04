@@ -22,14 +22,24 @@ def main() -> None:
     parser.add_argument("--block-m", type=parse_ints, default=(8, 16, 32, 64))
     parser.add_argument("--block-n", type=parse_ints, default=(16, 32, 64, 128))
     parser.add_argument("--warps", type=parse_ints, default=(2, 4, 8))
+    parser.add_argument("--context-length", type=int, default=8448)
+    parser.add_argument("--available-context", type=int, default=8192)
+    parser.add_argument("--state-len", type=int, default=256)
+    parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--repeats", type=int, default=10)
     parser.add_argument("--output")
     args = parser.parse_args()
 
     torch.manual_seed(0)
     device = torch.device("cuda")
-    batch, heads, dimension = 1, 8, 128
-    state_len, available_context = 256, 8192
+    batch, heads, dimension = args.batch_size, 8, 128
+    state_len = args.state_len
+    available_context = args.available_context
+    if not 0 < state_len < available_context <= args.context_length:
+        raise ValueError(
+            "state-len must be below available-context, which must not exceed "
+            "context-length"
+        )
     overflow_len = available_context - state_len
     config = LODConfig(
         chunk_size=256,
@@ -43,7 +53,10 @@ def main() -> None:
     key = torch.randn(batch, heads, available_context, dimension, device=device)
     key *= key.float().square().mean(-1, keepdim=True).rsqrt().to(key.dtype)
     value = torch.randn_like(key)
-    state_capacity = 2048
+    state_capacity = max(
+        state_len,
+        int(config.state_growth_factor * args.context_length**0.5),
+    )
 
     rows = []
     for block_m, block_n, warps in itertools.product(
@@ -85,7 +98,7 @@ def main() -> None:
                 key[..., state_len:, :],
                 value[..., state_len:, :],
                 state_len=state_len,
-                ctx_len=available_context + 256,
+                ctx_len=args.context_length,
                 available_context=available_context,
                 state_capacity=state_capacity,
             )
@@ -108,7 +121,13 @@ def main() -> None:
                 "milliseconds": begin.elapsed_time(end) / args.repeats,
             }
         )
-    result = {"geometry": [batch, heads, overflow_len, dimension], "results": rows}
+    result = {
+        "available_context": available_context,
+        "context_length": args.context_length,
+        "geometry": [batch, heads, overflow_len, dimension],
+        "state_len": state_len,
+        "results": rows,
+    }
     rendered = json.dumps(result, indent=2, sort_keys=True)
     print(rendered)
     if args.output:

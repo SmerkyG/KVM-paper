@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import os
 import sys
+from dataclasses import replace
 from types import SimpleNamespace
 
 import numpy as np
@@ -21,6 +22,7 @@ sys.path.insert(
 )
 
 os.environ.update(
+    VLLM_LOD_PROFILE="experimental",
     VLLM_LOD_CHUNK_SIZE="16",
     VLLM_LOD_LOCAL_WINDOW="32",
     VLLM_LOD_STATE_FACTOR="4",
@@ -327,6 +329,11 @@ def main() -> None:
     config = SimpleNamespace(
         parallel_config=SimpleNamespace(decode_context_parallel_size=1),
         num_speculative_tokens=0,
+        additional_config={},
+        scheduler_config=SimpleNamespace(
+            max_num_batched_tokens=64,
+            long_prefill_token_threshold=0,
+        ),
         compilation_config=SimpleNamespace(
             static_forward_context={"layers.0.attn": layer}
         ),
@@ -410,6 +417,23 @@ def main() -> None:
 
     runtime._release_lod_row(7)
     assert runtime._lod_row(5) == first
+
+    # Geometry is resolved per attention pool after the model is loaded. A
+    # later lifecycle reset must not overwrite that resolved route count with
+    # the unresolved runtime default (K2 uses four while the generic default is
+    # three).
+    for pool in runtime.pools.values():
+        pool.settings = replace(
+            pool.settings,
+            profile="production",
+            prefill_open_count=4,
+        )
+        pool.engine.prefill_two_level_topk = 3
+    runtime._set_speculative_verification_routes(False)
+    assert all(
+        pool.engine.prefill_two_level_topk == 4
+        for pool in runtime.pools.values()
+    )
     print("vLLM LOD external-cache plugin contract: PASS")
 
 

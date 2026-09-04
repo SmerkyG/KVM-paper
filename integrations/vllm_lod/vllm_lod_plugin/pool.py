@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import os
+from dataclasses import fields, replace
 from typing import Any
 
 import torch
@@ -27,7 +28,7 @@ from model.triton_lod_engines import (
     KernelTwoLevelLODAttention,
 )
 
-from .config import VLLMLODSettings, scheduled_static_leaf_cap
+from .config import PRODUCTION_PROFILE, VLLMLODSettings, scheduled_static_leaf_cap
 
 
 def _round_up(value: int, multiple: int) -> int:
@@ -36,6 +37,73 @@ def _round_up(value: int, multiple: int) -> int:
 
 def _power_of_two(value: int) -> int:
     return 1 << max(1, (value - 1).bit_length())
+
+
+def _production_geometry_overrides(
+    head_dim: int,
+    gqa: int,
+) -> dict[str, object]:
+    """Resolve the measured production policy from attention geometry.
+
+    These are implementation geometries, not model-name special cases. The
+    D=512 schedule is the validated Gemma path; D=256 covers Qwen, and the
+    D=128/GQA=8 case covers K2 Horizon independently of tensor parallelism.
+    """
+
+    gemma_wide = head_dim == 512
+    k2 = (head_dim, gqa) == (128, 8)
+    if gemma_wide:
+        prefill_chunk = 4_096
+        prefill_local = 4_864
+        prefill_update = 4_096
+        exact_first = False
+        defer_updates = False
+        overlap_coarse_leaf = False
+        fused_state = False
+    else:
+        prefill_chunk = 16_384
+        prefill_local = 16_640
+        prefill_update = 16_384
+        exact_first = True
+        defer_updates = True
+        overlap_coarse_leaf = True
+        fused_state = True
+
+    if head_dim == 256:
+        fixed_segments = 256
+        fixed_reduce_d = 64
+        fixed_scan_warps = 2
+    elif k2:
+        fixed_segments = 128
+        fixed_reduce_d = 0
+        fixed_scan_warps = 1
+    else:
+        fixed_segments = 128
+        fixed_reduce_d = 0
+        fixed_scan_warps = 2
+
+    return {
+        "prefill_open_count": 4 if k2 else 3,
+        "prefill_chunk_size": prefill_chunk,
+        "prefill_local_window": prefill_local,
+        "prefill_state_update_size": prefill_update,
+        "prefill_exact_first_chunk": exact_first,
+        "prefill_defer_cache_updates": defer_updates,
+        "prefill_overlap_coarse_leaf": overlap_coarse_leaf,
+        "prefill_overlap_local_lod": False,
+        "fused_state_update": fused_state,
+        "fused_state_maxsim": fused_state,
+        # K2's D=128/GQA8 geometry can compact its selected GQA union cheaply.
+        # Feeding that compact list to the unified exact scan avoids both the
+        # full-context fixed mask and the cooperative kernel's tiny workgroups.
+        "decode_gqa_cooperative": not k2,
+        "decode_gqa_cooperative_hip": not k2,
+        "decode_gqa_fixed_mask_aiter": not k2,
+        "decode_gqa_fixed_mask_segments": fixed_segments,
+        "decode_gqa_fixed_mask_adaptive_segments": True,
+        "decode_gqa_fixed_mask_reduce_block_d": fixed_reduce_d,
+        "decode_gqa_fixed_mask_scan_num_warps": fixed_scan_warps,
+    }
 
 
 def _prefill_coarse_direct_gqa_geometry(
@@ -189,7 +257,6 @@ class VLLMLayerLODPool:
         if request_capacity < settings.local_window:
             raise ValueError("LOD request capacity is shorter than its local window")
         self.layer = layer
-        self.settings = settings
         self.max_requests = max_requests
         self.request_capacity = request_capacity
         self.active_indices = active_indices
@@ -204,6 +271,15 @@ class VLLMLayerLODPool:
             raise NotImplementedError(
                 "LOD vLLM currently requires equal K and V widths"
             )
+        if settings.profile == PRODUCTION_PROFILE:
+            settings = replace(
+                settings,
+                **_production_geometry_overrides(
+                    self.head_dim,
+                    gqa,
+                ),
+            )
+        self.settings = settings
 
         geometry = settings.routing_geometry
         if geometry == "auto":
@@ -362,6 +438,17 @@ class VLLMLayerLODPool:
                 # changes near-tied routes, so it remains a separate option.
                 self.engine.decode_route_post_dot_normalize = False
                 self.engine.decode_route_post_pv_normalize = False
+        elif (
+            settings.decode_geometry_tuning
+            and (self.head_dim, gqa) == (128, 8)
+        ):
+            # D128/GQA8 needs only one native 64-key producer tile.  This is
+            # the same exact top-eight selector as the default N=32 geometry,
+            # but halves the intermediate group field and its reduction work.
+            self.engine.decode_route_group_size = 64
+            self.engine.decode_route_segment_tiles = 1
+            self.engine.decode_route_num_warps = 1
+            self.engine.decode_route_reduce_num_warps = 2
         flat_int8 = settings.levels == 2 and settings.kv_bits == 8
         self.engine.leaf_key_quant_bits = (
             0 if flat_int8 else settings.resolved_key_bits
@@ -644,6 +731,11 @@ class VLLMLayerLODPool:
         # exactly matching the HF benchmark. Retain the older recursive side
         # cache for compatibility with VLLM_LOD_LEVELS=3.
         self.engine.separate_sink_cache = settings.levels == 3
+        self._assert_production_profile(
+            gqa,
+            has_query_norm=has_query_norm,
+            has_key_norm=has_key_norm,
+        )
         self.state_capacity = self.engine._state_capacity(
             request_capacity, min(request_capacity, settings.chunk_size)
         )
@@ -719,6 +811,148 @@ class VLLMLayerLODPool:
         self.split_state_len_max = 0
         self.split_scheduled_state_len_max = 0
         self.split_posting_len_max = 0
+
+    def _assert_production_profile(
+        self,
+        gqa: int,
+        *,
+        has_query_norm: bool,
+        has_key_norm: bool,
+    ) -> None:
+        """Reject any silent deviation from the supported production path."""
+
+        if self.settings.profile != PRODUCTION_PROFILE:
+            return
+        expected = replace(
+            VLLMLODSettings.production(
+                pool_size=self.settings.pool_size,
+                request_capacity=self.settings.request_capacity,
+            ),
+            **_production_geometry_overrides(
+                self.head_dim,
+                gqa,
+            ),
+        )
+        drift = [
+            field.name
+            for field in fields(VLLMLODSettings)
+            if getattr(self.settings, field.name) != getattr(expected, field.name)
+        ]
+        if drift:
+            raise RuntimeError(
+                "LOD production profile drifted in: " + ", ".join(drift)
+            )
+        if self.dtype != torch.bfloat16:
+            raise RuntimeError("LOD production profile requires BF16 attention K/V")
+        if self.head_dim not in (128, 256, 512) or not 1 < gqa <= 16:
+            raise RuntimeError(
+                "LOD production profile requires D in {128, 256, 512} and "
+                f"GQA in [2, 16], got D={self.head_dim}, GQA={gqa}"
+            )
+
+        engine_checks = {
+            "routing geometry": (
+                self.engine.state_clustering_normalization
+                == ("none" if has_key_norm else "cosine")
+                and self.engine.state_clustering_centroid_rescale
+                == ("coherence" if has_key_norm else "none")
+                and self.engine.routing_normalization
+                == ("none" if has_query_norm else "query")
+            ),
+            "two-level BF16 dense leaves": (
+                not self.engine.recursive_page_lod
+                and self.engine.virtual_page_storage
+                and not self.engine.leaf_key_quant_bits
+                and not self.engine.leaf_value_quant_bits
+            ),
+            "expert leaf geometry": (
+                self.engine.leaf_layout == "expert"
+                and self.engine.leaf_block_m == 32
+                and self.engine.leaf_block_n == 16
+                and self.engine.leaf_num_warps == 2
+            ),
+            "AITER local prefill": (
+                self.engine.prefill_local_attention_backend == "aiter"
+            ),
+            "fused prefill route/coarse": (
+                self.engine.fused_prefill_route_coarse
+                and self.engine.fused_prefill_stable_recompute
+                and self.engine.fused_prefill_external_recompute
+            ),
+            "prefill route count": (
+                self.engine.prefill_two_level_topk
+                == self.settings.prefill_open_count
+            ),
+            "prefill chunk": (
+                self.engine.prefill_chunk_len
+                == self.settings.prefill_chunk_size
+            ),
+            "prefill local field": (
+                self.engine.prefill_local_len
+                == self.settings.prefill_local_window
+            ),
+            "prefill state update": (
+                self.engine.prefill_state_update_len
+                == self.settings.prefill_state_update_size
+            ),
+            "prefill exact-first": (
+                self.engine.prefill_exact_first_chunk
+                == self.settings.prefill_exact_first_chunk
+            ),
+            "prefill hierarchy": (
+                self.engine.prefill_hierarchical_route
+                == _prefill_hierarchical_route_geometry(
+                    self.settings.levels,
+                    self.head_dim,
+                    gqa,
+                    self.kv_heads,
+                )
+            ),
+            "prefill direct GQA": (
+                self.engine.prefill_coarse_direct_gqa
+                == (
+                    _prefill_coarse_direct_gqa_geometry(
+                        self.head_dim,
+                        gqa,
+                        self.kv_heads,
+                    )
+                    is not None
+                )
+            ),
+            "prefill coarse/leaf overlap": (
+                self.engine.prefill_overlap_coarse_leaf
+                == self.settings.prefill_overlap_coarse_leaf
+            ),
+            "prefill local/LOD serialization": (
+                self.engine.prefill_overlap_local_lod
+                == self.settings.prefill_overlap_local_lod
+            ),
+            "fixed top-eight decode": (
+                self.engine.two_level_topk == 8
+                and self.settings.decode_max_open_leaves == 1024
+            ),
+            "D128/GQA8 decode routing": (
+                (self.head_dim, gqa) != (128, 8)
+                or (
+                    self.engine.decode_route_group_size == 64
+                    and self.engine.decode_route_segment_tiles == 1
+                    and self.engine.decode_route_num_warps == 1
+                    and self.engine.decode_route_reduce_num_warps == 2
+                )
+            ),
+            "fused state update": (
+                self.engine.fused_state_update
+                == self.settings.fused_state_update
+                and self.engine.fused_state_maxsim
+                == self.settings.fused_state_maxsim
+            ),
+        }
+        failed = [name for name, valid in engine_checks.items() if not valid]
+        if failed:
+            raise RuntimeError(
+                "LOD production dispatch failed its startup audit: "
+                + ", ".join(failed)
+            )
 
     def _record_split_state(
         self,
@@ -2060,6 +2294,8 @@ class VLLMLayerLODPool:
 
     def wait_deferred_prefill(self, slots: tuple[int, ...]) -> None:
         """Make the foreground stream consume any deferred cache builds."""
+        if not any(self.deferred_prefill_events[slot] is not None for slot in slots):
+            return
         current = torch.cuda.current_stream(self.device)
         seen: set[int] = set()
         for slot in slots:
@@ -3611,7 +3847,13 @@ class VLLMLayerLODPool:
             gqa_cooperative_hip=bool(
                 self.settings.decode_gqa_cooperative_hip
             ),
-            gqa_union_decode=bool(self.settings.decode_gqa_union),
+            # The exact cooperative path keeps each query head's eight routes
+            # separate.  Do not replace them with the much larger GQA-wide
+            # centroid union when that kernel is available.
+            gqa_union_decode=bool(
+                self.settings.decode_gqa_union
+                and not self._use_cooperative_decode()
+            ),
             gqa_union_mass_fraction=self.settings.decode_gqa_mass_fraction,
             gqa_union_predicted_mass=bool(
                 self.settings.decode_gqa_predicted_mass

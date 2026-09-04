@@ -40,6 +40,16 @@ def main() -> None:
     parser.add_argument("--gqa", type=int, default=16)
     parser.add_argument("--head-dim", type=int, choices=(128, 256), default=128)
     parser.add_argument("--state-len", type=int, default=256)
+    parser.add_argument(
+        "--route-group-size", type=int, choices=(8, 16, 32, 64), default=None
+    )
+    parser.add_argument(
+        "--route-segment-tiles", type=int, choices=(1, 2, 3, 4), default=None
+    )
+    parser.add_argument("--route-num-warps", type=int, choices=(1, 2, 4, 8), default=2)
+    parser.add_argument(
+        "--route-reduce-num-warps", type=int, choices=(1, 2, 4, 8), default=2
+    )
     parser.add_argument("--splits", type=int, choices=(8, 16, 32), default=8)
     parser.add_argument(
         "--union-final",
@@ -47,6 +57,7 @@ def main() -> None:
         default="unified",
     )
     parser.add_argument("--equal-leaves", action="store_true")
+    parser.add_argument("--leaves-per-slot", type=int, default=0)
     parser.add_argument(
         "--profile-kernels",
         action="store_true",
@@ -102,8 +113,16 @@ def main() -> None:
     active_local = 173
     splits = args.splits
     segmented_route = gqa == 16 and head_dim == 128
-    route_group_size = 64 if segmented_route else 32
-    route_segment_tiles = 2 if segmented_route else 1
+    route_group_size = (
+        args.route_group_size
+        if args.route_group_size is not None
+        else (64 if segmented_route else 32)
+    )
+    route_segment_tiles = (
+        args.route_segment_tiles
+        if args.route_segment_tiles is not None
+        else (2 if segmented_route else 1)
+    )
 
     q = torch.randn(
         batch, query_heads, 1, head_dim, device=device, dtype=dtype
@@ -111,14 +130,16 @@ def main() -> None:
     cache_indices = torch.roll(
         torch.arange(batch, device=device, dtype=torch.int64), shifts=1
     )
+    if not 0 <= args.leaves_per_slot <= max_leaves:
+        raise ValueError("--leaves-per-slot must be between zero and 31")
     counts_i32 = (
         torch.full(
             (cache_batch, kv_heads, state_len),
-            16,
+            args.leaves_per_slot or 16,
             device=device,
             dtype=torch.int32,
         )
-        if args.equal_leaves
+        if args.equal_leaves or args.leaves_per_slot
         else torch.randint(
             1,
             max_leaves + 1,
@@ -387,8 +408,8 @@ def main() -> None:
         fuse_state_route=True,
         route_group_size=route_group_size,
         route_segment_tiles=route_segment_tiles,
-        route_num_warps=2,
-        route_reduce_num_warps=2,
+        route_num_warps=args.route_num_warps,
+        route_reduce_num_warps=args.route_reduce_num_warps,
         route_parallel_reduce=segmented_route,
         route_use_dot=True,
         route_gqa_grouped=True,
@@ -785,6 +806,10 @@ def main() -> None:
             ),
             "fixed_mask_reduce_block_d": args.fixed_mask_reduce_block_d,
             "fixed_mask_direct_routes": args.fixed_mask_direct_routes,
+            "route_group_size": route_group_size,
+            "route_segment_tiles": route_segment_tiles,
+            "route_num_warps": args.route_num_warps,
+            "route_reduce_num_warps": args.route_reduce_num_warps,
             "cuda_graph_timing": args.cuda_graph_timing,
         },
         "correctness": {

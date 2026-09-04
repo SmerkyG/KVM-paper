@@ -45,6 +45,7 @@ GEOMETRIES = {
     item.name: item
     for item in (
         Geometry("muse", 128, 2, 16),
+        Geometry("k2", 128, 8, 8),
         Geometry("olmo", 128, 8, 5),
         Geometry("phi", 128, 2, 4),
         Geometry("qwen", 256, 4, 6),

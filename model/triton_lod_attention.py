@@ -1930,14 +1930,11 @@ class TritonLODAttentionCore(nn.Module):
                     overflow_key_norm_sums,
                     self.state_premerge_factor,
                 )
-            overflow_select_k = self._mean(overflow_k, overflow_counts)
         elif self.overflow_bipartite_merge:
             overflow_k, overflow_v, overflow_counts, membership = (
                 self._reduce_overflow_balanced(overflow_k, overflow_v)
             )
-            overflow_select_k = self._mean(overflow_k, overflow_counts)
         else:
-            overflow_select_k = overflow_k
             overflow_counts = torch.ones(
                 *overflow_k.shape[:3],
                 1,
@@ -1973,6 +1970,43 @@ class TritonLODAttentionCore(nn.Module):
                 "scheduled centroid append exceeded state capacity: "
                 f"required {desired_state_len}, capacity {state_capacity}"
             )
+        if overflow_len and n_append == overflow_len:
+            # Every premerged group is appended in its original order.  Avoid
+            # constructing routing keys, gathering the complete overflow, and
+            # scattering an identity ownership map merely to reproduce those
+            # same tensors.  This is the common initial-cache build through
+            # 64K for the fixed-adjacent premerge schedule.
+            destination = slice(current_state_len, desired_state_len)
+            state_k[..., destination, :].copy_(overflow_k)
+            state_v[..., destination, :].copy_(overflow_v)
+            counts[..., destination, :].copy_(overflow_counts)
+            if key_norm_sums is not None:
+                if overflow_key_norm_sums is None:
+                    raise AssertionError("LOD append is missing key-norm sums")
+                key_norm_sums[..., destination, :].copy_(
+                    overflow_key_norm_sums
+                )
+            owners = torch.arange(
+                current_state_len,
+                desired_state_len,
+                dtype=torch.long,
+                device=overflow_k.device,
+            ).view(1, 1, overflow_len).expand(
+                overflow_k.size(0), overflow_k.size(1), overflow_len
+            )
+            return (
+                state_k,
+                state_v,
+                counts,
+                desired_state_len,
+                expand_premerged_owners(owners),
+                None,
+            )
+        overflow_select_k = (
+            self._mean(overflow_k, overflow_counts)
+            if self.state_premerge_factor > 1 or self.overflow_bipartite_merge
+            else overflow_k
+        )
         owners = torch.full(
             overflow_k.shape[:-1], -1, dtype=torch.long, device=overflow_k.device
         )
@@ -2046,16 +2080,7 @@ class TritonLODAttentionCore(nn.Module):
                 buffers = new_state_delta_buffers(state_k, state_v, state_capacity)
                 self._lod_state_update_buffers = buffers
 
-        if n_append == overflow_len:
-            # Every premerged input becomes a new centroid.  This is the
-            # normal fixed-adjacent path through 64K: T/16 is no larger than
-            # the 16*sqrt(T) state schedule.  Scanning the old state cannot
-            # affect either the append set or ownership, and is invalid when
-            # the only existing entry is the protected sink.
-            append_idx = _all_idx(overflow_k, overflow_len)
-            merge_idx = append_idx[..., :0]
-            use_streaming_state_scan = False
-        elif use_streaming_state_scan:
+        if use_streaming_state_scan:
             maxsim_buffers = getattr(self, "_lod_state_maxsim_buffers", None)
             needs_maxsim_buffers = (
                 maxsim_buffers is None
@@ -2086,6 +2111,20 @@ class TritonLODAttentionCore(nn.Module):
             ) != prepared_identity or ctx_len <= int(
                 maxsim_buffers.get("_prepared_context_len", -1)
             )
+            state_maxsim_block_m = self.state_maxsim_block_m
+            state_maxsim_block_n = self.state_maxsim_block_n
+            state_maxsim_num_warps = self.state_maxsim_num_warps
+            if (
+                int(overflow_select_k.size(0)) == 1
+                and overflow_len >= 8192
+                and int(overflow_select_k.size(-1)) == 128
+            ):
+                # Long scheduler chunks have ample token-axis work but only a
+                # handful of KV heads. This exact geometry is about five
+                # percent faster for the D128 catch-up update.
+                state_maxsim_block_m = 8
+                state_maxsim_block_n = 32
+                state_maxsim_num_warps = 8
             (
                 old_route_scores,
                 old_route_indices,
@@ -2099,9 +2138,9 @@ class TritonLODAttentionCore(nn.Module):
                 sink_len=self._protected_state_len(current_state_len),
                 key_norm_sums=key_norm_sums,
                 geometry=streaming_geometry,
-                block_m=self.state_maxsim_block_m,
-                block_n=self.state_maxsim_block_n,
-                num_warps=self.state_maxsim_num_warps,
+                block_m=state_maxsim_block_m,
+                block_n=state_maxsim_block_n,
+                num_warps=state_maxsim_num_warps,
                 prepare_state_geometry=prepare_state_geometry,
                 # Prepared spherical/coherence geometry is fastest as a dense
                 # MFMA scan at batch 8. ``fused_state_maxsim`` remains useful

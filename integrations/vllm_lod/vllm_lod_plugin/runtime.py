@@ -13,7 +13,11 @@ import numpy as np
 import torch
 
 from .backend import LODAttentionImpl
-from .config import VLLMLODSettings
+from .config import (
+    PRODUCTION_PROFILE,
+    VLLMLODSettings,
+    validate_production_scheduler,
+)
 from .pool import VLLMLayerLODPool
 
 logger = logging.getLogger(__name__)
@@ -57,10 +61,6 @@ class VLLMLODRuntime:
                 "vLLM LOD requires dict-valued additional_config so its "
                 "compile-time settings can participate in the graph-cache key"
             )
-        settings_json = json.dumps(asdict(self.settings), sort_keys=True)
-        config.additional_config["lod_attention_compile_settings"] = sha256(
-            settings_json.encode()
-        ).hexdigest()
         self.speculative_tokens = int(config.num_speculative_tokens or 0)
         self.hybrid_speculative_full_attention = os.getenv(
             "VLLM_LOD_SPECULATIVE_FULL_ATTENTION", "0"
@@ -145,6 +145,10 @@ class VLLMLODRuntime:
         self._active_decode_rows: tuple[int, ...] | None = None
         self.initialized = False
         self.allocate_pools()
+        settings_json = json.dumps(asdict(self.settings), sort_keys=True)
+        config.additional_config["lod_attention_compile_settings"] = sha256(
+            settings_json.encode()
+        ).hexdigest()
 
     @property
     def enabled(self) -> bool:
@@ -153,22 +157,32 @@ class VLLMLODRuntime:
     def _set_speculative_verification_routes(self, enabled: bool) -> None:
         """Use decode-quality routing for a multi-token target verification.
 
-        Ordinary long prefill intentionally opens only three centroids on the
-        current fast path.  A speculative target call is logically decode,
-        however, and must use the same top-eight approximation as sequential
-        one-token decode. Otherwise the verifier itself defines a different
-        sparse model and can accept a token that sequential LOD would reject.
+        Ordinary long prefill uses its validated geometry-specific route
+        count. A speculative target call is logically decode, however, and
+        must use the same top-eight approximation as sequential one-token
+        decode. Otherwise the verifier itself defines a different sparse
+        model and can accept a token that sequential LOD would reject.
         """
         for pool in self.pools.values():
-            pool.engine.prefill_two_level_topk = (
-                self.settings.open_count
+            settings = pool.settings
+            route_count = (
+                settings.open_count
                 if enabled
                 else (
-                    self.settings.prefill_open_count
-                    if self.settings.prefill_open_count is not None
-                    else min(3, self.settings.open_count)
+                    settings.prefill_open_count
+                    if settings.prefill_open_count is not None
+                    else min(3, settings.open_count)
                 )
             )
+            pool.engine.prefill_two_level_topk = route_count
+            if (
+                not enabled
+                and settings.profile == PRODUCTION_PROFILE
+                and route_count != settings.prefill_open_count
+            ):
+                raise RuntimeError(
+                    "LOD production prefill route count drifted after runtime reset"
+                )
 
     def _prefix_rollback_tokens(self) -> int:
         cache_config = getattr(self.model_state.vllm_config, "cache_config", None)
@@ -203,11 +217,7 @@ class VLLMLODRuntime:
         # output can feed the next layer immediately while its independent
         # semantic-cache maintenance runs behind it; a per-row event makes the
         # next scheduler chunk or decode wait only when that row is consumed.
-        deferred_prefill_stream = (
-            torch.cuda.Stream(device=self.model_state.device)
-            if self.settings.prefill_defer_cache_updates
-            else None
-        )
+        deferred_prefill_stream: torch.cuda.Stream | None = None
         for name, layer in self.layers.items():
             has_query_norm, has_key_norm = norm_flags.get(name, (False, False))
             pool = VLLMLayerLODPool(
@@ -224,10 +234,37 @@ class VLLMLODRuntime:
             )
             for rows in sorted(decode_sizes):
                 pool.reserve_decode_buffers(rows)
-            pool.deferred_prefill_stream = deferred_prefill_stream
+            if pool.settings.prefill_defer_cache_updates:
+                if deferred_prefill_stream is None:
+                    deferred_prefill_stream = torch.cuda.Stream(
+                        device=self.model_state.device
+                    )
+                pool.deferred_prefill_stream = deferred_prefill_stream
             self.pools[name] = pool
             self.borrowed_dummy_lens[name] = torch.zeros_like(pool.local_lens)
             layer._vllm_lod_pool = pool
+        if self.pools:
+            resolved = next(iter(self.pools.values())).settings
+            if self.settings.profile == PRODUCTION_PROFILE and any(
+                pool.settings != resolved for pool in self.pools.values()
+            ):
+                raise RuntimeError(
+                    "LOD production does not support mixed attention geometries"
+                )
+            self.settings = resolved
+        if self.settings.profile == PRODUCTION_PROFILE and self.pools:
+            scheduler = self.model_state.vllm_config.scheduler_config
+            validate_production_scheduler(
+                max_model_len=int(self.model_state.max_model_len),
+                max_num_batched_tokens=int(scheduler.max_num_batched_tokens),
+                long_prefill_token_threshold=int(
+                    scheduler.long_prefill_token_threshold
+                ),
+                required_prefill=max(
+                    pool.settings.prefill_chunk_size
+                    for pool in self.pools.values()
+                ),
+            )
 
     def _attention_norm_flags(self) -> dict[str, tuple[bool, bool]]:
         """Map vLLM Attention children to their parent module's Q/K norms."""

@@ -1,0 +1,210 @@
+#!/usr/bin/env python3
+"""Verify that vLLM LOD has one locked production configuration."""
+
+from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
+
+import torch
+
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path[:0] = [str(ROOT / "integrations" / "vllm_lod"), str(ROOT)]
+
+from vllm_lod_plugin.config import (  # noqa: E402
+    EXPERIMENTAL_PROFILE,
+    PRODUCTION_PROFILE,
+    VLLMLODSettings,
+    validate_production_scheduler,
+)
+from vllm_lod_plugin.pool import (  # noqa: E402
+    VLLMLayerLODPool,
+    _production_geometry_overrides,
+)
+
+
+def verify_default_profile() -> None:
+    with patch.dict(os.environ, {}, clear=True):
+        settings = VLLMLODSettings.from_environment()
+    assert settings.profile == PRODUCTION_PROFILE
+    assert settings.levels == 2
+    assert settings.kv_bits == 0
+    assert settings.routing_geometry == "auto"
+    assert settings.open_count == 8
+    assert settings.prefill_open_count is None
+    assert settings.prefill_mode == "direct"
+    assert settings.prefill_local_backend == "aiter"
+    assert settings.decode_gqa_union
+    assert settings.decode_gqa_union_hip
+    assert settings.decode_gqa_fixed_mask_aiter
+    assert settings.decode_gqa_fixed_mask_adaptive_segments
+
+
+def verify_operational_settings() -> None:
+    environment = {
+        "VLLM_LOD_POOL_SIZE": "3",
+        "VLLM_LOD_MAX_CONTEXT": "65536",
+        "VLLM_LOD_WEIGHT_CACHE_BACKING": "1",
+        "VLLM_LOD_PANEL_BATCH_SIZE": "8",
+    }
+    with patch.dict(os.environ, environment, clear=True):
+        settings = VLLMLODSettings.from_environment()
+    assert settings.pool_size == 3
+    assert settings.request_capacity == 65_536
+
+
+def verify_tuning_requires_explicit_override() -> None:
+    with patch.dict(
+        os.environ,
+        {"VLLM_LOD_PREFILL_CHUNK_SIZE": "4096"},
+        clear=True,
+    ):
+        try:
+            VLLMLODSettings.from_environment()
+        except ValueError as exc:
+            assert "VLLM_LOD_PROFILE=experimental" in str(exc)
+            assert "VLLM_LOD_PREFILL_CHUNK_SIZE" in str(exc)
+        else:
+            raise AssertionError("production tuning did not fail closed")
+
+    with patch.dict(
+        os.environ,
+        {
+            "VLLM_LOD_PROFILE": EXPERIMENTAL_PROFILE,
+            "VLLM_LOD_PREFILL_CHUNK_SIZE": "8192",
+            "VLLM_LOD_PREFILL_LOCAL_WINDOW": "8448",
+        },
+        clear=True,
+    ):
+        settings = VLLMLODSettings.from_environment()
+    assert settings.profile == EXPERIMENTAL_PROFILE
+    assert settings.prefill_chunk_size == 8192
+    assert settings.prefill_local_window == 8448
+
+
+def verify_model_geometries() -> None:
+    qwen = _production_geometry_overrides(256, 6)
+    assert qwen["prefill_open_count"] == 3
+    assert qwen["prefill_chunk_size"] == 16_384
+    assert qwen["prefill_exact_first_chunk"] is True
+    assert qwen["prefill_overlap_coarse_leaf"] is True
+    assert qwen["decode_gqa_fixed_mask_segments"] == 256
+    assert qwen["decode_gqa_fixed_mask_reduce_block_d"] == 64
+
+    gemma = _production_geometry_overrides(512, 8)
+    assert gemma["prefill_open_count"] == 3
+    assert gemma["prefill_chunk_size"] == 4_096
+    assert gemma["prefill_local_window"] == 4_864
+    assert gemma["prefill_exact_first_chunk"] is False
+    assert gemma["prefill_defer_cache_updates"] is False
+    assert gemma["prefill_overlap_coarse_leaf"] is False
+    assert gemma["decode_gqa_fixed_mask_segments"] == 128
+
+    k2 = _production_geometry_overrides(128, 8)
+    assert k2["prefill_open_count"] == 4
+    assert k2["prefill_chunk_size"] == 16_384
+    assert k2["prefill_exact_first_chunk"] is True
+    assert k2["prefill_overlap_coarse_leaf"] is True
+    assert k2["decode_gqa_cooperative"] is False
+    assert k2["decode_gqa_cooperative_hip"] is False
+    assert k2["decode_gqa_fixed_mask_aiter"] is False
+    assert k2["decode_gqa_fixed_mask_segments"] == 128
+    assert k2["decode_gqa_fixed_mask_scan_num_warps"] == 1
+
+
+def verify_scheduler_guard() -> None:
+    for max_batched, long_threshold in ((8192, 0), (16_384, 4096)):
+        try:
+            validate_production_scheduler(
+                max_model_len=65_536,
+                max_num_batched_tokens=max_batched,
+                long_prefill_token_threshold=long_threshold,
+                required_prefill=16_384,
+            )
+        except RuntimeError as exc:
+            assert "Smaller scheduler slices" in str(exc)
+        else:
+            raise AssertionError("production accepted a short scheduler slice")
+
+    validate_production_scheduler(
+        max_model_len=65_536,
+        max_num_batched_tokens=16_384,
+        long_prefill_token_threshold=0,
+        required_prefill=16_384,
+    )
+    validate_production_scheduler(
+        max_model_len=65_536,
+        max_num_batched_tokens=8_192,
+        long_prefill_token_threshold=4_096,
+        required_prefill=4_096,
+    )
+
+
+def verify_pool_startup_audit() -> None:
+    geometries = (
+        ("qwen", 24, 4, 256, 3, 16_384, 256),
+        ("gemma", 16, 2, 512, 3, 4_096, 128),
+        ("k2", 64, 8, 128, 4, 16_384, 128),
+    )
+    for name, query_heads, kv_heads, head_dim, topk, chunk, segments in geometries:
+        normalized_keys = name in {"qwen", "gemma"}
+        layer = torch.nn.Module()
+        layer.num_heads = query_heads
+        layer.num_kv_heads = kv_heads
+        layer.head_size = head_dim
+        layer.head_size_v = head_dim
+        layer.impl = SimpleNamespace(scale=head_dim**-0.5)
+        pool = VLLMLayerLODPool(
+            layer,
+            settings=VLLMLODSettings.production(
+                pool_size=1,
+                request_capacity=512,
+            ),
+            max_requests=1,
+            request_capacity=512,
+            active_indices=torch.zeros(1, dtype=torch.int64),
+            dtype=torch.bfloat16,
+            device=torch.device("cpu"),
+            has_query_norm=normalized_keys,
+            has_key_norm=normalized_keys,
+        )
+        assert pool.settings.prefill_open_count == topk
+        assert pool.engine.prefill_chunk_len == chunk
+        assert pool.settings.decode_gqa_fixed_mask_segments == segments
+        if name == "k2":
+            assert pool.settings.decode_gqa_union
+            assert pool.settings.decode_gqa_union_hip
+            assert not pool.settings.decode_gqa_cooperative
+            assert not pool.settings.decode_gqa_cooperative_hip
+            assert not pool.settings.decode_gqa_fixed_mask_aiter
+            assert pool.engine.decode_route_group_size == 64
+            assert pool.engine.decode_route_segment_tiles == 1
+            assert pool.engine.decode_route_num_warps == 1
+            assert pool.engine.decode_route_reduce_num_warps == 2
+        assert (
+            pool.engine.state_clustering_normalization,
+            pool.engine.state_clustering_centroid_rescale,
+            pool.engine.routing_normalization,
+        ) == (
+            ("none", "coherence", "none")
+            if normalized_keys
+            else ("cosine", "none", "query")
+        )
+
+
+def main() -> None:
+    verify_default_profile()
+    verify_operational_settings()
+    verify_tuning_requires_explicit_override()
+    verify_model_geometries()
+    verify_scheduler_guard()
+    verify_pool_startup_audit()
+    print("vLLM LOD production profile verification passed")
+
+
+if __name__ == "__main__":
+    main()

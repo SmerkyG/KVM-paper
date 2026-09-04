@@ -64,6 +64,11 @@ def register() -> None:
     if _REGISTERED:
         return
     _add_lod_source_tree()
+    # Validate the locked profile before any diagnostic or cache-ownership
+    # environment switch can alter model construction.
+    from .config import VLLMLODSettings
+
+    VLLMLODSettings.from_environment()
     from .dflash2_compat import register_dflash2_compat
 
     register_dflash2_compat()

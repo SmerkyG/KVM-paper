@@ -10130,6 +10130,7 @@ def _decode_route_coarse_gqa_groups_kernel(
     PROTECTED_LEN: tl.constexpr,
     MAX_LEAF_TOKENS: tl.constexpr,
     USE_DOT: tl.constexpr,
+    KEYS_ARE_MEANS: tl.constexpr = False,
     SCORE_ONLY: tl.constexpr = False,
 ):
     """Share each state K/V tile across all query heads in one GQA group."""
@@ -10172,7 +10173,10 @@ def _decode_route_coarse_gqa_groups_kernel(
         mask=valid[:, None],
         other=0.0,
     )
-    mean_keys = (keys.to(tl.float32) / count[:, None]).to(keys.dtype)
+    if KEYS_ARE_MEANS:
+        mean_keys = keys
+    else:
+        mean_keys = (keys.to(tl.float32) / count[:, None]).to(keys.dtype)
     scores = tl.dot(queries, tl.trans(mean_keys), out_dtype=tl.float32)
     scores = scores * SCALE + tl.log(count)[None, :]
     scores = tl.where(query_valid[:, None] & valid[None, :], scores, -float("inf"))
@@ -19095,9 +19099,32 @@ def fused_decode_paged_lod_attention(
                     )
                 buffers["route_last_centroid_major_hip"] = centroid_major_hip
                 route_groups_begin = timing_begin()
+                route_state_k = state_k
+                route_keys_are_means = False
+                if (
+                    gqa_union_score_only
+                    and not gqa_union_fixed_mask
+                    and route_kernel is _decode_route_coarse_gqa_groups_kernel
+                    and isinstance(gqa_union_page1_k, torch.Tensor)
+                ):
+                    coarse_rows = (
+                        int(state_k.size(0))
+                        * int(state_k.size(1))
+                        * int(state_k.size(2))
+                    )
+                    coarse_begin = int(gqa_union_page1_coarse_offset)
+                    if (
+                        coarse_begin >= 0
+                        and coarse_begin + coarse_rows
+                        <= int(gqa_union_page1_k.size(0))
+                    ):
+                        route_state_k = gqa_union_page1_k.narrow(
+                            0, coarse_begin, coarse_rows
+                        ).view_as(state_k)
+                        route_keys_are_means = True
                 route_arguments = (
                     q,
-                    state_k,
+                    route_state_k,
                     state_v,
                     counts,
                     cache_indices,
@@ -19105,9 +19132,9 @@ def fused_decode_paged_lod_attention(
                     buffers["route_candidate_indices"],
                     buffers["route_group_out"],
                     buffers["route_group_lse"],
-                    state_k.stride(0),
-                    state_k.stride(1),
-                    state_k.stride(2),
+                    route_state_k.stride(0),
+                    route_state_k.stride(1),
+                    route_state_k.stride(2),
                     state_v.stride(0),
                     state_v.stride(1),
                     state_v.stride(2),
@@ -19115,6 +19142,11 @@ def fused_decode_paged_lod_attention(
                     counts.stride(1),
                     counts.stride(2),
                     state_len,
+                )
+                route_extra = (
+                    {"KEYS_ARE_MEANS": route_keys_are_means}
+                    if route_kernel is _decode_route_coarse_gqa_groups_kernel
+                    else {}
                 )
                 if centroid_major_hip:
                     from model.kernels.centroid_major_route_score import (
@@ -19414,6 +19446,7 @@ def fused_decode_paged_lod_attention(
                         SCORE_ONLY=gqa_union_score_only,
                         num_warps=route_num_warps,
                         waves_per_eu=waves_per_eu,
+                        **route_extra,
                     )
                 timing_end("route_groups", route_groups_begin)
                 route_reduce_begin = timing_begin()
@@ -20148,7 +20181,11 @@ def fused_decode_paged_lod_attention(
                 torch.cuda.current_stream(q.device).wait_stream(
                     fixed_attention_stream
                 )
-            if gqa_union_hip_exact and not gqa_union_fixed_mask:
+            if (
+                gqa_union_hip_exact
+                and not gqa_union_fixed_mask
+                and not gqa_union_aiter_final
+            ):
                 hip_context_lens[:sequence_count].zero_()
             direct_fixed_routes = bool(
                 gqa_union_fixed_mask
@@ -20296,13 +20333,12 @@ def fused_decode_paged_lod_attention(
                 allocated_segments = int(
                     buffers["gqa_union_hip_exp_sums"].size(2)
                 )
-                # With at most four independent KV scans on this rank, 256
-                # scan programs can repay their larger partial-output field.
-                # A one-request MTP verifier has two logical rows and therefore
-                # misses the ordinary low-sequence predicate, but the combined
-                # fixed-list scan benefits from the same 256-way geometry.  The
-                # split-D reducer remains limited to the ordinary low-sequence
-                # case: the measured MTP winner used its normal D reduction.
+                # Keep roughly 1024 independent scan programs on the rank.
+                # This preserves the established 256-way low-row geometry,
+                # while avoiding thousands of tiny partial outputs for batched
+                # GQA (for example, B8/KV8 uses 16 segments). A one-request MTP
+                # verifier retains its measured 256-way winner. The split-D
+                # reducer remains limited to the ordinary low-sequence case.
                 # 512 segments still pay excessive partial-output traffic.
                 unified_segments = allocated_segments
                 if (
@@ -20312,10 +20348,15 @@ def fused_decode_paged_lod_attention(
                     single_request_mtp = bool(
                         speculative_steps == 2 and batch == speculative_steps
                     )
+                    programs_per_scan = max(
+                        1, (1024 + sequence_count - 1) // sequence_count
+                    )
+                    target_segments = max(
+                        16,
+                        min(256, 1 << (programs_per_scan - 1).bit_length()),
+                    )
                     unified_segments = (
-                        256
-                        if low_sequence_count or single_request_mtp
-                        else 128
+                        256 if single_request_mtp else target_segments
                     )
                 fixed_segment_out = buffers["gqa_union_hip_segment_out"][
                     :sequence_count, :, :unified_segments
@@ -20882,16 +20923,22 @@ def fused_decode_paged_lod_attention(
                 hip_launch_lens = buffers["gqa_union_hip_launch_lens"][
                     :sequence_count
                 ]
-                _prepare_aiter_unified_page1_context_kernel[
-                    (sequence_count,)
-                ](
-                    hip_context_lens,
-                    hip_launch_lens,
-                    hip_block_table,
-                    INDEX_CAPACITY=index_capacity,
-                    num_warps=1,
-                    waves_per_eu=waves_per_eu,
-                )
+                if gqa_union_aiter_final and not gqa_union_staged_fixed:
+                    # The compact unified table always contains the complete
+                    # state suffix, so it cannot be empty.  Its true lengths
+                    # are already valid AITER launch lengths.
+                    hip_launch_lens = hip_context_lens
+                else:
+                    _prepare_aiter_unified_page1_context_kernel[
+                        (sequence_count,)
+                    ](
+                        hip_context_lens,
+                        hip_launch_lens,
+                        hip_block_table,
+                        INDEX_CAPACITY=index_capacity,
+                        num_warps=1,
+                        waves_per_eu=waves_per_eu,
+                    )
                 aiter_query = q[:, :, 0, :].reshape(
                     sequence_count, kv_group_size, head_dim
                 )

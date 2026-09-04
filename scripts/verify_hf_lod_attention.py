@@ -498,6 +498,39 @@ def _check_state_clustering_radial_metric() -> None:
     torch.testing.assert_close(
         key_norm_sums[..., :2, :], expected_norm_sums
     )
+
+    append_all_engine = KernelRecursivePagedLODAttention(
+        replace(mean_leaf_config, state_min_size=6),
+        query_heads=1,
+        key_value_heads=1,
+        scale=1.0,
+        default_open_count=1,
+    )
+    append_state_key = state_key.clone()
+    append_state_value = state_value.clone()
+    append_counts = counts.clone()
+    append_norm_sums = key_norm_sums.clone()
+    result = append_all_engine._update_state(
+        append_state_key,
+        append_state_value,
+        append_counts,
+        append_norm_sums,
+        overflow_key,
+        overflow_key,
+        state_len=2,
+        ctx_len=6,
+        available_context=6,
+        state_capacity=6,
+    )
+    torch.testing.assert_close(append_state_key[..., 2:6, :], overflow_key)
+    torch.testing.assert_close(append_state_value[..., 2:6, :], overflow_key)
+    torch.testing.assert_close(
+        append_counts[..., 2:6, :], torch.ones_like(append_counts[..., 2:6, :])
+    )
+    torch.testing.assert_close(append_norm_sums[..., 2:6, :], overflow_norms)
+    torch.testing.assert_close(
+        result[4], torch.arange(2, 6).view(1, 1, 4)
+    )
     print("angular-plus-log-radial state clustering metric passed")
 
 

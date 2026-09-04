@@ -7,6 +7,59 @@ import os
 from dataclasses import dataclass, replace
 
 
+PRODUCTION_PROFILE = "production"
+EXPERIMENTAL_PROFILE = "experimental"
+
+# These values size serving resources but do not alter LOD attention math.
+_PRODUCTION_ENV_ALLOWLIST = {
+    "VLLM_LOD_PROFILE",
+    "VLLM_LOD_POOL_SIZE",
+    "VLLM_LOD_MAX_CONTEXT",
+    "VLLM_LOD_WEIGHT_CACHE_BACKING",
+}
+
+
+def _reject_production_tuning_environment() -> None:
+    configured = sorted(
+        name
+        for name in os.environ
+        if name.startswith("VLLM_LOD_")
+        and not name.startswith("VLLM_LOD_PANEL_")
+        and name not in _PRODUCTION_ENV_ALLOWLIST
+    )
+    if configured:
+        names = ", ".join(configured)
+        raise ValueError(
+            "the production LOD profile does not accept attention tuning "
+            f"variables ({names}); unset them or explicitly select "
+            "VLLM_LOD_PROFILE=experimental"
+        )
+
+
+def validate_production_scheduler(
+    *,
+    max_model_len: int,
+    max_num_batched_tokens: int,
+    long_prefill_token_threshold: int,
+    required_prefill: int,
+) -> None:
+    """Reject scheduler slices which change the production update sequence."""
+
+    required_prefill = min(required_prefill, max_model_len)
+    if max_num_batched_tokens < required_prefill or (
+        0 < long_prefill_token_threshold < required_prefill
+    ):
+        raise RuntimeError(
+            "LOD production requires --max-num-batched-tokens >= "
+            f"{required_prefill} and either "
+            "--long-prefill-token-threshold 0 or a value >= "
+            f"{required_prefill}; got {max_num_batched_tokens} and "
+            f"{long_prefill_token_threshold}. Smaller scheduler slices change "
+            "the effective state-update sequence. Select "
+            "VLLM_LOD_PROFILE=experimental for that experiment."
+        )
+
+
 def _integer(name: str, default: int) -> int:
     raw = os.getenv(name)
     try:
@@ -65,6 +118,9 @@ def scheduled_static_leaf_cap(
 
 @dataclass(frozen=True)
 class VLLMLODSettings:
+    # Direct construction is an explicit research/programmatic override. The
+    # vLLM runtime enters the locked production profile via from_environment().
+    profile: str = EXPERIMENTAL_PROFILE
     aug19_compat: bool = False
     levels: int = 2
     chunk_size: int = 256
@@ -185,7 +241,102 @@ class VLLMLODSettings:
         return self.kv_bits if self.value_bits is None else self.value_bits
 
     @classmethod
+    def production(
+        cls,
+        *,
+        pool_size: int = 8,
+        request_capacity: int | None = None,
+    ) -> VLLMLODSettings:
+        """Return the single quality-preserving vLLM production profile.
+
+        Geometry-dependent choices which cannot be known before the model is
+        loaded are resolved and audited by ``VLLMLayerLODPool``.
+        """
+
+        return cls(
+            profile=PRODUCTION_PROFILE,
+            levels=2,
+            chunk_size=256,
+            local_window=512,
+            state_growth_factor=16.0,
+            state_premerge_factor=1,
+            fused_state_update=True,
+            fused_state_maxsim=True,
+            state_min_size=256,
+            protected_prefix=1,
+            open_count=8,
+            prefill_open_count=None,
+            kv_bits=0,
+            pool_size=pool_size,
+            request_capacity=request_capacity,
+            prefill_mode="direct",
+            routing_geometry="auto",
+            prefill_local_backend="aiter",
+            fused_prefill_route_coarse=True,
+            fused_prefill_stable_recompute=True,
+            fused_prefill_external_recompute=True,
+            prefill_hierarchical_route=None,
+            prefill_coarse_direct_gqa=None,
+            prefill_overlap_coarse_leaf=None,
+            prefill_overlap_local_lod=None,
+            # The production pool resolves Gemma's D=512 heads back to the
+            # validated 4K schedule; Qwen and K2 use this 16K schedule.
+            prefill_chunk_size=16_384,
+            prefill_local_window=16_640,
+            prefill_state_update_size=16_384,
+            prefill_exact_first_chunk=True,
+            prefill_defer_cache_updates=True,
+            leaf_layout="expert",
+            leaf_block_m=32,
+            leaf_block_n=16,
+            leaf_num_warps=2,
+            leaf_geometry_tuning=True,
+            leaf_reduce_num_warps=1,
+            leaf_paged_directory=True,
+            dense_leaf_storage=True,
+            decode_split_kv=8,
+            decode_geometry_tuning=True,
+            decode_hierarchical_route=None,
+            decode_gqa_cooperative=True,
+            decode_gqa_cooperative_hip=True,
+            decode_gqa_union=True,
+            decode_gqa_union_hip=True,
+            decode_gqa_fixed_mask_aiter=True,
+            decode_gqa_fixed_mask_block_n=64,
+            decode_gqa_fixed_mask_segments=128,
+            decode_gqa_fixed_mask_adaptive_segments=True,
+            decode_gqa_fixed_mask_direct_routes=True,
+            decode_gqa_fixed_mask_scan_num_warps=2,
+            decode_gqa_fixed_mask_scan_waves_per_eu=2,
+            decode_gqa_fixed_mask_scan_num_stages=2,
+            decode_max_open_leaves=1024,
+        )
+
+    @classmethod
     def from_environment(cls) -> VLLMLODSettings:
+        profile = _choice(
+            "VLLM_LOD_PROFILE",
+            PRODUCTION_PROFILE,
+            (PRODUCTION_PROFILE, EXPERIMENTAL_PROFILE),
+        )
+        if profile == EXPERIMENTAL_PROFILE:
+            return replace(
+                cls._from_experimental_environment(),
+                profile=EXPERIMENTAL_PROFILE,
+            )
+
+        _reject_production_tuning_environment()
+        capacity = _integer("VLLM_LOD_MAX_CONTEXT", 0)
+        pool_size = _integer("VLLM_LOD_POOL_SIZE", 8)
+        if pool_size <= 0:
+            raise ValueError("VLLM_LOD_POOL_SIZE must be positive")
+        return cls.production(
+            pool_size=pool_size,
+            request_capacity=capacity or None,
+        )
+
+    @classmethod
+    def _from_experimental_environment(cls) -> VLLMLODSettings:
         capacity = _integer("VLLM_LOD_MAX_CONTEXT", 0)
         kv_bits = _integer("VLLM_LOD_KV_BITS", 0)
         # INT4 uses page-wide, four-channel groups and refines each scale by
