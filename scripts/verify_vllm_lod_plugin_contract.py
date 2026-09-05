@@ -94,11 +94,15 @@ def verify_prefill_geometry_policy() -> None:
     assert _prefill_hierarchical_route_geometry(3, 256, 4, 2)
     assert _prefill_hierarchical_route_geometry(2, 128, 16, 2)
 
-    # Recursive prefill can overlap only its independent local branch. Muse's
-    # flat path can additionally overlap coarse and exact-leaf attention.
+    # Recursive complete-expert prefill shares one coarse/leaf overlap rule.
+    # Page-selected recursive prefill can overlap only its independent local
+    # branch, while Muse's flat path can overlap all three branches.
     assert _prefill_overlap_geometry(2, 128, 16, 2) == (True, True)
     assert _prefill_overlap_geometry(3, 128, 16, 2) == (False, True)
     assert _prefill_overlap_geometry(3, 256, 4, 2) == (False, True)
+    assert _prefill_overlap_geometry(3, 128, 4, 2) == (True, False)
+    assert _prefill_overlap_geometry(3, 128, 8, 8) == (True, False)
+    assert _prefill_overlap_geometry(3, 256, 6, 4) == (True, False)
     assert _prefill_overlap_geometry(2, 256, 4, 2) == (False, False)
 
     # Phi uses complete experts throughout prefill. Qwen TP1 uses them only

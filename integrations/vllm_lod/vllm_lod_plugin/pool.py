@@ -151,7 +151,15 @@ def _prefill_overlap_geometry(
     geometry = (head_dim, gqa, kv_heads)
     muse = geometry == (128, 16, 2)
     recursive_qwen = levels == 3 and geometry == (256, 4, 2)
-    return levels == 2 and muse, muse or recursive_qwen
+    complete_expert = _recursive_prefill_all_leaves_geometry(
+        levels, head_dim, gqa, kv_heads
+    )
+    # Coarse state attention and complete selected-expert attention are
+    # independent for every recursive all-leaf consumer.  Use one common
+    # overlap rule rather than enabling the same execution organization one
+    # model geometry at a time.  Recursive page-selection consumers can only
+    # overlap their independent local branch.
+    return (levels == 2 and muse) or complete_expert, muse or recursive_qwen
 
 
 def _prefill_direct_expert_bucket_geometry(
@@ -574,13 +582,7 @@ class VLLMLayerLODPool:
         )
         recursive_prefill_all_leaves = (
             (
-                (
-                    settings.kv_bits == 0
-                    or (
-                        settings.kv_bits == 4
-                        and (self.head_dim, gqa, self.kv_heads) == (128, 8, 8)
-                    )
-                )
+                settings.kv_bits in (0, 4)
                 and _recursive_prefill_all_leaves_geometry(
                     settings.levels, self.head_dim, gqa, self.kv_heads
                 )
@@ -754,18 +756,17 @@ class VLLMLayerLODPool:
             coarse_leaf_overlap, local_lod_overlap = _prefill_overlap_geometry(
                 settings.levels, self.head_dim, gqa, self.kv_heads
             )
-            if not settings.prefill_static_leaf_aiter and local_lod_overlap:
-                # Muse's routed GQA-16 coarse, exact-leaf, and exact-local
-                # branches are independent after route selection. Queue them
-                # on three streams and synchronize only at the final LSE
-                # merge. Static-cohort prefill keeps a much larger exact-leaf
-                # working set live, so overlapping its materialized coarse
-                # logits exhausts the normal transient-memory allowance.
-                # The recursive page branch is one dependent LOD operation,
-                # so only its independent local branch can overlap. Flat LOD
-                # additionally overlaps coarse and exact-leaf attention.
-                self.engine.prefill_overlap_coarse_leaf = coarse_leaf_overlap
-                self.engine.prefill_overlap_local_lod = True
+            if not settings.prefill_static_leaf_aiter:
+                # The exact local, coarse, and complete selected-expert
+                # branches are independent after route selection. Enable each
+                # measured overlap independently: some geometries profit from
+                # coarse/leaf overlap without local/LOD overlap (and vice
+                # versa). Static-cohort prefill retains the serialized path to
+                # avoid exceeding its transient-memory allowance.
+                if coarse_leaf_overlap:
+                    self.engine.prefill_overlap_coarse_leaf = True
+                if local_lod_overlap:
+                    self.engine.prefill_overlap_local_lod = True
         if settings.prefill_overlap_coarse_leaf is not None:
             self.engine.prefill_overlap_coarse_leaf = (
                 settings.prefill_overlap_coarse_leaf

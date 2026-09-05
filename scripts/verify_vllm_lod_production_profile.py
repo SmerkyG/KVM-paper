@@ -278,6 +278,30 @@ def verify_recursive_prefill_overrides() -> None:
     assert bf16_pool.engine.recursive_prefill_all_leaves
     assert bf16_pool.engine.recursive_prefill_all_leaves_token_limit == 0
 
+    # Qwen3.8 and K2 use the same recursive INT4 attention organization. Only
+    # their exact kernel tile geometry and route backend differ.
+    qwen_layer = torch.nn.Module()
+    qwen_layer.num_heads = 24
+    qwen_layer.num_kv_heads = 4
+    qwen_layer.head_size = 256
+    qwen_layer.head_size_v = 256
+    qwen_layer.impl = SimpleNamespace(scale=256**-0.5)
+    qwen_pool = VLLMLayerLODPool(
+        qwen_layer,
+        settings=replace(settings, prefill_open_count=3),
+        max_requests=1,
+        request_capacity=512,
+        active_indices=torch.zeros(1, dtype=torch.int64),
+        dtype=torch.bfloat16,
+        device=torch.device("cpu"),
+        has_query_norm=True,
+        has_key_norm=True,
+    )
+    assert qwen_pool.engine.prefill_hierarchical_route
+    assert qwen_pool.engine.recursive_prefill_all_leaves
+    assert qwen_pool.engine.prefill_overlap_coarse_leaf
+    assert not qwen_pool.engine.prefill_overlap_local_lod
+
 
 def main() -> None:
     verify_default_profile()
