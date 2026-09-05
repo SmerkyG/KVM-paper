@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import os
 import sys
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -85,6 +86,21 @@ def verify_tuning_requires_explicit_override() -> None:
     assert settings.prefill_chunk_size == 8192
     assert settings.prefill_local_window == 8448
 
+    with patch.dict(
+        os.environ,
+        {
+            "VLLM_LOD_PROFILE": EXPERIMENTAL_PROFILE,
+            "VLLM_LOD_LEVELS": "3",
+            "VLLM_LOD_KV_BITS": "4",
+            "VLLM_LOD_RECURSIVE_PREFILL_ALL_LEAVES": "1",
+        },
+        clear=True,
+    ):
+        settings = VLLMLODSettings.from_environment()
+    assert settings.recursive_prefill_all_leaves
+    assert settings.quant_group_size == 4
+    assert settings.leaf_quant_scale_mode == "l2"
+
 
 def verify_model_geometries() -> None:
     qwen38 = _production_geometry_overrides(256, 6)
@@ -113,7 +129,7 @@ def verify_model_geometries() -> None:
     assert gemma["decode_gqa_fixed_mask_segments"] == 128
 
     k2 = _production_geometry_overrides(128, 8)
-    assert k2["prefill_open_count"] == 4
+    assert k2["prefill_open_count"] == 3
     assert k2["prefill_chunk_size"] == 16_384
     assert k2["prefill_exact_first_chunk"] is True
     assert k2["prefill_overlap_coarse_leaf"] is True
@@ -157,7 +173,7 @@ def verify_pool_startup_audit() -> None:
         ("qwen35", 8, 2, 256, 3, 16_384, 256),
         ("qwen38", 24, 4, 256, 3, 16_384, 256),
         ("gemma", 16, 2, 512, 3, 4_096, 128),
-        ("k2", 64, 8, 128, 4, 16_384, 128),
+        ("k2", 64, 8, 128, 3, 16_384, 128),
     )
     for name, query_heads, kv_heads, head_dim, topk, chunk, segments in geometries:
         normalized_keys = name in {"qwen35", "qwen38", "gemma"}
@@ -207,6 +223,62 @@ def verify_pool_startup_audit() -> None:
         )
 
 
+def verify_recursive_prefill_overrides() -> None:
+    layer = torch.nn.Module()
+    layer.num_heads = 64
+    layer.num_kv_heads = 8
+    layer.head_size = 128
+    layer.head_size_v = 128
+    layer.impl = SimpleNamespace(scale=128**-0.5)
+    settings = VLLMLODSettings(
+        levels=3,
+        pool_size=1,
+        request_capacity=512,
+        prefill_chunk_size=128,
+        prefill_local_window=384,
+        prefill_state_update_size=128,
+        prefill_open_count=4,
+        kv_bits=4,
+    )
+    pool = VLLMLayerLODPool(
+        layer,
+        settings=settings,
+        max_requests=1,
+        request_capacity=512,
+        active_indices=torch.zeros(1, dtype=torch.int64),
+        dtype=torch.bfloat16,
+        device=torch.device("cpu"),
+    )
+    assert pool.engine.prefill_chunk_len == 128
+    assert pool.engine.prefill_local_len == 384
+    assert pool.engine.prefill_state_update_len == 128
+    assert pool.engine.prefill_two_level_topk == 4
+    assert pool.engine.recursive_prefill_all_leaves
+    assert pool.engine.recursive_prefill_all_leaves_token_limit == 0
+    assert pool.engine.leaf_block_m == 64
+    assert pool.engine.leaf_block_n == 16
+    assert pool.engine.leaf_num_warps == 4
+    assert pool.engine.decode_state_update_len == 512
+    assert pool.engine.decode_route_parallel_reduce
+    assert pool.engine.decode_route_parallel_reduce_block_d == 32
+    assert pool.decode_local_limit == 768
+
+    bf16_pool = VLLMLayerLODPool(
+        layer,
+        settings=replace(settings, kv_bits=0),
+        max_requests=1,
+        request_capacity=512,
+        active_indices=torch.zeros(1, dtype=torch.int64),
+        dtype=torch.bfloat16,
+        device=torch.device("cpu"),
+    )
+    assert bf16_pool.engine.decode_state_update_len == 256
+    assert not bf16_pool.engine.decode_route_parallel_reduce
+    assert bf16_pool.decode_local_limit == 512
+    assert bf16_pool.engine.recursive_prefill_all_leaves
+    assert bf16_pool.engine.recursive_prefill_all_leaves_token_limit == 0
+
+
 def main() -> None:
     verify_default_profile()
     verify_operational_settings()
@@ -214,6 +286,7 @@ def main() -> None:
     verify_model_geometries()
     verify_scheduler_guard()
     verify_pool_startup_audit()
+    verify_recursive_prefill_overrides()
     print("vLLM LOD production profile verification passed")
 
 

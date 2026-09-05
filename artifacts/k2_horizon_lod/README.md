@@ -160,3 +160,77 @@ doubled transient traffic and did not finish its warm pass within 170 s. Thus
 the apparent underfill was not the bottleneck; B4 waves are the better point for
 this 32B geometry. The stride-only production change does not alter attention
 math; its focused packed-versus-strided output and LSE check was bit-exact.
+
+## K2 Horizon 32B FP8: recursive BF16 and residual INT4
+
+The current three-tier implementation uses the same K2 TP1 geometry as the
+two-tier path: 64 query heads, eight KV heads, head dimension 128, cosine
+centroid assignment, a `16 * sqrt(T)` state schedule, and a separate protected
+sink. Prefill opens the top three centroids and attends to every leaf in them.
+At 64K, average posting length is one 16-token page; at 128K it is about 1.4
+pages, but complete-centroid attention remains faster than paying for another
+page-routing stage. Decode still performs genuine recursive routing: it opens
+the best page in each of the top eight centroids.
+
+The residual INT4 path stores each leaf as a four-bit residual from its page
+mean, with four-channel L2-refined scales and INT8 page summaries. The new
+expert-major kernel consumes that representation directly during complete-leaf
+prefill instead of materializing a BF16 fallback. K2 uses an M64/N16/four-warp
+INT4 tile, amortizes decode cache updates over 512 tokens while retaining the
+pending tail exactly, and distributes the coarse value reduction over D=32
+tiles. BF16 retains the faster M32/N16/two-warp geometry and 256-token update
+interval. The page archive and recursive decode behavior are unchanged by the
+complete-centroid prefill consumer.
+
+The table below uses eight distinct ProLong prompts, TP1, a 16K aggregate vLLM
+scheduler budget, full prompt lengths, one warm pass, and 1,025 measured decode
+tokens. Four ordinary BF16 updates or two INT4 updates are therefore included
+in every decode average. Timings are one measured repetition; the matched full
+attention controls were rerun with the same zero-reserve prompt convention.
+
+| Context | Full prefill (s) | Three-tier BF16 (s) | Three-tier INT4 (s) | Full decode (ms/step) | BF16 decode | INT4 decode |
+|---:|---:|---:|---:|---:|---:|---:|
+| 16K | 20.933 | 24.165 | 24.624 | 49.658 | 52.304 | 52.890 |
+| 32K | 51.147 | 64.902 | 67.806 | 56.562 | 54.179 | 54.448 |
+| 64K | 140.101 | 156.377 | 167.274 | 69.732 | 56.234 | 56.433 |
+
+At 16K, constructing the recursive cache costs BF16 15.4% in prefill and 5.3%
+in decode versus native full attention. The decode crossover occurs between
+16K and 32K: BF16/INT4 are respectively 4.4%/3.9% faster at 32K and 24.0%/23.6%
+faster at 64K. Their decode time rises by only 3.93/3.54 ms from 16K to 64K,
+while native full attention rises by 20.07 ms. Prefill is not yet a throughput
+win, but its BF16 deficit contracts from 26.9% at 32K to 11.6% at 64K; INT4
+pays additional inline reconstruction work in exchange for the smaller cache.
+
+At 128K/B8, complete-centroid INT4 prefill takes 408.777 s versus 522.569 s
+for the one-page-per-centroid consumer, a 21.8% reduction in elapsed time (or
+27.8% greater throughput). Decode is effectively identical at 59.036 versus
+58.932 ms/step. The complete-centroid path is therefore the automatic K2
+policy through the model's 128K range. From 64K to 128K, its prefill time grows
+2.44x while sequence length doubles, and decode grows by only 4.6%. Full
+attention and recursive BF16 do not fit this B8/128K memory point on one
+MI325X; INT4 uses 126.451 GB of semantic cache and 176.083 GB total after
+reclaim.
+
+At 64K/B8, the INT4 semantic cache is 73.737 GB versus 178.551 GB for
+recursive BF16 and 183.375 GB for the native full-attention KV allocation. It
+therefore reduces semantic cache storage by 58.7% versus BF16 recursive LOD and
+59.8% versus full attention. No chronological native attention cache or BF16
+leaf shadow is retained. Total post-reclaim device use is 121.922 GB for INT4
+LOD versus 245.631 GB for full attention.
+
+Quality was measured on the same pinned 64K ProLong documents 8--15 used by
+the earlier K2 panel (524,280 predicted tokens), plus the canonical eight-case
+64K NIAH-S3 smoke panel.
+
+| 64K mode | ProLong CE | PPL | Delta from full | NIAH-S3 |
+|---|---:|---:|---:|---:|
+| Full attention | 0.521554 | 1.684644 | -- | not rerun |
+| Three-tier BF16 | 0.524174 | 1.689063 | +0.002620 | 8/8 |
+| Three-tier INT4 | 0.524734 | 1.690009 | +0.003179 | 8/8 |
+
+INT4 adds only 0.000560 CE over the BF16 approximation. The complete-centroid
+consumer also improves BF16's CE by 0.00430 over the older one-page-prefill
+three-tier run. The focused kernel check reconstructs exactly the same output
+and LSE as explicit dequantization (output MSE 0.0); its error against original
+BF16 leaves was 0.000585 MSE.

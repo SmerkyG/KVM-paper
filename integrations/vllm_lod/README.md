@@ -602,7 +602,7 @@ GQA-union decode, and automatic spherical/coherence routing. Qwen3.8 and Gemma
 use the persistent fixed-mask union; Qwen3.5-0.8B's D=256/GQA4 and K2's
 D=128/GQA8/KV8 heads use the compact selected union. Qwen uses top-three 16K
 exact-first prefill, Gemma's D=512 heads use their validated top-three 4K
-schedule, and K2 uses top-four 16K exact-first prefill. These choices are
+schedule, and K2 uses top-three 16K exact-first prefill. These choices are
 resolved from attention geometry and audited during pool construction. The
 remaining tuning discussion in this document describes the explicit
 `VLLM_LOD_PROFILE=experimental` research surface.
@@ -987,6 +987,19 @@ independent two-wave/one-wave launch geometry; automatic 128K prefill is
 18.316 seconds versus 18.338 seconds for explicit page-only.  Full diagnosis,
 ablations, and raw records are in
 `artifacts/dflash2_three_tier_short_20260831/README.md`.
+
+K2 Horizon 32B's recursive `(D, GQA, KVH) = (128, 8, 8)` path uses complete-
+expert prefill throughout the model's measured context range. Its average
+posting list reaches one 16-token page only at 64K; even at 128K, evaluating
+all leaves is faster than first selecting one page per routed region. Decode
+remains recursive: it opens the best page from each of eight routed regions.
+Residual INT4 is supported by the expert-major prefill kernel directly; it reconstructs each
+selected leaf from its INT4 residual, page scale, and INT8-quantized page mean
+without materializing a BF16 archive. K2 INT4 uses an M64/N16/four-warp expert
+tile, a 512-token decode update interval, and a split-D32 coarse-value reducer.
+The BF16 path retains M32/N16/two warps and 256-token updates. Matched timing,
+memory, ProLong, and NIAH results are recorded in
+`artifacts/k2_horizon_lod/README.md`.
 
 The matched TP4 DFlash2 panel uses six local query heads, one local KV head,
 head dimension 256, three measured speed repetitions, and the same 16K

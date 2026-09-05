@@ -704,11 +704,11 @@ class VLLMLODSettings:
         if settings.levels not in (2, 3):
             raise ValueError("VLLM_LOD_LEVELS must be two or three")
         if settings.recursive_prefill_all_leaves and (
-            settings.levels != 3 or settings.kv_bits != 0
+            settings.levels != 3 or settings.kv_bits not in (0, 4)
         ):
             raise ValueError(
                 "VLLM_LOD_RECURSIVE_PREFILL_ALL_LEAVES requires "
-                "three-level BF16 LOD"
+                "three-level BF16 or residual INT4 LOD"
             )
         if settings.state_split_max_leaves is not None and settings.levels != 2:
             raise ValueError(

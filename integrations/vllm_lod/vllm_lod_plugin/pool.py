@@ -85,7 +85,7 @@ def _production_geometry_overrides(
         fixed_scan_warps = 2
 
     return {
-        "prefill_open_count": 4 if k2 else 3,
+        "prefill_open_count": 3,
         "prefill_chunk_size": prefill_chunk,
         "prefill_local_window": prefill_local,
         "prefill_state_update_size": prefill_update,
@@ -185,6 +185,7 @@ def _recursive_prefill_all_leaves_geometry(
     # still consumes the recursive page archive normally in both cases.
     return levels == 3 and (head_dim, gqa, kv_heads) in (
         (128, 4, 2),
+        (128, 8, 8),
         (256, 6, 4),
     )
 
@@ -378,6 +379,16 @@ class VLLMLayerLODPool:
             scale=float(layer.impl.scale),
             default_open_count=settings.open_count,
         )
+        if (
+            settings.decode_geometry_tuning
+            and settings.levels == 3
+            and settings.kv_bits == 4
+            and (self.head_dim, gqa, self.kv_heads) == (128, 8, 8)
+        ):
+            # Amortize recursive page maintenance over two ordinary decode
+            # chunks.  The interval remains page-aligned, and the displaced
+            # tokens stay exact in the local branch until the update.
+            self.engine.decode_state_update_len = 512
         self.engine.routing_positive_dot_stats = (
             settings.routing_positive_dot_stats
         )
@@ -453,6 +464,16 @@ class VLLMLayerLODPool:
                 1 if self.head_dim == 128 else 2
             )
             self.engine.decode_route_reduce_num_warps = 2
+        if (
+            settings.decode_geometry_tuning
+            and settings.levels == 3
+            and settings.kv_bits == 4
+            and (self.head_dim, gqa, self.kv_heads) == (128, 8, 8)
+        ):
+            # K2 INT4 benefits from distributing the coarse value reduction
+            # over D=32 tiles. BF16 remains faster with the serial reducer.
+            self.engine.decode_route_parallel_reduce = True
+            self.engine.decode_route_parallel_reduce_block_d = 32
         flat_int8 = settings.levels == 2 and settings.kv_bits == 8
         self.engine.leaf_key_quant_bits = (
             0 if flat_int8 else settings.resolved_key_bits
@@ -532,6 +553,18 @@ class VLLMLayerLODPool:
         # unchanged; assignment batching can change centroid/page membership,
         # so this schedule is covered by the matched ProLong quality artifact.
         self.engine.prefill_state_update_len = settings.prefill_state_update_size
+        # The serving profile owns prefill scheduling for both flat and
+        # recursive LOD. Recursive engines historically derived 4K/4.8K from
+        # the 256-token decode chunk and silently ignored explicit serving
+        # overrides, which made a 16K exact-first request inconsistent with
+        # its fixed local-row allocation.
+        self.engine.prefill_chunk_len = settings.prefill_chunk_size
+        self.engine.prefill_local_len = settings.prefill_local_window
+        self.engine.prefill_two_level_topk = (
+            settings.prefill_open_count
+            if settings.prefill_open_count is not None
+            else min(3, settings.open_count)
+        )
         self.engine.prefill_exact_first_chunk = settings.prefill_exact_first_chunk
         self.engine.prefill_overlap_exact_state = (
             settings.prefill_overlap_exact_state
@@ -541,7 +574,13 @@ class VLLMLayerLODPool:
         )
         recursive_prefill_all_leaves = (
             (
-                settings.kv_bits == 0
+                (
+                    settings.kv_bits == 0
+                    or (
+                        settings.kv_bits == 4
+                        and (self.head_dim, gqa, self.kv_heads) == (128, 8, 8)
+                    )
+                )
                 and _recursive_prefill_all_leaves_geometry(
                     settings.levels, self.head_dim, gqa, self.kv_heads
                 )
@@ -590,15 +629,24 @@ class VLLMLayerLODPool:
             # directory; only its prefill exact-attention consumer changes.
             self.engine.leaf_layout = settings.leaf_layout
             self.engine.leaf_union_query_tile = settings.leaf_union_query_tile
-            self.engine.leaf_block_m = settings.leaf_block_m
-            self.engine.leaf_block_n = settings.leaf_block_n
-            self.engine.leaf_num_warps = settings.leaf_num_warps
+            k2_int4_all_leaves = (
+                settings.leaf_geometry_tuning
+                and settings.kv_bits == 4
+                and (self.head_dim, gqa, self.kv_heads) == (128, 8, 8)
+            )
+            self.engine.leaf_block_m = (
+                64 if k2_int4_all_leaves else settings.leaf_block_m
+            )
+            self.engine.leaf_block_n = (
+                16 if settings.kv_bits == 4 else settings.leaf_block_n
+            )
+            self.engine.leaf_num_warps = (
+                4 if k2_int4_all_leaves else settings.leaf_num_warps
+            )
             self.engine.leaf_geometry_tuning = settings.leaf_geometry_tuning
             self.engine.leaf_reduce_num_warps = settings.leaf_reduce_num_warps
         if settings.levels == 2:
             self.engine.virtual_page_storage = settings.dense_leaf_storage
-            self.engine.prefill_chunk_len = settings.prefill_chunk_size
-            self.engine.prefill_local_len = settings.prefill_local_window
             self.engine.prefill_static_leaf_aiter = (
                 settings.prefill_static_leaf_aiter
             )
@@ -612,11 +660,6 @@ class VLLMLayerLODPool:
             )
             self.engine.static_leaf_cap_divisor = (
                 settings.static_leaf_cap_divisor
-            )
-            self.engine.prefill_two_level_topk = (
-                settings.prefill_open_count
-                if settings.prefill_open_count is not None
-                else min(3, settings.open_count)
             )
             self.engine.split_prefill_local_attention = True
             self.engine.leaf_layout = settings.leaf_layout
@@ -745,6 +788,11 @@ class VLLMLayerLODPool:
         )
         self.decode_local_capacity = (
             local_window + int(self.engine.decode_state_update_len)
+        )
+        self.decode_local_limit = (
+            int(self.engine.local_len)
+            - int(self.engine.chunk_len)
+            + int(self.engine.decode_state_update_len)
         )
         # Exact-first prefill advances the persistent state to within the
         # decode-local tail before installing a row.  Its much wider local
@@ -3170,7 +3218,7 @@ class VLLMLayerLODPool:
                 storage["wide_gqa_local_scores"] = torch.empty(
                     self.max_requests,
                     self.query_heads,
-                    int(self.engine.local_len) + 1,
+                    self.decode_local_limit + 1,
                     dtype=torch.float32,
                     device=self.device,
                 )
@@ -3406,7 +3454,7 @@ class VLLMLayerLODPool:
                         torch.empty(
                             parallel_rows,
                             self.query_heads,
-                            int(self.engine.local_len) + 1,
+                            self.decode_local_limit + 1,
                             dtype=torch.float32,
                             device=self.device,
                         )
@@ -3803,11 +3851,10 @@ class VLLMLayerLODPool:
             sink_k=self.state.get("sink_k"),
             sink_v=self.state.get("sink_v"),
             state_len=self.state_capacity,
-            # Prefill keeps a larger exact lookback in the same backing row,
-            # but catch-up keeps each decode query's live tail within the
-            # normal local window. The extra storage only receives the current
-            # token before the next scheduled catch-up.
-            local_len=int(self.engine.local_len),
+            # A delayed update leaves the displaced prefix exact until the
+            # next catch-up. The effective limit reduces to local_len for the
+            # ordinary update==chunk schedule.
+            local_len=self.decode_local_limit,
             cache_indices=cache_indices,
             local_lens=local_lens,
             new_k=k,
@@ -3831,6 +3878,9 @@ class VLLMLayerLODPool:
             route_num_warps=int(self.engine.decode_route_num_warps),
             route_reduce_num_warps=int(self.engine.decode_route_reduce_num_warps),
             route_parallel_reduce=bool(self.engine.decode_route_parallel_reduce),
+            route_parallel_reduce_block_d=int(
+                self.engine.decode_route_parallel_reduce_block_d
+            ),
             route_post_dot_normalize=bool(
                 self.engine.decode_route_post_dot_normalize
             ),

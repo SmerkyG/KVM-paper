@@ -1734,6 +1734,126 @@ def verify_residual_page_attention(
             "virtual_int4_attention_mse": float(int4_mse.item()),
         }
     )
+    all_leaf_out, all_leaf_lse = paged_leaf_attention(
+        q,
+        leaf_k,
+        leaf_v,
+        slot_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        slot_lengths,
+        top_slots,
+        page_indices=page_indices,
+        kv_group_size=query_heads // kv_heads,
+        scale=scale,
+        hash_probes=0,
+        block_m=16,
+        block_n=16,
+    )
+    decoded_leaf_k = torch.empty_like(leaf_k)
+    decoded_leaf_v = torch.empty_like(leaf_v)
+    key_sum = quantized_page_sum_k.float() * page_sum_k_scales.float().repeat_interleave(
+        32, dim=-1
+    )
+    value_sum = quantized_page_sum_v.float() * page_sum_v_scales.float().repeat_interleave(
+        32, dim=-1
+    )
+    key_codes = torch.stack(
+        (quantized_leaf_k & 15, quantized_leaf_k >> 4), dim=-1
+    ).flatten(-2).float() - 8
+    value_codes = torch.stack(
+        (quantized_leaf_v & 15, quantized_leaf_v >> 4), dim=-1
+    ).flatten(-2).float() - 8
+    for page in range(page_capacity):
+        count = int(page_counts[0, 0, page].item())
+        if count == 0:
+            continue
+        indices = page_indices[0, 0, page, :count].long()
+        key_scale = page_k_scales[0, 0, page].float().repeat_interleave(32)
+        value_scale = page_v_scales[0, 0, page].float().repeat_interleave(32)
+        decoded_leaf_k[0, 0].index_copy_(
+            0,
+            indices,
+            (
+                key_codes[0, 0].index_select(0, indices) * key_scale
+                + key_sum[0, 0, page] / count
+            ).to(decoded_leaf_k.dtype),
+        )
+        decoded_leaf_v[0, 0].index_copy_(
+            0,
+            indices,
+            (
+                value_codes[0, 0].index_select(0, indices) * value_scale
+                + value_sum[0, 0, page] / count
+            ).to(decoded_leaf_v.dtype),
+        )
+    decoded_all_leaf_out, decoded_all_leaf_lse = paged_leaf_attention(
+        q,
+        decoded_leaf_k,
+        decoded_leaf_v,
+        slot_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        slot_lengths,
+        top_slots,
+        page_indices=page_indices,
+        kv_group_size=query_heads // kv_heads,
+        scale=scale,
+        hash_probes=0,
+        block_m=16,
+        block_n=16,
+    )
+    int4_all_leaf_out, int4_all_leaf_lse = paged_leaf_attention(
+        q,
+        leaf_k[..., :1, :],
+        leaf_v[..., :1, :],
+        slot_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        slot_lengths,
+        top_slots,
+        page_indices=page_indices,
+        quantized_leaf_k=quantized_leaf_k,
+        quantized_leaf_v=quantized_leaf_v,
+        page_k_scales=page_k_scales,
+        page_v_scales=page_v_scales,
+        quantized_page_sum_k=quantized_page_sum_k,
+        quantized_page_sum_v=quantized_page_sum_v,
+        page_sum_k_scales=page_sum_k_scales,
+        page_sum_v_scales=page_sum_v_scales,
+        page_counts=page_counts,
+        kv_group_size=query_heads // kv_heads,
+        scale=scale,
+        hash_probes=0,
+        block_m=16,
+        block_n=16,
+    )
+    int4_all_leaf_mse = (
+        int4_all_leaf_out.float() - all_leaf_out.float()
+    ).square().mean()
+    int4_all_leaf_kernel_mse = (
+        int4_all_leaf_out.float() - decoded_all_leaf_out.float()
+    ).square().mean()
+    print(
+        {
+            "virtual_int4_all_leaf_attention_mse": float(
+                int4_all_leaf_mse.item()
+            ),
+            "virtual_int4_all_leaf_kernel_mse": float(
+                int4_all_leaf_kernel_mse.item()
+            ),
+        }
+    )
+    if float(int4_all_leaf_mse.item()) >= 2e-3:
+        raise AssertionError("expert-major residual INT4 output error is too large")
+    if float(int4_all_leaf_kernel_mse.item()) >= 1e-5:
+        raise AssertionError("expert-major residual INT4 reconstruction is incorrect")
+    torch.testing.assert_close(
+        int4_all_leaf_lse, decoded_all_leaf_lse, rtol=3e-3, atol=4e-3
+    )
     token_group_size = 1
     token_group_count = page_size // token_group_size
     token_group_leaf_k = torch.empty_like(quantized_leaf_k)

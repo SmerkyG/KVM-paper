@@ -298,6 +298,7 @@ class TritonLODAttentionCore(nn.Module):
     decode_route_num_warps = 2
     decode_route_reduce_num_warps = 4
     decode_route_parallel_reduce = False
+    decode_route_parallel_reduce_block_d = 0
     decode_route_post_dot_normalize = False
     decode_route_post_pv_normalize = False
     decode_final_reduce_num_warps = 4
@@ -5987,6 +5988,26 @@ class TritonLODAttentionCore(nn.Module):
                     page_v_scales=cache.get("page_v_token_scales"),
                     int8_pv_mma=self.prefill_int8_pv_mma,
                 )
+            if (
+                self.leaf_layout in ("expert", "expert_tiny")
+                and bool(cache.get("quantization_finalized", False))
+            ):
+                leaf_kwargs.update(
+                    quantized_leaf_k=cache.get("quantized_leaf_k"),
+                    quantized_leaf_v=cache.get("quantized_leaf_v"),
+                    page_k_scales=cache.get("page_k_scales"),
+                    page_v_scales=cache.get("page_v_scales"),
+                    page_sum_k=cache.get("page_sum_k"),
+                    page_sum_v=cache.get("page_sum_v"),
+                    quantized_page_sum_k=cache.get("quantized_page_sum_k"),
+                    quantized_page_sum_v=cache.get("quantized_page_sum_v"),
+                    page_sum_k_scales=cache.get("page_sum_k_scales"),
+                    page_sum_v_scales=cache.get("page_sum_v_scales"),
+                    page_counts=cache.get("page_counts"),
+                    quant_group_size=self.leaf_quant_group_size,
+                    quant_token_group_size=self.leaf_quant_token_group_size,
+                    quant_bits=int(cache.get("leaf_quant_bits", 4)),
+                )
         if indexed:
             leaf_kwargs["page_indices"] = page_indices
         result = leaf_function(
@@ -7536,6 +7557,9 @@ class TritonLODAttentionCore(nn.Module):
                     2 if long_d128_decode else self.decode_route_reduce_num_warps
                 ),
                 route_parallel_reduce=self.decode_route_parallel_reduce,
+                route_parallel_reduce_block_d=(
+                    self.decode_route_parallel_reduce_block_d
+                ),
                 route_post_dot_normalize=self.decode_route_post_dot_normalize,
                 route_post_pv_normalize=self.decode_route_post_pv_normalize,
                 final_reduce_num_warps=self.decode_final_reduce_num_warps,
@@ -7673,10 +7697,6 @@ class TritonLODAttentionCore(nn.Module):
                 )
             )
             if recursive_prefill_all_leaves:
-                if bool(page_cache.get("quantization_finalized", False)):
-                    raise NotImplementedError(
-                        "recursive all-leaf prefill currently requires BF16 leaves"
-                    )
                 if bool(page_cache.get("mla_raw_page_key_summaries", False)):
                     raise NotImplementedError(
                         "recursive all-leaf prefill does not yet support raw MLA keys"

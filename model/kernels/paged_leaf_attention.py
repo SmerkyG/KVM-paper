@@ -4537,6 +4537,15 @@ def _paged_leaf_attention_kernel(
     page_indices,
     page_k_scales,
     page_v_scales,
+    quantized_leaf_k,
+    quantized_leaf_v,
+    page_sum_k,
+    page_sum_v,
+    quantized_page_sum_k,
+    quantized_page_sum_v,
+    page_sum_k_scales,
+    page_sum_v_scales,
+    page_counts,
     slot_pages,
     overflow_page_keys,
     overflow_page_values,
@@ -4566,6 +4575,10 @@ def _paged_leaf_attention_kernel(
     PARTIAL_OUTPUT: tl.constexpr,
     INT8_MMA: tl.constexpr,
     INT8_PV_MMA: tl.constexpr,
+    QUANT_BITS: tl.constexpr,
+    QUANT_GROUP_SIZE: tl.constexpr,
+    QUANT_TOKEN_GROUP_SIZE: tl.constexpr,
+    QUANTIZED_SUMMARIES: tl.constexpr,
     INDEXED: tl.constexpr,
 ):
     split_program = tl.program_id(0).to(tl.int64)
@@ -4647,16 +4660,124 @@ def _paged_leaf_attention_kernel(
             storage_token = kv_row * LEAF_CAPACITY + leaf_index
         else:
             storage_token = physical_token
-        k_block = tl.load(
-            page_k + storage_token[None, :] * HEAD_DIM + head_offset[:, None],
-            mask=valid_key[None, :],
-            other=0.0,
-        )
-        v_block = tl.load(
-            page_v + storage_token[:, None] * VALUE_DIM + value_offset[None, :],
-            mask=valid_key[:, None],
-            other=0.0,
-        )
+        if QUANT_BITS:
+            packed_head_offset = head_offset // 2
+            packed_value_offset = value_offset // 2
+            packed_keys = tl.load(
+                quantized_leaf_k
+                + storage_token[None, :] * (HEAD_DIM // 2)
+                + packed_head_offset[:, None],
+                mask=valid_key[None, :],
+                other=0,
+            ).to(tl.int32)
+            packed_values = tl.load(
+                quantized_leaf_v
+                + storage_token[:, None] * (VALUE_DIM // 2)
+                + packed_value_offset[None, :],
+                mask=valid_key[:, None],
+                other=0,
+            ).to(tl.int32)
+            key_shift = (head_offset & 1) * 4
+            value_shift = (value_offset & 1) * 4
+            key_code = ((packed_keys >> key_shift[:, None]) & 15) - 8
+            value_code = ((packed_values >> value_shift[None, :]) & 15) - 8
+            token_group = within_page // QUANT_TOKEN_GROUP_SIZE
+            key_scale_row = (
+                (kv_row * PAGE_CAPACITY + page_id)
+                * (PAGE_SIZE // QUANT_TOKEN_GROUP_SIZE)
+                + token_group
+            ) * (HEAD_DIM // QUANT_GROUP_SIZE)
+            value_scale_row = (
+                (kv_row * PAGE_CAPACITY + page_id)
+                * (PAGE_SIZE // QUANT_TOKEN_GROUP_SIZE)
+                + token_group
+            ) * (VALUE_DIM // QUANT_GROUP_SIZE)
+            key_scale = tl.load(
+                page_k_scales
+                + key_scale_row[None, :]
+                + head_offset[:, None] // QUANT_GROUP_SIZE,
+                mask=valid_key[None, :],
+                other=0.0,
+            ).to(tl.float32)
+            value_scale = tl.load(
+                page_v_scales
+                + value_scale_row[:, None]
+                + value_offset[None, :] // QUANT_GROUP_SIZE,
+                mask=valid_key[:, None],
+                other=0.0,
+            ).to(tl.float32)
+            page_count = tl.load(
+                page_counts + kv_row * PAGE_CAPACITY + page_id,
+                mask=valid_key,
+                other=1,
+            ).to(tl.float32)
+            if QUANTIZED_SUMMARIES:
+                key_sum_code = tl.load(
+                    quantized_page_sum_k
+                    + (kv_row * PAGE_CAPACITY + page_id)[None, :] * HEAD_DIM
+                    + head_offset[:, None],
+                    mask=valid_key[None, :],
+                    other=0,
+                ).to(tl.float32)
+                value_sum_code = tl.load(
+                    quantized_page_sum_v
+                    + (kv_row * PAGE_CAPACITY + page_id)[:, None] * VALUE_DIM
+                    + value_offset[None, :],
+                    mask=valid_key[:, None],
+                    other=0,
+                ).to(tl.float32)
+                key_sum_scale = tl.load(
+                    page_sum_k_scales
+                    + (kv_row * PAGE_CAPACITY + page_id)[None, :]
+                    * (HEAD_DIM // QUANT_GROUP_SIZE)
+                    + head_offset[:, None] // QUANT_GROUP_SIZE,
+                    mask=valid_key[None, :],
+                    other=0.0,
+                ).to(tl.float32)
+                value_sum_scale = tl.load(
+                    page_sum_v_scales
+                    + (kv_row * PAGE_CAPACITY + page_id)[:, None]
+                    * (VALUE_DIM // QUANT_GROUP_SIZE)
+                    + value_offset[None, :] // QUANT_GROUP_SIZE,
+                    mask=valid_key[:, None],
+                    other=0.0,
+                ).to(tl.float32)
+                key_sum = key_sum_code * key_sum_scale
+                value_sum = value_sum_code * value_sum_scale
+            else:
+                key_sum = tl.load(
+                    page_sum_k
+                    + (kv_row * PAGE_CAPACITY + page_id)[None, :] * HEAD_DIM
+                    + head_offset[:, None],
+                    mask=valid_key[None, :],
+                    other=0.0,
+                ).to(tl.float32)
+                value_sum = tl.load(
+                    page_sum_v
+                    + (kv_row * PAGE_CAPACITY + page_id)[:, None] * VALUE_DIM
+                    + value_offset[None, :],
+                    mask=valid_key[:, None],
+                    other=0.0,
+                ).to(tl.float32)
+            k_block = (
+                key_code.to(tl.float32) * key_scale
+                + key_sum / page_count[None, :]
+            ).to(tl.bfloat16)
+            v_block = (
+                value_code.to(tl.float32) * value_scale
+                + value_sum / page_count[:, None]
+            ).to(tl.bfloat16)
+        else:
+            k_block = tl.load(
+                page_k + storage_token[None, :] * HEAD_DIM + head_offset[:, None],
+                mask=valid_key[None, :],
+                other=0.0,
+            )
+            v_block = tl.load(
+                page_v + storage_token[:, None] * VALUE_DIM + value_offset[None, :],
+                mask=valid_key[:, None],
+                other=0.0,
+            )
 
         if INT8_MMA:
             scale_token = storage_token if INDEXED else physical_token
@@ -17800,6 +17921,7 @@ def fused_decode_paged_lod_attention(
     route_num_warps: int = 4,
     route_reduce_num_warps: int = 4,
     route_parallel_reduce: bool = False,
+    route_parallel_reduce_block_d: int = 0,
     route_post_dot_normalize: bool = False,
     route_post_pv_normalize: bool = False,
     final_reduce_num_warps: int = 4,
@@ -19467,36 +19589,70 @@ def fused_decode_paged_lod_attention(
                         waves_per_eu=waves_per_eu,
                     )
                 elif route_parallel_reduce:
-                    _reduce_decode_route_coarse_vector_topk_kernel[
-                        (batch * query_heads,)
-                    ](
-                        buffers["route_candidate_scores"],
-                        buffers["route_candidate_indices"],
-                        buffers["route_group_out"],
-                        buffers["route_group_lse"],
-                        buffers["route_top_slots"],
-                        buffers["route_top_scores"],
-                        buffers["coarse_out"],
-                        buffers["coarse_lse"],
-                        active_groups,
-                        active_groups,
-                        HEAD_DIM=head_dim,
-                        ROUTE_COUNT=8,
-                        OPEN_COUNT=open_count,
-                        MAX_SEGMENTS=max_groups,
-                        CANDIDATE_BLOCK=triton.next_power_of_2(
-                            max(16, active_groups * 8)
-                        ),
-                        SEGMENT_BLOCK=triton.next_power_of_2(active_groups),
-                        APPLY_MASS_CUTOFF=route_mass_fraction is not None,
-                        LOG_MASS_FRACTION=(
-                            math.log(float(route_mass_fraction))
-                            if route_mass_fraction is not None
-                            else 0.0
-                        ),
-                        num_warps=route_reduce_num_warps,
-                        waves_per_eu=waves_per_eu,
-                    )
+                    split_d = int(route_parallel_reduce_block_d)
+                    if (
+                        split_d > 0
+                        and open_count == 8
+                        and route_mass_fraction is None
+                    ):
+                        _reduce_decode_route_coarse_vector_topk_splitd_kernel[
+                            (
+                                batch * query_heads,
+                                triton.cdiv(head_dim, split_d),
+                            )
+                        ](
+                            buffers["route_candidate_scores"],
+                            buffers["route_candidate_indices"],
+                            buffers["route_group_out"],
+                            buffers["route_group_lse"],
+                            buffers["route_top_slots"],
+                            buffers["route_top_scores"],
+                            buffers["coarse_out"],
+                            buffers["coarse_lse"],
+                            active_groups,
+                            active_groups,
+                            HEAD_DIM=head_dim,
+                            ROUTE_COUNT=8,
+                            MAX_SEGMENTS=max_groups,
+                            CANDIDATE_BLOCK=triton.next_power_of_2(
+                                max(16, active_groups * 8)
+                            ),
+                            SEGMENT_BLOCK=triton.next_power_of_2(active_groups),
+                            BLOCK_D=split_d,
+                            num_warps=route_reduce_num_warps,
+                            waves_per_eu=waves_per_eu,
+                        )
+                    else:
+                        _reduce_decode_route_coarse_vector_topk_kernel[
+                            (batch * query_heads,)
+                        ](
+                            buffers["route_candidate_scores"],
+                            buffers["route_candidate_indices"],
+                            buffers["route_group_out"],
+                            buffers["route_group_lse"],
+                            buffers["route_top_slots"],
+                            buffers["route_top_scores"],
+                            buffers["coarse_out"],
+                            buffers["coarse_lse"],
+                            active_groups,
+                            active_groups,
+                            HEAD_DIM=head_dim,
+                            ROUTE_COUNT=8,
+                            OPEN_COUNT=open_count,
+                            MAX_SEGMENTS=max_groups,
+                            CANDIDATE_BLOCK=triton.next_power_of_2(
+                                max(16, active_groups * 8)
+                            ),
+                            SEGMENT_BLOCK=triton.next_power_of_2(active_groups),
+                            APPLY_MASS_CUTOFF=route_mass_fraction is not None,
+                            LOG_MASS_FRACTION=(
+                                math.log(float(route_mass_fraction))
+                                if route_mass_fraction is not None
+                                else 0.0
+                            ),
+                            num_warps=route_reduce_num_warps,
+                            waves_per_eu=waves_per_eu,
+                        )
                 else:
                     _reduce_decode_route_coarse_kernel[(batch * query_heads,)](
                         buffers["route_candidate_scores"],
@@ -21777,6 +21933,18 @@ def paged_leaf_attention(
     page_indices: torch.Tensor | None = None,
     page_k_scales: torch.Tensor | None = None,
     page_v_scales: torch.Tensor | None = None,
+    quantized_leaf_k: torch.Tensor | None = None,
+    quantized_leaf_v: torch.Tensor | None = None,
+    page_sum_k: torch.Tensor | None = None,
+    page_sum_v: torch.Tensor | None = None,
+    quantized_page_sum_k: torch.Tensor | None = None,
+    quantized_page_sum_v: torch.Tensor | None = None,
+    page_sum_k_scales: torch.Tensor | None = None,
+    page_sum_v_scales: torch.Tensor | None = None,
+    page_counts: torch.Tensor | None = None,
+    quant_group_size: int = 32,
+    quant_token_group_size: int = 16,
+    quant_bits: int = 4,
     int8_pv_mma: bool = True,
     kv_group_size: int,
     scale: float,
@@ -21821,6 +21989,47 @@ def paged_leaf_attention(
     if query_heads != kv_heads * kv_group_size:
         raise ValueError("query/KV head grouping is inconsistent")
     int8_mma = page_k.dtype == torch.int8 or page_v.dtype == torch.int8
+    residual_quantized = isinstance(quantized_leaf_k, torch.Tensor) or isinstance(
+        quantized_leaf_v, torch.Tensor
+    )
+    if residual_quantized:
+        required_quantized = (
+            quantized_leaf_k,
+            quantized_leaf_v,
+            page_k_scales,
+            page_v_scales,
+            page_counts,
+        )
+        if not all(isinstance(value, torch.Tensor) for value in required_quantized):
+            raise ValueError("residual INT4 leaf attention metadata is incomplete")
+        if quant_bits != 4:
+            raise ValueError("expert-major residual leaf attention supports INT4")
+        if not indexed:
+            raise ValueError("residual INT4 leaf attention requires indexed pages")
+        if int8_mma:
+            raise ValueError("residual INT4 and INT8 MMA leaf modes are exclusive")
+        if block_n != page_size:
+            raise ValueError("residual INT4 expert attention requires page-sized blocks")
+        if head_dim % quant_group_size or value_dim % quant_group_size:
+            raise ValueError("residual INT4 quantization groups must divide K/V")
+        if page_size % quant_token_group_size:
+            raise ValueError("residual INT4 token groups must divide the page")
+        quantized_summaries = isinstance(quantized_page_sum_k, torch.Tensor) or isinstance(
+            quantized_page_sum_v, torch.Tensor
+        )
+        if quantized_summaries:
+            required_summaries = (
+                quantized_page_sum_k,
+                quantized_page_sum_v,
+                page_sum_k_scales,
+                page_sum_v_scales,
+            )
+        else:
+            required_summaries = (page_sum_k, page_sum_v)
+        if not all(isinstance(value, torch.Tensor) for value in required_summaries):
+            raise ValueError("residual INT4 page-summary metadata is incomplete")
+    else:
+        quantized_summaries = False
     if int8_mma:
         if page_k.dtype != torch.int8 or page_v.dtype != torch.int8:
             raise TypeError("INT8 leaf MMA requires both K and V in signed INT8")
@@ -21833,7 +22042,9 @@ def paged_leaf_attention(
             raise ValueError("INT8 leaf V scales do not match page storage")
         if head_dim % 32 or value_dim % 32 or block_n % 32:
             raise ValueError("INT8 leaf MMA requires dimensions divisible by 32")
-    elif page_k_scales is not None or page_v_scales is not None:
+    elif not residual_quantized and (
+        page_k_scales is not None or page_v_scales is not None
+    ):
         raise ValueError("BF16 leaf attention received INT8 scale tensors")
     if tiny_expert_max:
         if tiny_expert_max not in (4, 8, 16):
@@ -21854,8 +22065,12 @@ def paged_leaf_attention(
             raise ValueError("split-N expert attention requires virtual indexed leaves")
         if int8_mma:
             raise ValueError("split-N expert attention currently requires BF16 K/V")
+    if residual_quantized and (tiny_expert_max or split_long_experts):
+        raise ValueError("residual INT4 expert attention requires ordinary expert routing")
     compound_expert_routing = bool(tiny_expert_max or split_long_experts)
-    if direct_expert_buckets and (int8_mma or compound_expert_routing):
+    if direct_expert_buckets and (
+        int8_mma or residual_quantized or compound_expert_routing
+    ):
         raise ValueError(
             "direct expert buckets currently require ordinary BF16 expert routing"
         )
@@ -22116,6 +22331,28 @@ def paged_leaf_attention(
         device=q.device,
     )
     route_lse = torch.empty(rows * route_count, dtype=torch.float32, device=q.device)
+    leaf_capacity = (
+        int(quantized_leaf_k.size(2))
+        if residual_quantized
+        else (int(page_k.size(2)) if indexed else 1)
+    )
+    quantized_leaf_k_arg = quantized_leaf_k if residual_quantized else page_k
+    quantized_leaf_v_arg = quantized_leaf_v if residual_quantized else page_v
+    page_sum_k_arg = page_sum_k if isinstance(page_sum_k, torch.Tensor) else page_k
+    page_sum_v_arg = page_sum_v if isinstance(page_sum_v, torch.Tensor) else page_v
+    quantized_page_sum_k_arg = (
+        quantized_page_sum_k if quantized_summaries else page_k
+    )
+    quantized_page_sum_v_arg = (
+        quantized_page_sum_v if quantized_summaries else page_v
+    )
+    page_sum_k_scales_arg = (
+        page_sum_k_scales if quantized_summaries else page_k
+    )
+    page_sum_v_scales_arg = (
+        page_sum_v_scales if quantized_summaries else page_v
+    )
+    page_counts_arg = page_counts if residual_quantized else slot_lengths
     record_boundary()
     tiny_kernel_events: tuple[torch.cuda.Event, torch.cuda.Event] | None = None
     general_kernel_events: tuple[torch.cuda.Event, torch.cuda.Event] | None = None
@@ -22182,6 +22419,15 @@ def paged_leaf_attention(
                 page_indices,
                 page_k,
                 page_v,
+                page_k,
+                page_v,
+                page_k,
+                page_v,
+                page_k,
+                page_v,
+                page_k,
+                page_v,
+                slot_lengths,
                 slot_pages,
                 overflow_page_keys,
                 overflow_page_values,
@@ -22211,6 +22457,10 @@ def paged_leaf_attention(
                 PARTIAL_OUTPUT=False,
                 INT8_MMA=False,
                 INT8_PV_MMA=False,
+                QUANT_BITS=0,
+                QUANT_GROUP_SIZE=1,
+                QUANT_TOKEN_GROUP_SIZE=1,
+                QUANTIZED_SUMMARIES=False,
                 INDEXED=True,
                 num_warps=num_warps,
                 waves_per_eu=waves_per_eu,
@@ -22253,6 +22503,15 @@ def paged_leaf_attention(
                 page_indices,
                 page_k,
                 page_v,
+                page_k,
+                page_v,
+                page_k,
+                page_v,
+                page_k,
+                page_v,
+                page_k,
+                page_v,
+                slot_lengths,
                 slot_pages,
                 overflow_page_keys,
                 overflow_page_values,
@@ -22282,6 +22541,10 @@ def paged_leaf_attention(
                 PARTIAL_OUTPUT=True,
                 INT8_MMA=False,
                 INT8_PV_MMA=False,
+                QUANT_BITS=0,
+                QUANT_GROUP_SIZE=1,
+                QUANT_TOKEN_GROUP_SIZE=1,
+                QUANTIZED_SUMMARIES=False,
                 INDEXED=True,
                 num_warps=num_warps,
                 waves_per_eu=waves_per_eu,
@@ -22323,8 +22586,17 @@ def paged_leaf_attention(
             page_k,
             page_v,
             page_indices if indexed else page_k,
-            page_k_scales if int8_mma else page_k,
-            page_v_scales if int8_mma else page_v,
+            page_k_scales if (int8_mma or residual_quantized) else page_k,
+            page_v_scales if (int8_mma or residual_quantized) else page_v,
+            quantized_leaf_k_arg,
+            quantized_leaf_v_arg,
+            page_sum_k_arg,
+            page_sum_v_arg,
+            quantized_page_sum_k_arg,
+            quantized_page_sum_v_arg,
+            page_sum_k_scales_arg,
+            page_sum_v_scales_arg,
+            page_counts_arg,
             slot_pages,
             overflow_page_keys,
             overflow_page_values,
@@ -22338,7 +22610,7 @@ def paged_leaf_attention(
             route_lse,
             0,
             PAGE_CAPACITY=page_capacity,
-            LEAF_CAPACITY=int(page_k.size(2)) if indexed else 1,
+            LEAF_CAPACITY=leaf_capacity,
             STATE_CAPACITY=state_capacity,
             INLINE_PAGES_PER_SLOT=int(slot_pages.size(3)),
             HASH_CAPACITY=int(overflow_page_values.size(2)),
@@ -22354,6 +22626,12 @@ def paged_leaf_attention(
             PARTIAL_OUTPUT=False,
             INT8_MMA=int8_mma,
             INT8_PV_MMA=int8_mma and int8_pv_mma,
+            QUANT_BITS=quant_bits if residual_quantized else 0,
+            QUANT_GROUP_SIZE=quant_group_size if residual_quantized else 1,
+            QUANT_TOKEN_GROUP_SIZE=(
+                quant_token_group_size if residual_quantized else 1
+            ),
+            QUANTIZED_SUMMARIES=quantized_summaries,
             INDEXED=indexed,
             num_warps=num_warps,
             waves_per_eu=waves_per_eu,

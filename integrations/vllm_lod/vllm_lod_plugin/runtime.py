@@ -843,7 +843,7 @@ class VLLMLODRuntime:
                 pool.catch_up_many(requests)
         for row, length in requests:
             recent_length = length - int(reference_pool.metadata[row]["coverage"])
-            if recent_length > int(reference_pool.engine.local_len):
+            if recent_length > reference_pool.decode_local_limit:
                 raise RuntimeError(
                     "LOD catch-up left more live tokens than the decode-local field"
                 )

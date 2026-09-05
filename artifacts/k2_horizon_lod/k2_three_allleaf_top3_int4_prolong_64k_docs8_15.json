@@ -1,0 +1,959 @@
+{
+  "allow_heterogeneous_global_config": false,
+  "apply_chat_template": true,
+  "attention_exercised": "direct_lod_prefill",
+  "batch_size": 8,
+  "checkpoint": "/home/dan/subusers/agent/.cache/huggingface/hub/models--IFM--K2-Horizon-32B-FP8/snapshots/ff78aa18915bbfd44fc9c76859500436f8d35944",
+  "concatenate_prolong": false,
+  "dataset": "Seerkfang/prolong-64k-512-new",
+  "dataset_revision": "97295b7d7fe48dc0aa6ba373af3a8b9d945e505b",
+  "decode_static_leaf_cap_min": 16,
+  "disable_thinking": true,
+  "elapsed_seconds": 158.03787029255182,
+  "enforce_eager": false,
+  "eval": "prolong",
+  "language_model_only": false,
+  "length": 65536,
+  "lod_diagnostics_after": {
+    "batched_cached_prefill_rows": 0,
+    "batched_cached_prefills": 0,
+    "catch_up_batches": 0,
+    "catch_up_rows": 0,
+    "custom_impl_sliding_windows": {
+      "(-1, -1)": 64
+    },
+    "custom_layers": [
+      "model.layers.0.self_attn.attn",
+      "model.layers.1.self_attn.attn",
+      "model.layers.2.self_attn.attn",
+      "model.layers.3.self_attn.attn",
+      "model.layers.4.self_attn.attn",
+      "model.layers.5.self_attn.attn",
+      "model.layers.6.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.8.self_attn.attn",
+      "model.layers.9.self_attn.attn",
+      "model.layers.10.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.12.self_attn.attn",
+      "model.layers.13.self_attn.attn",
+      "model.layers.14.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.16.self_attn.attn",
+      "model.layers.17.self_attn.attn",
+      "model.layers.18.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.20.self_attn.attn",
+      "model.layers.21.self_attn.attn",
+      "model.layers.22.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.24.self_attn.attn",
+      "model.layers.25.self_attn.attn",
+      "model.layers.26.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.28.self_attn.attn",
+      "model.layers.29.self_attn.attn",
+      "model.layers.30.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.32.self_attn.attn",
+      "model.layers.33.self_attn.attn",
+      "model.layers.34.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.36.self_attn.attn",
+      "model.layers.37.self_attn.attn",
+      "model.layers.38.self_attn.attn",
+      "model.layers.39.self_attn.attn",
+      "model.layers.40.self_attn.attn",
+      "model.layers.41.self_attn.attn",
+      "model.layers.42.self_attn.attn",
+      "model.layers.43.self_attn.attn",
+      "model.layers.44.self_attn.attn",
+      "model.layers.45.self_attn.attn",
+      "model.layers.46.self_attn.attn",
+      "model.layers.47.self_attn.attn",
+      "model.layers.48.self_attn.attn",
+      "model.layers.49.self_attn.attn",
+      "model.layers.50.self_attn.attn",
+      "model.layers.51.self_attn.attn",
+      "model.layers.52.self_attn.attn",
+      "model.layers.53.self_attn.attn",
+      "model.layers.54.self_attn.attn",
+      "model.layers.55.self_attn.attn",
+      "model.layers.56.self_attn.attn",
+      "model.layers.57.self_attn.attn",
+      "model.layers.58.self_attn.attn",
+      "model.layers.59.self_attn.attn",
+      "model.layers.60.self_attn.attn",
+      "model.layers.61.self_attn.attn",
+      "model.layers.62.self_attn.attn",
+      "model.layers.63.self_attn.attn"
+    ],
+    "decode_calls": 512,
+    "decode_centroid_major_hip_configured": [
+      false
+    ],
+    "decode_centroid_major_hip_executed": [],
+    "decode_gqa_cooperative_effective": [
+      false
+    ],
+    "decode_gqa_direct_fixed_routes_configured": [
+      true
+    ],
+    "decode_gqa_direct_fixed_routes_executed": [],
+    "decode_gqa_fixed_mask_configured": [
+      false
+    ],
+    "decode_gqa_fixed_mask_executed": [],
+    "decode_gqa_overlap_local_sink_configured": [
+      false
+    ],
+    "decode_gqa_overlap_local_sink_executed": [],
+    "decode_gqa_staged_fixed_configured": [
+      false
+    ],
+    "decode_gqa_staged_fixed_executed": [],
+    "decode_gqa_static_leaf_aiter_configured": [
+      false
+    ],
+    "decode_gqa_static_leaf_aiter_executed": [],
+    "decode_gqa_static_leaf_caps": [
+      null
+    ],
+    "decode_gqa_union_aiter_final": [],
+    "decode_gqa_union_configured": [
+      false
+    ],
+    "decode_gqa_union_eligible": [],
+    "decode_gqa_union_hip_configured": [
+      false
+    ],
+    "decode_gqa_union_hip_executed": [],
+    "decode_gqa_union_pilot_z": [],
+    "decode_gqa_union_pilot_z_configured": [
+      false
+    ],
+    "decode_gqa_union_predicted_mass": [],
+    "decode_gqa_union_requested": [],
+    "decode_gqa_union_score_only": [],
+    "decode_max_open_leaves": [
+      1024
+    ],
+    "decode_open_counts": [
+      8
+    ],
+    "decode_route_cohort": [
+      false
+    ],
+    "direct_prefill_calls": 2048,
+    "effective_decode_route_leaf_limits": [
+      1024
+    ],
+    "eligible_layers": [
+      "model.layers.0.self_attn.attn",
+      "model.layers.1.self_attn.attn",
+      "model.layers.2.self_attn.attn",
+      "model.layers.3.self_attn.attn",
+      "model.layers.4.self_attn.attn",
+      "model.layers.5.self_attn.attn",
+      "model.layers.6.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.8.self_attn.attn",
+      "model.layers.9.self_attn.attn",
+      "model.layers.10.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.12.self_attn.attn",
+      "model.layers.13.self_attn.attn",
+      "model.layers.14.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.16.self_attn.attn",
+      "model.layers.17.self_attn.attn",
+      "model.layers.18.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.20.self_attn.attn",
+      "model.layers.21.self_attn.attn",
+      "model.layers.22.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.24.self_attn.attn",
+      "model.layers.25.self_attn.attn",
+      "model.layers.26.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.28.self_attn.attn",
+      "model.layers.29.self_attn.attn",
+      "model.layers.30.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.32.self_attn.attn",
+      "model.layers.33.self_attn.attn",
+      "model.layers.34.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.36.self_attn.attn",
+      "model.layers.37.self_attn.attn",
+      "model.layers.38.self_attn.attn",
+      "model.layers.39.self_attn.attn",
+      "model.layers.40.self_attn.attn",
+      "model.layers.41.self_attn.attn",
+      "model.layers.42.self_attn.attn",
+      "model.layers.43.self_attn.attn",
+      "model.layers.44.self_attn.attn",
+      "model.layers.45.self_attn.attn",
+      "model.layers.46.self_attn.attn",
+      "model.layers.47.self_attn.attn",
+      "model.layers.48.self_attn.attn",
+      "model.layers.49.self_attn.attn",
+      "model.layers.50.self_attn.attn",
+      "model.layers.51.self_attn.attn",
+      "model.layers.52.self_attn.attn",
+      "model.layers.53.self_attn.attn",
+      "model.layers.54.self_attn.attn",
+      "model.layers.55.self_attn.attn",
+      "model.layers.56.self_attn.attn",
+      "model.layers.57.self_attn.attn",
+      "model.layers.58.self_attn.attn",
+      "model.layers.59.self_attn.attn",
+      "model.layers.60.self_attn.attn",
+      "model.layers.61.self_attn.attn",
+      "model.layers.62.self_attn.attn",
+      "model.layers.63.self_attn.attn"
+    ],
+    "gqa_route_mass_threshold_hits": {
+      "16": 0,
+      "32": 0,
+      "64": 0,
+      "128": 0,
+      "256": 0
+    },
+    "gqa_route_max_mass": null,
+    "gqa_union_centroid_count_max": 0,
+    "gqa_union_centroid_count_mean": 0.0,
+    "gqa_union_effective_segments": [],
+    "gqa_union_epoch_max": 0,
+    "gqa_union_exact_token_count_max": 0,
+    "gqa_union_exact_token_count_mean": 0.0,
+    "gqa_union_nonempty_sequences": 0,
+    "gqa_union_runtime_kv_heads": [],
+    "gqa_union_runtime_sequence_counts": [],
+    "gqa_union_sequence_count": 0,
+    "gqa_union_split_d_reduce": [],
+    "gqa_union_token_count_max": 0,
+    "gqa_union_token_count_mean": 0.0,
+    "install_count": 512,
+    "lod_profiles": [
+      "experimental"
+    ],
+    "pooled_layers": [
+      "model.layers.0.self_attn.attn",
+      "model.layers.1.self_attn.attn",
+      "model.layers.2.self_attn.attn",
+      "model.layers.3.self_attn.attn",
+      "model.layers.4.self_attn.attn",
+      "model.layers.5.self_attn.attn",
+      "model.layers.6.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.8.self_attn.attn",
+      "model.layers.9.self_attn.attn",
+      "model.layers.10.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.12.self_attn.attn",
+      "model.layers.13.self_attn.attn",
+      "model.layers.14.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.16.self_attn.attn",
+      "model.layers.17.self_attn.attn",
+      "model.layers.18.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.20.self_attn.attn",
+      "model.layers.21.self_attn.attn",
+      "model.layers.22.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.24.self_attn.attn",
+      "model.layers.25.self_attn.attn",
+      "model.layers.26.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.28.self_attn.attn",
+      "model.layers.29.self_attn.attn",
+      "model.layers.30.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.32.self_attn.attn",
+      "model.layers.33.self_attn.attn",
+      "model.layers.34.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.36.self_attn.attn",
+      "model.layers.37.self_attn.attn",
+      "model.layers.38.self_attn.attn",
+      "model.layers.39.self_attn.attn",
+      "model.layers.40.self_attn.attn",
+      "model.layers.41.self_attn.attn",
+      "model.layers.42.self_attn.attn",
+      "model.layers.43.self_attn.attn",
+      "model.layers.44.self_attn.attn",
+      "model.layers.45.self_attn.attn",
+      "model.layers.46.self_attn.attn",
+      "model.layers.47.self_attn.attn",
+      "model.layers.48.self_attn.attn",
+      "model.layers.49.self_attn.attn",
+      "model.layers.50.self_attn.attn",
+      "model.layers.51.self_attn.attn",
+      "model.layers.52.self_attn.attn",
+      "model.layers.53.self_attn.attn",
+      "model.layers.54.self_attn.attn",
+      "model.layers.55.self_attn.attn",
+      "model.layers.56.self_attn.attn",
+      "model.layers.57.self_attn.attn",
+      "model.layers.58.self_attn.attn",
+      "model.layers.59.self_attn.attn",
+      "model.layers.60.self_attn.attn",
+      "model.layers.61.self_attn.attn",
+      "model.layers.62.self_attn.attn",
+      "model.layers.63.self_attn.attn"
+    ],
+    "prefill_coarse_direct_gqa_configured": [
+      [
+        false,
+        64,
+        32,
+        8
+      ]
+    ],
+    "prefill_coarse_direct_gqa_executed": [],
+    "prefill_open_counts": [
+      3
+    ],
+    "prefill_route_cohort": [
+      false
+    ],
+    "recursive_state_route_backends": [
+      "fused"
+    ],
+    "routing_geometries": [
+      [
+        "cosine",
+        "none",
+        "query"
+      ]
+    ],
+    "selected_route_count_max": 0.0,
+    "speculative_parallel_configured": [
+      false
+    ],
+    "speculative_parallel_executed": [
+      false
+    ],
+    "speculative_parallel_execution_counts": [
+      0
+    ],
+    "speculative_recursive_state_route_backends": [
+      "fused"
+    ],
+    "speculative_shared_local_configured": [
+      false
+    ],
+    "speculative_shared_local_executed": [
+      false
+    ],
+    "speculative_shared_route_configured": [
+      false
+    ],
+    "speculative_shared_route_executed": [
+      false
+    ],
+    "split_posting_len_max": 0,
+    "split_scheduled_state_len_max": 0,
+    "split_state_len_max": 0,
+    "state_centroids_at_or_above_open_limit": 0,
+    "state_count_max": 0.0,
+    "state_split_limits": [
+      null
+    ],
+    "state_v_abs_max": 37120.0,
+    "state_v_nonfinite": 0,
+    "static_leaf_count_distribution": [
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "1",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "2",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "3-4",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "5-8",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "9-16",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "17-32",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "33-64",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "65-128",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "129-256",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "257-512",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "513-1024",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": ">1024",
+        "leaf_fraction": 0.0
+      }
+    ],
+    "static_opened_centroid_fraction": 0.0,
+    "static_opened_centroids": 0,
+    "static_opened_leaf_fraction": 0.0,
+    "static_opened_leaves": 0.0,
+    "static_total_centroids": 0,
+    "static_total_leaves": 0.0
+  },
+  "lod_diagnostics_before": {
+    "batched_cached_prefill_rows": 0,
+    "batched_cached_prefills": 0,
+    "catch_up_batches": 0,
+    "catch_up_rows": 0,
+    "custom_impl_sliding_windows": {
+      "(-1, -1)": 64
+    },
+    "custom_layers": [
+      "model.layers.0.self_attn.attn",
+      "model.layers.1.self_attn.attn",
+      "model.layers.2.self_attn.attn",
+      "model.layers.3.self_attn.attn",
+      "model.layers.4.self_attn.attn",
+      "model.layers.5.self_attn.attn",
+      "model.layers.6.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.8.self_attn.attn",
+      "model.layers.9.self_attn.attn",
+      "model.layers.10.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.12.self_attn.attn",
+      "model.layers.13.self_attn.attn",
+      "model.layers.14.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.16.self_attn.attn",
+      "model.layers.17.self_attn.attn",
+      "model.layers.18.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.20.self_attn.attn",
+      "model.layers.21.self_attn.attn",
+      "model.layers.22.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.24.self_attn.attn",
+      "model.layers.25.self_attn.attn",
+      "model.layers.26.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.28.self_attn.attn",
+      "model.layers.29.self_attn.attn",
+      "model.layers.30.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.32.self_attn.attn",
+      "model.layers.33.self_attn.attn",
+      "model.layers.34.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.36.self_attn.attn",
+      "model.layers.37.self_attn.attn",
+      "model.layers.38.self_attn.attn",
+      "model.layers.39.self_attn.attn",
+      "model.layers.40.self_attn.attn",
+      "model.layers.41.self_attn.attn",
+      "model.layers.42.self_attn.attn",
+      "model.layers.43.self_attn.attn",
+      "model.layers.44.self_attn.attn",
+      "model.layers.45.self_attn.attn",
+      "model.layers.46.self_attn.attn",
+      "model.layers.47.self_attn.attn",
+      "model.layers.48.self_attn.attn",
+      "model.layers.49.self_attn.attn",
+      "model.layers.50.self_attn.attn",
+      "model.layers.51.self_attn.attn",
+      "model.layers.52.self_attn.attn",
+      "model.layers.53.self_attn.attn",
+      "model.layers.54.self_attn.attn",
+      "model.layers.55.self_attn.attn",
+      "model.layers.56.self_attn.attn",
+      "model.layers.57.self_attn.attn",
+      "model.layers.58.self_attn.attn",
+      "model.layers.59.self_attn.attn",
+      "model.layers.60.self_attn.attn",
+      "model.layers.61.self_attn.attn",
+      "model.layers.62.self_attn.attn",
+      "model.layers.63.self_attn.attn"
+    ],
+    "decode_calls": 512,
+    "decode_centroid_major_hip_configured": [
+      false
+    ],
+    "decode_centroid_major_hip_executed": [],
+    "decode_gqa_cooperative_effective": [
+      false
+    ],
+    "decode_gqa_direct_fixed_routes_configured": [
+      true
+    ],
+    "decode_gqa_direct_fixed_routes_executed": [],
+    "decode_gqa_fixed_mask_configured": [
+      false
+    ],
+    "decode_gqa_fixed_mask_executed": [],
+    "decode_gqa_overlap_local_sink_configured": [
+      false
+    ],
+    "decode_gqa_overlap_local_sink_executed": [],
+    "decode_gqa_staged_fixed_configured": [
+      false
+    ],
+    "decode_gqa_staged_fixed_executed": [],
+    "decode_gqa_static_leaf_aiter_configured": [
+      false
+    ],
+    "decode_gqa_static_leaf_aiter_executed": [],
+    "decode_gqa_static_leaf_caps": [
+      null
+    ],
+    "decode_gqa_union_aiter_final": [],
+    "decode_gqa_union_configured": [
+      false
+    ],
+    "decode_gqa_union_eligible": [],
+    "decode_gqa_union_hip_configured": [
+      false
+    ],
+    "decode_gqa_union_hip_executed": [],
+    "decode_gqa_union_pilot_z": [],
+    "decode_gqa_union_pilot_z_configured": [
+      false
+    ],
+    "decode_gqa_union_predicted_mass": [],
+    "decode_gqa_union_requested": [],
+    "decode_gqa_union_score_only": [],
+    "decode_max_open_leaves": [
+      1024
+    ],
+    "decode_open_counts": [
+      8
+    ],
+    "decode_route_cohort": [
+      false
+    ],
+    "direct_prefill_calls": 0,
+    "effective_decode_route_leaf_limits": [
+      1024
+    ],
+    "eligible_layers": [
+      "model.layers.0.self_attn.attn",
+      "model.layers.1.self_attn.attn",
+      "model.layers.2.self_attn.attn",
+      "model.layers.3.self_attn.attn",
+      "model.layers.4.self_attn.attn",
+      "model.layers.5.self_attn.attn",
+      "model.layers.6.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.8.self_attn.attn",
+      "model.layers.9.self_attn.attn",
+      "model.layers.10.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.12.self_attn.attn",
+      "model.layers.13.self_attn.attn",
+      "model.layers.14.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.16.self_attn.attn",
+      "model.layers.17.self_attn.attn",
+      "model.layers.18.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.20.self_attn.attn",
+      "model.layers.21.self_attn.attn",
+      "model.layers.22.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.24.self_attn.attn",
+      "model.layers.25.self_attn.attn",
+      "model.layers.26.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.28.self_attn.attn",
+      "model.layers.29.self_attn.attn",
+      "model.layers.30.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.32.self_attn.attn",
+      "model.layers.33.self_attn.attn",
+      "model.layers.34.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.36.self_attn.attn",
+      "model.layers.37.self_attn.attn",
+      "model.layers.38.self_attn.attn",
+      "model.layers.39.self_attn.attn",
+      "model.layers.40.self_attn.attn",
+      "model.layers.41.self_attn.attn",
+      "model.layers.42.self_attn.attn",
+      "model.layers.43.self_attn.attn",
+      "model.layers.44.self_attn.attn",
+      "model.layers.45.self_attn.attn",
+      "model.layers.46.self_attn.attn",
+      "model.layers.47.self_attn.attn",
+      "model.layers.48.self_attn.attn",
+      "model.layers.49.self_attn.attn",
+      "model.layers.50.self_attn.attn",
+      "model.layers.51.self_attn.attn",
+      "model.layers.52.self_attn.attn",
+      "model.layers.53.self_attn.attn",
+      "model.layers.54.self_attn.attn",
+      "model.layers.55.self_attn.attn",
+      "model.layers.56.self_attn.attn",
+      "model.layers.57.self_attn.attn",
+      "model.layers.58.self_attn.attn",
+      "model.layers.59.self_attn.attn",
+      "model.layers.60.self_attn.attn",
+      "model.layers.61.self_attn.attn",
+      "model.layers.62.self_attn.attn",
+      "model.layers.63.self_attn.attn"
+    ],
+    "gqa_route_mass_threshold_hits": {
+      "16": 0,
+      "32": 0,
+      "64": 0,
+      "128": 0,
+      "256": 0
+    },
+    "gqa_route_max_mass": null,
+    "gqa_union_centroid_count_max": 0,
+    "gqa_union_centroid_count_mean": 0.0,
+    "gqa_union_effective_segments": [],
+    "gqa_union_epoch_max": 0,
+    "gqa_union_exact_token_count_max": 0,
+    "gqa_union_exact_token_count_mean": 0.0,
+    "gqa_union_nonempty_sequences": 0,
+    "gqa_union_runtime_kv_heads": [],
+    "gqa_union_runtime_sequence_counts": [],
+    "gqa_union_sequence_count": 0,
+    "gqa_union_split_d_reduce": [],
+    "gqa_union_token_count_max": 0,
+    "gqa_union_token_count_mean": 0.0,
+    "install_count": 0,
+    "lod_profiles": [
+      "experimental"
+    ],
+    "pooled_layers": [
+      "model.layers.0.self_attn.attn",
+      "model.layers.1.self_attn.attn",
+      "model.layers.2.self_attn.attn",
+      "model.layers.3.self_attn.attn",
+      "model.layers.4.self_attn.attn",
+      "model.layers.5.self_attn.attn",
+      "model.layers.6.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.8.self_attn.attn",
+      "model.layers.9.self_attn.attn",
+      "model.layers.10.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.12.self_attn.attn",
+      "model.layers.13.self_attn.attn",
+      "model.layers.14.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.16.self_attn.attn",
+      "model.layers.17.self_attn.attn",
+      "model.layers.18.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.20.self_attn.attn",
+      "model.layers.21.self_attn.attn",
+      "model.layers.22.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.24.self_attn.attn",
+      "model.layers.25.self_attn.attn",
+      "model.layers.26.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.28.self_attn.attn",
+      "model.layers.29.self_attn.attn",
+      "model.layers.30.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.32.self_attn.attn",
+      "model.layers.33.self_attn.attn",
+      "model.layers.34.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.36.self_attn.attn",
+      "model.layers.37.self_attn.attn",
+      "model.layers.38.self_attn.attn",
+      "model.layers.39.self_attn.attn",
+      "model.layers.40.self_attn.attn",
+      "model.layers.41.self_attn.attn",
+      "model.layers.42.self_attn.attn",
+      "model.layers.43.self_attn.attn",
+      "model.layers.44.self_attn.attn",
+      "model.layers.45.self_attn.attn",
+      "model.layers.46.self_attn.attn",
+      "model.layers.47.self_attn.attn",
+      "model.layers.48.self_attn.attn",
+      "model.layers.49.self_attn.attn",
+      "model.layers.50.self_attn.attn",
+      "model.layers.51.self_attn.attn",
+      "model.layers.52.self_attn.attn",
+      "model.layers.53.self_attn.attn",
+      "model.layers.54.self_attn.attn",
+      "model.layers.55.self_attn.attn",
+      "model.layers.56.self_attn.attn",
+      "model.layers.57.self_attn.attn",
+      "model.layers.58.self_attn.attn",
+      "model.layers.59.self_attn.attn",
+      "model.layers.60.self_attn.attn",
+      "model.layers.61.self_attn.attn",
+      "model.layers.62.self_attn.attn",
+      "model.layers.63.self_attn.attn"
+    ],
+    "prefill_coarse_direct_gqa_configured": [
+      [
+        false,
+        64,
+        32,
+        8
+      ]
+    ],
+    "prefill_coarse_direct_gqa_executed": [],
+    "prefill_open_counts": [
+      3
+    ],
+    "prefill_route_cohort": [
+      false
+    ],
+    "recursive_state_route_backends": [
+      "fused"
+    ],
+    "routing_geometries": [
+      [
+        "cosine",
+        "none",
+        "query"
+      ]
+    ],
+    "selected_route_count_max": 0.0,
+    "speculative_parallel_configured": [
+      false
+    ],
+    "speculative_parallel_executed": [
+      false
+    ],
+    "speculative_parallel_execution_counts": [
+      0
+    ],
+    "speculative_recursive_state_route_backends": [
+      "fused"
+    ],
+    "speculative_shared_local_configured": [
+      false
+    ],
+    "speculative_shared_local_executed": [
+      false
+    ],
+    "speculative_shared_route_configured": [
+      false
+    ],
+    "speculative_shared_route_executed": [
+      false
+    ],
+    "split_posting_len_max": 0,
+    "split_scheduled_state_len_max": 0,
+    "split_state_len_max": 0,
+    "state_centroids_at_or_above_open_limit": 0,
+    "state_count_max": 0.0,
+    "state_split_limits": [
+      null
+    ],
+    "state_v_abs_max": 0.0,
+    "state_v_nonfinite": 0,
+    "static_leaf_count_distribution": [
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "1",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "2",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "3-4",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "5-8",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "9-16",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "17-32",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "33-64",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "65-128",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "129-256",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "257-512",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "513-1024",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": ">1024",
+        "leaf_fraction": 0.0
+      }
+    ],
+    "static_opened_centroid_fraction": 0.0,
+    "static_opened_centroids": 0,
+    "static_opened_leaf_fraction": 0.0,
+    "static_opened_leaves": 0.0,
+    "static_total_centroids": 0,
+    "static_total_leaves": 0.0
+  },
+  "lod_prefill_route_block_m": null,
+  "lod_prefill_route_num_warps": null,
+  "lod_recursive_page_block_n": null,
+  "lod_recursive_state_route_backend": null,
+  "long_prefill_token_threshold": 16384,
+  "loss": 0.524733567431035,
+  "max_num_batched_tokens": 16384,
+  "mode": "lod",
+  "muse_native_text_config": false,
+  "perplexity": 1.690008515079781,
+  "prediction_tokens": 524280,
+  "prefill_open_count": 3,
+  "prefill_route_cohort": false,
+  "prefill_static_leaf_cap_min": 16,
+  "requested_samples": 8,
+  "sample_offset": 8,
+  "samples": [
+    {
+      "loss": 0.30335391083445623,
+      "perplexity": 1.3543937142410274,
+      "sample": 8,
+      "source_indices": [
+        39
+      ],
+      "token_sha256": "659712c97cc302343a32709e2e20703226baa47c0b3173995b92613e028db68e",
+      "tokens": 65536
+    },
+    {
+      "loss": 0.40342722855313384,
+      "perplexity": 1.4969462932675377,
+      "sample": 9,
+      "source_indices": [
+        41
+      ],
+      "token_sha256": "a2a2237a8d74ecb070c09dddac03f007dbe634aeff801924e506879b7b7c257d",
+      "tokens": 65536
+    },
+    {
+      "loss": 0.46994692767331225,
+      "perplexity": 1.5999092800561288,
+      "sample": 10,
+      "source_indices": [
+        49
+      ],
+      "token_sha256": "7308a5d4908b58bfb0dc002d97db4cd9281f18f62250e576c7e0c80fcb59bc2b",
+      "tokens": 65536
+    },
+    {
+      "loss": 0.6075447587292465,
+      "perplexity": 1.8359182383713981,
+      "sample": 11,
+      "source_indices": [
+        54
+      ],
+      "token_sha256": "db70d67ffc260904fd5bb2d320806adfae9d14b5eee8dc3cf7af96cc182cc072",
+      "tokens": 65536
+    },
+    {
+      "loss": 0.6124447249038736,
+      "perplexity": 1.8449362515753447,
+      "sample": 12,
+      "source_indices": [
+        81
+      ],
+      "token_sha256": "ccb311677e5afe7165d77d852632fe59c7178ad832c8362eb26256e6c9d99bb3",
+      "tokens": 65536
+    },
+    {
+      "loss": 0.6303039531699369,
+      "perplexity": 1.8781813716945075,
+      "sample": 13,
+      "source_indices": [
+        86
+      ],
+      "token_sha256": "00fb0d673542f7aaab53f909d818fe641361cedb46a08cc9cf303da5fa86a0aa",
+      "tokens": 65536
+    },
+    {
+      "loss": 1.103224635029294,
+      "perplexity": 3.0138689988095364,
+      "sample": 14,
+      "source_indices": [
+        88
+      ],
+      "token_sha256": "5026a900bb92400b3bf8682204ddf59d51814ea43420cfe23ff803fd8283e22f",
+      "tokens": 65536
+    },
+    {
+      "loss": 0.06762240055502704,
+      "perplexity": 1.0699612154298312,
+      "sample": 15,
+      "source_indices": [
+        92
+      ],
+      "token_sha256": "8dde16faf9ce15008b26a04052fa080faa44cda8c7eb7c8dce7d5c713b2f9eae",
+      "tokens": 65536
+    }
+  ],
+  "state_split_max_leaves": null,
+  "static_cohort_never_readmit": false,
+  "static_leaf_cap_divisor": 16,
+  "tensor_parallel_size": 1
+}

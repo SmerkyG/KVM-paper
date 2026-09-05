@@ -1,0 +1,2092 @@
+{
+  "allow_heterogeneous_global_config": false,
+  "apply_chat_template": true,
+  "attention_memory": {
+    "device_used_bytes_after_reclaim": 176083173376,
+    "device_used_bytes_before_reclaim": 248319574016,
+    "external_lod_layers": 64,
+    "external_lod_layers_with_native_cache": 0,
+    "external_lod_native_cache_bytes": 0,
+    "lod_cache_bytes": 126450944576,
+    "lod_decode_scratch_bytes": 2126518272,
+    "native_cache_bytes": 0,
+    "torch_allocated_bytes": 171892204032,
+    "torch_reclaimable_cached_bytes": 72236400640,
+    "torch_reserved_bytes_after_reclaim": 172799033344,
+    "torch_reserved_bytes_before_reclaim": 245035433984
+  },
+  "batch_size": 8,
+  "checkpoint": "/home/dan/subusers/agent/.cache/huggingface/hub/models--IFM--K2-Horizon-32B-FP8/snapshots/ff78aa18915bbfd44fc9c76859500436f8d35944",
+  "diagnostic_external_empty_attention": null,
+  "disable_custom_all_reduce": false,
+  "disable_thinking": true,
+  "enable_prefix_caching": false,
+  "full_attention_backend": null,
+  "gpu_memory_utilization": 0.9,
+  "language_model_only": false,
+  "lengths": [
+    131072
+  ],
+  "load_format": "auto",
+  "lod_diagnostics_after": {
+    "batched_cached_prefill_rows": 0,
+    "batched_cached_prefills": 0,
+    "catch_up_batches": 1024,
+    "catch_up_rows": 1024,
+    "custom_impl_sliding_windows": {
+      "(-1, -1)": 64
+    },
+    "custom_layers": [
+      "model.layers.0.self_attn.attn",
+      "model.layers.1.self_attn.attn",
+      "model.layers.2.self_attn.attn",
+      "model.layers.3.self_attn.attn",
+      "model.layers.4.self_attn.attn",
+      "model.layers.5.self_attn.attn",
+      "model.layers.6.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.8.self_attn.attn",
+      "model.layers.9.self_attn.attn",
+      "model.layers.10.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.12.self_attn.attn",
+      "model.layers.13.self_attn.attn",
+      "model.layers.14.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.16.self_attn.attn",
+      "model.layers.17.self_attn.attn",
+      "model.layers.18.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.20.self_attn.attn",
+      "model.layers.21.self_attn.attn",
+      "model.layers.22.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.24.self_attn.attn",
+      "model.layers.25.self_attn.attn",
+      "model.layers.26.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.28.self_attn.attn",
+      "model.layers.29.self_attn.attn",
+      "model.layers.30.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.32.self_attn.attn",
+      "model.layers.33.self_attn.attn",
+      "model.layers.34.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.36.self_attn.attn",
+      "model.layers.37.self_attn.attn",
+      "model.layers.38.self_attn.attn",
+      "model.layers.39.self_attn.attn",
+      "model.layers.40.self_attn.attn",
+      "model.layers.41.self_attn.attn",
+      "model.layers.42.self_attn.attn",
+      "model.layers.43.self_attn.attn",
+      "model.layers.44.self_attn.attn",
+      "model.layers.45.self_attn.attn",
+      "model.layers.46.self_attn.attn",
+      "model.layers.47.self_attn.attn",
+      "model.layers.48.self_attn.attn",
+      "model.layers.49.self_attn.attn",
+      "model.layers.50.self_attn.attn",
+      "model.layers.51.self_attn.attn",
+      "model.layers.52.self_attn.attn",
+      "model.layers.53.self_attn.attn",
+      "model.layers.54.self_attn.attn",
+      "model.layers.55.self_attn.attn",
+      "model.layers.56.self_attn.attn",
+      "model.layers.57.self_attn.attn",
+      "model.layers.58.self_attn.attn",
+      "model.layers.59.self_attn.attn",
+      "model.layers.60.self_attn.attn",
+      "model.layers.61.self_attn.attn",
+      "model.layers.62.self_attn.attn",
+      "model.layers.63.self_attn.attn"
+    ],
+    "decode_calls": 512,
+    "decode_centroid_major_hip_configured": [
+      false
+    ],
+    "decode_centroid_major_hip_executed": [],
+    "decode_gqa_cooperative_effective": [
+      false
+    ],
+    "decode_gqa_direct_fixed_routes_configured": [
+      true
+    ],
+    "decode_gqa_direct_fixed_routes_executed": [],
+    "decode_gqa_fixed_mask_configured": [
+      false
+    ],
+    "decode_gqa_fixed_mask_executed": [],
+    "decode_gqa_overlap_local_sink_configured": [
+      false
+    ],
+    "decode_gqa_overlap_local_sink_executed": [],
+    "decode_gqa_staged_fixed_configured": [
+      false
+    ],
+    "decode_gqa_staged_fixed_executed": [],
+    "decode_gqa_static_leaf_aiter_configured": [
+      false
+    ],
+    "decode_gqa_static_leaf_aiter_executed": [],
+    "decode_gqa_static_leaf_caps": [
+      null
+    ],
+    "decode_gqa_union_aiter_final": [],
+    "decode_gqa_union_configured": [
+      false
+    ],
+    "decode_gqa_union_eligible": [],
+    "decode_gqa_union_hip_configured": [
+      false
+    ],
+    "decode_gqa_union_hip_executed": [],
+    "decode_gqa_union_pilot_z": [],
+    "decode_gqa_union_pilot_z_configured": [
+      false
+    ],
+    "decode_gqa_union_predicted_mass": [],
+    "decode_gqa_union_requested": [],
+    "decode_gqa_union_score_only": [],
+    "decode_max_open_leaves": [
+      1024
+    ],
+    "decode_open_counts": [
+      8
+    ],
+    "decode_route_cohort": [
+      false
+    ],
+    "direct_prefill_calls": 8320,
+    "effective_decode_route_leaf_limits": [
+      1024
+    ],
+    "eligible_layers": [
+      "model.layers.0.self_attn.attn",
+      "model.layers.1.self_attn.attn",
+      "model.layers.2.self_attn.attn",
+      "model.layers.3.self_attn.attn",
+      "model.layers.4.self_attn.attn",
+      "model.layers.5.self_attn.attn",
+      "model.layers.6.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.8.self_attn.attn",
+      "model.layers.9.self_attn.attn",
+      "model.layers.10.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.12.self_attn.attn",
+      "model.layers.13.self_attn.attn",
+      "model.layers.14.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.16.self_attn.attn",
+      "model.layers.17.self_attn.attn",
+      "model.layers.18.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.20.self_attn.attn",
+      "model.layers.21.self_attn.attn",
+      "model.layers.22.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.24.self_attn.attn",
+      "model.layers.25.self_attn.attn",
+      "model.layers.26.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.28.self_attn.attn",
+      "model.layers.29.self_attn.attn",
+      "model.layers.30.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.32.self_attn.attn",
+      "model.layers.33.self_attn.attn",
+      "model.layers.34.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.36.self_attn.attn",
+      "model.layers.37.self_attn.attn",
+      "model.layers.38.self_attn.attn",
+      "model.layers.39.self_attn.attn",
+      "model.layers.40.self_attn.attn",
+      "model.layers.41.self_attn.attn",
+      "model.layers.42.self_attn.attn",
+      "model.layers.43.self_attn.attn",
+      "model.layers.44.self_attn.attn",
+      "model.layers.45.self_attn.attn",
+      "model.layers.46.self_attn.attn",
+      "model.layers.47.self_attn.attn",
+      "model.layers.48.self_attn.attn",
+      "model.layers.49.self_attn.attn",
+      "model.layers.50.self_attn.attn",
+      "model.layers.51.self_attn.attn",
+      "model.layers.52.self_attn.attn",
+      "model.layers.53.self_attn.attn",
+      "model.layers.54.self_attn.attn",
+      "model.layers.55.self_attn.attn",
+      "model.layers.56.self_attn.attn",
+      "model.layers.57.self_attn.attn",
+      "model.layers.58.self_attn.attn",
+      "model.layers.59.self_attn.attn",
+      "model.layers.60.self_attn.attn",
+      "model.layers.61.self_attn.attn",
+      "model.layers.62.self_attn.attn",
+      "model.layers.63.self_attn.attn"
+    ],
+    "gqa_route_mass_threshold_hits": {
+      "16": 0,
+      "32": 0,
+      "64": 0,
+      "128": 0,
+      "256": 0
+    },
+    "gqa_route_max_mass": null,
+    "gqa_union_centroid_count_max": 0,
+    "gqa_union_centroid_count_mean": 0.0,
+    "gqa_union_effective_segments": [],
+    "gqa_union_epoch_max": 0,
+    "gqa_union_exact_token_count_max": 0,
+    "gqa_union_exact_token_count_mean": 0.0,
+    "gqa_union_nonempty_sequences": 0,
+    "gqa_union_runtime_kv_heads": [],
+    "gqa_union_runtime_sequence_counts": [],
+    "gqa_union_sequence_count": 0,
+    "gqa_union_split_d_reduce": [],
+    "gqa_union_token_count_max": 0,
+    "gqa_union_token_count_mean": 0.0,
+    "install_count": 1024,
+    "lod_profiles": [
+      "experimental"
+    ],
+    "pooled_layers": [
+      "model.layers.0.self_attn.attn",
+      "model.layers.1.self_attn.attn",
+      "model.layers.2.self_attn.attn",
+      "model.layers.3.self_attn.attn",
+      "model.layers.4.self_attn.attn",
+      "model.layers.5.self_attn.attn",
+      "model.layers.6.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.8.self_attn.attn",
+      "model.layers.9.self_attn.attn",
+      "model.layers.10.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.12.self_attn.attn",
+      "model.layers.13.self_attn.attn",
+      "model.layers.14.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.16.self_attn.attn",
+      "model.layers.17.self_attn.attn",
+      "model.layers.18.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.20.self_attn.attn",
+      "model.layers.21.self_attn.attn",
+      "model.layers.22.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.24.self_attn.attn",
+      "model.layers.25.self_attn.attn",
+      "model.layers.26.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.28.self_attn.attn",
+      "model.layers.29.self_attn.attn",
+      "model.layers.30.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.32.self_attn.attn",
+      "model.layers.33.self_attn.attn",
+      "model.layers.34.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.36.self_attn.attn",
+      "model.layers.37.self_attn.attn",
+      "model.layers.38.self_attn.attn",
+      "model.layers.39.self_attn.attn",
+      "model.layers.40.self_attn.attn",
+      "model.layers.41.self_attn.attn",
+      "model.layers.42.self_attn.attn",
+      "model.layers.43.self_attn.attn",
+      "model.layers.44.self_attn.attn",
+      "model.layers.45.self_attn.attn",
+      "model.layers.46.self_attn.attn",
+      "model.layers.47.self_attn.attn",
+      "model.layers.48.self_attn.attn",
+      "model.layers.49.self_attn.attn",
+      "model.layers.50.self_attn.attn",
+      "model.layers.51.self_attn.attn",
+      "model.layers.52.self_attn.attn",
+      "model.layers.53.self_attn.attn",
+      "model.layers.54.self_attn.attn",
+      "model.layers.55.self_attn.attn",
+      "model.layers.56.self_attn.attn",
+      "model.layers.57.self_attn.attn",
+      "model.layers.58.self_attn.attn",
+      "model.layers.59.self_attn.attn",
+      "model.layers.60.self_attn.attn",
+      "model.layers.61.self_attn.attn",
+      "model.layers.62.self_attn.attn",
+      "model.layers.63.self_attn.attn"
+    ],
+    "prefill_coarse_direct_gqa_configured": [
+      [
+        false,
+        64,
+        32,
+        8
+      ]
+    ],
+    "prefill_coarse_direct_gqa_executed": [],
+    "prefill_open_counts": [
+      3
+    ],
+    "prefill_route_cohort": [
+      false
+    ],
+    "recursive_state_route_backends": [
+      "fused"
+    ],
+    "routing_geometries": [
+      [
+        "cosine",
+        "none",
+        "query"
+      ]
+    ],
+    "selected_route_count_max": 0.0,
+    "speculative_parallel_configured": [
+      false
+    ],
+    "speculative_parallel_executed": [
+      false
+    ],
+    "speculative_parallel_execution_counts": [
+      0
+    ],
+    "speculative_recursive_state_route_backends": [
+      "fused"
+    ],
+    "speculative_shared_local_configured": [
+      false
+    ],
+    "speculative_shared_local_executed": [
+      false
+    ],
+    "speculative_shared_route_configured": [
+      false
+    ],
+    "speculative_shared_route_executed": [
+      false
+    ],
+    "split_posting_len_max": 0,
+    "split_scheduled_state_len_max": 0,
+    "split_state_len_max": 0,
+    "state_centroids_at_or_above_open_limit": 0,
+    "state_count_max": 0.0,
+    "state_split_limits": [
+      null
+    ],
+    "state_v_abs_max": 27136.0,
+    "state_v_nonfinite": 0,
+    "static_leaf_count_distribution": [
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "1",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "2",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "3-4",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "5-8",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "9-16",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "17-32",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "33-64",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "65-128",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "129-256",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "257-512",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "513-1024",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": ">1024",
+        "leaf_fraction": 0.0
+      }
+    ],
+    "static_opened_centroid_fraction": 0.0,
+    "static_opened_centroids": 0,
+    "static_opened_leaf_fraction": 0.0,
+    "static_opened_leaves": 0.0,
+    "static_total_centroids": 0,
+    "static_total_leaves": 0.0
+  },
+  "lod_diagnostics_before": {
+    "batched_cached_prefill_rows": 0,
+    "batched_cached_prefills": 0,
+    "catch_up_batches": 0,
+    "catch_up_rows": 0,
+    "custom_impl_sliding_windows": {
+      "(-1, -1)": 64
+    },
+    "custom_layers": [
+      "model.layers.0.self_attn.attn",
+      "model.layers.1.self_attn.attn",
+      "model.layers.2.self_attn.attn",
+      "model.layers.3.self_attn.attn",
+      "model.layers.4.self_attn.attn",
+      "model.layers.5.self_attn.attn",
+      "model.layers.6.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.8.self_attn.attn",
+      "model.layers.9.self_attn.attn",
+      "model.layers.10.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.12.self_attn.attn",
+      "model.layers.13.self_attn.attn",
+      "model.layers.14.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.16.self_attn.attn",
+      "model.layers.17.self_attn.attn",
+      "model.layers.18.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.20.self_attn.attn",
+      "model.layers.21.self_attn.attn",
+      "model.layers.22.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.24.self_attn.attn",
+      "model.layers.25.self_attn.attn",
+      "model.layers.26.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.28.self_attn.attn",
+      "model.layers.29.self_attn.attn",
+      "model.layers.30.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.32.self_attn.attn",
+      "model.layers.33.self_attn.attn",
+      "model.layers.34.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.36.self_attn.attn",
+      "model.layers.37.self_attn.attn",
+      "model.layers.38.self_attn.attn",
+      "model.layers.39.self_attn.attn",
+      "model.layers.40.self_attn.attn",
+      "model.layers.41.self_attn.attn",
+      "model.layers.42.self_attn.attn",
+      "model.layers.43.self_attn.attn",
+      "model.layers.44.self_attn.attn",
+      "model.layers.45.self_attn.attn",
+      "model.layers.46.self_attn.attn",
+      "model.layers.47.self_attn.attn",
+      "model.layers.48.self_attn.attn",
+      "model.layers.49.self_attn.attn",
+      "model.layers.50.self_attn.attn",
+      "model.layers.51.self_attn.attn",
+      "model.layers.52.self_attn.attn",
+      "model.layers.53.self_attn.attn",
+      "model.layers.54.self_attn.attn",
+      "model.layers.55.self_attn.attn",
+      "model.layers.56.self_attn.attn",
+      "model.layers.57.self_attn.attn",
+      "model.layers.58.self_attn.attn",
+      "model.layers.59.self_attn.attn",
+      "model.layers.60.self_attn.attn",
+      "model.layers.61.self_attn.attn",
+      "model.layers.62.self_attn.attn",
+      "model.layers.63.self_attn.attn"
+    ],
+    "decode_calls": 512,
+    "decode_centroid_major_hip_configured": [
+      false
+    ],
+    "decode_centroid_major_hip_executed": [],
+    "decode_gqa_cooperative_effective": [
+      false
+    ],
+    "decode_gqa_direct_fixed_routes_configured": [
+      true
+    ],
+    "decode_gqa_direct_fixed_routes_executed": [],
+    "decode_gqa_fixed_mask_configured": [
+      false
+    ],
+    "decode_gqa_fixed_mask_executed": [],
+    "decode_gqa_overlap_local_sink_configured": [
+      false
+    ],
+    "decode_gqa_overlap_local_sink_executed": [],
+    "decode_gqa_staged_fixed_configured": [
+      false
+    ],
+    "decode_gqa_staged_fixed_executed": [],
+    "decode_gqa_static_leaf_aiter_configured": [
+      false
+    ],
+    "decode_gqa_static_leaf_aiter_executed": [],
+    "decode_gqa_static_leaf_caps": [
+      null
+    ],
+    "decode_gqa_union_aiter_final": [],
+    "decode_gqa_union_configured": [
+      false
+    ],
+    "decode_gqa_union_eligible": [],
+    "decode_gqa_union_hip_configured": [
+      false
+    ],
+    "decode_gqa_union_hip_executed": [],
+    "decode_gqa_union_pilot_z": [],
+    "decode_gqa_union_pilot_z_configured": [
+      false
+    ],
+    "decode_gqa_union_predicted_mass": [],
+    "decode_gqa_union_requested": [],
+    "decode_gqa_union_score_only": [],
+    "decode_max_open_leaves": [
+      1024
+    ],
+    "decode_open_counts": [
+      8
+    ],
+    "decode_route_cohort": [
+      false
+    ],
+    "direct_prefill_calls": 0,
+    "effective_decode_route_leaf_limits": [
+      1024
+    ],
+    "eligible_layers": [
+      "model.layers.0.self_attn.attn",
+      "model.layers.1.self_attn.attn",
+      "model.layers.2.self_attn.attn",
+      "model.layers.3.self_attn.attn",
+      "model.layers.4.self_attn.attn",
+      "model.layers.5.self_attn.attn",
+      "model.layers.6.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.8.self_attn.attn",
+      "model.layers.9.self_attn.attn",
+      "model.layers.10.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.12.self_attn.attn",
+      "model.layers.13.self_attn.attn",
+      "model.layers.14.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.16.self_attn.attn",
+      "model.layers.17.self_attn.attn",
+      "model.layers.18.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.20.self_attn.attn",
+      "model.layers.21.self_attn.attn",
+      "model.layers.22.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.24.self_attn.attn",
+      "model.layers.25.self_attn.attn",
+      "model.layers.26.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.28.self_attn.attn",
+      "model.layers.29.self_attn.attn",
+      "model.layers.30.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.32.self_attn.attn",
+      "model.layers.33.self_attn.attn",
+      "model.layers.34.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.36.self_attn.attn",
+      "model.layers.37.self_attn.attn",
+      "model.layers.38.self_attn.attn",
+      "model.layers.39.self_attn.attn",
+      "model.layers.40.self_attn.attn",
+      "model.layers.41.self_attn.attn",
+      "model.layers.42.self_attn.attn",
+      "model.layers.43.self_attn.attn",
+      "model.layers.44.self_attn.attn",
+      "model.layers.45.self_attn.attn",
+      "model.layers.46.self_attn.attn",
+      "model.layers.47.self_attn.attn",
+      "model.layers.48.self_attn.attn",
+      "model.layers.49.self_attn.attn",
+      "model.layers.50.self_attn.attn",
+      "model.layers.51.self_attn.attn",
+      "model.layers.52.self_attn.attn",
+      "model.layers.53.self_attn.attn",
+      "model.layers.54.self_attn.attn",
+      "model.layers.55.self_attn.attn",
+      "model.layers.56.self_attn.attn",
+      "model.layers.57.self_attn.attn",
+      "model.layers.58.self_attn.attn",
+      "model.layers.59.self_attn.attn",
+      "model.layers.60.self_attn.attn",
+      "model.layers.61.self_attn.attn",
+      "model.layers.62.self_attn.attn",
+      "model.layers.63.self_attn.attn"
+    ],
+    "gqa_route_mass_threshold_hits": {
+      "16": 0,
+      "32": 0,
+      "64": 0,
+      "128": 0,
+      "256": 0
+    },
+    "gqa_route_max_mass": null,
+    "gqa_union_centroid_count_max": 0,
+    "gqa_union_centroid_count_mean": 0.0,
+    "gqa_union_effective_segments": [],
+    "gqa_union_epoch_max": 0,
+    "gqa_union_exact_token_count_max": 0,
+    "gqa_union_exact_token_count_mean": 0.0,
+    "gqa_union_nonempty_sequences": 0,
+    "gqa_union_runtime_kv_heads": [],
+    "gqa_union_runtime_sequence_counts": [],
+    "gqa_union_sequence_count": 0,
+    "gqa_union_split_d_reduce": [],
+    "gqa_union_token_count_max": 0,
+    "gqa_union_token_count_mean": 0.0,
+    "install_count": 0,
+    "lod_profiles": [
+      "experimental"
+    ],
+    "pooled_layers": [
+      "model.layers.0.self_attn.attn",
+      "model.layers.1.self_attn.attn",
+      "model.layers.2.self_attn.attn",
+      "model.layers.3.self_attn.attn",
+      "model.layers.4.self_attn.attn",
+      "model.layers.5.self_attn.attn",
+      "model.layers.6.self_attn.attn",
+      "model.layers.7.self_attn.attn",
+      "model.layers.8.self_attn.attn",
+      "model.layers.9.self_attn.attn",
+      "model.layers.10.self_attn.attn",
+      "model.layers.11.self_attn.attn",
+      "model.layers.12.self_attn.attn",
+      "model.layers.13.self_attn.attn",
+      "model.layers.14.self_attn.attn",
+      "model.layers.15.self_attn.attn",
+      "model.layers.16.self_attn.attn",
+      "model.layers.17.self_attn.attn",
+      "model.layers.18.self_attn.attn",
+      "model.layers.19.self_attn.attn",
+      "model.layers.20.self_attn.attn",
+      "model.layers.21.self_attn.attn",
+      "model.layers.22.self_attn.attn",
+      "model.layers.23.self_attn.attn",
+      "model.layers.24.self_attn.attn",
+      "model.layers.25.self_attn.attn",
+      "model.layers.26.self_attn.attn",
+      "model.layers.27.self_attn.attn",
+      "model.layers.28.self_attn.attn",
+      "model.layers.29.self_attn.attn",
+      "model.layers.30.self_attn.attn",
+      "model.layers.31.self_attn.attn",
+      "model.layers.32.self_attn.attn",
+      "model.layers.33.self_attn.attn",
+      "model.layers.34.self_attn.attn",
+      "model.layers.35.self_attn.attn",
+      "model.layers.36.self_attn.attn",
+      "model.layers.37.self_attn.attn",
+      "model.layers.38.self_attn.attn",
+      "model.layers.39.self_attn.attn",
+      "model.layers.40.self_attn.attn",
+      "model.layers.41.self_attn.attn",
+      "model.layers.42.self_attn.attn",
+      "model.layers.43.self_attn.attn",
+      "model.layers.44.self_attn.attn",
+      "model.layers.45.self_attn.attn",
+      "model.layers.46.self_attn.attn",
+      "model.layers.47.self_attn.attn",
+      "model.layers.48.self_attn.attn",
+      "model.layers.49.self_attn.attn",
+      "model.layers.50.self_attn.attn",
+      "model.layers.51.self_attn.attn",
+      "model.layers.52.self_attn.attn",
+      "model.layers.53.self_attn.attn",
+      "model.layers.54.self_attn.attn",
+      "model.layers.55.self_attn.attn",
+      "model.layers.56.self_attn.attn",
+      "model.layers.57.self_attn.attn",
+      "model.layers.58.self_attn.attn",
+      "model.layers.59.self_attn.attn",
+      "model.layers.60.self_attn.attn",
+      "model.layers.61.self_attn.attn",
+      "model.layers.62.self_attn.attn",
+      "model.layers.63.self_attn.attn"
+    ],
+    "prefill_coarse_direct_gqa_configured": [
+      [
+        false,
+        64,
+        32,
+        8
+      ]
+    ],
+    "prefill_coarse_direct_gqa_executed": [],
+    "prefill_open_counts": [
+      3
+    ],
+    "prefill_route_cohort": [
+      false
+    ],
+    "recursive_state_route_backends": [
+      "fused"
+    ],
+    "routing_geometries": [
+      [
+        "cosine",
+        "none",
+        "query"
+      ]
+    ],
+    "selected_route_count_max": 0.0,
+    "speculative_parallel_configured": [
+      false
+    ],
+    "speculative_parallel_executed": [
+      false
+    ],
+    "speculative_parallel_execution_counts": [
+      0
+    ],
+    "speculative_recursive_state_route_backends": [
+      "fused"
+    ],
+    "speculative_shared_local_configured": [
+      false
+    ],
+    "speculative_shared_local_executed": [
+      false
+    ],
+    "speculative_shared_route_configured": [
+      false
+    ],
+    "speculative_shared_route_executed": [
+      false
+    ],
+    "split_posting_len_max": 0,
+    "split_scheduled_state_len_max": 0,
+    "split_state_len_max": 0,
+    "state_centroids_at_or_above_open_limit": 0,
+    "state_count_max": 0.0,
+    "state_split_limits": [
+      null
+    ],
+    "state_v_abs_max": 0.0,
+    "state_v_nonfinite": 0,
+    "static_leaf_count_distribution": [
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "1",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "2",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "3-4",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "5-8",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "9-16",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "17-32",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "33-64",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "65-128",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "129-256",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "257-512",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": "513-1024",
+        "leaf_fraction": 0.0
+      },
+      {
+        "centroid_fraction": 0.0,
+        "leaf_count": ">1024",
+        "leaf_fraction": 0.0
+      }
+    ],
+    "static_opened_centroid_fraction": 0.0,
+    "static_opened_centroids": 0,
+    "static_opened_leaf_fraction": 0.0,
+    "static_opened_leaves": 0.0,
+    "static_total_centroids": 0,
+    "static_total_leaves": 0.0
+  },
+  "lod_dispatch": {
+    "records": [
+      {
+        "configured_decode_centroid_major_hip": false,
+        "configured_decode_geometry_tuning": true,
+        "configured_decode_hierarchical_route": true,
+        "configured_decode_max_open_leaves": 1024,
+        "configured_decode_route_cohort": false,
+        "configured_diagnostic_static_preselected": false,
+        "configured_fused_state_maxsim": true,
+        "configured_fused_state_update": true,
+        "configured_gqa_fixed_mask_adaptive_segments": false,
+        "configured_gqa_fixed_mask_aiter": false,
+        "configured_gqa_fixed_mask_block_n": 64,
+        "configured_gqa_fixed_mask_direct_routes": true,
+        "configured_gqa_fixed_mask_reduce_block_d": 0,
+        "configured_gqa_fixed_mask_scan_num_stages": 2,
+        "configured_gqa_fixed_mask_scan_num_warps": 2,
+        "configured_gqa_fixed_mask_scan_waves_per_eu": 2,
+        "configured_gqa_fixed_mask_segments": 128,
+        "configured_gqa_mass_fraction": null,
+        "configured_gqa_pilot_z": false,
+        "configured_gqa_pilot_z_margin": 0.25,
+        "configured_gqa_pilot_z_route_count": 8,
+        "configured_gqa_predicted_mass": false,
+        "configured_gqa_staged_fixed_aiter": false,
+        "configured_gqa_static_leaf_aiter": false,
+        "configured_gqa_union_decode": false,
+        "configured_gqa_union_hip": false,
+        "configured_leaf_block_n": 16,
+        "configured_open_count": 8,
+        "configured_prefill_coarse_block_m": 32,
+        "configured_prefill_coarse_block_n": 64,
+        "configured_prefill_coarse_max_grouped_rows": 64,
+        "configured_prefill_coarse_num_warps": 2,
+        "configured_prefill_defer_cache_updates": true,
+        "configured_prefill_direct_expert_buckets": false,
+        "configured_prefill_exact_first_chunk": true,
+        "configured_prefill_hierarchical_route": false,
+        "configured_prefill_leaf_visit_cap": null,
+        "configured_prefill_local_backend": "aiter",
+        "configured_prefill_overlap_coarse_leaf": true,
+        "configured_prefill_overlap_local_lod": false,
+        "configured_prefill_static_leaf_aiter": false,
+        "configured_prefill_static_leaf_cap_min": 16,
+        "configured_recursive_prefill_all_leaves": true,
+        "configured_recursive_prefill_all_leaves_token_limit": 0,
+        "configured_route_group_size": 64,
+        "configured_route_num_warps": 1,
+        "configured_route_parallel_reduce": true,
+        "configured_route_post_dot_normalize": false,
+        "configured_route_post_pv_normalize": false,
+        "configured_route_reduce_num_warps": 2,
+        "configured_route_segment_tiles": 1,
+        "configured_route_use_dot": true,
+        "configured_state_premerge_factor": 1,
+        "configured_static_cohort_never_readmit": false,
+        "configured_static_leaf_cap_divisor": 16,
+        "decode_split_kv": 8,
+        "effective_decode_route_leaf_limit": 1024,
+        "effective_leaf_page_block_n": 16,
+        "effective_prefill_local_kernel": "aiter.ops.mha.flash_attn_func (CK FMHA v3)",
+        "effective_prefill_open_count": 3,
+        "effective_route_group_size": 64,
+        "effective_route_num_warps": 1,
+        "effective_route_reduce_num_warps": 2,
+        "effective_route_segment_tiles": 1,
+        "effective_route_segment_width": 64,
+        "effective_route_use_dot": true,
+        "engine_long_d128_override_bypassed_by_vllm_pool": true,
+        "engine_long_d128_override_exists": true,
+        "exact_leaf_kernel": "_query_major_residual_page_attention_kernel (INDEXED=True)",
+        "final_reduce_kernel": "_reduce_routed_split_decode_lod_attention_kernel",
+        "final_reduce_num_warps": 4,
+        "hash_probes": 8,
+        "head_dim": 128,
+        "kv_group_size": 8,
+        "kv_heads": 8,
+        "layers": 64,
+        "leaf_dtype": "torch.bfloat16",
+        "leaf_num_warps": 2,
+        "levels": 3,
+        "local_capacity": 1024,
+        "local_kernels": [
+          "_wide_gqa_local_scores_kernel",
+          "_wide_gqa_local_value_kernel"
+        ],
+        "local_score_block_m": 16,
+        "local_score_block_n": 32,
+        "local_score_num_warps": 4,
+        "local_value_block_d": 32,
+        "local_value_block_k": 32,
+        "local_value_block_m": 16,
+        "local_value_num_warps": 4,
+        "local_window": 512,
+        "lod_profile": "experimental",
+        "materialize_page_scores": false,
+        "observed_context_len": 0,
+        "page_capacity": 14176,
+        "page_route_kernels": [
+          "inline page-summary scoring in exact-leaf kernel"
+        ],
+        "page_score_block_n": 16,
+        "page_score_num_warps": 2,
+        "page_select_block_n": 64,
+        "pool_request_capacity": 132113,
+        "prefill_chunk_len": 16384,
+        "prefill_direct_expert_bucket_calls": 0,
+        "prefill_fused_route_eligible": true,
+        "prefill_leaf_kernel": "paged_leaf_attention expert/MFMA over complete selected centroids (recursive page archive retained for decode)",
+        "prefill_leaf_num_warps": 4,
+        "prefill_leaf_page_block_n": 4,
+        "prefill_mode": "direct",
+        "prefill_recursive_page_num_warps": 1,
+        "prefill_route_kernels": [
+          "_route_logits_topk_coarse_attention_kernel",
+          "_route_logits_coarse_attention_kernel"
+        ],
+        "prefill_schedule_source": "KernelRecursivePagedLODAttention derived from chunk_size",
+        "prefill_state_update_len": 16384,
+        "query_heads": 64,
+        "requested_decode_hierarchical_route": null,
+        "requested_recursive_prefill_all_leaves": true,
+        "route_gqa_grouped": true,
+        "state_capacity": 5888,
+        "state_pv_block_d": 128,
+        "state_pv_block_n": 64,
+        "state_pv_splits": 8,
+        "state_route_backend": "fused",
+        "state_route_kernels": [
+          "_decode_route_coarse_gqa_groups_kernel",
+          "_reduce_decode_route_coarse_vector_topk_kernel"
+        ],
+        "state_route_math": "mfma_m16",
+        "state_score_block_n": 64,
+        "state_score_num_stages": 3,
+        "state_score_num_warps": 2,
+        "state_topk_block_n": 128,
+        "state_topk_num_warps": 2
+      }
+    ],
+    "schema_version": 6
+  },
+  "lod_speed_diagnostics": {
+    "batched_cached_prefill_rows": 0,
+    "batched_cached_prefills": 0,
+    "batched_install_calls": 1024,
+    "cached_prefill_candidate_calls": 8192,
+    "cached_prefill_candidate_rows": 36864,
+    "cached_prefill_noncontiguous": 0,
+    "cached_prefill_nonpacked_calls": 0,
+    "cached_prefill_nonuniform_lengths": 7168,
+    "cached_prefill_nonuniform_previous": 7168,
+    "cached_prefill_packed_calls": 36864,
+    "cached_prefill_unready": 0,
+    "catch_up_batches": 1024,
+    "catch_up_rows": 1024,
+    "decode_calls": 512,
+    "decode_gqa_cooperative": false,
+    "decode_route_cohort": false,
+    "dense_leaf_storage": true,
+    "direct_prefills": 8320,
+    "effective_decode_route_leaf_limit": 1024,
+    "external_kv_cache": true,
+    "installs": 1024,
+    "kv_bits": 4,
+    "layers": 64,
+    "leaf_num_warps": 4,
+    "leaf_seal_capacity": null,
+    "levels": 3,
+    "open_count": 8,
+    "page_summary_quant_bits": 8,
+    "pilot_z_copy_calls": 0,
+    "pilot_z_engine_bound_finite": 0,
+    "pilot_z_record_calls": 0,
+    "pilot_z_route_threshold_finite": 0,
+    "pilot_z_route_threshold_max": null,
+    "pilot_z_route_threshold_min": null,
+    "pilot_z_route_threshold_total": 0,
+    "positive_dot_blocks": 0,
+    "positive_dot_blocks_empty": 0,
+    "positive_dot_blocks_under_k": 0,
+    "positive_dot_population": 0,
+    "positive_dot_population_positive": 0,
+    "positive_dot_route_counts": [],
+    "prefill_chunk_len": 16384,
+    "prefill_direct_expert_bucket_calls": 0,
+    "prefill_direct_expert_buckets": false,
+    "prefill_int8_coarse_mma": false,
+    "prefill_int8_leaf_mma": false,
+    "prefill_int8_pv_mma": false,
+    "prefill_state_update_len": 16384,
+    "prefill_static_leaf_aiter": false,
+    "prefill_static_leaf_cap_min": 16,
+    "recursive_materialize_page_scores": false,
+    "recursive_page_score_block_n": 16,
+    "recursive_page_score_num_warps": 2,
+    "recursive_page_select_block_n": 64,
+    "recursive_state_route_backend": "fused",
+    "retained_prefix_reuses": 0,
+    "retained_restore_attempts": 0,
+    "retained_restore_fail_coverage": 0,
+    "retained_restore_fail_no_row": 0,
+    "retained_restore_fail_short": 0,
+    "retained_restore_fail_tokens": 0,
+    "retained_restore_last_coverage": 0,
+    "retained_restore_last_prefix": 0,
+    "retained_restore_last_total": 0,
+    "retained_restore_rebuild_tokens": 0,
+    "retained_restore_rebuilds": 0,
+    "routing_cutoff_simulations": [],
+    "routing_segment_cutoff_simulations": [],
+    "speculative_parallel_configured": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    "speculative_parallel_executed": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    "speculative_parallel_execution_counts": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "speculative_recursive_state_route_backends": [
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused",
+      "fused"
+    ],
+    "speculative_shared_local_configured": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    "speculative_shared_local_executed": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    "speculative_shared_route_configured": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    "speculative_shared_route_executed": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    "static_cohort_never_readmit": false,
+    "static_leaf_cap_divisor": 16,
+    "static_prefill_archive_tokens": 0,
+    "static_prefill_calls": 0,
+    "static_prefill_cap_max_observed": null,
+    "static_prefill_cap_min_observed": null,
+    "static_prefill_exact_tokens_max": null,
+    "static_prefill_exact_tokens_min": null,
+    "static_prefill_layers_executed": 0,
+    "static_prefill_permanent_exact_fraction": null,
+    "static_prefill_permanent_exact_tokens": 0
+  },
+  "long_prefill_token_threshold": 16384,
+  "max_new_tokens": 64,
+  "max_num_batched_tokens": 16384,
+  "mode": "lod",
+  "model_impl": null,
+  "muse_native_text_config": false,
+  "num_speculative_tokens": null,
+  "results": {
+    "131072": {
+      "speed": {
+        "decode_timings_seconds": [
+          60.45335943810642
+        ],
+        "gqa_union_marginal_ms_per_target_cycle": null,
+        "lod_decode_execution_audit": {
+          "decode_centroid_major_hip_configured": [
+            false
+          ],
+          "decode_centroid_major_hip_executed": [],
+          "decode_gqa_cooperative_effective": [
+            false
+          ],
+          "decode_gqa_direct_fixed_routes_configured": [
+            true
+          ],
+          "decode_gqa_direct_fixed_routes_executed": [],
+          "decode_gqa_fixed_mask_configured": [
+            false
+          ],
+          "decode_gqa_fixed_mask_executed": [],
+          "decode_gqa_overlap_local_sink_configured": [
+            false
+          ],
+          "decode_gqa_overlap_local_sink_executed": [],
+          "decode_gqa_staged_fixed_configured": [
+            false
+          ],
+          "decode_gqa_staged_fixed_executed": [],
+          "decode_gqa_static_leaf_aiter_configured": [
+            false
+          ],
+          "decode_gqa_static_leaf_aiter_executed": [],
+          "decode_gqa_union_aiter_final": [],
+          "decode_gqa_union_configured": [
+            false
+          ],
+          "decode_gqa_union_eligible": [],
+          "decode_gqa_union_hip_configured": [
+            false
+          ],
+          "decode_gqa_union_hip_executed": [],
+          "decode_gqa_union_predicted_mass": [],
+          "decode_gqa_union_requested": [],
+          "decode_gqa_union_score_only": [],
+          "decode_max_open_leaves": [
+            1024
+          ],
+          "decode_open_counts": [
+            8
+          ],
+          "decode_route_cohort": [
+            false
+          ],
+          "effective_decode_route_leaf_limits": [
+            1024
+          ],
+          "gqa_union_centroid_count_max": 0,
+          "gqa_union_centroid_count_mean": 0.0,
+          "gqa_union_effective_segments": [],
+          "gqa_union_epoch_max": 0,
+          "gqa_union_exact_token_count_max": 0,
+          "gqa_union_exact_token_count_mean": 0.0,
+          "gqa_union_nonempty_sequences": 0,
+          "gqa_union_runtime_kv_heads": [],
+          "gqa_union_runtime_sequence_counts": [],
+          "gqa_union_sequence_count": 0,
+          "gqa_union_split_d_reduce": [],
+          "gqa_union_token_count_max": 0,
+          "gqa_union_token_count_mean": 0.0,
+          "speculative_parallel_configured": [
+            false
+          ],
+          "speculative_parallel_executed": [
+            false
+          ],
+          "speculative_parallel_execution_counts": [
+            0
+          ],
+          "speculative_recursive_state_route_backends": [
+            "fused"
+          ],
+          "speculative_shared_local_configured": [
+            false
+          ],
+          "speculative_shared_local_executed": [
+            false
+          ],
+          "speculative_shared_route_configured": [
+            false
+          ],
+          "speculative_shared_route_executed": [
+            false
+          ]
+        },
+        "lod_execution_marginal_ms_per_target_cycle": null,
+        "lod_execution_target_cycles": 0,
+        "marginal_decode_ms_per_batch_step": 59.0364838262758,
+        "marginal_decode_tokens_per_second": 135.5094253841619,
+        "prefill_prompt_tokens_per_second": 2565.1551426911624,
+        "prefill_seconds": 408.7768347999081,
+        "prefill_timings_seconds": [
+          408.7768347999081
+        ],
+        "prompt_corpus": {
+          "all_prompt_hashes_unique": true,
+          "construction": "distinct shuffled documents, concatenated without repetition",
+          "dataset": "Seerkfang/prolong-64k-512-new",
+          "prompt_length": 131072,
+          "prompts": [
+            {
+              "decoded_prefix": "Produced by Chris Curnow, Emmy and the Online Distributed Proofreading Team at http://www.pgdp.net [Transcriber's Notes: Two letters had macrons above them in the orginal these have been marked as: [=i] and [=m]. A carot ^ before bracketed letters indicated that the letter or letters were superscripted in the orginal: Hon^{ble}.] [Illustration] Book-Plates By W. J. Hardy, F.S.A. _SECOND EDITION_ [Illustration] London Kegan Paul, Trench, Truebner &",
+              "request_index": 0,
+              "sha256": "15cafe64f0088643bb23f960a56a565fcaf1bc148283d5b1f77e68d002a7d534",
+              "source_document_count": 3,
+              "source_documents": [
+                {
+                  "length": "66580",
+                  "stream_index": 0
+                },
+                {
+                  "length": "65431",
+                  "stream_index": 1
+                },
+                {
+                  "length": "65626",
+                  "stream_index": 2
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8192,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 8192
+              }
+            },
+            {
+              "decoded_prefix": "1); # # Structure for table \"news_categories\" # DROP TABLE IF EXISTS `news_categories`; CREATE TABLE `news_categories` ( `id` int(11) NOT NULL AUTO_INCREMENT, `title` varchar(255) NOT NULL, `seo_url` varchar(255) NOT NULL, `rank` int(11) NOT NULL, `isActive` int(11) NOT NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8; # # Data for table \"news_categories\" # INSERT INTO `news_categories` VALUES (3,'M\u00fczik','",
+              "request_index": 1,
+              "sha256": "a4184bc3ec94050be179081d42707d80fc9cdb9d8f315f8a2c8d04ba1690d2c0",
+              "source_document_count": 3,
+              "source_documents": [
+                {
+                  "length": "68110",
+                  "stream_index": 3
+                },
+                {
+                  "length": "66409",
+                  "stream_index": 4
+                },
+                {
+                  "length": "65449",
+                  "stream_index": 5
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8192,
+                "max_identical_block_occurrences": 7,
+                "unique_block_ratio": 0.9739990234375,
+                "unique_blocks": 7979
+              }
+            },
+            {
+              "decoded_prefix": "[Graduate School of Business Creation] Aiming to become a \u201ctax accountant x MBA\u201d who can work with managers to create a \u201cfuture vision for a company\u201d \u201cTax Accountant Exam Subject Exemption Briefing\u201d will be held on October 28th (Sat) NSG Group\u2019s Business Creation Graduate University (3-1-46 Yoneyama, Chuo-ku, Niigata City) will be offering a tax accountant exam subject exemption from 10:30 on Saturday, October 28, 2023 for those aiming to pass the tax accountant exam. An information session will be held online (free of charge, reservation required",
+              "request_index": 2,
+              "sha256": "97771a5103621144f2f3f543ca7e2692ea3fb12bc1ee25fea76cb2657e1df342",
+              "source_document_count": 4,
+              "source_documents": [
+                {
+                  "length": "1617",
+                  "stream_index": 6
+                },
+                {
+                  "length": "67588",
+                  "stream_index": 7
+                },
+                {
+                  "length": "65718",
+                  "stream_index": 8
+                },
+                {
+                  "length": "66365",
+                  "stream_index": 9
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8192,
+                "max_identical_block_occurrences": 3,
+                "unique_block_ratio": 0.9970703125,
+                "unique_blocks": 8168
+              }
+            },
+            {
+              "decoded_prefix": "Do you have information on the knowledge and skills of young children? Differences among demographic groups in the acquisition of cognitive skills have been demonstrated at relatively early ages in the Early Childhood Longitudinal Survey's Birth Cohort (ECLS-B) study as well as its Kindergarten Class (ECLS-K) studies. In 2003\u201304, about 64 percent of 2-year-olds demonstrated proficiency in expressive vocabulary, which measured toddlers' ability to communicate using gestures, words, and sentences. The percentage of 2-year-olds demonstrating expressive vocabulary was higher for females (69 percent) than for males (59 percent). Also, a higher percentage of White (",
+              "request_index": 3,
+              "sha256": "6a32d77831ada9117b40c3b57e5664f672d7b67618dbb6c87e22fd46bea08892",
+              "source_document_count": 7,
+              "source_documents": [
+                {
+                  "length": "912",
+                  "stream_index": 10
+                },
+                {
+                  "length": "66633",
+                  "stream_index": 11
+                },
+                {
+                  "length": "2691",
+                  "stream_index": 12
+                },
+                {
+                  "length": "1396",
+                  "stream_index": 13
+                },
+                {
+                  "length": "995",
+                  "stream_index": 14
+                },
+                {
+                  "length": "727",
+                  "stream_index": 15
+                },
+                {
+                  "length": "65970",
+                  "stream_index": 16
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8192,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 8192
+              }
+            },
+            {
+              "decoded_prefix": "RECENT tensions between the United States, Russia and North Korea have worried many people that a nuclear war could break out. While there is nothing to suggest such an event is likely to happen imminently, here is what experts advise you do if World War 3 breaks out. What to do before a nuclear blast? Experts recommend you follow the guidelines below to protect yourself, your family and your home - if you believe an attack is imminent. - Build an Emergency Supply Kit, which includes items like non-perishable food, water, a battery-powered or hand-crank radio, extra flashlights and batteries. You may want to prepare a",
+              "request_index": 4,
+              "sha256": "9c039e632dd5254c2120b380ec121dc0c9611fc9f4dfb685dc87f203e362f5d4",
+              "source_document_count": 3,
+              "source_documents": [
+                {
+                  "length": "1349",
+                  "stream_index": 17
+                },
+                {
+                  "length": "65549",
+                  "stream_index": 18
+                },
+                {
+                  "length": "65565",
+                  "stream_index": 19
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8192,
+                "max_identical_block_occurrences": 4,
+                "unique_block_ratio": 0.9908447265625,
+                "unique_blocks": 8117
+              }
+            },
+            {
+              "decoded_prefix": "The Lee-Enfield family of rifles first appeared at the end of the Victorian era, and served the British Forces well into the Cold War. This was a remarkable service length, and these were remarkable firearms. The first rifle to use James Paris Lee\u2019s bolt design was termed the Lee-Metford; it replaced the single-shot Martini-Henry and was the first British service rifle to hold multiple rounds. It was also the first weapon chambered in.303 ammunition, which was first developed using black powder. The Lee-Metford had an eight-shot magazine, and was soon replaced by the Lee-Enfield Mark I, with a 10",
+              "request_index": 5,
+              "sha256": "1cdf19a39ad1129d231e6c320f3bcf087a36785ba7116ec8062cdf0a3c7f55c7",
+              "source_document_count": 3,
+              "source_documents": [
+                {
+                  "length": "2192",
+                  "stream_index": 23
+                },
+                {
+                  "length": "66851",
+                  "stream_index": 24
+                },
+                {
+                  "length": "67567",
+                  "stream_index": 25
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8192,
+                "max_identical_block_occurrences": 9,
+                "unique_block_ratio": 0.977783203125,
+                "unique_blocks": 8010
+              }
+            },
+            {
+              "decoded_prefix": "_L2_g40_loose_b10_medium; //! TBranch *b_trig_L2_ph_L2_g40_loose_xe30_medium_noMu; //! TBranch *b_trig_L2_ph_L2_g40_loose_xe35_medium_noMu; //! TBranch *b_trig_L2_ph_L2_g40_loose_xe40_noMu; //! TBranch *b_trig_L2_ph_L2_g40_loose_xs35_noMu; //! TBranch *b_trig_L2",
+              "request_index": 6,
+              "sha256": "696b708d9245ab190b62e2ae66d2c0312b9c35b53eba2281ae68db566ba2ac41",
+              "source_document_count": 2,
+              "source_documents": [
+                {
+                  "length": "66948",
+                  "stream_index": 34
+                },
+                {
+                  "length": "67308",
+                  "stream_index": 35
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8192,
+                "max_identical_block_occurrences": 17,
+                "unique_block_ratio": 0.96435546875,
+                "unique_blocks": 7900
+              }
+            },
+            {
+              "decoded_prefix": "Don't rush me. We'll get to it - all in good time. ## Chapter 10 I'm sure you can understand that I wanted peace in the world at that particular time. A newly married man has better things to do than to dash off to curb the belligerence of others. Unfortunately, it was no more than a couple of years after Poledra and I were married when the Alorn clan wars broke out. Aldur summoned the twins and me to his tower as soon as word of that particular idiocy reached us. 'Ye must go there,' he told us in a tone that didn't encourage disagreement",
+              "request_index": 7,
+              "sha256": "ef088a2ae9ef43171192b7762f9f14beb888f51acf5ae346065719c9b5cf156f",
+              "source_document_count": 3,
+              "source_documents": [
+                {
+                  "length": "65587",
+                  "stream_index": 36
+                },
+                {
+                  "length": "65504",
+                  "stream_index": 37
+                },
+                {
+                  "length": "65515",
+                  "stream_index": 38
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8192,
+                "max_identical_block_occurrences": 1,
+                "unique_block_ratio": 1.0,
+                "unique_blocks": 8192
+              }
+            }
+          ],
+          "rejected_candidate_count": 3,
+          "rejected_candidates": [
+            {
+              "prospective_request_index": 5,
+              "reason": "unique_block_ratio_below_0.95",
+              "source_documents": [
+                {
+                  "length": "801",
+                  "stream_index": 20
+                },
+                {
+                  "length": "66129",
+                  "stream_index": 21
+                },
+                {
+                  "length": "65672",
+                  "stream_index": 22
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8192,
+                "max_identical_block_occurrences": 47,
+                "unique_block_ratio": 0.74658203125,
+                "unique_blocks": 6116
+              }
+            },
+            {
+              "prospective_request_index": 6,
+              "reason": "unique_block_ratio_below_0.95",
+              "source_documents": [
+                {
+                  "length": "69990",
+                  "stream_index": 26
+                },
+                {
+                  "length": "66033",
+                  "stream_index": 27
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8192,
+                "max_identical_block_occurrences": 16,
+                "unique_block_ratio": 0.947265625,
+                "unique_blocks": 7760
+              }
+            },
+            {
+              "prospective_request_index": 6,
+              "reason": "unique_block_ratio_below_0.95",
+              "source_documents": [
+                {
+                  "length": "684",
+                  "stream_index": 28
+                },
+                {
+                  "length": "843",
+                  "stream_index": 29
+                },
+                {
+                  "length": "970",
+                  "stream_index": 30
+                },
+                {
+                  "length": "1553",
+                  "stream_index": 31
+                },
+                {
+                  "length": "80254",
+                  "stream_index": 32
+                },
+                {
+                  "length": "65604",
+                  "stream_index": 33
+                }
+              ],
+              "token_blocks": {
+                "block_size": 16,
+                "blocks": 8192,
+                "max_identical_block_occurrences": 47,
+                "unique_block_ratio": 0.868408203125,
+                "unique_blocks": 7114
+              }
+            }
+          ]
+        },
+        "prompt_length": 131072,
+        "speculative_accepted_tokens_per_repeat": [
+          0
+        ],
+        "speculative_active_row_cycles_per_repeat": [
+          0
+        ],
+        "speculative_draft_tokens_per_repeat": [
+          0
+        ],
+        "speculative_marginal_ms_per_target_cycle": null,
+        "speculative_target_cycles_per_repeat": [
+          0
+        ],
+        "total_timings_seconds": [
+          469.25046178419143
+        ]
+      }
+    }
+  },
+  "sample_offset": 0,
+  "samples_per_length": 8,
+  "speculative_attention_backend": null,
+  "speculative_method": null,
+  "speculative_model": null,
+  "speed_decode_tokens": 1025,
+  "speed_prompt_reserve": 0,
+  "speed_repeats": 1,
+  "speed_use_warm_prefix_cache": false,
+  "tensor_parallel_size": 1
+}
