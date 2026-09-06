@@ -1,6 +1,6 @@
 # Lod Attention
 
-Topic hints: Validate hierarchical routing against production scoring geometry
+Topic hints: Separate refinement fidelity from finite answer-key accuracy
 
 ## Lessons
 
@@ -31,3 +31,5 @@ Topic hints: Validate hierarchical routing against production scoring geometry
 - When explaining full-versus-LOD speed differences across models, do not use the number of attention layers as a causal explanation because it multiplies both paths; compare per-call costs and head geometry, while treating non-attention layers only as dilution of the end-to-end ratio.
 
 - When validating hierarchical top-k routing parity, compare against the actual production grouped selector with identical scoring and block geometry; a different reference route kernel can report a false mismatch even when the production-selected routes are exactly identical.
+
+- When opening one more exact LOD region lowers a finite answer-key score, compare token loss and agreement with full attention before calling it a refinement regression; exact regional replacement need not improve discrete generations monotonically because approximation errors can cancel.
