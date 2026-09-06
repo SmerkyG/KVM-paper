@@ -1,6 +1,6 @@
 # Lod Attention
 
-Topic hints: Compare LOD speed per attention call, not by layer count
+Topic hints: Validate hierarchical routing against production scoring geometry
 
 ## Lessons
 
@@ -29,3 +29,5 @@ Topic hints: Compare LOD speed per attention call, not by layer count
 - For query-only RMS-normalized LOD routing, recover raw coarse-attention dots by multiplying each route-logit row by that query's pre-normalization RMS inside the coarse kernel; this avoids both a second state QK scan and a state-sized temporary.
 
 - When explaining full-versus-LOD speed differences across models, do not use the number of attention layers as a causal explanation because it multiplies both paths; compare per-call costs and head geometry, while treating non-attention layers only as dilution of the end-to-end ratio.
+
+- When validating hierarchical top-k routing parity, compare against the actual production grouped selector with identical scoring and block geometry; a different reference route kernel can report a false mismatch even when the production-selected routes are exactly identical.
