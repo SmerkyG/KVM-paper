@@ -1,6 +1,6 @@
 # Lod Attention
 
-Topic hints: Separate refinement fidelity from finite answer-key accuracy
+Topic hints: Profile max-k selection separately from dynamic leaf attendance
 
 ## Lessons
 
@@ -33,3 +33,5 @@ Topic hints: Separate refinement fidelity from finite answer-key accuracy
 - When validating hierarchical top-k routing parity, compare against the actual production grouped selector with identical scoring and block geometry; a different reference route kernel can report a false mismatch even when the production-selected routes are exactly identical.
 
 - When opening one more exact LOD region lowers a finite answer-key score, compare token loss and agreement with full attention before calling it a refinement regression; exact regional replacement need not improve discrete generations monotonically because approximation errors can cancel.
+
+- Before optimizing dynamic LOD open counts, separate max-k route-selection cost from exact-leaf attendance; masking ranks after selecting max-k cannot recover selector time, and may save little when expert-grouped leaf work is already cheap.
