@@ -598,7 +598,14 @@ class VLLMLayerLODPool:
         self.engine.prefill_coarse_max_grouped_rows = coarse_grouped_rows
         self.engine.prefill_coarse_route_block_n = coarse_block_n
         self.engine.prefill_coarse_route_num_warps = coarse_num_warps
-        self.engine.prefill_aiter_coarse = settings.prefill_aiter_coarse
+        panel_aiter_route = os.getenv("VLLM_LOD_PANEL_PREFILL_AITER_ROUTE") == "1"
+        panel_aiter_route_coarse = (
+            os.getenv("VLLM_LOD_PANEL_PREFILL_AITER_ROUTE_COARSE") == "1"
+        )
+        self.engine.prefill_aiter_coarse = (
+            settings.prefill_aiter_coarse or panel_aiter_route
+        )
+        self.engine.prefill_aiter_route_coarse = panel_aiter_route_coarse
         self.engine.prefill_fused_state_qk = settings.prefill_fused_state_qk
         # Scheduler chunks are already presented as one contiguous prefill
         # field.  Use the serving-wide update batch for both flat and
@@ -825,10 +832,10 @@ class VLLMLayerLODPool:
             self.engine.prefill_overlap_local_lod = (
                 settings.prefill_overlap_local_lod
             )
-        # The current flat two-tier path keeps the protected token in state,
-        # exactly matching the HF benchmark. Retain the older recursive side
-        # cache for compatibility with VLLM_LOD_LEVELS=3.
-        self.engine.separate_sink_cache = settings.levels == 3
+        # The protected prefix is an exact attention branch, not a centroid.
+        # Keep it outside both flat and recursive state so routing contains
+        # only genuinely compressed regions.
+        self.engine.separate_sink_cache = bool(settings.protected_prefix)
         self._assert_production_profile(
             gqa,
             has_query_norm=has_query_norm,
@@ -954,6 +961,10 @@ class VLLMLayerLODPool:
             )
 
         engine_checks = {
+            "separate protected-prefix branch": (
+                self.engine.separate_sink_cache
+                == bool(self.settings.protected_prefix)
+            ),
             "routing geometry": (
                 self.engine.state_clustering_normalization
                 == ("none" if has_key_norm else "cosine")

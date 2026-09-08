@@ -368,6 +368,10 @@ def inspect_lod_model(model) -> dict[str, object]:
     speculative_recursive_state_route_backends = set()
     prefill_coarse_direct_gqa_configured = set()
     prefill_coarse_direct_gqa_executed = set()
+    prefill_aiter_route_only_configured = set()
+    prefill_aiter_route_only_executed = set()
+    prefill_aiter_route_coarse_configured = set()
+    prefill_aiter_route_coarse_executed = set()
     state_v_abs_max = 0.0
     state_v_nonfinite = 0
     decode_gqa_union_configured = set()
@@ -573,6 +577,30 @@ def inspect_lod_model(model) -> dict[str, object]:
                     int(getattr(engine, "prefill_coarse_max_grouped_rows", 0)),
                     int(getattr(engine, "prefill_coarse_route_block_n", 0)),
                     int(getattr(engine, "prefill_coarse_route_num_warps", 0)),
+                )
+            )
+            prefill_aiter_route_only_configured.add(
+                bool(getattr(engine, "prefill_aiter_coarse", False))
+            )
+            prefill_aiter_route_only_executed.add(
+                bool(
+                    getattr(
+                        engine,
+                        "_lod_prefill_aiter_route_only_executed",
+                        False,
+                    )
+                )
+            )
+            prefill_aiter_route_coarse_configured.add(
+                bool(getattr(engine, "prefill_aiter_route_coarse", False))
+            )
+            prefill_aiter_route_coarse_executed.add(
+                bool(
+                    getattr(
+                        engine,
+                        "_lod_prefill_aiter_route_coarse_executed",
+                        False,
+                    )
                 )
             )
             executed_direct_gqa = getattr(
@@ -1035,6 +1063,18 @@ def inspect_lod_model(model) -> dict[str, object]:
         ),
         "prefill_coarse_direct_gqa_executed": sorted(
             prefill_coarse_direct_gqa_executed
+        ),
+        "prefill_aiter_route_only_configured": sorted(
+            prefill_aiter_route_only_configured
+        ),
+        "prefill_aiter_route_only_executed": sorted(
+            prefill_aiter_route_only_executed
+        ),
+        "prefill_aiter_route_coarse_configured": sorted(
+            prefill_aiter_route_coarse_configured
+        ),
+        "prefill_aiter_route_coarse_executed": sorted(
+            prefill_aiter_route_coarse_executed
         ),
         "decode_gqa_union_configured": sorted(decode_gqa_union_configured),
         "decode_gqa_union_requested": sorted(decode_gqa_union_requested),

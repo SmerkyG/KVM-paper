@@ -1,4 +1,4 @@
-"""AITER-backed weighted coarse attention for LOD prefill."""
+"""AITER-backed routing and weighted coarse attention for LOD prefill."""
 
 from __future__ import annotations
 
@@ -21,6 +21,7 @@ def _reduce_aiter_route_candidates_kernel(
     ACTIVE_BLOCKS,
     QUERY_HEADS: tl.constexpr,
     BLOCK_CAPACITY: tl.constexpr,
+    CANDIDATES_PER_TILE: tl.constexpr,
     ROUTE_COUNT: tl.constexpr,
     PROTECTED_LEN: tl.constexpr,
     BLOCK_M: tl.constexpr,
@@ -29,12 +30,17 @@ def _reduce_aiter_route_candidates_kernel(
     batch_head = tl.program_id(0).to(tl.int64)
     query = tl.program_id(1) * BLOCK_M + tl.arange(0, BLOCK_M)
     candidate = tl.arange(0, CANDIDATE_BLOCK)
-    block = candidate // 3
-    rank = candidate - block * 3
+    block = candidate // CANDIDATES_PER_TILE
+    rank = candidate - block * CANDIDATES_PER_TILE
     valid_query = query < QUERY_LEN
     valid_candidate = block < ACTIVE_BLOCKS
     base = (
-        ((batch_head * BLOCK_CAPACITY + block) * 6 + rank) * QUERY_LEN
+        (
+            (batch_head * BLOCK_CAPACITY + block)
+            * (2 * CANDIDATES_PER_TILE)
+            + rank
+        )
+        * QUERY_LEN
         + query[:, None]
     )
     scores = tl.load(
@@ -43,7 +49,7 @@ def _reduce_aiter_route_candidates_kernel(
         other=-float("inf"),
     ).to(tl.float32)
     index_values = tl.load(
-        candidates + base + 3 * QUERY_LEN,
+        candidates + base + CANDIDATES_PER_TILE * QUERY_LEN,
         mask=valid_query[:, None] & valid_candidate[None, :],
         other=-1.0,
     )
@@ -51,6 +57,10 @@ def _reduce_aiter_route_candidates_kernel(
     indices = tl.where(valid_index, index_values, 0.0).to(tl.int64)
     scores = tl.where(valid_index, scores, -float("inf"))
     output_base = (batch_head * QUERY_LEN + query) * ROUTE_COUNT
+    route_rank = tl.arange(0, CANDIDATES_PER_TILE)
+    selected_slots = tl.full(
+        (BLOCK_M, CANDIDATES_PER_TILE), -1, tl.int64
+    )
     for output_rank in tl.static_range(0, ROUTE_COUNT):
         selected_candidate = tl.argmax(scores, axis=1)
         selected_index = tl.sum(
@@ -61,16 +71,49 @@ def _reduce_aiter_route_candidates_kernel(
             ),
             axis=1,
         )
-        tl.store(
-            output + output_base + output_rank,
-            selected_index,
-            mask=valid_query,
+        selected_slots = tl.where(
+            route_rank[None, :] == output_rank,
+            selected_index[:, None],
+            selected_slots,
         )
         scores = tl.where(
             candidate[None, :] == selected_candidate[:, None],
             -float("inf"),
             scores,
         )
+    # Preserve the existing ``reorder_like_torch`` contract used by expert
+    # grouping: keep the lowest-scoring boundary winner last and sort the
+    # preceding selected centroid IDs.
+    boundary_slot = tl.max(
+        tl.where(
+            route_rank[None, :] == ROUTE_COUNT - 1,
+            selected_slots,
+            -1,
+        ),
+        axis=1,
+    )
+    remaining_slots = tl.where(
+        route_rank[None, :] < ROUTE_COUNT - 1,
+        selected_slots,
+        0x7FFFFFFFFFFFFFFF,
+    )
+    for output_rank in tl.static_range(0, ROUTE_COUNT - 1):
+        output_slot = tl.min(remaining_slots, axis=1)
+        tl.store(
+            output + output_base + output_rank,
+            output_slot,
+            mask=valid_query,
+        )
+        remaining_slots = tl.where(
+            remaining_slots == output_slot[:, None],
+            0x7FFFFFFFFFFFFFFF,
+            remaining_slots,
+        )
+    tl.store(
+        output + output_base + ROUTE_COUNT - 1,
+        boundary_slot,
+        mask=valid_query,
+    )
 
 
 def reduce_aiter_route_candidates(
@@ -83,13 +126,14 @@ def reduce_aiter_route_candidates(
     """Reduce CK-emitted per-key-tile winners to exact global routes."""
     if not candidates.is_cuda or not candidates.is_contiguous():
         raise ValueError("AITER route candidates must be contiguous on the GPU")
-    if candidates.ndim != 5 or int(candidates.size(3)) != 6:
-        raise ValueError("AITER route candidates require [B,H,blocks,6,Q]")
+    if candidates.ndim != 5 or int(candidates.size(3)) not in (6, 8):
+        raise ValueError("AITER route candidates require [B,H,blocks,6|8,Q]")
     batch, query_heads, block_capacity, _, query_len = candidates.shape
+    candidates_per_tile = int(candidates.size(3)) // 2
     if not 0 < active_blocks <= block_capacity:
         raise ValueError("active AITER route blocks exceed their allocation")
-    if route_count not in (2, 3):
-        raise ValueError("AITER route reduction currently supports top-2/top-3")
+    if route_count not in (2, 3, 4):
+        raise ValueError("AITER route reduction currently supports top-2/top-3/top-4")
     output = torch.empty(
         batch,
         query_heads,
@@ -99,7 +143,9 @@ def reduce_aiter_route_candidates(
         device=candidates.device,
     )
     block_m = 8
-    candidate_block = triton.next_power_of_2(active_blocks * 3)
+    candidate_block = triton.next_power_of_2(
+        active_blocks * candidates_per_tile
+    )
     _reduce_aiter_route_candidates_kernel[
         (batch * query_heads, triton.cdiv(query_len, block_m))
     ](
@@ -109,6 +155,7 @@ def reduce_aiter_route_candidates(
         active_blocks,
         QUERY_HEADS=query_heads,
         BLOCK_CAPACITY=block_capacity,
+        CANDIDATES_PER_TILE=candidates_per_tile,
         ROUTE_COUNT=route_count,
         PROTECTED_LEN=protected_len,
         BLOCK_M=block_m,
@@ -271,7 +318,6 @@ def aiter_prefill_coarse_attention(
         .repeat_interleave(kv_group_size, dim=1)
         .unsqueeze(2)
     )
-
     original_dlopen_flags = sys.getdlopenflags()
     deepbind = getattr(os, "RTLD_DEEPBIND", 0)
     if deepbind:
@@ -404,12 +450,18 @@ def aiter_prefill_route_coarse_attention(
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Select exact top routes while computing the weighted coarse field.
 
-    The LOD AITER patch emits each native state tile's three best routing
+    The LOD AITER patch emits each native state tile's four best routing
     scores and indices while CK already has its QK tile resident.  Reducing
-    those compact candidates gives the exact global top-2/top-3 without ever
-    materializing the query-by-state routing matrix.
+    those compact candidates gives the exact global top-2/top-3/top-4 without
+    ever materializing the query-by-state routing matrix.
     """
     tensors = (q, mean_k, state_v, counts)
+    if protected_len:
+        raise ValueError(
+            "combined AITER route/coarse attention cannot exclude a routing "
+            "slot while retaining its coarse attention mass; use the "
+            "separate exact sink branch"
+        )
     if not all(tensor.is_cuda for tensor in tensors):
         raise ValueError("AITER route/coarse prefill requires CUDA tensors")
     if not all(tensor.is_contiguous() for tensor in tensors):
@@ -420,8 +472,8 @@ def aiter_prefill_route_coarse_attention(
         raise ValueError("AITER route/coarse prefill requires multiple queries")
     if query_heads != kv_heads * kv_group_size:
         raise ValueError("AITER route/coarse prefill has incompatible GQA geometry")
-    if route_count not in (2, 3):
-        raise ValueError("AITER route/coarse prefill supports top-2/top-3")
+    if route_count not in (2, 3, 4):
+        raise ValueError("AITER route/coarse prefill supports top-2/top-3/top-4")
     if head_dim > 256 or int(state_v.size(-1)) != head_dim:
         raise ValueError("AITER route/coarse prefill supports equal heads up to 256")
     if tuple(mean_k.shape) != (batch, kv_heads, state_len, head_dim):
@@ -447,7 +499,6 @@ def aiter_prefill_route_coarse_attention(
         .repeat_interleave(kv_group_size, dim=1)
         .unsqueeze(2)
     )
-
     original_dlopen_flags = sys.getdlopenflags()
     deepbind = getattr(os, "RTLD_DEEPBIND", 0)
     if deepbind:
@@ -481,7 +532,7 @@ def aiter_prefill_route_coarse_attention(
     finally:
         sys.setdlopenflags(original_dlopen_flags)
 
-    if candidates.ndim != 5 or int(candidates.size(3)) != 6:
+    if candidates.ndim != 5 or int(candidates.size(3)) not in (6, 8):
         raise RuntimeError(
             "active AITER is missing compact LOD route candidates; apply the "
             "LOD route/coarse patch before enabling this path"
@@ -533,10 +584,10 @@ def aiter_prefill_route_attention(
 ) -> torch.Tensor:
     """Select exact top routes without materializing query-by-state scores.
 
-    The patched CK kernel emits three winners from each native key tile and
+    The patched CK kernel emits four winners from each native key tile and
     skips its softmax/PV stages.  A small Triton reduction then finds the exact
-    global top-2/top-3.  Coarse and leaf attention remain separate so the
-    caller can overlap them after routing completes.
+    global top-2/top-3/top-4.  Coarse and leaf attention remain separate so
+    the caller can overlap them after routing completes.
     """
     tensors = (q, mean_k, counts)
     if not all(tensor.is_cuda for tensor in tensors):
@@ -549,8 +600,8 @@ def aiter_prefill_route_attention(
         raise ValueError("AITER prefill routing requires multiple queries")
     if query_heads != kv_heads * kv_group_size:
         raise ValueError("AITER prefill routing has incompatible GQA geometry")
-    if route_count not in (2, 3):
-        raise ValueError("AITER prefill routing supports top-2/top-3")
+    if route_count not in (2, 3, 4):
+        raise ValueError("AITER prefill routing supports top-2/top-3/top-4")
     if head_dim > 256:
         raise ValueError("AITER prefill routing supports heads up to 256")
     if tuple(mean_k.shape) != (batch, kv_heads, state_len, head_dim):
@@ -571,6 +622,13 @@ def aiter_prefill_route_attention(
         .repeat_interleave(kv_group_size, dim=1)
         .unsqueeze(2)
     )
+    if protected_len:
+        # Exclude protected slots before CK retains only four candidates per
+        # native key tile.  Masking them only in the global reducer could
+        # discard a tile candidate and invalidate exact global top-k. Use the
+        # finite dtype minimum because route-only CK recovers the raw dot
+        # product by subtracting this bias; ``-inf - -inf`` would be NaN.
+        log_count_bias[..., :protected_len] = torch.finfo(q.dtype).min
 
     original_dlopen_flags = sys.getdlopenflags()
     deepbind = getattr(os, "RTLD_DEEPBIND", 0)
@@ -607,10 +665,17 @@ def aiter_prefill_route_attention(
     finally:
         sys.setdlopenflags(original_dlopen_flags)
 
-    if candidates.ndim != 5 or int(candidates.size(3)) != 6:
+    if candidates.ndim != 5 or int(candidates.size(3)) not in (6, 8):
         raise RuntimeError(
             "active AITER is missing compact LOD route candidates; apply the "
             "LOD route-only patch before enabling this path"
+        )
+    expected_block_capacity = (state_len + 63) // 64
+    if int(candidates.size(2)) != expected_block_capacity:
+        raise RuntimeError(
+            "AITER route candidate ABI capacity drifted: expected storage for "
+            f"ceil({state_len}/64)={expected_block_capacity} key tiles, got "
+            f"{int(candidates.size(2))}"
         )
     return reduce_aiter_route_candidates(
         candidates,

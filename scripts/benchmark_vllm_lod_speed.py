@@ -287,6 +287,26 @@ def inspect_lod_model(model) -> dict[str, object]:
                 prefill_direct_expert_buckets=bool(
                     pool.engine.prefill_direct_expert_buckets
                 ),
+                prefill_aiter_route_only_configured=bool(
+                    pool.engine.prefill_aiter_coarse
+                ),
+                prefill_aiter_route_only_executed=bool(
+                    getattr(
+                        pool.engine,
+                        "_lod_prefill_aiter_route_only_executed",
+                        False,
+                    )
+                ),
+                prefill_aiter_route_coarse_configured=bool(
+                    pool.engine.prefill_aiter_route_coarse
+                ),
+                prefill_aiter_route_coarse_executed=bool(
+                    getattr(
+                        pool.engine,
+                        "_lod_prefill_aiter_route_coarse_executed",
+                        False,
+                    )
+                ),
                 prefill_static_leaf_aiter=bool(
                     pool.engine.prefill_static_leaf_aiter
                 ),

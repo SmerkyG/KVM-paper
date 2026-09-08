@@ -1,0 +1,382 @@
+--- a/csrc/py_itfs_ck/mha_fwd_kernels.cu
++++ b/csrc/py_itfs_ck/mha_fwd_kernels.cu
+@@ -76,14 +76,28 @@
+ 
+     void *bias_ptr = nullptr;
+     ck_tile::index_t stride_bias = 0;
++    ck_tile::index_t nhead_stride_bias = 0;
++    ck_tile::index_t batch_stride_bias = 0;
+ 
+     if (bias_.has_value()) {
+         auto bias = bias_.value();
+         CHECK_DEVICE(bias);
+         TORCH_CHECK(bias.stride(-1) == 1, "bias tensor must have contiguous last dimension");
+-        TORCH_CHECK(bias.sizes() == torch::IntArrayRef({seqlen_q, seqlen_k}), "bias shape should be [sq, sk]");
++        TORCH_CHECK(
++            bias.sizes() == torch::IntArrayRef({seqlen_q, seqlen_k}) ||
++                bias.sizes() == torch::IntArrayRef({b, h, seqlen_q, seqlen_k}) ||
++                bias.sizes() == torch::IntArrayRef({b, h, 1, seqlen_k}),
++            "bias shape should be [sq, sk], [batch, heads, sq, sk], or "
++            "[batch, heads, 1, sk]");
+         bias_ptr = bias.data_ptr();
+-        stride_bias = bias.stride(0);
++        if (bias.dim() == 2) {
++            stride_bias = bias.stride(0);
++        }
++        else {
++            stride_bias = bias.size(2) == 1 ? 0 : bias.stride(2);
++            nhead_stride_bias = bias.stride(1);
++            batch_stride_bias = bias.stride(0);
++        }
+     }
+     else if (alibi_slopes_.has_value()) {
+         auto alibi_slopes = alibi_slopes_.value();
+@@ -148,7 +162,7 @@
+                         nhead_stride_q,
+                         nhead_stride_k,
+                         nhead_stride_v,
+-                        0, // nhead_stride_bias
++                        nhead_stride_bias,
+                         nhead_stride_randval,
+                         nhead_stride_lse,
+                         nhead_stride_o,
+@@ -158,7 +172,7 @@
+                         batch_stride_q,
+                         batch_stride_k,
+                         batch_stride_v,
+-                        0, // batch_stride_bias
++                        batch_stride_bias,
+                         batch_stride_randval,
+                         batch_stride_lse,
+                         batch_stride_o,
+@@ -327,8 +341,19 @@
+ 
+     at::Tensor p;
+     if (return_dropout_randval) {
+-        TORCH_CHECK(has_dropout, "return_dropout_randval require p_dropout > 0");
+-        p = torch::empty({batch_size, num_heads, seqlen_q, seqlen_k}, opts.dtype(torch::kUInt8));
++        if (has_dropout) {
++            p = torch::empty({batch_size, num_heads, seqlen_q, seqlen_k}, opts.dtype(torch::kUInt8));
++        }
++        else {
++            // Experimental LOD route probe. The CK FMHA kernel writes one
++            // query-normalized routing maximum per native key tile. Reserve
++            // for the smallest supported tile (64); unused entries stay -inf.
++            const int route_blocks = (seqlen_k + 63) / 64;
++            p = torch::full(
++                {batch_size, num_heads, route_blocks, 8, seqlen_q},
++                -std::numeric_limits<float>::infinity(),
++                opts.dtype(torch::kFloat32));
++        }
+     }
+     else {
+         p = torch::empty({ 0 }, opts);
+--- a/3rdparty/composable_kernel/include/ck_tile/ops/fmha/block/variants.hpp
++++ b/3rdparty/composable_kernel/include/ck_tile/ops/fmha/block/variants.hpp
+@@ -54,13 +54,30 @@
+ template <typename ImplMask>
+ struct StandardAttentionParams
+ {
+-    __device__ __host__ StandardAttentionParams(const ImplMask& impl_mask_, float sm_scale_)
+-        : impl_mask(impl_mask_), sm_scale(sm_scale_)
++    __device__ __host__ StandardAttentionParams(const ImplMask& impl_mask_,
++                                                float sm_scale_,
++                                                void* route_block_max_ptr_ = nullptr,
++                                                index_t route_seqlen_q_ = 0,
++                                                index_t route_seqlen_k_ = 0,
++                                                index_t route_num_heads_ = 0,
++                                                bool route_only_ = false)
++        : impl_mask(impl_mask_),
++          sm_scale(sm_scale_),
++          route_block_max_ptr(route_block_max_ptr_),
++          route_seqlen_q(route_seqlen_q_),
++          route_seqlen_k(route_seqlen_k_),
++          route_num_heads(route_num_heads_),
++          route_only(route_only_)
+     {
+     }
+ 
+     const ImplMask& impl_mask;
+     float sm_scale;
++    void* route_block_max_ptr;
++    index_t route_seqlen_q;
++    index_t route_seqlen_k;
++    index_t route_num_heads;
++    bool route_only;
+ };
+ 
+ template <typename ImplMask, bool UseExp2 = false>
+--- a/3rdparty/composable_kernel/include/ck_tile/ops/fmha/kernel/fmha_fwd_kernel.hpp
++++ b/3rdparty/composable_kernel/include/ck_tile/ops/fmha/kernel/fmha_fwd_kernel.hpp
+@@ -205,6 +205,11 @@
+         // Optional global head count and head offset (for grouped launches & RNG correctness)
+         ck_tile::index_t num_head_q_total = 0;
+         ck_tile::index_t head_start       = 0;
++
++        // In the no-dropout LOD route-probe mode, rand_val_ptr is reused as a
++        // compact [batch, qhead, key_block, query] FP32 block-maximum output.
++        void* route_block_max_ptr = nullptr;
++        bool route_only            = false;
+     };
+ 
+     struct FmhaFwdLogitsSoftCapKargs
+@@ -643,6 +648,11 @@
+ 
+         kargs.cu_seqlen_q_ptr = reinterpret_cast<const int32_t*>(cu_seqlen_q_ptr);
+         kargs.cu_seqlen_k_ptr = reinterpret_cast<const int32_t*>(cu_seqlen_k_ptr);
++        if constexpr(!kHasDropout)
++        {
++            kargs.route_block_max_ptr = rand_val_ptr;
++            kargs.route_only = rand_val_ptr != nullptr && k_ptr == v_ptr;
++        }
+         return kargs;
+     }
+ 
+@@ -1099,6 +1109,11 @@
+ 
+         kargs.cu_seqlen_q_ptr = reinterpret_cast<const int32_t*>(cu_seqlen_q_ptr);
+         kargs.cu_seqlen_k_ptr = reinterpret_cast<const int32_t*>(cu_seqlen_k_ptr);
++        if constexpr(!kHasDropout)
++        {
++            kargs.route_block_max_ptr = rand_val_ptr;
++            kargs.route_only = rand_val_ptr != nullptr && k_ptr == v_ptr;
++        }
+         return kargs;
+     }
+ 
+@@ -2028,7 +2043,13 @@
+                 }
+                 else
+                 {
+-                    return ck_tile::StandardAttentionParams<FmhaMask>{mask, scale_s};
++                    return ck_tile::StandardAttentionParams<FmhaMask>{mask,
++                                                                      scale_s,
++                                                                      kargs.route_block_max_ptr,
++                                                                      kargs.seqlen_q,
++                                                                      kargs.seqlen_k,
++                                                                      kargs.num_head_q,
++                                                                      kargs.route_only};
+                 }
+             }();
+ 
+--- a/3rdparty/composable_kernel/include/ck_tile/ops/fmha/pipeline/block_fmha_pipeline_qr_ks_vs.hpp
++++ b/3rdparty/composable_kernel/include/ck_tile/ops/fmha/pipeline/block_fmha_pipeline_qr_ks_vs.hpp
+@@ -680,7 +680,14 @@
+ #endif
+             if constexpr(kVPrefetch == VPrefetchPoint::BeforeGemm0Tail)
+             {
+-                load_tile(v_prefetch, v_dram_window); // prefetch load v tile
++                if constexpr(kHasLogitsSoftCap)
++                {
++                    load_tile(v_prefetch, v_dram_window); // prefetch load v tile
++                }
++                else if(!variant_params.route_only)
++                {
++                    load_tile(v_prefetch, v_dram_window); // prefetch load v tile
++                }
+             }
+             { // tail
+                 block_sync_lds();
+@@ -700,7 +707,14 @@
+             }
+             if constexpr(kVPrefetch == VPrefetchPoint::AfterGemm0Tail)
+             {
+-                load_tile(v_prefetch, v_dram_window);
++                if constexpr(kHasLogitsSoftCap)
++                {
++                    load_tile(v_prefetch, v_dram_window);
++                }
++                else if(!variant_params.route_only)
++                {
++                    load_tile(v_prefetch, v_dram_window);
++                }
+             }
+             // dequant
+             auto s_acc_element_func_ = [&s_acc_element_func, k_descale]() {
+@@ -821,6 +835,170 @@
+             }
+ 
+             const auto s = cast_tile<SMPLComputeDataType>(s_acc); // S{j}
++
++            if constexpr(!kHasLogitsSoftCap &&
++                         BiasEnum == BlockAttentionBiasEnum::ELEMENTWISE_BIAS)
++            {
++                if(variant_params.route_block_max_ptr != nullptr)
++                {
++                    // Query normalization belongs only to the routing-candidate
++                    // elementwise-bias specialization. Keeping it here avoids
++                    // adding a reduction to ordinary AITER attention.
++                    auto route_q_square = tile_elementwise_in(
++                        [](auto x) {
++                            const float xf = type_convert<float>(x);
++                            return xf * xf;
++                        },
++                        q_tile);
++                    auto route_q_rms = block_tile_reduce<float>(
++                        route_q_square, sequence<1>{}, f_sum, 0.0f);
++                    block_tile_reduce_sync(
++                        route_q_rms, f_sum, bool_constant<false>{});
++                    tile_elementwise_inout(
++                        [](auto& x) {
++                            x = sqrt(x / static_cast<float>(kQKHeaddim));
++                        },
++                        route_q_rms);
++                    auto route_s               = s;
++                    auto route_bias            = bias_tile;
++                    constexpr auto route_spans = decltype(route_s)::get_distributed_spans();
++                    sweep_tile_span(route_spans[number<0>{}], [&](auto idx0) {
++                        const float query_rms = max(
++                            type_convert<float>(route_q_rms(make_tuple(idx0))), 1.0e-12f);
++                        sweep_tile_span(route_spans[number<1>{}], [&](auto idx1) {
++                            constexpr auto i_j_idx = make_tuple(idx0, idx1);
++                            float bias_value = type_convert<float>(
++                                bias_element_func(route_bias(i_j_idx)));
++#if CK_TILE_FMHA_FWD_FAST_EXP2
++                            bias_value *= log2e_v<float>;
++#endif
++                            const float coarse_score =
++                                type_convert<float>(route_s(i_j_idx));
++                            route_s(i_j_idx) =
++                                type_convert<SMPLComputeDataType>(
++                                    (coarse_score - bias_value) / query_rms + bias_value);
++                        });
++                    });
++                    const index_t route_block_capacity = integer_divide_ceil(
++                        variant_params.route_seqlen_k, index_t{64});
++                    const auto f_min = [](auto e0, auto e1) { return min(e0, e1); };
++                    static_for<0, 4, 1>{}([&](auto route_rank) {
++                        auto route_m_local = block_tile_reduce<SMPLComputeDataType>(
++                            route_s,
++                            sequence<1>{},
++                            f_max,
++                            -numeric<SMPLComputeDataType>::infinity());
++                        block_tile_reduce_sync(
++                            route_m_local, f_max, bool_constant<false>{});
++                        auto route_i_tile = make_static_distributed_tensor<index_t>(
++                            route_s.get_tile_distribution());
++                        constexpr auto candidate_spans =
++                            decltype(route_s)::get_distributed_spans();
++                        sweep_tile_span(candidate_spans[number<0>{}], [&](auto idx0) {
++                            const auto row_max = route_m_local(make_tuple(idx0));
++                            sweep_tile_span(candidate_spans[number<1>{}], [&](auto idx1) {
++                                const auto tile_idx = get_x_indices_from_distributed_indices(
++                                    route_s.get_tile_distribution(), make_tuple(idx0, idx1));
++                                constexpr auto i_j_idx = make_tuple(idx0, idx1);
++                                const index_t global_column =
++                                    kv_load_start + i_total_loops * kN0 +
++                                    tile_idx.at(number<1>{});
++                                route_i_tile(i_j_idx) =
++                                    route_s(i_j_idx) == row_max
++                                        ? global_column
++                                        : numeric<index_t>::max();
++                            });
++                        });
++                        auto route_i_local = block_tile_reduce<index_t>(
++                            route_i_tile,
++                            sequence<1>{},
++                            f_min,
++                            numeric<index_t>::max());
++                        block_tile_reduce_sync(
++                            route_i_local, f_min, bool_constant<false>{});
++
++                        static_for<0, 2, 1>{}([&](auto output_kind) {
++                            constexpr index_t output_channel =
++                                route_rank + output_kind * 4;
++                            auto* route_ptr = reinterpret_cast<float*>(
++                                variant_params.route_block_max_ptr) +
++                                (((static_cast<long_index_t>(block_indices.batch_idx) *
++                                       variant_params.route_num_heads +
++                                   block_indices.qo_head_idx) *
++                                      route_block_capacity +
++                                  i_total_loops) *
++                                     8 +
++                                 output_channel) *
++                                    variant_params.route_seqlen_q;
++                            auto route_dram =
++                                make_naive_tensor_view<address_space_enum::global>(
++                                    route_ptr,
++                                    make_tuple(variant_params.route_seqlen_q),
++                                    make_tuple(index_t{1}),
++                                    number<1>{},
++                                    number<1>{});
++                            auto route_window = make_tile_window(
++                                route_dram,
++                                make_tuple(number<kM0>{}),
++                                {q_origin.at(number<0>{})},
++                                route_m_local.get_tile_distribution());
++                            if constexpr(output_kind == 0)
++                            {
++                                store_tile(route_window, route_m_local);
++                            }
++                            else
++                            {
++                                auto route_i_float = tile_elementwise_in(
++                                    [](auto x) { return type_convert<float>(x); },
++                                    route_i_local);
++                                store_tile(route_window, route_i_float);
++                            }
++                        });
++
++                        sweep_tile_span(candidate_spans[number<0>{}], [&](auto idx0) {
++                            const index_t selected = route_i_local(make_tuple(idx0));
++                            sweep_tile_span(candidate_spans[number<1>{}], [&](auto idx1) {
++                                const auto tile_idx = get_x_indices_from_distributed_indices(
++                                    route_s.get_tile_distribution(), make_tuple(idx0, idx1));
++                                constexpr auto i_j_idx = make_tuple(idx0, idx1);
++                                const index_t global_column =
++                                    kv_load_start + i_total_loops * kN0 +
++                                    tile_idx.at(number<1>{});
++                                if(global_column == selected)
++                                {
++                                    route_s(i_j_idx) =
++                                        -numeric<SMPLComputeDataType>::infinity();
++                                }
++                            });
++                        });
++                    });
++                }
++            }
++            // The LOD routing probe needs only QK and the compact per-tile
++            // winners.  Skip softmax and PV, and advance directly to the next
++            // native key tile.  Coarse attention runs separately so it can
++            // overlap exact leaf attention.
++            if constexpr(!kHasLogitsSoftCap)
++            {
++                if(variant_params.route_only)
++                {
++                    block_sync_lds();
++                    if constexpr(kHasSink)
++                    {
++                        if(i_total_loops == 0)
++                        {
++                            move_tile_window(k_dram_block_window,
++                                             {seqlen_k_start - sink_seq_end, 0});
++                        }
++                    }
++                    move_tile_window(k_dram_block_window, {kN0, 0});
++                    if constexpr(QScaleEnum == BlockAttentionQuantScaleEnum::MX)
++                    {
++                        move_tile_window(k_scale_dram_block_window, {kN0, 0});
++                    }
++                    continue;
++                }
++            }
+             auto m_local = block_tile_reduce<SMPLComputeDataType>(
+                 s,
+                 sequence<1>{},
+@@ -1212,6 +1390,15 @@
+             }
+         } while(++i_total_loops < num_total_loop);
+ 
++        if constexpr(!kHasLogitsSoftCap)
++        {
++            if(variant_params.route_only)
++            {
++                // Route-only mode deliberately leaves attention output/LSE unused.
++                return o_acc;
++            }
++        }
++
+         // store lse
+         if constexpr(kStoreLSE)
+         {

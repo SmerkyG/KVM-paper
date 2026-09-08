@@ -2,8 +2,13 @@
 """Build a source overlay that adds compact LOD attention modes to AITER.
 
 The overlay keeps every unmodified AITER/CK file as a symlink and writes regular
-copies of only the six files changed or materialized below.  It is therefore safe to point
+copies of only the ten files changed or materialized below.  It is therefore safe to point
 ``AITER_META_DIR`` at the result without modifying the shared AITER install.
+It also adds route-only standard prefill attention: native CK QK tiles emit
+their four best centroid indices and scores, then skip softmax and PV.  This
+keeps AITER's native query-tile/GQA schedule and avoids materializing the full
+query-by-state score field.  A small external reduction recovers the exact
+global top four from the streamed key-tile candidates.
 
 The patched page-size-one SGLang batch-prefill ABI reuses metadata arguments
 that are otherwise unused in that mode:
@@ -33,6 +38,7 @@ import argparse
 import os
 from pathlib import Path
 import shutil
+import subprocess
 
 
 def replace_once(text: str, old: str, new: str, *, label: str) -> str:
@@ -822,6 +828,21 @@ PATCHES = {
         "3rdparty/composable_kernel/example/ck_tile/01_fmha/codegen/ops/"
         "fmha_batch_prefill.py"
     ): patch_batch_prefill_codegen,
+    # Materialize the standard-FMHA sources before applying the checked-in
+    # route-only patch below.  Patching the overlay symlinks in place would
+    # otherwise modify the shared AITER installation.
+    Path("csrc/py_itfs_ck/mha_fwd_kernels.cu"): materialize,
+    Path(
+        "3rdparty/composable_kernel/include/ck_tile/ops/fmha/block/variants.hpp"
+    ): materialize,
+    Path(
+        "3rdparty/composable_kernel/include/ck_tile/ops/fmha/kernel/"
+        "fmha_fwd_kernel.hpp"
+    ): materialize,
+    Path(
+        "3rdparty/composable_kernel/include/ck_tile/ops/fmha/pipeline/"
+        "block_fmha_pipeline_qr_ks_vs.hpp"
+    ): materialize,
 }
 
 
@@ -862,6 +883,24 @@ def main() -> None:
         output_file.unlink()
         output_file.write_text(patched)
         print(relative)
+
+    route_patch = (
+        Path(__file__).resolve().parents[1]
+        / "integrations/vllm_lod/patches/aiter-mha-prefill-route4.patch"
+    )
+    subprocess.run(
+        [
+            "patch",
+            "--batch",
+            "--forward",
+            "-p1",
+            "-d",
+            str(output),
+            "-i",
+            str(route_patch),
+        ],
+        check=True,
+    )
 
 
 if __name__ == "__main__":

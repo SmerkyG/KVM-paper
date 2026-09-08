@@ -385,6 +385,7 @@ class TritonLODAttentionCore(nn.Module):
     prefill_coarse_route_block_n = 32
     prefill_coarse_route_num_warps = 8
     prefill_aiter_coarse = False
+    prefill_aiter_route_coarse = False
     prefill_fused_state_qk = False
     fused_prefill_route_coarse = False
     fused_prefill_stable_recompute = True
@@ -4156,18 +4157,71 @@ class TritonLODAttentionCore(nn.Module):
                 if local_k is None or local_v is None:
                     raise AssertionError("fused prefill routing has no local KV")
                 query_normalized_routing = self.routing_normalization == "query"
-                # The patched AITER route/coarse kernels win while the state
-                # fits in one native 2K scan, but their register pressure
-                # scales poorly beyond that point. Fall back automatically
-                # to the tiled exact selector and coarse kernel for larger
-                # states instead of forcing one backend across the prompt.
+                # The route-only CK specialization keeps the native GQA QK
+                # schedule and emits only per-key-tile winners. Unlike the
+                # older route/coarse fusion, it does not serialize the coarse
+                # and exact-leaf branches or materialize all routing logits.
                 use_aiter_prefill = bool(
                     self.prefill_aiter_coarse and state_len <= 2048
                 )
+                gqa = int(self.num_key_value_groups)
+                use_aiter_route_coarse = bool(
+                    self.prefill_aiter_route_coarse
+                    and query_normalized_routing
+                    and route_count in (2, 3, 4)
+                    and protected_len == 0
+                    and prefill_route_leaf_cap is None
+                    and seal_capacity is None
+                    and self.split_prefill_local_attention
+                    and getattr(self, "mla_state_key_normalization", "none")
+                    == "none"
+                    and int(q.size(-1)) <= 256
+                    and int(state_v.size(-1)) == int(q.size(-1))
+                )
+                if use_aiter_route_coarse:
+                    from .kernels.aiter_prefill_attention import (
+                        aiter_prefill_route_coarse_attention,
+                    )
+
+                    route_select_begin = None
+                    timing_events = getattr(self, "_lod_phase_timing_events", None)
+                    if isinstance(timing_events, dict):
+                        route_select_begin = torch.cuda.Event(enable_timing=True)
+                        route_select_begin.record()
+                    active_counts = counts[..., :state_len, :]
+                    mean_k = self._mean(
+                        state_k.detach()[..., :state_len, :], active_counts
+                    ).contiguous()
+                    routed, coarse_output, coarse_lse = (
+                        aiter_prefill_route_coarse_attention(
+                            q.contiguous(),
+                            mean_k,
+                            state_v.contiguous(),
+                            counts.contiguous(),
+                            state_len=state_len,
+                            kv_group_size=gqa,
+                            scale=self.scaling,
+                            route_count=route_count,
+                            protected_len=0,
+                        )
+                    )
+                    self._lod_prefill_fused_coarse = (
+                        coarse_output,
+                        coarse_lse,
+                        False,
+                    )
+                    self._lod_prefill_aiter_route_coarse_executed = True
+                    if route_select_begin is not None:
+                        route_select_end = torch.cuda.Event(enable_timing=True)
+                        route_select_end.record()
+                        timing_events.setdefault("route_select", []).append(
+                            (route_select_begin, route_select_end)
+                        )
+                    return routed
                 if (
                     use_aiter_prefill
                     and query_normalized_routing
-                    and route_count in (2, 3)
+                    and route_count in (2, 3, 4)
                     and self.split_prefill_local_attention
                     and getattr(self, "mla_state_key_normalization", "none")
                     == "none"
@@ -4176,6 +4230,11 @@ class TritonLODAttentionCore(nn.Module):
                         aiter_prefill_route_attention,
                     )
 
+                    route_select_begin = None
+                    timing_events = getattr(self, "_lod_phase_timing_events", None)
+                    if isinstance(timing_events, dict):
+                        route_select_begin = torch.cuda.Event(enable_timing=True)
+                        route_select_begin.record()
                     active_counts = counts[..., :state_len, :]
                     mean_k = self._mean(
                         state_k.detach()[..., :state_len, :], active_counts
@@ -4190,6 +4249,12 @@ class TritonLODAttentionCore(nn.Module):
                         route_count=route_count,
                         protected_len=protected_len,
                     )
+                    if route_select_begin is not None:
+                        route_select_end = torch.cuda.Event(enable_timing=True)
+                        route_select_end.record()
+                        timing_events.setdefault("route_select", []).append(
+                            (route_select_begin, route_select_end)
+                        )
                     self._lod_prefill_aiter_routes = True
                     self._lod_prefill_aiter_route_only_executed = True
                     return routed
