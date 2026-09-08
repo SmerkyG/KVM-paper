@@ -26,12 +26,14 @@ from .kernels.paged_leaf_attention import (
     append_paged_kv,
     append_quantized_virtual_paged_kv,
     append_virtual_paged_kv,
+    aiter_fused_hilo_paged_attention,
     aiter_query_tile_union_paged_leaf_attention,
     aiter_varlen_paged_leaf_attention,
     dense_page_summary_attention,
     fused_decode_paged_lod_attention,
     gqa_tile_masked_paged_leaf_attention,
     materialize_page_summary_scores_gqa,
+    materialize_page1_coarse_means,
     merge_global_routed_page_residuals,
     new_fused_decode_buffers,
     paged_leaf_attention,
@@ -4266,6 +4268,7 @@ class TritonLODAttentionCore(nn.Module):
                     stable_recompute=self.fused_prefill_stable_recompute,
                     route_only=(
                         use_aiter_prefill
+                        or self.leaf_layout == "aiter_hilo"
                         or (
                             not fused_state_qk
                             and self.fused_prefill_stable_recompute
@@ -4299,7 +4302,9 @@ class TritonLODAttentionCore(nn.Module):
                     if not hasattr(self, "_lod_dynamic_prefill_histograms"):
                         self._lod_dynamic_prefill_histograms = []
                     self._lod_dynamic_prefill_histograms.append(histogram)
-                if use_aiter_prefill:
+                if self.leaf_layout == "aiter_hilo":
+                    pass
+                elif use_aiter_prefill:
                     self._lod_prefill_aiter_routes = True
                 elif (
                     not fused_state_qk
@@ -5387,6 +5392,20 @@ class TritonLODAttentionCore(nn.Module):
                 dtype=torch.bool,
                 device=k.device,
             )
+        if destination is not None and self.leaf_layout == "aiter_hilo":
+            for name in (
+                "unified_page1_k",
+                "unified_page1_v",
+                "unified_page1_bias",
+                "unified_page1_leaf_offset",
+                "unified_page1_coarse_offset",
+                "unified_page1_row_offset",
+            ):
+                if name not in destination:
+                    raise TypeError(
+                        f"fused AITER HiLo page destination lacks {name}"
+                    )
+                cache[name] = destination[name]
         self._append_page_cache(cache, k, v, owners)
         return cache
 
@@ -5976,6 +5995,7 @@ class TritonLODAttentionCore(nn.Module):
             "aiter_copy": aiter_varlen_paged_leaf_attention,
             "aiter_union": aiter_query_tile_union_paged_leaf_attention,
             "aiter_masked_union": aiter_query_tile_union_paged_leaf_attention,
+            "aiter_hilo": aiter_query_tile_union_paged_leaf_attention,
         }.get(self.leaf_layout)
         if leaf_function is None:
             raise ValueError(f"unknown leaf attention layout {self.leaf_layout!r}")
@@ -6018,6 +6038,7 @@ class TritonLODAttentionCore(nn.Module):
             "aiter_copy",
             "aiter_union",
             "aiter_masked_union",
+            "aiter_hilo",
         ):
             block_m = self.leaf_block_m
             block_n = self.leaf_block_n
@@ -6058,7 +6079,11 @@ class TritonLODAttentionCore(nn.Module):
                     long_expert_threshold=self.leaf_long_expert_threshold,
                     long_expert_splits=self.leaf_long_expert_splits,
                 )
-            if self.leaf_layout in ("aiter_union", "aiter_masked_union"):
+            if self.leaf_layout in (
+                "aiter_union",
+                "aiter_masked_union",
+                "aiter_hilo",
+            ):
                 leaf_kwargs["query_tile"] = self.leaf_union_query_tile
                 if (
                     self.leaf_layout == "aiter_union"
@@ -6083,7 +6108,7 @@ class TritonLODAttentionCore(nn.Module):
                     copy_indexed_kv=True,
                     copy_page_size=self.leaf_aiter_copy_page_size,
                 )
-            if self.leaf_layout == "aiter_masked_union":
+            if self.leaf_layout in ("aiter_masked_union", "aiter_hilo"):
                 leaf_kwargs["mask_queries"] = True
             if bool(cache.get("prefill_int8_leaf_mma", False)):
                 if self.leaf_layout not in ("expert", "expert_tiny"):
@@ -7795,6 +7820,132 @@ class TritonLODAttentionCore(nn.Module):
                 slot_lengths,
                 kv_group_size=self.num_key_value_groups,
                 query_tile=self.leaf_union_query_tile,
+            )
+        if (
+            self.leaf_layout == "aiter_hilo"
+            and int(q.size(2)) > 1
+            and page_cache is not None
+            and all(
+                isinstance(page_cache.get(name), torch.Tensor)
+                for name in (
+                    "page_indices",
+                    "unified_page1_k",
+                    "unified_page1_v",
+                    "unified_page1_bias",
+                )
+            )
+        ):
+            if self.recursive_page_lod:
+                raise ValueError("fused AITER HiLo requires flat two-tier LOD")
+            if local_branch is None:
+                raise ValueError("fused AITER HiLo requires split local attention")
+            if getattr(self, "mla_state_key_normalization", "none") != "none":
+                raise NotImplementedError(
+                    "fused AITER HiLo does not yet support MLA state keys"
+                )
+            required = (
+                "leaf_k",
+                "leaf_v",
+                "page_indices",
+                "slot_pages",
+                "overflow_page_keys",
+                "overflow_page_values",
+                "overflow_used",
+                "slot_lengths",
+                "unified_page1_k",
+                "unified_page1_v",
+                "unified_page1_bias",
+            )
+            if not all(
+                isinstance(page_cache.get(name), torch.Tensor)
+                for name in required
+            ):
+                raise RuntimeError("fused AITER HiLo cache is incomplete")
+            arena_k = page_cache["unified_page1_k"]
+            arena_v = page_cache["unified_page1_v"]
+            arena_bias = page_cache["unified_page1_bias"]
+            arena_row_offset = int(page_cache.get("unified_page1_row_offset", 0))
+            arena_coarse_offset = int(page_cache["unified_page1_coarse_offset"])
+            kv_heads = int(state_k.size(1))
+            coarse_begin = (
+                arena_coarse_offset
+                + arena_row_offset * kv_heads * state_capacity
+            )
+            coarse_end = coarse_begin + int(q.size(0)) * kv_heads * state_capacity
+            coarse_k = arena_k[coarse_begin:coarse_end].view_as(state_k)
+            coarse_v = arena_v[coarse_begin:coarse_end].view_as(state_v)
+            coarse_bias = arena_bias[coarse_begin:coarse_end].view(
+                int(q.size(0)), kv_heads, state_capacity
+            )
+            materialize_page1_coarse_means(
+                state_k,
+                state_v,
+                counts,
+                coarse_k,
+                coarse_v,
+                coarse_bias,
+            )
+            remote_output, remote_lse = aiter_fused_hilo_paged_attention(
+                q,
+                page_cache["leaf_k"],
+                page_cache["leaf_v"],
+                page_cache["page_indices"],
+                page_cache["slot_pages"],
+                page_cache["overflow_page_keys"],
+                page_cache["overflow_page_values"],
+                page_cache["overflow_used"],
+                page_cache["slot_lengths"],
+                top_slots,
+                arena_k,
+                arena_v,
+                arena_bias,
+                arena_leaf_offset=(
+                    int(page_cache["unified_page1_leaf_offset"])
+                    + arena_row_offset
+                    * kv_heads
+                    * int(page_cache["leaf_capacity"])
+                ),
+                arena_coarse_offset=arena_coarse_offset,
+                arena_row_offset=arena_row_offset,
+                state_len=state_len,
+                state_capacity=state_capacity,
+                kv_group_size=self.num_key_value_groups,
+                scale=self.scaling,
+                hash_probes=self._page_lookup_probes(page_cache),
+                query_tile=self.leaf_union_query_tile,
+                timing_events=getattr(self, "_lod_leaf_timing_events", None),
+            )
+            local_stream = getattr(self, "_lod_prefill_local_stream_pending", None)
+            if local_stream is not None:
+                del self._lod_prefill_local_stream_pending
+                torch.cuda.current_stream(q.device).wait_stream(local_stream)
+            local_output, local_lse = local_branch
+            self._record_decode_previous_total_lse(
+                page_cache,
+                q,
+                remote_lse,
+                local_lse,
+                sink_k=sink_k,
+            )
+            if sink_k is not None and sink_v is not None:
+                return merge_attention_branches_with_sink(
+                    q,
+                    sink_k,
+                    sink_v,
+                    remote_output,
+                    remote_lse,
+                    local_output,
+                    local_lse,
+                    kv_group_size=self.num_key_value_groups,
+                    scale=self.scaling,
+                    output_buffer=output_buffer,
+                )
+            return merge_attention_branches(
+                remote_output,
+                remote_lse,
+                local_output,
+                local_lse,
+                output_buffer=output_buffer,
             )
         if (
             self.fused_decode_attention

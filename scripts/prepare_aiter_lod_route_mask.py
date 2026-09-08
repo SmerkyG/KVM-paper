@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a source overlay that adds compact LOD route masking to AITER.
+"""Build a source overlay that adds compact LOD attention modes to AITER.
 
 The overlay keeps every unmodified AITER/CK file as a symlink and writes regular
 copies of only the six files changed or materialized below.  It is therefore safe to point
@@ -8,9 +8,18 @@ copies of only the six files changed or materialized below.  It is therefore saf
 The patched page-size-one SGLang batch-prefill ABI reuses metadata arguments
 that are otherwise unused in that mode:
 
-* ``block_table`` is a tiny ``int32[1, 4]`` marker for the compact-mask ABI;
-* ``seqlen_k`` is ``int32[num_indexed_k]`` whose low 16 bits identify the
-  queries in the tile that selected each indexed token.
+The leaf-only ABI uses a tiny ``int32[1, 4]`` ``block_table`` marker and an
+``int32[num_indexed_k]`` ``seqlen_k`` whose low 16 bits identify the queries
+that selected each indexed token.
+
+The fused high/low-detail ABI instead supplies ``block_table`` as a compact
+per-sequence geometry table.  ``bias`` is a one-row FP16 table indexed by
+physical page and ``seqlen_k`` contains membership words for the centroid
+prefix and leaf union.  Each logical KV sequence is an implicit contiguous
+centroid prefix followed by its indexed leaf union.
+Selected centroids are replaced by their leaves in the same online softmax;
+there is no materialized Q-by-centroid score tensor and no second attention
+launch.
 
 The physical ``kv_page_indices`` remain ordinary page-size-one indices.  The
 CK kernel applies the route predicate to its existing 64x128/128x128 score
@@ -68,7 +77,8 @@ def patch_torch_interface(text: str) -> str:
                 ck_tile::BlockAttentionKVCacheLookupTableEnum::VLLM_BLOCK_TABLE_2D;
         }
 """
-    new = """        if(block_table_.has_value())
+    new = """        bool is_lod_hilo = false;
+        if(block_table_.has_value())
         {
             auto block_table = block_table_.value();
             CHECK_DEVICE(block_table);
@@ -92,6 +102,10 @@ def patch_torch_interface(text: str) -> str:
                 page_block_size == 1 && block_table.size(0) == 1 &&
                 block_table.size(1) == 4 &&
                 seqlen_k.numel() == kv_page_indices.numel();
+            is_lod_hilo =
+                page_block_size == 1 && block_table.size(0) == batch_size + 1 &&
+                block_table.size(1) == 4 &&
+                seqlen_k.numel() >= kv_page_indices.numel() && bias_.has_value();
             if(is_lod_route_mask)
             {
                 // Page-size-one SGLang does not consume either field. Reuse
@@ -99,6 +113,15 @@ def patch_torch_interface(text: str) -> str:
                 args.kv_last_page_lens = block_table.data_ptr();
                 args.seqlen_k_ptr = seqlen_k.data_ptr();
                 args.batch_stride_block_table = block_table.stride(0);
+            }
+            else if(is_lod_hilo)
+            {
+                // The negative stride selects the fused high/low-detail ABI.
+                // block_table owns the metadata and bias owns one FP16 scalar
+                // per physical page; neither is interpreted by stock AITER.
+                args.kv_last_page_lens = block_table.data_ptr();
+                args.seqlen_k_ptr = seqlen_k.data_ptr();
+                args.batch_stride_block_table = -block_table.stride(0);
             }
             else
             {
@@ -113,6 +136,13 @@ def patch_torch_interface(text: str) -> str:
                     ck_tile::BlockAttentionKVCacheLookupTableEnum::VLLM_BLOCK_TABLE_2D;
             }
         }
+        if(is_lod_hilo)
+        {
+            // Keep bias_ptr available to the LOD specialization, but dispatch
+            // a no-bias stock instance so it does not construct a Q-by-K bias
+            // window. The patched score stage loads by physical page instead.
+            bias_type = bias_enum::no_bias;
+        }
 """
     return replace_once(text, old, new, label="torch interface metadata dispatch")
 
@@ -125,17 +155,24 @@ def patch_fmha_driver(text: str) -> str:
     new = """            const bool has_lod_route_mask =
                 args.page_block_size == 1 && args.seqlen_k_ptr != nullptr &&
                 args.batch_stride_block_table == 4;
+            const bool has_lod_hilo =
+                args.page_block_size == 1 && args.seqlen_k_ptr != nullptr &&
+                args.batch_stride_block_table < 0;
             return PageTableKargs{
                 reinterpret_cast<const int32_t*>(args.kv_indptr),
                 reinterpret_cast<const int32_t*>(args.kv_page_indices),
-                has_lod_route_mask ? nullptr
+                (has_lod_route_mask || has_lod_hilo) ? nullptr
                                    : reinterpret_cast<const int32_t*>(args.kv_last_page_lens),
-                has_lod_route_mask
+                (has_lod_route_mask || has_lod_hilo)
                     ? reinterpret_cast<const int32_t*>(args.kv_last_page_lens)
                     : nullptr,
-                has_lod_route_mask ? reinterpret_cast<const int32_t*>(args.seqlen_k_ptr)
-                                   : nullptr,
-                has_lod_route_mask ? args.batch_stride_block_table : 0};
+                (has_lod_route_mask || has_lod_hilo)
+                    ? reinterpret_cast<const int32_t*>(args.seqlen_k_ptr)
+                    : nullptr,
+                (has_lod_route_mask || has_lod_hilo)
+                    ? args.batch_stride_block_table
+                    : 0,
+                has_lod_hilo ? args.bias_ptr : nullptr};
 """
     return replace_once(text, old, new, label="SGLang page-table construction")
 
@@ -156,6 +193,7 @@ def patch_fmha_kernel(text: str) -> str:
         const int32_t* lod_query_slots;
         const int32_t* lod_kv_slots;
         ck_tile::index_t lod_route_count;
+        const void* lod_key_bias;
     };
 """
     text = replace_once(text, old, new, label="SGLang page-table kargs")
@@ -168,6 +206,95 @@ def patch_fmha_kernel(text: str) -> str:
         long_index_t batch_offset_bias    = 0;
 """
     text = replace_once(text, old, new, label="query-start declaration")
+
+    old = """        // WA i_batch capture structure binding before c++20
+        const index_t seqlen_k = [&, i_batch_ = i_batch]() {
+"""
+    new = """        const index_t lod_route_stride = [&]() {
+            if constexpr(kKVLookupTable ==
+                         BlockAttentionKVCacheLookupTableEnum::SGLANG_PAGE_TABLE_1D)
+                return kargs.page_table.lod_route_count < 0
+                           ? -kargs.page_table.lod_route_count
+                           : kargs.page_table.lod_route_count;
+            else
+                return index_t{0};
+        }();
+        const bool lod_hilo = [&]() {
+            if constexpr(kKVLookupTable ==
+                         BlockAttentionKVCacheLookupTableEnum::SGLANG_PAGE_TABLE_1D)
+                return kargs.page_table.lod_route_count < 0;
+            else
+                return false;
+        }();
+        const index_t lod_metadata_offset = [&]() {
+            if constexpr(kKVLookupTable ==
+                         BlockAttentionKVCacheLookupTableEnum::SGLANG_PAGE_TABLE_1D)
+                return lod_hilo ? kargs.page_table.lod_query_slots[3] : index_t{0};
+            else
+                return index_t{0};
+        }();
+        const index_t lod_state_len = [&]() {
+            if constexpr(kKVLookupTable ==
+                         BlockAttentionKVCacheLookupTableEnum::SGLANG_PAGE_TABLE_1D)
+                return lod_hilo
+                           ? kargs.page_table
+                                 .lod_query_slots[lod_metadata_offset +
+                                                  i_batch * lod_route_stride]
+                           : index_t{0};
+            else
+                return index_t{0};
+        }();
+        const index_t lod_centroid_base = [&]() {
+            if constexpr(kKVLookupTable ==
+                         BlockAttentionKVCacheLookupTableEnum::SGLANG_PAGE_TABLE_1D)
+                return lod_hilo
+                           ? kargs.page_table
+                                 .lod_query_slots[lod_metadata_offset +
+                                                  i_batch * lod_route_stride + 1]
+                           : index_t{0};
+            else
+                return index_t{0};
+        }();
+        const index_t lod_sparse_mask_base = [&]() {
+            if constexpr(kKVLookupTable ==
+                         BlockAttentionKVCacheLookupTableEnum::SGLANG_PAGE_TABLE_1D)
+                return lod_hilo
+                           ? kargs.page_table
+                                 .lod_query_slots[lod_metadata_offset +
+                                                  i_batch * lod_route_stride + 2]
+                           : index_t{0};
+            else
+                return index_t{0};
+        }();
+        const index_t lod_leaf_mask_base = [&]() {
+            if constexpr(kKVLookupTable ==
+                         BlockAttentionKVCacheLookupTableEnum::SGLANG_PAGE_TABLE_1D)
+                return lod_hilo
+                           ? kargs.page_table
+                                 .lod_query_slots[lod_metadata_offset +
+                                                  i_batch * lod_route_stride + 3]
+                           : index_t{0};
+            else
+                return index_t{0};
+        }();
+        // WA i_batch capture structure binding before c++20
+        const index_t seqlen_k = [&, i_batch_ = i_batch]() {
+"""
+    text = replace_once(text, old, new, label="fused LOD sequence metadata")
+
+    old = """                return num_page_blocks > 0
+                           ? static_cast<index_t>((num_page_blocks - 1) * kargs.page_block_size +
+                                                  last_page_len)
+                           : 0;
+"""
+    new = """                if(lod_hilo)
+                    return lod_state_len + num_page_blocks;
+                return num_page_blocks > 0
+                           ? static_cast<index_t>((num_page_blocks - 1) * kargs.page_block_size +
+                                                  last_page_len)
+                           : 0;
+"""
+    text = replace_once(text, old, new, label="fused LOD logical KV length")
     text = replace_once(
         text,
         """            const long_index_t query_start = kargs.seqstart_q_ptr[i_batch];
@@ -187,10 +314,12 @@ def patch_fmha_kernel(text: str) -> str:
     new = """        const int32_t* lod_query_slots = [&]() {
             if constexpr(kKVLookupTable ==
                          BlockAttentionKVCacheLookupTableEnum::SGLANG_PAGE_TABLE_1D)
-                return kargs.page_table.lod_query_slots != nullptr
-                           ? kargs.page_table.lod_query_slots +
-                                 query_start * kargs.page_table.lod_route_count
-                           : nullptr;
+                return lod_hilo
+                           ? kargs.page_table.lod_kv_slots + lod_sparse_mask_base
+                           : (kargs.page_table.lod_query_slots != nullptr
+                                  ? kargs.page_table.lod_query_slots +
+                                        query_start * lod_route_stride
+                                  : nullptr);
             else
                 return static_cast<const int32_t*>(nullptr);
         }();
@@ -199,7 +328,8 @@ def patch_fmha_kernel(text: str) -> str:
                          BlockAttentionKVCacheLookupTableEnum::SGLANG_PAGE_TABLE_1D)
                 return kargs.page_table.lod_kv_slots != nullptr
                            ? kargs.page_table.lod_kv_slots +
-                                 kargs.page_table.kv_indptr[i_batch]
+                                 (lod_hilo ? lod_leaf_mask_base
+                                           : kargs.page_table.kv_indptr[i_batch])
                            : nullptr;
             else
                 return static_cast<const int32_t*>(nullptr);
@@ -207,7 +337,8 @@ def patch_fmha_kernel(text: str) -> str:
         const index_t lod_route_count = [&]() {
             if constexpr(kKVLookupTable ==
                          BlockAttentionKVCacheLookupTableEnum::SGLANG_PAGE_TABLE_1D)
-                return kargs.page_table.lod_route_count;
+                return lod_hilo ? kargs.page_table.lod_query_slots[1]
+                                : lod_route_stride;
             else
                 return index_t{0};
         }();
@@ -227,13 +358,82 @@ def patch_fmha_kernel(text: str) -> str:
                                       lod_query_slots,
                                       lod_kv_slots,
                                       lod_route_count,
-                                      kargs.seqlen_q);
+                                      kargs.seqlen_q,
+                                      lod_state_len,
+                                      lod_centroid_base,
+                                      [&]() {
+                                          if constexpr(kKVLookupTable ==
+                                              BlockAttentionKVCacheLookupTableEnum::SGLANG_PAGE_TABLE_1D)
+                                              return reinterpret_cast<const ck_tile::half_t*>(
+                                                  kargs.page_table.lod_key_bias);
+                                          else
+                                              return static_cast<const ck_tile::half_t*>(nullptr);
+                                      }());
+"""
+    text = replace_once(text, old, new, label="no-scale pipeline call")
+
+    old = """        const index_t max_page_table_idx =
+            kargs.seqlen_k > 0 ? (kargs.seqlen_k - 1) / kPageBlockSize : 0;
+"""
+    new = """        const index_t max_page_table_idx = [&]() {
+            if constexpr(kKVLookupTable ==
+                         BlockAttentionKVCacheLookupTableEnum::SGLANG_PAGE_TABLE_1D)
+            {
+                if(lod_hilo)
+                {
+                    const index_t leaf_count =
+                        kargs.page_table.kv_indptr[i_batch + 1] -
+                        kargs.page_table.kv_indptr[i_batch];
+                    return leaf_count > 0 ? leaf_count - 1 : index_t{0};
+                }
+            }
+            return kargs.seqlen_k > 0 ? (kargs.seqlen_k - 1) / kPageBlockSize
+                                      : index_t{0};
+        }();
 """
     # Only the no-quantization branch uses the compact LOD metadata for now.
-    return replace_once(text, old, new, label="no-scale pipeline call")
+    return replace_once(text, old, new, label="fused LOD leaf table bound")
 
 
 def patch_fmha_pipeline(text: str) -> str:
+    old = """                                        IndexArrayType& physical_pages,
+                                        index_t max_page_table_idx)
+"""
+    new = """                                        IndexArrayType& physical_pages,
+                                        index_t max_page_table_idx,
+                                        index_t lod_state_len = 0,
+                                        index_t lod_centroid_base = 0)
+"""
+    text = replace_once(text, old, new, label="fused LOD physical-page signature")
+
+    old = """            const index_t page_id =
+                ck_tile::min(global_token_idx >> kLog2PageSize, max_page_table_idx);
+            physical_pages[k0] = page_idx[page_id];
+"""
+    new = """            if(lod_state_len > 0 && global_token_idx < lod_state_len)
+            {
+                physical_pages[k0] = lod_centroid_base + global_token_idx;
+            }
+            else
+            {
+                const index_t leaf_token_idx = global_token_idx - lod_state_len;
+                const index_t page_id =
+                    ck_tile::min(leaf_token_idx >> kLog2PageSize, max_page_table_idx);
+                physical_pages[k0] = page_idx[page_id];
+            }
+"""
+    text = replace_once(text, old, new, label="fused LOD K physical-page lookup")
+
+    old = """                physical_pages[k0] = page_idx[ck_tile::min(global_token_idx, max_page_table_idx)];
+"""
+    new = """                physical_pages[k0] =
+                    lod_state_len > 0 && global_token_idx < lod_state_len
+                        ? lod_centroid_base + global_token_idx
+                        : page_idx[ck_tile::min(global_token_idx - lod_state_len,
+                                                max_page_table_idx)];
+"""
+    text = replace_once(text, old, new, label="fused LOD V physical-page lookup")
+
     old = """template <typename Problem_,
           typename Policy_ = BlockFmhaBatchPrefillPipelineQRKSVSAsyncDefaultPolicy>
 struct BlockFmhaBatchPrefillPipelineQRKSVSAsync
@@ -273,6 +473,7 @@ struct BlockFmhaBatchPrefillPipelineQRKSVSAsync
         // Once QK has consumed K LDS, the same storage is safe to reuse for
         // the score predicate, preserving the ordinary kernel's LDS size.
         auto* lod_query_mask_lds = reinterpret_cast<uint32_t*>(smem_ptr);
+        auto* lod_key_bias_lds = reinterpret_cast<float*>(lod_query_mask_lds + kN0);
         auto load_lod_query_mask = [&](index_t tile_start) {
             uint32_t membership = 0;
             if constexpr(kHasLodRouteMask)
@@ -281,14 +482,59 @@ struct BlockFmhaBatchPrefillPipelineQRKSVSAsync
                 if(tid < kN0)
                 {
                     const index_t col = tile_start + tid;
-                    membership = col <= max_page_table_idx
-                                     ? static_cast<uint32_t>(lod_kv_slots[col])
-                                     : uint32_t{0};
+                    if(col < lod_state_len)
+                    {
+                        index_t first = 0;
+                        index_t count = lod_route_count;
+                        static_for<0, 8, 1>{}([&](auto) {
+                            if(count > 0)
+                            {
+                                const index_t step = count / 2;
+                                const index_t middle = first + step;
+                                if(lod_query_slots[middle] < col)
+                                {
+                                    first = middle + 1;
+                                    count -= step + 1;
+                                }
+                                else
+                                {
+                                    count = step;
+                                }
+                            }
+                        });
+                        if(first < lod_route_count && lod_query_slots[first] == col)
+                            membership = static_cast<uint32_t>(
+                                lod_query_slots[lod_route_count + first]);
+                    }
+                    else
+                    {
+                        const index_t leaf_col = col - lod_state_len;
+                        membership = leaf_col <= max_page_table_idx
+                                         ? static_cast<uint32_t>(lod_kv_slots[leaf_col])
+                                         : uint32_t{0};
+                    }
                 }
             }
             return membership;
         };
+        auto load_lod_key_bias = [&](index_t tile_start) {
+            float key_bias = 0.0f;
+            if constexpr(kHasLodRouteMask)
+            {
+                const index_t tid = get_thread_local_1d_id();
+                const index_t col = tile_start + tid;
+                if(tid < kN0 && lod_state_len > 0 && col < lod_state_len)
+                    // The fast softmax runs in base 2 and scale_s already
+                    // contains log2(e).  Convert the stored natural-log
+                    // multiplicity into the equivalent raw-score offset.
+                    key_bias = type_convert<float>(
+                                   lod_key_bias_ptr[lod_centroid_base + col]) *
+                               ck_tile::log2e_v<> / scale_s;
+            }
+            return key_bias;
+        };
         auto lod_query_mask_reg = load_lod_query_mask(current_seq_k);
+        auto lod_key_bias_reg = load_lod_key_bias(current_seq_k);
 
         // Load physical pages first, then compute offsets.
 """
@@ -299,6 +545,7 @@ struct BlockFmhaBatchPrefillPipelineQRKSVSAsync
 """
     new = """                current_seq_k += k_advance;
                 lod_query_mask_reg = load_lod_query_mask(current_seq_k);
+                lod_key_bias_reg = load_lod_key_bias(current_seq_k);
                 // move K tile windows
 """
     text = replace_once(text, old, new, label="next route-mask LDS tile")
@@ -315,9 +562,53 @@ struct BlockFmhaBatchPrefillPipelineQRKSVSAsync
                const index_t* lod_query_slots         = nullptr,
                const index_t* lod_kv_slots            = nullptr,
                index_t lod_route_count                = 0,
-               index_t lod_query_count                = 0) const
+               index_t lod_query_count                = 0,
+               index_t lod_state_len                  = 0,
+               index_t lod_centroid_base              = 0,
+               const half_t* lod_key_bias_ptr         = nullptr) const
 """
     text = replace_once(text, old, new, label="main pipeline signature")
+
+    old = """            page_idx, k_coord, current_seq_k, k_physical_pages, max_page_table_idx);
+"""
+    new = """            page_idx,
+            k_coord,
+            current_seq_k,
+            k_physical_pages,
+            max_page_table_idx,
+            lod_state_len,
+            lod_centroid_base);
+"""
+    if text.count(old) != 2:
+        raise RuntimeError(
+            "fused LOD K physical-page calls: expected two source matches, "
+            f"found {text.count(old)}"
+        )
+    text = text.replace(old, new)
+
+    old = """                        page_idx, v_coord, current_seq_k, v_physical_pages_k2, max_page_table_idx);
+"""
+    new = """                        page_idx,
+                        v_coord,
+                        current_seq_k,
+                        v_physical_pages_k2,
+                        max_page_table_idx,
+                        lod_state_len,
+                        lod_centroid_base);
+"""
+    text = replace_once(text, old, new, label="fused LOD outer V physical-page call")
+
+    old = """                    page_idx, v_coord, current_seq_k, v_physical_pages, max_page_table_idx);
+"""
+    new = """                    page_idx,
+                    v_coord,
+                    current_seq_k,
+                    v_physical_pages,
+                    max_page_table_idx,
+                    lod_state_len,
+                    lod_centroid_base);
+"""
+    text = replace_once(text, old, new, label="fused LOD V physical-page call")
 
     old = """                }
 
@@ -332,7 +623,10 @@ struct BlockFmhaBatchPrefillPipelineQRKSVSAsync
                     __builtin_amdgcn_s_barrier();
                     const index_t tid = get_thread_local_1d_id();
                     if(tid < kN0)
+                    {
                         lod_query_mask_lds[tid] = lod_query_mask_reg;
+                        lod_key_bias_lds[tid] = lod_key_bias_reg;
+                    }
                     __builtin_amdgcn_s_barrier();
 
                     // Walk columns outside rows so every thread reuses one LDS
@@ -355,17 +649,31 @@ struct BlockFmhaBatchPrefillPipelineQRKSVSAsync
                                 s_acc.get_tile_distribution(), make_tuple(idx0_zero, idx1));
                             const uint32_t query_membership =
                                 lod_query_mask_lds[col_tile_idx.at(number<1>{})];
+                            const auto logical_col =
+                                current_seq_k + col_tile_idx.at(number<1>{});
+                            const auto key_bias =
+                                lod_key_bias_lds[col_tile_idx.at(number<1>{})];
                             sweep_tile_span(s_spans[number<0>{}], [&](auto idx0) {
                                 constexpr auto i_j_idx = make_tuple(idx0, idx1);
                                 const auto tile_idx = get_x_indices_from_distributed_indices(
                                     s_acc.get_tile_distribution(), i_j_idx);
                                 const auto row =
                                     q_origin.at(number<0>{}) + tile_idx.at(number<0>{});
-                                if(row < lod_query_count && row < 16 &&
-                                   ((query_membership >> row) & 1u) == 0)
+                                const bool valid_row =
+                                    row < lod_query_count && row < 16;
+                                const bool selected =
+                                    valid_row && ((query_membership >> row) & 1u) != 0;
+                                const bool active = logical_col < lod_state_len
+                                                        ? !selected
+                                                        : selected;
+                                if(valid_row && !active)
                                 {
                                     s_acc(i_j_idx) =
                                         -numeric<SMPLComputeDataType>::infinity();
+                                }
+                                else if(valid_row && logical_col < lod_state_len)
+                                {
+                                    s_acc(i_j_idx) += key_bias;
                                 }
                             });
                         });
@@ -409,7 +717,10 @@ struct BlockFmhaBatchPrefillPipelineQRKSVSAsync
                const index_t* lod_query_slots = nullptr,
                const index_t* lod_kv_slots = nullptr,
                index_t lod_route_count = 0,
-               index_t lod_query_count = 0) const
+               index_t lod_query_count = 0,
+               index_t lod_state_len = 0,
+               index_t lod_centroid_base = 0,
+               const half_t* lod_key_bias_ptr = nullptr) const
     {
         return operator()(q_dram_block_window_tmp,
 """
@@ -429,7 +740,10 @@ struct BlockFmhaBatchPrefillPipelineQRKSVSAsync
                           lod_query_slots,
                           lod_kv_slots,
                           lod_route_count,
-                          lod_query_count);
+                          lod_query_count,
+                          lod_state_len,
+                          lod_centroid_base,
+                          lod_key_bias_ptr);
 """
     return replace_once(text, old, new, label="no-scale convenience forwarding")
 
@@ -467,7 +781,8 @@ using fmha_lod_kernel_{F_idx} =
     if constexpr(({F_page_size} == 1) &&
                  ({F_kv_lookup_table} == ck_tile::BlockAttentionKVCacheLookupTableEnum::SGLANG_PAGE_TABLE_1D))
     {{
-        if(a.seqlen_k_ptr != nullptr && a.batch_stride_block_table == 4)
+        if(a.seqlen_k_ptr != nullptr &&
+           (a.batch_stride_block_table == 4 || a.batch_stride_block_table < 0))
         {{
             using k_lod_ = fmha_lod_kernel_{F_idx};
             if(s.log_level_ > 0)

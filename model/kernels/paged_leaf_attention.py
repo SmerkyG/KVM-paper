@@ -25913,8 +25913,12 @@ def _materialize_fixed_adjacent_aiter_union_table_kernel(
 
 
 @triton.jit(
-    do_not_specialize=["query_len", "max_slot_length"],
-    do_not_specialize_on_alignment=["query_len", "max_slot_length"],
+    do_not_specialize=["query_len", "max_slot_length", "leaf_mask_offset"],
+    do_not_specialize_on_alignment=[
+        "query_len",
+        "max_slot_length",
+        "leaf_mask_offset",
+    ],
 )
 def _materialize_aiter_indexed_masked_union_table_kernel(
     union_experts,
@@ -25931,6 +25935,7 @@ def _materialize_aiter_indexed_masked_union_table_kernel(
     kv_query_masks,
     query_len,
     max_slot_length,
+    leaf_mask_offset,
     UNION_WIDTH: tl.constexpr,
     QUERY_HEADS: tl.constexpr,
     TILES_PER_HEAD: tl.constexpr,
@@ -25945,23 +25950,24 @@ def _materialize_aiter_indexed_masked_union_table_kernel(
     PAGE_SIZE: tl.constexpr,
     LEAF_CAPACITY: tl.constexpr,
     BLOCK_K: tl.constexpr,
+    INCLUDE_STATE_MASKS: tl.constexpr,
 ):
     """Materialize a tile union and each token's exact 16-query mask."""
     sequence = tl.program_id(0).to(tl.int64)
     union_rank = tl.program_id(1).to(tl.int64)
     token = tl.program_id(2).to(tl.int64) * BLOCK_K + tl.arange(0, BLOCK_K)
-    union_offset = sequence * UNION_WIDTH + union_rank
-    expert_id = tl.load(union_experts + union_offset).to(tl.int64)
-    kv_row = expert_id // STATE_CAPACITY
-    slot = expert_id - kv_row * STATE_CAPACITY
-    length = tl.load(union_lengths + union_offset).to(tl.int64)
-    valid = (token < length) & (token < max_slot_length)
-
     sequences_per_batch = QUERY_HEADS * TILES_PER_HEAD
     batch = sequence // sequences_per_batch
     within_batch = sequence - batch * sequences_per_batch
     query_head = within_batch // TILES_PER_HEAD
     query_tile = within_batch - query_head * TILES_PER_HEAD
+    union_offset = sequence * UNION_WIDTH + union_rank
+    expert_id = tl.load(union_experts + union_offset).to(tl.int64)
+    kv_row = expert_id // STATE_CAPACITY
+    slot = expert_id - kv_row * STATE_CAPACITY
+    length = tl.load(union_lengths + union_offset).to(tl.int64)
+    valid_slot = (slot >= 0) & (slot < STATE_CAPACITY) & (length > 0)
+    valid = valid_slot & (token < length) & (token < max_slot_length)
     query_offset = tl.arange(0, QUERY_TILE)
     route_rank = tl.arange(0, ROUTE_WIDTH)
     query_position = query_tile * QUERY_TILE + query_offset
@@ -25979,6 +25985,19 @@ def _materialize_aiter_indexed_masked_union_table_kernel(
     query_membership = tl.sum(
         tl.where(query_valid & query_selected, query_bits, 0), axis=0
     ).to(tl.int32)
+    sequence_leaf_begin = tl.load(kv_indptr + sequence).to(tl.int64)
+    if INCLUDE_STATE_MASKS:
+        sparse_base = sequence * 2 * UNION_WIDTH + union_rank
+        tl.store(
+            kv_query_masks + sparse_base + token * 0,
+            tl.where(valid_slot, slot, STATE_CAPACITY),
+            mask=token == 0,
+        )
+        tl.store(
+            kv_query_masks + sparse_base + UNION_WIDTH + token * 0,
+            tl.where(valid_slot, query_membership, 0),
+            mask=token == 0,
+        )
 
     page_ordinal = token // PAGE_SIZE
     within_page = token - page_ordinal * PAGE_SIZE
@@ -26007,7 +26026,7 @@ def _materialize_aiter_indexed_masked_union_table_kernel(
     ).to(tl.int64)
     leaf_valid = page_valid & (leaf >= 0) & (leaf < LEAF_CAPACITY)
     destination = (
-        tl.load(kv_indptr + sequence).to(tl.int64)
+        sequence_leaf_begin
         + tl.load(union_prefix + union_offset).to(tl.int64)
         + token
     )
@@ -26016,21 +26035,77 @@ def _materialize_aiter_indexed_masked_union_table_kernel(
         kv_row * LEAF_CAPACITY + leaf,
         mask=leaf_valid,
     )
-    tl.store(
-        kv_query_masks + destination,
-        query_membership,
-        mask=leaf_valid,
-    )
+    if INCLUDE_STATE_MASKS:
+        mask_destination = leaf_mask_offset + destination
+    else:
+        mask_destination = destination
+    tl.store(kv_query_masks + mask_destination, query_membership, mask=leaf_valid)
 
 
-def query_tile_slot_unions(
+@triton.jit(
+    do_not_specialize=["state_len", "arena_row_offset", "arena_coarse_offset"],
+    do_not_specialize_on_alignment=[
+        "state_len",
+        "arena_row_offset",
+        "arena_coarse_offset",
+    ],
+)
+def _materialize_aiter_hilo_metadata_kernel(
+    metadata,
+    kv_indptr,
+    state_len,
+    arena_row_offset,
+    arena_coarse_offset,
+    SEQUENCES: tl.constexpr,
+    QUERY_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    KV_GROUP_SIZE: tl.constexpr,
+    TILES_PER_HEAD: tl.constexpr,
+    STATE_CAPACITY: tl.constexpr,
+    UNION_WIDTH: tl.constexpr,
+):
+    """Build the compact AITER HiLo header and per-sequence metadata."""
+    row = tl.program_id(0)
+    column = tl.arange(0, 4)
+    if row == 0:
+        value = tl.where(
+            column == 0,
+            0x4C4F44,
+            tl.where(column == 1, UNION_WIDTH, tl.where(column == 3, 4, 0)),
+        )
+    else:
+        sequence = row - 1
+        sequences_per_batch = QUERY_HEADS * TILES_PER_HEAD
+        batch = sequence // sequences_per_batch
+        within_batch = sequence - batch * sequences_per_batch
+        query_head = within_batch // TILES_PER_HEAD
+        kv_head = query_head // KV_GROUP_SIZE
+        kv_row = batch * KV_HEADS + kv_head
+        physical_kv_row = arena_row_offset * KV_HEADS + kv_row
+        sparse_base = sequence * 2 * UNION_WIDTH
+        leaf_base = SEQUENCES * 2 * UNION_WIDTH + tl.load(
+            kv_indptr + sequence
+        )
+        value = tl.where(
+            column == 0,
+            state_len,
+            tl.where(
+                column == 1,
+                arena_coarse_offset + physical_kv_row * STATE_CAPACITY,
+                tl.where(column == 2, sparse_base, leaf_base),
+            ),
+        )
+    tl.store(metadata + row * 4 + column, value)
+
+
+def _compact_query_tile_slot_unions(
     top_slots: torch.Tensor,
     slot_lengths: torch.Tensor,
     *,
     kv_group_size: int,
     query_tile: int,
-) -> torch.Tensor:
-    """Share each query-head's route union across one contiguous query tile."""
+) -> tuple[torch.Tensor, int]:
+    """Return one compact, deduplicated route row per query tile."""
     if query_tile <= 0 or query_tile & (query_tile - 1):
         raise ValueError("AITER leaf union query tile must be a positive power of two")
     batch, query_heads, query_len, route_count = top_slots.shape
@@ -26077,9 +26152,33 @@ def query_tile_slot_unions(
     union_slots = torch.where(
         unique,
         sorted_slots,
-        torch.full_like(sorted_slots, -1),
+        torch.full_like(sorted_slots, state_capacity),
+    ).sort(dim=-1).values
+    union_slots = torch.where(
+        union_slots < state_capacity,
+        union_slots,
+        torch.full_like(union_slots, -1),
+    )
+    return union_slots, tile_count
+
+
+def query_tile_slot_unions(
+    top_slots: torch.Tensor,
+    slot_lengths: torch.Tensor,
+    *,
+    kv_group_size: int,
+    query_tile: int,
+) -> torch.Tensor:
+    """Share each query-head's route union across one contiguous query tile."""
+    batch, query_heads, query_len, _ = top_slots.shape
+    union_slots, tile_count = _compact_query_tile_slot_unions(
+        top_slots,
+        slot_lengths,
+        kv_group_size=kv_group_size,
+        query_tile=query_tile,
     )
     union_width = int(union_slots.size(-1))
+    padded_query_len = tile_count * query_tile
     return (
         union_slots.view(batch, query_heads, tile_count, union_width)
         .unsqueeze(3)
@@ -26759,6 +26858,7 @@ def aiter_query_tile_union_paged_leaf_attention(
                 kv_query_masks,
                 query_len,
                 max_slot_length,
+                0,
                 UNION_WIDTH=union_width,
                 QUERY_HEADS=query_heads,
                 TILES_PER_HEAD=tile_count,
@@ -26773,6 +26873,7 @@ def aiter_query_tile_union_paged_leaf_attention(
                 PAGE_SIZE=page_size,
                 LEAF_CAPACITY=leaf_capacity,
                 BLOCK_K=table_block_k,
+                INCLUDE_STATE_MASKS=False,
                 num_warps=1,
             )
         elif fixed_adjacent_factor != 1:
@@ -26875,6 +26976,259 @@ def aiter_query_tile_union_paged_leaf_attention(
             timing_events.setdefault(name, []).append((begin, end))
         timing_events.setdefault("total", []).append((boundaries[0], boundaries[-1]))
     return exact, exact_lse
+
+
+def aiter_fused_hilo_paged_attention(
+    q: torch.Tensor,
+    page_k: torch.Tensor,
+    page_v: torch.Tensor,
+    page_indices: torch.Tensor,
+    slot_pages: torch.Tensor,
+    overflow_page_keys: torch.Tensor,
+    overflow_page_values: torch.Tensor,
+    overflow_used: torch.Tensor,
+    slot_lengths: torch.Tensor,
+    top_slots: torch.Tensor,
+    arena_k: torch.Tensor,
+    arena_v: torch.Tensor,
+    arena_bias: torch.Tensor,
+    *,
+    arena_leaf_offset: int,
+    arena_coarse_offset: int,
+    arena_row_offset: int,
+    state_len: int,
+    state_capacity: int,
+    kv_group_size: int,
+    scale: float,
+    hash_probes: int = 8,
+    query_tile: int = 16,
+    timing_events: dict[str, list[tuple[torch.cuda.Event, torch.cuda.Event]]]
+    | None = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Evaluate centroid remainder and routed leaves in one AITER softmax.
+
+    The patched page-size-one AITER kernel sees an implicit prefix containing
+    every centroid summary, followed by the indexed union of leaves selected
+    anywhere in the query tile.  Its per-query predicate replaces each routed
+    centroid by only that query's exact leaves.  Consequently the returned
+    output and LSE are the complete remote branch; no coarse/leaf LSE merge is
+    required.
+    """
+    if torch.is_grad_enabled() and q.requires_grad:
+        raise RuntimeError("fused AITER HiLo attention is forward-only")
+    try:
+        from aiter.ops.mha import _mha_batch_prefill
+    except ImportError as error:
+        raise RuntimeError(
+            "fused AITER HiLo attention requires an AITER installation"
+        ) from error
+
+    batch, query_heads, query_len, head_dim = q.shape
+    cache_batch, kv_heads, leaf_capacity, key_dim = page_k.shape
+    route_count = int(top_slots.size(-1))
+    page_capacity = int(page_indices.size(2))
+    page_size = int(page_indices.size(3))
+    if cache_batch != batch or query_heads != kv_heads * kv_group_size:
+        raise ValueError("fused AITER HiLo query/KV geometry is inconsistent")
+    if key_dim != head_dim or tuple(page_v.shape) != tuple(page_k.shape):
+        raise ValueError("fused AITER HiLo requires equal Q/K/V dimensions")
+    if tuple(top_slots.shape[:3]) != (batch, query_heads, query_len):
+        raise ValueError("fused AITER HiLo routes have the wrong shape")
+    if page_size != 16:
+        raise ValueError("fused AITER HiLo requires 16-token logical pages")
+    if query_tile not in (1, 2, 4, 8, 16):
+        raise ValueError("fused AITER HiLo query tile must be 1, 2, 4, 8, or 16")
+    if route_count < 1 or route_count > 8:
+        raise ValueError("fused AITER HiLo requires one to eight routes")
+    if state_len < 1 or state_len > state_capacity:
+        raise ValueError("fused AITER HiLo state length is invalid")
+    if arena_k.ndim != 2 or tuple(arena_v.shape) != tuple(arena_k.shape):
+        raise ValueError("fused AITER HiLo arena K/V geometry is invalid")
+    if int(arena_k.size(1)) != head_dim or arena_k.dtype != q.dtype:
+        raise ValueError("fused AITER HiLo arena differs from the query geometry")
+    if tuple(arena_bias.shape) != (int(arena_k.size(0)),):
+        raise ValueError("fused AITER HiLo arena bias has the wrong shape")
+    if arena_bias.dtype != torch.float16:
+        raise TypeError("fused AITER HiLo arena bias must use FP16 storage")
+    if not all(
+        tensor.is_cuda
+        for tensor in (
+            q,
+            page_k,
+            page_v,
+            page_indices,
+            slot_pages,
+            overflow_page_keys,
+            overflow_page_values,
+            overflow_used,
+            slot_lengths,
+            top_slots,
+            arena_k,
+            arena_v,
+            arena_bias,
+        )
+    ):
+        raise ValueError("fused AITER HiLo requires CUDA tensors")
+
+    boundaries: list[torch.cuda.Event] = []
+
+    def record_boundary() -> None:
+        if timing_events is not None:
+            event = torch.cuda.Event(enable_timing=True)
+            event.record()
+            boundaries.append(event)
+
+    record_boundary()
+    with torch.no_grad():
+        tile_count = triton.cdiv(query_len, query_tile)
+        union_slots, tile_count = _compact_query_tile_slot_unions(
+            top_slots,
+            slot_lengths,
+            kv_group_size=kv_group_size,
+            query_tile=query_tile,
+        )
+        union_width = int(union_slots.size(-1))
+        sequences = int(union_slots.size(0))
+        sequence = torch.arange(sequences, device=q.device)
+        sequences_per_batch = query_heads * tile_count
+        sequence_batch = torch.div(
+            sequence, sequences_per_batch, rounding_mode="floor"
+        )
+        sequence_query_head = torch.div(
+            sequence % sequences_per_batch, tile_count, rounding_mode="floor"
+        )
+        sequence_kv_head = torch.div(
+            sequence_query_head, kv_group_size, rounding_mode="floor"
+        )
+        kv_row = sequence_batch * kv_heads + sequence_kv_head
+        safe_slot = union_slots.clamp(min=0, max=state_capacity - 1).long()
+        union_lengths = torch.gather(
+            slot_lengths[sequence_batch, sequence_kv_head], 1, safe_slot
+        ).to(torch.int32)
+        union_lengths = torch.where(
+            union_slots >= 0, union_lengths, torch.zeros_like(union_lengths)
+        )
+        union_prefix = union_lengths.cumsum(dim=-1, dtype=torch.int32) - union_lengths
+        token_counts = union_lengths.sum(dim=-1, dtype=torch.int32)
+        if bool((token_counts <= 0).any().item()):
+            raise AssertionError("a fused AITER HiLo query tile owns no leaves")
+        max_slot_length = max(1, int(union_lengths.max().item()))
+        max_leaf_tokens = max(1, int(token_counts.max().item()))
+        kv_indptr = F.pad(token_counts.cumsum(0), (1, 0)).to(torch.int32)
+        kv_page_indices = torch.empty(
+            int(kv_indptr[-1].item()), dtype=torch.int32, device=q.device
+        )
+        sparse_mask_values = sequences * 2 * union_width
+        kv_query_masks = torch.empty(
+            sparse_mask_values + int(kv_page_indices.numel()),
+            dtype=torch.int32,
+            device=q.device,
+        )
+        union_experts = (kv_row[:, None] * state_capacity + safe_slot).to(
+            torch.int32
+        )
+        table_block_k = 128
+        _materialize_aiter_indexed_masked_union_table_kernel[
+            (sequences, union_width, triton.cdiv(max_slot_length, table_block_k))
+        ](
+            union_experts,
+            union_lengths,
+            union_prefix,
+            top_slots.contiguous(),
+            kv_indptr,
+            slot_pages,
+            overflow_page_keys,
+            overflow_page_values,
+            overflow_used,
+            page_indices,
+            kv_page_indices,
+            kv_query_masks,
+            query_len,
+            max_slot_length,
+            sparse_mask_values,
+            UNION_WIDTH=union_width,
+            QUERY_HEADS=query_heads,
+            TILES_PER_HEAD=tile_count,
+            QUERY_TILE=query_tile,
+            ROUTE_COUNT=route_count,
+            ROUTE_WIDTH=triton.next_power_of_2(route_count),
+            STATE_CAPACITY=state_capacity,
+            INLINE_PAGES_PER_SLOT=int(slot_pages.size(3)),
+            PAGE_CAPACITY=page_capacity,
+            HASH_CAPACITY=int(overflow_page_values.size(2)),
+            HASH_PROBES=(-1 if overflow_page_values.ndim == 4 else hash_probes),
+            PAGE_SIZE=page_size,
+            LEAF_CAPACITY=leaf_capacity,
+            BLOCK_K=table_block_k,
+            INCLUDE_STATE_MASKS=True,
+            num_warps=1,
+        )
+        if arena_leaf_offset:
+            kv_page_indices.add_(int(arena_leaf_offset))
+
+        query_lengths = torch.full(
+            (tile_count,), query_tile, dtype=torch.int32, device=q.device
+        )
+        query_lengths[-1] = query_len - (tile_count - 1) * query_tile
+        query_lengths = query_lengths.repeat(batch * query_heads)
+        qo_indptr = F.pad(query_lengths.cumsum(0), (1, 0)).to(torch.int32)
+        packed_q = q.reshape(batch * query_heads * query_len, 1, head_dim)
+
+        metadata = torch.empty(
+            (1 + sequences, 4),
+            dtype=torch.int32,
+            device=q.device,
+        )
+        _materialize_aiter_hilo_metadata_kernel[(1 + sequences,)](
+            metadata,
+            kv_indptr,
+            state_len,
+            arena_row_offset,
+            arena_coarse_offset,
+            SEQUENCES=sequences,
+            QUERY_HEADS=query_heads,
+            KV_HEADS=kv_heads,
+            KV_GROUP_SIZE=kv_group_size,
+            TILES_PER_HEAD=tile_count,
+            STATE_CAPACITY=state_capacity,
+            UNION_WIDTH=union_width,
+            num_warps=1,
+        )
+
+    record_boundary()
+    packed_out, packed_lse, _, _ = _mha_batch_prefill(
+        packed_q,
+        arena_k.view(-1, 1, 1, head_dim),
+        arena_v.view(-1, 1, 1, head_dim),
+        qo_indptr,
+        kv_indptr,
+        kv_page_indices,
+        query_tile,
+        state_len + max_leaf_tokens,
+        dropout_p=0.0,
+        softmax_scale=float(scale),
+        causal=False,
+        return_lse=True,
+        bias=arena_bias.view(1, -1),
+        block_table=metadata,
+        seqlen_k=kv_query_masks,
+    )
+    record_boundary()
+    remote = packed_out[:, 0].reshape(batch, query_heads, query_len, head_dim)
+    remote_lse = packed_lse.reshape(batch, query_heads, query_len)
+    record_boundary()
+    if timing_events is not None:
+        for name, begin, end in zip(
+            ("hilo_table", "hilo_aiter", "hilo_unpack"),
+            boundaries[:-1],
+            boundaries[1:],
+            strict=True,
+        ):
+            timing_events.setdefault(name, []).append((begin, end))
+        timing_events.setdefault("hilo_total", []).append(
+            (boundaries[0], boundaries[-1])
+        )
+    return remote, remote_lse
 
 
 def aiter_varlen_paged_leaf_attention(

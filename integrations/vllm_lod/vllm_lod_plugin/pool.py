@@ -1091,8 +1091,13 @@ class VLLMLayerLODPool:
             self.settings.levels in (2, 3)
             and self.settings.dense_leaf_storage
             and self.settings.kv_bits == 0
-            and self.settings.decode_gqa_union
-            and self.settings.decode_gqa_union_hip
+            and (
+                (
+                    self.settings.decode_gqa_union
+                    and self.settings.decode_gqa_union_hip
+                )
+                or self.settings.leaf_layout == "aiter_hilo"
+            )
             and self.dtype == torch.bfloat16
             and 1 < self.query_heads // self.kv_heads <= 16
             and self.query_heads % self.kv_heads == 0
@@ -2411,6 +2416,20 @@ class VLLMLayerLODPool:
                 if isinstance(value, torch.Tensor) and value.ndim
                 else value
             )
+        if self.settings.leaf_layout == "aiter_hilo":
+            page.update(
+                {
+                    name: page_pool[name]
+                    for name in (
+                        "unified_page1_k",
+                        "unified_page1_v",
+                        "unified_page1_bias",
+                        "unified_page1_leaf_offset",
+                        "unified_page1_coarse_offset",
+                    )
+                },
+                unified_page1_row_offset=start,
+            )
         storage["page_cache"] = page
         return storage
 
@@ -3038,6 +3057,20 @@ class VLLMLayerLODPool:
                 value[start:stop]
                 if isinstance(value, torch.Tensor) and value.ndim
                 else value
+            )
+        if self.settings.leaf_layout == "aiter_hilo":
+            page.update(
+                {
+                    name: page_pool[name]
+                    for name in (
+                        "unified_page1_k",
+                        "unified_page1_v",
+                        "unified_page1_bias",
+                        "unified_page1_leaf_offset",
+                        "unified_page1_coarse_offset",
+                    )
+                },
+                unified_page1_row_offset=start,
             )
         page.update(
             leaf_count=int(metadata["leaf_count"]),

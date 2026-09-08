@@ -544,6 +544,7 @@ class VLLMLODSettings:
                     "aiter_varlen",
                     "aiter_union",
                     "aiter_masked_union",
+                    "aiter_hilo",
                 ),
             ),
             leaf_union_query_tile=_integer(
