@@ -129,6 +129,13 @@ def parse_args() -> argparse.Namespace:
         "--engine-backend", choices=("torch", "kernel"), default="kernel"
     )
     parser.add_argument("--recursive-pages", action="store_true")
+    parser.add_argument("--recursive-global-page-prefill", action="store_true")
+    parser.add_argument(
+        "--recursive-global-page-candidates-per-route",
+        type=int,
+        choices=(1, 2, 4, 8),
+        default=8,
+    )
     parser.add_argument("--slabbed", action="store_true")
     parser.add_argument("--slab-size", type=int, default=4096)
     parser.add_argument("--slots-per-slab", type=int, default=256)
@@ -163,6 +170,8 @@ def main() -> None:
         raise ValueError("open count must be in [0, 128]")
     if args.kv_bits and not args.recursive_pages:
         raise ValueError("KV quantization requires --recursive-pages")
+    if args.recursive_global_page_prefill and not args.recursive_pages:
+        raise ValueError("global-page prefill requires --recursive-pages")
     if args.slabbed and args.recursive_pages:
         raise ValueError("--slabbed and --recursive-pages are mutually exclusive")
     if args.slabbed and args.engine_backend != "torch":
@@ -253,7 +262,15 @@ def main() -> None:
             )
         elif args.recursive_pages:
             lod_config = PagedLODConfig(
-                **config_kwargs, page_size=16, kv_bits=args.kv_bits
+                **config_kwargs,
+                page_size=16,
+                kv_bits=args.kv_bits,
+                recursive_global_page_prefill=(
+                    args.recursive_global_page_prefill
+                ),
+                recursive_global_page_candidates_per_route=(
+                    args.recursive_global_page_candidates_per_route
+                ),
             )
         else:
             lod_config = LODConfig(**config_kwargs)
@@ -359,6 +376,16 @@ def main() -> None:
             "dynamic_open_statistics": dynamic_open_statistics,
             "engine_backend": args.engine_backend,
             "recursive_pages": args.recursive_pages,
+            "recursive_global_page_prefill": (
+                args.recursive_global_page_prefill
+                if args.recursive_pages
+                else False
+            ),
+            "recursive_global_page_candidates_per_route": (
+                args.recursive_global_page_candidates_per_route
+                if args.recursive_pages and args.recursive_global_page_prefill
+                else None
+            ),
             "slabbed": args.slabbed,
             "slab_size": args.slab_size if args.slabbed else None,
             "slots_per_slab": args.slots_per_slab if args.slabbed else None,

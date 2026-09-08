@@ -62,6 +62,13 @@ class PagedLODConfig(LODConfig):
     recursive_page_score_num_warps: int = 2
     recursive_page_select_block_n: int = 64
     recursive_state_route_backend: str = "fused"
+    recursive_global_page_prefill: bool = False
+    recursive_global_page_grouped: bool = True
+    recursive_global_page_block_n: int = 32
+    recursive_global_page_candidates_per_route: int = 8
+    recursive_threshold_page_prefill: bool = False
+    recursive_threshold_page_collect_stats: bool = False
+    recursive_threshold_page_rank: int = 2
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -92,6 +99,20 @@ class PagedLODConfig(LODConfig):
             raise ValueError(
                 "recursive state-route backend must be 'fused' or 'resplit'"
             )
+        if self.recursive_global_page_block_n not in (8, 16, 32, 64):
+            raise ValueError("global-page block size must be 8, 16, 32, or 64")
+        if self.recursive_global_page_candidates_per_route not in (1, 2, 4, 8):
+            raise ValueError(
+                "global-page candidates per route must be 1, 2, 4, or 8"
+            )
+        if self.recursive_global_page_prefill and self.max_routes < 8:
+            raise ValueError("global-page prefill requires at least eight routes")
+        if self.recursive_threshold_page_prefill and self.max_routes < 8:
+            raise ValueError("threshold-page prefill requires at least eight routes")
+        if self.recursive_threshold_page_rank not in (2, 4):
+            raise ValueError("threshold-page rank must be two or four")
+        if self.recursive_global_page_prefill and self.recursive_threshold_page_prefill:
+            raise ValueError("global-page and threshold-page prefill are exclusive")
         if self.leaf_seal_capacity is not None:
             raise ValueError("sealed exact leaves require flat two-level LOD")
         if self.prefill_int8_leaf_mma:

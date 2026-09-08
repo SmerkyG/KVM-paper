@@ -24,6 +24,8 @@ from vllm_lod_plugin.config import (  # noqa: E402
 )
 from vllm_lod_plugin.pool import (  # noqa: E402
     VLLMLayerLODPool,
+    _prefill_hierarchical_route_geometry,
+    _production_prefill_hierarchical_route,
     _production_geometry_overrides,
 )
 
@@ -129,15 +131,31 @@ def verify_model_geometries() -> None:
     assert gemma["decode_gqa_fixed_mask_segments"] == 128
 
     k2 = _production_geometry_overrides(128, 8)
-    assert k2["prefill_open_count"] == 3
+    assert k2["prefill_open_count"] == 4
     assert k2["prefill_chunk_size"] == 16_384
     assert k2["prefill_exact_first_chunk"] is True
     assert k2["prefill_overlap_coarse_leaf"] is True
+    assert _prefill_hierarchical_route_geometry(3, 128, 8, 8) is True
     assert k2["decode_gqa_cooperative"] is False
     assert k2["decode_gqa_cooperative_hip"] is False
     assert k2["decode_gqa_fixed_mask_aiter"] is False
     assert k2["decode_gqa_fixed_mask_segments"] == 128
     assert k2["decode_gqa_fixed_mask_scan_num_warps"] == 1
+
+    with patch.dict(
+        os.environ,
+        {"VLLM_LOD_PANEL_PREFILL_OPEN_COUNT": "8"},
+        clear=True,
+    ):
+        k2_top8 = _production_geometry_overrides(128, 8)
+    assert k2_top8["prefill_open_count"] == 8
+
+    with patch.dict(
+        os.environ,
+        {"VLLM_LOD_PANEL_PREFILL_FLAT_ROUTE": "1"},
+        clear=True,
+    ):
+        assert _production_prefill_hierarchical_route(2, 128, 8, 8) is False
 
 
 def verify_scheduler_guard() -> None:
@@ -173,7 +191,7 @@ def verify_pool_startup_audit() -> None:
         ("qwen35", 8, 2, 256, 3, 16_384, 256),
         ("qwen38", 24, 4, 256, 3, 16_384, 256),
         ("gemma", 16, 2, 512, 3, 4_096, 128),
-        ("k2", 64, 8, 128, 3, 16_384, 128),
+        ("k2", 64, 8, 128, 4, 16_384, 128),
     )
     for name, query_heads, kv_heads, head_dim, topk, chunk, segments in geometries:
         normalized_keys = name in {"qwen35", "qwen38", "gemma"}

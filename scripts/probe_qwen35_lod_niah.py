@@ -258,6 +258,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--reuse-dynamic-local-attention", action="store_true")
     parser.add_argument("--dynamic-open-residual-state-bound", action="store_true")
     parser.add_argument("--recursive-page-lod", action="store_true")
+    parser.add_argument("--recursive-global-page-prefill", action="store_true")
+    parser.add_argument(
+        "--recursive-global-page-grouped",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument(
+        "--recursive-global-page-block-n", type=int, choices=(8, 16, 32, 64), default=32
+    )
+    parser.add_argument(
+        "--recursive-global-page-candidates-per-route",
+        type=int,
+        choices=(1, 2, 4, 8),
+        default=8,
+    )
     parser.add_argument("--recursive-materialize-page-scores", action="store_true")
     parser.add_argument(
         "--recursive-page-score-block-n", type=int, choices=(16, 32, 64, 128), default=16
@@ -519,6 +534,18 @@ def main() -> None:
                 module.leaf_page_size = args.leaf_page_size
                 module.leaf_paged_directory = args.leaf_paged_directory
                 module.recursive_page_lod = args.recursive_page_lod
+                module.recursive_global_page_prefill = (
+                    args.recursive_global_page_prefill
+                )
+                module.recursive_global_page_block_n = (
+                    args.recursive_global_page_block_n
+                )
+                module.recursive_global_page_grouped = (
+                    args.recursive_global_page_grouped
+                )
+                module.recursive_global_page_candidates_per_route = (
+                    args.recursive_global_page_candidates_per_route
+                )
                 module.recursive_materialize_page_scores = (
                     args.recursive_materialize_page_scores
                 )
@@ -845,6 +872,26 @@ def main() -> None:
                     ),
                     "recursive_page_lod": (
                         args.recursive_page_lod if args.mode == "two_level" else None
+                    ),
+                    "recursive_global_page_prefill": (
+                        args.recursive_global_page_prefill
+                        if args.mode == "two_level"
+                        else None
+                    ),
+                    "recursive_global_page_block_n": (
+                        args.recursive_global_page_block_n
+                        if args.mode == "two_level"
+                        else None
+                    ),
+                    "recursive_global_page_grouped": (
+                        args.recursive_global_page_grouped
+                        if args.mode == "two_level"
+                        else None
+                    ),
+                    "recursive_global_page_candidates_per_route": (
+                        args.recursive_global_page_candidates_per_route
+                        if args.mode == "two_level"
+                        else None
                     ),
                     "recursive_materialize_page_scores": (
                         args.recursive_materialize_page_scores

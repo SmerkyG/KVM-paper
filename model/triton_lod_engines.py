@@ -398,6 +398,26 @@ class KernelRecursivePagedLODAttention(_KernelLODEngine):
         )
         self.recursive_page_select_block_n = config.recursive_page_select_block_n
         self.recursive_state_route_backend = config.recursive_state_route_backend
+        self.recursive_global_page_prefill = config.recursive_global_page_prefill
+        self.recursive_global_page_grouped = config.recursive_global_page_grouped
+        self.recursive_global_page_block_n = config.recursive_global_page_block_n
+        self.recursive_global_page_candidates_per_route = (
+            config.recursive_global_page_candidates_per_route
+        )
+        self.recursive_threshold_page_prefill = (
+            config.recursive_threshold_page_prefill
+        )
+        self.recursive_threshold_page_collect_stats = (
+            config.recursive_threshold_page_collect_stats
+        )
+        self.recursive_threshold_page_rank = config.recursive_threshold_page_rank
+        if (
+            self.recursive_global_page_prefill
+            or self.recursive_threshold_page_prefill
+        ) and default_open_count != 8:
+            raise ValueError(
+                "global-page and threshold-page prefill require eight open routes"
+            )
         # Amortize prefill routing and state maintenance without changing the
         # smaller decode-local field.  The extra exact lookback preserves three
         # decode chunks before each large causal prefill region.
@@ -406,7 +426,14 @@ class KernelRecursivePagedLODAttention(_KernelLODEngine):
             self.prefill_chunk_len + config.local_window + config.chunk_size
         )
         self.prefill_state_update_len = 5 * config.chunk_size
-        self.prefill_two_level_topk = min(3, default_open_count)
+        self.prefill_two_level_topk = (
+            8
+            if (
+                self.recursive_global_page_prefill
+                or self.recursive_threshold_page_prefill
+            )
+            else min(3, default_open_count)
+        )
         self.split_prefill_local_attention = True
         self.leaf_num_warps = 1
         self.recursive_page_attention_num_warps = self.leaf_num_warps

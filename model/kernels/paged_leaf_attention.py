@@ -1689,6 +1689,45 @@ def _scatter_direct_expert_routes_kernel(
 
 
 @triton.jit
+def _dense_sorted_expert_boundaries_kernel(
+    sorted_expert,
+    expert_starts,
+    expert_ends,
+    assignments,
+    experts,
+    BLOCK: tl.constexpr,
+):
+    """Materialize dense run boundaries after a radix sort, without atomics."""
+    index = (
+        tl.program_id(0).to(tl.int64) * BLOCK
+        + tl.arange(0, BLOCK).to(tl.int64)
+    )
+    valid = index < assignments
+    expert = tl.load(sorted_expert + index, mask=valid, other=-1).to(tl.int64)
+    valid &= (expert >= 0) & (expert < experts)
+    previous = tl.load(
+        sorted_expert + index - 1,
+        mask=valid & (index > 0),
+        other=-1,
+    ).to(tl.int64)
+    following = tl.load(
+        sorted_expert + index + 1,
+        mask=valid & (index + 1 < assignments),
+        other=-1,
+    ).to(tl.int64)
+    tl.store(
+        expert_starts + expert,
+        index,
+        mask=valid & (expert != previous),
+    )
+    tl.store(
+        expert_ends + expert,
+        index + 1,
+        mask=valid & (expert != following),
+    )
+
+
+@triton.jit
 def _prepare_tiny_expert_sort_keys_kernel(
     top_slots,
     slot_lengths,
@@ -1908,27 +1947,10 @@ def _tiny_leaf_expert_attention_kernel(
 
 
 @triton.jit
-def _mask_invalid_expert_routes_kernel(
-    top_slots,
-    route_lse,
-    ROUTE_ROWS,
-    ROUTE_COUNT: tl.constexpr,
-    BLOCK: tl.constexpr,
-):
-    route_row = tl.program_id(0).to(tl.int64) * BLOCK + tl.arange(0, BLOCK)
-    valid = route_row < ROUTE_ROWS
-    slot = tl.load(top_slots + route_row, mask=valid, other=-1)
-    tl.store(
-        route_lse + route_row,
-        -float("inf"),
-        mask=valid & (slot < 0),
-    )
-
-
-@triton.jit
 def _reduce_expert_route_attention_kernel(
     route_out,
     route_lse,
+    top_slots,
     exact_out,
     exact_lse,
     ROUTE_COUNT: tl.constexpr,
@@ -1941,6 +1963,12 @@ def _reduce_expert_route_attention_kernel(
     route = tl.arange(0, ROUTE_BLOCK)
     dimension = tl.arange(0, VALUE_BLOCK_DIM)
     valid_route = route < ROUTE_COUNT
+    slot = tl.load(
+        top_slots + row * ROUTE_COUNT + route,
+        mask=valid_route,
+        other=-1,
+    )
+    valid_route &= slot >= 0
     lse = tl.load(
         route_lse + row * ROUTE_COUNT + route,
         mask=valid_route,
@@ -4558,6 +4586,8 @@ def _paged_leaf_attention_kernel(
     out,
     lse,
     PROGRAM_OFFSET,
+    program_limit,
+    experts,
     PAGE_CAPACITY: tl.constexpr,
     LEAF_CAPACITY: tl.constexpr,
     STATE_CAPACITY: tl.constexpr,
@@ -4580,16 +4610,43 @@ def _paged_leaf_attention_kernel(
     QUANT_TOKEN_GROUP_SIZE: tl.constexpr,
     QUANTIZED_SUMMARIES: tl.constexpr,
     INDEXED: tl.constexpr,
+    PROGRAMS_POINTER: tl.constexpr,
+    SEARCH_BLOCKS: tl.constexpr,
+    SEARCH_STEPS: tl.constexpr,
 ):
     split_program = tl.program_id(0).to(tl.int64)
     local_program = split_program // SPLIT_N
     split = split_program - local_program * SPLIT_N
+    if PROGRAMS_POINTER:
+        active_programs = tl.load(program_limit).to(tl.int64)
+    else:
+        active_programs = program_limit
+    valid_program = local_program < active_programs
     program = local_program + PROGRAM_OFFSET
-    expert = tl.load(block_expert + program)
-    query_block = program - tl.load(block_starts + expert)
-    query_count = tl.load(q_lengths + expert)
+    if SEARCH_BLOCKS:
+        lower = tl.full((), 0, tl.int64)
+        upper = experts.to(tl.int64)
+        for _ in tl.static_range(0, SEARCH_STEPS):
+            searching = lower < upper
+            middle = (lower + upper) // 2
+            boundary = tl.load(
+                block_starts + middle + 1,
+                mask=valid_program & searching,
+                other=active_programs,
+            ).to(tl.int64)
+            move_right = searching & (local_program >= boundary)
+            lower = tl.where(move_right, middle + 1, lower)
+            upper = tl.where(searching & ~move_right, middle, upper)
+        expert = tl.where(valid_program, lower, 0)
+        query_block = local_program - tl.load(
+            block_starts + expert, mask=valid_program, other=0
+        ).to(tl.int64)
+    else:
+        expert = tl.load(block_expert + program)
+        query_block = program - tl.load(block_starts + expert)
+    query_count = tl.load(q_lengths + expert, mask=valid_program, other=0)
     query_offset = query_block * BLOCK_M + tl.arange(0, BLOCK_M)
-    valid_query = query_offset < query_count
+    valid_query = valid_program & (query_offset < query_count)
     packed_begin = tl.load(cu_q + expert).to(tl.int64)
     packed_row = packed_begin + query_offset.to(tl.int64)
     route_row = tl.load(
@@ -4630,28 +4687,63 @@ def _paged_leaf_attention_kernel(
     for key_begin in tl.range(0, split_count, BLOCK_N, num_stages=1):
         logical_key = split_begin + key_begin + token_offset
         valid_key = (key_begin + token_offset) < split_count
-        page_ordinal = logical_key // PAGE_SIZE
-        within_page = logical_key % PAGE_SIZE
-        if HASH_PROBES == 0:
-            page_id = tl.load(page_table + page_ordinal, mask=valid_key, other=0).to(
-                tl.int64
-            )
+        page_aligned_quant = (
+            QUANT_BITS
+            and BLOCK_N == PAGE_SIZE
+            and QUANT_TOKEN_GROUP_SIZE == PAGE_SIZE
+            and SPLIT_N == 1
+        )
+        if page_aligned_quant:
+            # Residual INT4 always visits one complete virtual page at a time.
+            # Resolve its directory entry and page metadata once, rather than
+            # issuing the same loads independently for all sixteen leaf lanes.
+            page_ordinal_scalar = key_begin // PAGE_SIZE
+            within_page = token_offset.to(tl.int64)
+            valid_page = key_begin < split_count
+            if HASH_PROBES == 0:
+                page_id_scalar = tl.load(
+                    page_table + page_ordinal_scalar, mask=valid_page, other=0
+                ).to(tl.int64)
+            else:
+                page_id_scalar = _lookup_page_id(
+                    slot_pages,
+                    overflow_page_keys,
+                    overflow_page_values,
+                    overflow_used,
+                    kv_row,
+                    slot,
+                    page_ordinal_scalar,
+                    valid_page,
+                    STATE_CAPACITY,
+                    INLINE_PAGES_PER_SLOT,
+                    PAGE_CAPACITY,
+                    HASH_CAPACITY,
+                    HASH_PROBES,
+                ).to(tl.int64)
+            page_id = page_id_scalar + tl.zeros((BLOCK_N,), tl.int64)
         else:
-            page_id = _lookup_page_id(
-                slot_pages,
-                overflow_page_keys,
-                overflow_page_values,
-                overflow_used,
-                kv_row,
-                slot,
-                page_ordinal,
-                valid_key,
-                STATE_CAPACITY,
-                INLINE_PAGES_PER_SLOT,
-                PAGE_CAPACITY,
-                HASH_CAPACITY,
-                HASH_PROBES,
-            ).to(tl.int64)
+            page_ordinal = logical_key // PAGE_SIZE
+            within_page = logical_key % PAGE_SIZE
+            if HASH_PROBES == 0:
+                page_id = tl.load(
+                    page_table + page_ordinal, mask=valid_key, other=0
+                ).to(tl.int64)
+            else:
+                page_id = _lookup_page_id(
+                    slot_pages,
+                    overflow_page_keys,
+                    overflow_page_values,
+                    overflow_used,
+                    kv_row,
+                    slot,
+                    page_ordinal,
+                    valid_key,
+                    STATE_CAPACITY,
+                    INLINE_PAGES_PER_SLOT,
+                    PAGE_CAPACITY,
+                    HASH_CAPACITY,
+                    HASH_PROBES,
+                ).to(tl.int64)
         physical_token = (kv_row * PAGE_CAPACITY + page_id) * PAGE_SIZE + within_page
         if INDEXED:
             leaf_index = tl.load(
@@ -4681,92 +4773,165 @@ def _paged_leaf_attention_kernel(
             value_shift = (value_offset & 1) * 4
             key_code = ((packed_keys >> key_shift[:, None]) & 15) - 8
             value_code = ((packed_values >> value_shift[None, :]) & 15) - 8
-            token_group = within_page // QUANT_TOKEN_GROUP_SIZE
-            key_scale_row = (
-                (kv_row * PAGE_CAPACITY + page_id)
-                * (PAGE_SIZE // QUANT_TOKEN_GROUP_SIZE)
-                + token_group
-            ) * (HEAD_DIM // QUANT_GROUP_SIZE)
-            value_scale_row = (
-                (kv_row * PAGE_CAPACITY + page_id)
-                * (PAGE_SIZE // QUANT_TOKEN_GROUP_SIZE)
-                + token_group
-            ) * (VALUE_DIM // QUANT_GROUP_SIZE)
-            key_scale = tl.load(
-                page_k_scales
-                + key_scale_row[None, :]
-                + head_offset[:, None] // QUANT_GROUP_SIZE,
-                mask=valid_key[None, :],
-                other=0.0,
-            ).to(tl.float32)
-            value_scale = tl.load(
-                page_v_scales
-                + value_scale_row[:, None]
-                + value_offset[None, :] // QUANT_GROUP_SIZE,
-                mask=valid_key[:, None],
-                other=0.0,
-            ).to(tl.float32)
-            page_count = tl.load(
-                page_counts + kv_row * PAGE_CAPACITY + page_id,
-                mask=valid_key,
-                other=1,
-            ).to(tl.float32)
-            if QUANTIZED_SUMMARIES:
-                key_sum_code = tl.load(
-                    quantized_page_sum_k
-                    + (kv_row * PAGE_CAPACITY + page_id)[None, :] * HEAD_DIM
-                    + head_offset[:, None],
-                    mask=valid_key[None, :],
-                    other=0,
+            if page_aligned_quant:
+                page_valid_scalar = key_begin < split_count
+                page_row = kv_row * PAGE_CAPACITY + tl.sum(
+                    tl.where(token_offset == 0, page_id, 0), axis=0
+                )
+                key_scale_row_scalar = page_row * (HEAD_DIM // QUANT_GROUP_SIZE)
+                value_scale_row_scalar = page_row * (VALUE_DIM // QUANT_GROUP_SIZE)
+                key_scale_vector = tl.load(
+                    page_k_scales
+                    + key_scale_row_scalar
+                    + head_offset // QUANT_GROUP_SIZE,
+                    mask=page_valid_scalar,
+                    other=0.0,
                 ).to(tl.float32)
-                value_sum_code = tl.load(
-                    quantized_page_sum_v
-                    + (kv_row * PAGE_CAPACITY + page_id)[:, None] * VALUE_DIM
-                    + value_offset[None, :],
-                    mask=valid_key[:, None],
-                    other=0,
+                value_scale_vector = tl.load(
+                    page_v_scales
+                    + value_scale_row_scalar
+                    + value_offset // QUANT_GROUP_SIZE,
+                    mask=page_valid_scalar,
+                    other=0.0,
                 ).to(tl.float32)
-                key_sum_scale = tl.load(
-                    page_sum_k_scales
-                    + (kv_row * PAGE_CAPACITY + page_id)[None, :]
-                    * (HEAD_DIM // QUANT_GROUP_SIZE)
+                page_count_scalar = tl.load(
+                    page_counts + page_row,
+                    mask=page_valid_scalar,
+                    other=1,
+                ).to(tl.float32)
+                if QUANTIZED_SUMMARIES:
+                    key_sum_code_vector = tl.load(
+                        quantized_page_sum_k + page_row * HEAD_DIM + head_offset,
+                        mask=page_valid_scalar,
+                        other=0,
+                    ).to(tl.float32)
+                    value_sum_code_vector = tl.load(
+                        quantized_page_sum_v + page_row * VALUE_DIM + value_offset,
+                        mask=page_valid_scalar,
+                        other=0,
+                    ).to(tl.float32)
+                    key_sum_scale_vector = tl.load(
+                        page_sum_k_scales
+                        + page_row * (HEAD_DIM // QUANT_GROUP_SIZE)
+                        + head_offset // QUANT_GROUP_SIZE,
+                        mask=page_valid_scalar,
+                        other=0.0,
+                    ).to(tl.float32)
+                    value_sum_scale_vector = tl.load(
+                        page_sum_v_scales
+                        + page_row * (VALUE_DIM // QUANT_GROUP_SIZE)
+                        + value_offset // QUANT_GROUP_SIZE,
+                        mask=page_valid_scalar,
+                        other=0.0,
+                    ).to(tl.float32)
+                    key_sum_vector = key_sum_code_vector * key_sum_scale_vector
+                    value_sum_vector = value_sum_code_vector * value_sum_scale_vector
+                else:
+                    key_sum_vector = tl.load(
+                        page_sum_k + page_row * HEAD_DIM + head_offset,
+                        mask=page_valid_scalar,
+                        other=0.0,
+                    ).to(tl.float32)
+                    value_sum_vector = tl.load(
+                        page_sum_v + page_row * VALUE_DIM + value_offset,
+                        mask=page_valid_scalar,
+                        other=0.0,
+                    ).to(tl.float32)
+                k_block = (
+                    key_code.to(tl.float32) * key_scale_vector[:, None]
+                    + key_sum_vector[:, None] / page_count_scalar
+                ).to(tl.bfloat16)
+                v_block = (
+                    value_code.to(tl.float32) * value_scale_vector[None, :]
+                    + value_sum_vector[None, :] / page_count_scalar
+                ).to(tl.bfloat16)
+            else:
+                token_group = within_page // QUANT_TOKEN_GROUP_SIZE
+                key_scale_row = (
+                    (kv_row * PAGE_CAPACITY + page_id)
+                    * (PAGE_SIZE // QUANT_TOKEN_GROUP_SIZE)
+                    + token_group
+                ) * (HEAD_DIM // QUANT_GROUP_SIZE)
+                value_scale_row = (
+                    (kv_row * PAGE_CAPACITY + page_id)
+                    * (PAGE_SIZE // QUANT_TOKEN_GROUP_SIZE)
+                    + token_group
+                ) * (VALUE_DIM // QUANT_GROUP_SIZE)
+                key_scale = tl.load(
+                    page_k_scales
+                    + key_scale_row[None, :]
                     + head_offset[:, None] // QUANT_GROUP_SIZE,
                     mask=valid_key[None, :],
                     other=0.0,
                 ).to(tl.float32)
-                value_sum_scale = tl.load(
-                    page_sum_v_scales
-                    + (kv_row * PAGE_CAPACITY + page_id)[:, None]
-                    * (VALUE_DIM // QUANT_GROUP_SIZE)
+                value_scale = tl.load(
+                    page_v_scales
+                    + value_scale_row[:, None]
                     + value_offset[None, :] // QUANT_GROUP_SIZE,
                     mask=valid_key[:, None],
                     other=0.0,
                 ).to(tl.float32)
-                key_sum = key_sum_code * key_sum_scale
-                value_sum = value_sum_code * value_sum_scale
-            else:
-                key_sum = tl.load(
-                    page_sum_k
-                    + (kv_row * PAGE_CAPACITY + page_id)[None, :] * HEAD_DIM
-                    + head_offset[:, None],
-                    mask=valid_key[None, :],
-                    other=0.0,
+                page_count = tl.load(
+                    page_counts + kv_row * PAGE_CAPACITY + page_id,
+                    mask=valid_key,
+                    other=1,
                 ).to(tl.float32)
-                value_sum = tl.load(
-                    page_sum_v
-                    + (kv_row * PAGE_CAPACITY + page_id)[:, None] * VALUE_DIM
-                    + value_offset[None, :],
-                    mask=valid_key[:, None],
-                    other=0.0,
-                ).to(tl.float32)
-            k_block = (
-                key_code.to(tl.float32) * key_scale
-                + key_sum / page_count[None, :]
-            ).to(tl.bfloat16)
-            v_block = (
-                value_code.to(tl.float32) * value_scale
-                + value_sum / page_count[:, None]
-            ).to(tl.bfloat16)
+                if QUANTIZED_SUMMARIES:
+                    key_sum_code = tl.load(
+                        quantized_page_sum_k
+                        + (kv_row * PAGE_CAPACITY + page_id)[None, :] * HEAD_DIM
+                        + head_offset[:, None],
+                        mask=valid_key[None, :],
+                        other=0,
+                    ).to(tl.float32)
+                    value_sum_code = tl.load(
+                        quantized_page_sum_v
+                        + (kv_row * PAGE_CAPACITY + page_id)[:, None] * VALUE_DIM
+                        + value_offset[None, :],
+                        mask=valid_key[:, None],
+                        other=0,
+                    ).to(tl.float32)
+                    key_sum_scale = tl.load(
+                        page_sum_k_scales
+                        + (kv_row * PAGE_CAPACITY + page_id)[None, :]
+                        * (HEAD_DIM // QUANT_GROUP_SIZE)
+                        + head_offset[:, None] // QUANT_GROUP_SIZE,
+                        mask=valid_key[None, :],
+                        other=0.0,
+                    ).to(tl.float32)
+                    value_sum_scale = tl.load(
+                        page_sum_v_scales
+                        + (kv_row * PAGE_CAPACITY + page_id)[:, None]
+                        * (VALUE_DIM // QUANT_GROUP_SIZE)
+                        + value_offset[None, :] // QUANT_GROUP_SIZE,
+                        mask=valid_key[:, None],
+                        other=0.0,
+                    ).to(tl.float32)
+                    key_sum = key_sum_code * key_sum_scale
+                    value_sum = value_sum_code * value_sum_scale
+                else:
+                    key_sum = tl.load(
+                        page_sum_k
+                        + (kv_row * PAGE_CAPACITY + page_id)[None, :] * HEAD_DIM
+                        + head_offset[:, None],
+                        mask=valid_key[None, :],
+                        other=0.0,
+                    ).to(tl.float32)
+                    value_sum = tl.load(
+                        page_sum_v
+                        + (kv_row * PAGE_CAPACITY + page_id)[:, None] * VALUE_DIM
+                        + value_offset[None, :],
+                        mask=valid_key[:, None],
+                        other=0.0,
+                    ).to(tl.float32)
+                k_block = (
+                    key_code.to(tl.float32) * key_scale
+                    + key_sum / page_count[None, :]
+                ).to(tl.bfloat16)
+                v_block = (
+                    value_code.to(tl.float32) * value_scale
+                    + value_sum / page_count[:, None]
+                ).to(tl.bfloat16)
         else:
             k_block = tl.load(
                 page_k + storage_token[None, :] * HEAD_DIM + head_offset[:, None],
@@ -4883,6 +5048,334 @@ def _paged_leaf_attention_kernel(
             mask=valid_query[:, None],
         )
         tl.store(lse + route_row, natural_lse, mask=valid_query)
+
+
+@triton.jit(
+    do_not_specialize=["program_limit", "experts"],
+    do_not_specialize_on_alignment=["program_limit", "experts"],
+)
+def _paged_leaf_residual_attention_kernel(
+    q,
+    packed_route_row,
+    block_expert,
+    block_starts,
+    q_lengths,
+    cu_q,
+    expert_kv_row,
+    expert_page,
+    leaf_k,
+    leaf_v,
+    quantized_leaf_k,
+    quantized_leaf_v,
+    page_k_scales,
+    page_v_scales,
+    page_indices,
+    page_sum_k,
+    page_sum_v,
+    quantized_page_sum_k,
+    quantized_page_sum_v,
+    page_sum_k_scales,
+    page_sum_v_scales,
+    page_counts,
+    state_k,
+    state_v,
+    state_counts,
+    parent_slots,
+    out,
+    lse,
+    program_limit,
+    experts,
+    PAGE_CAPACITY: tl.constexpr,
+    LEAF_CAPACITY: tl.constexpr,
+    STATE_CAPACITY: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+    PAGE_SIZE: tl.constexpr,
+    ROUTE_COUNT: tl.constexpr,
+    SCALE_LOG2: tl.constexpr,
+    BLOCK_M: tl.constexpr,
+    PROGRAMS_POINTER: tl.constexpr,
+    SEARCH_BLOCKS: tl.constexpr,
+    SEARCH_STEPS: tl.constexpr,
+    QUANT_BITS: tl.constexpr,
+    QUANT_GROUP_SIZE: tl.constexpr,
+    QUANTIZED_SUMMARIES: tl.constexpr,
+):
+    """Attend one selected page and its disjoint parent residual per route."""
+    program = tl.program_id(0).to(tl.int64)
+    if PROGRAMS_POINTER:
+        active_programs = tl.load(program_limit).to(tl.int64)
+    else:
+        active_programs = program_limit
+    valid_program = program < active_programs
+    if SEARCH_BLOCKS:
+        lower = tl.full((), 0, tl.int64)
+        upper = experts.to(tl.int64)
+        for _ in tl.static_range(0, SEARCH_STEPS):
+            searching = lower < upper
+            middle = (lower + upper) // 2
+            boundary = tl.load(
+                block_starts + middle + 1,
+                mask=valid_program & searching,
+                other=active_programs,
+            ).to(tl.int64)
+            move_right = searching & (program >= boundary)
+            lower = tl.where(move_right, middle + 1, lower)
+            upper = tl.where(searching & ~move_right, middle, upper)
+        expert = tl.where(valid_program, lower, 0)
+        query_block = program - tl.load(
+            block_starts + expert, mask=valid_program, other=0
+        ).to(tl.int64)
+    else:
+        expert = tl.load(block_expert + program, mask=valid_program, other=0)
+        query_block = program - tl.load(
+            block_starts + expert, mask=valid_program, other=0
+        )
+    query_count = tl.load(q_lengths + expert, mask=valid_program, other=0)
+    query_offset = query_block * BLOCK_M + tl.arange(0, BLOCK_M)
+    valid_query = valid_program & (query_offset < query_count)
+    packed_begin = tl.load(cu_q + expert, mask=valid_program, other=0).to(
+        tl.int64
+    )
+    packed_row = packed_begin + query_offset.to(tl.int64)
+    route_row = tl.load(
+        packed_route_row + packed_row,
+        mask=valid_query,
+        other=0,
+    ).to(tl.int64)
+    query_row = route_row // ROUTE_COUNT
+    first_route_row = tl.load(
+        packed_route_row + packed_begin + query_block * BLOCK_M,
+        mask=valid_program,
+        other=0,
+    ).to(tl.int64)
+
+    kv_row = tl.load(expert_kv_row + expert, mask=valid_program, other=0).to(
+        tl.int64
+    )
+    page = tl.load(expert_page + expert, mask=valid_program, other=0).to(
+        tl.int64
+    )
+    parent = tl.load(
+        parent_slots + first_route_row,
+        mask=valid_program,
+        other=-1,
+    ).to(tl.int64)
+    valid_parent = (
+        valid_program
+        & (page >= 0)
+        & (page < PAGE_CAPACITY)
+        & (parent >= 0)
+        & (parent < STATE_CAPACITY)
+    )
+    safe_page = tl.where(valid_parent, page, 0)
+    safe_parent = tl.where(valid_parent, parent, 0)
+    page_row = kv_row * PAGE_CAPACITY + safe_page
+    state_row = kv_row * STATE_CAPACITY + safe_parent
+
+    head_offset = tl.arange(0, HEAD_DIM)
+    value_offset = tl.arange(0, VALUE_DIM)
+    token_offset = tl.arange(0, PAGE_SIZE)
+    queries = tl.load(
+        q + query_row[:, None] * HEAD_DIM + head_offset[None, :],
+        mask=valid_query[:, None],
+        other=0.0,
+    )
+    page_count = tl.load(
+        page_counts + page_row,
+        mask=valid_parent,
+        other=0,
+    ).to(tl.float32)
+    state_count = tl.load(
+        state_counts + state_row,
+        mask=valid_parent,
+        other=0.0,
+    ).to(tl.float32)
+    residual_count = state_count - page_count
+    has_residual = valid_parent & (residual_count > 0.0)
+    safe_residual_count = tl.where(has_residual, residual_count, 1.0)
+    residual_score = tl.full((BLOCK_M,), -float("inf"), tl.float32)
+    page_key_sum = tl.zeros((HEAD_DIM,), tl.float32)
+    page_value_sum = tl.zeros((VALUE_DIM,), tl.float32)
+    if QUANT_BITS or has_residual:
+        if QUANTIZED_SUMMARIES:
+            page_key_sum = (
+                tl.load(
+                    quantized_page_sum_k
+                    + page_row * HEAD_DIM
+                    + head_offset,
+                    mask=valid_parent,
+                    other=0,
+                ).to(tl.float32)
+                * tl.load(
+                    page_sum_k_scales
+                    + page_row * (HEAD_DIM // QUANT_GROUP_SIZE)
+                    + head_offset // QUANT_GROUP_SIZE,
+                    mask=valid_parent,
+                    other=0.0,
+                ).to(tl.float32)
+            )
+            page_value_sum = (
+                tl.load(
+                    quantized_page_sum_v
+                    + page_row * VALUE_DIM
+                    + value_offset,
+                    mask=valid_parent,
+                    other=0,
+                ).to(tl.float32)
+                * tl.load(
+                    page_sum_v_scales
+                    + page_row * (VALUE_DIM // QUANT_GROUP_SIZE)
+                    + value_offset // QUANT_GROUP_SIZE,
+                    mask=valid_parent,
+                    other=0.0,
+                ).to(tl.float32)
+            )
+        else:
+            page_key_sum = tl.load(
+                page_sum_k + page_row * HEAD_DIM + head_offset,
+                mask=valid_parent,
+                other=0.0,
+            ).to(tl.float32)
+            page_value_sum = tl.load(
+                page_sum_v + page_row * VALUE_DIM + value_offset,
+                mask=valid_parent,
+                other=0.0,
+            ).to(tl.float32)
+        if has_residual:
+            state_key_sum = tl.load(
+                state_k + state_row * HEAD_DIM + head_offset,
+            ).to(tl.float32)
+            residual_key = (state_key_sum - page_key_sum) / safe_residual_count
+            residual_score = (
+                SCALE_LOG2
+                * tl.sum(queries.to(tl.float32) * residual_key[None, :], axis=1)
+                + tl.log2(safe_residual_count)
+            )
+            residual_score = tl.where(valid_query, residual_score, -float("inf"))
+    valid_token = valid_parent & (token_offset < page_count)
+    leaf_index = tl.load(
+        page_indices + page_row * PAGE_SIZE + token_offset,
+        mask=valid_token,
+        other=0,
+    ).to(tl.int64)
+    valid_token &= (leaf_index >= 0) & (leaf_index < LEAF_CAPACITY)
+    storage_token = kv_row * LEAF_CAPACITY + tl.where(valid_token, leaf_index, 0)
+    if QUANT_BITS:
+        packed_keys = tl.load(
+            quantized_leaf_k
+            + storage_token[None, :] * (HEAD_DIM // 2)
+            + head_offset[:, None] // 2,
+            mask=valid_token[None, :],
+            other=0,
+        ).to(tl.int32)
+        key_code = (
+            (packed_keys >> ((head_offset[:, None] & 1) * 4)) & 15
+        ) - 8
+        key_scale = tl.load(
+            page_k_scales
+            + page_row * (HEAD_DIM // QUANT_GROUP_SIZE)
+            + head_offset // QUANT_GROUP_SIZE,
+            mask=valid_parent,
+            other=0.0,
+        ).to(tl.float32)
+        keys = (
+            key_code.to(tl.float32) * key_scale[:, None]
+            + page_key_sum[:, None] / tl.maximum(page_count, 1.0)
+        ).to(tl.bfloat16)
+    else:
+        keys = tl.load(
+            leaf_k + storage_token[None, :] * HEAD_DIM + head_offset[:, None],
+            mask=valid_token[None, :],
+            other=0.0,
+        )
+    scores = SCALE_LOG2 * tl.dot(queries, keys, out_dtype=tl.float32)
+    scores = tl.where(
+        valid_query[:, None] & valid_token[None, :],
+        scores,
+        -float("inf"),
+    )
+    maximum = tl.max(scores, axis=1)
+    probabilities = tl.where(
+        valid_query[:, None] & valid_token[None, :],
+        tl.math.exp2(scores - maximum[:, None]),
+        0.0,
+    )
+    denominator = tl.sum(probabilities, axis=1)
+    if QUANT_BITS:
+        packed_values = tl.load(
+            quantized_leaf_v
+            + storage_token[:, None] * (VALUE_DIM // 2)
+            + value_offset[None, :] // 2,
+            mask=valid_token[:, None],
+            other=0,
+        ).to(tl.int32)
+        value_code = (
+            (packed_values >> ((value_offset[None, :] & 1) * 4)) & 15
+        ) - 8
+        value_scale = tl.load(
+            page_v_scales
+            + page_row * (VALUE_DIM // QUANT_GROUP_SIZE)
+            + value_offset // QUANT_GROUP_SIZE,
+            mask=valid_parent,
+            other=0.0,
+        ).to(tl.float32)
+        values = (
+            value_code.to(tl.float32) * value_scale[None, :]
+            + page_value_sum[None, :] / tl.maximum(page_count, 1.0)
+        ).to(tl.bfloat16)
+    else:
+        values = tl.load(
+            leaf_v + storage_token[:, None] * VALUE_DIM + value_offset[None, :],
+            mask=valid_token[:, None],
+            other=0.0,
+        )
+    accumulator = tl.trans(
+        tl.dot(
+            tl.trans(values),
+            tl.trans(probabilities.to(values.dtype)),
+            out_dtype=tl.float32,
+        )
+    )
+
+    if has_residual:
+        state_value_sum = tl.load(
+            state_v + state_row * VALUE_DIM + value_offset,
+        ).to(tl.float32)
+        residual_value = (state_value_sum - page_value_sum) / safe_residual_count
+        new_maximum = tl.maximum(maximum, residual_score)
+        correction = tl.where(
+            maximum > -float("inf"),
+            tl.math.exp2(maximum - new_maximum),
+            0.0,
+        )
+        residual_weight = tl.where(
+            residual_score > -float("inf"),
+            tl.math.exp2(residual_score - new_maximum),
+            0.0,
+        )
+        accumulator = (
+            accumulator * correction[:, None]
+            + residual_weight[:, None] * residual_value[None, :]
+        )
+        denominator = denominator * correction + residual_weight
+        maximum = new_maximum
+
+    has_mass = valid_query & (denominator > 0.0)
+    normalized = tl.where(
+        has_mass[:, None], accumulator / denominator[:, None], 0.0
+    )
+    natural_lse = tl.where(
+        has_mass,
+        (maximum + tl.math.log2(denominator)) * 0.6931471805599453,
+        -float("inf"),
+    )
+    tl.store(
+        out + route_row[:, None] * VALUE_DIM + value_offset[None, :],
+        normalized,
+        mask=valid_query[:, None],
+    )
+    tl.store(lse + route_row, natural_lse, mask=valid_query)
 
 
 @triton.jit(
@@ -7123,7 +7616,7 @@ def dense_page_summary_attention(
             PAGE_SIZE=page_size,
             TOP_PAGES=top_pages,
             SCALE_LOG2=float(scale) * math.log2(math.e),
-            num_warps=2,
+            num_warps=1,
             waves_per_eu=waves_per_eu,
         )
     if timing_events is not None:
@@ -8033,6 +8526,455 @@ def _query_major_residual_page_attention_kernel(
     )
 
 
+@triton.jit(
+    do_not_specialize=[
+        "LEAF_CAPACITY",
+        "LEAF_K_BATCH_STRIDE",
+        "LEAF_K_HEAD_STRIDE",
+        "LEAF_K_TOKEN_STRIDE",
+        "LEAF_V_BATCH_STRIDE",
+        "LEAF_V_HEAD_STRIDE",
+        "LEAF_V_TOKEN_STRIDE",
+        "query_len",
+    ],
+    do_not_specialize_on_alignment=[
+        "LEAF_CAPACITY",
+        "LEAF_K_BATCH_STRIDE",
+        "LEAF_K_HEAD_STRIDE",
+        "LEAF_K_TOKEN_STRIDE",
+        "LEAF_V_BATCH_STRIDE",
+        "LEAF_V_HEAD_STRIDE",
+        "LEAF_V_TOKEN_STRIDE",
+        "query_len",
+    ],
+)
+def _query_major_threshold_page_attention_kernel(
+    q,
+    state_k,
+    state_v,
+    state_counts,
+    cache_indices,
+    leaf_k,
+    leaf_v,
+    page_indices,
+    page_sum_k,
+    page_sum_v,
+    page_counts,
+    slot_pages,
+    overflow_page_keys,
+    overflow_page_values,
+    overflow_used,
+    slot_lengths,
+    top_slots,
+    query_len,
+    out,
+    lse,
+    opened_pages,
+    QUERY_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    KV_GROUP_SIZE: tl.constexpr,
+    PAGE_CAPACITY: tl.constexpr,
+    LEAF_CAPACITY,
+    STATE_CAPACITY: tl.constexpr,
+    INLINE_PAGES_PER_SLOT: tl.constexpr,
+    HASH_CAPACITY: tl.constexpr,
+    HASH_PROBES: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+    HEAD_BLOCK_DIM: tl.constexpr,
+    VALUE_BLOCK_DIM: tl.constexpr,
+    PAGE_SIZE: tl.constexpr,
+    ROUTE_COUNT: tl.constexpr,
+    SCALE_LOG2: tl.constexpr,
+    LEAF_K_BATCH_STRIDE,
+    LEAF_K_HEAD_STRIDE,
+    LEAF_K_TOKEN_STRIDE,
+    LEAF_V_BATCH_STRIDE,
+    LEAF_V_HEAD_STRIDE,
+    LEAF_V_TOKEN_STRIDE,
+    STORE_OPEN_COUNTS: tl.constexpr,
+    THRESHOLD_RANK: tl.constexpr,
+):
+    """Open every routed page scoring above the second-best centroid.
+
+    Qualifying pages contribute their exact leaves.  Every other page remains
+    in its owning centroid's count-corrected residual, so the exact and coarse
+    pieces are disjoint just as in ordinary recursive LOD.
+    """
+    query_row = tl.program_id(0).to(tl.int64)
+    batch_head = query_row // query_len
+    batch = batch_head // QUERY_HEADS
+    cache_batch = tl.load(cache_indices + batch).to(tl.int64)
+    query_head = batch_head - batch * QUERY_HEADS
+    kv_head = query_head // KV_GROUP_SIZE
+    kv_row = cache_batch * KV_HEADS + kv_head
+
+    head_offset = tl.arange(0, HEAD_BLOCK_DIM)
+    value_offset = tl.arange(0, VALUE_BLOCK_DIM)
+    token_offset = tl.arange(0, PAGE_SIZE)
+    query = tl.load(
+        q + query_row * HEAD_DIM + head_offset,
+        mask=head_offset < HEAD_DIM,
+        other=0.0,
+    )
+
+    # top_slots is deliberately not assumed to be score-sorted.  Recompute
+    # the eight mass-corrected scores and retain the actual second largest.
+    best_score = tl.full((), -float("inf"), tl.float32)
+    second_score = tl.full((), -float("inf"), tl.float32)
+    third_score = tl.full((), -float("inf"), tl.float32)
+    fourth_score = tl.full((), -float("inf"), tl.float32)
+    for route in tl.static_range(0, ROUTE_COUNT):
+        routed_slot = tl.load(
+            top_slots + query_row * ROUTE_COUNT + route
+        ).to(tl.int64)
+        valid_slot = (routed_slot >= 0) & (routed_slot < STATE_CAPACITY)
+        slot = tl.where(valid_slot, routed_slot, 0)
+        count = tl.load(
+            state_counts + kv_row * STATE_CAPACITY + slot,
+            mask=valid_slot,
+            other=0.0,
+        ).to(tl.float32)
+        valid_slot &= count > 0.0
+        safe_count = tl.maximum(count, 1.0)
+        key_sum = tl.load(
+            state_k
+            + (kv_row * STATE_CAPACITY + slot) * HEAD_DIM
+            + head_offset,
+            mask=valid_slot & (head_offset < HEAD_DIM),
+            other=0.0,
+        ).to(tl.float32)
+        score = (
+            SCALE_LOG2 * tl.sum(query * key_sum / safe_count, axis=0)
+            + tl.log2(safe_count)
+        )
+        score = tl.where(valid_slot, score, -float("inf"))
+        carry = score
+        updated = tl.maximum(best_score, carry)
+        carry = tl.minimum(best_score, carry)
+        best_score = updated
+        updated = tl.maximum(second_score, carry)
+        carry = tl.minimum(second_score, carry)
+        second_score = updated
+        updated = tl.maximum(third_score, carry)
+        carry = tl.minimum(third_score, carry)
+        third_score = updated
+        fourth_score = tl.maximum(fourth_score, carry)
+    if THRESHOLD_RANK == 2:
+        threshold_score = second_score
+    else:
+        threshold_score = fourth_score
+
+    maximum = tl.full((), -float("inf"), tl.float32)
+    denominator = tl.zeros((), tl.float32)
+    accumulator = tl.zeros((VALUE_BLOCK_DIM,), tl.float32)
+    total_opened_pages = tl.zeros((), tl.int32)
+
+    for route in tl.static_range(0, ROUTE_COUNT):
+        routed_slot = tl.load(
+            top_slots + query_row * ROUTE_COUNT + route
+        ).to(tl.int64)
+        valid_slot = (routed_slot >= 0) & (routed_slot < STATE_CAPACITY)
+        slot = tl.where(valid_slot, routed_slot, 0)
+        leaf_count = tl.load(
+            slot_lengths + kv_row * STATE_CAPACITY + slot,
+            mask=valid_slot,
+            other=0,
+        ).to(tl.int32)
+        slot_page_count = (leaf_count + PAGE_SIZE - 1) // PAGE_SIZE
+        if HASH_PROBES == 0:
+            page_table = (
+                slot_pages
+                + (kv_row * STATE_CAPACITY + slot) * INLINE_PAGES_PER_SLOT
+            )
+
+        removed_count = tl.zeros((), tl.float32)
+        removed_key_sum = tl.zeros((HEAD_BLOCK_DIM,), tl.float32)
+        removed_value_sum = tl.zeros((VALUE_BLOCK_DIM,), tl.float32)
+        for page_ordinal in tl.range(0, slot_page_count, num_stages=1):
+            if HASH_PROBES == 0:
+                page_id = tl.load(
+                    page_table + page_ordinal,
+                    mask=valid_slot,
+                    other=0,
+                ).to(tl.int64)
+            else:
+                page_id = _lookup_page_id(
+                    slot_pages,
+                    overflow_page_keys,
+                    overflow_page_values,
+                    overflow_used,
+                    kv_row,
+                    slot,
+                    page_ordinal,
+                    valid_slot,
+                    STATE_CAPACITY,
+                    INLINE_PAGES_PER_SLOT,
+                    PAGE_CAPACITY,
+                    HASH_CAPACITY,
+                    HASH_PROBES,
+                ).to(tl.int64)
+            valid_page = valid_slot & (page_id >= 0) & (page_id < PAGE_CAPACITY)
+            safe_page = tl.where(valid_page, page_id, 0)
+            count = tl.load(
+                page_counts + kv_row * PAGE_CAPACITY + safe_page,
+                mask=valid_page,
+                other=0,
+            ).to(tl.float32)
+            valid_page &= count > 0.0
+            safe_count = tl.maximum(count, 1.0)
+            key_sum = tl.load(
+                page_sum_k
+                + (kv_row * PAGE_CAPACITY + safe_page) * HEAD_DIM
+                + head_offset,
+                mask=valid_page & (head_offset < HEAD_DIM),
+                other=0.0,
+            ).to(tl.float32)
+            value_sum = tl.load(
+                page_sum_v
+                + (kv_row * PAGE_CAPACITY + safe_page) * VALUE_DIM
+                + value_offset,
+                mask=valid_page & (value_offset < VALUE_DIM),
+                other=0.0,
+            ).to(tl.float32)
+            page_score = (
+                SCALE_LOG2 * tl.sum(query * key_sum / safe_count, axis=0)
+                + tl.log2(safe_count)
+            )
+            open_page = valid_page & (page_score >= threshold_score)
+            if open_page:
+                total_opened_pages += 1
+                removed_count += count
+                removed_key_sum += key_sum
+                removed_value_sum += value_sum
+
+                physical_token = (
+                    kv_row * PAGE_CAPACITY + safe_page
+                ) * PAGE_SIZE + token_offset
+                leaf_index = tl.load(
+                    page_indices + physical_token,
+                    mask=token_offset < count,
+                    other=-1,
+                ).to(tl.int64)
+                valid_token = (
+                    (token_offset < count)
+                    & (leaf_index >= 0)
+                    & (leaf_index < LEAF_CAPACITY)
+                )
+                safe_leaf = tl.where(valid_token, leaf_index, 0)
+                keys = tl.load(
+                    leaf_k
+                    + cache_batch * LEAF_K_BATCH_STRIDE
+                    + kv_head * LEAF_K_HEAD_STRIDE
+                    + safe_leaf[:, None] * LEAF_K_TOKEN_STRIDE
+                    + head_offset[None, :],
+                    mask=valid_token[:, None]
+                    & (head_offset[None, :] < HEAD_DIM),
+                    other=0.0,
+                ).to(tl.float32)
+                values = tl.load(
+                    leaf_v
+                    + cache_batch * LEAF_V_BATCH_STRIDE
+                    + kv_head * LEAF_V_HEAD_STRIDE
+                    + safe_leaf[:, None] * LEAF_V_TOKEN_STRIDE
+                    + value_offset[None, :],
+                    mask=valid_token[:, None]
+                    & (value_offset[None, :] < VALUE_DIM),
+                    other=0.0,
+                ).to(tl.float32)
+                scores = SCALE_LOG2 * tl.sum(keys * query[None, :], axis=1)
+                scores = tl.where(valid_token, scores, -float("inf"))
+                block_maximum = tl.max(scores, axis=0)
+                new_maximum = tl.maximum(maximum, block_maximum)
+                correction = tl.where(
+                    maximum > -float("inf"),
+                    tl.math.exp2(maximum - new_maximum),
+                    0.0,
+                )
+                probabilities = tl.where(
+                    valid_token,
+                    tl.math.exp2(scores - new_maximum),
+                    0.0,
+                )
+                denominator = denominator * correction + tl.sum(
+                    probabilities, axis=0
+                )
+                accumulator = accumulator * correction + tl.sum(
+                    probabilities[:, None] * values, axis=0
+                )
+                maximum = new_maximum
+
+        state_count = tl.load(
+            state_counts + kv_row * STATE_CAPACITY + slot,
+            mask=valid_slot,
+            other=0.0,
+        ).to(tl.float32)
+        residual_count = state_count - removed_count
+        if valid_slot & (residual_count > 0.0):
+            state_key_sum = tl.load(
+                state_k
+                + (kv_row * STATE_CAPACITY + slot) * HEAD_DIM
+                + head_offset,
+                mask=head_offset < HEAD_DIM,
+                other=0.0,
+            ).to(tl.float32)
+            state_value_sum = tl.load(
+                state_v
+                + (kv_row * STATE_CAPACITY + slot) * VALUE_DIM
+                + value_offset,
+                mask=value_offset < VALUE_DIM,
+                other=0.0,
+            ).to(tl.float32)
+            residual_key = (state_key_sum - removed_key_sum) / residual_count
+            residual_value = (
+                state_value_sum - removed_value_sum
+            ) / residual_count
+            residual_score = (
+                SCALE_LOG2 * tl.sum(query * residual_key, axis=0)
+                + tl.log2(residual_count)
+            )
+            new_maximum = tl.maximum(maximum, residual_score)
+            correction = tl.where(
+                maximum > -float("inf"),
+                tl.math.exp2(maximum - new_maximum),
+                0.0,
+            )
+            probability = tl.math.exp2(residual_score - new_maximum)
+            denominator = denominator * correction + probability
+            accumulator = accumulator * correction + probability * residual_value
+            maximum = new_maximum
+
+    has_mass = denominator > 0.0
+    tl.store(
+        out + query_row * VALUE_DIM + value_offset,
+        tl.where(has_mass, accumulator / denominator, 0.0),
+        mask=value_offset < VALUE_DIM,
+    )
+    tl.store(
+        lse + query_row,
+        tl.where(
+            has_mass,
+            (maximum + tl.math.log2(denominator)) * 0.6931471805599453,
+            -float("inf"),
+        ),
+    )
+    if STORE_OPEN_COUNTS:
+        tl.store(opened_pages + query_row, total_opened_pages)
+
+
+def threshold_routed_page_attention(
+    q: torch.Tensor,
+    state_k: torch.Tensor,
+    state_v: torch.Tensor,
+    state_counts: torch.Tensor,
+    leaf_k: torch.Tensor,
+    leaf_v: torch.Tensor,
+    page_indices: torch.Tensor,
+    page_sum_k: torch.Tensor,
+    page_sum_v: torch.Tensor,
+    page_counts: torch.Tensor,
+    slot_pages: torch.Tensor,
+    overflow_page_keys: torch.Tensor,
+    overflow_page_values: torch.Tensor,
+    overflow_used: torch.Tensor,
+    slot_lengths: torch.Tensor,
+    top_slots: torch.Tensor,
+    *,
+    kv_group_size: int,
+    scale: float,
+    cache_indices: torch.Tensor | None = None,
+    hash_probes: int = 8,
+    collect_open_counts: bool = False,
+    threshold_rank: int = 2,
+    num_warps: int = 2,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None]:
+    """Attend every routed page above the second-best centroid score."""
+    batch, query_heads, query_len, head_dim = q.shape
+    cache_batch_size, kv_heads, page_capacity, page_size = page_indices.shape
+    value_dim = int(leaf_v.size(-1))
+    if int(top_slots.size(-1)) != 8:
+        raise ValueError("threshold-page attention requires eight outer routes")
+    if threshold_rank not in (2, 4):
+        raise ValueError("threshold-page rank must be two or four")
+    if page_size != 16:
+        raise ValueError("threshold-page attention requires 16-token pages")
+    if query_heads != kv_heads * kv_group_size:
+        raise ValueError("query/KV head grouping is inconsistent")
+    if tuple(top_slots.shape[:3]) != (batch, query_heads, query_len):
+        raise ValueError("routed slots have the wrong query shape")
+    if leaf_k.dtype not in (torch.float16, torch.bfloat16) or (
+        leaf_v.dtype != leaf_k.dtype
+    ):
+        raise TypeError("threshold-page attention currently requires BF16/FP16 leaves")
+    if cache_indices is None:
+        if cache_batch_size != batch:
+            raise ValueError("cache indices are required for a shared cache batch")
+        cache_indices = torch.arange(batch, dtype=torch.long, device=q.device)
+    elif tuple(cache_indices.shape) != (batch,):
+        raise ValueError("cache indices must contain one entry per query row")
+    rows = batch * query_heads * query_len
+    output = torch.empty(
+        batch, query_heads, query_len, value_dim, dtype=q.dtype, device=q.device
+    )
+    output_lse = torch.empty(
+        batch, query_heads, query_len, dtype=torch.float32, device=q.device
+    )
+    open_counts = (
+        torch.empty(rows, dtype=torch.int32, device=q.device)
+        if collect_open_counts
+        else None
+    )
+    _query_major_threshold_page_attention_kernel[(rows,)](
+        q.contiguous(),
+        state_k,
+        state_v,
+        state_counts,
+        cache_indices.contiguous(),
+        leaf_k,
+        leaf_v,
+        page_indices,
+        page_sum_k,
+        page_sum_v,
+        page_counts,
+        slot_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        slot_lengths,
+        top_slots.contiguous(),
+        query_len,
+        output,
+        output_lse,
+        open_counts if open_counts is not None else output_lse,
+        QUERY_HEADS=query_heads,
+        KV_HEADS=kv_heads,
+        KV_GROUP_SIZE=kv_group_size,
+        PAGE_CAPACITY=page_capacity,
+        LEAF_CAPACITY=int(leaf_k.size(2)),
+        STATE_CAPACITY=int(state_k.size(2)),
+        INLINE_PAGES_PER_SLOT=int(slot_pages.size(3)),
+        HASH_CAPACITY=int(overflow_page_values.size(2)),
+        HASH_PROBES=hash_probes,
+        HEAD_DIM=head_dim,
+        VALUE_DIM=value_dim,
+        HEAD_BLOCK_DIM=triton.next_power_of_2(head_dim),
+        VALUE_BLOCK_DIM=triton.next_power_of_2(value_dim),
+        PAGE_SIZE=page_size,
+        ROUTE_COUNT=8,
+        SCALE_LOG2=float(scale) * math.log2(math.e),
+        LEAF_K_BATCH_STRIDE=int(leaf_k.stride(0)),
+        LEAF_K_HEAD_STRIDE=int(leaf_k.stride(1)),
+        LEAF_K_TOKEN_STRIDE=int(leaf_k.stride(2)),
+        LEAF_V_BATCH_STRIDE=int(leaf_v.stride(0)),
+        LEAF_V_HEAD_STRIDE=int(leaf_v.stride(1)),
+        LEAF_V_TOKEN_STRIDE=int(leaf_v.stride(2)),
+        STORE_OPEN_COUNTS=collect_open_counts,
+        THRESHOLD_RANK=threshold_rank,
+        num_warps=num_warps,
+    )
+    return output, output_lse, open_counts
+
+
 def refine_route_candidates_by_page_mass(
     q: torch.Tensor,
     page_sum_k: torch.Tensor,
@@ -8881,6 +9823,1463 @@ def _unpack_route_score_index(packed):
     )
     scores = score_bits.to(tl.float32, bitcast=True)
     return scores, indices
+
+
+@triton.jit
+def _query_major_global_routed_page_top8_kernel(
+    q,
+    cache_indices,
+    page_sum_k,
+    page_counts,
+    slot_pages,
+    overflow_page_keys,
+    overflow_page_values,
+    overflow_used,
+    slot_lengths,
+    top_slots,
+    selected_pages,
+    selected_parents,
+    query_len,
+    QUERY_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    KV_GROUP_SIZE: tl.constexpr,
+    PAGE_CAPACITY: tl.constexpr,
+    STATE_CAPACITY: tl.constexpr,
+    INLINE_PAGES_PER_SLOT: tl.constexpr,
+    HASH_CAPACITY: tl.constexpr,
+    HASH_PROBES: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    HEAD_BLOCK_DIM: tl.constexpr,
+    PAGE_SIZE: tl.constexpr,
+    ROUTE_COUNT: tl.constexpr,
+    SCALE_LOG2: tl.constexpr,
+    PAGE_BLOCK_N: tl.constexpr,
+):
+    """Choose eight pages globally from all pages of the routed centroids.
+
+    This query-major implementation deliberately scans every page ordinal.  It
+    is the correctness path for measuring the global-page approximation on a
+    real cache; the grouped MFMA implementation can replace the selector once
+    quality is established.
+    """
+    query_row = tl.program_id(0).to(tl.int64)
+    batch_head = query_row // query_len
+    batch = batch_head // QUERY_HEADS
+    cache_batch = tl.load(cache_indices + batch).to(tl.int64)
+    query_head = batch_head - batch * QUERY_HEADS
+    kv_head = query_head // KV_GROUP_SIZE
+    kv_row = cache_batch * KV_HEADS + kv_head
+    head_offset = tl.arange(0, HEAD_BLOCK_DIM)
+    page_offset = tl.arange(0, PAGE_BLOCK_N)
+    query = tl.load(
+        q + query_row * HEAD_DIM + head_offset,
+        mask=head_offset < HEAD_DIM,
+        other=0.0,
+    ).to(tl.float32)
+    best_packed = tl.full((8,), -9223372036854775807, tl.int64)
+
+    for route in tl.static_range(0, ROUTE_COUNT):
+        routed_slot = tl.load(top_slots + query_row * ROUTE_COUNT + route).to(
+            tl.int64
+        )
+        valid_slot = (routed_slot >= 0) & (routed_slot < STATE_CAPACITY)
+        slot = tl.where(valid_slot, routed_slot, 0)
+        leaf_count = tl.load(
+            slot_lengths + kv_row * STATE_CAPACITY + slot,
+            mask=valid_slot,
+            other=0,
+        ).to(tl.int32)
+        slot_page_count = (leaf_count + PAGE_SIZE - 1) // PAGE_SIZE
+        if HASH_PROBES == 0:
+            page_table = (
+                slot_pages + (kv_row * STATE_CAPACITY + slot) * INLINE_PAGES_PER_SLOT
+            )
+        for page_begin in tl.range(
+            0, slot_page_count, PAGE_BLOCK_N, num_stages=1
+        ):
+            page_ordinal = page_begin + page_offset
+            valid_page = valid_slot & (page_ordinal < slot_page_count)
+            if HASH_PROBES == 0:
+                page_id = tl.load(
+                    page_table + page_ordinal,
+                    mask=valid_page,
+                    other=-1,
+                ).to(tl.int64)
+            else:
+                page_id = _lookup_page_id(
+                    slot_pages,
+                    overflow_page_keys,
+                    overflow_page_values,
+                    overflow_used,
+                    kv_row,
+                    slot,
+                    page_ordinal,
+                    valid_page,
+                    STATE_CAPACITY,
+                    INLINE_PAGES_PER_SLOT,
+                    PAGE_CAPACITY,
+                    HASH_CAPACITY,
+                    HASH_PROBES,
+                ).to(tl.int64)
+            valid_page &= (page_id >= 0) & (page_id < PAGE_CAPACITY)
+            safe_page = tl.where(valid_page, page_id, 0)
+            count = tl.load(
+                page_counts + kv_row * PAGE_CAPACITY + safe_page,
+                mask=valid_page,
+                other=0,
+            ).to(tl.float32)
+            valid_page &= count > 0.0
+            safe_count = tl.where(valid_page, count, 1.0)
+            key_sums = tl.load(
+                page_sum_k
+                + (kv_row * PAGE_CAPACITY + safe_page[:, None]) * HEAD_DIM
+                + head_offset[None, :],
+                mask=valid_page[:, None]
+                & (head_offset[None, :] < HEAD_DIM),
+                other=0.0,
+            ).to(tl.float32)
+            scores = (
+                SCALE_LOG2
+                * tl.sum(query[None, :] * key_sums / safe_count[:, None], axis=1)
+                + tl.log2(safe_count)
+            )
+            scores = tl.where(valid_page, scores, -float("inf"))
+            candidate_id = route * PAGE_CAPACITY + safe_page
+            block_best = tl.topk(
+                _pack_route_score_index(scores, candidate_id), 8, dim=0
+            )
+            best_packed = tl.topk(
+                tl.interleave(best_packed, block_best), 8, dim=0
+            )
+
+    best_scores, candidate_ids = _unpack_route_score_index(best_packed)
+    valid = best_scores > -float("inf")
+    rank = tl.arange(0, 8)
+    tl.store(
+        selected_pages + query_row * 8 + rank,
+        tl.where(valid, candidate_ids % PAGE_CAPACITY, -1),
+    )
+    tl.store(
+        selected_parents + query_row * 8 + rank,
+        tl.where(valid, candidate_ids // PAGE_CAPACITY, -1),
+    )
+
+
+@triton.jit(
+    do_not_specialize=["query_len"],
+    do_not_specialize_on_alignment=["query_len"],
+)
+def _query_major_one_page_per_route_kernel(
+    q,
+    cache_indices,
+    page_sum_k,
+    quantized_page_sum_k,
+    page_sum_k_scales,
+    page_counts,
+    slot_pages,
+    overflow_page_keys,
+    overflow_page_values,
+    overflow_used,
+    slot_lengths,
+    top_slots,
+    selected_pages,
+    selected_parents,
+    query_len,
+    QUERY_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    KV_GROUP_SIZE: tl.constexpr,
+    PAGE_CAPACITY: tl.constexpr,
+    STATE_CAPACITY: tl.constexpr,
+    INLINE_PAGES_PER_SLOT: tl.constexpr,
+    HASH_CAPACITY: tl.constexpr,
+    HASH_PROBES: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    HEAD_BLOCK_DIM: tl.constexpr,
+    PAGE_SIZE: tl.constexpr,
+    ROUTE_COUNT: tl.constexpr,
+    SCALE_LOG2: tl.constexpr,
+    PAGE_BLOCK_N: tl.constexpr,
+    STORE_PARENTS: tl.constexpr,
+    QUANTIZED_SUMMARIES: tl.constexpr,
+    QUANT_GROUP_SIZE: tl.constexpr,
+):
+    """Choose one page independently from each already-routed centroid."""
+    query_row = tl.program_id(0).to(tl.int64)
+    batch_head = query_row // query_len
+    batch = batch_head // QUERY_HEADS
+    cache_batch = tl.load(cache_indices + batch).to(tl.int64)
+    query_head = batch_head - batch * QUERY_HEADS
+    kv_head = query_head // KV_GROUP_SIZE
+    kv_row = cache_batch * KV_HEADS + kv_head
+    head_offset = tl.arange(0, HEAD_BLOCK_DIM)
+    page_offset = tl.arange(0, PAGE_BLOCK_N)
+    query = tl.load(
+        q + query_row * HEAD_DIM + head_offset,
+        mask=head_offset < HEAD_DIM,
+        other=0.0,
+    ).to(tl.float32)
+
+    for route in tl.range(0, ROUTE_COUNT, num_stages=1):
+        routed_slot = tl.load(top_slots + query_row * ROUTE_COUNT + route).to(
+            tl.int64
+        )
+        valid_slot = (routed_slot >= 0) & (routed_slot < STATE_CAPACITY)
+        slot = tl.where(valid_slot, routed_slot, 0)
+        leaf_count = tl.load(
+            slot_lengths + kv_row * STATE_CAPACITY + slot,
+            mask=valid_slot,
+            other=0,
+        ).to(tl.int32)
+        slot_page_count = (leaf_count + PAGE_SIZE - 1) // PAGE_SIZE
+        if HASH_PROBES == 0:
+            page_table = (
+                slot_pages
+                + (kv_row * STATE_CAPACITY + slot) * INLINE_PAGES_PER_SLOT
+            )
+        selected_score = tl.full((), -float("inf"), tl.float32)
+        selected_page = tl.full((), -1, tl.int64)
+        single_page = valid_slot & (slot_page_count == 1)
+        if HASH_PROBES == 0:
+            first_page = tl.load(page_table, mask=single_page, other=-1).to(
+                tl.int64
+            )
+        else:
+            first_page = _lookup_page_id(
+                slot_pages,
+                overflow_page_keys,
+                overflow_page_values,
+                overflow_used,
+                kv_row,
+                slot,
+                0,
+                single_page,
+                STATE_CAPACITY,
+                INLINE_PAGES_PER_SLOT,
+                PAGE_CAPACITY,
+                HASH_CAPACITY,
+                HASH_PROBES,
+            ).to(tl.int64)
+        single_page &= (first_page >= 0) & (first_page < PAGE_CAPACITY)
+        selected_score = tl.where(single_page, float("inf"), selected_score)
+        selected_page = tl.where(single_page, first_page, selected_page)
+        scan_page_count = tl.where(single_page, 0, slot_page_count)
+        full_page_count = leaf_count // PAGE_SIZE
+        tail_page_count = leaf_count - full_page_count * PAGE_SIZE
+
+        for page_begin in tl.range(
+            0, scan_page_count, PAGE_BLOCK_N, num_stages=1
+        ):
+            page_ordinal = page_begin + page_offset
+            valid_page = valid_slot & (page_ordinal < scan_page_count)
+            if HASH_PROBES == 0:
+                page_id = tl.load(
+                    page_table + page_ordinal,
+                    mask=valid_page,
+                    other=-1,
+                ).to(tl.int64)
+            else:
+                page_id = _lookup_page_id(
+                    slot_pages,
+                    overflow_page_keys,
+                    overflow_page_values,
+                    overflow_used,
+                    kv_row,
+                    slot,
+                    page_ordinal,
+                    valid_page,
+                    STATE_CAPACITY,
+                    INLINE_PAGES_PER_SLOT,
+                    PAGE_CAPACITY,
+                    HASH_CAPACITY,
+                    HASH_PROBES,
+                ).to(tl.int64)
+            valid_page &= (page_id >= 0) & (page_id < PAGE_CAPACITY)
+            safe_page = tl.where(valid_page, page_id, 0)
+            count = tl.where(
+                page_ordinal < full_page_count,
+                PAGE_SIZE,
+                tail_page_count,
+            ).to(tl.float32)
+            safe_count = tl.where(valid_page, count, 1.0)
+            page_row = kv_row * PAGE_CAPACITY + safe_page[:, None]
+            if QUANTIZED_SUMMARIES:
+                key_sum_code = tl.load(
+                    quantized_page_sum_k
+                    + page_row * HEAD_DIM
+                    + head_offset[None, :],
+                    mask=valid_page[:, None]
+                    & (head_offset[None, :] < HEAD_DIM),
+                    other=0,
+                ).to(tl.float32)
+                key_sum_scale = tl.load(
+                    page_sum_k_scales
+                    + page_row * (HEAD_DIM // QUANT_GROUP_SIZE)
+                    + head_offset[None, :] // QUANT_GROUP_SIZE,
+                    mask=valid_page[:, None]
+                    & (head_offset[None, :] < HEAD_DIM),
+                    other=0.0,
+                ).to(tl.float32)
+                key_sums = (key_sum_code * key_sum_scale).to(query.dtype)
+            else:
+                key_sums = tl.load(
+                    page_sum_k + page_row * HEAD_DIM + head_offset[None, :],
+                    mask=valid_page[:, None]
+                    & (head_offset[None, :] < HEAD_DIM),
+                    other=0.0,
+                ).to(query.dtype)
+            page_scores = (
+                SCALE_LOG2
+                * tl.sum(
+                    query[None, :] * key_sums, axis=1
+                )
+                / safe_count
+                + tl.log2(safe_count)
+            )
+            page_scores = tl.where(valid_page, page_scores, -float("inf"))
+            block_score = tl.max(page_scores, axis=0)
+            block_page = tl.max(
+                tl.where(page_scores == block_score, page_id, -1), axis=0
+            ).to(tl.int64)
+            better = block_score > selected_score
+            selected_score = tl.where(better, block_score, selected_score)
+            selected_page = tl.where(better, block_page, selected_page)
+
+        selected_valid = selected_score > -float("inf")
+        tl.store(
+            selected_pages + query_row * ROUTE_COUNT + route,
+            tl.where(selected_valid, selected_page, -1),
+        )
+        if STORE_PARENTS:
+            tl.store(
+                selected_parents + query_row * ROUTE_COUNT + route,
+                tl.where(selected_valid, route, -1),
+            )
+
+
+@triton.jit(
+    do_not_specialize=["query_len"],
+    do_not_specialize_on_alignment=["query_len"],
+)
+def _gqa_one_page_per_route_kernel(
+    q,
+    cache_indices,
+    page_sum_k,
+    quantized_page_sum_k,
+    page_sum_k_scales,
+    page_counts,
+    slot_pages,
+    overflow_page_keys,
+    overflow_page_values,
+    overflow_used,
+    slot_lengths,
+    top_slots,
+    selected_pages,
+    selected_parents,
+    query_len,
+    QUERY_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    KV_GROUP_SIZE: tl.constexpr,
+    QUERY_BLOCK_M: tl.constexpr,
+    CANDIDATE_BLOCK_N: tl.constexpr,
+    PAGE_CAPACITY: tl.constexpr,
+    STATE_CAPACITY: tl.constexpr,
+    INLINE_PAGES_PER_SLOT: tl.constexpr,
+    HASH_CAPACITY: tl.constexpr,
+    HASH_PROBES: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    HEAD_BLOCK_DIM: tl.constexpr,
+    PAGE_SIZE: tl.constexpr,
+    ROUTE_COUNT: tl.constexpr,
+    SCALE_LOG2: tl.constexpr,
+    PAGE_BLOCK_N: tl.constexpr,
+    STORE_PARENTS: tl.constexpr,
+    QUANTIZED_SUMMARIES: tl.constexpr,
+    QUANT_GROUP_SIZE: tl.constexpr,
+):
+    """Choose one page per route while amortizing launch work over a GQA group."""
+    batch_kv_token = tl.program_id(0).to(tl.int64)
+    token = batch_kv_token % query_len
+    batch_kv = batch_kv_token // query_len
+    batch = batch_kv // KV_HEADS
+    kv_head = batch_kv - batch * KV_HEADS
+    cache_batch = tl.load(cache_indices + batch).to(tl.int64)
+    kv_row = cache_batch * KV_HEADS + kv_head
+
+    query_lane = tl.arange(0, QUERY_BLOCK_M)
+    valid_query = query_lane < KV_GROUP_SIZE
+    query_head = kv_head * KV_GROUP_SIZE + query_lane
+    query_row = (batch * QUERY_HEADS + query_head) * query_len + token
+    head_offset = tl.arange(0, HEAD_BLOCK_DIM)
+    candidate = tl.arange(0, CANDIDATE_BLOCK_N)
+    candidate_group = candidate // PAGE_BLOCK_N
+    candidate_page_offset = candidate % PAGE_BLOCK_N
+    query = tl.load(
+        q + query_row[:, None] * HEAD_DIM + head_offset[None, :],
+        mask=valid_query[:, None] & (head_offset[None, :] < HEAD_DIM),
+        other=0.0,
+    )
+
+    for route in tl.range(0, ROUTE_COUNT, num_stages=1):
+        routed_slot = tl.load(
+            top_slots + query_row * ROUTE_COUNT + route,
+            mask=valid_query,
+            other=-1,
+        ).to(tl.int64)
+        valid_slot = (
+            valid_query & (routed_slot >= 0) & (routed_slot < STATE_CAPACITY)
+        )
+        slot = tl.where(valid_slot, routed_slot, 0)
+        leaf_count = tl.load(
+            slot_lengths + kv_row * STATE_CAPACITY + slot,
+            mask=valid_slot,
+            other=0,
+        ).to(tl.int32)
+        slot_page_count = (leaf_count + PAGE_SIZE - 1) // PAGE_SIZE
+        selected_score = tl.full((QUERY_BLOCK_M,), -float("inf"), tl.float32)
+        selected_page = tl.full((QUERY_BLOCK_M,), -1, tl.int64)
+
+        scan_page_count = tl.max(slot_page_count, axis=0)
+        for page_begin in tl.range(
+            0, scan_page_count, PAGE_BLOCK_N, num_stages=1
+        ):
+            valid_candidate = candidate_group < KV_GROUP_SIZE
+            candidate_query_head = kv_head * KV_GROUP_SIZE + candidate_group
+            candidate_query_row = (
+                (batch * QUERY_HEADS + candidate_query_head) * query_len + token
+            )
+            candidate_slot = tl.load(
+                top_slots + candidate_query_row * ROUTE_COUNT + route,
+                mask=valid_candidate,
+                other=-1,
+            ).to(tl.int64)
+            valid_candidate_slot = (
+                valid_candidate
+                & (candidate_slot >= 0)
+                & (candidate_slot < STATE_CAPACITY)
+            )
+            candidate_slot = tl.where(valid_candidate_slot, candidate_slot, 0)
+            candidate_leaf_count = tl.load(
+                slot_lengths + kv_row * STATE_CAPACITY + candidate_slot,
+                mask=valid_candidate_slot,
+                other=0,
+            ).to(tl.int32)
+            candidate_page_count = (
+                candidate_leaf_count + PAGE_SIZE - 1
+            ) // PAGE_SIZE
+            page_ordinal = page_begin + candidate_page_offset
+            valid_page = (
+                valid_candidate_slot
+                & (page_ordinal < candidate_page_count)
+            )
+            page_id = _lookup_page_id(
+                slot_pages,
+                overflow_page_keys,
+                overflow_page_values,
+                overflow_used,
+                kv_row,
+                candidate_slot,
+                page_ordinal,
+                valid_page,
+                STATE_CAPACITY,
+                INLINE_PAGES_PER_SLOT,
+                PAGE_CAPACITY,
+                HASH_CAPACITY,
+                HASH_PROBES,
+            ).to(tl.int64)
+            valid_page &= (page_id >= 0) & (page_id < PAGE_CAPACITY)
+            safe_page = tl.where(valid_page, page_id, 0)
+            page_row = kv_row * PAGE_CAPACITY + safe_page
+            count = tl.load(
+                page_counts + page_row,
+                mask=valid_page,
+                other=0,
+            ).to(tl.float32)
+            valid_page &= count > 0.0
+            safe_count = tl.where(valid_page, count, 1.0)
+            if QUANTIZED_SUMMARIES:
+                key_sum_code = tl.load(
+                    quantized_page_sum_k
+                    + page_row[:, None] * HEAD_DIM
+                    + head_offset[None, :],
+                    mask=valid_page[:, None]
+                    & (head_offset[None, :] < HEAD_DIM),
+                    other=0,
+                ).to(tl.float32)
+                key_sum_scale = tl.load(
+                    page_sum_k_scales
+                    + page_row[:, None] * (HEAD_DIM // QUANT_GROUP_SIZE)
+                    + head_offset[None, :] // QUANT_GROUP_SIZE,
+                    mask=valid_page[:, None]
+                    & (head_offset[None, :] < HEAD_DIM),
+                    other=0.0,
+                ).to(tl.float32)
+                key_sums = (key_sum_code * key_sum_scale).to(query.dtype)
+            else:
+                key_sums = tl.load(
+                    page_sum_k
+                    + page_row[:, None] * HEAD_DIM
+                    + head_offset[None, :],
+                    mask=valid_page[:, None]
+                    & (head_offset[None, :] < HEAD_DIM),
+                    other=0.0,
+                ).to(query.dtype)
+            page_scores = (
+                SCALE_LOG2
+                * tl.dot(query, tl.trans(key_sums), out_dtype=tl.float32)
+                / safe_count[None, :]
+                + tl.log2(safe_count)[None, :]
+            )
+            own_page = query_lane[:, None] == candidate_group[None, :]
+            page_scores = tl.where(
+                valid_query[:, None] & valid_page[None, :] & own_page,
+                page_scores,
+                -float("inf"),
+            )
+            block_score = tl.max(page_scores, axis=1)
+            block_page = tl.max(
+                tl.where(
+                    page_scores == block_score[:, None], page_id[None, :], -1
+                ),
+                axis=1,
+            ).to(tl.int64)
+            better = block_score > selected_score
+            selected_score = tl.where(better, block_score, selected_score)
+            selected_page = tl.where(better, block_page, selected_page)
+
+        selected_valid = valid_slot & (selected_score > -float("inf"))
+        tl.store(
+            selected_pages + query_row * ROUTE_COUNT + route,
+            tl.where(selected_valid, selected_page, -1),
+            mask=valid_query,
+        )
+        if STORE_PARENTS:
+            tl.store(
+                selected_parents + query_row * ROUTE_COUNT + route,
+                tl.where(selected_valid, route, -1),
+                mask=valid_query,
+            )
+
+
+@triton.jit
+def _grouped_global_routed_page_top8_kernel(
+    q,
+    packed_route_rows,
+    top_slots,
+    block_expert,
+    block_starts,
+    query_counts,
+    cumulative_queries,
+    unique_experts,
+    page_sum_k,
+    quantized_page_sum_k,
+    page_sum_k_scales,
+    page_counts,
+    slot_pages,
+    overflow_page_keys,
+    overflow_page_values,
+    overflow_used,
+    slot_lengths,
+    route_candidates,
+    selected_pages,
+    selected_parents,
+    programs,
+    experts,
+    STATE_CAPACITY: tl.constexpr,
+    PAGE_CAPACITY: tl.constexpr,
+    INLINE_PAGES_PER_SLOT: tl.constexpr,
+    HASH_CAPACITY: tl.constexpr,
+    HASH_PROBES: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    HEAD_BLOCK_DIM: tl.constexpr,
+    ROUTE_COUNT: tl.constexpr,
+    ROUTE_CANDIDATES: tl.constexpr,
+    PROGRAMS_POINTER: tl.constexpr,
+    SEARCH_BLOCKS: tl.constexpr,
+    SEARCH_STEPS: tl.constexpr,
+    PAGE_SIZE: tl.constexpr,
+    BLOCK_M: tl.constexpr,
+    BLOCK_N: tl.constexpr,
+    SCALE_LOG2: tl.constexpr,
+    DIRECT_ONE_PAGE: tl.constexpr,
+    STORE_PARENTS: tl.constexpr,
+    QUANTIZED_SUMMARIES: tl.constexpr,
+    QUANT_GROUP_SIZE: tl.constexpr,
+):
+    """MFMA page-summary search for queries grouped by routed centroid."""
+    program = tl.program_id(0).to(tl.int64)
+    if PROGRAMS_POINTER:
+        program_limit = tl.load(programs).to(tl.int64)
+    else:
+        program_limit = programs
+    valid_program = program < program_limit
+    if SEARCH_BLOCKS:
+        lower = tl.full((), 0, tl.int64)
+        upper = experts.to(tl.int64)
+        for _ in tl.static_range(0, SEARCH_STEPS):
+            searching = lower < upper
+            middle = (lower + upper) // 2
+            boundary = tl.load(
+                block_starts + middle + 1,
+                mask=valid_program & searching & (middle < experts),
+                other=program_limit,
+            ).to(tl.int64)
+            move_right = searching & (program >= boundary)
+            lower = tl.where(move_right, middle + 1, lower)
+            upper = tl.where(searching & ~move_right, middle, upper)
+        expert_index = tl.where(valid_program, lower, 0)
+        query_block = program - tl.load(
+            block_starts + expert_index,
+            mask=valid_program,
+            other=0,
+        ).to(tl.int64)
+    else:
+        expert_index = tl.load(
+            block_expert + program, mask=valid_program, other=0
+        ).to(tl.int64)
+        query_block = program - tl.load(
+            block_starts + expert_index, mask=valid_program, other=0
+        ).to(tl.int64)
+    query_count = tl.load(
+        query_counts + expert_index, mask=valid_program, other=0
+    ).to(tl.int64)
+    query_offset = query_block * BLOCK_M + tl.arange(0, BLOCK_M).to(tl.int64)
+    output_query = valid_program & (query_offset < query_count)
+    valid_query = output_query
+    packed_begin = tl.load(
+        cumulative_queries + expert_index, mask=valid_program, other=0
+    ).to(tl.int64)
+    route_row = tl.load(
+        packed_route_rows + packed_begin + query_offset,
+        mask=valid_query,
+        other=0,
+    ).to(tl.int64)
+    query_row = route_row // ROUTE_COUNT
+    route_valid = tl.load(
+        top_slots + route_row, mask=valid_query, other=-1
+    ).to(tl.int32) >= 0
+    valid_query &= route_valid
+
+    expert = tl.load(
+        unique_experts + expert_index, mask=valid_program, other=0
+    ).to(tl.int64)
+    kv_row = expert // STATE_CAPACITY
+    slot = expert - kv_row * STATE_CAPACITY
+    leaf_count = tl.load(
+        slot_lengths + expert, mask=valid_program, other=0
+    ).to(tl.int32)
+    slot_page_count = (leaf_count + PAGE_SIZE - 1) // PAGE_SIZE
+    if HASH_PROBES == 0:
+        page_table = (
+            slot_pages + expert * INLINE_PAGES_PER_SLOT
+        )
+
+    head_offset = tl.arange(0, HEAD_BLOCK_DIM)
+    page_offset = tl.arange(0, BLOCK_N)
+    queries = tl.load(
+        q + query_row[:, None] * HEAD_DIM + head_offset[None, :],
+        mask=valid_query[:, None] & (head_offset[None, :] < HEAD_DIM),
+        other=0.0,
+    )
+    best_packed = tl.full(
+        (BLOCK_M, ROUTE_CANDIDATES), -9223372036854775807, tl.int64
+    )
+    for page_begin in tl.range(
+        0, slot_page_count, BLOCK_N, num_stages=1
+    ):
+        page_ordinal = page_begin + page_offset
+        valid_page = valid_program & (page_ordinal < slot_page_count)
+        if HASH_PROBES == 0:
+            page_id = tl.load(
+                page_table + page_ordinal,
+                mask=valid_page,
+                other=-1,
+            ).to(tl.int64)
+        else:
+            page_id = _lookup_page_id(
+                slot_pages,
+                overflow_page_keys,
+                overflow_page_values,
+                overflow_used,
+                kv_row,
+                slot,
+                page_ordinal,
+                valid_page,
+                STATE_CAPACITY,
+                INLINE_PAGES_PER_SLOT,
+                PAGE_CAPACITY,
+                HASH_CAPACITY,
+                HASH_PROBES,
+            ).to(tl.int64)
+        valid_page &= (page_id >= 0) & (page_id < PAGE_CAPACITY)
+        safe_page = tl.where(valid_page, page_id, 0)
+        count = tl.load(
+            page_counts + kv_row * PAGE_CAPACITY + safe_page,
+            mask=valid_page,
+            other=0,
+        ).to(tl.float32)
+        valid_page &= count > 0.0
+        safe_count = tl.where(valid_page, count, 1.0)
+        page_row = kv_row * PAGE_CAPACITY + safe_page[:, None]
+        if QUANTIZED_SUMMARIES:
+            key_sum_code = tl.load(
+                quantized_page_sum_k
+                + page_row * HEAD_DIM
+                + head_offset[None, :],
+                mask=valid_page[:, None] & (head_offset[None, :] < HEAD_DIM),
+                other=0,
+            ).to(tl.float32)
+            key_sum_scale = tl.load(
+                page_sum_k_scales
+                + page_row * (HEAD_DIM // QUANT_GROUP_SIZE)
+                + head_offset[None, :] // QUANT_GROUP_SIZE,
+                mask=valid_page[:, None] & (head_offset[None, :] < HEAD_DIM),
+                other=0.0,
+            ).to(tl.float32)
+            key_sums = key_sum_code * key_sum_scale
+        else:
+            key_sums = tl.load(
+                page_sum_k
+                + page_row * HEAD_DIM
+                + head_offset[None, :],
+                mask=valid_page[:, None] & (head_offset[None, :] < HEAD_DIM),
+                other=0.0,
+            )
+        page_keys = (key_sums.to(tl.float32) / safe_count[:, None]).to(
+            queries.dtype
+        )
+        scores = (
+            SCALE_LOG2
+            * tl.dot(queries, tl.trans(page_keys), out_dtype=tl.float32)
+            + tl.log2(safe_count)[None, :]
+        )
+        scores = tl.where(
+            valid_query[:, None] & valid_page[None, :],
+            scores,
+            -float("inf"),
+        )
+        route = route_row % ROUTE_COUNT
+        candidate_id = route[:, None] * PAGE_CAPACITY + safe_page[None, :]
+        block_best = tl.topk(
+            _pack_route_score_index(scores, candidate_id), ROUTE_CANDIDATES, dim=1
+        )
+        best_packed = tl.topk(
+            tl.interleave(best_packed, block_best), ROUTE_CANDIDATES, dim=1
+        )
+
+    if DIRECT_ONE_PAGE:
+        best_scores, candidate_ids = _unpack_route_score_index(
+            tl.sum(best_packed, axis=1)
+        )
+        selected_valid = valid_query & (best_scores > -float("inf"))
+        tl.store(
+            selected_pages + route_row,
+            tl.where(selected_valid, candidate_ids % PAGE_CAPACITY, -1),
+            mask=output_query,
+        )
+        if STORE_PARENTS:
+            tl.store(
+                selected_parents + route_row,
+                tl.where(selected_valid, route_row % ROUTE_COUNT, -1),
+                mask=output_query,
+            )
+    else:
+        rank = tl.arange(0, ROUTE_CANDIDATES)
+        tl.store(
+            route_candidates
+            + route_row[:, None] * ROUTE_CANDIDATES
+            + rank[None, :],
+            best_packed,
+            mask=output_query[:, None],
+        )
+
+
+@triton.jit
+def _reduce_global_routed_page_top8_kernel(
+    route_candidates,
+    top_slots,
+    selected_pages,
+    selected_parents,
+    rows,
+    PAGE_CAPACITY: tl.constexpr,
+    ROUTE_COUNT: tl.constexpr,
+    ROUTE_CANDIDATES: tl.constexpr,
+):
+    """Reduce eight page candidates from each outer route to eight total."""
+    row = tl.program_id(0).to(tl.int64)
+    valid_row = row < rows
+    candidate = tl.arange(0, ROUTE_COUNT * ROUTE_CANDIDATES)
+    packed = tl.load(
+        route_candidates
+        + row * ROUTE_COUNT * ROUTE_CANDIDATES
+        + candidate,
+        mask=valid_row,
+        other=-9223372036854775807,
+    )
+    route_valid = tl.load(
+        top_slots + row * ROUTE_COUNT + candidate // ROUTE_CANDIDATES,
+        mask=valid_row,
+        other=-1,
+    ).to(tl.int32) >= 0
+    packed = tl.where(route_valid, packed, -9223372036854775807)
+    best = tl.topk(packed, 8, dim=0)
+    best_scores, candidate_ids = _unpack_route_score_index(best)
+    valid = valid_row & (best_scores > -float("inf"))
+    rank = tl.arange(0, 8)
+    tl.store(
+        selected_pages + row * 8 + rank,
+        tl.where(valid, candidate_ids % PAGE_CAPACITY, -1),
+        mask=valid_row,
+    )
+    tl.store(
+        selected_parents + row * 8 + rank,
+        tl.where(valid, candidate_ids // PAGE_CAPACITY, -1),
+        mask=valid_row,
+    )
+
+
+@triton.jit
+def _merge_global_routed_page_residuals_kernel(
+    q,
+    exact_out,
+    exact_lse,
+    state_k,
+    state_v,
+    state_counts,
+    cache_indices,
+    page_sum_k,
+    page_sum_v,
+    page_counts,
+    top_slots,
+    selected_pages,
+    selected_parents,
+    output,
+    output_lse,
+    query_len,
+    QUERY_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    KV_GROUP_SIZE: tl.constexpr,
+    STATE_CAPACITY: tl.constexpr,
+    PAGE_CAPACITY: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+    HEAD_BLOCK_DIM: tl.constexpr,
+    VALUE_BLOCK_DIM: tl.constexpr,
+    ROUTE_COUNT: tl.constexpr,
+    SCALE_LOG2: tl.constexpr,
+):
+    """LSE-merge exact selected pages with disjoint parent residuals."""
+    query_row = tl.program_id(0).to(tl.int64)
+    batch_head = query_row // query_len
+    batch = batch_head // QUERY_HEADS
+    cache_batch = tl.load(cache_indices + batch).to(tl.int64)
+    query_head = batch_head - batch * QUERY_HEADS
+    kv_head = query_head // KV_GROUP_SIZE
+    kv_row = cache_batch * KV_HEADS + kv_head
+    head_offset = tl.arange(0, HEAD_BLOCK_DIM)
+    value_offset = tl.arange(0, VALUE_BLOCK_DIM)
+    query = tl.load(
+        q + query_row * HEAD_DIM + head_offset,
+        mask=head_offset < HEAD_DIM,
+        other=0.0,
+    ).to(tl.float32)
+
+    exact_logsum = tl.load(exact_lse + query_row).to(tl.float32)
+    exact_valid = exact_logsum > -float("inf")
+    maximum = tl.where(
+        exact_valid, exact_logsum * 1.4426950408889634, -float("inf")
+    )
+    denominator = tl.where(exact_valid, 1.0, 0.0).to(tl.float32)
+    accumulator = tl.load(
+        exact_out + query_row * VALUE_DIM + value_offset,
+        mask=value_offset < VALUE_DIM,
+        other=0.0,
+    ).to(tl.float32)
+    accumulator = tl.where(exact_valid, accumulator, 0.0)
+
+    selected_rank = tl.arange(0, 8)
+    pages = tl.load(selected_pages + query_row * 8 + selected_rank).to(tl.int64)
+    parents = tl.load(selected_parents + query_row * 8 + selected_rank).to(
+        tl.int32
+    )
+    selected_valid = (
+        (pages >= 0)
+        & (pages < PAGE_CAPACITY)
+        & (parents >= 0)
+        & (parents < ROUTE_COUNT)
+    )
+    safe_pages = tl.where(selected_valid, pages, 0)
+
+    route_indices = tl.arange(0, ROUTE_COUNT)
+    slots = tl.load(
+        top_slots + query_row * ROUTE_COUNT + route_indices,
+        mask=route_indices < ROUTE_COUNT,
+        other=-1,
+    ).to(tl.int64)
+    valid_slots = (slots >= 0) & (slots < STATE_CAPACITY)
+    safe_slots = tl.where(valid_slots, slots, 0)
+    counts = tl.load(
+        state_counts + kv_row * STATE_CAPACITY + safe_slots,
+        mask=valid_slots,
+        other=0.0,
+    ).to(tl.float32)
+    key_sums = tl.load(
+        state_k
+        + (kv_row * STATE_CAPACITY + safe_slots[:, None]) * HEAD_DIM
+        + head_offset[None, :],
+        mask=valid_slots[:, None] & (head_offset[None, :] < HEAD_DIM),
+        other=0.0,
+    ).to(tl.float32)
+    value_sums = tl.load(
+        state_v
+        + (kv_row * STATE_CAPACITY + safe_slots[:, None]) * VALUE_DIM
+        + value_offset[None, :],
+        mask=valid_slots[:, None] & (value_offset[None, :] < VALUE_DIM),
+        other=0.0,
+    ).to(tl.float32)
+    removed_counts = tl.zeros((ROUTE_COUNT,), tl.float32)
+    removed_keys = tl.zeros((ROUTE_COUNT, HEAD_BLOCK_DIM), tl.float32)
+    removed_values = tl.zeros((ROUTE_COUNT, VALUE_BLOCK_DIM), tl.float32)
+    for selected in tl.static_range(0, 8):
+        is_selected = selected_rank == selected
+        page = tl.sum(tl.where(is_selected, safe_pages, 0), axis=0)
+        parent = tl.sum(tl.where(is_selected, parents, 0), axis=0)
+        page_valid = tl.sum(
+            tl.where(is_selected, selected_valid.to(tl.int32), 0), axis=0
+        ) > 0
+        page_count = tl.load(
+            page_counts + kv_row * PAGE_CAPACITY + page,
+            mask=page_valid,
+            other=0,
+        ).to(tl.float32)
+        page_key = tl.load(
+            page_sum_k
+            + (kv_row * PAGE_CAPACITY + page) * HEAD_DIM
+            + head_offset,
+            mask=page_valid & (head_offset < HEAD_DIM),
+            other=0.0,
+        ).to(tl.float32)
+        page_value = tl.load(
+            page_sum_v
+            + (kv_row * PAGE_CAPACITY + page) * VALUE_DIM
+            + value_offset,
+            mask=page_valid & (value_offset < VALUE_DIM),
+            other=0.0,
+        ).to(tl.float32)
+        belongs = page_valid & (route_indices == parent)
+        removed_counts += tl.where(belongs, page_count, 0.0)
+        removed_keys += tl.where(belongs[:, None], page_key[None, :], 0.0)
+        removed_values += tl.where(
+            belongs[:, None], page_value[None, :], 0.0
+        )
+
+    residual_counts = counts - removed_counts
+    residual_keys = key_sums - removed_keys
+    residual_values = value_sums - removed_values
+    residual_valid = valid_slots & (residual_counts > 0.0)
+    safe_counts = tl.where(residual_valid, residual_counts, 1.0)
+    scores = (
+        SCALE_LOG2
+        * tl.sum(query[None, :] * residual_keys / safe_counts[:, None], axis=1)
+        + tl.log2(safe_counts)
+    )
+    scores = tl.where(residual_valid, scores, -float("inf"))
+    residual_maximum = tl.max(scores, axis=0)
+    new_maximum = tl.maximum(maximum, residual_maximum)
+    old_weight = tl.where(
+        denominator > 0.0, tl.math.exp2(maximum - new_maximum), 0.0
+    )
+    residual_weight = tl.where(
+        residual_valid, tl.math.exp2(scores - new_maximum), 0.0
+    )
+    accumulator = (
+        accumulator * old_weight
+        + tl.sum(
+            residual_weight[:, None]
+            * residual_values
+            / safe_counts[:, None],
+            axis=0,
+        )
+    )
+    denominator = denominator * old_weight + tl.sum(residual_weight, axis=0)
+    has_mass = denominator > 0.0
+    tl.store(
+        output + query_row * VALUE_DIM + value_offset,
+        tl.where(has_mass, accumulator / denominator, 0.0),
+        mask=value_offset < VALUE_DIM,
+    )
+    tl.store(
+        output_lse + query_row,
+        tl.where(
+            has_mass,
+            (new_maximum + tl.math.log2(denominator)) * 0.6931471805599453,
+            -float("inf"),
+        ),
+    )
+
+
+def select_global_routed_pages(
+    q: torch.Tensor,
+    page_sum_k: torch.Tensor,
+    page_counts: torch.Tensor,
+    slot_pages: torch.Tensor,
+    overflow_page_keys: torch.Tensor,
+    overflow_page_values: torch.Tensor,
+    overflow_used: torch.Tensor,
+    slot_lengths: torch.Tensor,
+    top_slots: torch.Tensor,
+    *,
+    quantized_page_sum_k: torch.Tensor | None = None,
+    page_sum_k_scales: torch.Tensor | None = None,
+    quant_group_size: int = 32,
+    kv_group_size: int,
+    scale: float,
+    cache_indices: torch.Tensor | None = None,
+    hash_probes: int = 8,
+    page_size: int = 16,
+    page_block_n: int = 32,
+    grouped: bool = False,
+    group_block_m: int = 16,
+    route_candidates_per_route: int = 8,
+    store_parents: bool = True,
+    timing_events: dict[str, list[tuple[torch.cuda.Event, torch.cuda.Event]]]
+    | None = None,
+) -> tuple[torch.Tensor, torch.Tensor | None]:
+    """Select routed page summaries, including one page per outer route."""
+    batch, query_heads, query_len, head_dim = q.shape
+    cache_batch_size, kv_heads, page_capacity = page_counts.shape
+    route_count = int(top_slots.size(-1))
+    if route_count < 1 or route_count > 8:
+        raise ValueError("global routed-page selection requires one to eight routes")
+    if query_heads != kv_heads * kv_group_size:
+        raise ValueError("query/KV head grouping is inconsistent")
+    if tuple(top_slots.shape[:3]) != (batch, query_heads, query_len):
+        raise ValueError("routed slots have the wrong query shape")
+    quantized_summaries = isinstance(quantized_page_sum_k, torch.Tensor) or isinstance(
+        page_sum_k_scales, torch.Tensor
+    )
+    if quantized_summaries:
+        if not isinstance(quantized_page_sum_k, torch.Tensor) or not isinstance(
+            page_sum_k_scales, torch.Tensor
+        ):
+            raise ValueError("quantized page K summaries require codes and scales")
+        if tuple(quantized_page_sum_k.shape) != (
+            cache_batch_size,
+            kv_heads,
+            page_capacity,
+            head_dim,
+        ):
+            raise ValueError("quantized page K summaries have the wrong geometry")
+        if head_dim % quant_group_size or tuple(page_sum_k_scales.shape) != (
+            cache_batch_size,
+            kv_heads,
+            page_capacity,
+            head_dim // quant_group_size,
+        ):
+            raise ValueError("quantized page K summary scales have the wrong geometry")
+        if route_candidates_per_route != 1:
+            raise ValueError("quantized summaries currently support one page per route")
+    elif tuple(page_sum_k.shape) != (
+        cache_batch_size,
+        kv_heads,
+        page_capacity,
+        head_dim,
+    ):
+        raise ValueError("page K summaries do not match the query/cache geometry")
+    if page_size != 16:
+        raise ValueError("global routed-page selection currently requires 16-token pages")
+    if page_block_n < 1 or page_block_n & (page_block_n - 1):
+        raise ValueError("page selection block size must be a positive power of two")
+    explicit_cache_indices = cache_indices is not None
+    if cache_indices is None:
+        if cache_batch_size != batch:
+            raise ValueError("cache indices are required for a shared cache batch")
+        cache_indices = torch.arange(batch, dtype=torch.long, device=q.device)
+    elif tuple(cache_indices.shape) != (batch,):
+        raise ValueError("cache indices must contain one entry per query row")
+    rows = batch * query_heads * query_len
+    selected_pages = torch.empty(
+        batch,
+        query_heads,
+        query_len,
+        route_count,
+        dtype=torch.int32,
+        device=q.device,
+    )
+    selected_parents = torch.empty_like(selected_pages) if store_parents else None
+    if route_candidates_per_route == 1:
+        _query_major_one_page_per_route_kernel[(rows,)](
+            q.contiguous(),
+            cache_indices.contiguous(),
+            page_sum_k,
+            (
+                quantized_page_sum_k
+                if isinstance(quantized_page_sum_k, torch.Tensor)
+                else page_sum_k
+            ),
+            (
+                page_sum_k_scales
+                if isinstance(page_sum_k_scales, torch.Tensor)
+                else page_sum_k
+            ),
+            page_counts,
+            slot_pages,
+            overflow_page_keys,
+            overflow_page_values,
+            overflow_used,
+            slot_lengths,
+            top_slots.contiguous(),
+            selected_pages,
+            selected_parents if selected_parents is not None else selected_pages,
+            query_len,
+            QUERY_HEADS=query_heads,
+            KV_HEADS=kv_heads,
+            KV_GROUP_SIZE=kv_group_size,
+            PAGE_CAPACITY=page_capacity,
+            STATE_CAPACITY=int(slot_pages.size(2)),
+            INLINE_PAGES_PER_SLOT=int(slot_pages.size(3)),
+            HASH_CAPACITY=int(overflow_page_values.size(2)),
+            HASH_PROBES=hash_probes,
+            HEAD_DIM=head_dim,
+            HEAD_BLOCK_DIM=triton.next_power_of_2(head_dim),
+            PAGE_SIZE=page_size,
+            ROUTE_COUNT=route_count,
+            SCALE_LOG2=float(scale) * math.log2(math.e),
+            PAGE_BLOCK_N=page_block_n,
+            STORE_PARENTS=selected_parents is not None,
+            QUANTIZED_SUMMARIES=quantized_summaries,
+            QUANT_GROUP_SIZE=quant_group_size if quantized_summaries else 1,
+            num_warps=1,
+        )
+        return selected_pages, selected_parents
+    if route_candidates_per_route != 1 and route_count != 8:
+        raise ValueError("global top-page selection requires eight outer routes")
+    if route_candidates_per_route != 1 and selected_parents is None:
+        raise ValueError("global top-page selection requires parent outputs")
+    if grouped:
+        grouped_one_page = False
+        boundaries: list[torch.cuda.Event] = []
+
+        def record_boundary() -> None:
+            if timing_events is not None:
+                event = torch.cuda.Event(enable_timing=True)
+                event.record()
+                boundaries.append(event)
+
+        record_boundary()
+        if group_block_m not in (8, 16, 32, 64):
+            raise ValueError("grouped page query block must be 8, 16, 32, or 64")
+        if route_candidates_per_route not in (1, 2, 4, 8):
+            raise ValueError("page candidates per route must be 1, 2, 4, or 8")
+        state_capacity = int(slot_pages.size(2))
+        if not explicit_cache_indices:
+            expert_capacity = cache_batch_size * kv_heads * state_capacity
+            query_counts = torch.zeros(
+                expert_capacity, dtype=torch.int32, device=q.device
+            )
+            query_prepare_block_m = 16
+            _count_direct_expert_routes_kernel[
+                (triton.cdiv(rows, query_prepare_block_m),)
+            ](
+                top_slots,
+                query_counts,
+                rows,
+                QUERY_LEN=query_len,
+                QUERY_HEADS=query_heads,
+                KV_HEADS=kv_heads,
+                KV_GROUP_SIZE=kv_group_size,
+                STATE_CAPACITY=state_capacity,
+                ROUTE_COUNT=route_count,
+                ROUTE_BLOCK=triton.next_power_of_2(route_count),
+                BLOCK_M=query_prepare_block_m,
+                num_warps=1,
+            )
+            cumulative_queries = F.pad(query_counts.cumsum(0), (1, 0)).to(
+                torch.int32
+            )
+            expert_cursors = torch.zeros_like(query_counts)
+            packed_route_rows = torch.empty(
+                rows * route_count, dtype=torch.int32, device=q.device
+            )
+            _scatter_direct_expert_routes_kernel[
+                (triton.cdiv(rows, query_prepare_block_m),)
+            ](
+                top_slots,
+                cumulative_queries,
+                expert_cursors,
+                packed_route_rows,
+                rows,
+                QUERY_LEN=query_len,
+                QUERY_HEADS=query_heads,
+                KV_HEADS=kv_heads,
+                KV_GROUP_SIZE=kv_group_size,
+                STATE_CAPACITY=state_capacity,
+                ROUTE_COUNT=route_count,
+                ROUTE_BLOCK=triton.next_power_of_2(route_count),
+                BLOCK_M=query_prepare_block_m,
+                num_warps=1,
+            )
+            unique_experts = torch.arange(
+                expert_capacity, dtype=torch.int32, device=q.device
+            )
+            record_boundary()
+            record_boundary()
+        else:
+            query_head = torch.arange(
+                query_heads, device=q.device, dtype=torch.int32
+            )
+            kv_row_for_head = (
+                cache_indices.to(torch.int32)[:, None] * kv_heads
+                + torch.div(
+                    query_head, kv_group_size, rounding_mode="floor"
+                )[None, :]
+            )
+            expert = (
+                kv_row_for_head[:, :, None, None] * state_capacity
+                + top_slots.clamp_min(0).to(torch.int32)
+            ).reshape(-1)
+            record_boundary()
+            sorted_expert, order = expert.sort(stable=False)
+            packed_route_rows = order.to(torch.int32).contiguous()
+            record_boundary()
+            unique_experts, query_counts = torch.unique_consecutive(
+                sorted_expert, return_counts=True
+            )
+        query_counts = query_counts.to(torch.int32)
+        if explicit_cache_indices:
+            cumulative_queries = F.pad(query_counts.cumsum(0), (1, 0)).to(
+                torch.int32
+            )
+        expert_blocks = torch.div(
+            query_counts + group_block_m - 1,
+            group_block_m,
+            rounding_mode="floor",
+        )
+        cumulative_blocks = F.pad(expert_blocks.cumsum(0), (1, 0)).to(
+            torch.int32
+        )
+        program_limit = cumulative_blocks[-1:]
+        total_blocks = (
+            triton.cdiv(rows * route_count, group_block_m)
+            + int(query_counts.numel())
+        )
+        block_expert = cumulative_blocks
+        block_starts = cumulative_blocks
+        route_candidates = (
+            selected_pages
+            if grouped_one_page
+            else torch.empty(
+                (rows * route_count, route_candidates_per_route),
+                dtype=torch.int64,
+                device=q.device,
+            )
+        )
+        record_boundary()
+        _grouped_global_routed_page_top8_kernel[(total_blocks,)](
+            q.contiguous(),
+            packed_route_rows,
+            top_slots.contiguous(),
+            block_expert,
+            block_starts,
+            query_counts,
+            cumulative_queries,
+            unique_experts.to(torch.int32),
+            page_sum_k,
+            (
+                quantized_page_sum_k
+                if isinstance(quantized_page_sum_k, torch.Tensor)
+                else page_sum_k
+            ),
+            (
+                page_sum_k_scales
+                if isinstance(page_sum_k_scales, torch.Tensor)
+                else page_sum_k
+            ),
+            page_counts,
+            slot_pages,
+            overflow_page_keys,
+            overflow_page_values,
+            overflow_used,
+            slot_lengths,
+            route_candidates,
+            selected_pages,
+            selected_parents if selected_parents is not None else selected_pages,
+            program_limit,
+            int(query_counts.numel()),
+            STATE_CAPACITY=int(slot_pages.size(2)),
+            PAGE_CAPACITY=page_capacity,
+            INLINE_PAGES_PER_SLOT=int(slot_pages.size(3)),
+            HASH_CAPACITY=int(overflow_page_values.size(2)),
+            HASH_PROBES=hash_probes,
+            HEAD_DIM=head_dim,
+            HEAD_BLOCK_DIM=triton.next_power_of_2(head_dim),
+            ROUTE_COUNT=route_count,
+            ROUTE_CANDIDATES=route_candidates_per_route,
+            PROGRAMS_POINTER=True,
+            SEARCH_BLOCKS=True,
+            SEARCH_STEPS=max(
+                1,
+                (cache_batch_size * kv_heads * state_capacity).bit_length(),
+            ),
+            PAGE_SIZE=page_size,
+            BLOCK_M=group_block_m,
+            BLOCK_N=page_block_n,
+            SCALE_LOG2=float(scale) * math.log2(math.e),
+            DIRECT_ONE_PAGE=grouped_one_page,
+            STORE_PARENTS=selected_parents is not None,
+            QUANTIZED_SUMMARIES=quantized_summaries,
+            QUANT_GROUP_SIZE=quant_group_size if quantized_summaries else 1,
+            num_warps=4,
+        )
+        record_boundary()
+        if grouped_one_page:
+            if timing_events is not None:
+                for name, begin, end in zip(
+                    (
+                        "global_select_prepare",
+                        "global_select_sort",
+                        "global_select_group",
+                        "global_select_kernel",
+                    ),
+                    boundaries[:-1],
+                    boundaries[1:],
+                    strict=True,
+                ):
+                    timing_events.setdefault(name, []).append((begin, end))
+            return selected_pages, selected_parents
+        _reduce_global_routed_page_top8_kernel[(rows,)](
+            route_candidates,
+            top_slots.contiguous(),
+            selected_pages,
+            selected_parents,
+            rows,
+            PAGE_CAPACITY=page_capacity,
+            ROUTE_COUNT=route_count,
+            ROUTE_CANDIDATES=route_candidates_per_route,
+            num_warps=1,
+        )
+        record_boundary()
+        if timing_events is not None:
+            for name, begin, end in zip(
+                (
+                    "global_select_prepare",
+                    "global_select_sort",
+                    "global_select_group",
+                    "global_select_kernel",
+                    "global_select_reduce",
+                ),
+                boundaries[:-1],
+                boundaries[1:],
+                strict=True,
+            ):
+                timing_events.setdefault(name, []).append((begin, end))
+        return selected_pages, selected_parents
+    _query_major_global_routed_page_top8_kernel[(rows,)](
+        q.contiguous(),
+        cache_indices.contiguous(),
+        page_sum_k,
+        page_counts,
+        slot_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        slot_lengths,
+        top_slots.contiguous(),
+        selected_pages,
+        selected_parents,
+        query_len,
+        QUERY_HEADS=query_heads,
+        KV_HEADS=kv_heads,
+        KV_GROUP_SIZE=kv_group_size,
+        PAGE_CAPACITY=page_capacity,
+        STATE_CAPACITY=int(slot_pages.size(2)),
+        INLINE_PAGES_PER_SLOT=int(slot_pages.size(3)),
+        HASH_CAPACITY=int(overflow_page_values.size(2)),
+        HASH_PROBES=hash_probes,
+        HEAD_DIM=head_dim,
+        HEAD_BLOCK_DIM=triton.next_power_of_2(head_dim),
+        PAGE_SIZE=page_size,
+        ROUTE_COUNT=8,
+        SCALE_LOG2=float(scale) * math.log2(math.e),
+        PAGE_BLOCK_N=page_block_n,
+        num_warps=4,
+    )
+    return selected_pages, selected_parents
+
+
+def merge_global_routed_page_residuals(
+    q: torch.Tensor,
+    exact_out: torch.Tensor,
+    exact_lse: torch.Tensor,
+    state_k: torch.Tensor,
+    state_v: torch.Tensor,
+    state_counts: torch.Tensor,
+    page_sum_k: torch.Tensor,
+    page_sum_v: torch.Tensor,
+    page_counts: torch.Tensor,
+    top_slots: torch.Tensor,
+    selected_pages: torch.Tensor,
+    selected_parents: torch.Tensor,
+    *,
+    kv_group_size: int,
+    scale: float,
+    cache_indices: torch.Tensor | None = None,
+    num_warps: int = 1,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Restore selected centroids after globally budgeted exact page attention."""
+    batch, query_heads, query_len, head_dim = q.shape
+    cache_batch_size, kv_heads, page_capacity = page_counts.shape
+    value_dim = int(state_v.size(-1))
+    if int(top_slots.size(-1)) != 8 or int(selected_pages.size(-1)) != 8:
+        raise ValueError("global page residuals require eight routes and pages")
+    if query_heads != kv_heads * kv_group_size:
+        raise ValueError("query/KV head grouping is inconsistent")
+    if cache_indices is None:
+        if cache_batch_size != batch:
+            raise ValueError("cache indices are required for a shared cache batch")
+        cache_indices = torch.arange(batch, dtype=torch.long, device=q.device)
+    output = torch.empty(
+        batch,
+        query_heads,
+        query_len,
+        value_dim,
+        dtype=exact_out.dtype,
+        device=q.device,
+    )
+    output_lse = torch.empty(
+        batch, query_heads, query_len, dtype=torch.float32, device=q.device
+    )
+    rows = batch * query_heads * query_len
+    _merge_global_routed_page_residuals_kernel[(rows,)](
+        q.contiguous(),
+        exact_out.contiguous(),
+        exact_lse.contiguous(),
+        state_k,
+        state_v,
+        state_counts,
+        cache_indices.contiguous(),
+        page_sum_k,
+        page_sum_v,
+        page_counts,
+        top_slots.contiguous(),
+        selected_pages.contiguous(),
+        selected_parents.contiguous(),
+        output,
+        output_lse,
+        query_len,
+        QUERY_HEADS=query_heads,
+        KV_HEADS=kv_heads,
+        KV_GROUP_SIZE=kv_group_size,
+        STATE_CAPACITY=int(state_k.size(2)),
+        PAGE_CAPACITY=page_capacity,
+        HEAD_DIM=head_dim,
+        VALUE_DIM=value_dim,
+        HEAD_BLOCK_DIM=triton.next_power_of_2(head_dim),
+        VALUE_BLOCK_DIM=triton.next_power_of_2(value_dim),
+        ROUTE_COUNT=8,
+        SCALE_LOG2=float(scale) * math.log2(math.e),
+        num_warps=num_warps,
+    )
+    return output, output_lse
 
 
 @triton.jit
@@ -21961,9 +24360,15 @@ def paged_leaf_attention(
     reduce_num_warps: int = 1,
     compact_invalid_routes: bool = False,
     direct_expert_buckets: bool = False,
+    sorted_expert_buckets: bool = False,
+    dynamic_direct_blocks: bool = False,
     max_leaves_per_expert: int | None = None,
     timing_events: dict[str, list[tuple[torch.cuda.Event, torch.cuda.Event]]]
     | None = None,
+    residual_state_k: torch.Tensor | None = None,
+    residual_state_v: torch.Tensor | None = None,
+    residual_state_counts: torch.Tensor | None = None,
+    residual_parent_slots: torch.Tensor | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Attend to the exact leaves of every routed slot and merge by LSE."""
     if torch.is_grad_enabled() and q.requires_grad:
@@ -21992,6 +24397,19 @@ def paged_leaf_attention(
     residual_quantized = isinstance(quantized_leaf_k, torch.Tensor) or isinstance(
         quantized_leaf_v, torch.Tensor
     )
+    residual_tensors = (
+        residual_state_k,
+        residual_state_v,
+        residual_state_counts,
+        residual_parent_slots,
+    )
+    fused_parent_residual = any(
+        isinstance(value, torch.Tensor) for value in residual_tensors
+    )
+    if fused_parent_residual and not all(
+        isinstance(value, torch.Tensor) for value in residual_tensors
+    ):
+        raise ValueError("fused parent residual tensors must be supplied together")
     if residual_quantized:
         required_quantized = (
             quantized_leaf_k,
@@ -22014,6 +24432,10 @@ def paged_leaf_attention(
             raise ValueError("residual INT4 quantization groups must divide K/V")
         if page_size % quant_token_group_size:
             raise ValueError("residual INT4 token groups must divide the page")
+        if fused_parent_residual and quant_token_group_size != page_size:
+            raise ValueError(
+                "fused parent residual INT4 attention requires page-wide token groups"
+            )
         quantized_summaries = isinstance(quantized_page_sum_k, torch.Tensor) or isinstance(
             quantized_page_sum_v, torch.Tensor
         )
@@ -22069,11 +24491,38 @@ def paged_leaf_attention(
         raise ValueError("residual INT4 expert attention requires ordinary expert routing")
     compound_expert_routing = bool(tiny_expert_max or split_long_experts)
     if direct_expert_buckets and (
-        int8_mma or residual_quantized or compound_expert_routing
+        int8_mma
+        or compound_expert_routing
+        or (residual_quantized and not fused_parent_residual)
     ):
         raise ValueError(
-            "direct expert buckets currently require ordinary BF16 expert routing"
+            "direct expert buckets require BF16 leaves or fused residual INT4"
         )
+    if dynamic_direct_blocks and not direct_expert_buckets:
+        raise ValueError("dynamic expert blocks require direct expert buckets")
+    if sorted_expert_buckets and not direct_expert_buckets:
+        raise ValueError("sorted expert buckets require direct expert buckets")
+    if fused_parent_residual:
+        if not direct_expert_buckets or not dynamic_direct_blocks:
+            raise ValueError(
+                "fused parent residuals require dynamic direct expert buckets"
+            )
+        if not indexed or block_n != page_size:
+            raise ValueError(
+                "fused parent residuals require indexed page-sized attention"
+            )
+        if int8_mma or compound_expert_routing:
+            raise ValueError("fused parent residuals do not support this leaf mode")
+        if not isinstance(page_sum_k, torch.Tensor) or not isinstance(
+            page_sum_v, torch.Tensor
+        ) or not isinstance(page_counts, torch.Tensor):
+            raise ValueError("fused parent residuals require page summary metadata")
+        if tuple(residual_parent_slots.shape) != tuple(top_slots.shape):
+            raise ValueError("fused parent slots must align with selected pages")
+        if int(residual_state_k.size(-1)) != head_dim or int(
+            residual_state_v.size(-1)
+        ) != value_dim:
+            raise ValueError("fused parent residual dimensions do not match Q/K/V")
     if reduce_num_warps not in (1, 2, 4, 8):
         raise ValueError("expert route reduction warps must be one of 1, 2, 4, 8")
 
@@ -22100,26 +24549,47 @@ def paged_leaf_attention(
         query_scales = q
         if direct_expert_buckets:
             expert_capacity = batch * kv_heads * state_capacity
-            expert_counts = torch.zeros(
-                expert_capacity, dtype=torch.int32, device=q.device
-            )
-            query_prepare_block_m = 16
-            _count_direct_expert_routes_kernel[
-                (triton.cdiv(rows, query_prepare_block_m),)
-            ](
-                top_slots,
-                expert_counts,
-                rows,
-                QUERY_LEN=query_len,
-                QUERY_HEADS=query_heads,
-                KV_HEADS=kv_heads,
-                KV_GROUP_SIZE=kv_group_size,
-                STATE_CAPACITY=state_capacity,
-                ROUTE_COUNT=route_count,
-                ROUTE_BLOCK=triton.next_power_of_2(route_count),
-                BLOCK_M=query_prepare_block_m,
-                num_warps=1,
-            )
+            if sorted_expert_buckets:
+                query_head = torch.arange(
+                    query_heads, device=q.device, dtype=torch.int32
+                )
+                kv_head_for_query_head = torch.div(
+                    query_head, kv_group_size, rounding_mode="floor"
+                )
+                kv_row_for_head = (
+                    torch.arange(batch, device=q.device, dtype=torch.int32)
+                    .unsqueeze(1)
+                    * kv_heads
+                    + kv_head_for_query_head.unsqueeze(0)
+                )
+                valid_slots = top_slots.ge(0)
+                expert_id = torch.where(
+                    valid_slots,
+                    kv_row_for_head[:, :, None, None] * state_capacity
+                    + top_slots.to(torch.int32),
+                    expert_capacity,
+                ).reshape(-1)
+            else:
+                expert_counts = torch.zeros(
+                    expert_capacity, dtype=torch.int32, device=q.device
+                )
+                query_prepare_block_m = 16
+                _count_direct_expert_routes_kernel[
+                    (triton.cdiv(rows, query_prepare_block_m),)
+                ](
+                    top_slots,
+                    expert_counts,
+                    rows,
+                    QUERY_LEN=query_len,
+                    QUERY_HEADS=query_heads,
+                    KV_HEADS=kv_heads,
+                    KV_GROUP_SIZE=kv_group_size,
+                    STATE_CAPACITY=state_capacity,
+                    ROUTE_COUNT=route_count,
+                    ROUTE_BLOCK=triton.next_power_of_2(route_count),
+                    BLOCK_M=query_prepare_block_m,
+                    num_warps=1,
+                )
         elif int8_mma:
             source_q = q.contiguous()
             kernel_q = torch.empty_like(source_q, dtype=torch.int8)
@@ -22193,31 +24663,53 @@ def paged_leaf_attention(
             ).reshape(-1)
         record_dispatch_boundary()
         if direct_expert_buckets:
-            q_lengths = expert_counts
-            cu_q = F.pad(q_lengths.cumsum(0), (1, 0)).to(torch.int32)
-            expert_cursors = torch.zeros_like(expert_counts)
-            order = torch.empty(
-                rows * route_count, dtype=torch.int32, device=q.device
-            )
-            _scatter_direct_expert_routes_kernel[
-                (triton.cdiv(rows, query_prepare_block_m),)
-            ](
-                top_slots,
-                cu_q,
-                expert_cursors,
-                order,
-                rows,
-                QUERY_LEN=query_len,
-                QUERY_HEADS=query_heads,
-                KV_HEADS=kv_heads,
-                KV_GROUP_SIZE=kv_group_size,
-                STATE_CAPACITY=state_capacity,
-                ROUTE_COUNT=route_count,
-                ROUTE_BLOCK=triton.next_power_of_2(route_count),
-                BLOCK_M=query_prepare_block_m,
-                num_warps=1,
-            )
-            sorted_expert = order
+            if sorted_expert_buckets:
+                sorted_expert, order = expert_id.sort(stable=False)
+                order = order.to(torch.int32)
+                expert_starts = torch.zeros(
+                    expert_capacity, dtype=torch.int32, device=q.device
+                )
+                expert_ends = torch.zeros_like(expert_starts)
+                boundary_block = 256
+                _dense_sorted_expert_boundaries_kernel[
+                    (triton.cdiv(sorted_expert.numel(), boundary_block),)
+                ](
+                    sorted_expert,
+                    expert_starts,
+                    expert_ends,
+                    sorted_expert.numel(),
+                    expert_capacity,
+                    BLOCK=boundary_block,
+                    num_warps=4,
+                )
+                q_lengths = expert_ends - expert_starts
+                cu_q = F.pad(q_lengths.cumsum(0), (1, 0)).to(torch.int32)
+            else:
+                q_lengths = expert_counts
+                cu_q = F.pad(q_lengths.cumsum(0), (1, 0)).to(torch.int32)
+                expert_cursors = torch.zeros_like(expert_counts)
+                order = torch.empty(
+                    rows * route_count, dtype=torch.int32, device=q.device
+                )
+                _scatter_direct_expert_routes_kernel[
+                    (triton.cdiv(rows, query_prepare_block_m),)
+                ](
+                    top_slots,
+                    cu_q,
+                    expert_cursors,
+                    order,
+                    rows,
+                    QUERY_LEN=query_len,
+                    QUERY_HEADS=query_heads,
+                    KV_HEADS=kv_heads,
+                    KV_GROUP_SIZE=kv_group_size,
+                    STATE_CAPACITY=state_capacity,
+                    ROUTE_COUNT=route_count,
+                    ROUTE_BLOCK=triton.next_power_of_2(route_count),
+                    BLOCK_M=query_prepare_block_m,
+                    num_warps=1,
+                )
+                sorted_expert = order
         elif compact_invalid_routes and not int8_mma and not compound_expert_routing:
             valid_route_row = torch.nonzero(
                 top_slots.reshape(-1).ge(0), as_tuple=False
@@ -22310,15 +24802,44 @@ def paged_leaf_attention(
                 block_m,
                 rounding_mode="floor",
             )
-            total_blocks = int(expert_blocks.sum().item())
-            block_expert = torch.repeat_interleave(
-                expert_index,
-                expert_blocks,
-                output_size=total_blocks,
-            )
-            block_starts = F.pad(expert_blocks.cumsum(0), (1, 0))[:-1].to(
+            cumulative_blocks = F.pad(expert_blocks.cumsum(0), (1, 0)).to(
                 torch.int32
             )
+            if dynamic_direct_blocks:
+                program_limit = cumulative_blocks[-1:]
+                total_blocks = (
+                    triton.cdiv(rows * route_count, block_m)
+                    + int(q_lengths.numel())
+                )
+                if fused_parent_residual:
+                    # Keep the attention CTA small: materialize the ragged
+                    # block-to-page mapping once instead of binary-searching
+                    # the page boundaries inside every MFMA program.
+                    padding_blocks = total_blocks - program_limit
+                    padded_expert_blocks = torch.cat(
+                        (expert_blocks, padding_blocks)
+                    )
+                    block_expert = torch.repeat_interleave(
+                        torch.arange(
+                            q_lengths.numel() + 1,
+                            dtype=torch.int32,
+                            device=q.device,
+                        ),
+                        padded_expert_blocks,
+                        output_size=total_blocks,
+                    ).clamp_max_(int(q_lengths.numel()) - 1)
+                else:
+                    block_expert = cumulative_blocks
+                block_starts = cumulative_blocks
+            else:
+                total_blocks = int(cumulative_blocks[-1].item())
+                program_limit = total_blocks
+                block_expert = torch.repeat_interleave(
+                    expert_index,
+                    expert_blocks,
+                    output_size=total_blocks,
+                )
+                block_starts = cumulative_blocks[:-1]
         q_lengths = q_lengths.to(torch.int32)
         record_dispatch_boundary()
 
@@ -22440,6 +24961,8 @@ def paged_leaf_attention(
                 route_out,
                 route_lse,
                 tiny_total_blocks,
+                general_total_blocks,
+                int(q_lengths.numel()),
                 PAGE_CAPACITY=page_capacity,
                 LEAF_CAPACITY=int(page_k.size(2)),
                 STATE_CAPACITY=state_capacity,
@@ -22462,6 +24985,9 @@ def paged_leaf_attention(
                 QUANT_TOKEN_GROUP_SIZE=1,
                 QUANTIZED_SUMMARIES=False,
                 INDEXED=True,
+                PROGRAMS_POINTER=False,
+                SEARCH_BLOCKS=False,
+                SEARCH_STEPS=1,
                 num_warps=num_warps,
                 waves_per_eu=waves_per_eu,
             )
@@ -22524,6 +25050,8 @@ def paged_leaf_attention(
                 split_partial_out,
                 split_partial_lse,
                 long_program_offset,
+                long_total_blocks,
+                int(q_lengths.numel()),
                 PAGE_CAPACITY=page_capacity,
                 LEAF_CAPACITY=int(page_k.size(2)),
                 STATE_CAPACITY=state_capacity,
@@ -22546,6 +25074,9 @@ def paged_leaf_attention(
                 QUANT_TOKEN_GROUP_SIZE=1,
                 QUANTIZED_SUMMARIES=False,
                 INDEXED=True,
+                PROGRAMS_POINTER=False,
+                SEARCH_BLOCKS=False,
+                SEARCH_STEPS=1,
                 num_warps=num_warps,
                 waves_per_eu=waves_per_eu,
             )
@@ -22577,85 +25108,138 @@ def paged_leaf_attention(
                 split_reduce_end.record()
                 split_reduce_events = (split_reduce_begin, split_reduce_end)
     else:
-        _paged_leaf_attention_kernel[(total_blocks,)](
-            kernel_q,
-            query_scales,
-            order,
-            block_expert,
-            block_starts,
-            page_k,
-            page_v,
-            page_indices if indexed else page_k,
-            page_k_scales if (int8_mma or residual_quantized) else page_k,
-            page_v_scales if (int8_mma or residual_quantized) else page_v,
-            quantized_leaf_k_arg,
-            quantized_leaf_v_arg,
-            page_sum_k_arg,
-            page_sum_v_arg,
-            quantized_page_sum_k_arg,
-            quantized_page_sum_v_arg,
-            page_sum_k_scales_arg,
-            page_sum_v_scales_arg,
-            page_counts_arg,
-            slot_pages,
-            overflow_page_keys,
-            overflow_page_values,
-            overflow_used,
-            slot_lengths,
-            q_lengths,
-            cu_q,
-            expert_kv_row,
-            expert_slot,
-            route_out,
-            route_lse,
-            0,
-            PAGE_CAPACITY=page_capacity,
-            LEAF_CAPACITY=leaf_capacity,
-            STATE_CAPACITY=state_capacity,
-            INLINE_PAGES_PER_SLOT=int(slot_pages.size(3)),
-            HASH_CAPACITY=int(overflow_page_values.size(2)),
-            HASH_PROBES=hash_probes,
-            HEAD_DIM=head_dim,
-            VALUE_DIM=value_dim,
-            PAGE_SIZE=page_size,
-            ROUTE_COUNT=route_count,
-            SCALE_LOG2=float(scale) * math.log2(math.e),
-            BLOCK_M=block_m,
-            BLOCK_N=block_n,
-            SPLIT_N=1,
-            PARTIAL_OUTPUT=False,
-            INT8_MMA=int8_mma,
-            INT8_PV_MMA=int8_mma and int8_pv_mma,
-            QUANT_BITS=quant_bits if residual_quantized else 0,
-            QUANT_GROUP_SIZE=quant_group_size if residual_quantized else 1,
-            QUANT_TOKEN_GROUP_SIZE=(
-                quant_token_group_size if residual_quantized else 1
-            ),
-            QUANTIZED_SUMMARIES=quantized_summaries,
-            INDEXED=indexed,
-            num_warps=num_warps,
-            waves_per_eu=waves_per_eu,
-        )
+        if fused_parent_residual:
+            assert isinstance(page_indices, torch.Tensor)
+            assert isinstance(page_sum_k, torch.Tensor)
+            assert isinstance(page_sum_v, torch.Tensor)
+            assert isinstance(page_counts, torch.Tensor)
+            assert isinstance(residual_state_k, torch.Tensor)
+            assert isinstance(residual_state_v, torch.Tensor)
+            assert isinstance(residual_state_counts, torch.Tensor)
+            assert isinstance(residual_parent_slots, torch.Tensor)
+            _paged_leaf_residual_attention_kernel[(total_blocks,)](
+                kernel_q,
+                order,
+                block_expert,
+                block_starts,
+                q_lengths,
+                cu_q,
+                expert_kv_row,
+                expert_slot,
+                page_k,
+                page_v,
+                quantized_leaf_k_arg,
+                quantized_leaf_v_arg,
+                page_k_scales if residual_quantized else page_k,
+                page_v_scales if residual_quantized else page_v,
+                page_indices,
+                page_sum_k,
+                page_sum_v,
+                quantized_page_sum_k_arg,
+                quantized_page_sum_v_arg,
+                page_sum_k_scales_arg,
+                page_sum_v_scales_arg,
+                page_counts,
+                residual_state_k,
+                residual_state_v,
+                residual_state_counts,
+                residual_parent_slots.contiguous(),
+                route_out,
+                route_lse,
+                program_limit,
+                int(q_lengths.numel()),
+                PAGE_CAPACITY=page_capacity,
+                LEAF_CAPACITY=leaf_capacity,
+                STATE_CAPACITY=int(residual_state_k.size(2)),
+                HEAD_DIM=head_dim,
+                VALUE_DIM=value_dim,
+                PAGE_SIZE=page_size,
+                ROUTE_COUNT=route_count,
+                SCALE_LOG2=float(scale) * math.log2(math.e),
+                BLOCK_M=block_m,
+                PROGRAMS_POINTER=dynamic_direct_blocks,
+                SEARCH_BLOCKS=dynamic_direct_blocks and not fused_parent_residual,
+                SEARCH_STEPS=max(1, int(q_lengths.numel()).bit_length()),
+                QUANT_BITS=quant_bits if residual_quantized else 0,
+                QUANT_GROUP_SIZE=quant_group_size if residual_quantized else 1,
+                QUANTIZED_SUMMARIES=quantized_summaries,
+                num_warps=num_warps,
+                waves_per_eu=waves_per_eu,
+            )
+        else:
+            _paged_leaf_attention_kernel[(total_blocks,)](
+                kernel_q,
+                query_scales,
+                order,
+                block_expert,
+                block_starts,
+                page_k,
+                page_v,
+                page_indices if indexed else page_k,
+                page_k_scales if (int8_mma or residual_quantized) else page_k,
+                page_v_scales if (int8_mma or residual_quantized) else page_v,
+                quantized_leaf_k_arg,
+                quantized_leaf_v_arg,
+                page_sum_k_arg,
+                page_sum_v_arg,
+                quantized_page_sum_k_arg,
+                quantized_page_sum_v_arg,
+                page_sum_k_scales_arg,
+                page_sum_v_scales_arg,
+                page_counts_arg,
+                slot_pages,
+                overflow_page_keys,
+                overflow_page_values,
+                overflow_used,
+                slot_lengths,
+                q_lengths,
+                cu_q,
+                expert_kv_row,
+                expert_slot,
+                route_out,
+                route_lse,
+                0,
+                program_limit,
+                int(q_lengths.numel()),
+                PAGE_CAPACITY=page_capacity,
+                LEAF_CAPACITY=leaf_capacity,
+                STATE_CAPACITY=state_capacity,
+                INLINE_PAGES_PER_SLOT=int(slot_pages.size(3)),
+                HASH_CAPACITY=int(overflow_page_values.size(2)),
+                HASH_PROBES=hash_probes,
+                HEAD_DIM=head_dim,
+                VALUE_DIM=value_dim,
+                PAGE_SIZE=page_size,
+                ROUTE_COUNT=route_count,
+                SCALE_LOG2=float(scale) * math.log2(math.e),
+                BLOCK_M=block_m,
+                BLOCK_N=block_n,
+                SPLIT_N=1,
+                PARTIAL_OUTPUT=False,
+                INT8_MMA=int8_mma,
+                INT8_PV_MMA=int8_mma and int8_pv_mma,
+                QUANT_BITS=quant_bits if residual_quantized else 0,
+                QUANT_GROUP_SIZE=quant_group_size if residual_quantized else 1,
+                QUANT_TOKEN_GROUP_SIZE=(
+                    quant_token_group_size if residual_quantized else 1
+                ),
+                QUANTIZED_SUMMARIES=quantized_summaries,
+                INDEXED=indexed,
+                PROGRAMS_POINTER=dynamic_direct_blocks,
+                SEARCH_BLOCKS=dynamic_direct_blocks and not fused_parent_residual,
+                SEARCH_STEPS=max(1, int(q_lengths.numel()).bit_length()),
+                num_warps=num_warps,
+                waves_per_eu=waves_per_eu,
+            )
 
     record_boundary()
-
-    invalid_block = 256
-    _mask_invalid_expert_routes_kernel[
-        (triton.cdiv(rows * route_count, invalid_block),)
-    ](
-        top_slots,
-        route_lse,
-        rows * route_count,
-        ROUTE_COUNT=route_count,
-        BLOCK=invalid_block,
-        num_warps=4,
-    )
 
     exact_out = torch.empty(rows, value_dim, dtype=q.dtype, device=q.device)
     exact_lse = torch.empty(rows, dtype=torch.float32, device=q.device)
     _reduce_expert_route_attention_kernel[(rows,)](
         route_out,
         route_lse,
+        top_slots,
         exact_out,
         exact_lse,
         ROUTE_COUNT=route_count,
@@ -24588,6 +27172,7 @@ def aiter_varlen_paged_leaf_attention(
     _reduce_expert_route_attention_kernel[(rows,)](
         route_out,
         route_lse,
+        top_slots,
         exact_out,
         exact_lse,
         ROUTE_COUNT=route_count,

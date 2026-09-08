@@ -33,6 +33,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prepare-block-s", type=int)
     parser.add_argument("--prepare-num-warps", type=int, default=4)
     parser.add_argument("--coherence-single-matmul", action="store_true")
+    parser.add_argument(
+        "--geometries",
+        nargs="+",
+        choices=("raw", "spherical", "coherence"),
+        default=("raw", "spherical", "coherence"),
+    )
+    parser.add_argument(
+        "--materialize-prepared-scores",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument("--warmup", type=int, default=100)
+    parser.add_argument("--repetitions", type=int, default=500)
+    parser.add_argument("--skip-update", action="store_true")
     parser.add_argument("--output")
     return parser.parse_args()
 
@@ -84,16 +98,24 @@ def main() -> None:
     actual_rms = triton_constituent_rms()
     rms_profile = {
         "torch_ms": float(
-            triton.testing.do_bench(torch_constituent_rms, warmup=100, rep=500)
+            triton.testing.do_bench(
+                torch_constituent_rms,
+                warmup=args.warmup,
+                rep=args.repetitions,
+            )
         ),
         "triton_ms": float(
-            triton.testing.do_bench(triton_constituent_rms, warmup=100, rep=500)
+            triton.testing.do_bench(
+                triton_constituent_rms,
+                warmup=args.warmup,
+                rep=args.repetitions,
+            )
         ),
         "max_abs": float((expected_rms - actual_rms).abs().max().item()),
     }
 
     records = {}
-    for geometry in ("raw", "spherical", "coherence"):
+    for geometry in args.geometries:
         leaf = rms_normalize(overflow) if geometry == "spherical" else overflow
         buffers = new_state_maxsim_buffers(leaf, args.overflow_length)
 
@@ -138,7 +160,9 @@ def main() -> None:
                 num_warps=args.num_warps,
                 prepare_block_s=args.prepare_block_s,
                 prepare_num_warps=args.prepare_num_warps,
-                materialize_prepared_scores=(geometry != "raw"),
+                materialize_prepared_scores=(
+                    geometry != "raw" and args.materialize_prepared_scores
+                ),
                 coherence_single_matmul=(
                     geometry == "coherence" and args.coherence_single_matmul
                 ),
@@ -162,7 +186,9 @@ def main() -> None:
                 prepare_block_s=args.prepare_block_s,
                 prepare_num_warps=args.prepare_num_warps,
                 prepare_state_geometry=False,
-                materialize_prepared_scores=(geometry != "raw"),
+                materialize_prepared_scores=(
+                    geometry != "raw" and args.materialize_prepared_scores
+                ),
                 coherence_single_matmul=(
                     geometry == "coherence" and args.coherence_single_matmul
                 ),
@@ -171,12 +197,20 @@ def main() -> None:
         dense_result = dense()
         stream_result = streaming()
         torch.cuda.synchronize()
-        dense_ms = float(triton.testing.do_bench(dense, warmup=100, rep=500))
+        dense_ms = float(
+            triton.testing.do_bench(
+                dense, warmup=args.warmup, rep=args.repetitions
+            )
+        )
         streaming_ms = float(
-            triton.testing.do_bench(streaming, warmup=100, rep=500)
+            triton.testing.do_bench(
+                streaming, warmup=args.warmup, rep=args.repetitions
+            )
         )
         cached_streaming_ms = float(
-            triton.testing.do_bench(cached_streaming, warmup=100, rep=500)
+            triton.testing.do_bench(
+                cached_streaming, warmup=args.warmup, rep=args.repetitions
+            )
         )
         if geometry == "raw":
             cached_dense_ms = dense_ms
@@ -211,9 +245,13 @@ def main() -> None:
                 return score, index, select
 
             cached_dense_ms = float(
-                triton.testing.do_bench(cached_dense, warmup=100, rep=500)
+                triton.testing.do_bench(
+                    cached_dense,
+                    warmup=args.warmup,
+                    rep=args.repetitions,
+                )
             )
-        if geometry == "raw":
+        if geometry == "raw" or not args.materialize_prepared_scores:
             sparse_refresh_ms = 0.0
         else:
             refresh_slots = torch.randint(
@@ -246,7 +284,11 @@ def main() -> None:
                 )
 
             sparse_refresh_ms = float(
-                triton.testing.do_bench(sparse_refresh, warmup=100, rep=500)
+                triton.testing.do_bench(
+                    sparse_refresh,
+                    warmup=args.warmup,
+                    rep=args.repetitions,
+                )
             )
         records[geometry] = {
             "dense_ms": dense_ms,
@@ -306,101 +348,123 @@ def main() -> None:
             ),
         }
 
-    merge_len = args.overflow_length
-    state_k = torch.randn_like(state)
-    state_v = torch.randn_like(state)
-    state_counts = counts.clone()
-    state_norms = key_norm_sums.clone()
-    merge_k = torch.randn(
-        *shape, merge_len, args.head_dim, device=device, dtype=torch.bfloat16
-    )
-    merge_v = torch.randn_like(merge_k)
-    merge_counts = torch.ones(*shape, merge_len, 1, device=device)
-    merge_norms = torch.rand_like(merge_counts).add_(0.5)
-    destinations = torch.randint(
-        1, args.state_length, (*shape, merge_len), device=device
-    )
-    merge_indices = (
-        torch.arange(merge_len, device=device)
-        .view(1, 1, -1)
-        .expand(*shape, -1)
-        .contiguous()
-    )
-    owners = torch.full_like(merge_indices, -1)
-    fused_buffers = new_state_delta_buffers(state_k, state_v, args.state_length)
-    legacy_state_k = state_k.clone()
-    legacy_state_v = state_v.clone()
-    legacy_counts = state_counts.clone()
-    legacy_norms = state_norms.clone()
-    legacy_owners = owners.clone()
-    legacy_buffers = new_state_delta_buffers(
-        legacy_state_k, legacy_state_v, args.state_length
-    )
-    raw_state_k = state_k.clone()
-    raw_state_v = state_v.clone()
-    raw_counts = state_counts.clone()
-    raw_owners = owners.clone()
-    raw_buffers = new_state_delta_buffers(
-        raw_state_k, raw_state_v, args.state_length
-    )
-
-    def raw_update() -> None:
-        merge_state_in_place(
-            raw_state_k,
-            raw_state_v,
-            raw_counts,
-            merge_k,
-            merge_v,
-            merge_counts,
-            merge_indices,
-            destinations,
-            raw_owners,
-            raw_buffers,
+    key_norm_update = None
+    if not args.skip_update:
+        merge_len = args.overflow_length
+        state_k = torch.randn_like(state)
+        state_v = torch.randn_like(state)
+        state_counts = counts.clone()
+        state_norms = key_norm_sums.clone()
+        merge_k = torch.randn(
+            *shape, merge_len, args.head_dim, device=device, dtype=torch.bfloat16
+        )
+        merge_v = torch.randn_like(merge_k)
+        merge_counts = torch.ones(*shape, merge_len, 1, device=device)
+        merge_norms = torch.rand_like(merge_counts).add_(0.5)
+        destinations = torch.randint(
+            1, args.state_length, (*shape, merge_len), device=device
+        )
+        merge_indices = (
+            torch.arange(merge_len, device=device)
+            .view(1, 1, -1)
+            .expand(*shape, -1)
+            .contiguous()
+        )
+        owners = torch.full_like(merge_indices, -1)
+        fused_buffers = new_state_delta_buffers(
+            state_k, state_v, args.state_length
+        )
+        legacy_state_k = state_k.clone()
+        legacy_state_v = state_v.clone()
+        legacy_counts = state_counts.clone()
+        legacy_norms = state_norms.clone()
+        legacy_owners = owners.clone()
+        legacy_buffers = new_state_delta_buffers(
+            legacy_state_k, legacy_state_v, args.state_length
+        )
+        raw_state_k = state_k.clone()
+        raw_state_v = state_v.clone()
+        raw_counts = state_counts.clone()
+        raw_owners = owners.clone()
+        raw_buffers = new_state_delta_buffers(
+            raw_state_k, raw_state_v, args.state_length
         )
 
-    def fused_norm_update() -> None:
-        merge_state_in_place(
-            state_k,
-            state_v,
-            state_counts,
-            merge_k,
-            merge_v,
-            merge_counts,
-            merge_indices,
-            destinations,
-            owners,
-            fused_buffers,
-            key_norm_sums=state_norms,
-            merge_key_norm_sums=merge_norms,
-        )
+        def raw_update() -> None:
+            merge_state_in_place(
+                raw_state_k,
+                raw_state_v,
+                raw_counts,
+                merge_k,
+                merge_v,
+                merge_counts,
+                merge_indices,
+                destinations,
+                raw_owners,
+                raw_buffers,
+            )
 
-    def legacy_norm_update() -> None:
-        merge_state_in_place(
-            legacy_state_k,
-            legacy_state_v,
-            legacy_counts,
-            merge_k,
-            merge_v,
-            merge_counts,
-            merge_indices,
-            destinations,
-            legacy_owners,
-            legacy_buffers,
-        )
-        assignment = F.one_hot(
-            destinations, num_classes=args.state_length
-        ).float().transpose(-1, -2)
-        legacy_norms.add_(torch.matmul(assignment, merge_norms.float()))
+        def fused_norm_update() -> None:
+            merge_state_in_place(
+                state_k,
+                state_v,
+                state_counts,
+                merge_k,
+                merge_v,
+                merge_counts,
+                merge_indices,
+                destinations,
+                owners,
+                fused_buffers,
+                key_norm_sums=state_norms,
+                merge_key_norm_sums=merge_norms,
+            )
 
-    fused_update_ms = float(
-        triton.testing.do_bench(fused_norm_update, warmup=100, rep=500)
-    )
-    raw_update_ms = float(
-        triton.testing.do_bench(raw_update, warmup=100, rep=500)
-    )
-    legacy_update_ms = float(
-        triton.testing.do_bench(legacy_norm_update, warmup=100, rep=500)
-    )
+        def legacy_norm_update() -> None:
+            merge_state_in_place(
+                legacy_state_k,
+                legacy_state_v,
+                legacy_counts,
+                merge_k,
+                merge_v,
+                merge_counts,
+                merge_indices,
+                destinations,
+                legacy_owners,
+                legacy_buffers,
+            )
+            assignment = F.one_hot(
+                destinations, num_classes=args.state_length
+            ).float().transpose(-1, -2)
+            legacy_norms.add_(torch.matmul(assignment, merge_norms.float()))
+
+        fused_update_ms = float(
+            triton.testing.do_bench(
+                fused_norm_update,
+                warmup=args.warmup,
+                rep=args.repetitions,
+            )
+        )
+        raw_update_ms = float(
+            triton.testing.do_bench(
+                raw_update,
+                warmup=args.warmup,
+                rep=args.repetitions,
+            )
+        )
+        legacy_update_ms = float(
+            triton.testing.do_bench(
+                legacy_norm_update,
+                warmup=args.warmup,
+                rep=args.repetitions,
+            )
+        )
+        key_norm_update = {
+            "raw_ms": raw_update_ms,
+            "fused_ms": fused_update_ms,
+            "legacy_dense_ms": legacy_update_ms,
+            "speedup": legacy_update_ms / fused_update_ms,
+        }
 
     result = {
         "geometry": {
@@ -418,12 +482,7 @@ def main() -> None:
         },
         "results": records,
         "constituent_rms": rms_profile,
-        "key_norm_update": {
-            "raw_ms": raw_update_ms,
-            "fused_ms": fused_update_ms,
-            "legacy_dense_ms": legacy_update_ms,
-            "speedup": legacy_update_ms / fused_update_ms,
-        },
+        "key_norm_update": key_norm_update,
     }
     text = json.dumps(result, indent=2, sort_keys=True)
     print(text)

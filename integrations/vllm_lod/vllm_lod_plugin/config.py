@@ -231,6 +231,11 @@ class VLLMLODSettings:
     recursive_page_score_num_warps: int = 2
     recursive_page_select_block_n: int = 64
     recursive_state_route_backend: str = "auto"
+    recursive_global_page_prefill: bool = False
+    recursive_global_page_candidates_per_route: int = 8
+    recursive_threshold_page_prefill: bool = False
+    recursive_threshold_page_collect_stats: bool = False
+    recursive_threshold_page_rank: int = 2
 
     @property
     def resolved_key_bits(self) -> int:
@@ -676,6 +681,21 @@ class VLLMLODSettings:
             recursive_state_route_backend=os.getenv(
                 "VLLM_LOD_RECURSIVE_STATE_ROUTE_BACKEND", "auto"
             ).strip().lower(),
+            recursive_global_page_prefill=_boolean(
+                "VLLM_LOD_RECURSIVE_GLOBAL_PAGE_PREFILL", False
+            ),
+            recursive_global_page_candidates_per_route=_integer(
+                "VLLM_LOD_RECURSIVE_GLOBAL_PAGE_CANDIDATES", 8
+            ),
+            recursive_threshold_page_prefill=_boolean(
+                "VLLM_LOD_RECURSIVE_THRESHOLD_PAGE_PREFILL", False
+            ),
+            recursive_threshold_page_collect_stats=_boolean(
+                "VLLM_LOD_RECURSIVE_THRESHOLD_PAGE_COLLECT_STATS", False
+            ),
+            recursive_threshold_page_rank=_integer(
+                "VLLM_LOD_RECURSIVE_THRESHOLD_PAGE_RANK", 2
+            ),
         )
         if settings.aug19_compat:
             # The August 19 LongBench run predates the cooperative GQA/HIP
@@ -1086,6 +1106,40 @@ class VLLMLODSettings:
             raise ValueError(
                 "VLLM_LOD_RECURSIVE_STATE_ROUTE_BACKEND=resplit requires "
                 "VLLM_LOD_LEVELS=3"
+            )
+        if settings.recursive_global_page_prefill and (
+            settings.levels != 3
+            or (
+                settings.recursive_global_page_candidates_per_route != 1
+                and settings.prefill_open_count != 8
+            )
+        ):
+            raise ValueError(
+                "VLLM_LOD_RECURSIVE_GLOBAL_PAGE_PREFILL requires "
+                "VLLM_LOD_LEVELS=3; global top-page selection also requires "
+                "VLLM_LOD_PREFILL_OPEN_COUNT=8"
+            )
+        if settings.recursive_global_page_candidates_per_route not in (1, 2, 4, 8):
+            raise ValueError(
+                "VLLM_LOD_RECURSIVE_GLOBAL_PAGE_CANDIDATES must be 1, 2, 4, or 8"
+            )
+        if settings.recursive_threshold_page_prefill and (
+            settings.levels != 3 or settings.prefill_open_count != 8
+        ):
+            raise ValueError(
+                "VLLM_LOD_RECURSIVE_THRESHOLD_PAGE_PREFILL requires "
+                "VLLM_LOD_LEVELS=3 and VLLM_LOD_PREFILL_OPEN_COUNT=8"
+            )
+        if settings.recursive_threshold_page_rank not in (2, 4):
+            raise ValueError(
+                "VLLM_LOD_RECURSIVE_THRESHOLD_PAGE_RANK must be 2 or 4"
+            )
+        if (
+            settings.recursive_global_page_prefill
+            and settings.recursive_threshold_page_prefill
+        ):
+            raise ValueError(
+                "global-page and threshold-page prefill modes are mutually exclusive"
             )
         if settings.levels == 2 and settings.kv_bits not in (0, 8):
             raise ValueError(

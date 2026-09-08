@@ -32,6 +32,7 @@ from .kernels.paged_leaf_attention import (
     fused_decode_paged_lod_attention,
     gqa_tile_masked_paged_leaf_attention,
     materialize_page_summary_scores_gqa,
+    merge_global_routed_page_residuals,
     new_fused_decode_buffers,
     paged_leaf_attention,
     query_major_paged_leaf_attention,
@@ -45,6 +46,8 @@ from .kernels.paged_leaf_attention import (
     refine_route_candidates_by_page_mass,
     refine_route_candidates_by_virtual_leaf_mass,
     refine_route_candidates_by_virtual_leaf_output,
+    select_global_routed_pages,
+    threshold_routed_page_attention,
     quantize_page_summaries_int8,
     quantize_virtual_paged_kv,
 )
@@ -222,6 +225,17 @@ class TritonLODAttentionCore(nn.Module):
     virtual_page_storage = False
     recursive_page_lod = False
     recursive_page_block_n = 16
+    # Prefill quality experiment: select a fixed budget of eight pages across
+    # all pages belonging to the eight routed centroids, instead of forcing
+    # exactly one page from each centroid.  Decode keeps the established
+    # one-page-per-centroid recursive path.
+    recursive_global_page_prefill = False
+    recursive_global_page_block_n = 32
+    recursive_global_page_grouped = True
+    recursive_global_page_candidates_per_route = 8
+    recursive_threshold_page_prefill = False
+    recursive_threshold_page_collect_stats = False
+    recursive_threshold_page_rank = 2
     # Keep the query-major residual-page launch independent from the regular
     # expert/MFMA consumer.  Adaptive recursive prefill may enable the latter
     # for short prompts, but long prompts must retain the measured one-wave
@@ -2151,6 +2165,13 @@ class TritonLODAttentionCore(nn.Module):
                 coherence_single_matmul=(
                     self.coherence_single_matmul
                     and streaming_geometry in {"coherence", "spherical_coherence"}
+                ),
+                # Ordinary unpadded construction keeps every slot below
+                # ``current_state_len`` live by construction. Avoid writing
+                # the full overflow-by-state score matrix merely to apply an
+                # all-false mask; padded prefill retains the exact mask.
+                mask_invalid_state=bool(
+                    getattr(self, "_lod_padding_state_reserve", 0)
                 ),
             )
             append_idx, merge_idx = self._split_append_merge_indices(
@@ -4133,13 +4154,53 @@ class TritonLODAttentionCore(nn.Module):
                 if local_k is None or local_v is None:
                     raise AssertionError("fused prefill routing has no local KV")
                 query_normalized_routing = self.routing_normalization == "query"
+                # The patched AITER route/coarse kernels win while the state
+                # fits in one native 2K scan, but their register pressure
+                # scales poorly beyond that point. Fall back automatically
+                # to the tiled exact selector and coarse kernel for larger
+                # states instead of forcing one backend across the prompt.
+                use_aiter_prefill = bool(
+                    self.prefill_aiter_coarse and state_len <= 2048
+                )
+                if (
+                    use_aiter_prefill
+                    and query_normalized_routing
+                    and route_count in (2, 3)
+                    and self.split_prefill_local_attention
+                    and getattr(self, "mla_state_key_normalization", "none")
+                    == "none"
+                ):
+                    from .kernels.aiter_prefill_attention import (
+                        aiter_prefill_route_attention,
+                    )
+
+                    active_counts = counts[..., :state_len, :]
+                    mean_k = self._mean(
+                        state_k.detach()[..., :state_len, :], active_counts
+                    ).contiguous()
+                    routed = aiter_prefill_route_attention(
+                        q.contiguous(),
+                        mean_k,
+                        counts.contiguous(),
+                        state_len=state_len,
+                        kv_group_size=self.num_key_value_groups,
+                        scale=self.scaling,
+                        route_count=route_count,
+                        protected_len=protected_len,
+                    )
+                    self._lod_prefill_aiter_routes = True
+                    self._lod_prefill_aiter_route_only_executed = True
+                    return routed
                 fused_state_qk = bool(
                     (
                         self.prefill_int8_route_mma
-                        or self.prefill_aiter_coarse
+                        or use_aiter_prefill
                         or self.prefill_fused_state_qk
                     )
-                    and not query_normalized_routing
+                    and (
+                        not query_normalized_routing
+                        or self.prefill_fused_state_qk
+                    )
                     and getattr(self, "mla_state_key_normalization", "none") == "none"
                 )
                 query_rms = (
@@ -4204,7 +4265,7 @@ class TritonLODAttentionCore(nn.Module):
                     num_warps=self.fused_prefill_num_warps,
                     stable_recompute=self.fused_prefill_stable_recompute,
                     route_only=(
-                        self.prefill_aiter_coarse
+                        use_aiter_prefill
                         or (
                             not fused_state_qk
                             and self.fused_prefill_stable_recompute
@@ -4221,7 +4282,7 @@ class TritonLODAttentionCore(nn.Module):
                         and not fused_state_qk
                         and self.fused_prefill_stable_recompute
                         and self.fused_prefill_external_recompute
-                        and route_count in (2, 3)
+                        and route_count in (2, 3, 4, 8)
                     ),
                 )
                 if route_select_begin is not None:
@@ -4238,7 +4299,7 @@ class TritonLODAttentionCore(nn.Module):
                     if not hasattr(self, "_lod_dynamic_prefill_histograms"):
                         self._lod_dynamic_prefill_histograms = []
                     self._lod_dynamic_prefill_histograms.append(histogram)
-                if self.prefill_aiter_coarse:
+                if use_aiter_prefill:
                     self._lod_prefill_aiter_routes = True
                 elif (
                     not fused_state_qk
@@ -4377,7 +4438,7 @@ class TritonLODAttentionCore(nn.Module):
                     if (
                         self.prefill_hierarchical_route
                         and int(q.size(2)) > 1
-                        and route_count in (2, 3)
+                        and route_count in (2, 3, 4)
                         and dynamic_residual is None
                     ):
                         hierarchical_block_n = min(
@@ -4847,15 +4908,21 @@ class TritonLODAttentionCore(nn.Module):
         page_capacity = (
             sequence_capacity + page_size - 1
         ) // page_size + state_capacity
+        direct_native_quant = bool(
+            self.leaf_key_quant_bits in (4, 8)
+            and self.leaf_value_quant_bits == self.leaf_key_quant_bits
+            and not getattr(self, "simulate_leaf_quantization", False)
+        )
         if destination is not None and (
             not self.virtual_page_storage
-            or self.recursive_page_lod
             or flat_int8_mma
-            or self.leaf_key_quant_bits
-            or self.leaf_value_quant_bits
+            or (
+                bool(self.leaf_key_quant_bits or self.leaf_value_quant_bits)
+                and not direct_native_quant
+            )
         ):
             raise ValueError(
-                "direct prefill storage currently requires flat BF16 virtual pages"
+                "direct prefill storage requires BF16 or native quantized virtual pages"
             )
 
         def destination_tensor(name: str) -> torch.Tensor:
@@ -5082,6 +5149,13 @@ class TritonLODAttentionCore(nn.Module):
                     device=v.device,
                 )
                 flat_leaf_capacity = sequence_capacity
+            elif virtual_native_quant:
+                # Native residual quantization consumes the current prompt K/V
+                # directly and writes its persistent codes into the pool below.
+                # Keeping these as views avoids creating a BF16 leaf shadow.
+                flat_leaf_k = virtual_k.detach()
+                flat_leaf_v = virtual_v.detach()
+                flat_leaf_capacity = sequence_capacity
             elif destination is not None:
                 flat_leaf_k = destination_tensor("leaf_k")
                 flat_leaf_v = destination_tensor("leaf_v")
@@ -5090,10 +5164,6 @@ class TritonLODAttentionCore(nn.Module):
                 ) < sequence_capacity:
                     raise ValueError("direct prefill leaf destination is too small")
                 flat_leaf_capacity = int(flat_leaf_k.size(2))
-            elif virtual_native_quant:
-                flat_leaf_k = virtual_k.detach()
-                flat_leaf_v = virtual_v.detach()
-                flat_leaf_capacity = sequence_capacity
             else:
                 flat_leaf_k = virtual_k.new_empty(
                     batch, kv_heads, sequence_capacity, head_dim
@@ -5157,44 +5227,64 @@ class TritonLODAttentionCore(nn.Module):
                 key_width = head_dim // 2 if quant_bits == 4 else head_dim
                 value_width = value_dim // 2 if quant_bits == 4 else value_dim
                 cache.update(
-                    quantized_leaf_k=torch.empty(
-                        batch,
-                        kv_heads,
-                        sequence_capacity,
-                        key_width,
-                        dtype=quant_dtype,
-                        device=k.device,
+                    quantized_leaf_k=(
+                        destination_tensor("quantized_leaf_k")
+                        if destination is not None
+                        else torch.empty(
+                            batch,
+                            kv_heads,
+                            sequence_capacity,
+                            key_width,
+                            dtype=quant_dtype,
+                            device=k.device,
+                        )
                     ),
-                    quantized_leaf_v=torch.empty(
-                        batch,
-                        kv_heads,
-                        sequence_capacity,
-                        value_width,
-                        dtype=quant_dtype,
-                        device=v.device,
+                    quantized_leaf_v=(
+                        destination_tensor("quantized_leaf_v")
+                        if destination is not None
+                        else torch.empty(
+                            batch,
+                            kv_heads,
+                            sequence_capacity,
+                            value_width,
+                            dtype=quant_dtype,
+                            device=v.device,
+                        )
                     ),
-                    page_k_scales=torch.empty(
-                        batch,
-                        kv_heads,
-                        page_capacity,
-                        token_groups * (head_dim // group_size),
-                        dtype=k.dtype,
-                        device=k.device,
+                    page_k_scales=(
+                        destination_tensor("page_k_scales")
+                        if destination is not None
+                        else torch.empty(
+                            batch,
+                            kv_heads,
+                            page_capacity,
+                            token_groups * (head_dim // group_size),
+                            dtype=k.dtype,
+                            device=k.device,
+                        )
                     ),
-                    page_v_scales=torch.empty(
-                        batch,
-                        kv_heads,
-                        page_capacity,
-                        token_groups * (value_dim // group_size),
-                        dtype=v.dtype,
-                        device=v.device,
+                    page_v_scales=(
+                        destination_tensor("page_v_scales")
+                        if destination is not None
+                        else torch.empty(
+                            batch,
+                            kv_heads,
+                            page_capacity,
+                            token_groups * (value_dim // group_size),
+                            dtype=v.dtype,
+                            device=v.device,
+                        )
                     ),
-                    page_quantized_counts=torch.zeros(
-                        batch,
-                        kv_heads,
-                        page_capacity,
-                        dtype=torch.int32,
-                        device=k.device,
+                    page_quantized_counts=(
+                        destination_tensor("page_quantized_counts")
+                        if destination is not None
+                        else torch.zeros(
+                            batch,
+                            kv_heads,
+                            page_capacity,
+                            dtype=torch.int32,
+                            device=k.device,
+                        )
                     ),
                 )
         else:
@@ -5245,29 +5335,46 @@ class TritonLODAttentionCore(nn.Module):
             or bool(self.leaf_key_quant_bits or self.leaf_value_quant_bits)
         )
         if needs_page_summaries:
+            summary_page_capacity = (
+                int(cache["page_indices"].size(2))
+                if isinstance(cache.get("page_indices"), torch.Tensor)
+                else page_capacity
+            )
             cache.update(
-                page_sum_k=torch.zeros(
-                    batch,
-                    kv_heads,
-                    page_capacity,
-                    head_dim,
-                    dtype=k.dtype,
-                    device=k.device,
+                page_sum_k=(
+                    destination_tensor("page_sum_k")
+                    if destination is not None and not direct_native_quant
+                    else torch.zeros(
+                        batch,
+                        kv_heads,
+                        summary_page_capacity,
+                        head_dim,
+                        dtype=k.dtype,
+                        device=k.device,
+                    )
                 ),
-                page_sum_v=torch.zeros(
-                    batch,
-                    kv_heads,
-                    page_capacity,
-                    int(v.size(-1)),
-                    dtype=v.dtype,
-                    device=v.device,
+                page_sum_v=(
+                    destination_tensor("page_sum_v")
+                    if destination is not None and not direct_native_quant
+                    else torch.zeros(
+                        batch,
+                        kv_heads,
+                        summary_page_capacity,
+                        int(v.size(-1)),
+                        dtype=v.dtype,
+                        device=v.device,
+                    )
                 ),
-                page_counts=torch.zeros(
-                    batch,
-                    kv_heads,
-                    page_capacity,
-                    dtype=torch.int32,
-                    device=k.device,
+                page_counts=(
+                    destination_tensor("page_counts")
+                    if destination is not None
+                    else torch.zeros(
+                        batch,
+                        kv_heads,
+                        summary_page_capacity,
+                        dtype=torch.int32,
+                        device=k.device,
+                    )
                 ),
             )
         if (
@@ -6030,6 +6137,368 @@ class TritonLODAttentionCore(nn.Module):
             ) + 1
         return result
 
+    def _global_routed_page_prefill_attention(
+        self,
+        q: torch.Tensor,
+        state_k: torch.Tensor,
+        state_v: torch.Tensor,
+        counts: torch.Tensor,
+        top_slots: torch.Tensor,
+        cache: dict[str, torch.Tensor | int],
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Open one page from each routed centroid with grouped exact attention."""
+        if int(q.size(2)) <= 1:
+            raise ValueError("global routed-page attention is a prefill-only path")
+        route_count = int(top_slots.size(-1))
+        if route_count < 1 or route_count > 8:
+            raise ValueError("global routed-page prefill requires one to eight routes")
+        if (
+            route_count != 8
+            and self.recursive_global_page_candidates_per_route != 1
+        ):
+            raise ValueError("global top-page prefill requires eight outer routes")
+        quantized_attention = bool(cache.get("quantization_finalized", False))
+        quantized_summaries = bool(
+            cache.get("summary_quantization_finalized", False)
+        )
+        if bool(cache.get("mla_raw_page_key_summaries", False)):
+            raise NotImplementedError(
+                "global routed-page prefill does not yet support raw MLA summaries"
+            )
+        required = (
+            "page_sum_k",
+            "page_sum_v",
+            "page_counts",
+            "slot_pages",
+            "overflow_page_keys",
+            "overflow_page_values",
+            "overflow_used",
+            "slot_lengths",
+        )
+        if not all(isinstance(cache.get(name), torch.Tensor) for name in required):
+            raise RuntimeError("global routed-page prefill cache is incomplete")
+        if quantized_attention:
+            quantized_required = (
+                "quantized_leaf_k",
+                "quantized_leaf_v",
+                "page_k_scales",
+                "page_v_scales",
+            )
+            if not all(
+                isinstance(cache.get(name), torch.Tensor)
+                for name in quantized_required
+            ):
+                raise RuntimeError("global routed-page INT4 leaves are incomplete")
+        if quantized_summaries:
+            summary_required = (
+                "quantized_page_sum_k",
+                "quantized_page_sum_v",
+                "page_sum_k_scales",
+                "page_sum_v_scales",
+            )
+            if not all(
+                isinstance(cache.get(name), torch.Tensor)
+                for name in summary_required
+            ):
+                raise RuntimeError("global routed-page INT8 summaries are incomplete")
+        page_sum_k = cache["page_sum_k"]
+        page_sum_v = cache["page_sum_v"]
+        page_counts = cache["page_counts"]
+        slot_pages = cache["slot_pages"]
+        overflow_page_keys = cache["overflow_page_keys"]
+        overflow_page_values = cache["overflow_page_values"]
+        overflow_used = cache["overflow_used"]
+        slot_lengths = cache["slot_lengths"]
+        if not all(
+            isinstance(value, torch.Tensor)
+            for value in (
+                page_sum_k,
+                page_sum_v,
+                page_counts,
+                slot_pages,
+                overflow_page_keys,
+                overflow_page_values,
+                overflow_used,
+                slot_lengths,
+            )
+        ):
+            raise AssertionError("validated global page-cache tensors disappeared")
+
+        timing_events = getattr(self, "_lod_leaf_timing_events", None)
+        global_start = None
+        select_start = None
+        if isinstance(timing_events, dict):
+            global_start = torch.cuda.Event(enable_timing=True)
+            select_start = torch.cuda.Event(enable_timing=True)
+            global_start.record()
+            select_start.record()
+        page_indices = cache.get("page_indices")
+        indexed = isinstance(page_indices, torch.Tensor)
+        fuse_parent_residual = bool(
+            indexed and self.recursive_global_page_candidates_per_route == 1
+        )
+        selected_pages, selected_parents = select_global_routed_pages(
+            q,
+            page_sum_k,
+            page_counts,
+            slot_pages,
+            overflow_page_keys,
+            overflow_page_values,
+            overflow_used,
+            slot_lengths,
+            top_slots,
+            quantized_page_sum_k=(
+                cache.get("quantized_page_sum_k") if quantized_summaries else None
+            ),
+            page_sum_k_scales=(
+                cache.get("page_sum_k_scales") if quantized_summaries else None
+            ),
+            quant_group_size=self.leaf_quant_group_size,
+            kv_group_size=self.num_key_value_groups,
+            scale=self.scaling,
+            hash_probes=self._page_lookup_probes(cache),
+            page_size=int(cache["page_size"]),
+            page_block_n=(
+                2
+                if self.recursive_global_page_candidates_per_route == 1
+                else self.recursive_global_page_block_n
+            ),
+            grouped=self.recursive_global_page_grouped,
+            group_block_m=16,
+            route_candidates_per_route=(
+                self.recursive_global_page_candidates_per_route
+            ),
+            store_parents=not fuse_parent_residual,
+            timing_events=timing_events if isinstance(timing_events, dict) else None,
+        )
+        if isinstance(timing_events, dict) and select_start is not None:
+            select_end = torch.cuda.Event(enable_timing=True)
+            select_end.record()
+            timing_events.setdefault("global_select", []).append(
+                (select_start, select_end)
+            )
+
+        exact_k = cache.get("leaf_k" if indexed else "page_k")
+        exact_v = cache.get("leaf_v" if indexed else "page_v")
+        if not isinstance(exact_k, torch.Tensor) or not isinstance(
+            exact_v, torch.Tensor
+        ):
+            raise RuntimeError("global routed-page exact K/V storage is missing")
+        page_capacity = int(page_counts.size(2))
+        identity_pages = getattr(self, "_global_page_identity", None)
+        expected_identity_shape = (
+            int(page_counts.size(0)),
+            int(page_counts.size(1)),
+            page_capacity,
+            1,
+        )
+        if not isinstance(identity_pages, torch.Tensor) or tuple(
+            identity_pages.shape
+        ) != expected_identity_shape:
+            identity_pages = (
+                torch.arange(page_capacity, dtype=torch.int32, device=q.device)
+                .view(1, 1, page_capacity, 1)
+                .expand(*expected_identity_shape)
+                .contiguous()
+            )
+            self._global_page_identity = identity_pages
+        sorted_page_dispatch = os.getenv("VLLM_LOD_SORTED_PAGE_DISPATCH")
+        if sorted_page_dispatch is None:
+            # Atomic expert bucketing degrades sharply when many queries pick
+            # the same few pages.  Radix sorting is distribution-insensitive,
+            # but its fixed cost is unnecessary for small chat prefills.
+            sorted_page_dispatch_enabled = selected_pages.numel() >= 1 << 20
+        else:
+            sorted_page_dispatch_enabled = int(sorted_page_dispatch) != 0
+        exact_output, exact_lse = paged_leaf_attention(
+            q,
+            exact_k,
+            exact_v,
+            identity_pages,
+            overflow_page_keys,
+            overflow_page_values,
+            overflow_used,
+            page_counts,
+            selected_pages,
+            page_indices=page_indices if indexed else None,
+            quantized_leaf_k=(
+                cache.get("quantized_leaf_k") if quantized_attention else None
+            ),
+            quantized_leaf_v=(
+                cache.get("quantized_leaf_v") if quantized_attention else None
+            ),
+            page_k_scales=(
+                cache.get("page_k_scales") if quantized_attention else None
+            ),
+            page_v_scales=(
+                cache.get("page_v_scales") if quantized_attention else None
+            ),
+            quantized_page_sum_k=(
+                cache.get("quantized_page_sum_k") if quantized_summaries else None
+            ),
+            quantized_page_sum_v=(
+                cache.get("quantized_page_sum_v") if quantized_summaries else None
+            ),
+            page_sum_k_scales=(
+                cache.get("page_sum_k_scales") if quantized_summaries else None
+            ),
+            page_sum_v_scales=(
+                cache.get("page_sum_v_scales") if quantized_summaries else None
+            ),
+            quant_group_size=self.leaf_quant_group_size,
+            quant_token_group_size=self.leaf_quant_token_group_size,
+            quant_bits=int(cache.get("leaf_quant_bits", 4)),
+            kv_group_size=self.num_key_value_groups,
+            scale=self.scaling,
+            hash_probes=0,
+            block_m=64 if quantized_attention else 16,
+            block_n=16,
+            num_warps=(4 if quantized_attention else 1) if fuse_parent_residual else 2,
+            reduce_num_warps=1,
+            direct_expert_buckets=True,
+            sorted_expert_buckets=sorted_page_dispatch_enabled,
+            dynamic_direct_blocks=True,
+            page_sum_k=page_sum_k if fuse_parent_residual else None,
+            page_sum_v=page_sum_v if fuse_parent_residual else None,
+            page_counts=page_counts if fuse_parent_residual else None,
+            residual_state_k=state_k if fuse_parent_residual else None,
+            residual_state_v=state_v if fuse_parent_residual else None,
+            residual_state_counts=counts if fuse_parent_residual else None,
+            residual_parent_slots=top_slots if fuse_parent_residual else None,
+            timing_events=timing_events if isinstance(timing_events, dict) else None,
+        )
+        if fuse_parent_residual:
+            if isinstance(timing_events, dict) and global_start is not None:
+                global_end = torch.cuda.Event(enable_timing=True)
+                global_end.record()
+                timing_events.setdefault("global_total", []).append(
+                    (global_start, global_end)
+                )
+            return exact_output, exact_lse
+        if selected_parents is None:
+            raise AssertionError("global page parents were not materialized")
+        residual_start = None
+        if isinstance(timing_events, dict):
+            residual_start = torch.cuda.Event(enable_timing=True)
+            residual_start.record()
+        result = merge_global_routed_page_residuals(
+            q,
+            exact_output,
+            exact_lse,
+            state_k,
+            state_v,
+            counts,
+            page_sum_k,
+            page_sum_v,
+            page_counts,
+            top_slots,
+            selected_pages,
+            selected_parents,
+            kv_group_size=self.num_key_value_groups,
+            scale=self.scaling,
+            num_warps=1,
+        )
+        if isinstance(timing_events, dict) and residual_start is not None:
+            global_end = torch.cuda.Event(enable_timing=True)
+            global_end.record()
+            timing_events.setdefault("global_residual", []).append(
+                (residual_start, global_end)
+            )
+            if global_start is None:
+                raise AssertionError("global attention timing start is missing")
+            timing_events.setdefault("global_total", []).append(
+                (global_start, global_end)
+            )
+        return result
+
+    def _threshold_routed_page_prefill_attention(
+        self,
+        q: torch.Tensor,
+        state_k: torch.Tensor,
+        state_v: torch.Tensor,
+        counts: torch.Tensor,
+        top_slots: torch.Tensor,
+        cache: dict[str, torch.Tensor | int],
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Open every routed page above the second-best centroid score."""
+        if int(q.size(2)) <= 1:
+            raise ValueError("threshold-page attention is a prefill-only path")
+        if int(top_slots.size(-1)) != 8:
+            raise ValueError("threshold-page prefill requires eight routes")
+        if bool(cache.get("quantization_finalized", False)) or bool(
+            cache.get("summary_quantization_finalized", False)
+        ):
+            raise NotImplementedError(
+                "threshold-page prefill currently requires BF16 leaves and summaries"
+            )
+        if bool(cache.get("mla_raw_page_key_summaries", False)):
+            raise NotImplementedError(
+                "threshold-page prefill does not yet support raw MLA summaries"
+            )
+        required = (
+            "leaf_k",
+            "leaf_v",
+            "page_indices",
+            "page_sum_k",
+            "page_sum_v",
+            "page_counts",
+            "slot_pages",
+            "overflow_page_keys",
+            "overflow_page_values",
+            "overflow_used",
+            "slot_lengths",
+        )
+        if not all(isinstance(cache.get(name), torch.Tensor) for name in required):
+            raise RuntimeError("threshold-page prefill cache is incomplete")
+        output, output_lse, open_counts = threshold_routed_page_attention(
+            q,
+            state_k,
+            state_v,
+            counts,
+            cache["leaf_k"],
+            cache["leaf_v"],
+            cache["page_indices"],
+            cache["page_sum_k"],
+            cache["page_sum_v"],
+            cache["page_counts"],
+            cache["slot_pages"],
+            cache["overflow_page_keys"],
+            cache["overflow_page_values"],
+            cache["overflow_used"],
+            cache["slot_lengths"],
+            top_slots,
+            kv_group_size=self.num_key_value_groups,
+            scale=self.scaling,
+            hash_probes=self._page_lookup_probes(cache),
+            collect_open_counts=self.recursive_threshold_page_collect_stats,
+            threshold_rank=self.recursive_threshold_page_rank,
+            num_warps=2,
+        )
+        if open_counts is not None:
+            count_sum = open_counts.sum(dtype=torch.int64)
+            query_count = open_counts.new_tensor(
+                open_counts.numel(), dtype=torch.int64
+            )
+            zero_count = open_counts.eq(0).sum(dtype=torch.int64)
+            above_eight = open_counts.gt(8).sum(dtype=torch.int64)
+            maximum = open_counts.amax().to(torch.int64)
+            current = getattr(self, "_lod_threshold_page_stats", None)
+            if current is None:
+                self._lod_threshold_page_stats = {
+                    "opened": count_sum,
+                    "queries": query_count,
+                    "zero": zero_count,
+                    "above_eight": above_eight,
+                    "maximum": maximum,
+                }
+            else:
+                current["opened"] += count_sum
+                current["queries"] += query_count
+                current["zero"] += zero_count
+                current["above_eight"] += above_eight
+                current["maximum"] = torch.maximum(current["maximum"], maximum)
+        return output, output_lse
+
     def _coarse_attention(
         self,
         q: torch.Tensor,
@@ -6203,7 +6672,12 @@ class TritonLODAttentionCore(nn.Module):
                     coarse_top_slots,
                     state_len=state_len,
                 )
-            if self.prefill_aiter_coarse and query_len > 1 and not include_local:
+            if (
+                self.prefill_aiter_coarse
+                and state_len <= 2048
+                and query_len > 1
+                and not include_local
+            ):
                 from .kernels.aiter_prefill_attention import (
                     aiter_prefill_coarse_attention,
                 )
@@ -6363,7 +6837,12 @@ class TritonLODAttentionCore(nn.Module):
                 ),
                 torch.logaddexp(coarse_lse, local_lse),
             )
-        if self.prefill_aiter_coarse and query_len > 1 and not include_local:
+        if (
+            self.prefill_aiter_coarse
+            and state_len <= 2048
+            and query_len > 1
+            and not include_local
+        ):
             from .kernels.aiter_prefill_attention import (
                 aiter_prefill_coarse_attention,
             )
@@ -7704,6 +8183,46 @@ class TritonLODAttentionCore(nn.Module):
                 exact_output, exact_lse = self._paged_leaf_attention(
                     q, top_slots, page_cache
                 )
+            elif (
+                self.recursive_page_lod
+                and self.recursive_threshold_page_prefill
+                and int(q.size(2)) > 1
+            ):
+                recursive_state_k = self._mla_state_key_sum_for_attention(
+                    state_k,
+                    counts,
+                    state_len=state_len,
+                )
+                exact_output, exact_lse = (
+                    self._threshold_routed_page_prefill_attention(
+                        q,
+                        recursive_state_k,
+                        state_v,
+                        counts,
+                        top_slots,
+                        page_cache,
+                    )
+                )
+            elif (
+                self.recursive_page_lod
+                and self.recursive_global_page_prefill
+                and int(q.size(2)) > 1
+            ):
+                recursive_state_k = self._mla_state_key_sum_for_attention(
+                    state_k,
+                    counts,
+                    state_len=state_len,
+                )
+                exact_output, exact_lse = (
+                    self._global_routed_page_prefill_attention(
+                        q,
+                        recursive_state_k,
+                        state_v,
+                        counts,
+                        top_slots,
+                        page_cache,
+                    )
+                )
             elif self.recursive_page_lod:
                 summary_names = ("page_sum_k", "page_sum_v", "page_counts")
                 if not all(
@@ -8362,16 +8881,28 @@ class TritonLODAttentionCore(nn.Module):
         separated_sink_len = (
             min(self.sink_len, initial_len) if self.separate_sink_cache else 0
         )
-        sink_k = (
-            k[..., :separated_sink_len, :].detach().contiguous()
-            if separated_sink_len
-            else None
-        )
-        sink_v = (
-            v[..., :separated_sink_len, :].detach().contiguous()
-            if separated_sink_len
-            else None
-        )
+        sink_k = None
+        sink_v = None
+        if separated_sink_len:
+            if prefill_storage is None:
+                sink_k = k[..., :separated_sink_len, :].detach().contiguous()
+                sink_v = v[..., :separated_sink_len, :].detach().contiguous()
+            else:
+                sink_k = prefill_storage.get("sink_k")
+                sink_v = prefill_storage.get("sink_v")
+                if not isinstance(sink_k, torch.Tensor) or not isinstance(
+                    sink_v, torch.Tensor
+                ):
+                    raise TypeError("direct prefill storage lacks sink K/V")
+                if (
+                    tuple(sink_k.shape[:2]) != (batch_size, self.config.num_key_value_heads)
+                    or tuple(sink_v.shape[:2]) != tuple(sink_k.shape[:2])
+                    or int(sink_k.size(2)) != separated_sink_len
+                    or int(sink_v.size(2)) != separated_sink_len
+                ):
+                    raise ValueError("direct prefill sink K/V storage has incompatible shape")
+                sink_k.copy_(k[..., :separated_sink_len, :])
+                sink_v.copy_(v[..., :separated_sink_len, :])
         archive_k = k[..., separated_sink_len:, :]
         archive_v = v[..., separated_sink_len:, :]
         initial_leaf_len = initial_len - separated_sink_len
@@ -9007,33 +9538,76 @@ class TritonLODAttentionCore(nn.Module):
                     optimize_scale=self.leaf_quant_scale_mode == "l2",
                 )
                 page_cache["quantization_finalized"] = True
+                destination_page = None
+                if prefill_storage is not None:
+                    destination_page = prefill_storage.get("page_cache")
+                    if not isinstance(destination_page, dict):
+                        raise TypeError(
+                            "direct quantized prefill storage lacks its page cache"
+                        )
                 if self.page_summary_quant_bits not in (0, 8):
                     raise ValueError("page-summary quantization supports 0 or 8 bits")
                 if self.page_summary_scale_mode not in ("max", "l2"):
                     raise ValueError("page-summary scale mode must be max or l2")
                 if self.page_summary_quant_bits == 8:
-                    (
-                        page_cache["quantized_page_sum_k"],
-                        page_cache["quantized_page_sum_v"],
-                        page_cache["page_sum_k_scales"],
-                        page_cache["page_sum_v_scales"],
-                    ) = quantize_page_summaries_int8(
+                    quantized_summaries = quantize_page_summaries_int8(
                         page_cache["page_sum_k"],
                         page_cache["page_sum_v"],
                         quant_group_size=self.leaf_quant_group_size,
                         optimize_scale=self.page_summary_scale_mode == "l2",
                     )
+                    summary_names = (
+                        "quantized_page_sum_k",
+                        "quantized_page_sum_v",
+                        "page_sum_k_scales",
+                        "page_sum_v_scales",
+                    )
+                    if prefill_storage is None:
+                        for name, value in zip(summary_names, quantized_summaries):
+                            page_cache[name] = value
+                    else:
+                        assert isinstance(destination_page, dict)
+                        for name, value in zip(summary_names, quantized_summaries):
+                            destination_value = destination_page.get(name)
+                            if not isinstance(destination_value, torch.Tensor):
+                                raise TypeError(
+                                    f"direct quantized prefill storage lacks {name}"
+                                )
+                            if (
+                                destination_value.shape[:2] != value.shape[:2]
+                                or destination_value.shape[-1] != value.shape[-1]
+                                or int(destination_value.size(2)) < int(value.size(2))
+                            ):
+                                raise ValueError(
+                                    f"direct quantized prefill storage {name} is too small"
+                                )
+                            destination_value[..., : value.size(2), :].copy_(value)
+                            page_cache[name] = destination_value
                     page_cache["summary_quantization_finalized"] = True
-                    page_cache["page_sum_k"] = k.new_empty(
-                        *k.shape[:2], 1, int(k.size(-1))
-                    )
-                    page_cache["page_sum_v"] = v.new_empty(
-                        *v.shape[:2], 1, int(v.size(-1))
-                    )
+                    if prefill_storage is None:
+                        page_cache["page_sum_k"] = k.new_empty(
+                            *k.shape[:2], 1, int(k.size(-1))
+                        )
+                        page_cache["page_sum_v"] = v.new_empty(
+                            *v.shape[:2], 1, int(v.size(-1))
+                        )
+                    else:
+                        assert isinstance(destination_page, dict)
+                        page_cache["page_sum_k"] = destination_page["page_sum_k"]
+                        page_cache["page_sum_v"] = destination_page["page_sum_v"]
                 # All archived leaves now live in quantized flat tensors. Keep
                 # only typed pointer sentinels for the compile-time BF16 fallback.
-                page_cache["leaf_k"] = k.new_empty(*k.shape[:2], 1, int(k.size(-1)))
-                page_cache["leaf_v"] = v.new_empty(*v.shape[:2], 1, int(v.size(-1)))
+                if prefill_storage is None:
+                    page_cache["leaf_k"] = k.new_empty(
+                        *k.shape[:2], 1, int(k.size(-1))
+                    )
+                    page_cache["leaf_v"] = v.new_empty(
+                        *v.shape[:2], 1, int(v.size(-1))
+                    )
+                else:
+                    assert isinstance(destination_page, dict)
+                    page_cache["leaf_k"] = destination_page["leaf_k"]
+                    page_cache["leaf_v"] = destination_page["leaf_v"]
         self._lod_state = {
             "state_k": state_k.detach(),
             "state_v": state_v.detach(),

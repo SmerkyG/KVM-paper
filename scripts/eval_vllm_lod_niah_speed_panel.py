@@ -906,7 +906,9 @@ def main() -> None:
                 recursive_state_route_backend=None,
                 prefill_chunk_len=None,
                 prefill_state_update_len=None,
-                direct_prefill_route=False,
+                direct_prefill_route=bool(
+                    int(os.getenv("VLLM_LOD_PANEL_DIRECT_PREFILL_ROUTE", "0"))
+                ),
                 decode_route_group_size=args.lod_decode_route_group_size,
                 decode_route_num_warps=args.lod_decode_route_num_warps,
                 decode_route_reduce_num_warps=(

@@ -435,6 +435,11 @@ def inspect_lod_model(model) -> dict[str, object]:
     gqa_union_runtime_sequence_counts = set()
     gqa_union_runtime_kv_heads = set()
     gqa_route_max_mass_values = []
+    threshold_page_opened = 0
+    threshold_page_queries = 0
+    threshold_page_zero = 0
+    threshold_page_above_eight = 0
+    threshold_page_maximum = 0
     gqa_route_mass_threshold_hits = {
         denominator: 0 for denominator in (16, 32, 64, 128, 256)
     }
@@ -463,6 +468,18 @@ def inspect_lod_model(model) -> dict[str, object]:
             batched_cached_prefills += int(pool.batched_cached_prefill_calls)
             batched_cached_prefill_rows += int(pool.batched_cached_prefill_rows)
             engine = pool.engine
+            threshold_stats = getattr(engine, "_lod_threshold_page_stats", None)
+            if isinstance(threshold_stats, dict):
+                threshold_page_opened += int(threshold_stats["opened"].item())
+                threshold_page_queries += int(threshold_stats["queries"].item())
+                threshold_page_zero += int(threshold_stats["zero"].item())
+                threshold_page_above_eight += int(
+                    threshold_stats["above_eight"].item()
+                )
+                threshold_page_maximum = max(
+                    threshold_page_maximum,
+                    int(threshold_stats["maximum"].item()),
+                )
             speculative_steps = int(
                 getattr(pool, "speculative_decode_steps", 0)
             )
@@ -1153,6 +1170,11 @@ def inspect_lod_model(model) -> dict[str, object]:
         "decode_route_cohort": sorted(decode_route_cohort),
         "prefill_route_cohort": sorted(prefill_route_cohort),
         "prefill_open_counts": sorted(prefill_open_counts),
+        "threshold_page_opened": threshold_page_opened,
+        "threshold_page_queries": threshold_page_queries,
+        "threshold_page_zero": threshold_page_zero,
+        "threshold_page_above_eight": threshold_page_above_eight,
+        "threshold_page_maximum": threshold_page_maximum,
         "effective_decode_route_leaf_limits": sorted(
             effective_decode_route_leaf_limits,
             key=lambda value: -1 if value is None else int(value),

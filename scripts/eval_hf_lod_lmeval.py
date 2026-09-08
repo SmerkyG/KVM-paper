@@ -162,6 +162,13 @@ def parse_args() -> argparse.Namespace:
         "--engine-backend", choices=("torch", "kernel"), default="kernel"
     )
     parser.add_argument("--recursive-pages", action="store_true")
+    parser.add_argument("--recursive-global-page-prefill", action="store_true")
+    parser.add_argument(
+        "--recursive-global-page-candidates-per-route",
+        type=int,
+        choices=(1, 2, 4, 8),
+        default=8,
+    )
     parser.add_argument("--kv-bits", type=int, choices=(0, 4), default=0)
     parser.add_argument(
         "--left-padding-mode",
@@ -288,6 +295,8 @@ def main() -> None:
         raise ValueError("open count must be in [0, 128]")
     if args.kv_bits and not args.recursive_pages:
         raise ValueError("KV quantization requires --recursive-pages")
+    if args.recursive_global_page_prefill and not args.recursive_pages:
+        raise ValueError("global-page prefill requires --recursive-pages")
     if (
         args.routing_leaf_mass_top_p is not None
         or args.routing_leaf_mass_review_top_p is not None
@@ -363,7 +372,17 @@ def main() -> None:
             "max_routes": args.open_count,
         }
         config = (
-            PagedLODConfig(**config_kwargs, page_size=16, kv_bits=args.kv_bits)
+            PagedLODConfig(
+                **config_kwargs,
+                page_size=16,
+                kv_bits=args.kv_bits,
+                recursive_global_page_prefill=(
+                    args.recursive_global_page_prefill
+                ),
+                recursive_global_page_candidates_per_route=(
+                    args.recursive_global_page_candidates_per_route
+                ),
+            )
             if args.recursive_pages
             else LODConfig(**config_kwargs)
         )

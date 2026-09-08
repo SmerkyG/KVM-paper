@@ -602,10 +602,14 @@ GQA-union decode, and automatic spherical/coherence routing. Qwen3.8 and Gemma
 use the persistent fixed-mask union; Qwen3.5-0.8B's D=256/GQA4 and K2's
 D=128/GQA8/KV8 heads use the compact selected union. Qwen uses top-three 16K
 exact-first prefill, Gemma's D=512 heads use their validated top-three 4K
-schedule, and K2 uses top-three 16K exact-first prefill. These choices are
+schedule, and K2 uses top-four 16K exact-first prefill. These choices are
 resolved from attention geometry and audited during pool construction. The
 remaining tuning discussion in this document describes the explicit
 `VLLM_LOD_PROFILE=experimental` research surface.
+On the 503-example LongBench v2 validation, optimized K2 top-four scored 207
+versus 181 for top-three and 209 for full attention, while the slowest shard
+was 1.26x faster than full attention; the paired diagnosis is recorded in
+`artifacts/longbench_v2/20260906_qwen38_k2_full_bf16_lod_vllm/diagnostic_prefill_topk/SUMMARY.md`.
 Routed two-level D=128/GQA=16 prefill automatically overlaps its independent
 coarse, exact-leaf, and exact-local branches on separate GPU streams after
 routing. Static-cohort prefill is excluded because keeping its larger AITER
@@ -617,12 +621,15 @@ stream even when recursive page attention takes its dense-page early return.
 `VLLM_LOD_PREFILL_OVERLAP_COARSE_LEAF=0` and
 `VLLM_LOD_PREFILL_OVERLAP_LOCAL_LOD=0` disable the respective overlaps for
 diagnostics; setting either to `1` enables it on other supported geometries.
-Top-three prefill routing uses an exact two-stage selector on the measured
-large-model geometries where it improves or preserves end-to-end speed:
+Prefill routing uses an exact two-stage selector on the measured large-model
+geometries where it improves or preserves end-to-end speed:
 independent wide centroid tiles emit their local candidates, then a small
-reduction selects and orders the global three. The automatic geometry set is
+reduction selects and orders the global top-k. The automatic geometry set is
 D128/GQA16/KV2, D128/GQA5/KV8, D128/GQA4/KV2, D256/GQA6/KV4, and
-D512/GQA8/KV2. The former selector remains automatic elsewhere. Qwen3.5-0.8B's
+D512/GQA8/KV2, plus K2's production top-four D128/GQA8/KV8 path. On K2 at
+64K/B8, this reduced prefill from 140.63 to 130.71 seconds (7.1%) while
+returning the identical ordered routes and output-token hash. The former
+selector remains automatic elsewhere. Qwen3.5-0.8B's
 D256/GQA4/KV2 geometry remains on the former selector for two-level prefill,
 where the extra launch loses, but uses the exact two-stage selector for
 recursive three-tier prefill, where it improves 64K/B8 latency by 5.4%. Set
@@ -670,7 +677,7 @@ original panel, the dispatch audit, and a static phase profile are recorded in
 `VLLM_LOD_PREFILL_ROUTE_COHORT=1` instead retains dynamic routing but restricts
 eligible routes to the same scheduled small-centroid cohort; larger centroids
 remain in the count-corrected coarse residual. The production prefill route
-count remains `min(3, VLLM_LOD_OPEN_COUNT)`. Set
+count is three on the established Qwen/Gemma geometries and four on K2. Set
 `VLLM_LOD_PREFILL_OPEN_COUNT=1..8` only when an explicit prefill route count is
 needed. At 128K, the enlarged floor-32/divisor-8 cohort was quality-negative
 when combined with top-k, even with literal prefill top-8; results are in

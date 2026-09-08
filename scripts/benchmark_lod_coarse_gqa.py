@@ -37,7 +37,7 @@ def main() -> None:
     parser.add_argument("--sweep-direct", action="store_true")
     parser.add_argument(
         "--only",
-        choices=("olmo_g5", "muse_g16", "phi_g4", "qwen_g6_d256"),
+        choices=("olmo_g5", "muse_g16", "phi_g4", "k2_g8", "qwen_g6_d256"),
         default=None,
     )
     args = parser.parse_args()
@@ -50,6 +50,7 @@ def main() -> None:
         ("olmo_g5", 8, 5, 128),
         ("muse_g16", 2, 16, 128),
         ("phi_g4", 2, 4, 128),
+        ("k2_g8", 8, 8, 128),
         ("qwen_g6_d256", 4, 6, 256),
     ):
         if args.only is not None and label != args.only:
@@ -159,6 +160,28 @@ def main() -> None:
         results[label] = {
             "grouped_ms": _time_ms(
                 lambda: run(False, precompute_mean_values=True),
+                warmup=args.warmup,
+                repeats=args.repeats,
+            ),
+            "actual_m32_n64_w2_ms": _time_ms(
+                lambda: run(
+                    False,
+                    precompute_mean_values=True,
+                    block_m=32,
+                    block_n=64,
+                    num_warps=2,
+                ),
+                warmup=args.warmup,
+                repeats=args.repeats,
+            ),
+            "actual_m32_n32_w8_ms": _time_ms(
+                lambda: run(
+                    False,
+                    precompute_mean_values=True,
+                    block_m=32,
+                    block_n=32,
+                    num_warps=8,
+                ),
                 warmup=args.warmup,
                 repeats=args.repeats,
             ),

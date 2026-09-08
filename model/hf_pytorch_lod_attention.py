@@ -96,6 +96,12 @@ class HFLODSettings:
             raise ValueError(
                 "dynamic leaf-mass routing requires the kernel backend"
             )
+        if (
+            isinstance(self.config, PagedLODConfig)
+            and self.config.recursive_global_page_prefill
+            and self.engine_backend != "kernel"
+        ):
+            raise ValueError("global-page prefill requires the kernel backend")
 
 
 def _has_attention_norm(module: nn.Module, name: str) -> bool:

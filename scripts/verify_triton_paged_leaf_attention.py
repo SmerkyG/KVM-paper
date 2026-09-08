@@ -24,6 +24,7 @@ from model.kernels.paged_leaf_attention import (
     quantize_page_summaries_int8,
     quantize_virtual_paged_kv,
     quantize_virtual_paged_kv_int4,
+    select_global_routed_pages,
 )
 from model.kernels.lod_kernels import merge_attention_branches_with_sink
 from model.kvm_two_level_mixer import _expert_leaf_attention, _merge_lse_branches
@@ -1593,6 +1594,169 @@ def verify_residual_page_attention(
     )
     torch.testing.assert_close(indexed_out.float(), expected_out, rtol=2e-2, atol=8e-3)
     torch.testing.assert_close(indexed_lse, expected_lse, rtol=2e-4, atol=2e-4)
+
+    # The staged prefill path selects one page independently for each of the
+    # eight routed centroids, then groups queries by page for exact attention.
+    # Duplicate the two routes here so the test also covers repeated pages.
+    eight_routes = top_slots.repeat_interleave(4, dim=-1).contiguous()
+    classic_out, classic_lse = query_major_indexed_residual_page_attention(
+        q,
+        state_k,
+        state_v,
+        state_counts,
+        leaf_k,
+        leaf_v,
+        page_indices,
+        page_sum_k,
+        page_sum_v,
+        page_counts,
+        slot_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        slot_lengths,
+        eight_routes,
+        kv_group_size=query_heads // kv_heads,
+        scale=scale,
+        hash_probes=0,
+        page_block_n=4,
+    )
+    selected_pages, selected_parents = select_global_routed_pages(
+        q,
+        page_sum_k,
+        page_counts,
+        slot_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        slot_lengths,
+        eight_routes,
+        kv_group_size=query_heads // kv_heads,
+        scale=scale,
+        hash_probes=0,
+        page_size=page_size,
+        page_block_n=4,
+        route_candidates_per_route=1,
+    )
+    expected_parents = torch.arange(8, device=device).view(1, 1, 1, 8)
+    torch.testing.assert_close(
+        selected_parents.long(), expected_parents.expand_as(selected_parents)
+    )
+    identity_pages = torch.arange(
+        page_capacity, device=device, dtype=torch.int32
+    ).view(1, 1, page_capacity, 1)
+    staged_out, staged_lse = paged_leaf_attention(
+        q,
+        leaf_k,
+        leaf_v,
+        identity_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        page_counts,
+        selected_pages,
+        page_indices=page_indices,
+        page_sum_k=page_sum_k,
+        page_sum_v=page_sum_v,
+        page_counts=page_counts,
+        residual_state_k=state_k,
+        residual_state_v=state_v,
+        residual_state_counts=state_counts,
+        residual_parent_slots=eight_routes,
+        kv_group_size=query_heads // kv_heads,
+        scale=scale,
+        hash_probes=0,
+        block_m=16,
+        block_n=page_size,
+        num_warps=2,
+        reduce_num_warps=1,
+        direct_expert_buckets=True,
+        dynamic_direct_blocks=True,
+    )
+    torch.testing.assert_close(
+        staged_out.float(), classic_out.float(), rtol=2e-2, atol=8e-3
+    )
+    torch.testing.assert_close(staged_lse, classic_lse, rtol=2e-4, atol=2e-4)
+    sorted_out, sorted_lse = paged_leaf_attention(
+        q,
+        leaf_k,
+        leaf_v,
+        identity_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        page_counts,
+        selected_pages,
+        page_indices=page_indices,
+        page_sum_k=page_sum_k,
+        page_sum_v=page_sum_v,
+        page_counts=page_counts,
+        residual_state_k=state_k,
+        residual_state_v=state_v,
+        residual_state_counts=state_counts,
+        residual_parent_slots=eight_routes,
+        kv_group_size=query_heads // kv_heads,
+        scale=scale,
+        hash_probes=0,
+        block_m=16,
+        block_n=page_size,
+        num_warps=2,
+        reduce_num_warps=1,
+        direct_expert_buckets=True,
+        sorted_expert_buckets=True,
+        dynamic_direct_blocks=True,
+    )
+    torch.testing.assert_close(sorted_out, staged_out)
+    torch.testing.assert_close(sorted_lse, staged_lse)
+    short_selected_pages, short_selected_parents = select_global_routed_pages(
+        q,
+        page_sum_k,
+        page_counts,
+        slot_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        slot_lengths,
+        top_slots,
+        kv_group_size=query_heads // kv_heads,
+        scale=scale,
+        hash_probes=0,
+        page_size=page_size,
+        page_block_n=4,
+        route_candidates_per_route=1,
+    )
+    if tuple(short_selected_pages.shape) != tuple(top_slots.shape):
+        raise AssertionError("one-page routing did not preserve the route count")
+    expected_short_parents = torch.arange(2, device=device).view(1, 1, 1, 2)
+    torch.testing.assert_close(
+        short_selected_parents.long(),
+        expected_short_parents.expand_as(short_selected_parents),
+    )
+    for routed_slots, expected_pages, expected_route_parents in (
+        (eight_routes, selected_pages, selected_parents),
+        (top_slots, short_selected_pages, short_selected_parents),
+    ):
+        grouped_pages, grouped_parents = select_global_routed_pages(
+            q,
+            page_sum_k,
+            page_counts,
+            slot_pages,
+            overflow_page_keys,
+            overflow_page_values,
+            overflow_used,
+            slot_lengths,
+            routed_slots,
+            kv_group_size=query_heads // kv_heads,
+            scale=scale,
+            hash_probes=0,
+            page_size=page_size,
+            page_block_n=4,
+            grouped=True,
+            route_candidates_per_route=1,
+        )
+        torch.testing.assert_close(grouped_pages, expected_pages)
+        torch.testing.assert_close(grouped_parents, expected_route_parents)
+
     decode_q = q[..., :1, :].contiguous()
     decode_slots = top_slots[..., :1, :].contiguous()
     materialized_scores = materialize_page_summary_scores_gqa(
@@ -1727,6 +1891,128 @@ def verify_residual_page_attention(
         page_k_scales=page_k_scales,
         page_v_scales=page_v_scales,
         page_quantized_counts=page_quantized_counts,
+    )
+    int4_quantized_summary_out, int4_quantized_summary_lse = (
+        query_major_indexed_residual_page_attention(
+            q,
+            state_k,
+            state_v,
+            state_counts,
+            leaf_k[..., :1, :],
+            leaf_v[..., :1, :],
+            page_indices,
+            page_sum_k[..., :1, :],
+            page_sum_v[..., :1, :],
+            page_counts,
+            slot_pages,
+            overflow_page_keys,
+            overflow_page_values,
+            overflow_used,
+            slot_lengths,
+            top_slots,
+            kv_group_size=query_heads // kv_heads,
+            scale=scale,
+            hash_probes=0,
+            page_block_n=2,
+            quantized_leaf_k=quantized_leaf_k,
+            quantized_leaf_v=quantized_leaf_v,
+            page_k_scales=page_k_scales,
+            page_v_scales=page_v_scales,
+            page_quantized_counts=page_quantized_counts,
+            quantized_page_sum_k=quantized_page_sum_k,
+            quantized_page_sum_v=quantized_page_sum_v,
+            page_sum_k_scales=page_sum_k_scales,
+            page_sum_v_scales=page_sum_v_scales,
+        )
+    )
+    selected_int4_pages, _ = select_global_routed_pages(
+        q,
+        page_sum_k[..., :1, :],
+        page_counts,
+        slot_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        slot_lengths,
+        top_slots,
+        quantized_page_sum_k=quantized_page_sum_k,
+        page_sum_k_scales=page_sum_k_scales,
+        kv_group_size=query_heads // kv_heads,
+        scale=scale,
+        hash_probes=0,
+        page_size=page_size,
+        page_block_n=2,
+        route_candidates_per_route=1,
+        store_parents=False,
+    )
+    grouped_int4_pages, grouped_int4_parents = select_global_routed_pages(
+        q,
+        page_sum_k[..., :1, :],
+        page_counts,
+        slot_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        slot_lengths,
+        top_slots,
+        quantized_page_sum_k=quantized_page_sum_k,
+        page_sum_k_scales=page_sum_k_scales,
+        kv_group_size=query_heads // kv_heads,
+        scale=scale,
+        hash_probes=0,
+        page_size=page_size,
+        page_block_n=2,
+        grouped=True,
+        route_candidates_per_route=1,
+        store_parents=False,
+    )
+    torch.testing.assert_close(grouped_int4_pages, selected_int4_pages)
+    if grouped_int4_parents is not None:
+        raise AssertionError("page-only grouped selection materialized parents")
+    staged_int4_out, staged_int4_lse = paged_leaf_attention(
+        q,
+        leaf_k[..., :1, :],
+        leaf_v[..., :1, :],
+        identity_pages,
+        overflow_page_keys,
+        overflow_page_values,
+        overflow_used,
+        page_counts,
+        selected_int4_pages,
+        page_indices=page_indices,
+        quantized_leaf_k=quantized_leaf_k,
+        quantized_leaf_v=quantized_leaf_v,
+        page_k_scales=page_k_scales,
+        page_v_scales=page_v_scales,
+        page_sum_k=page_sum_k[..., :1, :],
+        page_sum_v=page_sum_v[..., :1, :],
+        quantized_page_sum_k=quantized_page_sum_k,
+        quantized_page_sum_v=quantized_page_sum_v,
+        page_sum_k_scales=page_sum_k_scales,
+        page_sum_v_scales=page_sum_v_scales,
+        page_counts=page_counts,
+        residual_state_k=state_k,
+        residual_state_v=state_v,
+        residual_state_counts=state_counts,
+        residual_parent_slots=top_slots,
+        kv_group_size=query_heads // kv_heads,
+        scale=scale,
+        hash_probes=0,
+        block_m=16,
+        block_n=page_size,
+        num_warps=2,
+        reduce_num_warps=1,
+        direct_expert_buckets=True,
+        dynamic_direct_blocks=True,
+    )
+    torch.testing.assert_close(
+        staged_int4_out.float(),
+        int4_quantized_summary_out.float(),
+        rtol=3e-2,
+        atol=1.5e-2,
+    )
+    torch.testing.assert_close(
+        staged_int4_lse, int4_quantized_summary_lse, rtol=3e-3, atol=4e-3
     )
     int4_mse = (int4_out.float() - expected_out).square().mean()
     print(
@@ -2210,6 +2496,7 @@ def main() -> None:
     device = torch.device("cuda")
     if os.environ.get("VERIFY_RESIDUAL_PAGE_ONLY") == "1":
         verify_residual_page_attention(device)
+        verify_residual_page_attention(device, kv_group_size=8, head_dim=128)
         return
     cooperative_hip = os.environ.get("VERIFY_GQA_COOPERATIVE_HIP") == "1"
     cooperative_route_splits = int(

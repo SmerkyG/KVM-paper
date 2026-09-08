@@ -1776,6 +1776,169 @@ def _streaming_state_maxsim_kernel(
 
 @triton.jit(
     do_not_specialize=["overflow_len", "state_len"],
+    do_not_specialize_on_alignment=["overflow_len", "state_len"],
+)
+def _tiled_prepared_state_maxsim_kernel(
+    overflow_k,
+    prepared_state_k,
+    counts,
+    tile_scores,
+    tile_indices,
+    OVERFLOW_BATCH_STRIDE: tl.constexpr,
+    OVERFLOW_HEAD_STRIDE: tl.constexpr,
+    OVERFLOW_TOKEN_STRIDE: tl.constexpr,
+    STATE_BATCH_STRIDE: tl.constexpr,
+    STATE_HEAD_STRIDE: tl.constexpr,
+    STATE_TOKEN_STRIDE: tl.constexpr,
+    COUNT_BATCH_STRIDE: tl.constexpr,
+    COUNT_HEAD_STRIDE: tl.constexpr,
+    COUNT_TOKEN_STRIDE: tl.constexpr,
+    TILE_BATCH_STRIDE: tl.constexpr,
+    TILE_HEAD_STRIDE: tl.constexpr,
+    TILE_TOKEN_STRIDE: tl.constexpr,
+    overflow_len,
+    state_len,
+    HEADS: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    BLOCK_M: tl.constexpr,
+    BLOCK_N: tl.constexpr,
+    MASK_INVALID_STATE: tl.constexpr,
+):
+    """Emit one exact BF16 max-similarity winner per state tile."""
+    batch_head = tl.program_id(0).to(tl.int64)
+    token_block = tl.program_id(1).to(tl.int64)
+    state_tile = tl.program_id(2).to(tl.int64)
+    batch = batch_head // HEADS
+    head = batch_head - batch * HEADS
+    token = token_block * BLOCK_M + tl.arange(0, BLOCK_M)
+    slot_offset = tl.arange(0, BLOCK_N)
+    slot = state_tile * BLOCK_N + slot_offset
+    dimension = tl.arange(0, HEAD_DIM)
+    token_valid = token < overflow_len
+    slot_valid = slot < state_len
+    if MASK_INVALID_STATE:
+        count = tl.load(
+            counts
+            + batch * COUNT_BATCH_STRIDE
+            + head * COUNT_HEAD_STRIDE
+            + slot * COUNT_TOKEN_STRIDE,
+            mask=slot_valid,
+            other=0.0,
+        )
+        slot_valid &= count > 0.5
+    overflow = tl.load(
+        overflow_k
+        + batch * OVERFLOW_BATCH_STRIDE
+        + head * OVERFLOW_HEAD_STRIDE
+        + token[:, None] * OVERFLOW_TOKEN_STRIDE
+        + dimension[None, :],
+        mask=token_valid[:, None],
+        other=0.0,
+    )
+    state = tl.load(
+        prepared_state_k
+        + batch * STATE_BATCH_STRIDE
+        + head * STATE_HEAD_STRIDE
+        + slot[:, None] * STATE_TOKEN_STRIDE
+        + dimension[None, :],
+        mask=slot_valid[:, None],
+        other=0.0,
+    )
+    # Match torch.matmul's BF16 output before either maximum is taken.
+    scores = tl.dot(overflow, tl.trans(state), out_dtype=tl.float32)
+    scores = scores.to(tl.bfloat16).to(tl.float32)
+    scores = tl.where(
+        token_valid[:, None] & slot_valid[None, :],
+        scores,
+        -float("inf"),
+    )
+    best_score = tl.max(scores, axis=1)
+    best_offset = tl.min(
+        tl.where(
+            scores == best_score[:, None],
+            slot_offset[None, :],
+            BLOCK_N,
+        ),
+        axis=1,
+    )
+    output_offset = (
+        batch * TILE_BATCH_STRIDE
+        + head * TILE_HEAD_STRIDE
+        + token * TILE_TOKEN_STRIDE
+        + state_tile
+    )
+    tl.store(tile_scores + output_offset, best_score, mask=token_valid)
+    tl.store(tile_indices + output_offset, best_offset, mask=token_valid)
+
+
+@triton.jit(
+    do_not_specialize=["overflow_len", "active_tiles"],
+    do_not_specialize_on_alignment=["overflow_len", "active_tiles"],
+)
+def _reduce_tiled_prepared_state_maxsim_kernel(
+    tile_scores,
+    tile_indices,
+    route_scores,
+    route_indices,
+    TILE_BATCH_STRIDE: tl.constexpr,
+    TILE_HEAD_STRIDE: tl.constexpr,
+    TILE_TOKEN_STRIDE: tl.constexpr,
+    OUTPUT_BATCH_STRIDE: tl.constexpr,
+    OUTPUT_HEAD_STRIDE: tl.constexpr,
+    OUTPUT_TOKEN_STRIDE: tl.constexpr,
+    overflow_len,
+    active_tiles,
+    HEADS: tl.constexpr,
+    TILE_BLOCK: tl.constexpr,
+    TILE_WIDTH: tl.constexpr,
+    BLOCK_M: tl.constexpr,
+):
+    """Reduce state-tile winners to the exact global winner per leaf."""
+    batch_head = tl.program_id(0).to(tl.int64)
+    token_block = tl.program_id(1).to(tl.int64)
+    batch = batch_head // HEADS
+    head = batch_head - batch * HEADS
+    token = token_block * BLOCK_M + tl.arange(0, BLOCK_M)
+    tile = tl.arange(0, TILE_BLOCK)
+    token_valid = token < overflow_len
+    tile_valid = tile < active_tiles
+    input_offset = (
+        batch * TILE_BATCH_STRIDE
+        + head * TILE_HEAD_STRIDE
+        + token[:, None] * TILE_TOKEN_STRIDE
+        + tile[None, :]
+    )
+    scores = tl.load(
+        tile_scores + input_offset,
+        mask=token_valid[:, None] & tile_valid[None, :],
+        other=-float("inf"),
+    ).to(tl.float32)
+    best_score = tl.max(scores, axis=1)
+    best_tile = tl.min(
+        tl.where(scores == best_score[:, None], tile[None, :], TILE_BLOCK),
+        axis=1,
+    )
+    best_offset = tl.load(
+        tile_indices
+        + batch * TILE_BATCH_STRIDE
+        + head * TILE_HEAD_STRIDE
+        + token * TILE_TOKEN_STRIDE
+        + best_tile,
+        mask=token_valid & (best_tile < active_tiles),
+        other=0,
+    ).to(tl.int32)
+    best_index = best_tile.to(tl.int32) * TILE_WIDTH + best_offset
+    output_offset = (
+        batch * OUTPUT_BATCH_STRIDE
+        + head * OUTPUT_HEAD_STRIDE
+        + token * OUTPUT_TOKEN_STRIDE
+    )
+    tl.store(route_scores + output_offset, best_score, mask=token_valid)
+    tl.store(route_indices + output_offset, best_index, mask=token_valid)
+
+
+@triton.jit(
+    do_not_specialize=["overflow_len", "state_len"],
     do_not_specialize_on_alignment=[
         "SCORE_BATCH_STRIDE",
         "SCORE_HEAD_STRIDE",
@@ -2016,7 +2179,6 @@ def _route_logits_coarse_attention_kernel(
             mask=query_valid,
             other=1.0,
         ).to(tl.float32)
-
     for state_begin in tl.range(0, state_len, BLOCK_N, num_stages=1):
         slot = state_begin + token_offset
         state_valid = slot < state_len
@@ -2432,6 +2594,15 @@ def _route_logits_topk_coarse_attention_kernel(
             mask=query_valid,
             other=1.0,
         ).to(tl.float32)
+    state_queries = queries
+    if FUSED_STATE_QK and HAS_ROUTE_LOGIT_SCALE:
+        # Query-normalized routing and raw coarse attention differ only by the
+        # per-query RMS. Normalize the query before the state QK dot, then
+        # multiply its result by route_scale for the coarse score below. This
+        # matches the materialized path without writing query x state logits.
+        state_queries = (
+            queries.to(tl.float32) / route_scale[:, None]
+        ).to(queries.dtype)
     maximum = tl.where(query_valid, -float("inf"), 0.0).to(tl.float32)
     denominator = tl.where(query_valid, 0.0, 1.0).to(tl.float32)
     accumulator = tl.zeros((ROW_COUNT, VALUE_BLOCK_DIM), tl.float32)
@@ -2505,7 +2676,7 @@ def _route_logits_topk_coarse_attention_kernel(
                 scores *= query_scale[:, None] * key_scale[None, :]
             else:
                 scores = tl.dot(
-                    queries, tl.trans(keys.to(queries.dtype)),
+                    state_queries, tl.trans(keys.to(state_queries.dtype)),
                     out_dtype=tl.float32,
                 )
         else:
@@ -2651,7 +2822,7 @@ def _route_logits_topk_coarse_attention_kernel(
             other=0.0,
         ).to(tl.float32) / tl.maximum(selected_counts[:, :, None], 1.0)
         selected_logits = tl.sum(
-            queries[:, None, :].to(tl.float32) * selected_keys, axis=2
+            state_queries[:, None, :].to(tl.float32) * selected_keys, axis=2
         )
     else:
         selected_logits = tl.load(
@@ -2950,7 +3121,7 @@ def _route_logits_topk_coarse_attention_kernel(
                     scores *= query_scale[:, None] * key_scale[None, :]
                 else:
                     scores = tl.dot(
-                        queries, tl.trans(keys.to(queries.dtype)),
+                        state_queries, tl.trans(keys.to(state_queries.dtype)),
                         out_dtype=tl.float32,
                     )
             else:
@@ -4088,6 +4259,7 @@ def _reduce_route_logits_tile_topk_kernel(
     QUERY_HEADS: tl.constexpr,
     MAX_TILES: tl.constexpr,
     ROUTE_COUNT: tl.constexpr,
+    ROUTE_BLOCK: tl.constexpr,
     CANDIDATE_BLOCK: tl.constexpr,
     BLOCK_M: tl.constexpr,
 ):
@@ -4108,8 +4280,8 @@ def _reduce_route_logits_tile_topk_kernel(
         other=-float("inf"),
     ).to(tl.float32)
     top_base = (batch_head * query_len + query) * ROUTE_COUNT
-    route_rank = tl.arange(0, 4)
-    selected_slots = tl.full((BLOCK_M, 4), -1, tl.int32)
+    route_rank = tl.arange(0, ROUTE_BLOCK)
+    selected_slots = tl.full((BLOCK_M, ROUTE_BLOCK), -1, tl.int32)
     for rank in tl.static_range(0, ROUTE_COUNT):
         best_score = tl.max(remaining, axis=1)
         best_position = tl.min(
@@ -5028,6 +5200,127 @@ def prepare_state_clustering_keys(
     return prepared_route, prepared_append, prepared_scale
 
 
+def tiled_prepared_state_maxsim(
+    overflow_k: torch.Tensor,
+    prepared_state_k: torch.Tensor,
+    counts: torch.Tensor,
+    buffers: dict[str, torch.Tensor],
+    *,
+    state_len: int,
+    block_m: int = 64,
+    block_n: int = 128,
+    num_warps: int = 4,
+    reduce_block_m: int = 32,
+    reduce_num_warps: int = 4,
+    mask_invalid_state: bool = False,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Compute prepared-state max similarity through parallel state tiles."""
+    if not all(
+        tensor.is_cuda for tensor in (overflow_k, prepared_state_k, counts)
+    ):
+        raise ValueError("tiled state max-similarity requires CUDA tensors")
+    if overflow_k.ndim != 4 or prepared_state_k.ndim != 4 or counts.ndim != 4:
+        raise ValueError("tiled state max-similarity requires rank-four tensors")
+    batch, kv_heads, overflow_len, head_dim = overflow_k.shape
+    if tuple(prepared_state_k.shape[:2]) != (batch, kv_heads):
+        raise ValueError("prepared state has the wrong batch/head geometry")
+    if int(prepared_state_k.size(-1)) != head_dim:
+        raise ValueError("prepared state and overflow head dimensions differ")
+    if tuple(counts.shape[:2]) != (batch, kv_heads):
+        raise ValueError("state counts have the wrong batch/head geometry")
+    if not 0 < state_len <= int(prepared_state_k.size(2)):
+        raise ValueError("active state exceeds prepared state storage")
+    if block_m < 16 or block_m & (block_m - 1):
+        raise ValueError("tiled state max-similarity block M must be a power of two")
+    if block_n < 16 or block_n > 256 or block_n & (block_n - 1):
+        raise ValueError(
+            "tiled state max-similarity block N must be a power of two at most 256"
+        )
+    route_scores = buffers["route_scores"]
+    route_indices = buffers["route_indices"]
+    if (
+        tuple(route_scores.shape[:2]) != (batch, kv_heads)
+        or int(route_scores.size(2)) < overflow_len
+    ):
+        raise ValueError("tiled state max-similarity output buffers are too small")
+    max_tiles = triton.cdiv(int(prepared_state_k.size(2)), block_n)
+    score_shape = (batch, kv_heads, int(route_scores.size(2)), max_tiles)
+    tile_scores = buffers.get("tiled_route_scores")
+    tile_indices = buffers.get("tiled_route_indices")
+    if (
+        not isinstance(tile_scores, torch.Tensor)
+        or tuple(tile_scores.shape) != score_shape
+        or tile_scores.dtype != overflow_k.dtype
+        or not isinstance(tile_indices, torch.Tensor)
+        or tuple(tile_indices.shape) != score_shape
+        or tile_indices.dtype != torch.uint8
+    ):
+        tile_scores = torch.empty(
+            score_shape, dtype=overflow_k.dtype, device=overflow_k.device
+        )
+        tile_indices = torch.empty(
+            score_shape, dtype=torch.uint8, device=overflow_k.device
+        )
+        buffers["tiled_route_scores"] = tile_scores
+        buffers["tiled_route_indices"] = tile_indices
+    if not isinstance(tile_indices, torch.Tensor):
+        raise AssertionError("tiled state max-similarity index buffer is missing")
+    active_tiles = triton.cdiv(state_len, block_n)
+    _tiled_prepared_state_maxsim_kernel[
+        (batch * kv_heads, triton.cdiv(overflow_len, block_m), active_tiles)
+    ](
+        overflow_k,
+        prepared_state_k,
+        counts,
+        tile_scores,
+        tile_indices,
+        OVERFLOW_BATCH_STRIDE=overflow_k.stride(0),
+        OVERFLOW_HEAD_STRIDE=overflow_k.stride(1),
+        OVERFLOW_TOKEN_STRIDE=overflow_k.stride(2),
+        STATE_BATCH_STRIDE=prepared_state_k.stride(0),
+        STATE_HEAD_STRIDE=prepared_state_k.stride(1),
+        STATE_TOKEN_STRIDE=prepared_state_k.stride(2),
+        COUNT_BATCH_STRIDE=counts.stride(0),
+        COUNT_HEAD_STRIDE=counts.stride(1),
+        COUNT_TOKEN_STRIDE=counts.stride(2),
+        TILE_BATCH_STRIDE=tile_scores.stride(0),
+        TILE_HEAD_STRIDE=tile_scores.stride(1),
+        TILE_TOKEN_STRIDE=tile_scores.stride(2),
+        overflow_len=overflow_len,
+        state_len=state_len,
+        HEADS=kv_heads,
+        HEAD_DIM=head_dim,
+        BLOCK_M=block_m,
+        BLOCK_N=block_n,
+        MASK_INVALID_STATE=mask_invalid_state,
+        **_launch_kwargs(num_warps),
+    )
+    _reduce_tiled_prepared_state_maxsim_kernel[
+        (batch * kv_heads, triton.cdiv(overflow_len, reduce_block_m))
+    ](
+        tile_scores,
+        tile_indices,
+        route_scores,
+        route_indices,
+        TILE_BATCH_STRIDE=tile_scores.stride(0),
+        TILE_HEAD_STRIDE=tile_scores.stride(1),
+        TILE_TOKEN_STRIDE=tile_scores.stride(2),
+        OUTPUT_BATCH_STRIDE=route_scores.stride(0),
+        OUTPUT_HEAD_STRIDE=route_scores.stride(1),
+        OUTPUT_TOKEN_STRIDE=route_scores.stride(2),
+        overflow_len=overflow_len,
+        active_tiles=active_tiles,
+        HEADS=kv_heads,
+        TILE_BLOCK=triton.next_power_of_2(max_tiles),
+        TILE_WIDTH=block_n,
+        BLOCK_M=reduce_block_m,
+        **_launch_kwargs(reduce_num_warps),
+    )
+    active = (..., slice(None, overflow_len))
+    score = route_scores[active]
+    return score, route_indices[active], score
+
+
 def streaming_state_maxsim(
     overflow_k: torch.Tensor,
     state_k: torch.Tensor,
@@ -5046,6 +5339,8 @@ def streaming_state_maxsim(
     prepare_state_geometry: bool = True,
     materialize_prepared_scores: bool = False,
     coherence_single_matmul: bool = False,
+    mask_invalid_state: bool = True,
+    tiled_prepared_scores: bool | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Scan transient leaf keys without materializing leaf-by-state scores."""
     if not all(tensor.is_cuda for tensor in (overflow_k, state_k, counts)):
@@ -5117,6 +5412,33 @@ def streaming_state_maxsim(
             # validity mask and could win the max reduction uninitialized.
             active_route = prepared_route[..., :state_len, :]
             active_append = prepared_append[..., :state_len, :]
+            if (
+                tiled_prepared_scores is not False
+                and not coherence
+                and sink_len == 0
+                and batch == 1
+                and head_dim == 128
+                and overflow_len >= 8192
+                and state_len >= 1024
+            ):
+                # D128 models have twice as many KV-head score planes as D256
+                # models at the same 1,024-wide KV payload. Preserve MFMA tile
+                # parallelism, but reduce each state tile before writing it so
+                # state construction does not stream the full score matrix
+                # through HBM.
+                return tiled_prepared_state_maxsim(
+                    overflow_k,
+                    prepared_route,
+                    counts,
+                    buffers,
+                    state_len=state_len,
+                    block_m=128,
+                    block_n=128,
+                    num_warps=8,
+                    reduce_block_m=(64 if state_len <= 2048 else 32),
+                    reduce_num_warps=4,
+                    mask_invalid_state=mask_invalid_state,
+                )
             if coherence and coherence_single_matmul:
                 append_scores_dense = torch.matmul(
                     overflow_k, active_append.transpose(-1, -2)
@@ -5168,13 +5490,25 @@ def streaming_state_maxsim(
                     overflow_k, active_route.transpose(-1, -2)
                 )
                 append_scores_dense = route_scores_dense
-            invalid = counts[..., :state_len, 0].le(0.5).unsqueeze(-2)
-            route_scores_dense.masked_fill_(invalid, float("-inf"))
-            if append_scores_dense is not None:
-                append_scores_dense.masked_fill_(invalid, float("-inf"))
-                select_score = append_scores_dense.max(dim=-1).values
-            route_scores_dense[..., :sink_len] = float("-inf")
-            route_score, route_index = route_scores_dense.max(dim=-1)
+            if mask_invalid_state:
+                invalid = counts[..., :state_len, 0].le(0.5).unsqueeze(-2)
+                route_scores_dense.masked_fill_(invalid, float("-inf"))
+                if (
+                    append_scores_dense is not None
+                    and append_scores_dense is not route_scores_dense
+                ):
+                    append_scores_dense.masked_fill_(invalid, float("-inf"))
+            if append_scores_dense is route_scores_dense and sink_len == 0:
+                # Separate-sink spherical routing uses the same logits for
+                # append selection and merge assignment. Reduce the 512 MiB
+                # score field once instead of launching two identical maxima.
+                route_score, route_index = route_scores_dense.max(dim=-1)
+                select_score = route_score
+            else:
+                if append_scores_dense is not None:
+                    select_score = append_scores_dense.max(dim=-1).values
+                route_scores_dense[..., :sink_len] = float("-inf")
+                route_score, route_index = route_scores_dense.max(dim=-1)
             return route_score, route_index, select_score
     elif fused_coherence:
         scan_state = state_k
@@ -5835,8 +6169,8 @@ def route_logits_topk_coarse_attention(
         raise ValueError("fused state key width differs from the query")
     if int8_qk and (not fused_state_qk or head_dim % 32):
         raise ValueError("INT8 fused routing requires aligned state keys")
-    if route_logit_scale is not None and fused_state_qk:
-        raise ValueError("fused state QK cannot rescale materialized route logits")
+    if route_logit_scale is not None and int8_qk:
+        raise ValueError("query-normalized fused state QK does not support INT8 QK")
     if route_logit_scale is not None and tuple(route_logit_scale.shape) != (
         batch,
         query_heads,
@@ -5872,12 +6206,12 @@ def route_logits_topk_coarse_attention(
     use_hierarchical_route_only = (
         route_only
         and not fused_state_qk
-        and topk in (2, 3)
+        and topk in (2, 3, 4, 8)
         and hierarchical_route_only is not False
     )
     if hierarchical_route_only is True and not use_hierarchical_route_only:
         raise ValueError(
-            "forced hierarchical routing requires materialized top-2/top-3 "
+            "forced hierarchical routing requires materialized top-2/top-3/top-4/top-8 "
             "route-only execution"
         )
     if use_hierarchical_route_only:
@@ -6094,9 +6428,9 @@ def route_logits_hierarchical_topk(
     kv_heads = int(counts.size(1))
     if query_heads != kv_heads * kv_group_size:
         raise ValueError("query heads do not match the requested GQA grouping")
-    if topk not in (2, 3):
+    if topk not in (2, 3, 4, 8):
         raise ValueError(
-            "hierarchical route selection currently supports top-2/top-3"
+            "hierarchical route selection currently supports top-2/top-3/top-4/top-8"
         )
     if not 0 < state_len <= logit_state_len or state_len > int(counts.size(2)):
         raise ValueError("active route state exceeds the supplied storage")
@@ -6177,6 +6511,7 @@ def route_logits_hierarchical_topk(
         QUERY_HEADS=query_heads,
         MAX_TILES=max_tiles,
         ROUTE_COUNT=topk,
+        ROUTE_BLOCK=triton.next_power_of_2(topk),
         CANDIDATE_BLOCK=candidate_block,
         BLOCK_M=block_m,
         **_launch_kwargs(reduce_num_warps),
@@ -7271,6 +7606,10 @@ def route_top8_state_grouped(
     state_len: int | None = None,
     protected_len: int = 0,
     reorder_like_torch: bool = True,
+    block_m: int | None = None,
+    block_n: int = 64,
+    num_warps: int = 4,
+    reduce_num_warps: int | None = None,
 ) -> torch.Tensor:
     if not 1 <= topk <= 8:
         raise ValueError("grouped LOD routing supports topk from 1 through 8")
@@ -7283,8 +7622,14 @@ def route_top8_state_grouped(
         raise ValueError("active LOD state exceeds its allocated capacity")
     if protected_len < 0 or protected_len + topk > state_len:
         raise ValueError("protected state leaves too few routing candidates")
-    block_m = 16 if query_len > 1 else 1
-    block_n = 64
+    if block_m is None:
+        block_m = 16 if query_len > 1 else 1
+    if block_m <= 0 or block_m & (block_m - 1):
+        raise ValueError("grouped LOD route query tile must be a power of two")
+    if block_n <= 0 or block_n & (block_n - 1):
+        raise ValueError("grouped LOD route state tile must be a power of two")
+    if reduce_num_warps is None:
+        reduce_num_warps = 4 if query_len > 1 else 2
     active_groups = triton.cdiv(state_len, block_n)
     partial_scores = buffers["partial_scores"]
     partial_indices = buffers["partial_indices"]
@@ -7330,10 +7675,10 @@ def route_top8_state_grouped(
         TOPK=topk,
         BLOCK_M=block_m,
         BLOCK_N=block_n,
-        **_launch_kwargs(4),
+        **_launch_kwargs(num_warps),
     )
-    candidate_block = triton.next_power_of_2(max_groups * topk)
-    lse_group_block = triton.next_power_of_2(max_groups)
+    candidate_block = triton.next_power_of_2(active_groups * topk)
+    lse_group_block = triton.next_power_of_2(active_groups)
     _reduce_route_group_candidates_kernel[
         (batch, q_heads, triton.cdiv(query_len, block_m))
     ](
@@ -7364,7 +7709,7 @@ def route_top8_state_grouped(
         BLOCK_M=block_m,
         CANDIDATE_BLOCK=candidate_block,
         STORE_LSE=False,
-        **_launch_kwargs(4 if query_len > 1 else 2),
+        **_launch_kwargs(reduce_num_warps),
     )
     if reorder_like_torch:
         _reorder_topk_like_torch_kernel[(batch, q_heads, query_len)](
@@ -7830,4 +8175,5 @@ __all__ = [
     "route_logits_coarse_attention",
     "route_logits_hierarchical_topk",
     "streaming_state_maxsim",
+    "tiled_prepared_state_maxsim",
 ]

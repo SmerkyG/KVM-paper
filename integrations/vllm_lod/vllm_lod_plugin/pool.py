@@ -39,6 +39,38 @@ def _power_of_two(value: int) -> int:
     return 1 << max(1, (value - 1).bit_length())
 
 
+def _production_prefill_open_count(default: int = 3) -> int:
+    """Return the geometry default, with an explicit panel-only override."""
+
+    raw = os.getenv("VLLM_LOD_PANEL_PREFILL_OPEN_COUNT")
+    if raw is None:
+        return default
+    try:
+        count = int(raw)
+    except ValueError as exc:
+        raise ValueError(
+            "VLLM_LOD_PANEL_PREFILL_OPEN_COUNT must be an integer"
+        ) from exc
+    if not 1 <= count <= 8:
+        raise ValueError(
+            "VLLM_LOD_PANEL_PREFILL_OPEN_COUNT must be between one and eight"
+        )
+    return count
+
+
+def _production_prefill_hierarchical_route(
+    levels: int,
+    head_dim: int,
+    gqa: int,
+    kv_heads: int,
+) -> bool:
+    """Resolve the production selector, with a panel-only flat-route override."""
+
+    if os.getenv("VLLM_LOD_PANEL_PREFILL_FLAT_ROUTE") == "1":
+        return False
+    return _prefill_hierarchical_route_geometry(levels, head_dim, gqa, kv_heads)
+
+
 def _production_geometry_overrides(
     head_dim: int,
     gqa: int,
@@ -85,7 +117,7 @@ def _production_geometry_overrides(
         fixed_scan_warps = 2
 
     return {
-        "prefill_open_count": 3,
+        "prefill_open_count": _production_prefill_open_count(4 if k2 else 3),
         "prefill_chunk_size": prefill_chunk,
         "prefill_local_window": prefill_local,
         "prefill_state_update_size": prefill_update,
@@ -132,6 +164,7 @@ def _prefill_hierarchical_route_geometry(
 
     geometry = (head_dim, gqa, kv_heads)
     return geometry in {
+        (128, 8, 8),   # K2 Horizon 32B TP1
         (128, 16, 2),  # Muse-Glimmer TP1
         (128, 5, 8),   # OLMo-3-32B TP1
         (128, 4, 2),   # Phi-4 TP5
@@ -370,6 +403,21 @@ class VLLMLayerLODPool:
                 recursive_state_route_backend=(
                     recursive_state_route_backend
                 ),
+                recursive_global_page_prefill=(
+                    settings.recursive_global_page_prefill
+                ),
+                recursive_global_page_candidates_per_route=(
+                    settings.recursive_global_page_candidates_per_route
+                ),
+                recursive_threshold_page_prefill=(
+                    settings.recursive_threshold_page_prefill
+                ),
+                recursive_threshold_page_collect_stats=(
+                    settings.recursive_threshold_page_collect_stats
+                ),
+                recursive_threshold_page_rank=(
+                    settings.recursive_threshold_page_rank
+                ),
                 # The compatibility pool uses its fixed graph-safe overflow
                 # hash rather than the flat two-tier directory allocation.
                 leaf_paged_directory=False,
@@ -583,6 +631,8 @@ class VLLMLayerLODPool:
         recursive_prefill_all_leaves = (
             (
                 settings.kv_bits in (0, 4)
+                and not settings.recursive_global_page_prefill
+                and not settings.recursive_threshold_page_prefill
                 and _recursive_prefill_all_leaves_geometry(
                     settings.levels, self.head_dim, gqa, self.kv_heads
                 )
@@ -732,7 +782,7 @@ class VLLMLayerLODPool:
         # geometries where the former selector is a meaningful end-to-end
         # fraction. The explicit environment setting remains a force-on/off
         # override for diagnostics and new architectures.
-        hierarchical_prefill_geometry = _prefill_hierarchical_route_geometry(
+        hierarchical_prefill_geometry = _production_prefill_hierarchical_route(
             settings.levels, self.head_dim, gqa, self.kv_heads
         )
         self.engine.prefill_hierarchical_route = (
@@ -954,7 +1004,7 @@ class VLLMLayerLODPool:
             ),
             "prefill hierarchy": (
                 self.engine.prefill_hierarchical_route
-                == _prefill_hierarchical_route_geometry(
+                == _production_prefill_hierarchical_route(
                     self.settings.levels,
                     self.head_dim,
                     gqa,
@@ -1038,7 +1088,7 @@ class VLLMLayerLODPool:
             self.head_dim,
         )
         unified_page1 = bool(
-            self.settings.levels == 2
+            self.settings.levels in (2, 3)
             and self.settings.dense_leaf_storage
             and self.settings.kv_bits == 0
             and self.settings.decode_gqa_union
@@ -1446,6 +1496,18 @@ class VLLMLayerLODPool:
             "overflow_active": True,
             "overflow_safe_until": 0,
             "slot_lengths": torch.zeros(r, h, s, dtype=torch.int32, device=self.device),
+            "static_cohort_status": torch.zeros(
+                r,
+                h,
+                (
+                    s
+                    if os.getenv("LOD_STATIC_COHORT_EVICTION_DIAGNOSTICS") == "1"
+                    or self.settings.static_cohort_never_readmit
+                    else 0
+                ),
+                dtype=torch.int8,
+                device=self.device,
+            ),
             "next_page": torch.zeros(r, h, dtype=torch.int32, device=self.device),
             "page_size": 16,
             "leaf_capacity": self.leaf_capacity,
@@ -2314,13 +2376,17 @@ class VLLMLayerLODPool:
         if not slots or slots != tuple(range(slots[0], slots[0] + len(slots))):
             return None
         if not (
-            self.settings.levels == 2
+            self.settings.levels in (2, 3)
             and self.settings.dense_leaf_storage
-            and self.settings.kv_bits == 0
+            and self.settings.kv_bits in (0, 4, 8)
             and self.engine.virtual_page_storage
-            and not self.engine.recursive_page_lod
-            and not self.engine.leaf_key_quant_bits
-            and not self.engine.leaf_value_quant_bits
+            and self.engine.leaf_key_quant_bits == self.settings.kv_bits
+            and self.engine.leaf_value_quant_bits == self.settings.kv_bits
+            and not self.engine.simulate_leaf_quantization
+            and (
+                self.settings.kv_bits == 0
+                or self.engine.page_summary_quant_bits == 8
+            )
         ):
             return None
         start, stop = slots[0], slots[-1] + 1
@@ -2330,6 +2396,9 @@ class VLLMLayerLODPool:
             name: self.state[name][start:stop]
             for name in ("state_k", "state_v", "counts", "recent_k", "recent_v")
         }
+        if "sink_k" in self.state:
+            storage["sink_k"] = self.state["sink_k"][start:stop]
+            storage["sink_v"] = self.state["sink_v"][start:stop]
         if "key_norm_sums" in self.state:
             storage["key_norm_sums"] = self.state["key_norm_sums"][start:stop]
         page_pool = self.state["page_cache"]
@@ -2733,7 +2802,6 @@ class VLLMLayerLODPool:
                 self.settings.prefill_defer_cache_updates
                 and self.engine.prefill_exact_first_chunk
                 and length <= int(self.engine.prefill_chunk_len)
-                and prefill_storage is not None
                 and self.deferred_prefill_stream is not None
             )
             if defer_cache:
@@ -2750,7 +2818,8 @@ class VLLMLayerLODPool:
                 k.record_stream(deferred)
                 v.record_stream(deferred)
                 with torch.cuda.stream(deferred):
-                    self.engine._lod_prefill_storage = prefill_storage
+                    if prefill_storage is not None:
+                        self.engine._lod_prefill_storage = prefill_storage
                     try:
                         cache = self.engine.build_cache_from_bf16(
                             k,
@@ -2764,7 +2833,8 @@ class VLLMLayerLODPool:
                             finalize_cache_for_decode=finalize_cache_for_decode,
                         )
                     finally:
-                        del self.engine._lod_prefill_storage
+                        if prefill_storage is not None:
+                            del self.engine._lod_prefill_storage
                     self.install_rows(slots, cache)
                     self.engine.reset_runtime_cache()
                     completed = torch.cuda.Event()

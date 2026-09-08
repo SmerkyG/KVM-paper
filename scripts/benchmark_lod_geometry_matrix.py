@@ -55,6 +55,7 @@ DIAGNOSTIC_GEOMETRIES = (
     Geometry("D128_KV2_G16_muse", 128, 2, 16),
     Geometry("D128_KV8_G5_olmo", 128, 8, 5),
     Geometry("D128_KV2_G4_phi_tp5", 128, 2, 4),
+    Geometry("D128_KV8_G8_k2", 128, 8, 8),
     Geometry("D512_KV2_G8_gemma", 512, 2, 8),
 )
 
@@ -126,6 +127,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--slots", type=int, default=32)
     parser.add_argument("--routes", type=int, default=8)
     parser.add_argument(
+        "--posting-pages",
+        type=int,
+        default=0,
+        help=(
+            "Use this fixed number of 16-token pages per slot; zero keeps the "
+            "legacy 1..16-page permutation"
+        ),
+    )
+    parser.add_argument(
         "--route-working-set",
         type=int,
         default=0,
@@ -176,6 +186,7 @@ def make_inputs(
     route_working_set: int,
     route_hold: int,
     route_head_hold: int,
+    posting_pages: int,
 ) -> dict[str, torch.Tensor]:
     if routes > slots:
         raise ValueError("route count cannot exceed state slots")
@@ -189,9 +200,15 @@ def make_inputs(
     page_size = 16
     # The permutation produces identical 16..256-token posting-list lengths
     # for every batch/KV row, while avoiding correlation with adjacent slots.
-    slot_lengths_1d = torch.tensor(
-        [page_size * (1 + ((slot * 7) % 16)) for slot in range(slots)],
-        dtype=torch.int32,
+    if posting_pages < 0:
+        raise ValueError("posting page count cannot be negative")
+    slot_lengths_1d = (
+        torch.full((slots,), page_size * posting_pages, dtype=torch.int32)
+        if posting_pages
+        else torch.tensor(
+            [page_size * (1 + ((slot * 7) % 16)) for slot in range(slots)],
+            dtype=torch.int32,
+        )
     )
     pages_per_slot = torch.div(
         slot_lengths_1d + page_size - 1, page_size, rounding_mode="floor"
@@ -380,6 +397,7 @@ def run_geometry(
         route_working_set=args.route_working_set,
         route_hold=args.route_hold,
         route_head_hold=args.route_head_hold,
+        posting_pages=args.posting_pages,
     )
     baseline_output: tuple[torch.Tensor, torch.Tensor] | None = None
     results: list[dict[str, object]] = []
@@ -459,6 +477,7 @@ def main() -> None:
         "query_len": args.query_len,
         "slots": args.slots,
         "routes": args.routes,
+        "posting_pages": args.posting_pages,
         "route_working_set": (
             args.slots if args.route_working_set <= 0 else args.route_working_set
         ),

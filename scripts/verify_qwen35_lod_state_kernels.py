@@ -23,6 +23,7 @@ from model.kernels.lod_kernels import (
     route_top8_scores_grouped,
     route_top8_state_grouped,
     streaming_state_maxsim,
+    tiled_prepared_state_maxsim,
 )
 from model.pytorch_lod_attention import _sum_adjacent_groups
 
@@ -512,6 +513,7 @@ def verify_route_logits_topk_coarse_attention(
         residual_mass: float | None = None,
         route_count_bias: float = 1.0,
         query_normalized_routing: bool = False,
+        fused_state_qk: bool = False,
     ) -> dict[str, float]:
         kernel_route_logits = route_logits
         route_logit_scale = None
@@ -520,9 +522,10 @@ def verify_route_logits_topk_coarse_attention(
             route_logit_scale = (
                 q.float().square().mean(dim=-1, keepdim=True).sqrt()
             )
-            kernel_route_logits = (
-                route_logits.float() / route_logit_scale
-            ).to(route_logits.dtype)
+            normalized_q = (q.float() / route_logit_scale).to(q.dtype)
+            kernel_route_logits = torch.matmul(
+                normalized_q, repeated_state_k.transpose(-1, -2)
+            )
             coarse_state_scores = (
                 kernel_route_logits.float() * route_logit_scale * scale
                 + repeated_counts.log().unsqueeze(2)
@@ -580,6 +583,7 @@ def verify_route_logits_topk_coarse_attention(
                     if route_logit_scale is not None
                     else None
                 ),
+                state_k=state_k.contiguous() if fused_state_qk else None,
             )
         )
         state_scores = coarse_state_scores.clone()
@@ -629,6 +633,12 @@ def verify_route_logits_topk_coarse_attention(
         "top8_count2": compare(8, None, route_count_bias=2.0),
         "top8_query_normalized": compare(
             8, None, query_normalized_routing=True
+        ),
+        "top8_query_normalized_fused_state_qk": compare(
+            8,
+            None,
+            query_normalized_routing=True,
+            fused_state_qk=True,
         ),
         "top3_cap8": compare(3, 8),
         "top2_cap8": compare(2, 8),
@@ -952,6 +962,65 @@ def verify_incremental_state_geometries() -> dict[str, dict[str, float]]:
     return result
 
 
+def verify_tiled_prepared_state_maxsim() -> dict[str, float]:
+    batch, heads, overflow_len, state_len, capacity, dim = 1, 2, 257, 301, 320, 128
+    overflow = torch.randn(
+        batch, heads, overflow_len, dim, device="cuda", dtype=torch.bfloat16
+    )
+    overflow = (
+        overflow.float()
+        * torch.rsqrt(
+            overflow.float().square().mean(dim=-1, keepdim=True).clamp_min(1e-12)
+        )
+    ).bfloat16()
+    state = torch.randn(
+        batch, heads, capacity, dim, device="cuda", dtype=torch.bfloat16
+    )
+    counts = torch.randint(
+        1, 33, (batch, heads, capacity, 1), device="cuda"
+    ).float()
+    counts[..., state_len - 7 : state_len, :] = 0.0
+    buffers = new_state_maxsim_buffers(overflow, overflow_len)
+    _, prepared, _ = prepare_state_clustering_keys(
+        state,
+        counts,
+        buffers,
+        state_len=state_len,
+        geometry="spherical",
+    )
+    dense_scores = torch.matmul(
+        overflow, prepared[..., :state_len, :].transpose(-1, -2)
+    )
+    dense_scores.masked_fill_(
+        counts[..., :state_len, 0].le(0.5).unsqueeze(-2), float("-inf")
+    )
+    expected_score, expected_index = dense_scores.max(dim=-1)
+    actual_score, actual_index, actual_select = tiled_prepared_state_maxsim(
+        overflow,
+        prepared,
+        counts,
+        buffers,
+        state_len=state_len,
+        block_m=32,
+        block_n=64,
+        num_warps=4,
+        reduce_block_m=32,
+        reduce_num_warps=4,
+        mask_invalid_state=True,
+    )
+    return {
+        "route_index_exact_fraction": float(
+            (actual_index == expected_index).float().mean().item()
+        ),
+        "route_score_max_abs": float(
+            (actual_score - expected_score).abs().max().item()
+        ),
+        "select_score_max_abs": float(
+            (actual_select - expected_score).abs().max().item()
+        ),
+    }
+
+
 def main() -> None:
     torch.manual_seed(7)
     device = torch.device("cuda")
@@ -1267,6 +1336,7 @@ def main() -> None:
             }
             for kv_group_size in (5, 6)
         },
+        "tiled_prepared_state_maxsim": verify_tiled_prepared_state_maxsim(),
     }
     print(json.dumps(result, indent=2, sort_keys=True))
     if not result["counts_exact"] or not result["owners_exact"]:
@@ -1287,6 +1357,12 @@ def main() -> None:
         )
     if maxsim_result["route_index_exact_fraction"] < 0.99:
         raise AssertionError("streaming state max-sim differs materially")
+    tiled_result = result["tiled_prepared_state_maxsim"]
+    if tiled_result["route_index_exact_fraction"] < 0.999 or max(
+        tiled_result["route_score_max_abs"],
+        tiled_result["select_score_max_abs"],
+    ) > 1e-4:
+        raise AssertionError("tiled prepared state max-sim differs")
     for geometry, geometry_result in result["streaming_state_geometries"].items():
         if geometry_result["route_index_exact_fraction"] < 0.999:
             raise AssertionError(f"streaming {geometry} state routing differs")

@@ -75,6 +75,19 @@ def parse_args() -> argparse.Namespace:
         default="expert",
     )
     parser.add_argument("--virtual-page-storage", action="store_true")
+    parser.add_argument("--recursive-page-lod", action="store_true")
+    parser.add_argument("--recursive-global-page-prefill", action="store_true")
+    parser.add_argument(
+        "--recursive-global-page-grouped",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument(
+        "--recursive-global-page-candidates-per-route",
+        type=int,
+        choices=(1, 2, 4, 8),
+        default=8,
+    )
     parser.add_argument("--aiter-copy-page-size", type=int, default=16)
     parser.add_argument(
         "--leaf-union-query-tile", type=int, choices=(2, 4, 8, 16, 32), default=8
@@ -238,6 +251,12 @@ def main() -> None:
         module.leaf_union_query_tile = args.leaf_union_query_tile
         module.leaf_aiter_copy_page_size = args.aiter_copy_page_size
         module.virtual_page_storage = args.virtual_page_storage
+        module.recursive_page_lod = args.recursive_page_lod
+        module.recursive_global_page_prefill = args.recursive_global_page_prefill
+        module.recursive_global_page_grouped = args.recursive_global_page_grouped
+        module.recursive_global_page_candidates_per_route = (
+            args.recursive_global_page_candidates_per_route
+        )
 
     with torch.inference_mode():
         warm = model(input_ids=sequence, use_cache=False, logits_to_keep=1)
@@ -304,6 +323,12 @@ def main() -> None:
             else None
         ),
         "virtual_page_storage": args.virtual_page_storage,
+        "recursive_page_lod": args.recursive_page_lod,
+        "recursive_global_page_prefill": args.recursive_global_page_prefill,
+        "recursive_global_page_grouped": args.recursive_global_page_grouped,
+        "recursive_global_page_candidates_per_route": (
+            args.recursive_global_page_candidates_per_route
+        ),
         "aiter_copy_page_size": (
             args.aiter_copy_page_size if args.layout == "aiter_copy" else None
         ),

@@ -1561,14 +1561,19 @@ def summarize_lod_phase_timers(model) -> dict[str, dict[str, float | int]]:
                 float(begin.elapsed_time(end)) for begin, end in pairs
             )
             calls[phase] = calls.get(phase, 0) + len(pairs)
-        if not getattr(pool.engine, "recursive_page_lod", False):
-            leaf_events = getattr(pool.engine, "_lod_leaf_timing_events", {})
-            for leaf_phase, pairs in leaf_events.items():
-                phase = f"exact_leaf_{leaf_phase}"
-                totals[phase] = totals.get(phase, 0.0) + sum(
-                    float(begin.elapsed_time(end)) for begin, end in pairs
-                )
-                calls[phase] = calls.get(phase, 0) + len(pairs)
+        recursive = getattr(pool.engine, "recursive_page_lod", False)
+        leaf_events = getattr(pool.engine, "_lod_leaf_timing_events", {})
+        for leaf_phase, pairs in leaf_events.items():
+            # Recursive engines alias ``total`` to the inclusive exact-leaf
+            # phase above, but may also publish disjoint selector, dispatch,
+            # kernel, and reduction boundaries that are useful for profiling.
+            if recursive and leaf_phase == "total":
+                continue
+            phase = f"exact_leaf_{leaf_phase}"
+            totals[phase] = totals.get(phase, 0.0) + sum(
+                float(begin.elapsed_time(end)) for begin, end in pairs
+            )
+            calls[phase] = calls.get(phase, 0) + len(pairs)
     return {
         phase: {"milliseconds": totals[phase], "calls": calls[phase]}
         for phase in sorted(totals)

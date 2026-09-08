@@ -70,6 +70,21 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument("--recursive-page-lod", action="store_true")
+    parser.add_argument("--recursive-global-page-prefill", action="store_true")
+    parser.add_argument(
+        "--recursive-global-page-grouped",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument(
+        "--recursive-global-page-block-n", type=int, choices=(8, 16, 32, 64), default=32
+    )
+    parser.add_argument(
+        "--recursive-global-page-candidates-per-route",
+        type=int,
+        choices=(1, 2, 4, 8),
+        default=8,
+    )
     parser.add_argument("--dense-page-prefill", action="store_true")
     parser.add_argument("--dense-page-topk", type=int, choices=(1, 2, 4, 8), default=8)
     parser.add_argument("--dense-page-block-m", type=int, default=64)
@@ -284,6 +299,18 @@ def main() -> None:
                 module.leaf_seal_capacity = args.leaf_seal_capacity
                 module.leaf_page_size = args.leaf_page_size
                 module.recursive_page_lod = args.recursive_page_lod
+                module.recursive_global_page_prefill = (
+                    args.recursive_global_page_prefill
+                )
+                module.recursive_global_page_block_n = (
+                    args.recursive_global_page_block_n
+                )
+                module.recursive_global_page_grouped = (
+                    args.recursive_global_page_grouped
+                )
+                module.recursive_global_page_candidates_per_route = (
+                    args.recursive_global_page_candidates_per_route
+                )
                 module.dense_page_prefill = args.dense_page_prefill
                 module.dense_page_topk = args.dense_page_topk
                 module.dense_page_block_m = args.dense_page_block_m
@@ -473,6 +500,26 @@ def main() -> None:
                 "page_quantization_statistics": page_quantization_statistics,
                 "recursive_page_lod": (
                     args.recursive_page_lod if args.mode == "two_level" else None
+                ),
+                "recursive_global_page_prefill": (
+                    args.recursive_global_page_prefill
+                    if args.mode == "two_level"
+                    else None
+                ),
+                "recursive_global_page_block_n": (
+                    args.recursive_global_page_block_n
+                    if args.mode == "two_level"
+                    else None
+                ),
+                "recursive_global_page_grouped": (
+                    args.recursive_global_page_grouped
+                    if args.mode == "two_level"
+                    else None
+                ),
+                "recursive_global_page_candidates_per_route": (
+                    args.recursive_global_page_candidates_per_route
+                    if args.mode == "two_level"
+                    else None
                 ),
                 "dense_page_prefill": (
                     args.dense_page_prefill if args.mode == "two_level" else None
