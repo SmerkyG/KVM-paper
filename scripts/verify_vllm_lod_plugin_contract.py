@@ -95,26 +95,25 @@ def verify_prefill_geometry_policy() -> None:
     assert _prefill_hierarchical_route_geometry(2, 128, 16, 2)
 
     # Recursive complete-expert prefill shares one coarse/leaf overlap rule.
-    # Page-selected recursive prefill can overlap only its independent local
-    # branch, while Muse's flat path can overlap all three branches.
+    # Muse and Qwen3.5 can additionally overlap their independent local branch.
     assert _prefill_overlap_geometry(2, 128, 16, 2) == (True, True)
-    assert _prefill_overlap_geometry(3, 128, 16, 2) == (False, True)
-    assert _prefill_overlap_geometry(3, 256, 4, 2) == (False, True)
+    assert _prefill_overlap_geometry(3, 128, 16, 2) == (True, True)
+    assert _prefill_overlap_geometry(3, 256, 4, 2) == (True, True)
     assert _prefill_overlap_geometry(3, 128, 4, 2) == (True, False)
     assert _prefill_overlap_geometry(3, 128, 8, 8) == (True, False)
     assert _prefill_overlap_geometry(3, 256, 6, 4) == (True, False)
     assert _prefill_overlap_geometry(2, 256, 4, 2) == (False, False)
 
-    # Phi uses complete experts throughout prefill. Qwen TP1 uses them only
-    # through its measured short-context crossover; both retain page-routed
-    # decode and other geometries remain conservative.
+    # Every recursive geometry uses complete centroids throughout prefill and
+    # retains page-routed decode without a request-length cutoff.
     assert _recursive_prefill_all_leaves_geometry(3, 128, 4, 2)
     assert _recursive_prefill_all_leaves_geometry(3, 256, 6, 4)
+    assert _recursive_prefill_all_leaves_geometry(3, 512, 8, 2)
+    assert _recursive_prefill_all_leaves_geometry(3, 128, 5, 8)
+    assert _recursive_prefill_all_leaves_geometry(3, 256, 4, 2)
     assert _recursive_prefill_all_leaves_token_limit(3, 128, 4, 2) == 0
-    assert _recursive_prefill_all_leaves_token_limit(3, 256, 6, 4) == 65536
+    assert _recursive_prefill_all_leaves_token_limit(3, 256, 6, 4) == 0
     assert not _recursive_prefill_all_leaves_geometry(2, 128, 4, 2)
-    assert not _recursive_prefill_all_leaves_geometry(3, 128, 5, 8)
-    assert not _recursive_prefill_all_leaves_geometry(3, 256, 4, 2)
 
     # Re-split preserves the recursive route arithmetic and is measurably
     # faster on these batch-eight production geometries. Muse and unmeasured

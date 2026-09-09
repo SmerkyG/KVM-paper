@@ -39,7 +39,7 @@ def _power_of_two(value: int) -> int:
     return 1 << max(1, (value - 1).bit_length())
 
 
-def _production_prefill_open_count(default: int = 3) -> int:
+def _production_prefill_open_count(default: int = 4) -> int:
     """Return the geometry default, with an explicit panel-only override."""
 
     raw = os.getenv("VLLM_LOD_PANEL_PREFILL_OPEN_COUNT")
@@ -54,6 +54,25 @@ def _production_prefill_open_count(default: int = 3) -> int:
     if not 1 <= count <= 8:
         raise ValueError(
             "VLLM_LOD_PANEL_PREFILL_OPEN_COUNT must be between one and eight"
+        )
+    return count
+
+
+def _production_decode_open_count(default: int = 4) -> int:
+    """Return the production decode width, with a panel-only override."""
+
+    raw = os.getenv("VLLM_LOD_PANEL_DECODE_OPEN_COUNT")
+    if raw is None:
+        return default
+    try:
+        count = int(raw)
+    except ValueError as exc:
+        raise ValueError(
+            "VLLM_LOD_PANEL_DECODE_OPEN_COUNT must be an integer"
+        ) from exc
+    if not 1 <= count <= 8:
+        raise ValueError(
+            "VLLM_LOD_PANEL_DECODE_OPEN_COUNT must be between one and eight"
         )
     return count
 
@@ -116,8 +135,12 @@ def _production_geometry_overrides(
         fixed_reduce_d = 0
         fixed_scan_warps = 2
 
+    # Route width is one attention-policy choice, independent of phase and
+    # implementation geometry. Kernels may differ, but production refines the
+    # same four routed regions in prefill and decode.
     return {
-        "prefill_open_count": _production_prefill_open_count(4 if k2 else 3),
+        "open_count": _production_decode_open_count(),
+        "prefill_open_count": _production_prefill_open_count(),
         "prefill_chunk_size": prefill_chunk,
         "prefill_local_window": prefill_local,
         "prefill_state_update_size": prefill_update,
@@ -219,15 +242,26 @@ def _recursive_prefill_all_leaves_geometry(
 ) -> bool:
     """Whether recursive prefill should reuse complete-expert attention."""
 
-    # These geometries can evaluate complete selected experts with regular MMA
-    # faster than the query-major one-page residual path.  Phi remains on that
-    # consumer for the complete prefill.  Qwen TP1 crosses over later, so its
-    # automatic policy is bounded by the total-prompt helper below.  Decode
-    # still consumes the recursive page archive normally in both cases.
-    return levels == 3 and (head_dim, gqa, kv_heads) in (
-        (128, 4, 2),
-        (128, 8, 8),
-        (256, 6, 4),
+    # Complete-centroid attention is the uniform recursive prefill policy.
+    # Geometry still selects kernel tiling, but it does not change the LoD
+    # calculation. Decode continues to consume the recursive page archive.
+    del head_dim, gqa, kv_heads
+    return levels == 3
+
+
+def _panel_recursive_prefill_all_leaves() -> bool | None:
+    """Return the benchmark-only complete-centroid consumer override."""
+
+    raw = os.getenv("VLLM_LOD_PANEL_RECURSIVE_PREFILL_ALL_LEAVES")
+    if raw is None:
+        return None
+    value = raw.strip().lower()
+    if value in ("1", "true", "yes", "on"):
+        return True
+    if value in ("0", "false", "no", "off"):
+        return False
+    raise ValueError(
+        "VLLM_LOD_PANEL_RECURSIVE_PREFILL_ALL_LEAVES must be a boolean"
     )
 
 
@@ -237,16 +271,9 @@ def _recursive_prefill_all_leaves_token_limit(
     gqa: int,
     kv_heads: int,
 ) -> int:
-    """Largest request that should use complete-expert prefill.
+    """Return the uniform complete-centroid prefill length limit."""
 
-    Zero means that the measured geometry has no request-length cutoff.  With
-    the 16*sqrt(T) schedule, average posting length is sqrt(T)/16.  It first
-    reaches one 16-token residual page at T=64K, when the state has 4096
-    entries.  Past that point page selection can reduce average leaf work.
-    """
-
-    if levels == 3 and (head_dim, gqa, kv_heads) == (256, 6, 4):
-        return 65536
+    del levels, head_dim, gqa, kv_heads
     return 0
 
 
@@ -632,11 +659,17 @@ class VLLMLayerLODPool:
         self.engine.prefill_overlap_exact_state = (
             settings.prefill_overlap_exact_state
         )
+        panel_recursive_prefill_all_leaves = (
+            _panel_recursive_prefill_all_leaves()
+        )
         recursive_prefill_all_leaves_auto = (
             settings.recursive_prefill_all_leaves is None
+            and panel_recursive_prefill_all_leaves is None
         )
-        recursive_prefill_all_leaves = (
-            (
+        if panel_recursive_prefill_all_leaves is not None:
+            recursive_prefill_all_leaves = panel_recursive_prefill_all_leaves
+        elif settings.recursive_prefill_all_leaves is None:
+            recursive_prefill_all_leaves = (
                 settings.kv_bits in (0, 4)
                 and not settings.recursive_global_page_prefill
                 and not settings.recursive_threshold_page_prefill
@@ -644,9 +677,10 @@ class VLLMLayerLODPool:
                     settings.levels, self.head_dim, gqa, self.kv_heads
                 )
             )
-            if settings.recursive_prefill_all_leaves is None
-            else settings.recursive_prefill_all_leaves
-        )
+        else:
+            recursive_prefill_all_leaves = (
+                settings.recursive_prefill_all_leaves
+            )
         self.engine.recursive_prefill_all_leaves = recursive_prefill_all_leaves
         self.engine.recursive_prefill_all_leaves_token_limit = (
             _recursive_prefill_all_leaves_token_limit(
@@ -935,6 +969,8 @@ class VLLMLayerLODPool:
             return
         expected = replace(
             VLLMLODSettings.production(
+                levels=self.settings.levels,
+                kv_bits=self.settings.kv_bits,
                 pool_size=self.settings.pool_size,
                 request_capacity=self.settings.request_capacity,
             ),
@@ -960,6 +996,15 @@ class VLLMLayerLODPool:
                 f"GQA in [2, 16], got D={self.head_dim}, GQA={gqa}"
             )
 
+        recursive = self.settings.levels == 3
+        k2_int4 = (
+            recursive
+            and self.settings.kv_bits == 4
+            and (self.head_dim, gqa, self.kv_heads) == (128, 8, 8)
+        )
+        recursive_query_major = (
+            recursive and not self.engine.recursive_prefill_all_leaves
+        )
         engine_checks = {
             "separate protected-prefix branch": (
                 self.engine.separate_sink_cache
@@ -973,17 +1018,38 @@ class VLLMLayerLODPool:
                 and self.engine.routing_normalization
                 == ("none" if has_query_norm else "query")
             ),
-            "two-level BF16 dense leaves": (
-                not self.engine.recursive_page_lod
-                and self.engine.virtual_page_storage
-                and not self.engine.leaf_key_quant_bits
-                and not self.engine.leaf_value_quant_bits
+            "selected cache tier and precision": (
+                (
+                    not recursive
+                    and not self.engine.recursive_page_lod
+                    and self.engine.virtual_page_storage
+                    and not self.engine.leaf_key_quant_bits
+                    and not self.engine.leaf_value_quant_bits
+                )
+                or (
+                    recursive
+                    and self.engine.recursive_page_lod
+                    and self.engine.leaf_key_quant_bits
+                    == self.settings.resolved_key_bits
+                    and self.engine.leaf_value_quant_bits
+                    == self.settings.resolved_value_bits
+                )
             ),
-            "expert leaf geometry": (
-                self.engine.leaf_layout == "expert"
-                and self.engine.leaf_block_m == 32
-                and self.engine.leaf_block_n == 16
-                and self.engine.leaf_num_warps == 2
+            "leaf geometry": (
+                (
+                    recursive_query_major
+                    and self.engine.leaf_layout == "query"
+                    and self.engine.leaf_block_m == 16
+                    and self.engine.leaf_block_n == 32
+                    and self.engine.leaf_num_warps == 1
+                )
+                or (
+                    not recursive_query_major
+                    and self.engine.leaf_layout == "expert"
+                    and self.engine.leaf_block_m == (64 if k2_int4 else 32)
+                    and self.engine.leaf_block_n == 16
+                    and self.engine.leaf_num_warps == (4 if k2_int4 else 2)
+                )
             ),
             "AITER local prefill": (
                 self.engine.prefill_local_attention_backend == "aiter"
@@ -1041,8 +1107,8 @@ class VLLMLayerLODPool:
                 self.engine.prefill_overlap_local_lod
                 == self.settings.prefill_overlap_local_lod
             ),
-            "fixed top-eight decode": (
-                self.engine.two_level_topk == 8
+            "fixed decode route count": (
+                self.engine.two_level_topk == self.settings.open_count
                 and self.settings.decode_max_open_leaves == 1024
             ),
             "D128/GQA8 decode routing": (

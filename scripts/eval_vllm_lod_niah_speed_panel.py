@@ -696,6 +696,8 @@ def evaluate_speed(args, tokenizer, llm, length: int) -> dict:
                 "early-fixed staged AITER path"
             )
         if (
+            execution_audit["decode_gqa_union_eligible"] == [True]
+            and
             execution_audit["decode_gqa_fixed_mask_configured"] == [True]
             and execution_audit["decode_gqa_cooperative_effective"] != [True]
             and execution_audit["decode_gqa_fixed_mask_executed"] != [True]
@@ -724,6 +726,8 @@ def evaluate_speed(args, tokenizer, llm, length: int) -> dict:
                 "page-size-one AITER path"
             )
         if (
+            execution_audit["decode_gqa_union_eligible"] == [True]
+            and
             execution_audit["decode_gqa_union_hip_configured"] == [True]
             and execution_audit["decode_gqa_static_leaf_aiter_configured"]
             != [True]

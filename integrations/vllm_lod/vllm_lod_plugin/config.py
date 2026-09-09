@@ -13,6 +13,8 @@ EXPERIMENTAL_PROFILE = "experimental"
 # These values size serving resources but do not alter LOD attention math.
 _PRODUCTION_ENV_ALLOWLIST = {
     "VLLM_LOD_PROFILE",
+    "VLLM_LOD_LEVELS",
+    "VLLM_LOD_KV_BITS",
     "VLLM_LOD_POOL_SIZE",
     "VLLM_LOD_MAX_CONTEXT",
     "VLLM_LOD_WEIGHT_CACHE_BACKING",
@@ -249,6 +251,8 @@ class VLLMLODSettings:
     def production(
         cls,
         *,
+        levels: int = 2,
+        kv_bits: int = 0,
         pool_size: int = 8,
         request_capacity: int | None = None,
     ) -> VLLMLODSettings:
@@ -258,9 +262,18 @@ class VLLMLODSettings:
         loaded are resolved and audited by ``VLLMLayerLODPool``.
         """
 
+        if levels not in (2, 3):
+            raise ValueError("VLLM_LOD_LEVELS must be two or three")
+        if kv_bits not in (0, 4, 8):
+            raise ValueError("VLLM_LOD_KV_BITS must be zero, four, or eight")
+        if levels == 2 and kv_bits != 0:
+            raise ValueError(
+                "quantized production LOD requires VLLM_LOD_LEVELS=3"
+            )
+        int4_storage = kv_bits == 4
         return cls(
             profile=PRODUCTION_PROFILE,
-            levels=2,
+            levels=levels,
             chunk_size=256,
             local_window=512,
             state_growth_factor=16.0,
@@ -269,9 +282,12 @@ class VLLMLODSettings:
             fused_state_maxsim=True,
             state_min_size=256,
             protected_prefix=1,
-            open_count=8,
-            prefill_open_count=None,
-            kv_bits=0,
+            open_count=4,
+            prefill_open_count=4,
+            kv_bits=kv_bits,
+            quant_group_size=4 if int4_storage else 32,
+            leaf_quant_scale_mode="l2" if int4_storage else "max",
+            leaf_append_quant_scale_mode="l2" if int4_storage else "max",
             pool_size=pool_size,
             request_capacity=request_capacity,
             prefill_mode="direct",
@@ -336,6 +352,8 @@ class VLLMLODSettings:
         if pool_size <= 0:
             raise ValueError("VLLM_LOD_POOL_SIZE must be positive")
         return cls.production(
+            levels=_integer("VLLM_LOD_LEVELS", 2),
+            kv_bits=_integer("VLLM_LOD_KV_BITS", 0),
             pool_size=pool_size,
             request_capacity=capacity or None,
         )

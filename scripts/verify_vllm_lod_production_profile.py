@@ -37,8 +37,8 @@ def verify_default_profile() -> None:
     assert settings.levels == 2
     assert settings.kv_bits == 0
     assert settings.routing_geometry == "auto"
-    assert settings.open_count == 8
-    assert settings.prefill_open_count is None
+    assert settings.open_count == 4
+    assert settings.prefill_open_count == 4
     assert settings.prefill_mode == "direct"
     assert settings.prefill_local_backend == "aiter"
     assert settings.decode_gqa_union
@@ -58,6 +58,30 @@ def verify_operational_settings() -> None:
         settings = VLLMLODSettings.from_environment()
     assert settings.pool_size == 3
     assert settings.request_capacity == 65_536
+
+    with patch.dict(
+        os.environ,
+        {
+            "VLLM_LOD_LEVELS": "3",
+            "VLLM_LOD_KV_BITS": "4",
+        },
+        clear=True,
+    ):
+        settings = VLLMLODSettings.from_environment()
+    assert settings.profile == PRODUCTION_PROFILE
+    assert settings.levels == 3
+    assert settings.kv_bits == 4
+    assert settings.open_count == settings.prefill_open_count == 4
+    assert settings.quant_group_size == 4
+    assert settings.leaf_quant_scale_mode == "l2"
+
+    with patch.dict(os.environ, {"VLLM_LOD_KV_BITS": "4"}, clear=True):
+        try:
+            VLLMLODSettings.from_environment()
+        except ValueError as exc:
+            assert "VLLM_LOD_LEVELS=3" in str(exc)
+        else:
+            raise AssertionError("two-tier production accepted INT4 storage")
 
 
 def verify_tuning_requires_explicit_override() -> None:
@@ -106,7 +130,7 @@ def verify_tuning_requires_explicit_override() -> None:
 
 def verify_model_geometries() -> None:
     qwen38 = _production_geometry_overrides(256, 6)
-    assert qwen38["prefill_open_count"] == 3
+    assert qwen38["prefill_open_count"] == 4
     assert qwen38["prefill_chunk_size"] == 16_384
     assert qwen38["prefill_exact_first_chunk"] is True
     assert qwen38["prefill_overlap_coarse_leaf"] is True
@@ -115,14 +139,14 @@ def verify_model_geometries() -> None:
     assert qwen38["decode_gqa_fixed_mask_reduce_block_d"] == 64
 
     qwen35 = _production_geometry_overrides(256, 4)
-    assert qwen35["prefill_open_count"] == 3
+    assert qwen35["prefill_open_count"] == 4
     assert qwen35["prefill_chunk_size"] == 16_384
     assert qwen35["decode_gqa_cooperative"] is False
     assert qwen35["decode_gqa_cooperative_hip"] is False
     assert qwen35["decode_gqa_fixed_mask_aiter"] is False
 
     gemma = _production_geometry_overrides(512, 8)
-    assert gemma["prefill_open_count"] == 3
+    assert gemma["prefill_open_count"] == 4
     assert gemma["prefill_chunk_size"] == 4_096
     assert gemma["prefill_local_window"] == 4_864
     assert gemma["prefill_exact_first_chunk"] is False
@@ -144,11 +168,15 @@ def verify_model_geometries() -> None:
 
     with patch.dict(
         os.environ,
-        {"VLLM_LOD_PANEL_PREFILL_OPEN_COUNT": "8"},
+        {
+            "VLLM_LOD_PANEL_PREFILL_OPEN_COUNT": "8",
+            "VLLM_LOD_PANEL_DECODE_OPEN_COUNT": "4",
+        },
         clear=True,
     ):
         k2_top8 = _production_geometry_overrides(128, 8)
     assert k2_top8["prefill_open_count"] == 8
+    assert k2_top8["open_count"] == 4
 
     with patch.dict(
         os.environ,
@@ -188,9 +216,9 @@ def verify_scheduler_guard() -> None:
 
 def verify_pool_startup_audit() -> None:
     geometries = (
-        ("qwen35", 8, 2, 256, 3, 16_384, 256),
-        ("qwen38", 24, 4, 256, 3, 16_384, 256),
-        ("gemma", 16, 2, 512, 3, 4_096, 128),
+        ("qwen35", 8, 2, 256, 4, 16_384, 256),
+        ("qwen38", 24, 4, 256, 4, 16_384, 256),
+        ("gemma", 16, 2, 512, 4, 4_096, 128),
         ("k2", 64, 8, 128, 4, 16_384, 128),
     )
     for name, query_heads, kv_heads, head_dim, topk, chunk, segments in geometries:
@@ -239,6 +267,41 @@ def verify_pool_startup_audit() -> None:
             if normalized_keys
             else ("cosine", "none", "query")
         )
+
+    for name, query_heads, kv_heads, head_dim, _, _, _ in geometries:
+        normalized_keys = name in {"qwen35", "qwen38", "gemma"}
+        layer = torch.nn.Module()
+        layer.num_heads = query_heads
+        layer.num_kv_heads = kv_heads
+        layer.head_size = head_dim
+        layer.head_size_v = head_dim
+        layer.impl = SimpleNamespace(scale=head_dim**-0.5)
+        for kv_bits in (0, 4):
+            pool = VLLMLayerLODPool(
+                layer,
+                settings=VLLMLODSettings.production(
+                    levels=3,
+                    kv_bits=kv_bits,
+                    pool_size=1,
+                    request_capacity=512,
+                ),
+                max_requests=1,
+                request_capacity=512,
+                active_indices=torch.zeros(1, dtype=torch.int64),
+                dtype=torch.bfloat16,
+                device=torch.device("cpu"),
+                has_query_norm=normalized_keys,
+                has_key_norm=normalized_keys,
+            )
+            assert pool.settings.open_count == 4
+            assert pool.settings.prefill_open_count == 4
+            assert pool.engine.two_level_topk == 4
+            assert pool.engine.prefill_two_level_topk == 4
+            assert pool.engine.recursive_page_lod
+            assert pool.engine.recursive_prefill_all_leaves
+            assert pool.engine.recursive_prefill_all_leaves_token_limit == 0
+            assert pool.engine.leaf_key_quant_bits == kv_bits
+            assert pool.engine.leaf_value_quant_bits == kv_bits
 
 
 def verify_recursive_prefill_overrides() -> None:

@@ -23,12 +23,16 @@ paths, so a CUSTOM attention run cannot silently select their slower geometry.
 The default `VLLM_LOD_PROFILE=production` path is the current flat BF16
 implementation shared with the Hugging Face benchmark. Exact leaves are stored
 once in a dense chronological pool; compact per-centroid page tables index that
-pool. It opens all exact pages in each of the top-eight centroids. Production
-attention settings are locked: setting any `VLLM_LOD_*` tuning variable causes
-startup to fail rather than silently selecting a different implementation.
-Only resource sizing through `VLLM_LOD_POOL_SIZE` and `VLLM_LOD_MAX_CONTEXT`
-remains configurable. Historical kernels and tuning controls are available only
-after the explicit research opt-in `VLLM_LOD_PROFILE=experimental`.
+pool. It opens every exact leaf in each of the top-four centroids. Production
+uses the same top-four route width in prefill and decode. Set
+`VLLM_LOD_LEVELS=3` to build the recursive page cache and refine the best page
+inside each routed centroid; `VLLM_LOD_KV_BITS=4` then enables residual INT4
+page storage. Production attention settings are otherwise locked: setting any
+other `VLLM_LOD_*` tuning variable causes startup to fail rather than silently
+selecting a different implementation. Resource sizing remains configurable
+through `VLLM_LOD_POOL_SIZE` and `VLLM_LOD_MAX_CONTEXT`. Historical kernels and
+tuning controls are available only after the explicit research opt-in
+`VLLM_LOD_PROFILE=experimental`.
 Production also rejects scheduler budgets below the resolved prefill chunk,
 because smaller incoming slices change when the LOD state is updated. That
 minimum is 16K for Qwen/K2 and 4K for Gemma; a common launch should use
@@ -185,19 +189,21 @@ uses its raw base-model prompt.
 | `meta-models/Muse-Glimmer-30B` | 51.933 s | **51.514 s (1.008x)** | 54.009 s (0.962x) |
 | `allenai/Olmo-3-1125-32B` | **67.892 s** | 69.286 s (0.980x) | 74.795 s (0.908x) |
 
-The two-tier prefill rows use routed top-three selection. Qwen3.8 and OLMo use
-native-GQA coarse packing; Muse uses the hierarchical selector plus branch
-overlap; Phi uses the current automatic spherical geometry and hierarchical
-selector; Gemma retains its D=512 path. Qwen3.5-0.8B's later kernel changes do
-not dispatch on its two-tier geometry, so its latest applicable routed result
-remains 5.168 seconds.
+The historical two-tier prefill rows below used routed top-three selection.
+Production now uses top-four in both prefill and decode; only the equivalent
+kernel geometry differs among models. Qwen3.8 and
+OLMo use native-GQA coarse packing; Muse uses the hierarchical selector plus
+branch overlap; Phi uses the current automatic spherical geometry and
+hierarchical selector; Gemma retains its D=512 path. Qwen3.5-0.8B's later
+kernel changes do not dispatch on its two-tier geometry, so its latest
+applicable routed result remains 5.168 seconds.
 
 The selected three-tier rows use hierarchical prefill selection and the
-current automatic route backend. Qwen3.5-0.8B uses local/LOD overlap and
-re-split routing. Qwen3.8 uses re-split routing. Gemma, Muse, and OLMo retain
-the fused route. Phi uses 4,096-token updates and the D128/GQA4 expert/MFMA
-complete-centroid prefill consumer; its decode still performs ordinary
-recursive page routing.
+current automatic route backend. Recursive prefill uniformly evaluates all
+leaves of each selected centroid with the expert/MFMA consumer; decode still
+performs ordinary centroid-to-page routing. Qwen3.5-0.8B uses local/LOD overlap
+and re-split routing. Qwen3.8 uses re-split routing. Gemma, Muse, and OLMo
+retain the fused route. Phi uses 4,096-token updates.
 
 ### Decode
 
@@ -337,6 +343,18 @@ VLLM_LOD_MAX_CONTEXT=131200
 VLLM_LOD_PROFILE=production
 ```
 
+The production cache tier and recursive precision are the two supported
+attention-policy choices:
+
+```bash
+# Flat two-tier BF16 (default)
+VLLM_LOD_PROFILE=production VLLM_LOD_LEVELS=2
+
+# Recursive three-tier BF16 or residual INT4
+VLLM_LOD_PROFILE=production VLLM_LOD_LEVELS=3 VLLM_LOD_KV_BITS=0
+VLLM_LOD_PROFILE=production VLLM_LOD_LEVELS=3 VLLM_LOD_KV_BITS=4
+```
+
 For gfx942 D=256/GQA4 or GQA6 layers using grouped 32-centroid score-only routing,
 `VLLM_LOD_DECODE_CENTROID_MAJOR_HIP=1` selects the low-row centroid-major HIP
 scorer. It stages the GQA queries in LDS, loads each centroid K vector once for
@@ -353,7 +371,7 @@ though it was faster in eager microbenchmarks; CUDA-graph replay removes that
 apparent launch-overhead advantage. The GQA4 Qwen3.5-0.8B B1 path retained a
 2.71% end-to-end gain.
 
-The production profile hard-codes unrestricted top-eight decode, a 1024-leaf
+The production profile hard-codes unrestricted top-four decode, a 1024-leaf
 guard, no route cohort or predicted-mass approximation, and fixed-mask AITER.
 None of those settings should be repeated in a production launch.
 
@@ -597,13 +615,14 @@ the row is observed again.
 
 The optional `VLLM_LOD_MAX_CONTEXT` caps each LOD row. It defaults to vLLM's
 `max_model_len`. Production fixes 256-token state chunks, a 512-token decode
-local window, a `16 * sqrt(T)` state schedule, dense BF16 leaves, top-eight
-GQA-union decode, and automatic spherical/coherence routing. Qwen3.8 and Gemma
+local window, a `16 * sqrt(T)` state schedule, top-four prefill and decode,
+and automatic spherical/coherence routing. Two-tier stores dense BF16 leaves;
+three-tier stores recursive pages and may use residual INT4. Qwen3.8 and Gemma
 use the persistent fixed-mask union; Qwen3.5-0.8B's D=256/GQA4 and K2's
-D=128/GQA8/KV8 heads use the compact selected union. Qwen uses top-three 16K
-exact-first prefill, Gemma's D=512 heads use their validated top-three 4K
-schedule, and K2 uses top-four 16K exact-first prefill. These choices are
-resolved from attention geometry and audited during pool construction. The
+D=128/GQA8/KV8 heads use the compact selected union. Qwen and K2 use 16K
+exact-first prefill, while Gemma's D=512 heads retain their validated 4K
+schedule. Kernel choices are resolved from attention geometry and audited
+during pool construction. The
 remaining tuning discussion in this document describes the explicit
 `VLLM_LOD_PROFILE=experimental` research surface.
 On the 503-example LongBench v2 validation, optimized K2 top-four scored 207
@@ -728,15 +747,13 @@ below and `artifacts/three_tier_resplit_family_20260826/README.md`.
 Recursive three-tier storage accepts 0, 4, or 8 bits;
 quantized storage requires the same precision for K and V. External ownership
 forces `VLLM_LOD_PREFILL_MODE=direct`.
-On the measured recursive `D=128/GQA=4/KVH=2` geometry (Phi-4 at TP5),
-prefill automatically reuses the two-tier expert/MFMA exact-leaf consumer.
-It evaluates all leaves of each selected centroid while the update path still
-constructs the recursive page archive; one-token decode therefore retains
-ordinary centroid-to-page routing. This is faster than Phi's query-major
-one-page residual kernel despite evaluating more leaves. Set
-`VLLM_LOD_RECURSIVE_PREFILL_ALL_LEAVES=0` to retain literal page-selecting
-recursive prefill, or `1` to request the hybrid on another BF16 geometry.
-The matched speed and ProLong CE results are recorded in
+Recursive prefill reuses the two-tier expert/MFMA exact-leaf consumer on every
+geometry. It evaluates all leaves of each selected centroid while the update
+path still constructs the recursive page archive; one-token decode therefore
+retains ordinary centroid-to-page routing. Set
+`VLLM_LOD_RECURSIVE_PREFILL_ALL_LEAVES=0` only for an explicit diagnostic of
+literal page-selecting recursive prefill. The original matched speed and
+ProLong CE results are recorded in
 `artifacts/three_tier_phi_prefill_20260826/README.md`.
 `VLLM_LOD_PREFIX_ROLLBACK_TOKENS` (1024) controls the exact local tail retained
 for inexpensive metadata-only prefix rollback; it is semantic LOD state, not a
