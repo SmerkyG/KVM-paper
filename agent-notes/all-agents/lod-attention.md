@@ -1,6 +1,6 @@
 # Lod Attention
 
-Topic hints: Profile max-k selection separately from dynamic leaf attendance
+Topic hints: Benchmark decode-update intervals with their exact-tail cost
 
 ## Lessons
 
@@ -35,3 +35,5 @@ Topic hints: Profile max-k selection separately from dynamic leaf attendance
 - When opening one more exact LOD region lowers a finite answer-key score, compare token loss and agreement with full attention before calling it a refinement regression; exact regional replacement need not improve discrete generations monotonically because approximation errors can cancel.
 
 - Before optimizing dynamic LOD open counts, separate max-k route-selection cost from exact-leaf attendance; masking ranks after selecting max-k cannot recover selector time, and may save little when expert-grouped leaf work is already cheap.
+
+- A longer LoD decode state-update interval also widens the exact local tail between updates; assess it over at least one full interval because a faster catch-up kernel alone can still yield slower amortized decode and larger cache use.
