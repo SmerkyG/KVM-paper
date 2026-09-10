@@ -1,8 +1,7 @@
-"""Custom vLLM backend: native/direct prefill and recursive LOD decode."""
+"""Custom vLLM backend for production LoD prefill and decode."""
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 import torch
@@ -168,17 +167,6 @@ class LODAttentionImpl(_NativeImpl):
                 output_block_scale=output_block_scale,
             )
         if (
-            os.getenv("VLLM_LOD_DIAGNOSTIC_EXTERNAL_EMPTY_ATTENTION")
-            in ("skip", "eligible")
-            and self.lod_eligible
-            and self._uses_external_kv_cache(layer)
-        ):
-            # Benchmark-only control: exercise CUSTOM dispatch and externally
-            # owned metadata with eligible attention arithmetic held at zero.
-            # ``skip`` also zeros native layers through the plugin hook, while
-            # ``eligible`` preserves them to isolate the unchanged local path.
-            return output.zero_()
-        if (
             pool is not None
             and int(getattr(pool, "speculative_decode_steps", 0)) > 1
             and self.lod_eligible
@@ -243,13 +231,6 @@ class LODAttentionBackend(_NativeBackend):
     """Retain the platform-native cache layout and metadata builder."""
 
     forward_includes_kv_cache_update = False
-
-    @classmethod
-    def get_supported_head_sizes(cls) -> list[int]:
-        # LOD handles wide global heads without entering ROCmAttention's
-        # paged-attention kernel. Gemma-4 uses 512-wide heads only on those
-        # global layers; its 256-wide sliding layers retain the native path.
-        return sorted(set(super().get_supported_head_sizes()) | {512})
 
     @staticmethod
     def get_name() -> str:

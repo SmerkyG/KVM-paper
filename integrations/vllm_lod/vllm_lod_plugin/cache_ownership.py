@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import os
 from dataclasses import replace
 from typing import Any
 
@@ -38,13 +37,6 @@ def _install_attention_spec_hook() -> None:
             raise NotImplementedError(
                 "authoritative LOD cache requires equal key and value widths"
             )
-        if os.getenv("VLLM_LOD_SPECULATIVE_FULL_ATTENTION", "0") == "1":
-            # Diagnostic/hybrid mode: retain ordinary native chronological K/V
-            # so speculative target verification can use the platform's exact
-            # full-attention graph. LOD still owns prompt attention, but this
-            # mode intentionally gives up its decode memory/asymptotic benefit.
-            self._vllm_lod_hybrid_native_kv = True
-            return spec
         self._vllm_lod_external_kv_cache = True
         # Keep the original full-attention topology visible to the scheduler in
         # every model.  Its manager maintains logical block/hash metadata while

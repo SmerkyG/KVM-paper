@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from dataclasses import asdict, dataclass
 from hashlib import sha256
 from typing import Any
@@ -12,12 +11,14 @@ from typing import Any
 import numpy as np
 import torch
 
-from .backend import LODAttentionImpl
-from .config import (
-    PRODUCTION_PROFILE,
-    VLLMLODSettings,
-    validate_production_scheduler,
+from lod_attention._config import (
+    PREFIX_CACHE_LOCAL_WINDOW,
+    ROUTE_COUNT,
+    model_family,
 )
+
+from .backend import LODAttentionImpl
+from .config import VLLMLODSettings, validate_production_scheduler
 from .pool import VLLMLayerLODPool
 
 logger = logging.getLogger(__name__)
@@ -62,9 +63,7 @@ class VLLMLODRuntime:
                 "compile-time settings can participate in the graph-cache key"
             )
         self.speculative_tokens = int(config.num_speculative_tokens or 0)
-        self.hybrid_speculative_full_attention = os.getenv(
-            "VLLM_LOD_SPECULATIVE_FULL_ATTENTION", "0"
-        ) == "1"
+        self.hybrid_speculative_full_attention = False
         self.prefix_caching = bool(
             getattr(
                 getattr(config, "cache_config", None),
@@ -98,6 +97,8 @@ class VLLMLODRuntime:
         target_model = getattr(model_state, "model", None)
         if target_model is None:
             target_model = getattr(model_state, "get_model", lambda: None)()
+        if target_model is not None:
+            model_family(target_model)
         target_module_ids = (
             {id(module) for module in target_model.modules()}
             if target_model is not None
@@ -118,18 +119,13 @@ class VLLMLODRuntime:
                 if isinstance(impl, LODAttentionImpl):
                     impl.lod_eligible = False
                     layer._vllm_lod_native_speculator = True
-        diagnostic_external_empty = os.getenv(
-            "VLLM_LOD_DIAGNOSTIC_EXTERNAL_EMPTY_ATTENTION"
-        ) in ("skip", "eligible")
         self._eligible_layers: dict[str, Any] = {
             name: layer
             for name, layer in context.items()
             if isinstance(getattr(layer, "impl", None), LODAttentionImpl)
             and bool(layer.impl.lod_eligible)
         }
-        self.layers: dict[str, Any] = (
-            {} if diagnostic_external_empty else self._eligible_layers
-        )
+        self.layers: dict[str, Any] = self._eligible_layers
         self.pools: dict[str, VLLMLayerLODPool] = {}
         self.group_by_layer: dict[str, int] = {}
         self.block_size_by_group: dict[int, int] = {}
@@ -155,45 +151,16 @@ class VLLMLODRuntime:
         return bool(self.layers)
 
     def _set_speculative_verification_routes(self, enabled: bool) -> None:
-        """Use decode-quality routing for a multi-token target verification.
-
-        Ordinary long prefill uses its validated geometry-specific route
-        count. A speculative target call is logically decode, however, and
-        must use the same top-eight approximation as sequential one-token
-        decode. Otherwise the verifier itself defines a different sparse
-        model and can accept a token that sequential LOD would reject.
-        """
+        """Keep speculative verification on the same top-four calculation."""
+        del enabled
         for pool in self.pools.values():
-            settings = pool.settings
-            route_count = (
-                settings.open_count
-                if enabled
-                else (
-                    settings.prefill_open_count
-                    if settings.prefill_open_count is not None
-                    else min(3, settings.open_count)
-                )
-            )
-            pool.engine.prefill_two_level_topk = route_count
-            if (
-                not enabled
-                and settings.profile == PRODUCTION_PROFILE
-                and route_count != settings.prefill_open_count
-            ):
-                raise RuntimeError(
-                    "LOD production prefill route count drifted after runtime reset"
-                )
+            pool.engine.prefill_two_level_topk = ROUTE_COUNT
 
     def _prefix_rollback_tokens(self) -> int:
         cache_config = getattr(self.model_state.vllm_config, "cache_config", None)
         if not bool(getattr(cache_config, "enable_prefix_caching", False)):
             return 0
-        # Keep the established small exact rollback field. Hybrid-cache prefix
-        # boundaries can be much older than this (Muse commonly resumes one
-        # 4K chunk back), so growing the decode-local field does not solve the
-        # general case; restore_prefix() reconstructs those older boundaries
-        # from the chronological LoD leaf archive instead.
-        return int(self.settings.prefix_rollback_tokens)
+        return PREFIX_CACHE_LOCAL_WINDOW
 
     def allocate_pools(self) -> None:
         """Reserve LOD memory before vLLM profiles its native block budget."""
@@ -234,25 +201,22 @@ class VLLMLODRuntime:
             )
             for rows in sorted(decode_sizes):
                 pool.reserve_decode_buffers(rows)
-            if pool.settings.prefill_defer_cache_updates:
-                if deferred_prefill_stream is None:
-                    deferred_prefill_stream = torch.cuda.Stream(
-                        device=self.model_state.device
-                    )
-                pool.deferred_prefill_stream = deferred_prefill_stream
+            if deferred_prefill_stream is None:
+                deferred_prefill_stream = torch.cuda.Stream(
+                    device=self.model_state.device
+                )
+            pool.deferred_prefill_stream = deferred_prefill_stream
             self.pools[name] = pool
             self.borrowed_dummy_lens[name] = torch.zeros_like(pool.local_lens)
             layer._vllm_lod_pool = pool
         if self.pools:
             resolved = next(iter(self.pools.values())).settings
-            if self.settings.profile == PRODUCTION_PROFILE and any(
-                pool.settings != resolved for pool in self.pools.values()
-            ):
+            if any(pool.settings != resolved for pool in self.pools.values()):
                 raise RuntimeError(
                     "LOD production does not support mixed attention geometries"
                 )
             self.settings = resolved
-        if self.settings.profile == PRODUCTION_PROFILE and self.pools:
+        if self.pools:
             scheduler = self.model_state.vllm_config.scheduler_config
             validate_production_scheduler(
                 max_model_len=int(self.model_state.max_model_len),
@@ -363,8 +327,8 @@ class VLLMLODRuntime:
             self.settings.kv_bits,
             self.settings.resolved_key_bits,
             self.settings.resolved_value_bits,
-            self.settings.routing_geometry,
-            self.settings.prefill_mode,
+            "qk-norm-aware",
+            "direct",
         )
 
     def prepare_legacy_runner(
@@ -763,19 +727,6 @@ class VLLMLODRuntime:
         # is much shorter than the refresh interval, so all captured steps see
         # one immutable coarse field and append to its exact recent suffix.
         self._catch_up_decode_rows(catch_ups)
-        if os.getenv("VLLM_LOD_DEBUG_SPECULATIVE_LENGTHS", "0") == "1":
-            for lod_row, previous_length in catch_ups:
-                for name, pool in self.pools.items():
-                    expected = previous_length - int(
-                        pool.metadata[lod_row]["coverage"]
-                    )
-                    actual = int(pool.local_lens[lod_row].item())
-                    if actual != expected:
-                        raise RuntimeError(
-                            "speculative rollback left a stale device-local "
-                            f"length for {name}: actual={actual}, "
-                            f"expected={expected}, prefix={previous_length}"
-                        )
         mapped_rows = self._pad_decode_rows(lod_rows, padded_rows)
         self._set_active_decode_rows(mapped_rows)
         for pool in self.pools.values():
@@ -825,10 +776,7 @@ class VLLMLODRuntime:
         """Batch one request's centroid update without moving layer caches."""
 
         pools = tuple(self.pools.values())
-        if (
-            len(pools) < 2
-            or os.getenv("VLLM_LOD_PANEL_CROSS_LAYER_CATCH_UP", "1") == "0"
-        ):
+        if len(pools) < 2:
             return False
         reference = pools[0]
         recent_length, target_coverage = reference._catch_up_target(
@@ -999,12 +947,6 @@ class VLLMLODRuntime:
         rows = tuple(row for row, _ in requests)
         for pool in self.pools.values():
             pool.wait_deferred_prefill(rows)
-        if self.settings.diagnostic_static_preselected:
-            # Timing-only upper bound: the prefill-selected compact tables and
-            # their local suffix remain immutable for the entire decode.
-            for row, length in requests:
-                self.logical_lengths[row] = length
-            return
         reference_pool = next(iter(self.pools.values()))
         due = [
             (row, length)
@@ -1081,7 +1023,7 @@ class VLLMLODRuntime:
         prompt_lengths: np.ndarray,
     ) -> bool:
         """Prepare direct LOD only when every authoritative row advances exactly."""
-        if self.settings.prefill_mode != "direct" or len(slots) > self.pool_size:
+        if len(slots) > self.pool_size:
             return False
         if len(query_starts) != len(slots) + 1:
             raise ValueError("vLLM query boundaries do not match the request batch")
@@ -1351,13 +1293,6 @@ class VLLMLODRuntime:
 
 
 def _runtime(model_state: Any) -> VLLMLODRuntime | None:
-    # The weight-cache backing rank constructs the final model solely to
-    # retain/export its parameters.  Its requested config still names the
-    # CUSTOM backend so attention modules have the same final structure, but
-    # allocating serving-time semantic pools there would pin another complete
-    # B*T LOD cache in the daemon.  Fresh workers own those pools instead.
-    if os.getenv("VLLM_LOD_WEIGHT_CACHE_BACKING", "0") == "1":
-        return None
     runtime = getattr(model_state, "_vllm_lod_runtime", None)
     if runtime is not None:
         return runtime
@@ -1450,58 +1385,6 @@ def install_model_state_hooks() -> None:
     ModelState._vllm_lod_hooks_installed = True
     install_gpu_runner_hooks()
     install_legacy_runner_hooks()
-
-
-def install_tp_safe_vocab_padding() -> None:
-    """Keep vLLM's padded vocabulary divisible by unusual TP sizes.
-
-    vLLM pads vocabularies to a fixed multiple of 64, then assumes that
-    padded size is divisible by tensor parallelism.  That fails for otherwise
-    valid model geometries such as Phi-4 at TP=5 (its ten KV heads require a
-    divisor of five, while 100352 is not divisible by five).  Expanding the
-    padding multiple to ``lcm(64, TP)`` preserves the original vocabulary and
-    weight-loader semantics while making the physical shards regular.
-    """
-    import math
-
-    from vllm.distributed import get_tensor_model_parallel_world_size
-    from vllm.model_executor.layers.vocab_parallel_embedding import (
-        VocabParallelEmbedding,
-    )
-
-    if getattr(VocabParallelEmbedding, "_vllm_lod_tp_padding_installed", False):
-        return
-    original_init = VocabParallelEmbedding.__init__
-
-    def initialize_vocab_embedding(
-        self: Any,
-        num_embeddings: int,
-        embedding_dim: int,
-        params_dtype: torch.dtype | None = None,
-        org_num_embeddings: int | None = None,
-        padding_size: int = 64,
-        quant_config: Any = None,
-        prefix: str = "",
-        *,
-        disable_tp: bool = False,
-    ) -> None:
-        if not disable_tp:
-            tp_size = int(get_tensor_model_parallel_world_size())
-            padding_size = math.lcm(int(padding_size), tp_size)
-        original_init(
-            self,
-            num_embeddings,
-            embedding_dim,
-            params_dtype,
-            org_num_embeddings,
-            padding_size,
-            quant_config,
-            prefix,
-            disable_tp=disable_tp,
-        )
-
-    VocabParallelEmbedding.__init__ = initialize_vocab_embedding
-    VocabParallelEmbedding._vllm_lod_tp_padding_installed = True
 
 
 def install_gpu_runner_hooks() -> None:

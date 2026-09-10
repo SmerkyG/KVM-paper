@@ -1,152 +1,154 @@
-# Key-Value Means 
-##  Transformers with Expandable Block-Recurrent Compressed Memory
+# LoD Attention
 
-Paper link: https://arxiv.org/abs/2605.09877
+LoD Attention is exact for selected high-mass regions and approximate for the
+low-mass remainder. It represents remote context with count-corrected semantic
+centroids, refines the four best regions with exact leaves, and combines those
+results with an exact local window and protected sink through log-sum-exp.
 
-Checkpoints: https://huggingface.co/collections/recursal/key-value-means
+This branch is the minimal inference release for the LoD Attention paper. It
+contains one fixed production policy, not the research-time tuning matrix.
 
-Key-Value Means ("KVM") is a novel block-recurrence for attention that that can accommodate either fixed-size or growing state. This limits the KV Cache size to whatever size you think is appropriate for your application, even as the context grows. It performs competitively on long-context tests with only subquadratic prefill time and sublinear state growth.
+## Supported configurations
 
-<div align="center" >
-    <img src="assets/time_complexity.png" height=107 alt="Key-Value Means Range of Time Complexity" /> 
-</div>
+| Mode | Remote detail | Leaf storage |
+|---|---|---|
+| `two-tier` | every leaf in each selected centroid | BF16 |
+| `three-tier-bf16` | best semantic page in each selected centroid | BF16 |
+| `three-tier-int4` | best semantic page in each selected centroid | residual INT4 |
 
-KVM allows you to choose where you want to be on a scale between LRNNs and full attention time complexity and memory usage.
+All modes use exactly four routed regions in prefill and decode, a
+`16 * sqrt(T)` centroid schedule, 256-token state updates, a 512-token base
+decode window, one separately protected sink, and an exact first 16K prefill
+region. With vLLM prefix caching enabled, the exact rollback tail is 1,024
+tokens so a retained request can be rewound without restoring native K/V.
+Three-tier pages contain 16 leaves. INT4 is applied only to residuals within a
+centroid-owned semantic page; sequential K/V blocks are never quantized as if
+they were semantically coherent.
 
-<div align="center" >
-    <img src="assets/interpolating.png" height=225 alt="Key-Value Means Interpolating between LRNNs and Attention" /> 
-</div>
+The release supports:
 
-It accomplishes this by maintaining both a Block Sliding Window of Attention as well as a growable state, both of which are attended to at once.
+| Model family | Hugging Face | vLLM | DFlash2 |
+|---|---:|---:|---:|
+| Qwen3.8 (`D=256`, GQA 6) | yes | yes | yes |
+| K2 Horizon (`D=128`, GQA 8) | yes | yes | no |
 
-<div align="center" >
-    <img src="assets/attention_mask.png" height=420 alt="Key-Value Means Attention Masking" /> 
-</div>
+Model-specific compatibility code is isolated in
+`integrations/vllm_lod/vllm_lod_plugin/models/`. The attention engine and
+kernels in `lod_attention/` operate on post-QKV, post-RoPE tensors and do not
+own model projections.
 
-Please see the Key-Value Means paper at https://arxiv.org/abs/2605.09877 for more details.
+## Install
 
-## What's included in this repository
-
-- Reconfigurable Transformer base model code with support for carried state
-- GPTAlpha2 backbone and model
-- Pluggable time mixer component classes for several model architectures
-  - Key-Value Means ("KVM")
-  - Online Vector Quantization ("OVQ")
-  - RWKV-7
-  - Block Sliding Window Attention
-  - Sliding Window Attention
-- HuggingFace transformers conversion scripts and model code
-- simple config system
-- Fast custom trainer
-- lm_eval_harness support
-- inference support
-
-## setup
-
-Please use the provided script at `scripts/install.sh`
-
-## configuration
-
-Config system allows you to specify one or more `-c CONFIG_PATH` in yaml or json format
-Later configs will override earlier ones
-You can also list specific config parameters e.g. `--model.num_hidden_layers 12 --train.batch_size 8`
-
-See configuration classes extending pydantic BaseModel in `train.py` and `model/rwkv7_backbone.py` for specific configuration settings.
-
-## running it
-
-Example training scripts are provided in `scripts/training_runs.sh` This directory also includes the scripts used to run the evals in the paper. `scripts/benchmark_kvm.py` can be used for running kernel performance benchmarks.
-
-### OpenAI-compatible LOD server
-
-Transformers 5.15's serving stack can expose an HF model with recursive LOD
-attention, streaming, chat templates, and function calling:
+Python 3.12, PyTorch, Transformers 5.15, Triton, and the platform attention
+kernels are required. The vLLM integration is validated against vLLM 0.27.1 on
+ROCm. Install this project into the environment that already provides the
+appropriate accelerator build:
 
 ```bash
-scripts/install.sh --gpu-backend rocm72 --with-qwen35-fast-path
-uv run python -m scripts.serve_hf_lod_openai \
-  --checkpoint Qwen/Qwen3.5-0.8B \
-  --kv-bits 4 \
-  --host 0.0.0.0 --port 8000
+uv pip install -e .
 ```
 
-Point an OpenAI client at `http://localhost:8000/v1` and use the checkpoint as
-the model name. The server does not require authentication, so clients that
-require a key can use any non-empty placeholder:
+The optimized prefill path requires the AITER change in
+`integrations/vllm_lod/patches/aiter-mha-prefill-route4.patch`. Apply it to the
+AITER source used by the runtime and rebuild AITER before benchmarking.
+
+## Hugging Face
+
+Installation happens after model construction and replaces only global causal
+attention layers. The model keeps ownership of projections, RoPE,
+normalization, gating, and output projection; LoD owns its K/V cache.
 
 ```python
-from openai import OpenAI
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
-client = OpenAI(
-    base_url="http://localhost:8000/v1",
-    api_key="local",
+from lod_attention import install
+
+checkpoint = "Qwen/Qwen3.8-27B-FP8"
+tokenizer = AutoTokenizer.from_pretrained(checkpoint)
+model = AutoModelForCausalLM.from_pretrained(
+    checkpoint,
+    torch_dtype=torch.bfloat16,
+    device_map="auto",
 )
-response = client.chat.completions.create(
-    model="Qwen/Qwen3.5-0.8B",
-    messages=[{"role": "user", "content": "Use get_file to read README.md"}],
-    tools=[{
-        "type": "function",
-        "function": {
-            "name": "get_file",
-            "description": "Read a repository file",
-            "parameters": {
-                "type": "object",
-                "properties": {"path": {"type": "string"}},
-                "required": ["path"],
-            },
-        },
-    }],
-)
+install(model, mode="two-tier")
+
+inputs = tokenizer("Explain LoD Attention.", return_tensors="pt").to(model.device)
+tokens = model.generate(**inputs, max_new_tokens=128)
+print(tokenizer.decode(tokens[0], skip_special_tokens=True))
 ```
 
-The same server also provides `/v1/models`, `/v1/completions`, `/v1/responses`,
-and `/health`. Continuous batching must remain disabled because it owns a
-different paged KV cache; ordinary requests are serialized safely by the HF
-generation manager. The header is optional: by default the server uses
-Transformers' chained token-block hashing scheme to find a retained prompt,
-then strictly verifies the prior prompt and generated answer before sending
-only the new turn through the retained LOD cache. This also handles chat
-templates whose assistant-generation marker is rewritten when the answer
-becomes message history. `X-LOD-Session-ID` takes precedence and remains the
-best way to isolate otherwise identical conversations; a mismatch safely
-starts a new cache. Pass `--no-auto-session-discovery` to require explicit
-headers.
-`--max-sessions` and `--session-ttl-seconds` bound retained GPU state; set
-`--max-sessions 0` to disable cross-request caching.
+Select `three-tier-bf16` or `three-tier-int4` with the same `mode` argument.
+Generation automatically creates the LoD-owned cache. For direct model calls,
+`lod_attention.new_cache(model)` returns an empty cache explicitly.
 
-To serve the same checkpoint with its original full attention instead, use:
+## vLLM
+
+Installing the package registers the `CUSTOM` attention backend. There are
+only three public environment settings:
+
+- `VLLM_LOD_MODE`: one of the three modes above (default `two-tier`).
+- `VLLM_LOD_POOL_SIZE`: live or retained request rows per worker (default 8).
+- `VLLM_LOD_MAX_CONTEXT`: optional per-row context cap.
+
+Unknown `VLLM_LOD_*` and all old `LOD_DEV_*` tuning flags fail at startup.
+Use a 16K scheduler budget so scheduler slicing cannot silently change the
+state-update policy:
 
 ```bash
-uv run python -m scripts.serve_hf_lod_openai \
-  --checkpoint Qwen/Qwen3.5-0.8B \
-  --attention-mode full \
-  --host 0.0.0.0 --port 8001
+VLLM_PLUGINS=lod_attention \
+VLLM_LOD_MODE=three-tier-int4 \
+VLLM_LOD_POOL_SIZE=8 \
+vllm serve Qwen/Qwen3.8-27B-FP8 \
+  --attention-backend CUSTOM \
+  --dtype bfloat16 \
+  --kv-cache-dtype bfloat16 \
+  --max-model-len 131072 \
+  --max-num-seqs 8 \
+  --max-num-batched-tokens 16384 \
+  --long-prefill-token-threshold 0 \
+  --enable-prefix-caching
 ```
 
-Full mode does not replace attention modules and does not use the LOD session
-cache. Run LOD and full modes on different ports when both are needed. The
-current server uses separate processes because the modes require independently
-compiled model instances and different cache types; a single-process
-multiplexer built on the current Transformers model manager would still load
-two complete copies of the model weights.
+On vLLM revisions that expose only the structured option, replace
+`--attention-backend CUSTOM` with
+`--attention-config '{"backend":"CUSTOM"}'`.
 
-## optimized Triton KVM kernels
+The LoD cache is authoritative: compressed remote leaves replace their native
+chronological K/V rather than shadowing a full cache. Prefix-cache hits resume
+retained LoD rows after exact token-prefix verification. Non-attention and
+ineligible local/recurrent layers retain their native vLLM caches.
 
-The eager paper implementation is `model.kvm_mixer.SequenceMixer`. The optimized MHA prefill, backward, and training use `model.kvm_triton_mixer.SequenceMixer` - append `configs/prolong/kvm_triton.yaml` after a KVM model config to select it. For more information, see [`docs/kvm_triton_kernels.md`](docs/kvm_triton_kernels.md) for more details on the kernels.
+## Repository layout
 
+- `lod_attention/`: model-independent HF adapter, cache, engines, and kernels.
+- `integrations/vllm_lod/vllm_lod_plugin/`: vLLM backend and cache lifecycle.
+- `integrations/vllm_lod/vllm_lod_plugin/models/`: K2 and Qwen DFlash2 shims.
+- `integrations/vllm_lod/patches/`: the required AITER patch.
+- `examples/`: minimal HF and vLLM launch examples.
+- `benchmarks/`: public LongBench v2, ProLong, and RULER NIAH-S3 runners.
+- `tests/`: release-policy and import checks.
 
-## Citation
+## Benchmarks
 
-If you use this code or find our work valuable, please consider citing Key-Value Means:
+Each benchmark has a standalone runner, archived results, and commands that use
+only public tools:
 
-```bibtex
-@misc{goldstein2026keyvaluemeans,
-      title={Key-Value Means}, 
-      author={Daniel Goldstein and Eugene Cheah},
-      year={2026},
-      eprint={2605.09877},
-      archivePrefix={arXiv},
-      primaryClass={cs.LG},
-      url={https://arxiv.org/abs/2605.09877}, 
-}
-```
+- [LongBench v2](benchmarks/LONGBENCH_V2.md): end-to-end long-context quality
+  and serving wall time.
+- [ProLong](benchmarks/PROLONG.md): prompt CE/perplexity and matched prefill and
+  1,025-token decode speed sweeps.
+- [RULER NIAH-S3](benchmarks/NIAH_S3.md): long-context UUID retrieval.
+
+The documents distinguish finalized top-4 measurements from older exploratory
+runs; an absent finalized measurement is marked `not archived` rather than
+being filled with a non-equivalent result.
+
+This implementation is inference-only and does not return dense attention
+weights. Sliding-window attention, ALiBi, attention soft caps, DCP/PCP, and
+native quantized attention K/V are intentionally rejected instead of silently
+falling back to a different LoD calculation.
+
+## License
+
+Apache-2.0. Model compatibility files retain their upstream notices.

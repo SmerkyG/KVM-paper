@@ -10,7 +10,7 @@ def register_k2_horizon() -> None:
     if "K2HorizonForCausalLM" not in ModelRegistry.get_supported_archs():
         ModelRegistry.register_model(
             "K2HorizonForCausalLM",
-            "vllm_lod_plugin.k2_horizon:K2HorizonForCausalLM",
+            "vllm_lod_plugin.models.k2_horizon:K2HorizonForCausalLM",
         )
 
 

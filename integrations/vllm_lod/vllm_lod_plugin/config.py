@@ -1,40 +1,40 @@
-"""Environment configuration for the out-of-tree vLLM backend."""
+"""Public vLLM configuration for the LoD paper release."""
 
 from __future__ import annotations
 
-import math
 import os
 from dataclasses import dataclass, replace
 
+from lod_attention._config import LODMode, ModelFamily, PREFILL_CHUNK_SIZE
 
-PRODUCTION_PROFILE = "production"
-EXPERIMENTAL_PROFILE = "experimental"
-
-# These values size serving resources but do not alter LOD attention math.
-_PRODUCTION_ENV_ALLOWLIST = {
-    "VLLM_LOD_PROFILE",
-    "VLLM_LOD_LEVELS",
-    "VLLM_LOD_KV_BITS",
+_PUBLIC_ENV = {
+    "VLLM_LOD_MODE",
     "VLLM_LOD_POOL_SIZE",
     "VLLM_LOD_MAX_CONTEXT",
-    "VLLM_LOD_WEIGHT_CACHE_BACKING",
 }
 
 
-def _reject_production_tuning_environment() -> None:
-    configured = sorted(
+def _positive_integer(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    try:
+        value = default if raw is None else int(raw)
+    except ValueError as exc:
+        raise ValueError(f"{name} must be an integer, got {raw!r}") from exc
+    if value <= 0:
+        raise ValueError(f"{name} must be positive")
+    return value
+
+
+def _reject_removed_options() -> None:
+    removed = sorted(
         name
         for name in os.environ
-        if name.startswith("VLLM_LOD_")
-        and not name.startswith("VLLM_LOD_PANEL_")
-        and name not in _PRODUCTION_ENV_ALLOWLIST
+        if name.startswith(("VLLM_LOD_", "LOD_DEV_")) and name not in _PUBLIC_ENV
     )
-    if configured:
-        names = ", ".join(configured)
+    if removed:
         raise ValueError(
-            "the production LOD profile does not accept attention tuning "
-            f"variables ({names}); unset them or explicitly select "
-            "VLLM_LOD_PROFILE=experimental"
+            "The LoD paper release has no tuning flags. Remove: "
+            + ", ".join(removed)
         )
 
 
@@ -43,1143 +43,114 @@ def validate_production_scheduler(
     max_model_len: int,
     max_num_batched_tokens: int,
     long_prefill_token_threshold: int,
-    required_prefill: int,
+    required_prefill: int = PREFILL_CHUNK_SIZE,
 ) -> None:
-    """Reject scheduler slices which change the production update sequence."""
-
-    required_prefill = min(required_prefill, max_model_len)
-    if max_num_batched_tokens < required_prefill or (
-        0 < long_prefill_token_threshold < required_prefill
+    required = min(required_prefill, max_model_len)
+    if max_num_batched_tokens < required or (
+        0 < long_prefill_token_threshold < required
     ):
         raise RuntimeError(
-            "LOD production requires --max-num-batched-tokens >= "
-            f"{required_prefill} and either "
-            "--long-prefill-token-threshold 0 or a value >= "
-            f"{required_prefill}; got {max_num_batched_tokens} and "
-            f"{long_prefill_token_threshold}. Smaller scheduler slices change "
-            "the effective state-update sequence. Select "
-            "VLLM_LOD_PROFILE=experimental for that experiment."
+            "LoD requires --max-num-batched-tokens >= "
+            f"{required} and --long-prefill-token-threshold 0 (or >= {required})."
         )
-
-
-def _integer(name: str, default: int) -> int:
-    raw = os.getenv(name)
-    try:
-        value = default if raw is None else int(raw)
-    except ValueError as exc:
-        raise ValueError(f"{name} must be an integer, got {raw!r}") from exc
-    return value
-
-
-def _floating(name: str, default: float) -> float:
-    raw = os.getenv(name)
-    try:
-        value = default if raw is None else float(raw)
-    except ValueError as exc:
-        raise ValueError(f"{name} must be a number, got {raw!r}") from exc
-    return value
-
-
-def _boolean(name: str, default: bool) -> bool:
-    raw = os.getenv(name)
-    if raw is None:
-        return default
-    value = raw.strip().lower()
-    if value in ("1", "true", "yes", "on"):
-        return True
-    if value in ("0", "false", "no", "off"):
-        return False
-    raise ValueError(f"{name} must be a boolean, got {raw!r}")
-
-
-def _choice(name: str, default: str, choices: tuple[str, ...]) -> str:
-    value = os.getenv(name, default).strip().lower()
-    if value not in choices:
-        options = ", ".join(choices)
-        raise ValueError(f"{name} must be one of {options}, got {value!r}")
-    return value
-
-
-def scheduled_static_leaf_cap(
-    total_length: int,
-    minimum: int = 16,
-    divisor: int = 16,
-) -> int:
-    """Return ``max(minimum, ceil(sqrt(total_length) / divisor))`` exactly."""
-    if total_length < 1:
-        raise ValueError("static leaf-cap scheduling requires a positive length")
-    if minimum < 1:
-        raise ValueError("static leaf-cap scheduling requires a positive minimum")
-    if divisor < 1:
-        raise ValueError("static leaf-cap scheduling requires a positive divisor")
-    # For positive integers T, floor(sqrt(T - 1)) // divisor + 1 is exactly
-    # ceil(sqrt(T) / divisor), including the perfect-square boundaries.
-    scheduled = math.isqrt(total_length - 1) // divisor + 1
-    return max(minimum, scheduled)
 
 
 @dataclass(frozen=True)
 class VLLMLODSettings:
-    # Direct construction is an explicit research/programmatic override. The
-    # vLLM runtime enters the locked production profile via from_environment().
-    profile: str = EXPERIMENTAL_PROFILE
-    aug19_compat: bool = False
-    levels: int = 2
-    chunk_size: int = 256
-    local_window: int = 512
-    state_growth_factor: float = 16.0
-    state_premerge_factor: int = 1
-    fused_state_update: bool = False
-    fused_state_maxsim: bool = False
-    state_min_size: int = 256
-    state_split_max_leaves: int | None = None
-    protected_prefix: int = 1
-    open_count: int = 8
-    prefill_open_count: int | None = None
-    kv_bits: int = 0
-    key_bits: int | None = None
-    value_bits: int | None = None
-    quant_group_size: int = 32
-    quant_token_group_size: int = 16
-    leaf_quant_scale_mode: str = "max"
-    leaf_append_quant_scale_mode: str = "max"
-    page_summary_scale_mode: str = "l2"
+    """Three public choices plus family-specific launch geometry.
+
+    Model-family differences below change only kernel tiling and dispatch. The
+    attention calculation is top-four in both prefill and decode for every
+    supported model.
+    """
+
+    mode: LODMode = LODMode.TWO_TIER
     pool_size: int = 8
     request_capacity: int | None = None
-    prefill_mode: str = "direct"
-    routing_geometry: str = "raw"
-    routing_positive_dot_stats: bool = False
-    routing_cutoff_stats_min_state: int = 0
-    routing_cutoff_stats_route_count: int = 0
-    routing_cutoff_stats_normalization: str = "raw"
-    prefix_rollback_tokens: int = 1024
-    prefill_local_backend: str = "aiter"
-    fused_prefill_route_coarse: bool = True
-    fused_prefill_stable_recompute: bool = True
-    fused_prefill_external_recompute: bool = True
-    prefill_hierarchical_route: bool | None = None
-    prefill_coarse_max_grouped_rows: int = 64
-    prefill_coarse_direct_gqa: bool | None = None
-    prefill_coarse_block_n: int = 32
-    prefill_coarse_num_warps: int = 8
-    prefill_aiter_coarse: bool = False
-    prefill_fused_state_qk: bool = False
-    prefill_overlap_coarse_leaf: bool | None = None
-    prefill_overlap_local_lod: bool | None = None
-    prefill_int8_route_mma: bool = False
-    prefill_int8_coarse_mma: bool = True
-    prefill_int8_coarse_block_n: int = 64
-    prefill_int8_coarse_num_warps: int = 2
-    prefill_int8_append_num_warps: int = 4
-    prefill_int8_pv_mma: bool | None = None
-    prefill_chunk_size: int = 4096
-    prefill_local_window: int = 4864
-    prefill_state_update_size: int = 4096
-    prefill_exact_first_chunk: bool = False
-    prefill_overlap_exact_state: bool = False
-    prefill_defer_cache_updates: bool = False
-    recursive_prefill_all_leaves: bool | None = None
-    prefill_static_leaf_aiter: bool = False
-    prefill_static_leaf_cap_min: int = 16
-    prefill_route_cohort: bool = False
-    static_leaf_cap_divisor: int = 16
-    static_cohort_never_readmit: bool = False
-    leaf_layout: str = "expert"
-    leaf_union_query_tile: int = 16
-    leaf_block_m: int = 16
-    leaf_block_n: int = 32
-    leaf_num_warps: int = 2
-    leaf_geometry_tuning: bool = True
-    leaf_reduce_num_warps: int = 1
-    prefill_direct_expert_buckets: bool | None = None
-    prefill_int8_leaf_num_warps: int = 2
-    leaf_paged_directory: bool = True
-    dense_leaf_storage: bool = True
-    leaf_seal_capacity: int | None = None
-    prefill_leaf_visit_cap: int | None = None
-    decode_split_kv: int = 8
-    decode_geometry_tuning: bool = True
-    decode_centroid_major_hip: bool = False
-    decode_hierarchical_route: bool | None = None
-    decode_gqa_cooperative: bool = True
-    decode_gqa_cooperative_hip: bool = True
-    decode_gqa_union: bool = False
-    decode_gqa_mass_fraction: float | None = None
-    decode_gqa_predicted_mass: bool = False
-    decode_gqa_pilot_z: bool = False
-    decode_gqa_pilot_z_route_count: int = 8
-    decode_gqa_pilot_z_margin: float = 0.25
-    decode_gqa_union_hip: bool = False
-    decode_gqa_staged_fixed_aiter: bool = False
-    decode_gqa_fixed_mask_aiter: bool = False
-    decode_gqa_overlap_local_sink: bool = False
-    decode_gqa_fixed_mask_block_n: int = 64
-    decode_gqa_fixed_mask_segments: int = 128
-    decode_gqa_fixed_mask_adaptive_segments: bool = False
-    decode_gqa_fixed_mask_reduce_block_d: int = 0
-    decode_gqa_fixed_mask_direct_routes: bool = True
-    decode_gqa_fixed_mask_reuse_coarse: bool = False
-    decode_gqa_fixed_mask_scan_num_warps: int = 2
-    decode_gqa_fixed_mask_scan_waves_per_eu: int = 2
-    decode_gqa_fixed_mask_scan_num_stages: int = 2
-    decode_gqa_static_leaf_cap: int | None = None
-    decode_gqa_static_leaf_cap_min: int = 16
-    decode_gqa_static_leaf_aiter: bool = False
-    decode_route_cohort: bool = False
-    diagnostic_static_preselected: bool = False
-    decode_max_open_leaves: int | None = 1024
-    decode_gqa_route_splits: int | None = None
-    recursive_materialize_page_scores: bool = False
-    recursive_page_score_block_n: int = 16
-    recursive_page_score_num_warps: int = 2
-    recursive_page_select_block_n: int = 64
-    recursive_state_route_backend: str = "auto"
-    recursive_global_page_prefill: bool = False
-    recursive_global_page_candidates_per_route: int = 8
-    recursive_threshold_page_prefill: bool = False
-    recursive_threshold_page_collect_stats: bool = False
-    recursive_threshold_page_rank: int = 2
+    family: ModelFamily | None = None
+
+    @property
+    def levels(self) -> int:
+        return self.mode.levels
+
+    @property
+    def kv_bits(self) -> int:
+        return self.mode.kv_bits
 
     @property
     def resolved_key_bits(self) -> int:
-        return self.kv_bits if self.key_bits is None else self.key_bits
+        return self.kv_bits
 
     @property
     def resolved_value_bits(self) -> int:
-        return self.kv_bits if self.value_bits is None else self.value_bits
+        return self.kv_bits
+
+    @property
+    def quant_group_size(self) -> int:
+        return 4 if self.kv_bits == 4 else 32
+
+    @property
+    def prefill_chunk_size(self) -> int:
+        return PREFILL_CHUNK_SIZE
+
+    def _is_qwen38(self) -> bool:
+        if self.family is None:
+            raise RuntimeError("LoD model family has not been resolved")
+        return self.family is ModelFamily.QWEN38
+
+    @property
+    def decode_gqa_fixed_mask_aiter(self) -> bool:
+        return self._is_qwen38() and self.levels == 2
+
+    @property
+    def decode_gqa_fixed_mask_segments(self) -> int:
+        return 256 if self._is_qwen38() else 128
+
+    @property
+    def decode_gqa_fixed_mask_reduce_block_d(self) -> int:
+        return 64 if self._is_qwen38() else 0
+
+    @property
+    def decode_gqa_fixed_mask_scan_num_warps(self) -> int:
+        return 2 if self._is_qwen38() else 1
 
     @classmethod
     def production(
         cls,
         *,
-        levels: int = 2,
-        kv_bits: int = 0,
+        mode: str | LODMode = LODMode.TWO_TIER,
         pool_size: int = 8,
         request_capacity: int | None = None,
     ) -> VLLMLODSettings:
-        """Return the single quality-preserving vLLM production profile.
-
-        Geometry-dependent choices which cannot be known before the model is
-        loaded are resolved and audited by ``VLLMLayerLODPool``.
-        """
-
-        if levels not in (2, 3):
-            raise ValueError("VLLM_LOD_LEVELS must be two or three")
-        if kv_bits not in (0, 4, 8):
-            raise ValueError("VLLM_LOD_KV_BITS must be zero, four, or eight")
-        if levels == 2 and kv_bits != 0:
-            raise ValueError(
-                "quantized production LOD requires VLLM_LOD_LEVELS=3"
-            )
-        int4_storage = kv_bits == 4
         return cls(
-            profile=PRODUCTION_PROFILE,
-            levels=levels,
-            chunk_size=256,
-            local_window=512,
-            state_growth_factor=16.0,
-            state_premerge_factor=1,
-            fused_state_update=True,
-            fused_state_maxsim=True,
-            state_min_size=256,
-            protected_prefix=1,
-            open_count=4,
-            prefill_open_count=4,
-            kv_bits=kv_bits,
-            quant_group_size=4 if int4_storage else 32,
-            leaf_quant_scale_mode="l2" if int4_storage else "max",
-            leaf_append_quant_scale_mode="l2" if int4_storage else "max",
+            mode=LODMode.parse(mode),
             pool_size=pool_size,
             request_capacity=request_capacity,
-            prefill_mode="direct",
-            routing_geometry="auto",
-            prefill_local_backend="aiter",
-            fused_prefill_route_coarse=True,
-            fused_prefill_stable_recompute=True,
-            fused_prefill_external_recompute=True,
-            prefill_hierarchical_route=None,
-            prefill_coarse_direct_gqa=None,
-            prefill_overlap_coarse_leaf=None,
-            prefill_overlap_local_lod=None,
-            # The production pool resolves Gemma's D=512 heads back to the
-            # validated 4K schedule; Qwen and K2 use this 16K schedule.
-            prefill_chunk_size=16_384,
-            prefill_local_window=16_640,
-            prefill_state_update_size=16_384,
-            prefill_exact_first_chunk=True,
-            prefill_defer_cache_updates=True,
-            leaf_layout="expert",
-            leaf_block_m=32,
-            leaf_block_n=16,
-            leaf_num_warps=2,
-            leaf_geometry_tuning=True,
-            leaf_reduce_num_warps=1,
-            leaf_paged_directory=True,
-            dense_leaf_storage=True,
-            decode_split_kv=8,
-            decode_geometry_tuning=True,
-            decode_hierarchical_route=None,
-            decode_gqa_cooperative=True,
-            decode_gqa_cooperative_hip=True,
-            decode_gqa_union=True,
-            decode_gqa_union_hip=True,
-            decode_gqa_fixed_mask_aiter=True,
-            decode_gqa_fixed_mask_block_n=64,
-            decode_gqa_fixed_mask_segments=128,
-            decode_gqa_fixed_mask_adaptive_segments=True,
-            decode_gqa_fixed_mask_direct_routes=True,
-            decode_gqa_fixed_mask_reuse_coarse=False,
-            decode_gqa_fixed_mask_scan_num_warps=2,
-            decode_gqa_fixed_mask_scan_waves_per_eu=2,
-            decode_gqa_fixed_mask_scan_num_stages=2,
-            decode_max_open_leaves=1024,
         )
+
+    def for_family(self, family: ModelFamily) -> VLLMLODSettings:
+        if family not in (ModelFamily.QWEN38, ModelFamily.K2):
+            raise ValueError(f"unsupported LoD model family: {family}")
+        return replace(self, family=family)
 
     @classmethod
     def from_environment(cls) -> VLLMLODSettings:
-        profile = _choice(
-            "VLLM_LOD_PROFILE",
-            PRODUCTION_PROFILE,
-            (PRODUCTION_PROFILE, EXPERIMENTAL_PROFILE),
-        )
-        if profile == EXPERIMENTAL_PROFILE:
-            return replace(
-                cls._from_experimental_environment(),
-                profile=EXPERIMENTAL_PROFILE,
-            )
-
-        _reject_production_tuning_environment()
-        capacity = _integer("VLLM_LOD_MAX_CONTEXT", 0)
-        pool_size = _integer("VLLM_LOD_POOL_SIZE", 8)
-        if pool_size <= 0:
-            raise ValueError("VLLM_LOD_POOL_SIZE must be positive")
+        _reject_removed_options()
+        raw_capacity = os.getenv("VLLM_LOD_MAX_CONTEXT", "0")
+        try:
+            capacity = int(raw_capacity)
+        except ValueError as exc:
+            raise ValueError(
+                "VLLM_LOD_MAX_CONTEXT must be an integer, "
+                f"got {raw_capacity!r}"
+            ) from exc
+        if capacity < 0:
+            raise ValueError("VLLM_LOD_MAX_CONTEXT cannot be negative")
         return cls.production(
-            levels=_integer("VLLM_LOD_LEVELS", 2),
-            kv_bits=_integer("VLLM_LOD_KV_BITS", 0),
-            pool_size=pool_size,
+            mode=os.getenv("VLLM_LOD_MODE", LODMode.TWO_TIER.value),
+            pool_size=_positive_integer("VLLM_LOD_POOL_SIZE", 8),
             request_capacity=capacity or None,
         )
 
-    @classmethod
-    def _from_experimental_environment(cls) -> VLLMLODSettings:
-        capacity = _integer("VLLM_LOD_MAX_CONTEXT", 0)
-        kv_bits = _integer("VLLM_LOD_KV_BITS", 0)
-        # INT4 uses page-wide, four-channel groups and refines each scale by
-        # least squares.  This preserves the broadcast scale load while
-        # limiting how many channels share the range of one outlier. BF16 and
-        # INT8 retain their established layouts unless explicitly overridden.
-        int4_storage = kv_bits == 4
-        settings = cls(
-            aug19_compat=_boolean("VLLM_LOD_AUG19_COMPAT", False),
-            levels=_integer("VLLM_LOD_LEVELS", 2),
-            chunk_size=_integer("VLLM_LOD_CHUNK_SIZE", 256),
-            local_window=_integer("VLLM_LOD_LOCAL_WINDOW", 512),
-            state_growth_factor=_floating("VLLM_LOD_STATE_FACTOR", 16.0),
-            state_premerge_factor=_integer("VLLM_LOD_STATE_PREMERGE_FACTOR", 1),
-            fused_state_update=_boolean("VLLM_LOD_FUSED_STATE_UPDATE", False),
-            fused_state_maxsim=_boolean("VLLM_LOD_FUSED_STATE_MAXSIM", False),
-            state_min_size=_integer("VLLM_LOD_STATE_MIN", 256),
-            state_split_max_leaves=(
-                _integer("VLLM_LOD_STATE_SPLIT_MAX_LEAVES", 0) or None
-            ),
-            protected_prefix=_integer("VLLM_LOD_PROTECTED_PREFIX", 1),
-            open_count=_integer("VLLM_LOD_OPEN_COUNT", 8),
-            prefill_open_count=(
-                _integer("VLLM_LOD_PREFILL_OPEN_COUNT", 0)
-                if os.getenv("VLLM_LOD_PREFILL_OPEN_COUNT") is not None
-                else None
-            ),
-            kv_bits=kv_bits,
-            key_bits=(
-                _integer("VLLM_LOD_KEY_BITS", 0)
-                if os.getenv("VLLM_LOD_KEY_BITS") is not None
-                else None
-            ),
-            value_bits=(
-                _integer("VLLM_LOD_VALUE_BITS", 0)
-                if os.getenv("VLLM_LOD_VALUE_BITS") is not None
-                else None
-            ),
-            quant_group_size=_integer(
-                "VLLM_LOD_QUANT_GROUP_SIZE", 4 if int4_storage else 32
-            ),
-            quant_token_group_size=_integer(
-                "VLLM_LOD_QUANT_TOKEN_GROUP_SIZE", 16
-            ),
-            leaf_quant_scale_mode=_choice(
-                "VLLM_LOD_LEAF_QUANT_SCALE_MODE",
-                "l2" if int4_storage else "max",
-                ("max", "l2"),
-            ),
-            leaf_append_quant_scale_mode=_choice(
-                "VLLM_LOD_LEAF_APPEND_QUANT_SCALE_MODE",
-                "l2" if int4_storage else "max",
-                ("max", "l2"),
-            ),
-            page_summary_scale_mode=_choice(
-                "VLLM_LOD_PAGE_SUMMARY_SCALE_MODE", "l2", ("max", "l2")
-            ),
-            pool_size=_integer("VLLM_LOD_POOL_SIZE", 8),
-            request_capacity=capacity or None,
-            prefill_mode=_choice(
-                "VLLM_LOD_PREFILL_MODE", "rebuild", ("rebuild", "direct")
-            ),
-            routing_geometry=_choice(
-                "VLLM_LOD_ROUTING_GEOMETRY",
-                "raw",
-                ("auto", "raw", "spherical", "coherence"),
-            ),
-            routing_positive_dot_stats=_boolean(
-                "VLLM_LOD_ROUTING_POSITIVE_DOT_STATS", False
-            ),
-            routing_cutoff_stats_min_state=_integer(
-                "VLLM_LOD_ROUTING_CUTOFF_STATS_MIN_STATE", 0
-            ),
-            routing_cutoff_stats_route_count=_integer(
-                "VLLM_LOD_ROUTING_CUTOFF_STATS_ROUTE_COUNT", 0
-            ),
-            routing_cutoff_stats_normalization=_choice(
-                "VLLM_LOD_ROUTING_CUTOFF_STATS_NORMALIZATION",
-                "raw",
-                ("raw", "lse", "pilot64_lse", "pilot64_z"),
-            ),
-            dense_leaf_storage=_boolean("VLLM_LOD_DENSE_LEAF_STORAGE", True),
-            prefix_rollback_tokens=_integer(
-                "VLLM_LOD_PREFIX_ROLLBACK_TOKENS", 1024
-            ),
-            prefill_local_backend=_choice(
-                "VLLM_LOD_PREFILL_LOCAL_BACKEND",
-                "aiter",
-                ("torch", "aiter"),
-            ),
-            fused_prefill_route_coarse=bool(
-                _integer("VLLM_LOD_FUSED_PREFILL_ROUTE_COARSE", 1)
-            ),
-            fused_prefill_stable_recompute=bool(
-                _integer("VLLM_LOD_FUSED_PREFILL_STABLE_RECOMPUTE", 1)
-            ),
-            fused_prefill_external_recompute=bool(
-                _integer("VLLM_LOD_FUSED_PREFILL_EXTERNAL_RECOMPUTE", 1)
-            ),
-            prefill_hierarchical_route=(
-                _boolean("VLLM_LOD_PREFILL_HIERARCHICAL_ROUTE", False)
-                if os.getenv("VLLM_LOD_PREFILL_HIERARCHICAL_ROUTE") is not None
-                else None
-            ),
-            prefill_coarse_max_grouped_rows=_integer(
-                "VLLM_LOD_PREFILL_COARSE_GROUPED_ROWS", 64
-            ),
-            prefill_coarse_direct_gqa=(
-                _boolean("VLLM_LOD_PREFILL_COARSE_DIRECT_GQA", False)
-                if os.getenv("VLLM_LOD_PREFILL_COARSE_DIRECT_GQA") is not None
-                else None
-            ),
-            prefill_coarse_block_n=_integer(
-                "VLLM_LOD_PREFILL_COARSE_BLOCK_N", 32
-            ),
-            prefill_coarse_num_warps=_integer(
-                "VLLM_LOD_PREFILL_COARSE_NUM_WARPS", 8
-            ),
-            prefill_aiter_coarse=_boolean(
-                "VLLM_LOD_PREFILL_AITER_COARSE", False
-            ),
-            prefill_fused_state_qk=_boolean(
-                "VLLM_LOD_PREFILL_FUSED_STATE_QK", False
-            ),
-            prefill_overlap_coarse_leaf=(
-                _boolean("VLLM_LOD_PREFILL_OVERLAP_COARSE_LEAF", False)
-                if os.getenv("VLLM_LOD_PREFILL_OVERLAP_COARSE_LEAF") is not None
-                else None
-            ),
-            prefill_overlap_local_lod=(
-                _boolean("VLLM_LOD_PREFILL_OVERLAP_LOCAL_LOD", False)
-                if os.getenv("VLLM_LOD_PREFILL_OVERLAP_LOCAL_LOD") is not None
-                else None
-            ),
-            prefill_int8_route_mma=_boolean(
-                "VLLM_LOD_PREFILL_INT8_ROUTE_MMA", False
-            ),
-            prefill_int8_coarse_mma=_boolean(
-                "VLLM_LOD_PREFILL_INT8_COARSE_MMA", True
-            ),
-            prefill_int8_coarse_block_n=_integer(
-                "VLLM_LOD_PREFILL_INT8_COARSE_BLOCK_N", 64
-            ),
-            prefill_int8_coarse_num_warps=_integer(
-                "VLLM_LOD_PREFILL_INT8_COARSE_NUM_WARPS", 2
-            ),
-            prefill_int8_append_num_warps=_integer(
-                "VLLM_LOD_PREFILL_INT8_APPEND_NUM_WARPS", 4
-            ),
-            prefill_int8_pv_mma=(
-                _boolean("VLLM_LOD_PREFILL_INT8_PV_MMA", False)
-                if os.getenv("VLLM_LOD_PREFILL_INT8_PV_MMA") is not None
-                else None
-            ),
-            prefill_chunk_size=_integer("VLLM_LOD_PREFILL_CHUNK_SIZE", 4096),
-            prefill_local_window=_integer("VLLM_LOD_PREFILL_LOCAL_WINDOW", 4864),
-            prefill_state_update_size=_integer(
-                "VLLM_LOD_PREFILL_STATE_UPDATE_SIZE", 4096
-            ),
-            prefill_exact_first_chunk=_boolean(
-                "VLLM_LOD_PREFILL_EXACT_FIRST_CHUNK", False
-            ),
-            prefill_overlap_exact_state=_boolean(
-                "VLLM_LOD_PREFILL_OVERLAP_EXACT_STATE", False
-            ),
-            prefill_defer_cache_updates=_boolean(
-                "VLLM_LOD_PREFILL_DEFER_CACHE_UPDATES", False
-            ),
-            recursive_prefill_all_leaves=(
-                _boolean("VLLM_LOD_RECURSIVE_PREFILL_ALL_LEAVES", False)
-                if os.getenv(
-                    "VLLM_LOD_RECURSIVE_PREFILL_ALL_LEAVES"
-                ) is not None
-                else None
-            ),
-            prefill_static_leaf_aiter=_boolean(
-                "VLLM_LOD_PREFILL_STATIC_LEAF_AITER", False
-            ),
-            prefill_static_leaf_cap_min=_integer(
-                "VLLM_LOD_PREFILL_STATIC_LEAF_CAP_MIN", 16
-            ),
-            prefill_route_cohort=_boolean(
-                "VLLM_LOD_PREFILL_ROUTE_COHORT", False
-            ),
-            static_leaf_cap_divisor=_integer(
-                "VLLM_LOD_STATIC_LEAF_CAP_DIVISOR", 16
-            ),
-            static_cohort_never_readmit=_boolean(
-                "VLLM_LOD_STATIC_COHORT_NEVER_READMIT", False
-            ),
-            leaf_layout=_choice(
-                "VLLM_LOD_LEAF_LAYOUT",
-                "expert",
-                (
-                    "query",
-                    "query_tile",
-                    "gqa_tile",
-                    "expert",
-                    "expert_tiny",
-                    "aiter_varlen",
-                    "aiter_union",
-                    "aiter_masked_union",
-                    "aiter_hilo",
-                ),
-            ),
-            leaf_union_query_tile=_integer(
-                "VLLM_LOD_LEAF_UNION_QUERY_TILE", 16
-            ),
-            leaf_block_m=_integer("VLLM_LOD_LEAF_BLOCK_M", 16),
-            leaf_block_n=_integer("VLLM_LOD_LEAF_BLOCK_N", 32),
-            leaf_num_warps=_integer("VLLM_LOD_LEAF_NUM_WARPS", 2),
-            leaf_geometry_tuning=_boolean(
-                "VLLM_LOD_LEAF_GEOMETRY_TUNING", True
-            ),
-            leaf_reduce_num_warps=_integer(
-                "VLLM_LOD_LEAF_REDUCE_NUM_WARPS", 1
-            ),
-            prefill_direct_expert_buckets=(
-                _boolean("VLLM_LOD_PREFILL_DIRECT_EXPERT_BUCKETS", False)
-                if os.getenv("VLLM_LOD_PREFILL_DIRECT_EXPERT_BUCKETS") is not None
-                else None
-            ),
-            prefill_int8_leaf_num_warps=_integer(
-                "VLLM_LOD_PREFILL_INT8_LEAF_NUM_WARPS", 2
-            ),
-            leaf_paged_directory=_boolean(
-                "VLLM_LOD_LEAF_PAGED_DIRECTORY", True
-            ),
-            leaf_seal_capacity=(
-                _integer("VLLM_LOD_LEAF_SEAL_CAPACITY", 0) or None
-            ),
-            prefill_leaf_visit_cap=(
-                _integer("VLLM_LOD_PREFILL_LEAF_VISIT_CAP", 0) or None
-            ),
-            decode_split_kv=_integer("VLLM_LOD_DECODE_SPLIT_KV", 8),
-            decode_geometry_tuning=_boolean(
-                "VLLM_LOD_DECODE_GEOMETRY_TUNING", True
-            ),
-            decode_centroid_major_hip=_boolean(
-                "VLLM_LOD_DECODE_CENTROID_MAJOR_HIP", False
-            ),
-            decode_hierarchical_route=(
-                _boolean("VLLM_LOD_DECODE_HIERARCHICAL_ROUTE", False)
-                if os.getenv("VLLM_LOD_DECODE_HIERARCHICAL_ROUTE") is not None
-                else None
-            ),
-            decode_gqa_cooperative=_boolean(
-                "VLLM_LOD_DECODE_GQA_COOPERATIVE", True
-            ),
-            decode_gqa_cooperative_hip=_boolean(
-                "VLLM_LOD_DECODE_GQA_COOPERATIVE_HIP", True
-            ),
-            decode_gqa_union=_boolean("VLLM_LOD_DECODE_GQA_UNION", False),
-            decode_gqa_mass_fraction=(
-                _floating("VLLM_LOD_DECODE_GQA_MASS_FRACTION", 0.0) or None
-            ),
-            decode_gqa_predicted_mass=_boolean(
-                "VLLM_LOD_DECODE_GQA_PREDICTED_MASS", False
-            ),
-            decode_gqa_pilot_z=_boolean(
-                "VLLM_LOD_DECODE_GQA_PILOT_Z", False
-            ),
-            decode_gqa_pilot_z_route_count=_integer(
-                "VLLM_LOD_DECODE_GQA_PILOT_Z_ROUTE_COUNT", 8
-            ),
-            decode_gqa_pilot_z_margin=_floating(
-                "VLLM_LOD_DECODE_GQA_PILOT_Z_MARGIN", 0.25
-            ),
-            decode_gqa_union_hip=_boolean(
-                "VLLM_LOD_DECODE_GQA_UNION_HIP", False
-            ),
-            decode_gqa_staged_fixed_aiter=_boolean(
-                "VLLM_LOD_DECODE_GQA_STAGED_FIXED_AITER", False
-            ),
-            decode_gqa_fixed_mask_aiter=_boolean(
-                "VLLM_LOD_DECODE_GQA_FIXED_MASK_AITER", False
-            ),
-            decode_gqa_overlap_local_sink=_boolean(
-                "VLLM_LOD_DECODE_GQA_OVERLAP_LOCAL_SINK", False
-            ),
-            decode_gqa_fixed_mask_block_n=_integer(
-                "VLLM_LOD_DECODE_GQA_FIXED_MASK_BLOCK_N", 64
-            ),
-            decode_gqa_fixed_mask_segments=_integer(
-                "VLLM_LOD_DECODE_GQA_FIXED_MASK_SEGMENTS", 128
-            ),
-            decode_gqa_fixed_mask_adaptive_segments=_boolean(
-                "VLLM_LOD_DECODE_GQA_FIXED_MASK_ADAPTIVE_SEGMENTS", False
-            ),
-            decode_gqa_fixed_mask_reduce_block_d=_integer(
-                "VLLM_LOD_DECODE_GQA_FIXED_MASK_REDUCE_BLOCK_D", 0
-            ),
-            decode_gqa_fixed_mask_direct_routes=_boolean(
-                "VLLM_LOD_DECODE_GQA_FIXED_MASK_DIRECT_ROUTES", True
-            ),
-            decode_gqa_fixed_mask_reuse_coarse=_boolean(
-                "VLLM_LOD_DECODE_GQA_FIXED_MASK_REUSE_COARSE", False
-            ),
-            decode_gqa_fixed_mask_scan_num_warps=_integer(
-                "VLLM_LOD_DECODE_GQA_FIXED_MASK_SCAN_NUM_WARPS", 2
-            ),
-            decode_gqa_fixed_mask_scan_waves_per_eu=_integer(
-                "VLLM_LOD_DECODE_GQA_FIXED_MASK_SCAN_WAVES_PER_EU", 2
-            ),
-            decode_gqa_fixed_mask_scan_num_stages=_integer(
-                "VLLM_LOD_DECODE_GQA_FIXED_MASK_SCAN_NUM_STAGES", 2
-            ),
-            decode_gqa_static_leaf_cap=(
-                _integer("VLLM_LOD_DECODE_GQA_STATIC_LEAF_CAP", 0) or None
-            ),
-            decode_gqa_static_leaf_cap_min=_integer(
-                "VLLM_LOD_DECODE_GQA_STATIC_LEAF_CAP_MIN", 16
-            ),
-            decode_gqa_static_leaf_aiter=_boolean(
-                "VLLM_LOD_DECODE_GQA_STATIC_LEAF_AITER", False
-            ),
-            decode_route_cohort=_boolean(
-                "VLLM_LOD_DECODE_ROUTE_COHORT", False
-            ),
-            diagnostic_static_preselected=_boolean(
-                "VLLM_LOD_DIAGNOSTIC_STATIC_PRESELECTED", False
-            ),
-            decode_max_open_leaves=(
-                _integer("VLLM_LOD_DECODE_MAX_OPEN_LEAVES", 1024) or None
-            ),
-            decode_gqa_route_splits=(
-                _integer("VLLM_LOD_DECODE_GQA_ROUTE_SPLITS", 0) or None
-            ),
-            recursive_materialize_page_scores=_boolean(
-                "VLLM_LOD_MATERIALIZE_PAGE_SCORES", False
-            ),
-            recursive_page_score_block_n=_integer(
-                "VLLM_LOD_PAGE_SCORE_BLOCK_N", 16
-            ),
-            recursive_page_score_num_warps=_integer(
-                "VLLM_LOD_PAGE_SCORE_NUM_WARPS", 2
-            ),
-            recursive_page_select_block_n=_integer(
-                "VLLM_LOD_PAGE_SELECT_BLOCK_N", 64
-            ),
-            recursive_state_route_backend=os.getenv(
-                "VLLM_LOD_RECURSIVE_STATE_ROUTE_BACKEND", "auto"
-            ).strip().lower(),
-            recursive_global_page_prefill=_boolean(
-                "VLLM_LOD_RECURSIVE_GLOBAL_PAGE_PREFILL", False
-            ),
-            recursive_global_page_candidates_per_route=_integer(
-                "VLLM_LOD_RECURSIVE_GLOBAL_PAGE_CANDIDATES", 8
-            ),
-            recursive_threshold_page_prefill=_boolean(
-                "VLLM_LOD_RECURSIVE_THRESHOLD_PAGE_PREFILL", False
-            ),
-            recursive_threshold_page_collect_stats=_boolean(
-                "VLLM_LOD_RECURSIVE_THRESHOLD_PAGE_COLLECT_STATS", False
-            ),
-            recursive_threshold_page_rank=_integer(
-                "VLLM_LOD_RECURSIVE_THRESHOLD_PAGE_RANK", 2
-            ),
-        )
-        if settings.aug19_compat:
-            # The August 19 LongBench run predates the cooperative GQA/HIP
-            # decode path and the one-warp route reduction.  Its exact dirty
-            # source tree was not archived, so this is a best-effort execution
-            # compatibility preset rather than a byte-for-byte restoration.
-            settings = replace(
-                settings,
-                leaf_reduce_num_warps=4,
-                decode_split_kv=8,
-                decode_gqa_cooperative=False,
-                decode_gqa_cooperative_hip=False,
-                decode_gqa_union=False,
-                decode_gqa_mass_fraction=None,
-                decode_gqa_predicted_mass=False,
-                decode_gqa_pilot_z=False,
-                decode_gqa_union_hip=False,
-                decode_gqa_staged_fixed_aiter=False,
-                decode_gqa_fixed_mask_aiter=False,
-                decode_gqa_overlap_local_sink=False,
-                decode_gqa_static_leaf_cap=None,
-                decode_gqa_static_leaf_aiter=False,
-                diagnostic_static_preselected=False,
-                decode_gqa_route_splits=None,
-            )
-        if settings.levels not in (2, 3):
-            raise ValueError("VLLM_LOD_LEVELS must be two or three")
-        if settings.recursive_prefill_all_leaves and (
-            settings.levels != 3 or settings.kv_bits not in (0, 4)
-        ):
-            raise ValueError(
-                "VLLM_LOD_RECURSIVE_PREFILL_ALL_LEAVES requires "
-                "three-level BF16 or residual INT4 LOD"
-            )
-        if settings.state_split_max_leaves is not None and settings.levels != 2:
-            raise ValueError(
-                "VLLM_LOD_STATE_SPLIT_MAX_LEAVES requires two-level LOD"
-            )
-        if settings.decode_gqa_mass_fraction is not None and not (
-            0.0 < settings.decode_gqa_mass_fraction < 1.0
-        ):
-            raise ValueError(
-                "VLLM_LOD_DECODE_GQA_MASS_FRACTION must lie in (0, 1)"
-            )
-        if (
-            settings.decode_gqa_mass_fraction is not None
-            and not settings.decode_gqa_union
-        ):
-            raise ValueError(
-                "VLLM_LOD_DECODE_GQA_MASS_FRACTION requires "
-                "VLLM_LOD_DECODE_GQA_UNION=1"
-            )
-        if settings.decode_gqa_union_hip and not settings.decode_gqa_union:
-            raise ValueError(
-                "VLLM_LOD_DECODE_GQA_UNION_HIP requires "
-                "VLLM_LOD_DECODE_GQA_UNION=1"
-            )
-        if settings.decode_gqa_staged_fixed_aiter and (
-            not settings.decode_gqa_union
-            or not settings.decode_gqa_union_hip
-            or settings.levels != 2
-        ):
-            raise ValueError(
-                "VLLM_LOD_DECODE_GQA_STAGED_FIXED_AITER requires two-level "
-                "GQA-union page-size-one HIP decode"
-            )
-        if settings.decode_gqa_fixed_mask_aiter and (
-            not settings.decode_gqa_union
-            or not settings.decode_gqa_union_hip
-            or settings.levels != 2
-        ):
-            raise ValueError(
-                "VLLM_LOD_DECODE_GQA_FIXED_MASK_AITER requires two-level "
-                "GQA-union page-size-one HIP decode"
-            )
-        if (
-            settings.decode_gqa_fixed_mask_aiter
-            and settings.decode_gqa_staged_fixed_aiter
-        ):
-            raise ValueError(
-                "fixed-mask and staged-fixed AITER decode are mutually exclusive"
-            )
-        if settings.decode_gqa_overlap_local_sink and (
-            not settings.decode_gqa_fixed_mask_aiter
-            or settings.decode_gqa_predicted_mass
-            or settings.decode_gqa_pilot_z
-            or settings.decode_gqa_static_leaf_aiter
-        ):
-            raise ValueError(
-                "VLLM_LOD_DECODE_GQA_OVERLAP_LOCAL_SINK currently requires "
-                "top-k fixed-mask AITER decode"
-            )
-        if settings.decode_gqa_fixed_mask_block_n not in (16, 64, 128):
-            raise ValueError(
-                "VLLM_LOD_DECODE_GQA_FIXED_MASK_BLOCK_N must be 16, 64, or 128"
-            )
-        if settings.decode_gqa_fixed_mask_segments not in (
-            8,
-            16,
-            32,
-            64,
-            128,
-            256,
-            512,
-        ):
-            raise ValueError(
-                "VLLM_LOD_DECODE_GQA_FIXED_MASK_SEGMENTS must be a supported "
-                "power of two from 8 through 512"
-            )
-        if (
-            settings.decode_gqa_fixed_mask_adaptive_segments
-            and not settings.decode_gqa_fixed_mask_aiter
-        ):
-            raise ValueError(
-                "VLLM_LOD_DECODE_GQA_FIXED_MASK_ADAPTIVE_SEGMENTS requires "
-                "VLLM_LOD_DECODE_GQA_FIXED_MASK_AITER=1"
-            )
-        if settings.decode_gqa_fixed_mask_reduce_block_d not in (
-            0,
-            16,
-            32,
-            64,
-            128,
-        ):
-            raise ValueError(
-                "VLLM_LOD_DECODE_GQA_FIXED_MASK_REDUCE_BLOCK_D must be 0, "
-                "16, 32, 64, or 128"
-            )
-        if (
-            settings.decode_gqa_fixed_mask_reduce_block_d
-            and not settings.decode_gqa_fixed_mask_aiter
-        ):
-            raise ValueError(
-                "VLLM_LOD_DECODE_GQA_FIXED_MASK_REDUCE_BLOCK_D requires "
-                "VLLM_LOD_DECODE_GQA_FIXED_MASK_AITER=1"
-            )
-        if settings.decode_gqa_fixed_mask_reuse_coarse and (
-            not settings.decode_gqa_fixed_mask_aiter
-            or not settings.decode_gqa_fixed_mask_direct_routes
-            or settings.decode_gqa_predicted_mass
-            or settings.decode_gqa_pilot_z
-            or settings.decode_gqa_mass_fraction is not None
-        ):
-            raise ValueError(
-                "VLLM_LOD_DECODE_GQA_FIXED_MASK_REUSE_COARSE requires "
-                "top-k direct-route fixed-mask AITER decode"
-            )
-        if settings.decode_gqa_fixed_mask_scan_num_warps not in (1, 2, 4, 8):
-            raise ValueError(
-                "VLLM_LOD_DECODE_GQA_FIXED_MASK_SCAN_NUM_WARPS must be 1, 2, "
-                "4, or 8"
-            )
-        if settings.decode_gqa_fixed_mask_scan_waves_per_eu not in (1, 2, 4):
-            raise ValueError(
-                "VLLM_LOD_DECODE_GQA_FIXED_MASK_SCAN_WAVES_PER_EU must be 1, "
-                "2, or 4"
-            )
-        if settings.decode_gqa_fixed_mask_scan_num_stages not in (1, 2, 3, 4):
-            raise ValueError(
-                "VLLM_LOD_DECODE_GQA_FIXED_MASK_SCAN_NUM_STAGES must be 1, 2, "
-                "3, or 4"
-            )
-        if settings.decode_gqa_static_leaf_cap is not None and (
-            settings.decode_gqa_static_leaf_cap < 1
-            or not (
-                settings.decode_gqa_fixed_mask_aiter
-                or settings.decode_gqa_static_leaf_aiter
-                or settings.decode_route_cohort
-            )
-        ):
-            raise ValueError(
-                "VLLM_LOD_DECODE_GQA_STATIC_LEAF_CAP must be positive and "
-                "requires fixed-mask, compact-static AITER, or cohort routing"
-            )
-        if settings.decode_gqa_static_leaf_cap_min < 1:
-            raise ValueError(
-                "VLLM_LOD_DECODE_GQA_STATIC_LEAF_CAP_MIN must be positive"
-            )
-        if settings.static_leaf_cap_divisor < 1:
-            raise ValueError(
-                "VLLM_LOD_STATIC_LEAF_CAP_DIVISOR must be positive"
-            )
-        if settings.decode_route_cohort and settings.levels != 2:
-            raise ValueError(
-                "VLLM_LOD_DECODE_ROUTE_COHORT requires two-level LOD"
-            )
-        if settings.decode_gqa_static_leaf_aiter and (
-            not settings.decode_gqa_union
-            or not settings.decode_gqa_union_hip
-            or settings.levels != 2
-            or settings.decode_gqa_fixed_mask_aiter
-        ):
-            raise ValueError(
-                "VLLM_LOD_DECODE_GQA_STATIC_LEAF_AITER requires two-level "
-                "GQA-union page-size-one HIP decode and no fixed mask"
-            )
-        if (
-            settings.diagnostic_static_preselected
-            and not settings.decode_gqa_static_leaf_aiter
-        ):
-            raise ValueError(
-                "VLLM_LOD_DIAGNOSTIC_STATIC_PRESELECTED requires compact-static "
-                "AITER decode"
-            )
-        if settings.decode_gqa_predicted_mass and (
-            settings.decode_gqa_mass_fraction is None
-            or not settings.decode_gqa_union
-            or not settings.decode_gqa_union_hip
-        ):
-            raise ValueError(
-                "VLLM_LOD_DECODE_GQA_PREDICTED_MASS requires mass-fraction, "
-                "GQA-union, and page-size-one HIP decode"
-            )
-        if settings.decode_gqa_pilot_z and (
-            not settings.decode_gqa_union
-            or not settings.decode_gqa_union_hip
-            or settings.levels != 2
-            or settings.decode_gqa_predicted_mass
-            or settings.decode_gqa_mass_fraction is not None
-        ):
-            raise ValueError(
-                "VLLM_LOD_DECODE_GQA_PILOT_Z requires two-level GQA-union "
-                "HIP decode and is mutually exclusive with "
-                "mass-fraction routing"
-            )
-        if not math.isfinite(settings.decode_gqa_pilot_z_margin) or (
-            settings.decode_gqa_pilot_z_margin < 0.0
-        ):
-            raise ValueError("pilot-z routing margin must be finite and nonnegative")
-        if not 1 <= settings.decode_gqa_pilot_z_route_count <= 128:
-            raise ValueError(
-                "VLLM_LOD_DECODE_GQA_PILOT_Z_ROUTE_COUNT must be between "
-                "one and 128"
-            )
-        if settings.kv_bits not in (0, 4, 8):
-            raise ValueError("VLLM_LOD_KV_BITS must be zero, four, or eight")
-        if settings.resolved_key_bits not in (0, 2, 3, 4, 8):
-            raise ValueError(
-                "VLLM_LOD_KEY_BITS must be zero, two, three, four, or eight"
-            )
-        if settings.resolved_value_bits not in (0, 2, 3, 4, 8):
-            raise ValueError(
-                "VLLM_LOD_VALUE_BITS must be zero, two, three, four, or eight"
-            )
-        if settings.kv_bits in (4, 8) and (
-            settings.resolved_key_bits != settings.kv_bits
-            or settings.resolved_value_bits != settings.kv_bits
-        ):
-            raise ValueError(
-                "quantized storage requires matching K and V precision; use "
-                "VLLM_LOD_KV_BITS=0 for mixed-precision QDQ analysis"
-            )
-        if settings.quant_token_group_size not in (1, 2, 4, 8, 16):
-            raise ValueError(
-                "VLLM_LOD_QUANT_TOKEN_GROUP_SIZE must be one, two, four, "
-                "eight, or sixteen"
-            )
-        if not 1 <= settings.open_count <= 8:
-            raise ValueError("VLLM_LOD_OPEN_COUNT must be between one and eight")
-        if settings.prefill_open_count is not None and not (
-            0 <= settings.prefill_open_count <= 128
-        ):
-            raise ValueError(
-                "VLLM_LOD_PREFILL_OPEN_COUNT must be between zero and 128"
-            )
-        if settings.state_premerge_factor not in {1, 2, 4, 8, 16, 32}:
-            raise ValueError(
-                "VLLM_LOD_STATE_PREMERGE_FACTOR must be one, two, four, eight, "
-                "sixteen, or thirty-two"
-            )
-        if settings.routing_cutoff_stats_min_state < 0:
-            raise ValueError(
-                "VLLM_LOD_ROUTING_CUTOFF_STATS_MIN_STATE must be nonnegative"
-            )
-        if settings.routing_cutoff_stats_route_count < 0:
-            raise ValueError(
-                "VLLM_LOD_ROUTING_CUTOFF_STATS_ROUTE_COUNT must be nonnegative"
-            )
-        if settings.pool_size <= 0:
-            raise ValueError("VLLM_LOD_POOL_SIZE must be positive")
-        if settings.prefix_rollback_tokens <= 0:
-            raise ValueError("VLLM_LOD_PREFIX_ROLLBACK_TOKENS must be positive")
-        if settings.prefill_coarse_max_grouped_rows <= 0:
-            raise ValueError(
-                "VLLM_LOD_PREFILL_COARSE_GROUPED_ROWS must be positive"
-            )
-        if settings.prefill_coarse_direct_gqa and (
-            settings.prefill_coarse_max_grouped_rows
-            & (settings.prefill_coarse_max_grouped_rows - 1)
-        ):
-            raise ValueError(
-                "direct-GQA prefill requires a power-of-two "
-                "VLLM_LOD_PREFILL_COARSE_GROUPED_ROWS"
-            )
-        if settings.prefill_coarse_block_n not in (16, 32, 64, 128):
-            raise ValueError(
-                "VLLM_LOD_PREFILL_COARSE_BLOCK_N must be 16, 32, 64, or 128"
-            )
-        if settings.prefill_coarse_num_warps not in (1, 2, 4, 8):
-            raise ValueError(
-                "VLLM_LOD_PREFILL_COARSE_NUM_WARPS must be 1, 2, 4, or 8"
-            )
-        if (
-            settings.prefill_int8_coarse_block_n <= 0
-            or settings.prefill_int8_coarse_block_n % 32
-        ):
-            raise ValueError(
-                "VLLM_LOD_PREFILL_INT8_COARSE_BLOCK_N must be a positive "
-                "multiple of 32"
-            )
-        if settings.prefill_int8_coarse_num_warps not in (1, 2, 4, 8):
-            raise ValueError(
-                "VLLM_LOD_PREFILL_INT8_COARSE_NUM_WARPS must be 1, 2, 4, or 8"
-            )
-        if settings.prefill_int8_append_num_warps not in (1, 2, 4, 8):
-            raise ValueError(
-                "VLLM_LOD_PREFILL_INT8_APPEND_NUM_WARPS must be 1, 2, 4, or 8"
-            )
-        if settings.prefill_chunk_size <= 0:
-            raise ValueError("VLLM_LOD_PREFILL_CHUNK_SIZE must be positive")
-        if settings.prefill_local_window < settings.prefill_chunk_size:
-            raise ValueError(
-                "VLLM_LOD_PREFILL_LOCAL_WINDOW must contain the prefill chunk"
-            )
-        if settings.prefill_state_update_size <= 0:
-            raise ValueError("VLLM_LOD_PREFILL_STATE_UPDATE_SIZE must be positive")
-        if settings.prefill_static_leaf_cap_min < 1:
-            raise ValueError(
-                "VLLM_LOD_PREFILL_STATIC_LEAF_CAP_MIN must be positive"
-            )
-        if settings.prefill_route_cohort and settings.levels != 2:
-            raise ValueError(
-                "VLLM_LOD_PREFILL_ROUTE_COHORT requires two-level LOD"
-            )
-        if settings.prefill_static_leaf_aiter and (
-            settings.levels != 2
-            or settings.kv_bits != 0
-            or not settings.dense_leaf_storage
-        ):
-            raise ValueError(
-                "VLLM_LOD_PREFILL_STATIC_LEAF_AITER requires two-level BF16 "
-                "dense leaf storage"
-            )
-        if settings.leaf_block_m <= 0 or settings.leaf_block_n <= 0:
-            raise ValueError("VLLM_LOD leaf block sizes must be positive")
-        if settings.leaf_union_query_tile not in (1, 2, 4, 8, 16):
-            raise ValueError(
-                "VLLM_LOD_LEAF_UNION_QUERY_TILE must be 1, 2, 4, 8, or 16"
-            )
-        if settings.leaf_layout.startswith("aiter_") and (
-            settings.levels != 2
-            or settings.kv_bits != 0
-            or not settings.dense_leaf_storage
-        ):
-            raise ValueError(
-                "AITER union leaf layouts require two-level BF16 dense leaf "
-                "storage"
-            )
-        if settings.leaf_num_warps not in (1, 2, 4, 8):
-            raise ValueError("VLLM_LOD_LEAF_NUM_WARPS must be 1, 2, 4, or 8")
-        if settings.leaf_reduce_num_warps not in (1, 2, 4, 8):
-            raise ValueError(
-                "VLLM_LOD_LEAF_REDUCE_NUM_WARPS must be 1, 2, 4, or 8"
-            )
-        if settings.prefill_int8_leaf_num_warps not in (1, 2, 4, 8):
-            raise ValueError(
-                "VLLM_LOD_PREFILL_INT8_LEAF_NUM_WARPS must be 1, 2, 4, or 8"
-            )
-        if settings.leaf_seal_capacity is not None and settings.leaf_seal_capacity <= 0:
-            raise ValueError("VLLM_LOD_LEAF_SEAL_CAPACITY must be positive")
-        if (
-            settings.prefill_leaf_visit_cap is not None
-            and settings.prefill_leaf_visit_cap <= 0
-        ):
-            raise ValueError(
-                "VLLM_LOD_PREFILL_LEAF_VISIT_CAP must be positive"
-            )
-        if settings.decode_split_kv not in (1, 8, 16, 32):
-            raise ValueError("VLLM_LOD_DECODE_SPLIT_KV must be 1, 8, 16, or 32")
-        if settings.decode_gqa_route_splits not in (None, 4, 8, 16, 32):
-            raise ValueError(
-                "VLLM_LOD_DECODE_GQA_ROUTE_SPLITS must be 4, 8, 16, or 32"
-            )
-        if (
-            settings.decode_max_open_leaves is not None
-            and settings.decode_max_open_leaves < 1
-        ):
-            raise ValueError(
-                "VLLM_LOD_DECODE_MAX_OPEN_LEAVES must be positive or zero "
-                "to disable the routing limit"
-            )
-        valid_page_blocks = (16, 32, 64, 128)
-        if settings.recursive_page_score_block_n not in valid_page_blocks:
-            raise ValueError(
-                "VLLM_LOD_PAGE_SCORE_BLOCK_N must be 16, 32, 64, or 128"
-            )
-        if settings.recursive_page_select_block_n not in valid_page_blocks:
-            raise ValueError(
-                "VLLM_LOD_PAGE_SELECT_BLOCK_N must be 16, 32, 64, or 128"
-            )
-        if settings.recursive_page_score_num_warps not in (1, 2, 4, 8):
-            raise ValueError(
-                "VLLM_LOD_PAGE_SCORE_NUM_WARPS must be 1, 2, 4, or 8"
-            )
-        if settings.recursive_materialize_page_scores and settings.levels != 3:
-            raise ValueError(
-                "VLLM_LOD_MATERIALIZE_PAGE_SCORES requires VLLM_LOD_LEVELS=3"
-            )
-        if settings.recursive_state_route_backend not in (
-            "auto",
-            "fused",
-            "resplit",
-        ):
-            raise ValueError(
-                "VLLM_LOD_RECURSIVE_STATE_ROUTE_BACKEND must be auto, fused, "
-                "or resplit"
-            )
-        if settings.recursive_state_route_backend == "resplit" and settings.levels != 3:
-            raise ValueError(
-                "VLLM_LOD_RECURSIVE_STATE_ROUTE_BACKEND=resplit requires "
-                "VLLM_LOD_LEVELS=3"
-            )
-        if settings.recursive_global_page_prefill and (
-            settings.levels != 3
-            or (
-                settings.recursive_global_page_candidates_per_route != 1
-                and settings.prefill_open_count != 8
-            )
-        ):
-            raise ValueError(
-                "VLLM_LOD_RECURSIVE_GLOBAL_PAGE_PREFILL requires "
-                "VLLM_LOD_LEVELS=3; global top-page selection also requires "
-                "VLLM_LOD_PREFILL_OPEN_COUNT=8"
-            )
-        if settings.recursive_global_page_candidates_per_route not in (1, 2, 4, 8):
-            raise ValueError(
-                "VLLM_LOD_RECURSIVE_GLOBAL_PAGE_CANDIDATES must be 1, 2, 4, or 8"
-            )
-        if settings.recursive_threshold_page_prefill and (
-            settings.levels != 3 or settings.prefill_open_count != 8
-        ):
-            raise ValueError(
-                "VLLM_LOD_RECURSIVE_THRESHOLD_PAGE_PREFILL requires "
-                "VLLM_LOD_LEVELS=3 and VLLM_LOD_PREFILL_OPEN_COUNT=8"
-            )
-        if settings.recursive_threshold_page_rank not in (2, 4):
-            raise ValueError(
-                "VLLM_LOD_RECURSIVE_THRESHOLD_PAGE_RANK must be 2 or 4"
-            )
-        if (
-            settings.recursive_global_page_prefill
-            and settings.recursive_threshold_page_prefill
-        ):
-            raise ValueError(
-                "global-page and threshold-page prefill modes are mutually exclusive"
-            )
-        if settings.levels == 2 and settings.kv_bits not in (0, 8):
-            raise ValueError(
-                "the two-tier vLLM cache supports BF16 or INT8 K/V storage"
-            )
-        if settings.prefill_mode != "direct":
-            settings = replace(settings, prefill_mode="direct")
-        return settings
+
+__all__ = ["VLLMLODSettings", "validate_production_scheduler"]
