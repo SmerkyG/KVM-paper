@@ -93,6 +93,8 @@ def _production_prefill_hierarchical_route(
 def _production_geometry_overrides(
     head_dim: int,
     gqa: int,
+    *,
+    levels: int = 2,
 ) -> dict[str, object]:
     """Resolve the measured production policy from attention geometry.
 
@@ -104,7 +106,16 @@ def _production_geometry_overrides(
     gemma_wide = head_dim == 512
     k2 = (head_dim, gqa) == (128, 8)
     qwen_small = (head_dim, gqa) == (256, 4)
-    compact_union = k2 or qwen_small
+    qwen38 = (head_dim, gqa) == (256, 6)
+    force_compact_union = (
+        os.getenv("LOD_DEV_FORCE_COMPACT_UNION", "0") == "1"
+    )
+    panel_fixed_reuse_coarse = (
+        os.getenv("VLLM_LOD_PANEL_DECODE_FIXED_REUSE_COARSE", "0") == "1"
+    )
+    compact_union = (
+        k2 or qwen_small or (force_compact_union and qwen38)
+    ) and not panel_fixed_reuse_coarse
     if gemma_wide:
         prefill_chunk = 4_096
         prefill_local = 4_864
@@ -155,10 +166,14 @@ def _production_geometry_overrides(
         # full-context fixed mask and the cooperative kernel's small workgroups.
         "decode_gqa_cooperative": not compact_union,
         "decode_gqa_cooperative_hip": not compact_union,
-        "decode_gqa_fixed_mask_aiter": not compact_union,
+        # The persistent page-size-one fixed mask is a flat two-level cache
+        # implementation. Recursive caches select within their 16-token pages
+        # and therefore must remain on the recursive decode consumer.
+        "decode_gqa_fixed_mask_aiter": levels == 2 and not compact_union,
         "decode_gqa_fixed_mask_segments": fixed_segments,
         "decode_gqa_fixed_mask_adaptive_segments": True,
         "decode_gqa_fixed_mask_reduce_block_d": fixed_reduce_d,
+        "decode_gqa_fixed_mask_reuse_coarse": panel_fixed_reuse_coarse,
         "decode_gqa_fixed_mask_scan_num_warps": fixed_scan_warps,
     }
 
@@ -348,6 +363,7 @@ class VLLMLayerLODPool:
                 **_production_geometry_overrides(
                     self.head_dim,
                     gqa,
+                    levels=settings.levels,
                 ),
             )
         self.settings = settings
@@ -472,6 +488,27 @@ class VLLMLayerLODPool:
             # chunks.  The interval remains page-aligned, and the displaced
             # tokens stay exact in the local branch until the update.
             self.engine.decode_state_update_len = 512
+        panel_decode_update_len = os.getenv(
+            "VLLM_LOD_PANEL_DECODE_STATE_UPDATE_LEN"
+        )
+        if panel_decode_update_len is not None:
+            try:
+                panel_decode_update_len_value = int(panel_decode_update_len)
+            except ValueError as exc:
+                raise ValueError(
+                    "VLLM_LOD_PANEL_DECODE_STATE_UPDATE_LEN must be an integer"
+                ) from exc
+            if (
+                panel_decode_update_len_value < int(self.engine.chunk_len)
+                or panel_decode_update_len_value % int(self.engine.chunk_len)
+            ):
+                raise ValueError(
+                    "VLLM_LOD_PANEL_DECODE_STATE_UPDATE_LEN must be a positive "
+                    f"multiple of chunk_len={int(self.engine.chunk_len)}"
+                )
+            # Apply this before fixed cache rows are allocated below: the
+            # exact-local overflow capacity includes one decode update interval.
+            self.engine.decode_state_update_len = panel_decode_update_len_value
         self.engine.routing_positive_dot_stats = (
             settings.routing_positive_dot_stats
         )
@@ -508,7 +545,7 @@ class VLLMLayerLODPool:
         )
         if hierarchical_decode_route and request_capacity >= 32_768:
             # Keep several native state tiles behind each independent program,
-            # emit only its local top eight, then reduce the much shorter
+            # emit only its local production top-four, then reduce the shorter
             # candidate/online-softmax field in parallel.  The schedules below
             # are selected by attention geometry rather than model name and
             # preserve the exact route set on both equal- and variable-count
@@ -539,7 +576,7 @@ class VLLMLayerLODPool:
             and (self.head_dim, gqa) in {(128, 8), (256, 4)}
         ):
             # Both compact-union geometries need one native 64-key producer
-            # tile. This is the same exact top-eight selector as the default
+            # tile. This is the same exact top-four selector as the default
             # N=32 geometry, but halves its intermediate group field.
             self.engine.decode_route_group_size = 64
             self.engine.decode_route_segment_tiles = 1
@@ -547,6 +584,15 @@ class VLLMLayerLODPool:
                 1 if self.head_dim == 128 else 2
             )
             self.engine.decode_route_reduce_num_warps = 2
+        route_group_override = os.getenv("LOD_DEV_DECODE_ROUTE_GROUP_SIZE")
+        if route_group_override is not None:
+            route_group_size = int(route_group_override)
+            if route_group_size not in (8, 16, 32, 64, 128):
+                raise ValueError(
+                    "LOD_DEV_DECODE_ROUTE_GROUP_SIZE must be 8, 16, 32, 64, "
+                    "or 128"
+                )
+            self.engine.decode_route_group_size = route_group_size
         if (
             settings.decode_geometry_tuning
             and settings.levels == 3
@@ -910,6 +956,11 @@ class VLLMLayerLODPool:
         self.local_lens = torch.zeros(
             max_requests, dtype=torch.int32, device=self.device
         )
+        # Keep the allocation capacity fixed for CUDA graphs, but let decode
+        # skip the unused suffix of each request's contiguous centroid state.
+        self.state_lens = torch.zeros(
+            max_requests, dtype=torch.int32, device=self.device
+        )
         self.ready = [False] * max_requests
         self.clean = [True] * max_requests
         self.metadata = [dict[str, int | bool]() for _ in range(max_requests)]
@@ -977,6 +1028,7 @@ class VLLMLayerLODPool:
             **_production_geometry_overrides(
                 self.head_dim,
                 gqa,
+                levels=self.settings.levels,
             ),
         )
         drift = [
@@ -1114,7 +1166,8 @@ class VLLMLayerLODPool:
             "D128/GQA8 decode routing": (
                 (self.head_dim, gqa) != (128, 8)
                 or (
-                    self.engine.decode_route_group_size == 64
+                    self.engine.decode_route_group_size
+                    == int(os.getenv("LOD_DEV_DECODE_ROUTE_GROUP_SIZE", "64"))
                     and self.engine.decode_route_segment_tiles == 1
                     and self.engine.decode_route_num_warps == 1
                     and self.engine.decode_route_reduce_num_warps == 2
@@ -1165,7 +1218,7 @@ class VLLMLayerLODPool:
             self.head_dim,
         )
         unified_page1 = bool(
-            self.settings.levels in (2, 3)
+            self.settings.levels == 2
             and self.settings.dense_leaf_storage
             and self.settings.kv_bits == 0
             and (
@@ -1191,7 +1244,10 @@ class VLLMLayerLODPool:
             arena_local_offset = arena_leaf_offset + kv_rows * self.leaf_capacity
             arena_sink_offset = arena_local_offset + kv_rows * self.local_capacity
             arena_coarse_offset = arena_sink_offset + kv_rows * sink_capacity
-            arena_capacity = arena_coarse_offset + kv_rows * self.state_capacity
+            arena_padding_index = (
+                arena_coarse_offset + kv_rows * self.state_capacity
+            )
+            arena_capacity = arena_padding_index + 1
             unified_page1_k = torch.empty(
                 arena_capacity, d, dtype=self.dtype, device=self.device
             )
@@ -1201,6 +1257,9 @@ class VLLMLayerLODPool:
             unified_page1_bias = torch.zeros(
                 arena_capacity, dtype=torch.float16, device=self.device
             )
+            unified_page1_k[arena_padding_index].zero_()
+            unified_page1_v[arena_padding_index].zero_()
+            unified_page1_bias[arena_padding_index] = -float("inf")
             recent_k = unified_page1_k[
                 arena_local_offset : arena_local_offset + kv_rows * self.local_capacity
             ].view(r, h, self.local_capacity, d)
@@ -1213,7 +1272,13 @@ class VLLMLayerLODPool:
             static_cap_page1 = bool(
                 self.settings.decode_gqa_static_leaf_aiter
             )
-            if fixed_mask_page1 or static_cap_page1:
+            persistent_union_leaves = bool(
+                os.getenv("LOD_DEV_PERSISTENT_UNION_LEAVES", "0") != "0"
+                and self.settings.decode_gqa_union
+                and self.settings.decode_gqa_union_hip
+                and not static_cap_page1
+            )
+            if fixed_mask_page1 or static_cap_page1 or persistent_union_leaves:
                 fixed_capacity = (
                     self.leaf_capacity
                     + int(self.engine.local_len)
@@ -1238,7 +1303,7 @@ class VLLMLayerLODPool:
                         dtype=torch.int32,
                         device=self.device,
                     )
-                    if fixed_mask_page1
+                    if fixed_mask_page1 or persistent_union_leaves
                     else None
                 )
                 unified_page1_fixed_slot_offsets = torch.empty(
@@ -1434,6 +1499,7 @@ class VLLMLayerLODPool:
                         unified_page1_local_offset=arena_local_offset,
                         unified_page1_sink_offset=arena_sink_offset,
                         unified_page1_coarse_offset=arena_coarse_offset,
+                        unified_page1_padding_index=arena_padding_index,
                     )
                     if isinstance(unified_page1_fixed_indices, torch.Tensor):
                         state["page_cache"].update(
@@ -1744,6 +1810,7 @@ class VLLMLayerLODPool:
         self.clean[slot] = True
         self.metadata[slot].clear()
         self.local_lens[slot].zero_()
+        self.state_lens[slot].zero_()
         self.state["counts"][slot].zero_()
         if "sink_k" in self.state:
             self.state["sink_k"][slot].zero_()
@@ -1780,6 +1847,7 @@ class VLLMLayerLODPool:
             self.clean[slot] = True
             self.metadata[slot].clear()
         self.local_lens[start:stop].zero_()
+        self.state_lens[start:stop].zero_()
         self.state["counts"][start:stop].zero_()
         if "sink_k" in self.state:
             self.state["sink_k"][start:stop].zero_()
@@ -2427,15 +2495,18 @@ class VLLMLayerLODPool:
             destination_page["overflow_flag"].logical_or_(source_page["overflow_flag"])
         self._persist_decode_pilot_z_bound(slots)
         recent_len = int(source["recent_len"])
+        state_len = int(source["state_len"])
         if ascending:
             self.local_lens[start:stop].fill_(recent_len)
+            self.state_lens[start:stop].fill_(state_len)
         else:
             if slot_indices is None:
                 raise AssertionError("permuted LOD row indices are missing")
             self.local_lens.index_fill_(0, slot_indices, recent_len)
+            self.state_lens.index_fill_(0, slot_indices, state_len)
         for slot in slots:
             self.metadata[slot].update(
-                state_len=int(source["state_len"]),
+                state_len=state_len,
                 scheduled_state_len=int(
                     source.get("scheduled_state_len", source["state_len"])
                 ),
@@ -2599,9 +2670,11 @@ class VLLMLayerLODPool:
             (slot,), source_slots=(source_slot,)
         )
         recent_len = int(source["recent_len"])
+        state_len = int(source["state_len"])
         self.local_lens[slot].fill_(recent_len)
+        self.state_lens[slot].fill_(state_len)
         self.metadata[slot].update(
-            state_len=int(source["state_len"]),
+            state_len=state_len,
             scheduled_state_len=int(
                 source.get("scheduled_state_len", source["state_len"])
             ),
@@ -2668,10 +2741,12 @@ class VLLMLayerLODPool:
                     )
         self._persist_decode_pilot_z_bound(slots)
         recent_len = int(source["recent_len"])
+        state_len = int(source["state_len"])
         for slot in slots:
             self.local_lens[slot].fill_(recent_len)
+            self.state_lens[slot].fill_(state_len)
             self.metadata[slot].update(
-                state_len=int(source["state_len"]),
+                state_len=state_len,
                 scheduled_state_len=int(
                     source.get("scheduled_state_len", source["state_len"])
                 ),
@@ -3190,6 +3265,11 @@ class VLLMLayerLODPool:
         self.engine.catch_up_cache(
             row, total_length=total_length, recent_length=recent_length
         )
+        self._finish_single_catch_up(slot, row)
+
+    def _finish_single_catch_up(
+        self, slot: int, row: KernelLODCache
+    ) -> None:
         page = row.state["page_cache"]
         self.metadata[slot].update(
             state_len=int(row.state["state_len"]),
@@ -3203,8 +3283,33 @@ class VLLMLayerLODPool:
             overflow_safe_until=int(page["overflow_safe_until"]),
         )
         self.local_lens[slot].fill_(int(row.state["recent_len"]))
+        self.state_lens[slot].fill_(int(row.state["state_len"]))
         self._record_split_state(row.state, page)
         self._refresh_unified_page1_coarse((slot,))
+
+    def catch_up_precomputed(
+        self,
+        slot: int,
+        total_length: int,
+        *,
+        state_len: int,
+        owners: torch.Tensor,
+    ) -> None:
+        """Finish one catch-up whose centroid update was batched by layer."""
+
+        recent_length, target_coverage = self._catch_up_target(slot, total_length)
+        if int(self.metadata[slot]["coverage"]) >= target_coverage:
+            raise ValueError("precomputed LOD catch-up has no pending state update")
+        row = self._row_cache(slot)
+        self.engine.catch_up_cache(
+            row,
+            total_length=total_length,
+            recent_length=recent_length,
+            _precomputed_update=(state_len, owners, None),
+        )
+        self.catch_up_batches += 1
+        self.catch_up_rows += 1
+        self._finish_single_catch_up(slot, row)
 
     def catch_up_many(self, requests: list[tuple[int, int]]) -> None:
         """Batch equal-metadata contiguous rows at a state-update boundary."""
@@ -3267,6 +3372,9 @@ class VLLMLayerLODPool:
                     )
                 self.local_lens[start_slot:stop_slot].fill_(
                     int(row.state["recent_len"])
+                )
+                self.state_lens[start_slot:stop_slot].fill_(
+                    int(row.state["state_len"])
                 )
                 self._record_split_state(row.state, page)
                 self._refresh_unified_page1_coarse(
@@ -4032,6 +4140,21 @@ class VLLMLayerLODPool:
             sink_k=self.state.get("sink_k"),
             sink_v=self.state.get("sink_v"),
             state_len=self.state_capacity,
+            # First validate active-prefix bounds on K2's compact-union
+            # geometry. Other families retain their established consumers
+            # until the measured K2 result justifies enabling the same path.
+            state_lens=(
+                self.state_lens
+                if (
+                    (
+                        self.head_dim,
+                        self.query_heads // self.kv_heads,
+                    )
+                    == (128, 8)
+                    or os.getenv("LOD_DEV_FORCE_COMPACT_UNION", "0") == "1"
+                )
+                else None
+            ),
             # A delayed update leaves the displaced prefix exact until the
             # next catch-up. The effective limit reduces to local_len for the
             # ordinary update==chunk schedule.
@@ -4082,11 +4205,12 @@ class VLLMLayerLODPool:
             gqa_cooperative_hip=bool(
                 self.settings.decode_gqa_cooperative_hip
             ),
-            # The exact cooperative path keeps each query head's eight routes
-            # separate.  Do not replace them with the much larger GQA-wide
+            # The exact cooperative path keeps each query head's route list
+            # separate. Do not replace it with the much larger GQA-wide
             # centroid union when that kernel is available.
             gqa_union_decode=bool(
                 self.settings.decode_gqa_union
+                and os.getenv("LOD_DEV_DISABLE_GQA_UNION", "0") == "0"
                 and not self._use_cooperative_decode()
             ),
             gqa_union_mass_fraction=self.settings.decode_gqa_mass_fraction,
@@ -4122,6 +4246,9 @@ class VLLMLayerLODPool:
             gqa_union_fixed_mask_direct_routes=bool(
                 self.settings.decode_gqa_fixed_mask_direct_routes
             ),
+            gqa_union_fixed_mask_reuse_coarse=bool(
+                self.settings.decode_gqa_fixed_mask_reuse_coarse
+            ),
             gqa_union_fixed_mask_scan_num_warps=int(
                 self.settings.decode_gqa_fixed_mask_scan_num_warps
             ),
@@ -4153,6 +4280,9 @@ class VLLMLayerLODPool:
             ),
             gqa_union_page1_coarse_offset=int(
                 page.get("unified_page1_coarse_offset", 0)
+            ),
+            gqa_union_page1_padding_index=int(
+                page.get("unified_page1_padding_index", -1)
             ),
             gqa_union_previous_total_lse=page.get(
                 "decode_previous_total_lse"

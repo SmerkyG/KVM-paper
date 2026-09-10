@@ -218,6 +218,7 @@ class VLLMLODSettings:
     decode_gqa_fixed_mask_adaptive_segments: bool = False
     decode_gqa_fixed_mask_reduce_block_d: int = 0
     decode_gqa_fixed_mask_direct_routes: bool = True
+    decode_gqa_fixed_mask_reuse_coarse: bool = False
     decode_gqa_fixed_mask_scan_num_warps: int = 2
     decode_gqa_fixed_mask_scan_waves_per_eu: int = 2
     decode_gqa_fixed_mask_scan_num_stages: int = 2
@@ -327,6 +328,7 @@ class VLLMLODSettings:
             decode_gqa_fixed_mask_segments=128,
             decode_gqa_fixed_mask_adaptive_segments=True,
             decode_gqa_fixed_mask_direct_routes=True,
+            decode_gqa_fixed_mask_reuse_coarse=False,
             decode_gqa_fixed_mask_scan_num_warps=2,
             decode_gqa_fixed_mask_scan_waves_per_eu=2,
             decode_gqa_fixed_mask_scan_num_stages=2,
@@ -655,6 +657,9 @@ class VLLMLODSettings:
             decode_gqa_fixed_mask_direct_routes=_boolean(
                 "VLLM_LOD_DECODE_GQA_FIXED_MASK_DIRECT_ROUTES", True
             ),
+            decode_gqa_fixed_mask_reuse_coarse=_boolean(
+                "VLLM_LOD_DECODE_GQA_FIXED_MASK_REUSE_COARSE", False
+            ),
             decode_gqa_fixed_mask_scan_num_warps=_integer(
                 "VLLM_LOD_DECODE_GQA_FIXED_MASK_SCAN_NUM_WARPS", 2
             ),
@@ -850,6 +855,17 @@ class VLLMLODSettings:
             raise ValueError(
                 "VLLM_LOD_DECODE_GQA_FIXED_MASK_REDUCE_BLOCK_D requires "
                 "VLLM_LOD_DECODE_GQA_FIXED_MASK_AITER=1"
+            )
+        if settings.decode_gqa_fixed_mask_reuse_coarse and (
+            not settings.decode_gqa_fixed_mask_aiter
+            or not settings.decode_gqa_fixed_mask_direct_routes
+            or settings.decode_gqa_predicted_mass
+            or settings.decode_gqa_pilot_z
+            or settings.decode_gqa_mass_fraction is not None
+        ):
+            raise ValueError(
+                "VLLM_LOD_DECODE_GQA_FIXED_MASK_REUSE_COARSE requires "
+                "top-k direct-route fixed-mask AITER decode"
             )
         if settings.decode_gqa_fixed_mask_scan_num_warps not in (1, 2, 4, 8):
             raise ValueError(

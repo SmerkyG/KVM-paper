@@ -198,7 +198,7 @@ class TritonLODAttentionCore(nn.Module):
     # then merge their normalized output/LSE pairs. Zero/one disables it.
     leaf_long_expert_threshold = 0
     leaf_long_expert_splits = 1
-    # Each row merges only the top-eight routes. One wave is sufficient and
+    # Each row merges only the small fixed route list. One wave is sufficient and
     # avoids the synchronization/occupancy overhead of a four-wave reduction.
     leaf_reduce_num_warps = 1
     prefill_direct_expert_buckets = False
@@ -331,7 +331,7 @@ class TritonLODAttentionCore(nn.Module):
     # value and experimental per-centroid adaptation remain available.
     decode_gqa_cooperative_route_splits: int | None = None
     decode_gqa_cooperative_adaptive_splits = False
-    # Directly fold the eight route partials into the final branch reduction.
+    # Directly fold the fixed route partials into the final branch reduction.
     # The dispatch automatically retains the two-stage tree for 16/32 splits.
     decode_gqa_cooperative_fused_reduce = True
     clone_decode_routes = False

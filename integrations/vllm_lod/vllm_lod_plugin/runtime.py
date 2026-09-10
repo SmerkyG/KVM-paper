@@ -819,6 +819,179 @@ class VLLMLODRuntime:
         )
         self._active_decode_rows = mapped
 
+    def _catch_up_one_across_layers(
+        self, row: int, total_length: int
+    ) -> bool:
+        """Batch one request's centroid update without moving layer caches."""
+
+        pools = tuple(self.pools.values())
+        if (
+            len(pools) < 2
+            or os.getenv("VLLM_LOD_PANEL_CROSS_LAYER_CATCH_UP", "1") == "0"
+        ):
+            return False
+        reference = pools[0]
+        recent_length, target_coverage = reference._catch_up_target(
+            row, total_length
+        )
+        metadata = reference.metadata[row]
+        coverage = int(metadata["coverage"])
+        if coverage >= target_coverage:
+            return False
+        state_len = int(metadata["state_len"])
+        scheduled_state_len = int(
+            metadata.get("scheduled_state_len", state_len)
+        )
+        overflow_len = target_coverage - coverage
+        scalar_names = (
+            "state_len",
+            "scheduled_state_len",
+            "coverage",
+            "recent_len",
+            "leaf_count",
+            "overflow_safe_until",
+        )
+
+        def update_signature(pool: VLLMLayerLODPool) -> tuple[object, ...]:
+            engine = pool.engine
+            return (
+                type(engine),
+                pool.kv_heads,
+                pool.head_dim,
+                pool.state_capacity,
+                engine._streaming_state_geometry(),
+                engine.state_premerge_factor,
+                engine.state_clustering_centroid_rescale,
+                engine.state_clustering_centroid_rescale_scope,
+                engine.state_merge_before_append,
+                engine.fused_state_update,
+                engine.fused_state_maxsim,
+            )
+
+        reference_engine = reference.engine
+        reference_key = update_signature(reference)
+        reference_has_norms = isinstance(
+            reference.state.get("key_norm_sums"), torch.Tensor
+        )
+        for pool in pools[1:]:
+            engine = pool.engine
+            pool_metadata = pool.metadata[row]
+            if (
+                update_signature(pool) != reference_key
+                or engine.state_split_max_leaves is not None
+                or any(
+                    int(pool_metadata[name]) != int(metadata[name])
+                    for name in scalar_names
+                )
+                or isinstance(pool.state.get("key_norm_sums"), torch.Tensor)
+                != reference_has_norms
+            ):
+                return False
+        if (
+            reference_engine.state_split_max_leaves is not None
+            or not reference_engine.fused_state_update
+            or not reference_engine.fused_state_maxsim
+        ):
+            return False
+
+        group_size = 16
+        representative_indices = set(range(0, len(pools), group_size))
+        # Prefill leaves one batch-one update workspace on every layer. Only
+        # group representatives need one during layer-batched decode, so drop
+        # the redundant references before allocating the bounded B=16 buffers.
+        for index, pool in enumerate(pools):
+            if index in representative_indices:
+                continue
+            for name in ("_lod_state_update_buffers", "_lod_state_maxsim_buffers"):
+                if hasattr(pool.engine, name):
+                    delattr(pool.engine, name)
+
+        update_ctx_len = (
+            int(reference_engine.local_len - reference_engine.chunk_len)
+            + target_coverage
+        )
+
+        def pack(
+            group: tuple[VLLMLayerLODPool, ...],
+            name: str,
+            length: int | None = None,
+        ) -> torch.Tensor:
+            tensors = [pool.state[name][row : row + 1] for pool in group]
+            if length is not None:
+                tensors = [tensor[..., :length, :] for tensor in tensors]
+            return torch.cat(tensors, dim=0)
+
+        updated_state_len: int | None = None
+        for start in range(0, len(pools), group_size):
+            group = pools[start : start + group_size]
+            engine = group[0].engine
+            if getattr(engine, "_lod_cross_layer_decode_row", None) != row:
+                buffers = getattr(engine, "_lod_state_maxsim_buffers", None)
+                if isinstance(buffers, dict):
+                    buffers.pop("_prepared_identity", None)
+                    buffers.pop("_prepared_context_len", None)
+                engine._lod_cross_layer_decode_row = row
+
+            packed_k = pack(group, "state_k")
+            packed_v = pack(group, "state_v")
+            packed_counts = pack(group, "counts")
+            packed_recent_k = pack(group, "recent_k", overflow_len)
+            packed_recent_v = pack(group, "recent_v", overflow_len)
+            packed_norms = (
+                pack(group, "key_norm_sums")
+                if reference_has_norms
+                else None
+            )
+            (
+                packed_k,
+                packed_v,
+                packed_counts,
+                group_state_len,
+                owners,
+                old_slot_remap,
+            ) = engine._update_state(
+                packed_k,
+                packed_v,
+                packed_counts,
+                packed_norms,
+                packed_recent_k,
+                packed_recent_v,
+                state_len=state_len,
+                ctx_len=update_ctx_len,
+                available_context=target_coverage,
+                state_capacity=reference.state_capacity,
+                clustering_query_scale=None,
+                scheduled_state_len=scheduled_state_len,
+            )
+            if old_slot_remap is not None:
+                raise AssertionError("paged state remapping is unsupported")
+            if updated_state_len is None:
+                updated_state_len = group_state_len
+            elif updated_state_len != group_state_len:
+                raise AssertionError("cross-layer LOD state schedules diverged")
+            packed_state = {
+                "state_k": packed_k,
+                "state_v": packed_v,
+                "counts": packed_counts,
+            }
+            if packed_norms is not None:
+                packed_state["key_norm_sums"] = packed_norms
+            for group_row, pool in enumerate(group):
+                active = slice(0, group_state_len)
+                for name, packed in packed_state.items():
+                    pool.state[name][row, :, active].copy_(
+                        packed[group_row, :, active]
+                    )
+                pool.catch_up_precomputed(
+                    row,
+                    total_length,
+                    state_len=group_state_len,
+                    owners=owners[group_row : group_row + 1],
+                )
+        if updated_state_len is None:
+            raise AssertionError("cross-layer LOD catch-up produced no update")
+        return True
+
     def _catch_up_decode_rows(self, requests: list[tuple[int, int]]) -> None:
         """Skip layer-by-layer host work between state-update boundaries."""
         if not requests:
@@ -833,12 +1006,22 @@ class VLLMLODRuntime:
                 self.logical_lengths[row] = length
             return
         reference_pool = next(iter(self.pools.values()))
-        update_due = any(
-            int(reference_pool.metadata[row]["coverage"])
-            < reference_pool._catch_up_target(row, length)[1]
+        due = [
+            (row, length)
             for row, length in requests
-        )
-        if update_due:
+            if int(reference_pool.metadata[row]["coverage"])
+            < reference_pool._catch_up_target(row, length)[1]
+        ]
+        update_due = bool(due)
+        used_cross_layer = False
+        if len(due) == 1:
+            used_cross_layer = self._catch_up_one_across_layers(*due[0])
+        if used_cross_layer:
+            remaining = [request for request in requests if request != due[0]]
+            if remaining:
+                for pool in self.pools.values():
+                    pool.catch_up_many(remaining)
+        elif update_due:
             for pool in self.pools.values():
                 pool.catch_up_many(requests)
         for row, length in requests:

@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 from pathlib import Path
 
 import torch
@@ -38,15 +39,25 @@ def main() -> None:
     parser.add_argument("--batch-size", type=int, default=2)
     parser.add_argument("--kv-heads", type=int, default=2)
     parser.add_argument("--gqa", type=int, default=16)
-    parser.add_argument("--head-dim", type=int, choices=(128, 256), default=128)
+    parser.add_argument("--head-dim", type=int, choices=(128, 256, 512), default=128)
     parser.add_argument("--state-len", type=int, default=256)
     parser.add_argument(
-        "--route-group-size", type=int, choices=(8, 16, 32, 64), default=None
+        "--active-state-len",
+        type=int,
+        default=0,
+        help="Limit live centroids inside a larger graph-captured state allocation.",
+    )
+    parser.add_argument(
+        "--route-group-size",
+        type=int,
+        choices=(8, 16, 32, 64, 128),
+        default=None,
     )
     parser.add_argument(
         "--route-segment-tiles", type=int, choices=(1, 2, 3, 4), default=None
     )
     parser.add_argument("--route-num-warps", type=int, choices=(1, 2, 4, 8), default=2)
+    parser.add_argument("--scalar-route", action="store_true")
     parser.add_argument(
         "--route-reduce-num-warps", type=int, choices=(1, 2, 4, 8), default=2
     )
@@ -59,10 +70,16 @@ def main() -> None:
     parser.add_argument("--equal-leaves", action="store_true")
     parser.add_argument("--leaves-per-slot", type=int, default=0)
     parser.add_argument(
+        "--empty-posting-lists",
+        action="store_true",
+        help="Profile routed-page control flow with zero exact leaves.",
+    )
+    parser.add_argument(
         "--profile-kernels",
         action="store_true",
         help="Profile repeated complete calls and report device time by kernel.",
     )
+    parser.add_argument("--diagnose-branch-merge", action="store_true")
     parser.add_argument("--cuda-graph-timing", action="store_true")
     parser.add_argument("--max-open-leaves", type=int, default=0)
     parser.add_argument("--open-count", type=int, choices=range(1, 9), default=8)
@@ -91,6 +108,7 @@ def main() -> None:
         default=0,
     )
     parser.add_argument("--fixed-mask-direct-routes", action="store_true")
+    parser.add_argument("--fixed-mask-reuse-coarse", action="store_true")
     parser.add_argument("--inject-oversized-centroid", action="store_true")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
@@ -148,6 +166,15 @@ def main() -> None:
             dtype=torch.int32,
         )
     )
+    active_state_len = args.active_state_len or state_len
+    if not 8 <= active_state_len <= state_len:
+        raise ValueError("--active-state-len must be in [8, --state-len]")
+    state_lens = torch.full(
+        (cache_batch,), state_len, device=device, dtype=torch.int32
+    )
+    for cache_row in cache_indices.tolist():
+        state_lens[cache_row] = active_state_len
+        counts_i32[cache_row, :, active_state_len:] = 0
     if args.inject_oversized_centroid:
         if args.max_open_leaves <= 0:
             raise ValueError(
@@ -201,6 +228,8 @@ def main() -> None:
     )
     overflow_used = torch.zeros((), device=device, dtype=torch.int32)
     slot_lengths = counts_i32.clone()
+    if args.empty_posting_lists:
+        slot_lengths.zero_()
     if args.equal_leaves:
         slots = torch.arange(state_len, device=device, dtype=torch.int32)
         slot_pages[..., 0] = slots
@@ -285,10 +314,14 @@ def main() -> None:
     if args.unified_arena:
         if not args.hip_union:
             raise ValueError("--unified-arena requires --hip-union")
+        use_padding_row = bool(
+            args.group64_padded
+            or os.getenv("LOD_DEV_PADDED_CANDIDATE_EXPAND", "0") != "0"
+        )
         arena_capacity = (
             arena_coarse_offset
             + kv_rows * state_len
-            + int(args.group64_padded)
+            + int(use_padding_row)
         )
         arena_k = torch.empty(
             arena_capacity,
@@ -331,12 +364,15 @@ def main() -> None:
             arena_coarse_v,
             arena_coarse_bias,
         )
-        if args.group64_padded:
+        if use_padding_row:
             arena_padding_index = arena_capacity - 1
             arena_k[arena_padding_index].zero_()
             arena_v[arena_padding_index].zero_()
             arena_bias[arena_padding_index] = -float("inf")
-        if args.fixed_mask_aiter:
+        persistent_union_leaves = (
+            os.getenv("LOD_DEV_PERSISTENT_UNION_LEAVES", "0") != "0"
+        )
+        if args.fixed_mask_aiter or persistent_union_leaves:
             if args.staged_fixed_aiter:
                 raise ValueError(
                     "--fixed-mask-aiter and --staged-fixed-aiter are exclusive"
@@ -411,7 +447,7 @@ def main() -> None:
         route_num_warps=args.route_num_warps,
         route_reduce_num_warps=args.route_reduce_num_warps,
         route_parallel_reduce=segmented_route,
-        route_use_dot=True,
+        route_use_dot=not args.scalar_route,
         route_gqa_grouped=True,
         max_leaf_tokens=args.max_open_leaves or None,
         open_count=args.open_count,
@@ -469,7 +505,13 @@ def main() -> None:
         device=device,
     )
 
-    def run(buffers, union: bool, timing_events=None, hip=None):
+    def run(
+        buffers,
+        union: bool,
+        timing_events=None,
+        hip=None,
+        active_lengths=state_lens,
+    ):
         use_hip = args.hip_union if hip is None else hip
         return fused_decode_paged_lod_attention(
             q,
@@ -512,6 +554,9 @@ def main() -> None:
             gqa_union_fixed_mask_direct_routes=(
                 args.fixed_mask_direct_routes if union else False
             ),
+            gqa_union_fixed_mask_reuse_coarse=(
+                args.fixed_mask_reuse_coarse if union else False
+            ),
             gqa_union_page1_k=(arena_k if union and args.unified_arena else None),
             gqa_union_page1_v=(arena_v if union and args.unified_arena else None),
             gqa_union_page1_bias=(
@@ -533,6 +578,7 @@ def main() -> None:
             gqa_union_previous_total_lse=(
                 previous_total_lse if union and args.predicted_mass else None
             ),
+            state_lens=active_lengths,
             timing_events=timing_events,
             **common,
         )
@@ -543,8 +589,54 @@ def main() -> None:
         if triton_union_buffers is not None
         else None
     )
+    unbounded_union = (
+        run(union_buffers, True, active_lengths=None).clone()
+        if active_state_len < state_len
+        else None
+    )
     union = run(union_buffers, True).clone()
     torch.cuda.synchronize()
+    branch_merge_error = None
+    if args.diagnose_branch_merge:
+        branch_outputs = []
+        branch_lses = []
+        names = (
+            "LOD_DEV_DIRECT_ATTEND_COARSE",
+            "LOD_DEV_DIRECT_ATTEND_PAGES",
+            "LOD_DEV_DIRECT_ATTEND_LOCAL",
+        )
+        previous = {name: os.environ.get(name) for name in names}
+        try:
+            for active_name in names:
+                for name in names:
+                    os.environ[name] = "1" if name == active_name else "0"
+                branch_outputs.append(run(union_buffers, True).clone())
+                partial_lse = union_buffers["gqa_union_hip_max_logits"][
+                    : batch * kv_heads
+                ].reshape(batch, query_heads, -1)
+                branch_lses.append(torch.logsumexp(partial_lse, dim=-1))
+            stacked_lse = torch.stack(branch_lses, dim=0)
+            weights = torch.softmax(stacked_lse, dim=0)
+            merged = sum(
+                weight[:, :, None, None] * branch
+                for weight, branch in zip(weights, branch_outputs)
+            )
+            branch_absolute = (merged.float() - union.float()).abs()
+            branch_merge_error = {
+                "max_abs": float(branch_absolute.max().item()),
+                "mean_abs": float(branch_absolute.mean().item()),
+                "fused_vs_each_mean_abs": [
+                    float((branch.float() - union.float()).abs().mean().item())
+                    for branch in branch_outputs
+                ],
+                "mean_mass_fraction": weights.mean(dim=(1, 2)).cpu().tolist(),
+            }
+        finally:
+            for name, value in previous.items():
+                if value is None:
+                    os.environ.pop(name, None)
+                else:
+                    os.environ[name] = value
     initial_union_counts = union_buffers["gqa_union_counts"][
         : batch * kv_heads
     ].clone()
@@ -582,6 +674,11 @@ def main() -> None:
         if triton_union is not None
         else None
     )
+    bounded_absolute = (
+        (unbounded_union.float() - union.float()).abs()
+        if unbounded_union is not None
+        else None
+    )
     if args.cuda_graph_timing:
         torch.cuda.synchronize()
         baseline_graph = torch.cuda.CUDAGraph()
@@ -597,13 +694,34 @@ def main() -> None:
             lambda: run(baseline_buffers, False), args.repeats
         )
         union_ms = elapsed_ms(lambda: run(union_buffers, True), args.repeats)
+    unbounded_union_ms = (
+        elapsed_ms(
+            lambda: run(union_buffers, True, active_lengths=None),
+            args.repeats,
+        )
+        if active_state_len < state_len
+        else None
+    )
     manual_union_error = None
+    manual_top_slot_union_error = None
+    stamp_top_slot_mismatches = None
     if args.equal_leaves and args.union_final == "unified":
         # Validate the changed semantics directly: every head attends the same
         # GQA union, opened summaries disappear, and unopened summaries retain
         # their log(count) mass bias.
         references = []
+        top_slot_references = []
         actuals = []
+        stamp_top_slot_mismatches = []
+        manual_attend_coarse = (
+            os.getenv("LOD_DEV_DIRECT_ATTEND_COARSE", "1") != "0"
+        )
+        manual_attend_pages = (
+            os.getenv("LOD_DEV_DIRECT_ATTEND_PAGES", "1") != "0"
+        )
+        manual_attend_local = (
+            os.getenv("LOD_DEV_DIRECT_ATTEND_LOCAL", "1") != "0"
+        )
         cache_row = int(cache_indices[0].item())
         for kv_head in range(kv_heads):
             sequence = kv_head
@@ -612,8 +730,31 @@ def main() -> None:
                 union_buffers["gqa_union_seen_stamps"][sequence] == epoch,
                 as_tuple=False,
             ).flatten()
+            top_opened = torch.unique(
+                union_buffers["route_top_slots"][
+                    0, kv_head * gqa : (kv_head + 1) * gqa, 0, : args.open_count
+                ].reshape(-1)
+            )
+            top_opened = top_opened[top_opened >= 0]
+            stamp_top_slot_mismatches.append(
+                {
+                    "stamped": int(opened.numel()),
+                    "top_slot_union": int(top_opened.numel()),
+                    "symmetric_difference": int(
+                        torch.logical_xor(
+                            torch.isin(
+                                torch.arange(state_len, device=device), opened
+                            ),
+                            torch.isin(
+                                torch.arange(state_len, device=device), top_opened
+                            ),
+                        ).sum().item()
+                    ),
+                }
+            )
             closed = torch.ones(state_len, device=device, dtype=torch.bool)
             closed[opened] = False
+            closed[active_state_len:] = False
             closed_slots = torch.arange(state_len, device=device)[closed]
             state_count = counts[cache_row, kv_head, closed_slots, 0]
             coarse_k = (
@@ -630,24 +771,26 @@ def main() -> None:
             ).reshape(-1)
             exact_k = leaf_k[cache_row, kv_head, exact_indices]
             exact_v = leaf_v[cache_row, kv_head, exact_indices]
-            keys = torch.cat(
-                (coarse_k, exact_k, local_k[cache_row, kv_head, :active_local]),
-                dim=0,
-            )
-            values = torch.cat(
-                (coarse_v, exact_v, local_v[cache_row, kv_head, :active_local]),
-                dim=0,
-            ).float()
-            bias = torch.cat(
-                (
-                    state_count.log(),
-                    torch.zeros(
-                        exact_k.size(0) + active_local,
-                        device=device,
-                        dtype=torch.float32,
-                    ),
+            key_parts = []
+            value_parts = []
+            bias_parts = []
+            if manual_attend_coarse:
+                key_parts.append(coarse_k)
+                value_parts.append(coarse_v)
+                bias_parts.append(state_count.log())
+            if manual_attend_pages:
+                key_parts.append(exact_k)
+                value_parts.append(exact_v)
+                bias_parts.append(
+                    torch.zeros(exact_k.size(0), device=device)
                 )
-            )
+            if manual_attend_local:
+                key_parts.append(local_k[cache_row, kv_head, :active_local])
+                value_parts.append(local_v[cache_row, kv_head, :active_local])
+                bias_parts.append(torch.zeros(active_local, device=device))
+            keys = torch.cat(key_parts, dim=0)
+            values = torch.cat(value_parts, dim=0).float()
+            bias = torch.cat(bias_parts)
             for lane in range(gqa):
                 query_head = kv_head * gqa + lane
                 scores = (
@@ -657,12 +800,72 @@ def main() -> None:
                 )
                 references.append(torch.softmax(scores, dim=0) @ values)
                 actuals.append(union[0, query_head, 0].float())
+            top_closed = torch.ones(state_len, device=device, dtype=torch.bool)
+            top_closed[top_opened] = False
+            top_closed[active_state_len:] = False
+            top_closed_slots = torch.arange(state_len, device=device)[top_closed]
+            top_state_count = counts[cache_row, kv_head, top_closed_slots, 0]
+            top_coarse_k = (
+                state_k[cache_row, kv_head, top_closed_slots].float()
+                / top_state_count[:, None]
+            ).to(dtype)
+            top_coarse_v = (
+                state_v[cache_row, kv_head, top_closed_slots].float()
+                / top_state_count[:, None]
+            ).to(dtype)
+            top_exact_indices = (
+                top_opened[:, None] * page_size
+                + torch.arange(page_size, device=device)[None, :]
+            ).reshape(-1)
+            top_exact_k = leaf_k[cache_row, kv_head, top_exact_indices]
+            top_exact_v = leaf_v[cache_row, kv_head, top_exact_indices]
+            top_key_parts = []
+            top_value_parts = []
+            top_bias_parts = []
+            if manual_attend_coarse:
+                top_key_parts.append(top_coarse_k)
+                top_value_parts.append(top_coarse_v)
+                top_bias_parts.append(top_state_count.log())
+            if manual_attend_pages:
+                top_key_parts.append(top_exact_k)
+                top_value_parts.append(top_exact_v)
+                top_bias_parts.append(
+                    torch.zeros(top_exact_k.size(0), device=device)
+                )
+            if manual_attend_local:
+                top_key_parts.append(
+                    local_k[cache_row, kv_head, :active_local]
+                )
+                top_value_parts.append(
+                    local_v[cache_row, kv_head, :active_local]
+                )
+                top_bias_parts.append(torch.zeros(active_local, device=device))
+            top_keys = torch.cat(top_key_parts, dim=0)
+            top_values = torch.cat(top_value_parts, dim=0).float()
+            top_bias = torch.cat(top_bias_parts)
+            for lane in range(gqa):
+                query_head = kv_head * gqa + lane
+                top_scores = (
+                    torch.mv(top_keys.float(), q[0, query_head, 0].float())
+                    * (head_dim**-0.5)
+                    + top_bias
+                )
+                top_slot_references.append(
+                    torch.softmax(top_scores, dim=0) @ top_values
+                )
         manual_absolute = (
             torch.stack(references) - torch.stack(actuals)
         ).abs()
         manual_union_error = {
             "max_abs": float(manual_absolute.max().item()),
             "mean_abs": float(manual_absolute.mean().item()),
+        }
+        manual_top_slot_absolute = (
+            torch.stack(top_slot_references) - torch.stack(actuals)
+        ).abs()
+        manual_top_slot_union_error = {
+            "max_abs": float(manual_top_slot_absolute.max().item()),
+            "mean_abs": float(manual_top_slot_absolute.mean().item()),
         }
     manual_fixed_mask_error = None
     if args.fixed_mask_aiter:
@@ -724,12 +927,13 @@ def main() -> None:
             "mean_abs": float(manual_fixed_absolute.mean().item()),
         }
     phase_profiles = {}
-    for name, buffers, enabled in (
-        ("baseline", baseline_buffers, False),
-        ("gqa_union", union_buffers, True),
+    for name, buffers, enabled, active_lengths in (
+        ("baseline", baseline_buffers, False, state_lens),
+        ("gqa_union", union_buffers, True, state_lens),
+        ("gqa_union_unbounded", union_buffers, True, None),
     ):
         events = {}
-        run(buffers, enabled, events)
+        run(buffers, enabled, events, active_lengths=active_lengths)
         torch.cuda.synchronize()
         phase_profiles[name] = {
             phase: 1000.0
@@ -788,6 +992,7 @@ def main() -> None:
             "gqa": gqa,
             "head_dim": head_dim,
             "state_len": state_len,
+            "active_state_len": active_state_len,
             "local_limit": local_limit,
             "active_local": active_local,
             "leaf_count_mean": float(counts.float().mean().item()),
@@ -806,6 +1011,7 @@ def main() -> None:
             ),
             "fixed_mask_reduce_block_d": args.fixed_mask_reduce_block_d,
             "fixed_mask_direct_routes": args.fixed_mask_direct_routes,
+            "fixed_mask_reuse_coarse": args.fixed_mask_reuse_coarse,
             "route_group_size": route_group_size,
             "route_segment_tiles": route_segment_tiles,
             "route_num_warps": args.route_num_warps,
@@ -825,13 +1031,32 @@ def main() -> None:
                 if hip_absolute is not None
                 else None
             ),
+            "bounded_vs_unbounded_max_abs": (
+                float(bounded_absolute.max().item())
+                if bounded_absolute is not None
+                else None
+            ),
+            "bounded_vs_unbounded_mean_abs": (
+                float(bounded_absolute.mean().item())
+                if bounded_absolute is not None
+                else None
+            ),
             "manual_shared_union": manual_union_error,
+            "manual_top_slot_union": manual_top_slot_union_error,
+            "stamp_top_slot_mismatches": stamp_top_slot_mismatches,
+            "separate_branch_merge_vs_fused": branch_merge_error,
             "manual_fixed_mask": manual_fixed_mask_error,
             "oversized_route_excluded": oversized_route_excluded,
         },
         "timing_ms": {
             "baseline_two_tier": baseline_ms,
             "gqa_union": union_ms,
+            "gqa_union_unbounded": unbounded_union_ms,
+            "active_bound_speedup": (
+                unbounded_union_ms / union_ms
+                if unbounded_union_ms is not None
+                else None
+            ),
             "speedup": baseline_ms / union_ms,
         },
         "phase_microseconds": phase_profiles,

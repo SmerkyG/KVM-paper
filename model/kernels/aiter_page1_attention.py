@@ -180,6 +180,382 @@ def kernel_page1_attention_3d_bias(
 
 
 @triton.jit
+def kernel_page1_attention_3d_bias_implicit_lod(
+    segment_output,
+    segment_max,
+    segment_exp_sum,
+    query,
+    key_cache,
+    value_cache,
+    key_bias,
+    exact_block_table,
+    cache_indices,
+    local_lens,
+    state_lens,
+    sequence_lengths,
+    seen_stamps,
+    sequence_epochs,
+    scale,
+    exact_block_table_stride: tl.int64,
+    query_stride_0: tl.int64,
+    query_stride_1: tl.int64,
+    NUM_QUERY_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    STATE_LEN: tl.constexpr,
+    STATE_CAPACITY: tl.constexpr,
+    LOCAL_OFFSET: tl.constexpr,
+    LOCAL_CAPACITY: tl.constexpr,
+    LOCAL_LIMIT: tl.constexpr,
+    SINK_OFFSET: tl.constexpr,
+    SINK_CAPACITY: tl.constexpr,
+    SINK_LEN: tl.constexpr,
+    COARSE_OFFSET: tl.constexpr,
+    TILE_SIZE: tl.constexpr,
+    HEAD_SIZE: tl.constexpr,
+    BLOCK_M: tl.constexpr,
+    NUM_SEGMENTS: tl.constexpr,
+    INCLUDE_NEW: tl.constexpr,
+    USE_STATE_LENS: tl.constexpr,
+):
+    """Page-one LOD attention without rebuilding its fixed index prefix.
+
+    Local, sink, and coarse arena addresses are affine in the physical cache
+    row, so materializing those indices on every decoded token is redundant.
+    Only the compact exact-leaf suffix is indirect.  Opened coarse entries are
+    suppressed through the route stamps that union construction already
+    publishes, preserving the same exact/coarse replacement as the ordinary
+    compact-list path.
+    """
+    sequence = tl.program_id(0).to(tl.int64)
+    segment = tl.program_id(2).to(tl.int64)
+    sequence_length = tl.load(sequence_lengths + sequence).to(tl.int32)
+    tiles_per_segment = _cdiv(sequence_length, NUM_SEGMENTS * TILE_SIZE)
+    tile_begin = segment * tiles_per_segment
+    if tile_begin * TILE_SIZE >= sequence_length:
+        return
+
+    logical_batch = sequence // KV_HEADS
+    kv_head = sequence - logical_batch * KV_HEADS
+    cache_batch = tl.load(cache_indices + logical_batch).to(tl.int64)
+    kv_row = cache_batch * KV_HEADS + kv_head
+    local_count = (
+        tl.minimum(tl.load(local_lens + cache_batch).to(tl.int32), LOCAL_LIMIT)
+        + INCLUDE_NEW
+    )
+    if USE_STATE_LENS:
+        active_state = tl.minimum(
+            tl.load(state_lens + cache_batch).to(tl.int32), STATE_LEN
+        )
+    else:
+        active_state = STATE_LEN
+    sink_end = local_count + SINK_LEN
+    coarse_end = sink_end + active_state
+    epoch = tl.load(sequence_epochs + sequence).to(tl.int32)
+
+    query_lane = tl.arange(0, BLOCK_M)
+    query_valid = query_lane < NUM_QUERY_HEADS
+    dimension = tl.arange(0, HEAD_SIZE)
+    token_lane = tl.arange(0, TILE_SIZE)
+    queries = tl.load(
+        query
+        + sequence * query_stride_0
+        + query_lane[:, None] * query_stride_1
+        + dimension[None, :],
+        mask=query_valid[:, None],
+        other=0.0,
+    )
+
+    rcp_ln2: tl.constexpr = 1.4426950408889634
+    qk_scale = scale * rcp_ln2
+    maximum = tl.full((BLOCK_M,), -float("inf"), tl.float32)
+    denominator = tl.full((BLOCK_M,), 1.0, tl.float32)
+    accumulator = tl.zeros((BLOCK_M, HEAD_SIZE), tl.float32)
+    tile_count = _cdiv(sequence_length, TILE_SIZE)
+    table_base = sequence * exact_block_table_stride
+
+    for tile in range(
+        tile_begin,
+        min((segment + 1) * tiles_per_segment, tile_count),
+    ):
+        logical_token = tile * TILE_SIZE + token_lane
+        token_valid = logical_token < sequence_length
+        is_local = logical_token < local_count
+        sink_rank = logical_token - local_count
+        is_sink = (sink_rank >= 0) & (sink_rank < SINK_LEN)
+        coarse_slot = logical_token - sink_end
+        is_coarse = (coarse_slot >= 0) & (coarse_slot < active_state)
+        exact_rank = logical_token - coarse_end
+        is_exact = exact_rank >= 0
+
+        exact_physical = tl.load(
+            exact_block_table + table_base + exact_rank,
+            mask=token_valid & is_exact,
+            other=0,
+        ).to(tl.int64)
+        physical_token = tl.where(
+            is_local,
+            LOCAL_OFFSET + kv_row * LOCAL_CAPACITY + logical_token,
+            tl.where(
+                is_sink,
+                SINK_OFFSET + kv_row * SINK_CAPACITY + sink_rank,
+                tl.where(
+                    is_coarse,
+                    COARSE_OFFSET + kv_row * STATE_CAPACITY + coarse_slot,
+                    exact_physical,
+                ),
+            ),
+        )
+        opened = tl.load(
+            seen_stamps + sequence * STATE_CAPACITY + coarse_slot,
+            mask=token_valid & is_coarse,
+            other=epoch - 1,
+        ).to(tl.int32) == epoch
+        token_valid &= ~is_coarse | ~opened
+
+        keys = tl.load(
+            key_cache
+            + physical_token[None, :] * HEAD_SIZE
+            + dimension[:, None],
+            mask=token_valid[None, :],
+            other=0.0,
+            cache_modifier=".cg",
+        ).to(queries.dtype)
+        values = tl.load(
+            value_cache
+            + physical_token[:, None] * HEAD_SIZE
+            + dimension[None, :],
+            mask=token_valid[:, None],
+            other=0.0,
+            cache_modifier=".cg",
+        ).to(queries.dtype)
+        bias = tl.load(
+            key_bias + physical_token,
+            mask=token_valid,
+            other=0.0,
+            cache_modifier=".cg",
+        ).to(tl.float32)
+
+        scores = qk_scale * tl.dot(queries, keys)
+        scores += bias[None, :] * rcp_ln2
+        scores = tl.where(
+            query_valid[:, None] & token_valid[None, :],
+            scores,
+            -float("inf"),
+        )
+        tile_maximum = tl.max(scores, axis=1)
+        new_maximum = tl.maximum(maximum, tile_maximum)
+        new_maximum = tl.where(new_maximum > -float("inf"), new_maximum, 0.0)
+        correction = tl.math.exp2(maximum - new_maximum)
+        probabilities = tl.math.exp2(scores - new_maximum[:, None])
+        denominator = denominator * correction + tl.sum(probabilities, axis=1)
+        accumulator = accumulator * correction[:, None]
+        accumulator = tl.dot(
+            probabilities.to(values.dtype), values, acc=accumulator
+        )
+        maximum = new_maximum
+
+    segment_output_offset = (
+        sequence * (NUM_QUERY_HEADS * NUM_SEGMENTS * HEAD_SIZE)
+        + query_lane[:, None] * (NUM_SEGMENTS * HEAD_SIZE)
+        + segment * HEAD_SIZE
+        + dimension[None, :]
+    )
+    tl.store(
+        segment_output + segment_output_offset,
+        accumulator,
+        mask=query_valid[:, None],
+    )
+    segment_offset = (
+        sequence * (NUM_QUERY_HEADS * NUM_SEGMENTS)
+        + query_lane * NUM_SEGMENTS
+        + segment
+    )
+    tl.store(segment_max + segment_offset, maximum, mask=query_valid)
+    tl.store(segment_exp_sum + segment_offset, denominator, mask=query_valid)
+
+
+@triton.jit
+def kernel_page1_attention_3d_bias_indirect_pages(
+    segment_output,
+    segment_max,
+    segment_exp_sum,
+    query,
+    key_cache,
+    value_cache,
+    key_bias,
+    block_table,
+    exact_page_table,
+    page_indices,
+    cache_indices,
+    sequence_lengths,
+    exact_token_counts,
+    scale,
+    block_table_stride: tl.int64,
+    exact_page_table_stride: tl.int64,
+    query_stride_0: tl.int64,
+    query_stride_1: tl.int64,
+    NUM_QUERY_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    TILE_SIZE: tl.constexpr,
+    HEAD_SIZE: tl.constexpr,
+    BLOCK_M: tl.constexpr,
+    NUM_SEGMENTS: tl.constexpr,
+    PAGE_SIZE: tl.constexpr,
+    PAGE_CAPACITY: tl.constexpr,
+    LEAF_CAPACITY: tl.constexpr,
+    ARENA_LEAF_OFFSET: tl.constexpr,
+):
+    """Page-size-one attention with indirect 16-token exact-leaf pages.
+
+    Local, sink, and coarse entries retain the ordinary single-token index
+    prefix.  The exact suffix stores one virtual page ID per PAGE_SIZE leaves;
+    resolving its leaf index in the attention kernel avoids materializing one
+    block-table entry per selected leaf on every decode step.
+    """
+    sequence = tl.program_id(0).to(tl.int64)
+    segment = tl.program_id(2).to(tl.int64)
+    sequence_length = tl.load(sequence_lengths + sequence).to(tl.int32)
+    exact_token_count = tl.load(exact_token_counts + sequence).to(tl.int32)
+    prefix_length = sequence_length - exact_token_count
+    tiles_per_segment = _cdiv(sequence_length, NUM_SEGMENTS * TILE_SIZE)
+    tile_begin = segment * tiles_per_segment
+    if tile_begin * TILE_SIZE >= sequence_length:
+        return
+
+    query_lane = tl.arange(0, BLOCK_M)
+    query_valid = query_lane < NUM_QUERY_HEADS
+    dimension = tl.arange(0, HEAD_SIZE)
+    token_lane = tl.arange(0, TILE_SIZE)
+    queries = tl.load(
+        query
+        + sequence * query_stride_0
+        + query_lane[:, None] * query_stride_1
+        + dimension[None, :],
+        mask=query_valid[:, None],
+        other=0.0,
+    )
+
+    logical_batch = sequence // KV_HEADS
+    kv_head = sequence - logical_batch * KV_HEADS
+    cache_batch = tl.load(cache_indices + logical_batch).to(tl.int64)
+    kv_row = cache_batch * KV_HEADS + kv_head
+    table_base = sequence * block_table_stride
+    exact_table_base = sequence * exact_page_table_stride
+    rcp_ln2: tl.constexpr = 1.4426950408889634
+    qk_scale = scale * rcp_ln2
+    maximum = tl.full((BLOCK_M,), -float("inf"), tl.float32)
+    denominator = tl.full((BLOCK_M,), 1.0, tl.float32)
+    accumulator = tl.zeros((BLOCK_M, HEAD_SIZE), tl.float32)
+    tile_count = _cdiv(sequence_length, TILE_SIZE)
+
+    for tile in range(
+        tile_begin,
+        min((segment + 1) * tiles_per_segment, tile_count),
+    ):
+        logical_token = tile * TILE_SIZE + token_lane
+        token_valid = logical_token < sequence_length
+        is_exact = logical_token >= prefix_length
+        prefix_physical = tl.load(
+            block_table + table_base + logical_token,
+            mask=token_valid & ~is_exact,
+            other=0,
+        ).to(tl.int64)
+
+        exact_token = logical_token - prefix_length
+        exact_page = exact_token // PAGE_SIZE
+        within_page = exact_token % PAGE_SIZE
+        virtual_page = tl.load(
+            exact_page_table + exact_table_base + exact_page,
+            mask=token_valid & is_exact,
+            other=-1,
+        ).to(tl.int64)
+        page_valid = (
+            token_valid
+            & is_exact
+            & (virtual_page >= 0)
+            & (virtual_page < PAGE_CAPACITY)
+        )
+        leaf_index = tl.load(
+            page_indices
+            + (kv_row * PAGE_CAPACITY + tl.where(page_valid, virtual_page, 0))
+            * PAGE_SIZE
+            + within_page,
+            mask=page_valid,
+            other=-1,
+        ).to(tl.int64)
+        leaf_valid = (
+            page_valid & (leaf_index >= 0) & (leaf_index < LEAF_CAPACITY)
+        )
+        physical_token = tl.where(
+            is_exact,
+            ARENA_LEAF_OFFSET + kv_row * LEAF_CAPACITY + leaf_index,
+            prefix_physical,
+        )
+        token_valid &= ~is_exact | leaf_valid
+
+        keys = tl.load(
+            key_cache
+            + physical_token[None, :] * HEAD_SIZE
+            + dimension[:, None],
+            mask=token_valid[None, :],
+            other=0.0,
+            cache_modifier=".cg",
+        ).to(queries.dtype)
+        values = tl.load(
+            value_cache
+            + physical_token[:, None] * HEAD_SIZE
+            + dimension[None, :],
+            mask=token_valid[:, None],
+            other=0.0,
+            cache_modifier=".cg",
+        ).to(queries.dtype)
+        bias = tl.load(
+            key_bias + physical_token,
+            mask=token_valid,
+            other=0.0,
+            cache_modifier=".cg",
+        ).to(tl.float32)
+
+        scores = qk_scale * tl.dot(queries, keys)
+        scores += bias[None, :] * rcp_ln2
+        scores = tl.where(
+            query_valid[:, None] & token_valid[None, :],
+            scores,
+            -float("inf"),
+        )
+        tile_maximum = tl.max(scores, axis=1)
+        new_maximum = tl.maximum(maximum, tile_maximum)
+        new_maximum = tl.where(new_maximum > -float("inf"), new_maximum, 0.0)
+        correction = tl.math.exp2(maximum - new_maximum)
+        probabilities = tl.math.exp2(scores - new_maximum[:, None])
+        denominator = denominator * correction + tl.sum(probabilities, axis=1)
+        accumulator = accumulator * correction[:, None]
+        accumulator = tl.dot(
+            probabilities.to(values.dtype), values, acc=accumulator
+        )
+        maximum = new_maximum
+
+    segment_output_offset = (
+        sequence * (NUM_QUERY_HEADS * NUM_SEGMENTS * HEAD_SIZE)
+        + query_lane[:, None] * (NUM_SEGMENTS * HEAD_SIZE)
+        + segment * HEAD_SIZE
+        + dimension[None, :]
+    )
+    tl.store(
+        segment_output + segment_output_offset,
+        accumulator,
+        mask=query_valid[:, None],
+    )
+    segment_offset = (
+        sequence * (NUM_QUERY_HEADS * NUM_SEGMENTS)
+        + query_lane * NUM_SEGMENTS
+        + segment
+    )
+    tl.store(segment_max + segment_offset, maximum, mask=query_valid)
+    tl.store(segment_exp_sum + segment_offset, denominator, mask=query_valid)
+
+
+@triton.jit
 def kernel_page1_attention_3d_bias_fixed_mask(
     segment_output,
     segment_max,

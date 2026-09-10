@@ -6,6 +6,7 @@ from __future__ import annotations
 import os
 import sys
 from dataclasses import replace
+from inspect import signature
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -28,6 +29,15 @@ from vllm_lod_plugin.pool import (  # noqa: E402
     _production_prefill_hierarchical_route,
     _production_geometry_overrides,
 )
+from model.kernels.paged_leaf_attention import (  # noqa: E402
+    fused_decode_paged_lod_attention,
+)
+
+
+def verify_decode_kernel_defaults() -> None:
+    parameters = signature(fused_decode_paged_lod_attention).parameters
+    assert parameters["compact_top4_candidates"].default is True
+    assert parameters["fuse_route_local"].default is True
 
 
 def verify_default_profile() -> None:
@@ -137,6 +147,12 @@ def verify_model_geometries() -> None:
     assert qwen38["decode_gqa_fixed_mask_aiter"] is True
     assert qwen38["decode_gqa_fixed_mask_segments"] == 256
     assert qwen38["decode_gqa_fixed_mask_reduce_block_d"] == 64
+    assert (
+        _production_geometry_overrides(256, 6, levels=3)[
+            "decode_gqa_fixed_mask_aiter"
+        ]
+        is False
+    )
 
     qwen35 = _production_geometry_overrides(256, 4)
     assert qwen35["prefill_open_count"] == 4
@@ -302,6 +318,8 @@ def verify_pool_startup_audit() -> None:
             assert pool.engine.recursive_prefill_all_leaves_token_limit == 0
             assert pool.engine.leaf_key_quant_bits == kv_bits
             assert pool.engine.leaf_value_quant_bits == kv_bits
+            assert not pool.settings.decode_gqa_fixed_mask_aiter
+            assert "unified_page1_k" not in pool.state["page_cache"]
 
 
 def verify_recursive_prefill_overrides() -> None:
@@ -385,6 +403,7 @@ def verify_recursive_prefill_overrides() -> None:
 
 
 def main() -> None:
+    verify_decode_kernel_defaults()
     verify_default_profile()
     verify_operational_settings()
     verify_tuning_requires_explicit_override()

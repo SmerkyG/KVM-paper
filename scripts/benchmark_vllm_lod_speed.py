@@ -135,6 +135,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--lod-prefill-chunk-len", type=int)
     parser.add_argument("--lod-prefill-state-update-len", type=int)
+    parser.add_argument("--lod-decode-state-update-len", type=int)
     parser.add_argument("--lod-direct-prefill-route", action="store_true")
     parser.add_argument("--lod-decode-route-group-size", type=int)
     parser.add_argument("--lod-decode-route-num-warps", type=int)
@@ -1090,6 +1091,7 @@ def inspect_lod_dispatch(model) -> dict[str, object]:
             "page_capacity": int(pool.page_capacity),
             "local_capacity": int(pool.local_capacity),
             "local_window": int(engine.local_len),
+            "decode_state_update_len": int(engine.decode_state_update_len),
             "leaf_dtype": str(page["leaf_k"].dtype),
             "state_route_backend": engine.recursive_state_route_backend,
             "state_route_kernels": state_route,
@@ -1968,6 +1970,12 @@ def configure_lod_model(
 
 def main() -> None:
     args = parse_args()
+    if args.lod_decode_state_update_len is not None:
+        # This value determines each pool row's exact-local capacity, so it
+        # must be visible while vLLM constructs the attention modules.
+        os.environ["VLLM_LOD_PANEL_DECODE_STATE_UPDATE_LEN"] = str(
+            args.lod_decode_state_update_len
+        )
     if args.lod_recursive_state_route_backend is not None:
         # This backend changes graph-reserved scratch, so select it before
         # vLLM constructs the model rather than mutating it after graph capture.
@@ -2201,6 +2209,7 @@ def main() -> None:
         ),
         "lod_prefill_chunk_len": args.lod_prefill_chunk_len,
         "lod_prefill_state_update_len": args.lod_prefill_state_update_len,
+        "lod_decode_state_update_len": args.lod_decode_state_update_len,
         "lod_direct_prefill_route": args.lod_direct_prefill_route,
         "lod_decode_route_group_size": args.lod_decode_route_group_size,
         "lod_decode_route_num_warps": args.lod_decode_route_num_warps,

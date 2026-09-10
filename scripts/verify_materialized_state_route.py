@@ -74,6 +74,7 @@ def verify(name: str, head_dim: int, kv_heads: int, gqa: int) -> dict[str, objec
         scale=head_dim**-0.5,
         protected_len=3,
         max_leaf_tokens=40,
+        open_count=4,
     )
     torch.cuda.synchronize()
 
@@ -109,14 +110,39 @@ def verify(name: str, head_dim: int, kv_heads: int, gqa: int) -> dict[str, objec
         actual_scores,
         torch.full_like(actual_scores, -float("inf")),
     )
-    expected_top = route_scores.topk(8, dim=-1, sorted=False).indices.reshape(
-        batch, query_heads, 8
+    expected_top = route_scores.topk(4, dim=-1, sorted=False).indices.reshape(
+        batch, query_heads, 4
     )
-    actual_top = buffers["route_top_slots"][..., 0, :]
-    top8_exact = bool(
+    actual_top = buffers["route_top_slots"][..., 0, :].clone()
+    top4_exact = bool(
         (
             expected_top.sort(dim=-1).values
-            == actual_top.sort(dim=-1).values
+            == actual_top[..., :4].sort(dim=-1).values
+        )
+        .all()
+        .item()
+    )
+    top4_tail_clear = bool((actual_top[..., 4:] == -1).all().item())
+
+    materialized_state_route_gqa(
+        q,
+        state_k,
+        state_v,
+        counts,
+        cache_indices,
+        buffers,
+        state_len=state_len,
+        kv_group_size=gqa,
+        scale=head_dim**-0.5,
+        protected_len=3,
+        max_leaf_tokens=40,
+        open_count=4,
+        compact_top4_candidates=False,
+    )
+    legacy_candidate_top4_exact = bool(
+        (
+            expected_top.sort(dim=-1).values
+            == buffers["route_top_slots"][..., 0, :4].sort(dim=-1).values
         )
         .all()
         .item()
@@ -147,8 +173,8 @@ def verify(name: str, head_dim: int, kv_heads: int, gqa: int) -> dict[str, objec
     )
     if score_max_abs > 2.0e-2:
         raise AssertionError(f"{name}: score materialization differs from reference")
-    if not top8_exact:
-        raise AssertionError(f"{name}: top-8 differs from materialized score table")
+    if not top4_exact or not top4_tail_clear or not legacy_candidate_top4_exact:
+        raise AssertionError(f"{name}: top-4 differs from materialized score table")
     if lse_max_abs > 2.0e-5:
         raise AssertionError(f"{name}: LSE reduction differs from reference")
     if output_max_abs > 2.0e-5:
@@ -156,7 +182,9 @@ def verify(name: str, head_dim: int, kv_heads: int, gqa: int) -> dict[str, objec
     return {
         "geometry": name,
         "score_max_abs": score_max_abs,
-        "top8_exact": top8_exact,
+        "top4_exact": top4_exact,
+        "top4_tail_clear": top4_tail_clear,
+        "legacy_candidate_top4_exact": legacy_candidate_top4_exact,
         "lse_max_abs": lse_max_abs,
         "output_max_abs": output_max_abs,
         "cache_indices": cache_indices.tolist(),

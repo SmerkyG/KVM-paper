@@ -115,10 +115,35 @@ def main() -> None:
         else:
             kernel = _decode_route_coarse_scalar_gqa_groups_kernel
             grid = (args.batch_size * args.kv_heads, active_groups)
+        kernel_arguments = (
+            arguments
+            + (
+                cache_indices,
+                cache_indices,
+                cache_indices,
+                cache_indices,
+                counts,
+                cache_indices,
+                state_k,
+                state_v,
+                state_k,
+                state_v,
+                counts.stride(0),
+                counts.stride(1),
+                counts.stride(2),
+            )
+            if kernel is _decode_route_coarse_gqa_groups_kernel
+            else arguments
+        )
+        kernel_options = (
+            {"USE_STATE_LENS": False}
+            if kernel is _decode_route_coarse_gqa_groups_kernel
+            else {}
+        )
 
         def launch() -> None:
             kernel[grid](
-                *arguments,
+                *kernel_arguments,
                 QUERY_HEADS=query_heads,
                 KV_HEADS=args.kv_heads,
                 KV_GROUP_SIZE=args.gqa,
@@ -132,6 +157,7 @@ def main() -> None:
                 SCORE_ONLY=True,
                 num_warps=warps,
                 waves_per_eu=1,
+                **kernel_options,
             )
             _reduce_decode_route_topk_kernel[(query_rows,)](
                 candidate_scores,
@@ -158,7 +184,7 @@ def main() -> None:
             reduced = torch.cuda.Event(enable_timing=True)
             begin.record()
             kernel[grid](
-                *arguments,
+                *kernel_arguments,
                 QUERY_HEADS=query_heads,
                 KV_HEADS=args.kv_heads,
                 KV_GROUP_SIZE=args.gqa,
@@ -172,6 +198,7 @@ def main() -> None:
                 SCORE_ONLY=True,
                 num_warps=warps,
                 waves_per_eu=1,
+                **kernel_options,
             )
             scored.record()
             _reduce_decode_route_topk_kernel[(query_rows,)](

@@ -460,6 +460,8 @@ class KernelRecursivePagedLODAttention(_KernelLODEngine):
         *,
         total_length: int,
         recent_length: int | None = None,
+        _precomputed_update: tuple[int, torch.Tensor, torch.Tensor | None]
+        | None = None,
     ) -> None:
         """Archive old decode-local entries without running attention.
 
@@ -531,27 +533,30 @@ class KernelRecursivePagedLODAttention(_KernelLODEngine):
                 if self.state_split_max_leaves is not None
                 else scheduled_state_len
             )
-            (
-                state_k,
-                state_v,
-                counts,
-                state_len,
-                owners,
-                old_slot_remap,
-            ) = self._update_state(
-                state_k,
-                state_v,
-                counts,
-                key_norm_sums,
-                recent_k[..., :overflow_len, :],
-                recent_v[..., :overflow_len, :],
-                state_len=state_len,
-                ctx_len=update_ctx_len,
-                available_context=target_coverage,
-                state_capacity=state_capacity,
-                clustering_query_scale=None,
-                scheduled_state_len=scheduled_state_len,
-            )
+            if _precomputed_update is None:
+                (
+                    state_k,
+                    state_v,
+                    counts,
+                    state_len,
+                    owners,
+                    old_slot_remap,
+                ) = self._update_state(
+                    state_k,
+                    state_v,
+                    counts,
+                    key_norm_sums,
+                    recent_k[..., :overflow_len, :],
+                    recent_v[..., :overflow_len, :],
+                    state_len=state_len,
+                    ctx_len=update_ctx_len,
+                    available_context=target_coverage,
+                    state_capacity=state_capacity,
+                    clustering_query_scale=None,
+                    scheduled_state_len=scheduled_state_len,
+                )
+            else:
+                state_len, owners, old_slot_remap = _precomputed_update
             scheduled_state_len = (
                 next_scheduled_state_len
                 if self.state_split_max_leaves is not None
