@@ -1,6 +1,6 @@
 # Lod Attention
 
-Topic hints: Benchmark decode-update intervals with their exact-tail cost
+Topic hints: Size fused AITER route scratch from dispatched key tiles
 
 ## Lessons
 
@@ -37,3 +37,5 @@ Topic hints: Benchmark decode-update intervals with their exact-tail cost
 - Before optimizing dynamic LOD open counts, separate max-k route-selection cost from exact-leaf attendance; masking ranks after selecting max-k cannot recover selector time, and may save little when expert-grouped leaf work is already cheap.
 
 - A longer LoD decode state-update interval also widens the exact local tail between updates; assess it over at least one full interval because a faster catch-up kernel alone can still yield slower amortized decode and larger cache use.
+
+- In patched AITER fused route/coarse prefill, candidate storage and strides must cover every generated CK kN0 variant. If one head dimension dispatches multiple key-tile widths (Qwen D=256 currently has kN0=64 and 128), allocate for the smallest tile and initialize unwritten candidate blocks to -inf; use a tight uninitialized buffer only when generated variants prove one fixed tile (K2 D=128 currently uses kN0=128).
