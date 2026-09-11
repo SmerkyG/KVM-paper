@@ -32,6 +32,26 @@ def configure_environment(mode: str, pool_size: int) -> None:
     os.environ.pop("VLLM_LOD_MAX_CONTEXT", None)
 
 
+def default_gpu_memory_utilization(
+    checkpoint: str,
+    mode: str,
+    *,
+    quality: bool = False,
+) -> float:
+    """Return the measured safe memory target for a release benchmark.
+
+    K2's larger model-side 131K LoD pool already consumes more than 70% of an
+    MI325X before vLLM allocates its small native-cache remainder. Qwen fits at
+    70% but needs the remaining headroom for concurrent cache maintenance.
+    """
+
+    if quality:
+        return 0.65
+    if mode == "full":
+        return 0.9
+    return 0.7 if is_qwen38(checkpoint) else 0.8
+
+
 def llm_kwargs(
     *,
     checkpoint: str,
@@ -41,6 +61,9 @@ def llm_kwargs(
     tensor_parallel_size: int,
     gpu_memory_utilization: float,
     full_attention_backend: str,
+    speculative_model: str | None = None,
+    num_speculative_tokens: int = 7,
+    speculative_attention_backend: str = "TRITON_ATTN",
 ) -> dict[str, Any]:
     """Build the matched vLLM configuration used by every offline runner."""
 
@@ -50,6 +73,10 @@ def llm_kwargs(
         raise ValueError("batch_size and tensor_parallel_size must be positive")
     if not 0.0 < gpu_memory_utilization <= 1.0:
         raise ValueError("gpu_memory_utilization must be in (0, 1]")
+    if speculative_model and not is_qwen38(checkpoint):
+        raise ValueError("DFlash2 is supported only with Qwen3.8")
+    if speculative_model and num_speculative_tokens < 1:
+        raise ValueError("num_speculative_tokens must be positive")
     configure_environment(mode, batch_size)
     backend = "CUSTOM" if mode != "full" else full_attention_backend
     kwargs: dict[str, Any] = {
@@ -71,6 +98,20 @@ def llm_kwargs(
     }
     if is_qwen38(checkpoint):
         kwargs["language_model_only"] = True
+    if speculative_model:
+        kwargs["speculative_config"] = {
+            "method": "dflash",
+            "model": speculative_model,
+            "num_speculative_tokens": num_speculative_tokens,
+            "attention_backend": speculative_attention_backend,
+        }
+        os.environ["VLLM_USE_V2_MODEL_RUNNER"] = "1"
+        if tensor_parallel_size > 1:
+            # ROCm graph capture cannot coexist with ProcessGroupNCCL's
+            # background HIP-event watchdog on the validated vLLM revision.
+            os.environ.setdefault("TORCH_NCCL_BLOCKING_WAIT", "1")
+            os.environ.setdefault("TORCH_NCCL_ASYNC_ERROR_HANDLING", "0")
+            os.environ.setdefault("TORCH_NCCL_ENABLE_MONITORING", "0")
     return kwargs
 
 

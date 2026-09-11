@@ -10,7 +10,13 @@ import time
 from pathlib import Path
 from typing import Any
 
-from ._vllm import MODES, close_llm, llm_kwargs, write_json
+from ._vllm import (
+    MODES,
+    close_llm,
+    default_gpu_memory_utilization,
+    llm_kwargs,
+    write_json,
+)
 
 DATASET = "Seerkfang/prolong-64k-512-new"
 DATASET_REVISION = "97295b7d7fe48dc0aa6ba373af3a8b9d945e505b"
@@ -47,11 +53,25 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--tensor-parallel-size", type=int, default=1)
     parser.add_argument("--decode-tokens", type=int, default=1_025)
     parser.add_argument("--repeats", type=int, default=3)
-    parser.add_argument("--gpu-memory-utilization", type=float, default=0.9)
+    parser.add_argument(
+        "--gpu-memory-utilization",
+        type=float,
+        help=(
+            "vLLM native-cache memory fraction (default: 0.65 for quality, "
+            "0.70 for Qwen LoD speed, 0.80 for K2 LoD speed, or 0.90 for "
+            "full-attention speed)"
+        ),
+    )
     parser.add_argument(
         "--full-attention-backend",
         default="ROCM_AITER_UNIFIED_ATTN",
     )
+    parser.add_argument(
+        "--speculative-model",
+        help="Qwen3.8 DFlash2 draft checkpoint (for example z-lab/Qwen3.8-27B-DFlash2)",
+    )
+    parser.add_argument("--num-speculative-tokens", type=int, default=7)
+    parser.add_argument("--speculative-attention-backend", default="TRITON_ATTN")
     return parser.parse_args()
 
 
@@ -301,10 +321,26 @@ def evaluate_speed(
         total_timings = []
         prefill_timings = []
         decode_timings = []
+        first_mismatch_positions: list[list[int | None]] = []
         for _ in range(repeats):
             elapsed, prefill, decode, token_ids = timed_generate(llm, prompts, params)
-            if token_ids != reference:
-                raise RuntimeError("greedy output changed across identical speed runs")
+            first_mismatch_positions.append(
+                [
+                    next(
+                        (
+                            index
+                            for index, (expected, actual) in enumerate(
+                                zip(reference_row, measured_row, strict=True)
+                            )
+                            if expected != actual
+                        ),
+                        None,
+                    )
+                    for reference_row, measured_row in zip(
+                        reference, token_ids, strict=True
+                    )
+                ]
+            )
             total_timings.append(elapsed)
             prefill_timings.append(prefill)
             decode_timings.append(decode)
@@ -319,6 +355,12 @@ def evaluate_speed(
             "prefill_timings_seconds": prefill_timings,
             "decode_timings_seconds": decode_timings,
             "total_timings_seconds": total_timings,
+            "greedy_output_identical": all(
+                position is None
+                for repeat in first_mismatch_positions
+                for position in repeat
+            ),
+            "first_mismatch_positions": first_mismatch_positions,
             "prompts": prompt_metadata,
         }
     return result
@@ -337,14 +379,24 @@ def main() -> None:
 
     max_length = args.length if args.measure == "quality" else max(args.lengths)
     generation_tokens = 1 if args.measure == "quality" else args.decode_tokens
+    gpu_memory_utilization = args.gpu_memory_utilization
+    if gpu_memory_utilization is None:
+        gpu_memory_utilization = default_gpu_memory_utilization(
+            args.checkpoint,
+            args.mode,
+            quality=args.measure == "quality",
+        )
     kwargs = llm_kwargs(
         checkpoint=args.checkpoint,
         mode=args.mode,
         max_model_len=max_length + generation_tokens + 16,
         batch_size=args.batch_size,
         tensor_parallel_size=args.tensor_parallel_size,
-        gpu_memory_utilization=args.gpu_memory_utilization,
+        gpu_memory_utilization=gpu_memory_utilization,
         full_attention_backend=args.full_attention_backend,
+        speculative_model=args.speculative_model,
+        num_speculative_tokens=args.num_speculative_tokens,
+        speculative_attention_backend=args.speculative_attention_backend,
     )
     tokenizer = AutoTokenizer.from_pretrained(
         args.checkpoint,
@@ -381,8 +433,13 @@ def main() -> None:
             "mode": args.mode,
             "batch_size": args.batch_size,
             "tensor_parallel_size": args.tensor_parallel_size,
+            "gpu_memory_utilization": gpu_memory_utilization,
             "scheduler_chunk_tokens": 16_384,
             "decode_tokens": args.decode_tokens if args.measure == "speed" else None,
+            "speculative_model": args.speculative_model,
+            "num_speculative_tokens": (
+                args.num_speculative_tokens if args.speculative_model else None
+            ),
             "measurements": measurements,
         }
         write_json(args.output, result)

@@ -79,6 +79,7 @@ class VLLMLayerLODPool:
         has_query_norm: bool = False,
         has_key_norm: bool = False,
         prefix_rollback_tokens: int = 0,
+        speculative_tokens: int = 0,
     ) -> None:
         if dtype not in (torch.float16, torch.bfloat16):
             raise ValueError("vLLM LOD conversion requires a native FP16/BF16 KV cache")
@@ -176,6 +177,11 @@ class VLLMLayerLODPool:
             has_query_norm=has_query_norm,
             has_key_norm=has_key_norm,
         )
+        if settings.kv_bits == 4 and speculative_tokens:
+            # DFlash captures ordinary and flattened verifier graphs over one
+            # target pool. Do not reserve or capture the incompatible exact
+            # residual-INT4 scan in that deployment.
+            self.engine.exact_decode_limit = 0
         self._assert_production_profile(
             gqa,
             has_query_norm=has_query_norm,
@@ -184,8 +190,8 @@ class VLLMLayerLODPool:
         self.state_capacity = self.engine._state_capacity(
             request_capacity, min(request_capacity, CHUNK_SIZE)
         )
-        self.decode_local_capacity = (
-            local_window + int(self.engine.decode_state_update_len)
+        self.decode_local_capacity = local_window + int(
+            self.engine.decode_state_update_len
         )
         self.decode_local_limit = (
             int(self.engine.local_len)
@@ -219,6 +225,9 @@ class VLLMLayerLODPool:
         # Keep the allocation capacity fixed for CUDA graphs, but let decode
         # skip the unused suffix of each request's contiguous centroid state.
         self.state_lens = torch.zeros(
+            max_requests, dtype=torch.int32, device=self.device
+        )
+        self.leaf_lens = torch.zeros(
             max_requests, dtype=torch.int32, device=self.device
         )
         self.ready = [False] * max_requests
@@ -284,9 +293,7 @@ class VLLMLayerLODPool:
 
         recursive = self.settings.levels == 3
         expected_bits = self.settings.kv_bits
-        k2_int4 = (
-            self.family is ModelFamily.K2 and recursive and expected_bits == 4
-        )
+        k2_int4 = self.family is ModelFamily.K2 and recursive and expected_bits == 4
         checks = {
             "top-four routing": (
                 self.engine.two_level_topk == ROUTE_COUNT
@@ -345,9 +352,7 @@ class VLLMLayerLODPool:
         }
         failed = [name for name, valid in checks.items() if not valid]
         if failed:
-            raise RuntimeError(
-                "LoD production dispatch failed: " + ", ".join(failed)
-            )
+            raise RuntimeError("LoD production dispatch failed: " + ", ".join(failed))
 
     def _allocate_state(self) -> dict[str, object]:
         r, h, s, d = (
@@ -370,9 +375,7 @@ class VLLMLayerLODPool:
             arena_local_offset = arena_leaf_offset + kv_rows * self.leaf_capacity
             arena_sink_offset = arena_local_offset + kv_rows * self.local_capacity
             arena_coarse_offset = arena_sink_offset + kv_rows * sink_capacity
-            arena_padding_index = (
-                arena_coarse_offset + kv_rows * self.state_capacity
-            )
+            arena_padding_index = arena_coarse_offset + kv_rows * self.state_capacity
             arena_capacity = arena_padding_index + 1
             unified_page1_k = torch.empty(
                 arena_capacity, d, dtype=self.dtype, device=self.device
@@ -486,9 +489,7 @@ class VLLMLayerLODPool:
 
         if self.settings.levels == 2:
             page_size = 16
-            maximum_slot_pages = max(
-                1, math.ceil(self.leaf_capacity / page_size)
-            )
+            maximum_slot_pages = max(1, math.ceil(self.leaf_capacity / page_size))
             root_capacity = max(1, math.ceil(maximum_slot_pages / 64))
             slot_pages = torch.full(
                 (r, h, s, root_capacity),
@@ -531,12 +532,8 @@ class VLLMLayerLODPool:
                 "overflow_page_keys": overflow_page_keys,
                 "overflow_page_values": overflow_page_values,
                 "overflow_hash_capacity": self.hash_capacity,
-                "overflow_flag": torch.zeros(
-                    (), dtype=torch.int32, device=self.device
-                ),
-                "overflow_used": torch.zeros(
-                    (), dtype=torch.int32, device=self.device
-                ),
+                "overflow_flag": torch.zeros((), dtype=torch.int32, device=self.device),
+                "overflow_used": torch.zeros((), dtype=torch.int32, device=self.device),
                 "overflow_active": overflow_active,
                 "overflow_safe_until": overflow_safe_until,
                 "paged_page_directory": True,
@@ -544,9 +541,7 @@ class VLLMLayerLODPool:
                 "slot_lengths": torch.zeros(
                     r, h, s, dtype=torch.int32, device=self.device
                 ),
-                "next_page": torch.zeros(
-                    r, h, dtype=torch.int32, device=self.device
-                ),
+                "next_page": torch.zeros(r, h, dtype=torch.int32, device=self.device),
                 "page_size": page_size,
                 "leaf_capacity": self.leaf_capacity,
                 "leaf_count": 0,
@@ -575,21 +570,16 @@ class VLLMLayerLODPool:
                 )
                 if isinstance(unified_page1_fixed_indices, torch.Tensor):
                     state["page_cache"].update(
-                        unified_page1_fixed_indices=(
-                            unified_page1_fixed_indices
-                        ),
+                        unified_page1_fixed_indices=(unified_page1_fixed_indices),
                         unified_page1_fixed_leaf_owners=(
                             unified_page1_fixed_leaf_owners
                         ),
                         unified_page1_fixed_slot_offsets=(
                             unified_page1_fixed_slot_offsets
                         ),
-                        unified_page1_fixed_lengths=(
-                            unified_page1_fixed_lengths
-                        ),
+                        unified_page1_fixed_lengths=(unified_page1_fixed_lengths),
                     )
             return state
-
 
         slot_dtype = (
             torch.int16
@@ -778,6 +768,7 @@ class VLLMLayerLODPool:
         self.metadata[slot].clear()
         self.local_lens[slot].zero_()
         self.state_lens[slot].zero_()
+        self.leaf_lens[slot].zero_()
         self.state["counts"][slot].zero_()
         if "sink_k" in self.state:
             self.state["sink_k"][slot].zero_()
@@ -810,6 +801,7 @@ class VLLMLayerLODPool:
             self.metadata[slot].clear()
         self.local_lens[start:stop].zero_()
         self.state_lens[start:stop].zero_()
+        self.leaf_lens[start:stop].zero_()
         self.state["counts"][start:stop].zero_()
         if "sink_k" in self.state:
             self.state["sink_k"][start:stop].zero_()
@@ -888,9 +880,7 @@ class VLLMLayerLODPool:
         page = self.state["page_cache"]
         leaf_k = page.get("leaf_k")
         leaf_v = page.get("leaf_v")
-        if not isinstance(leaf_k, torch.Tensor) or not isinstance(
-            leaf_v, torch.Tensor
-        ):
+        if not isinstance(leaf_k, torch.Tensor) or not isinstance(leaf_v, torch.Tensor):
             raise RuntimeError("retained LOD row has no chronological leaf archive")
         leaf_count = int(metadata["leaf_count"])
         if leaf_count < total_length:
@@ -1120,17 +1110,10 @@ class VLLMLayerLODPool:
             )
             begin = end
 
-    def _decode_route_leaf_limit(self) -> int:
-        return 1024
-
-    def install_range(
-        self, start: int, stop: int, converted: KernelLODCache
-    ) -> None:
+    def install_range(self, start: int, stop: int, converted: KernelLODCache) -> None:
         self.install_rows(tuple(range(start, stop)), converted)
 
-    def install_rows(
-        self, slots: tuple[int, ...], converted: KernelLODCache
-    ) -> None:
+    def install_rows(self, slots: tuple[int, ...], converted: KernelLODCache) -> None:
         """Install one converted batch into a contiguous set of pool rows."""
         if not slots or len(set(slots)) != len(slots):
             raise ValueError("converted LOD row indices must be nonempty and unique")
@@ -1191,7 +1174,7 @@ class VLLMLayerLODPool:
         destination_page = self.state["page_cache"]
         if pool_backed:
             for name, value in source_page.items():
-                if name.startswith("unified_page1_"):
+                if name == "leaf_lens" or name.startswith("unified_page1_"):
                     continue
                 destination = destination_page.get(name)
                 if not isinstance(value, torch.Tensor) or not value.ndim:
@@ -1201,10 +1184,9 @@ class VLLMLayerLODPool:
                         f"pool-backed LOD page tensor {name} has no destination"
                     )
                 destination_rows = destination[start:stop]
-                if (
-                    value.data_ptr() != destination_rows.data_ptr()
-                    or tuple(value.shape) != tuple(destination_rows.shape)
-                ):
+                if value.data_ptr() != destination_rows.data_ptr() or tuple(
+                    value.shape
+                ) != tuple(destination_rows.shape):
                     raise RuntimeError(
                         f"pool-backed LOD page tensor {name} does not alias its rows"
                     )
@@ -1227,10 +1209,8 @@ class VLLMLayerLODPool:
         destination_values = destination_page["overflow_page_values"]
         if pool_backed:
             if (
-                source_keys.data_ptr()
-                != destination_keys[start:stop].data_ptr()
-                or source_values.data_ptr()
-                != destination_values[start:stop].data_ptr()
+                source_keys.data_ptr() != destination_keys[start:stop].data_ptr()
+                or source_values.data_ptr() != destination_values[start:stop].data_ptr()
             ):
                 raise RuntimeError("pool-backed LOD overflow table does not alias rows")
         elif int(source_keys.size(2)) == int(destination_keys.size(2)):
@@ -1256,11 +1236,15 @@ class VLLMLayerLODPool:
         if ascending:
             self.local_lens[start:stop].fill_(recent_len)
             self.state_lens[start:stop].fill_(state_len)
+            self.leaf_lens[start:stop].fill_(int(source_page["leaf_count"]))
         else:
             if slot_indices is None:
                 raise AssertionError("permuted LOD row indices are missing")
             self.local_lens.index_fill_(0, slot_indices, recent_len)
             self.state_lens.index_fill_(0, slot_indices, state_len)
+            self.leaf_lens.index_fill_(
+                0, slot_indices, int(source_page["leaf_count"])
+            )
         for slot in slots:
             self.metadata[slot].update(
                 state_len=state_len,
@@ -1290,11 +1274,7 @@ class VLLMLayerLODPool:
             and self.engine.virtual_page_storage
             and self.engine.leaf_key_quant_bits == self.settings.kv_bits
             and self.engine.leaf_value_quant_bits == self.settings.kv_bits
-            and not self.engine.simulate_leaf_quantization
-            and (
-                self.settings.kv_bits == 0
-                or self.engine.page_summary_quant_bits == 8
-            )
+            and (self.settings.kv_bits == 0 or self.engine.page_summary_quant_bits == 8)
         ):
             return None
         start, stop = slots[0], slots[-1] + 1
@@ -1319,7 +1299,6 @@ class VLLMLayerLODPool:
                 if isinstance(value, torch.Tensor) and value.ndim
                 else value
             )
-        pass
         storage["page_cache"] = page
         return storage
 
@@ -1327,7 +1306,6 @@ class VLLMLayerLODPool:
         """Make the foreground stream consume any deferred cache builds."""
         if not any(self.deferred_prefill_events[slot] is not None for slot in slots):
             return
-        current = torch.cuda.current_stream(self.device)
         seen: set[int] = set()
         for slot in slots:
             event = self.deferred_prefill_events[slot]
@@ -1335,7 +1313,10 @@ class VLLMLayerLODPool:
                 continue
             identity = id(event)
             if identity not in seen:
-                current.wait_event(event)
+                # vLLM can launch the next attention graph on a stream other
+                # than PyTorch's current stream. A current-stream wait did not
+                # order that consumer and produced corrupted generations.
+                event.synchronize()
                 seen.add(identity)
             self.deferred_prefill_events[slot] = None
 
@@ -1377,23 +1358,17 @@ class VLLMLayerLODPool:
                 and isinstance(destination, torch.Tensor)
                 and value.ndim
             ):
-                self._copy_row(
-                    destination, value, slot, source_slot=source_slot
-                )
+                self._copy_row(destination, value, slot, source_slot=source_slot)
         source_keys = source_page["overflow_page_keys"]
         source_values = source_page["overflow_page_values"]
         destination_keys = destination_page["overflow_page_keys"]
         destination_values = destination_page["overflow_page_values"]
         if int(source_keys.size(2)) == int(destination_keys.size(2)):
-            self._copy_row(
-                destination_keys, source_keys, slot, source_slot=source_slot
-            )
+            self._copy_row(destination_keys, source_keys, slot, source_slot=source_slot)
             self._copy_row(
                 destination_values, source_values, slot, source_slot=source_slot
             )
-            destination_page["overflow_used"].logical_or_(
-                source_page["overflow_used"]
-            )
+            destination_page["overflow_used"].logical_or_(source_page["overflow_used"])
         else:
             rehash_overflow_pages(
                 source_keys,
@@ -1405,13 +1380,12 @@ class VLLMLayerLODPool:
                 source_slot=source_slot,
                 destination_slot=slot,
             )
-        destination_page["overflow_flag"].logical_or_(
-            source_page["overflow_flag"]
-        )
+        destination_page["overflow_flag"].logical_or_(source_page["overflow_flag"])
         recent_len = int(source["recent_len"])
         state_len = int(source["state_len"])
         self.local_lens[slot].fill_(recent_len)
         self.state_lens[slot].fill_(state_len)
+        self.leaf_lens[slot].fill_(int(source_page["leaf_count"]))
         self.metadata[slot].update(
             state_len=state_len,
             scheduled_state_len=int(
@@ -1428,9 +1402,7 @@ class VLLMLayerLODPool:
         self.install_count += 1
         self._refresh_unified_page1_coarse((slot,))
 
-    def _synchronize_rows(
-        self, slots: tuple[int, ...], cache: KernelLODCache
-    ) -> None:
+    def _synchronize_rows(self, slots: tuple[int, ...], cache: KernelLODCache) -> None:
         """Persist an equal-metadata batch after cached prefill."""
         if not slots:
             return
@@ -1470,14 +1442,13 @@ class VLLMLayerLODPool:
                 and value.ndim
             ):
                 for source_slot, slot in enumerate(slots):
-                    self._copy_row(
-                        destination, value, slot, source_slot=source_slot
-                    )
+                    self._copy_row(destination, value, slot, source_slot=source_slot)
         recent_len = int(source["recent_len"])
         state_len = int(source["state_len"])
         for slot in slots:
             self.local_lens[slot].fill_(recent_len)
             self.state_lens[slot].fill_(state_len)
+            self.leaf_lens[slot].fill_(int(source_page["leaf_count"]))
             self.metadata[slot].update(
                 state_len=state_len,
                 scheduled_state_len=int(
@@ -1506,6 +1477,27 @@ class VLLMLayerLODPool:
         length = plan[0][2] - plan[0][1]
         previous_length = plan[0][3]
         slots = tuple(slot for slot, _, _, _ in plan)
+        if slots != tuple(range(slots[0], slots[0] + len(slots))):
+            # Index-selecting a noncontiguous group copies every persistent
+            # tensor, including each row's full-capacity leaf archive. At a
+            # 131K capacity that temporary can consume multiple GiB per layer.
+            # Retain batching within maximal contiguous runs without ever
+            # materializing a second semantic cache.
+            run_begin = 0
+            for index in range(1, len(plan) + 1):
+                run_ended = index == len(plan) or slots[index] != slots[index - 1] + 1
+                if not run_ended:
+                    continue
+                self._direct_cached_prefill_group(
+                    query,
+                    key,
+                    value,
+                    output,
+                    plan[run_begin:index],
+                    finalize_cache_for_decode=finalize_cache_for_decode,
+                )
+                run_begin = index
+            return
         packed_begin = plan[0][1]
         packed_end = packed_begin + len(plan) * length
         packed = packed_end <= int(query.size(0)) and all(
@@ -1544,14 +1536,7 @@ class VLLMLayerLODPool:
                 [value[begin:end].permute(1, 0, 2) for _, begin, end, _ in plan]
             )
         )
-        contiguous_slots = slots == tuple(
-            range(slots[0], slots[0] + len(slots))
-        )
-        cache = (
-            self._range_cache(slots[0], slots[-1] + 1)
-            if contiguous_slots
-            else self._selected_cache(slots)
-        )
+        cache = self._range_cache(slots[0], slots[-1] + 1)
         if cache.total_length != previous_length:
             raise RuntimeError(
                 "batched cached LOD prefill length differs from its prepared plan"
@@ -1563,10 +1548,7 @@ class VLLMLayerLODPool:
             if packed
             else None
         )
-        defer_cache_update = bool(
-            True
-            and self.deferred_prefill_stream is not None
-        )
+        defer_cache_update = self.deferred_prefill_stream is not None
         # The final state/page update does not contribute to this layer's
         # output.  Queue it behind the attention work and let subsequent model
         # layers hide it; _range_cache and decode consume the completion event.
@@ -1629,9 +1611,7 @@ class VLLMLayerLODPool:
         if plan is None:
             raise RuntimeError("direct LOD prefill has no prepared request plan")
         self.direct_prefill_calls += 1
-        initial: dict[
-            tuple[int, bool], list[tuple[int, int, int, int]]
-        ] = {}
+        initial: dict[tuple[int, bool], list[tuple[int, int, int, int]]] = {}
         cached: list[tuple[int, int, int, int]] = []
         for item in plan:
             slot, begin, end, previous_length = item
@@ -1641,9 +1621,9 @@ class VLLMLayerLODPool:
                 if slot not in prompt_lengths:
                     raise RuntimeError("direct LOD prefill has no total prompt length")
                 length = end - begin
-                initial.setdefault(
-                    (length, length >= prompt_lengths[slot]), []
-                ).append(item)
+                initial.setdefault((length, length >= prompt_lengths[slot]), []).append(
+                    item
+                )
             elif previous_length > 0 and self.ready[slot]:
                 cached.append(item)
             elif previous_length > 0:
@@ -1669,10 +1649,7 @@ class VLLMLayerLODPool:
                 .permute(0, 2, 1, 3)
                 if packed
                 else torch.stack(
-                    [
-                        query[begin:end].permute(1, 0, 2)
-                        for _, begin, end, _ in group
-                    ]
+                    [query[begin:end].permute(1, 0, 2) for _, begin, end, _ in group]
                 )
             )
             k = (
@@ -1702,12 +1679,17 @@ class VLLMLayerLODPool:
             )
             prefill_storage = self._initial_prefill_storage(slots)
             defer_cache = bool(
-                True
-                and self.engine.prefill_exact_first_chunk
+                self.engine.prefill_exact_first_chunk
                 and length <= int(self.engine.prefill_chunk_len)
                 and self.deferred_prefill_stream is not None
             )
             if defer_cache:
+                # The first scheduler chunk already uses exact attention, so
+                # its semantic cache can be constructed after its output is
+                # available.  Later model layers hide this work.  The per-row
+                # event is host-synchronized before any scheduler stream can
+                # consume the completed cache, avoiding the graph-stream race
+                # that a current-stream-only wait allowed.
                 result = self.engine._exact_attention(q, k, v, causal=True)
                 if output_view is not None:
                     output_view.copy_(result)
@@ -1729,8 +1711,7 @@ class VLLMLayerLODPool:
                             v,
                             clustering_query=(
                                 q
-                                if self.engine.state_clustering_query_metric
-                                != "none"
+                                if self.engine.state_clustering_query_metric != "none"
                                 else None
                             ),
                             finalize_cache_for_decode=finalize_cache_for_decode,
@@ -1766,9 +1747,7 @@ class VLLMLayerLODPool:
             if cache is None:
                 raise AssertionError("direct LOD prefill did not return a cache")
             if not defer_cache:
-                if tuple(sorted(slots)) == tuple(
-                    range(min(slots), max(slots) + 1)
-                ):
+                if tuple(sorted(slots)) == tuple(range(min(slots), max(slots) + 1)):
                     self.install_rows(slots, cache)
                 else:
                     for source_slot, (slot, _, _, _) in enumerate(group):
@@ -1784,9 +1763,7 @@ class VLLMLayerLODPool:
         if not cached:
             return output
         lengths = {end - begin for _, begin, end, _ in cached}
-        previous_lengths = {
-            previous_length for _, _, _, previous_length in cached
-        }
+        previous_lengths = {previous_length for _, _, _, previous_length in cached}
         slots = tuple(slot for slot, _, _, _ in cached)
         ordered_plan = tuple(sorted(cached, key=lambda item: item[0]))
         ordered_slots = tuple(slot for slot, _, _, _ in ordered_plan)
@@ -1798,9 +1775,7 @@ class VLLMLayerLODPool:
         self.cached_prefill_nonuniform_lengths += int(len(lengths) != 1)
         self.cached_prefill_nonuniform_previous += int(len(previous_lengths) != 1)
         self.cached_prefill_noncontiguous += int(not contiguous_slots)
-        groups: dict[
-            tuple[int, ...], list[tuple[int, int, int, int]]
-        ] = {}
+        groups: dict[tuple[int, ...], list[tuple[int, int, int, int]]] = {}
         for item in ordered_plan:
             slot, begin, end, previous_length = item
             metadata = self.metadata[slot]
@@ -1838,64 +1813,6 @@ class VLLMLayerLODPool:
 
     def _row_cache(self, slot: int) -> KernelLODCache:
         return self._range_cache(slot, slot + 1)
-
-    def _selected_cache(self, slots: tuple[int, ...]) -> KernelLODCache:
-        """Gather equal-metadata noncontiguous rows for one prefill call."""
-        if not slots or len(set(slots)) != len(slots):
-            raise ValueError("LOD cache row indices must be nonempty and unique")
-        if any(not 0 <= slot < self.max_requests for slot in slots):
-            raise IndexError("LOD cache row index is outside the fixed pool")
-        self.wait_deferred_prefill(slots)
-        metadata = self.metadata[slots[0]]
-        scalar_names = (
-            "state_len",
-            "scheduled_state_len",
-            "coverage",
-            "recent_len",
-            "total_len",
-            "leaf_count",
-            "overflow_safe_until",
-        )
-        if any(
-            int(self.metadata[slot][name]) != int(metadata[name])
-            for slot in slots[1:]
-            for name in scalar_names
-        ):
-            raise ValueError("gathered LOD catch-up rows have different metadata")
-        indices = torch.tensor(slots, dtype=torch.long, device=self.device)
-        state: dict[str, object] = {
-            name: value.index_select(0, indices)
-            for name, value in self.state.items()
-            if isinstance(value, torch.Tensor) and value.ndim
-        }
-        state.update(
-            state_len=int(metadata["state_len"]),
-            scheduled_state_len=int(
-                metadata.get("scheduled_state_len", metadata["state_len"])
-            ),
-            coverage=int(metadata["coverage"]),
-            state_capacity=self.state_capacity,
-            recent_len=int(metadata["recent_len"]),
-            total_len=int(metadata["total_len"]),
-        )
-        page_pool = self.state["page_cache"]
-        page: dict[str, object] = {
-            name: (
-                value.index_select(0, indices)
-                if isinstance(value, torch.Tensor) and value.ndim
-                else value
-            )
-            for name, value in page_pool.items()
-            if not name.startswith("unified_page1_")
-        }
-        page.update(
-            leaf_count=int(metadata["leaf_count"]),
-            leaf_capacity=self.leaf_capacity,
-            overflow_active=True,
-            overflow_safe_until=int(metadata["overflow_safe_until"]),
-        )
-        state["page_cache"] = page
-        return KernelLODCache(state)
 
     def _range_cache(self, start: int, stop: int) -> KernelLODCache:
         if not 0 <= start < stop <= self.max_requests:
@@ -1942,7 +1859,7 @@ class VLLMLayerLODPool:
                 if isinstance(value, torch.Tensor) and value.ndim
                 else value
             )
-        pass
+        page["leaf_lens"] = self.leaf_lens[start:stop]
         page.update(
             leaf_count=int(metadata["leaf_count"]),
             leaf_capacity=self.leaf_capacity,
@@ -1952,9 +1869,7 @@ class VLLMLayerLODPool:
         state["page_cache"] = page
         return KernelLODCache(state)
 
-    def _catch_up_target(
-        self, slot: int, total_length: int
-    ) -> tuple[int, int]:
+    def _catch_up_target(self, slot: int, total_length: int) -> tuple[int, int]:
         metadata = self.metadata[slot]
         coverage = int(metadata["coverage"])
         recent_length = total_length - coverage
@@ -1986,9 +1901,7 @@ class VLLMLayerLODPool:
         )
         self._finish_single_catch_up(slot, row)
 
-    def _finish_single_catch_up(
-        self, slot: int, row: KernelLODCache
-    ) -> None:
+    def _finish_single_catch_up(self, slot: int, row: KernelLODCache) -> None:
         page = row.state["page_cache"]
         self.metadata[slot].update(
             state_len=int(row.state["state_len"]),
@@ -2003,6 +1916,7 @@ class VLLMLayerLODPool:
         )
         self.local_lens[slot].fill_(int(row.state["recent_len"]))
         self.state_lens[slot].fill_(int(row.state["state_len"]))
+        self.leaf_lens[slot].fill_(int(page["leaf_count"]))
         self._refresh_unified_page1_coarse((slot,))
 
     def catch_up_precomputed(
@@ -2036,9 +1950,7 @@ class VLLMLayerLODPool:
             if not self.ready[slot]:
                 raise RuntimeError("cannot catch up an uninitialized LOD request row")
             metadata = self.metadata[slot]
-            recent_length, target_coverage = self._catch_up_target(
-                slot, total_length
-            )
+            recent_length, target_coverage = self._catch_up_target(slot, total_length)
             if int(metadata["coverage"]) >= target_coverage:
                 metadata["total_len"] = total_length
                 metadata["recent_len"] = recent_length
@@ -2078,9 +1990,7 @@ class VLLMLayerLODPool:
                     self.metadata[slot].update(
                         state_len=int(row.state["state_len"]),
                         scheduled_state_len=int(
-                            row.state.get(
-                                "scheduled_state_len", row.state["state_len"]
-                            )
+                            row.state.get("scheduled_state_len", row.state["state_len"])
                         ),
                         coverage=int(row.state["coverage"]),
                         total_len=int(row.state["total_len"]),
@@ -2091,12 +2001,9 @@ class VLLMLayerLODPool:
                 self.local_lens[start_slot:stop_slot].fill_(
                     int(row.state["recent_len"])
                 )
-                self.state_lens[start_slot:stop_slot].fill_(
-                    int(row.state["state_len"])
-                )
-                self._refresh_unified_page1_coarse(
-                    tuple(range(start_slot, stop_slot))
-                )
+                self.state_lens[start_slot:stop_slot].fill_(int(row.state["state_len"]))
+                self.leaf_lens[start_slot:stop_slot].fill_(int(page["leaf_count"]))
+                self._refresh_unified_page1_coarse(tuple(range(start_slot, stop_slot)))
                 begin = end
 
     def _buffers(self, query: torch.Tensor, rows: int) -> dict[str, torch.Tensor]:
@@ -2112,6 +2019,12 @@ class VLLMLayerLODPool:
             storage = new_fused_decode_buffers(
                 template,
                 splits=int(self.engine.decode_split_kv),
+                exact_kv_heads=(
+                    self.kv_heads
+                    if self.engine.exact_decode_limit > 0
+                    and self.settings.levels == 3
+                    else None
+                ),
                 state_capacity=self.state_capacity,
                 route_group_size=int(self.engine.decode_route_group_size),
                 route_segment_tiles=int(self.engine.decode_route_segment_tiles),
@@ -2160,6 +2073,15 @@ class VLLMLayerLODPool:
                     dtype=torch.float32,
                     device=self.device,
                 )
+            if self.engine.exact_decode_limit > 0:
+                storage["exact_context_lens"] = torch.empty(
+                    self.max_requests * self.kv_heads,
+                    dtype=torch.int32,
+                    device=self.device,
+                )
+                storage["exact_exp_sums"] = torch.empty_like(
+                    storage["partial_lse"]
+                )
             if (
                 self.head_dim in (128, 256)
                 and 1 < self.query_heads // self.kv_heads <= 16
@@ -2184,10 +2106,7 @@ class VLLMLayerLODPool:
             buffers = {
                 name: (
                     tensor[:rows]
-                    if (
-                        tensor.ndim
-                        and int(tensor.size(0)) == self.max_requests
-                    )
+                    if (tensor.ndim and int(tensor.size(0)) == self.max_requests)
                     else tensor
                 )
                 for name, tensor in storage.items()
@@ -2283,12 +2202,17 @@ class VLLMLayerLODPool:
             staging["decode_buffers"] = new_fused_decode_buffers(
                 template,
                 splits=int(self.engine.decode_split_kv),
+                exact_kv_heads=(
+                    self.kv_heads
+                    if self.engine.exact_decode_limit > 0
+                    and self.settings.levels == 3
+                    else None
+                ),
                 state_capacity=self.state_capacity,
                 route_group_size=int(self.engine.decode_route_group_size),
                 route_segment_tiles=int(self.engine.decode_route_segment_tiles),
                 materialized_state_route=bool(
-                    self.settings.levels == 3
-                    and speculative_route_backend == "resplit"
+                    self.settings.levels == 3 and speculative_route_backend == "resplit"
                 ),
                 gqa_union_kv_heads=(
                     self.kv_heads
@@ -2309,9 +2233,7 @@ class VLLMLayerLODPool:
                     else None
                 ),
                 gqa_union_hip=True,
-                gqa_union_fixed_mask=self._speculative_fixed_mask_eligible(
-                    steps
-                ),
+                gqa_union_fixed_mask=self._speculative_fixed_mask_eligible(steps),
                 gqa_union_fixed_mask_tile_size=64,
                 gqa_union_fixed_mask_segments=(
                     self.settings.decode_gqa_fixed_mask_segments
@@ -2319,28 +2241,24 @@ class VLLMLayerLODPool:
             )
             if self.settings.levels == 3:
                 if bool(self.engine.recursive_materialize_page_scores):
-                    staging["decode_buffers"]["recursive_page_scores"] = (
-                        torch.empty(
-                            parallel_rows,
-                            self.query_heads,
-                            1,
-                            self.page_capacity,
-                            dtype=torch.float32,
-                            device=self.device,
-                        )
+                    staging["decode_buffers"]["recursive_page_scores"] = torch.empty(
+                        parallel_rows,
+                        self.query_heads,
+                        1,
+                        self.page_capacity,
+                        dtype=torch.float32,
+                        device=self.device,
                     )
                 elif (
                     self.head_dim in (128, 256)
                     and 1 < self.query_heads // self.kv_heads <= 16
                 ):
-                    staging["decode_buffers"]["wide_gqa_local_scores"] = (
-                        torch.empty(
-                            parallel_rows,
-                            self.query_heads,
-                            self.decode_local_limit + 1,
-                            dtype=torch.float32,
-                            device=self.device,
-                        )
+                    staging["decode_buffers"]["wide_gqa_local_scores"] = torch.empty(
+                        parallel_rows,
+                        self.query_heads,
+                        self.decode_local_limit + 1,
+                        dtype=torch.float32,
+                        device=self.device,
                     )
             staging["decode_buffers"]["speculative_parallel_execution_marker"] = (
                 torch.zeros(1, dtype=torch.int32, device=self.device)
@@ -2357,11 +2275,18 @@ class VLLMLayerLODPool:
             staging["decode_buffers"]["speculative_local_execution_marker"] = (
                 torch.zeros(1, dtype=torch.int32, device=self.device)
             )
+            if self.engine.exact_decode_limit > 0:
+                staging["decode_buffers"]["exact_context_lens"] = torch.empty(
+                    parallel_rows * self.kv_heads,
+                    dtype=torch.int32,
+                    device=self.device,
+                )
+                staging["decode_buffers"]["exact_exp_sums"] = torch.empty_like(
+                    staging["decode_buffers"]["partial_lse"]
+                )
         self.speculative_decode_buffers[signature] = staging
 
-    def _parallel_speculative_chunk_steps(
-        self, steps: int, rows: int = 1
-    ) -> int:
+    def _parallel_speculative_chunk_steps(self, steps: int, rows: int = 1) -> int:
         """Bound one recursive flattened verifier launch to 64 query rows."""
         if self.settings.levels != 3:
             return steps
@@ -2374,9 +2299,8 @@ class VLLMLayerLODPool:
     def _parallel_speculative_decode_eligible(self, steps: int) -> bool:
         """Whether one flattened launch can verify all proposal positions."""
         recursive = self.settings.levels == 3
-        two_level = (
-            self.settings.levels == 2
-            and self._speculative_fixed_mask_eligible(steps)
+        two_level = self.settings.levels == 2 and self._speculative_fixed_mask_eligible(
+            steps
         )
         return steps >= 2 and (recursive or two_level)
 
@@ -2405,9 +2329,7 @@ class VLLMLayerLODPool:
             and self.dtype == torch.bfloat16
         )
 
-    def _shared_speculative_route_eligible(
-        self, steps: int, rows: int = 1
-    ) -> bool:
+    def _shared_speculative_route_eligible(self, steps: int, rows: int = 1) -> bool:
         """Whether proposal positions fit pairwise native grouped route tiles."""
         return bool(
             self._parallel_speculative_decode_eligible(steps)
@@ -2469,18 +2391,10 @@ class VLLMLayerLODPool:
         )
 
         if self._parallel_speculative_decode_eligible(steps):
-            staging["decode_buffers"][
-                "speculative_parallel_execution_marker"
-            ].add_(1)
-            flat_q = staging["q"].view(
-                rows * steps, self.query_heads, self.head_dim
-            )
-            flat_k = staging["k"].view(
-                rows * steps, self.kv_heads, self.head_dim
-            )
-            flat_v = staging["v"].view(
-                rows * steps, self.kv_heads, self.value_dim
-            )
+            staging["decode_buffers"]["speculative_parallel_execution_marker"].add_(1)
+            flat_q = staging["q"].view(rows * steps, self.query_heads, self.head_dim)
+            flat_k = staging["k"].view(rows * steps, self.kv_heads, self.head_dim)
+            flat_v = staging["v"].view(rows * steps, self.kv_heads, self.value_dim)
             flat_out = staging["out"].view(
                 rows * steps, self.query_heads, self.value_dim
             )
@@ -2596,14 +2510,15 @@ class VLLMLayerLODPool:
             decode_buffers = self._buffers(q, rows)
         page = self.state["page_cache"]
         recursive = self.settings.levels == 3
-        indexed_flat = (
-            not recursive and isinstance(page.get("page_indices"), torch.Tensor)
+        indexed_flat = not recursive and isinstance(
+            page.get("page_indices"), torch.Tensor
         )
         page_k = page["leaf_k"] if recursive or indexed_flat else page["page_k"]
         page_v = page["leaf_v"] if recursive or indexed_flat else page["page_v"]
         flat_int8 = not recursive and (
             page_k.dtype == torch.int8 or page_v.dtype == torch.int8
         )
+        exact_decode_limit = int(self.engine.exact_decode_limit)
         result = fused_decode_paged_lod_attention(
             q,
             self.state["state_k"],
@@ -2666,22 +2581,13 @@ class VLLMLayerLODPool:
             route_parallel_reduce_block_d=int(
                 self.engine.decode_route_parallel_reduce_block_d
             ),
-            route_post_dot_normalize=bool(
-                self.engine.decode_route_post_dot_normalize
-            ),
-            route_post_pv_normalize=bool(
-                self.engine.decode_route_post_pv_normalize
-            ),
             final_reduce_num_warps=int(self.engine.decode_final_reduce_num_warps),
             fuse_final_reduce=bool(self.engine.decode_fuse_final_reduce),
-            route_use_dot=bool(self.engine.decode_route_use_dot),
             route_gqa_grouped=bool(self.engine.decode_route_gqa_grouped),
             gqa_cooperative_leaf=False,
             gqa_union_decode=True,
             gqa_union_hip=True,
-            gqa_union_fixed_mask_aiter=(
-                self.settings.decode_gqa_fixed_mask_aiter
-            ),
+            gqa_union_fixed_mask_aiter=(self.settings.decode_gqa_fixed_mask_aiter),
             gqa_union_fixed_mask_adaptive_segments=True,
             gqa_union_fixed_mask_reduce_block_d=(
                 self.settings.decode_gqa_fixed_mask_reduce_block_d
@@ -2692,61 +2598,33 @@ class VLLMLayerLODPool:
             gqa_union_page1_k=page.get("unified_page1_k"),
             gqa_union_page1_v=page.get("unified_page1_v"),
             gqa_union_page1_bias=page.get("unified_page1_bias"),
-            gqa_union_page1_leaf_offset=int(
-                page.get("unified_page1_leaf_offset", 0)
-            ),
-            gqa_union_page1_local_offset=int(
-                page.get("unified_page1_local_offset", 0)
-            ),
-            gqa_union_page1_sink_offset=int(
-                page.get("unified_page1_sink_offset", 0)
-            ),
+            gqa_union_page1_leaf_offset=int(page.get("unified_page1_leaf_offset", 0)),
+            gqa_union_page1_local_offset=int(page.get("unified_page1_local_offset", 0)),
+            gqa_union_page1_sink_offset=int(page.get("unified_page1_sink_offset", 0)),
             gqa_union_page1_coarse_offset=int(
                 page.get("unified_page1_coarse_offset", 0)
             ),
-            gqa_union_page1_padding_index=int(
-                page.get("unified_page1_padding_index", -1)
-            ),
-            gqa_union_fixed_indices=page.get(
-                "unified_page1_fixed_indices"
-            ),
-            gqa_union_fixed_leaf_owners=page.get(
-                "unified_page1_fixed_leaf_owners"
-            ),
-            gqa_union_fixed_slot_offsets=page.get(
-                "unified_page1_fixed_slot_offsets"
-            ),
-            gqa_union_fixed_lengths=page.get(
-                "unified_page1_fixed_lengths"
-            ),
+            gqa_union_fixed_indices=page.get("unified_page1_fixed_indices"),
+            gqa_union_fixed_leaf_owners=page.get("unified_page1_fixed_leaf_owners"),
+            gqa_union_fixed_slot_offsets=page.get("unified_page1_fixed_slot_offsets"),
+            gqa_union_fixed_lengths=page.get("unified_page1_fixed_lengths"),
             protected_len=self.engine._protected_state_len(self.state_capacity),
-            # Routing-only guard: large centroids remain live and keep being
-            # updated, but decode represents them by their coarse entry instead
-            # of opening an unbounded exact posting list.
-            max_leaf_tokens=self._decode_route_leaf_limit(),
-            open_count=int(ROUTE_COUNT),
-            recursive_page_cache=page if recursive else None,
-            flat_page_indices=page["page_indices"] if indexed_flat else None,
-            flat_page_k_scales=(
-                page.get("page_k_token_scales") if flat_int8 else None
+            # Every centroid remains eligible for exact refinement. In
+            # particular, recursive page refinement has bounded work even when
+            # the selected centroid owns a large posting list.
+            max_leaf_tokens=None,
+            open_count=ROUTE_COUNT,
+            recursive_page_cache=(page if recursive else None),
+            flat_page_indices=(
+                page["page_indices"] if indexed_flat else None
             ),
-            flat_page_v_scales=(
-                page.get("page_v_token_scales") if flat_int8 else None
-            ),
+            flat_page_k_scales=(page.get("page_k_token_scales") if flat_int8 else None),
+            flat_page_v_scales=(page.get("page_v_token_scales") if flat_int8 else None),
             recursive_quant_group_size=int(self.engine.leaf_quant_group_size),
             recursive_quant_token_group_size=int(
                 self.engine.leaf_quant_token_group_size
             ),
             timing_events=getattr(self.engine, "_lod_decode_timing_events", None),
-            recursive_materialize_page_scores=bool(
-                self.engine.recursive_materialize_page_scores
-            ),
-            recursive_page_score_block_n=int(
-                self.engine.recursive_page_score_block_n
-            ),
-            recursive_page_score_num_warps=int(
-                self.engine.recursive_page_score_num_warps
-            ),
             recursive_page_select_block_n=int(
                 self.engine.recursive_page_select_block_n
             ),
@@ -2755,6 +2633,13 @@ class VLLMLayerLODPool:
                 if recursive_state_route_backend is None
                 else recursive_state_route_backend
             ),
+            exact_decode_threshold=exact_decode_limit,
+            exact_all_rows=(
+                exact_decode_limit > 0
+                and 0 < int(getattr(metadata, "max_seq_len", 0))
+                <= exact_decode_limit
+            ),
+            exact_leaf_lens=self.leaf_lens,
             output_buffer=output[:rows].unsqueeze(2),
         )
         if result.data_ptr() != output.data_ptr():

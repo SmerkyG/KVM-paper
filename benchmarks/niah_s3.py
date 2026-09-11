@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import importlib.metadata
+import os
 import random
 import sys
 import time
@@ -13,7 +14,13 @@ from typing import Any
 
 import numpy as np
 
-from ._vllm import MODES, close_llm, llm_kwargs, write_json
+from ._vllm import (
+    MODES,
+    close_llm,
+    default_gpu_memory_utilization,
+    llm_kwargs,
+    write_json,
+)
 from .prolong import comma_separated_ints
 
 
@@ -32,7 +39,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--tensor-parallel-size", type=int, default=1)
     parser.add_argument("--max-new-tokens", type=int, default=64)
-    parser.add_argument("--gpu-memory-utilization", type=float, default=0.9)
+    parser.add_argument(
+        "--engine-max-model-len",
+        type=int,
+        default=None,
+        help="Allocate a larger engine context than the evaluated lengths.",
+    )
+    parser.add_argument(
+        "--gpu-memory-utilization",
+        type=float,
+        help=(
+            "vLLM native-cache memory fraction "
+            "(default: 0.70 for Qwen LoD, 0.80 for K2 LoD, or 0.90 for full)"
+        ),
+    )
     parser.add_argument(
         "--full-attention-backend",
         default="ROCM_AITER_UNIFIED_ATTN",
@@ -40,31 +60,53 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _load_ruler_generator() -> tuple[Any, Any, str]:
-    """Import only RULER's prompt generator, not the full task registry."""
-
+def _lm_eval_package() -> tuple[Path, str]:
     try:
         distribution = importlib.metadata.distribution("lm-eval")
     except importlib.metadata.PackageNotFoundError as exc:
-        raise RuntimeError(
-            "NIAH-S3 requires the benchmark extra: "
-            "uv sync --extra vllm --extra benchmarks"
-        ) from exc
-    package_root = Path(distribution.locate_file("lm_eval")).resolve()
+        configured_root = os.environ.get("LM_EVAL_PACKAGE_ROOT")
+        if configured_root is None:
+            raise RuntimeError(
+                "NIAH-S3 requires the benchmark extra: "
+                "uv sync --extra vllm --extra benchmarks"
+            ) from exc
+        package_root = Path(configured_root).resolve()
+        version = os.environ.get("LM_EVAL_VERSION", "unknown")
+    else:
+        package_root = Path(distribution.locate_file("lm_eval")).resolve()
+        version = distribution.version
+    return package_root, version
+
+
+def _load_ruler_generator() -> tuple[Any, Any, str]:
+    """Import only RULER's prompt generator, not the full task registry."""
+
+    package_root, version = _lm_eval_package()
     ruler_root = package_root / "tasks" / "ruler"
     if not (ruler_root / "prepare_niah.py").is_file():
         raise RuntimeError("installed lm-eval does not contain the RULER tasks")
-    for name, path in (
-        ("lm_eval", package_root),
-        ("lm_eval.tasks", package_root / "tasks"),
-        ("lm_eval.tasks.ruler", ruler_root),
-    ):
-        package = types.ModuleType(name)
-        package.__path__ = [str(path)]
-        sys.modules[name] = package
-    from lm_eval.tasks.ruler.prepare_niah import generate_samples, get_haystack
+    dependency_root = str(package_root.parent)
+    added_dependency_root = dependency_root not in sys.path
+    if added_dependency_root:
+        # Append (rather than prepend), then remove before vLLM imports. This
+        # exposes RULER's optional dependencies and package metadata without
+        # allowing an unrelated environment's ray/torch to shadow serving.
+        sys.path.append(dependency_root)
+    try:
+        for name, path in (
+            ("lm_eval", package_root),
+            ("lm_eval.tasks", package_root / "tasks"),
+            ("lm_eval.tasks.ruler", ruler_root),
+        ):
+            package = types.ModuleType(name)
+            package.__path__ = [str(path)]
+            sys.modules[name] = package
+        from lm_eval.tasks.ruler.prepare_niah import generate_samples, get_haystack
+    finally:
+        if added_dependency_root:
+            sys.path.remove(dependency_root)
 
-    return generate_samples, get_haystack, distribution.version
+    return generate_samples, get_haystack, version
 
 
 def make_samples(
@@ -179,16 +221,31 @@ def main() -> None:
         raise ValueError("samples, batch-size, and max-new-tokens must be positive")
     if args.sample_offset < 0:
         raise ValueError("sample-offset must be nonnegative")
+    minimum_model_len = max(args.lengths) + args.max_new_tokens + 16
+    if (
+        args.engine_max_model_len is not None
+        and args.engine_max_model_len < minimum_model_len
+    ):
+        raise ValueError("engine-max-model-len is shorter than the requested test")
+
+    # Validate the optional RULER dependencies before paying model-startup cost.
+    _, _, lm_eval_version = _load_ruler_generator()
 
     from transformers import AutoTokenizer
 
+    gpu_memory_utilization = args.gpu_memory_utilization
+    if gpu_memory_utilization is None:
+        gpu_memory_utilization = default_gpu_memory_utilization(
+            args.checkpoint,
+            args.mode,
+        )
     kwargs = llm_kwargs(
         checkpoint=args.checkpoint,
         mode=args.mode,
-        max_model_len=max(args.lengths) + args.max_new_tokens + 16,
+        max_model_len=args.engine_max_model_len or minimum_model_len,
         batch_size=args.batch_size,
         tensor_parallel_size=args.tensor_parallel_size,
-        gpu_memory_utilization=args.gpu_memory_utilization,
+        gpu_memory_utilization=gpu_memory_utilization,
         full_attention_backend=args.full_attention_backend,
     )
     tokenizer = AutoTokenizer.from_pretrained(
@@ -201,7 +258,7 @@ def main() -> None:
     result = {
         "benchmark": "ruler_niah_s3",
         "generator": "lm_eval.tasks.ruler.niah_single_3",
-        "lm_eval_version": importlib.metadata.version("lm-eval"),
+        "lm_eval_version": lm_eval_version,
         "checkpoint": args.checkpoint,
         "mode": args.mode,
         "lengths": args.lengths,
@@ -209,6 +266,8 @@ def main() -> None:
         "sample_offset": args.sample_offset,
         "batch_size": args.batch_size,
         "tensor_parallel_size": args.tensor_parallel_size,
+        "gpu_memory_utilization": gpu_memory_utilization,
+        "engine_max_model_len": args.engine_max_model_len or minimum_model_len,
         "scheduler_chunk_tokens": 16_384,
         "results": {},
     }

@@ -61,29 +61,58 @@ class LODMetadataOnlyFullAttentionSpec(FullAttentionSpec):
 class _VirtualPrefixStore:
     """Small CPU-only LRU of semantic LOD rows represented by hash sentinels."""
 
-    def __init__(self, capacity: int) -> None:
-        # Sentinels deliberately use block_id=0.  They are never passed to the
-        # physical BlockPool; when block IDs are serialized, zero is the valid
-        # null page and therefore cannot address outside a worker tensor.
-        self.sentinels = [KVCacheBlock(0) for _ in range(capacity)]
+    def __init__(self, capacity: int, *, namespace: int) -> None:
+        # Sentinels never enter a physical BlockPool or worker block table. Give
+        # each one a distinct negative ID anyway: KVCacheBlock is a value-equal
+        # dataclass, and vLLM compares cached-block lists while reconciling
+        # hybrid groups. Reusing ID zero made unrelated semantic rows compare
+        # equal and could manufacture a false 64K prefix hit.
+        base = (namespace + 1) << 32
+        self.sentinels = [
+            KVCacheBlock(-(base + index + 1)) for index in range(capacity)
+        ]
         self.free: deque[KVCacheBlock] = deque(self.sentinels)
         self.hash_to_sentinel: dict[Any, KVCacheBlock] = {}
-        self.hashes_by_identity: dict[int, set[Any]] = {}
+        # Dict insertion order is the chronological block order for the one
+        # semantic sequence represented by a sentinel.  Unlike native paged
+        # K/V, one LOD row cannot splice blocks from several cached requests.
+        self.hashes_by_identity: dict[int, dict[Any, None]] = {}
 
     def _forget(self, sentinel: KVCacheBlock) -> None:
         for block_hash in self.hashes_by_identity.pop(id(sentinel), ()):
             if self.hash_to_sentinel.get(block_hash) is sentinel:
                 self.hash_to_sentinel.pop(block_hash, None)
 
-    def acquire(self, preferred: KVCacheBlock | None = None) -> KVCacheBlock:
+    def retain_prefix(self, sentinel: KVCacheBlock, blocks: int) -> None:
+        """Drop hashes beyond the semantic prefix being resumed."""
+        owned = self.hashes_by_identity.get(id(sentinel))
+        if owned is None:
+            if blocks:
+                raise RuntimeError("a cached LOD sentinel has no owned hashes")
+            return
+        stale = tuple(itertools.islice(owned, blocks, None))
+        for block_hash in stale:
+            owned.pop(block_hash)
+            if self.hash_to_sentinel.get(block_hash) is sentinel:
+                self.hash_to_sentinel.pop(block_hash, None)
+
+    def acquire(
+        self,
+        preferred: KVCacheBlock | None = None,
+        *,
+        retained_blocks: int | None = None,
+    ) -> KVCacheBlock:
         if preferred is not None and preferred.ref_cnt == 0:
-            try:
-                self.free.remove(preferred)
-            except ValueError:
-                pass
-            else:
-                preferred.ref_cnt = 1
-                return preferred
+            # Keep removal explicitly identity-based. KVCacheBlock is a
+            # value-equal dataclass, while this store owns object lifetimes.
+            for index, candidate in enumerate(self.free):
+                if candidate is preferred:
+                    del self.free[index]
+                    if retained_blocks is not None:
+                        self.retain_prefix(preferred, retained_blocks)
+                    preferred.ref_cnt = 1
+                    return preferred
+            raise RuntimeError("an idle LOD prefix sentinel is not in the free queue")
         if not self.free:
             raise RuntimeError(
                 "scheduler-only LOD prefix rows are exhausted; increase "
@@ -108,9 +137,9 @@ class _VirtualPrefixStore:
         if previous is sentinel:
             return
         if previous is not None:
-            self.hashes_by_identity.get(id(previous), set()).discard(block_hash)
+            self.hashes_by_identity.get(id(previous), {}).pop(block_hash, None)
         self.hash_to_sentinel[block_hash] = sentinel
-        self.hashes_by_identity.setdefault(id(sentinel), set()).add(block_hash)
+        self.hashes_by_identity.setdefault(id(sentinel), {})[block_hash] = None
 
 
 def _stores(block_pool: BlockPool) -> dict[int, _VirtualPrefixStore]:
@@ -132,7 +161,9 @@ class LODMetadataOnlyFullAttentionManager(FullAttentionManager):
         stores = _stores(self.block_pool)
         self.store = stores.setdefault(
             self.kv_cache_group_id,
-            _VirtualPrefixStore(_lod_pool_size()),
+            _VirtualPrefixStore(
+                _lod_pool_size(), namespace=self.kv_cache_group_id
+            ),
         )
         self.req_to_sentinel: dict[str, KVCacheBlock] = {}
 
@@ -166,7 +197,16 @@ class LODMetadataOnlyFullAttentionManager(FullAttentionManager):
     ) -> None:
         assert request_id not in self.req_to_sentinel
         preferred = new_computed_blocks[0] if new_computed_blocks else None
-        sentinel = self.store.acquire(preferred)
+        if preferred is not None and any(
+            block is not preferred for block in new_computed_blocks
+        ):
+            raise RuntimeError(
+                "a metadata-only LOD prefix hit spans multiple semantic rows"
+            )
+        sentinel = self.store.acquire(
+            preferred,
+            retained_blocks=len(new_computed_blocks) if preferred is not None else None,
+        )
         self.req_to_sentinel[request_id] = sentinel
         logical_blocks = cdiv(
             num_local_computed_tokens + num_external_computed_tokens,
@@ -261,15 +301,28 @@ class LODMetadataOnlyFullAttentionManager(FullAttentionManager):
         hits: tuple[list[KVCacheBlock], ...] = tuple(
             [] for _ in kv_cache_group_ids
         )
+        owners: list[KVCacheBlock | None] = [None] * len(kv_cache_group_ids)
         for block_hash in itertools.islice(block_hashes, max_length // block_size):
             sentinels = [
                 stores[group_id].hash_to_sentinel.get(block_hash)
                 for group_id in kv_cache_group_ids
             ]
-            if any(sentinel is None for sentinel in sentinels):
+            if any(
+                sentinel is None or sentinel.ref_cnt != 0
+                for sentinel in sentinels
+            ):
                 break
-            for group_hits, sentinel in zip(hits, sentinels, strict=True):
+            if any(
+                owner is not None and sentinel is not owner
+                for owner, sentinel in zip(owners, sentinels, strict=True)
+            ):
+                break
+            for index, (group_hits, sentinel) in enumerate(
+                zip(hits, sentinels, strict=True)
+            ):
                 assert sentinel is not None
+                if owners[index] is None:
+                    owners[index] = sentinel
                 group_hits.append(sentinel)
         hit_length = len(hits[0]) * block_size
         if drop_eagle_block and hit_length:

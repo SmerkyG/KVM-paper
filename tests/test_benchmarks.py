@@ -5,8 +5,16 @@ from pathlib import Path
 
 import pytest
 
-from benchmarks._vllm import MODES, llm_kwargs
-from benchmarks.longbench_v2 import extract_answer, summarize, truncate_prompt
+from benchmarks._vllm import (
+    MODES,
+    default_gpu_memory_utilization,
+    llm_kwargs,
+)
+from benchmarks.longbench_v2 import (
+    extract_answer,
+    summarize,
+    truncate_prompt,
+)
 from benchmarks.prolong import comma_separated_ints
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -75,6 +83,50 @@ def test_offline_benchmark_uses_only_fixed_release_modes() -> None:
     assert kwargs["long_prefill_token_threshold"] == 16_384
     assert kwargs["language_model_only"] is True
     assert kwargs["enable_prefix_caching"] is False
+
+
+def test_memory_targets_cover_each_model_side_lod_pool() -> None:
+    assert default_gpu_memory_utilization("Qwen/Qwen3.8-27B-FP8", "two-tier") == 0.7
+    assert default_gpu_memory_utilization("IFM/K2-Horizon-32B-FP8", "two-tier") == 0.8
+    assert default_gpu_memory_utilization("IFM/K2-Horizon-32B-FP8", "full") == 0.9
+    assert (
+        default_gpu_memory_utilization(
+            "IFM/K2-Horizon-32B-FP8",
+            "three-tier-int4",
+            quality=True,
+        )
+        == 0.65
+    )
+
+
+def test_qwen_dflash2_configuration_is_explicit_and_model_limited() -> None:
+    kwargs = llm_kwargs(
+        checkpoint="Qwen/Qwen3.8-27B-FP8",
+        mode="three-tier-bf16",
+        max_model_len=65_808,
+        batch_size=8,
+        tensor_parallel_size=1,
+        gpu_memory_utilization=0.9,
+        full_attention_backend="ROCM_AITER_UNIFIED_ATTN",
+        speculative_model="z-lab/Qwen3.8-27B-DFlash2",
+    )
+    assert kwargs["speculative_config"] == {
+        "method": "dflash",
+        "model": "z-lab/Qwen3.8-27B-DFlash2",
+        "num_speculative_tokens": 7,
+        "attention_backend": "TRITON_ATTN",
+    }
+    with pytest.raises(ValueError, match="only with Qwen3.8"):
+        llm_kwargs(
+            checkpoint="IFM/K2-Horizon-32B-FP8",
+            mode="two-tier",
+            max_model_len=65_808,
+            batch_size=1,
+            tensor_parallel_size=1,
+            gpu_memory_utilization=0.9,
+            full_attention_backend="ROCM_AITER_UNIFIED_ATTN",
+            speculative_model="z-lab/Qwen3.8-27B-DFlash2",
+        )
 
 
 def test_benchmark_cli_and_docs_are_public() -> None:

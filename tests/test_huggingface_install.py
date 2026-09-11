@@ -3,6 +3,7 @@ from __future__ import annotations
 import torch
 from transformers import Qwen3_5ForCausalLM, Qwen3_5TextConfig
 
+from examples.huggingface import load_config
 from lod_attention import LODMode, install
 
 
@@ -36,3 +37,23 @@ def test_qwen38_text_model_installs_only_its_global_attention() -> None:
     assert settings.mode is LODMode.THREE_TIER_INT4
     assert settings.config.kv_bits == 4
     assert settings.config.max_routes == 4
+
+
+def test_hf_example_corrects_qwen_fp8_gate_skip_pattern(monkeypatch) -> None:
+    class Config:
+        quantization_config = {
+            "quant_method": "fp8",
+            "modules_to_not_convert": [
+                "model.layers.0.mlp.gate",
+                "model.layers.0.self_attn.q_norm",
+            ],
+        }
+
+    monkeypatch.setattr(
+        "examples.huggingface.AutoConfig.from_pretrained",
+        lambda *args, **kwargs: Config(),
+    )
+    config = load_config("Qwen/Qwen3.8-27B-FP8")
+    assert config.quantization_config["modules_to_not_convert"] == [
+        "model.layers.0.self_attn.q_norm"
+    ]

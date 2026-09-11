@@ -116,17 +116,13 @@ def kernel_page1_attention_3d_bias(
             other=0,
         ).to(tl.int64)
         keys = tl.load(
-            key_cache
-            + physical_token[None, :] * HEAD_SIZE
-            + dimension[:, None],
+            key_cache + physical_token[None, :] * HEAD_SIZE + dimension[:, None],
             mask=token_valid[None, :],
             other=0.0,
             cache_modifier=".cg",
         ).to(queries.dtype)
         values = tl.load(
-            value_cache
-            + physical_token[:, None] * HEAD_SIZE
-            + dimension[None, :],
+            value_cache + physical_token[:, None] * HEAD_SIZE + dimension[None, :],
             mask=token_valid[:, None],
             other=0.0,
             cache_modifier=".cg",
@@ -150,13 +146,9 @@ def kernel_page1_attention_3d_bias(
         new_maximum = tl.where(new_maximum > -float("inf"), new_maximum, 0.0)
         correction = tl.math.exp2(maximum - new_maximum)
         probabilities = tl.math.exp2(scores - new_maximum[:, None])
-        denominator = (
-            denominator * correction + tl.sum(probabilities, axis=1)
-        )
+        denominator = denominator * correction + tl.sum(probabilities, axis=1)
         accumulator = accumulator * correction[:, None]
-        accumulator = tl.dot(
-            probabilities.to(values.dtype), values, acc=accumulator
-        )
+        accumulator = tl.dot(probabilities.to(values.dtype), values, acc=accumulator)
         maximum = new_maximum
 
     segment_output_offset = (
@@ -180,81 +172,121 @@ def kernel_page1_attention_3d_bias(
 
 
 @triton.jit
-def kernel_page1_attention_3d_bias_implicit_lod(
+def kernel_exact_tiered_attention_3d(
     segment_output,
     segment_max,
     segment_exp_sum,
-    query,
-    key_cache,
-    value_cache,
-    key_bias,
-    exact_block_table,
-    cache_indices,
-    local_lens,
-    state_lens,
     sequence_lengths,
-    seen_stamps,
-    sequence_epochs,
+    query,
+    sink_k,
+    sink_v,
+    leaf_k,
+    leaf_v,
+    local_k,
+    local_v,
+    new_k,
+    new_v,
+    cache_indices,
+    leaf_lens,
+    local_lens,
     scale,
-    exact_block_table_stride: tl.int64,
     query_stride_0: tl.int64,
     query_stride_1: tl.int64,
+    sink_k_batch_stride: tl.int64,
+    sink_k_head_stride: tl.int64,
+    sink_k_token_stride: tl.int64,
+    sink_v_batch_stride: tl.int64,
+    sink_v_head_stride: tl.int64,
+    sink_v_token_stride: tl.int64,
+    leaf_k_batch_stride: tl.int64,
+    leaf_k_head_stride: tl.int64,
+    leaf_k_token_stride: tl.int64,
+    leaf_v_batch_stride: tl.int64,
+    leaf_v_head_stride: tl.int64,
+    leaf_v_token_stride: tl.int64,
+    local_k_batch_stride: tl.int64,
+    local_k_head_stride: tl.int64,
+    local_k_token_stride: tl.int64,
+    local_v_batch_stride: tl.int64,
+    local_v_head_stride: tl.int64,
+    local_v_token_stride: tl.int64,
+    new_k_batch_stride: tl.int64,
+    new_k_head_stride: tl.int64,
+    new_v_batch_stride: tl.int64,
+    new_v_head_stride: tl.int64,
     NUM_QUERY_HEADS: tl.constexpr,
     KV_HEADS: tl.constexpr,
-    STATE_LEN: tl.constexpr,
-    STATE_CAPACITY: tl.constexpr,
-    LOCAL_OFFSET: tl.constexpr,
-    LOCAL_CAPACITY: tl.constexpr,
-    LOCAL_LIMIT: tl.constexpr,
-    SINK_OFFSET: tl.constexpr,
-    SINK_CAPACITY: tl.constexpr,
-    SINK_LEN: tl.constexpr,
-    COARSE_OFFSET: tl.constexpr,
     TILE_SIZE: tl.constexpr,
     HEAD_SIZE: tl.constexpr,
     BLOCK_M: tl.constexpr,
     NUM_SEGMENTS: tl.constexpr,
+    SINK_LEN: tl.constexpr,
+    LOCAL_LIMIT: tl.constexpr,
     INCLUDE_NEW: tl.constexpr,
-    USE_STATE_LENS: tl.constexpr,
+    STORE_NEW: tl.constexpr,
+    LOCAL_LENS_LOGICAL: tl.constexpr,
+    MAX_CONTEXT: tl.constexpr = 0,
 ):
-    """Page-one LOD attention without rebuilding its fixed index prefix.
+    """Exact decode over the BF16 sink, archived leaves, local tail, and token."""
 
-    Local, sink, and coarse arena addresses are affine in the physical cache
-    row, so materializing those indices on every decoded token is redundant.
-    Only the compact exact-leaf suffix is indirect.  Opened coarse entries are
-    suppressed through the route stamps that union construction already
-    publishes, preserving the same exact/coarse replacement as the ordinary
-    compact-list path.
-    """
     sequence = tl.program_id(0).to(tl.int64)
     segment = tl.program_id(2).to(tl.int64)
-    sequence_length = tl.load(sequence_lengths + sequence).to(tl.int32)
+    logical_batch = sequence // KV_HEADS
+    kv_head = sequence - logical_batch * KV_HEADS
+    cache_batch = tl.load(cache_indices + logical_batch).to(tl.int64)
+    leaf_len = tl.load(leaf_lens + cache_batch).to(tl.int32)
+    if LOCAL_LENS_LOGICAL:
+        local_len = tl.minimum(
+            tl.load(local_lens + logical_batch).to(tl.int32), LOCAL_LIMIT
+        )
+    else:
+        local_len = tl.minimum(
+            tl.load(local_lens + cache_batch).to(tl.int32), LOCAL_LIMIT
+        )
+    sequence_length = SINK_LEN + leaf_len + local_len + INCLUDE_NEW
+    use_exact = (MAX_CONTEXT <= 0) | (sequence_length <= MAX_CONTEXT)
+    tl.store(sequence_lengths + sequence, tl.where(use_exact, sequence_length, 0))
+    if not use_exact:
+        return
+
+    dimension = tl.arange(0, HEAD_SIZE)
+    if STORE_NEW and segment == 0:
+        incoming_key = tl.load(
+            new_k
+            + logical_batch * new_k_batch_stride
+            + kv_head * new_k_head_stride
+            + dimension
+        )
+        incoming_value = tl.load(
+            new_v
+            + logical_batch * new_v_batch_stride
+            + kv_head * new_v_head_stride
+            + dimension
+        )
+        tl.store(
+            local_k
+            + cache_batch * local_k_batch_stride
+            + kv_head * local_k_head_stride
+            + local_len * local_k_token_stride
+            + dimension,
+            incoming_key,
+        )
+        tl.store(
+            local_v
+            + cache_batch * local_v_batch_stride
+            + kv_head * local_v_head_stride
+            + local_len * local_v_token_stride
+            + dimension,
+            incoming_value,
+        )
+
     tiles_per_segment = _cdiv(sequence_length, NUM_SEGMENTS * TILE_SIZE)
     tile_begin = segment * tiles_per_segment
     if tile_begin * TILE_SIZE >= sequence_length:
         return
 
-    logical_batch = sequence // KV_HEADS
-    kv_head = sequence - logical_batch * KV_HEADS
-    cache_batch = tl.load(cache_indices + logical_batch).to(tl.int64)
-    kv_row = cache_batch * KV_HEADS + kv_head
-    local_count = (
-        tl.minimum(tl.load(local_lens + cache_batch).to(tl.int32), LOCAL_LIMIT)
-        + INCLUDE_NEW
-    )
-    if USE_STATE_LENS:
-        active_state = tl.minimum(
-            tl.load(state_lens + cache_batch).to(tl.int32), STATE_LEN
-        )
-    else:
-        active_state = STATE_LEN
-    sink_end = local_count + SINK_LEN
-    coarse_end = sink_end + active_state
-    epoch = tl.load(sequence_epochs + sequence).to(tl.int32)
-
     query_lane = tl.arange(0, BLOCK_M)
     query_valid = query_lane < NUM_QUERY_HEADS
-    dimension = tl.arange(0, HEAD_SIZE)
     token_lane = tl.arange(0, TILE_SIZE)
     queries = tl.load(
         query
@@ -264,83 +296,137 @@ def kernel_page1_attention_3d_bias_implicit_lod(
         mask=query_valid[:, None],
         other=0.0,
     )
-
     rcp_ln2: tl.constexpr = 1.4426950408889634
     qk_scale = scale * rcp_ln2
     maximum = tl.full((BLOCK_M,), -float("inf"), tl.float32)
     denominator = tl.full((BLOCK_M,), 1.0, tl.float32)
     accumulator = tl.zeros((BLOCK_M, HEAD_SIZE), tl.float32)
     tile_count = _cdiv(sequence_length, TILE_SIZE)
-    table_base = sequence * exact_block_table_stride
+    sink_end = SINK_LEN
+    leaf_end = sink_end + leaf_len
+    local_end = leaf_end + local_len
 
     for tile in range(
         tile_begin,
         min((segment + 1) * tiles_per_segment, tile_count),
     ):
-        logical_token = tile * TILE_SIZE + token_lane
-        token_valid = logical_token < sequence_length
-        is_local = logical_token < local_count
-        sink_rank = logical_token - local_count
-        is_sink = (sink_rank >= 0) & (sink_rank < SINK_LEN)
-        coarse_slot = logical_token - sink_end
-        is_coarse = (coarse_slot >= 0) & (coarse_slot < active_state)
-        exact_rank = logical_token - coarse_end
-        is_exact = exact_rank >= 0
-
-        exact_physical = tl.load(
-            exact_block_table + table_base + exact_rank,
-            mask=token_valid & is_exact,
-            other=0,
-        ).to(tl.int64)
-        physical_token = tl.where(
-            is_local,
-            LOCAL_OFFSET + kv_row * LOCAL_CAPACITY + logical_token,
-            tl.where(
-                is_sink,
-                SINK_OFFSET + kv_row * SINK_CAPACITY + sink_rank,
-                tl.where(
-                    is_coarse,
-                    COARSE_OFFSET + kv_row * STATE_CAPACITY + coarse_slot,
-                    exact_physical,
-                ),
-            ),
+        token_begin = tile * TILE_SIZE
+        token = token_begin + token_lane
+        leaf_only = (token_begin >= sink_end) & (
+            token_begin + TILE_SIZE <= leaf_end
         )
-        opened = tl.load(
-            seen_stamps + sequence * STATE_CAPACITY + coarse_slot,
-            mask=token_valid & is_coarse,
-            other=epoch - 1,
-        ).to(tl.int32) == epoch
-        token_valid &= ~is_coarse | ~opened
+        if leaf_only:
+            # Almost every short-context tile lies wholly inside the
+            # chronological leaf archive. Avoid issuing masked loads against
+            # the three small suffix stores on this hot path.
+            valid = tl.full((TILE_SIZE,), True, tl.int1)
+            leaf_token = token - sink_end
+            keys = tl.load(
+                leaf_k
+                + cache_batch * leaf_k_batch_stride
+                + kv_head * leaf_k_head_stride
+                + leaf_token[None, :] * leaf_k_token_stride
+                + dimension[:, None],
+                cache_modifier=".cg",
+            )
+            values = tl.load(
+                leaf_v
+                + cache_batch * leaf_v_batch_stride
+                + kv_head * leaf_v_head_stride
+                + leaf_token[:, None] * leaf_v_token_stride
+                + dimension[None, :],
+                cache_modifier=".cg",
+            )
+        else:
+            valid = token < sequence_length
+            is_sink = valid & (token < sink_end)
+            is_leaf = valid & (token >= sink_end) & (token < leaf_end)
+            is_local = valid & (token >= leaf_end) & (token < local_end)
+            is_new = valid & (token >= local_end)
+            sink_token = tl.maximum(token, 0)
+            leaf_token = tl.maximum(token - sink_end, 0)
+            local_token = tl.maximum(token - leaf_end, 0)
 
-        keys = tl.load(
-            key_cache
-            + physical_token[None, :] * HEAD_SIZE
-            + dimension[:, None],
-            mask=token_valid[None, :],
-            other=0.0,
-            cache_modifier=".cg",
-        ).to(queries.dtype)
-        values = tl.load(
-            value_cache
-            + physical_token[:, None] * HEAD_SIZE
-            + dimension[None, :],
-            mask=token_valid[:, None],
-            other=0.0,
-            cache_modifier=".cg",
-        ).to(queries.dtype)
-        bias = tl.load(
-            key_bias + physical_token,
-            mask=token_valid,
-            other=0.0,
-            cache_modifier=".cg",
-        ).to(tl.float32)
+            keys = tl.load(
+                sink_k
+                + cache_batch * sink_k_batch_stride
+                + kv_head * sink_k_head_stride
+                + sink_token[None, :] * sink_k_token_stride
+                + dimension[:, None],
+                mask=is_sink[None, :],
+                other=0.0,
+                cache_modifier=".cg",
+            )
+            values = tl.load(
+                sink_v
+                + cache_batch * sink_v_batch_stride
+                + kv_head * sink_v_head_stride
+                + sink_token[:, None] * sink_v_token_stride
+                + dimension[None, :],
+                mask=is_sink[:, None],
+                other=0.0,
+                cache_modifier=".cg",
+            )
+            keys += tl.load(
+                leaf_k
+                + cache_batch * leaf_k_batch_stride
+                + kv_head * leaf_k_head_stride
+                + leaf_token[None, :] * leaf_k_token_stride
+                + dimension[:, None],
+                mask=is_leaf[None, :],
+                other=0.0,
+                cache_modifier=".cg",
+            )
+            values += tl.load(
+                leaf_v
+                + cache_batch * leaf_v_batch_stride
+                + kv_head * leaf_v_head_stride
+                + leaf_token[:, None] * leaf_v_token_stride
+                + dimension[None, :],
+                mask=is_leaf[:, None],
+                other=0.0,
+                cache_modifier=".cg",
+            )
+            keys += tl.load(
+                local_k
+                + cache_batch * local_k_batch_stride
+                + kv_head * local_k_head_stride
+                + local_token[None, :] * local_k_token_stride
+                + dimension[:, None],
+                mask=is_local[None, :],
+                other=0.0,
+                cache_modifier=".cg",
+            )
+            values += tl.load(
+                local_v
+                + cache_batch * local_v_batch_stride
+                + kv_head * local_v_head_stride
+                + local_token[:, None] * local_v_token_stride
+                + dimension[None, :],
+                mask=is_local[:, None],
+                other=0.0,
+                cache_modifier=".cg",
+            )
+            keys += tl.load(
+                new_k
+                + logical_batch * new_k_batch_stride
+                + kv_head * new_k_head_stride
+                + dimension[:, None],
+                mask=is_new[None, :],
+                other=0.0,
+            )
+            values += tl.load(
+                new_v
+                + logical_batch * new_v_batch_stride
+                + kv_head * new_v_head_stride
+                + dimension[None, :],
+                mask=is_new[:, None],
+                other=0.0,
+            )
 
-        scores = qk_scale * tl.dot(queries, keys)
-        scores += bias[None, :] * rcp_ln2
+        scores = qk_scale * tl.dot(queries, keys.to(queries.dtype))
         scores = tl.where(
-            query_valid[:, None] & token_valid[None, :],
-            scores,
-            -float("inf"),
+            query_valid[:, None] & valid[None, :], scores, -float("inf")
         )
         tile_maximum = tl.max(scores, axis=1)
         new_maximum = tl.maximum(maximum, tile_maximum)
@@ -375,56 +461,138 @@ def kernel_page1_attention_3d_bias_implicit_lod(
 
 
 @triton.jit
-def kernel_page1_attention_3d_bias_indirect_pages(
+def kernel_exact_residual_int4_attention_3d(
     segment_output,
     segment_max,
     segment_exp_sum,
-    query,
-    key_cache,
-    value_cache,
-    key_bias,
-    block_table,
-    exact_page_table,
-    page_indices,
-    cache_indices,
     sequence_lengths,
-    exact_token_counts,
+    query,
+    sink_k,
+    sink_v,
+    quantized_leaf_k,
+    quantized_leaf_v,
+    page_indices,
+    page_counts,
+    next_page,
+    page_k_scales,
+    page_v_scales,
+    quantized_page_sum_k,
+    quantized_page_sum_v,
+    page_sum_k_scales,
+    page_sum_v_scales,
+    local_k,
+    local_v,
+    new_k,
+    new_v,
+    cache_indices,
+    leaf_lens,
+    local_lens,
     scale,
-    block_table_stride: tl.int64,
-    exact_page_table_stride: tl.int64,
     query_stride_0: tl.int64,
     query_stride_1: tl.int64,
+    sink_k_batch_stride: tl.int64,
+    sink_k_head_stride: tl.int64,
+    sink_k_token_stride: tl.int64,
+    sink_v_batch_stride: tl.int64,
+    sink_v_head_stride: tl.int64,
+    sink_v_token_stride: tl.int64,
+    local_k_batch_stride: tl.int64,
+    local_k_head_stride: tl.int64,
+    local_k_token_stride: tl.int64,
+    local_v_batch_stride: tl.int64,
+    local_v_head_stride: tl.int64,
+    local_v_token_stride: tl.int64,
+    new_k_batch_stride: tl.int64,
+    new_k_head_stride: tl.int64,
+    new_v_batch_stride: tl.int64,
+    new_v_head_stride: tl.int64,
     NUM_QUERY_HEADS: tl.constexpr,
     KV_HEADS: tl.constexpr,
     TILE_SIZE: tl.constexpr,
     HEAD_SIZE: tl.constexpr,
     BLOCK_M: tl.constexpr,
     NUM_SEGMENTS: tl.constexpr,
-    PAGE_SIZE: tl.constexpr,
     PAGE_CAPACITY: tl.constexpr,
     LEAF_CAPACITY: tl.constexpr,
-    ARENA_LEAF_OFFSET: tl.constexpr,
+    PAGE_SIZE: tl.constexpr,
+    QUANT_GROUP_SIZE: tl.constexpr,
+    SINK_LEN: tl.constexpr,
+    LOCAL_LIMIT: tl.constexpr,
+    INCLUDE_NEW: tl.constexpr,
+    STORE_NEW: tl.constexpr,
+    LOCAL_LENS_LOGICAL: tl.constexpr,
+    MAX_CONTEXT: tl.constexpr,
 ):
-    """Page-size-one attention with indirect 16-token exact-leaf pages.
+    """Exact short decode over every residual-INT4 semantic page.
 
-    Local, sink, and coarse entries retain the ordinary single-token index
-    prefix.  The exact suffix stores one virtual page ID per PAGE_SIZE leaves;
-    resolving its leaf index in the attention kernel avoids materializing one
-    block-table entry per selected leaf on every decode step.
+    Physical pages are scanned directly rather than routed through centroids.
+    Empty lanes in partially filled semantic pages are masked, so the result is
+    full chronological attention modulo the cache's documented INT4 residual
+    quantization.
     """
+
     sequence = tl.program_id(0).to(tl.int64)
     segment = tl.program_id(2).to(tl.int64)
-    sequence_length = tl.load(sequence_lengths + sequence).to(tl.int32)
-    exact_token_count = tl.load(exact_token_counts + sequence).to(tl.int32)
-    prefix_length = sequence_length - exact_token_count
-    tiles_per_segment = _cdiv(sequence_length, NUM_SEGMENTS * TILE_SIZE)
+    logical_batch = sequence // KV_HEADS
+    kv_head = sequence - logical_batch * KV_HEADS
+    cache_batch = tl.load(cache_indices + logical_batch).to(tl.int64)
+    kv_row = cache_batch * KV_HEADS + kv_head
+    leaf_len = tl.load(leaf_lens + cache_batch).to(tl.int32)
+    if LOCAL_LENS_LOGICAL:
+        local_len = tl.minimum(
+            tl.load(local_lens + logical_batch).to(tl.int32), LOCAL_LIMIT
+        )
+    else:
+        local_len = tl.minimum(
+            tl.load(local_lens + cache_batch).to(tl.int32), LOCAL_LIMIT
+        )
+    page_count = tl.minimum(tl.load(next_page + kv_row).to(tl.int32), PAGE_CAPACITY)
+    page_tokens = page_count * PAGE_SIZE
+    actual_context = SINK_LEN + leaf_len + local_len + INCLUDE_NEW
+    work_length = page_tokens + SINK_LEN + local_len + INCLUDE_NEW
+    use_exact = actual_context <= MAX_CONTEXT
+    tl.store(sequence_lengths + sequence, tl.where(use_exact, work_length, 0))
+    if not use_exact:
+        return
+
+    tiles_per_segment = _cdiv(work_length, NUM_SEGMENTS * TILE_SIZE)
     tile_begin = segment * tiles_per_segment
-    if tile_begin * TILE_SIZE >= sequence_length:
+    if tile_begin * TILE_SIZE >= work_length:
         return
 
     query_lane = tl.arange(0, BLOCK_M)
     query_valid = query_lane < NUM_QUERY_HEADS
     dimension = tl.arange(0, HEAD_SIZE)
+    if STORE_NEW and segment == 0:
+        incoming_key = tl.load(
+            new_k
+            + logical_batch * new_k_batch_stride
+            + kv_head * new_k_head_stride
+            + dimension
+        )
+        incoming_value = tl.load(
+            new_v
+            + logical_batch * new_v_batch_stride
+            + kv_head * new_v_head_stride
+            + dimension
+        )
+        tl.store(
+            local_k
+            + cache_batch * local_k_batch_stride
+            + kv_head * local_k_head_stride
+            + local_len * local_k_token_stride
+            + dimension,
+            incoming_key,
+        )
+        tl.store(
+            local_v
+            + cache_batch * local_v_batch_stride
+            + kv_head * local_v_head_stride
+            + local_len * local_v_token_stride
+            + dimension,
+            incoming_value,
+        )
+    packed_dimension = dimension // 2
     token_lane = tl.arange(0, TILE_SIZE)
     queries = tl.load(
         query
@@ -434,94 +602,154 @@ def kernel_page1_attention_3d_bias_indirect_pages(
         mask=query_valid[:, None],
         other=0.0,
     )
-
-    logical_batch = sequence // KV_HEADS
-    kv_head = sequence - logical_batch * KV_HEADS
-    cache_batch = tl.load(cache_indices + logical_batch).to(tl.int64)
-    kv_row = cache_batch * KV_HEADS + kv_head
-    table_base = sequence * block_table_stride
-    exact_table_base = sequence * exact_page_table_stride
     rcp_ln2: tl.constexpr = 1.4426950408889634
     qk_scale = scale * rcp_ln2
     maximum = tl.full((BLOCK_M,), -float("inf"), tl.float32)
     denominator = tl.full((BLOCK_M,), 1.0, tl.float32)
     accumulator = tl.zeros((BLOCK_M, HEAD_SIZE), tl.float32)
-    tile_count = _cdiv(sequence_length, TILE_SIZE)
+    tile_count = _cdiv(work_length, TILE_SIZE)
 
     for tile in range(
         tile_begin,
         min((segment + 1) * tiles_per_segment, tile_count),
     ):
-        logical_token = tile * TILE_SIZE + token_lane
-        token_valid = logical_token < sequence_length
-        is_exact = logical_token >= prefix_length
-        prefix_physical = tl.load(
-            block_table + table_base + logical_token,
-            mask=token_valid & ~is_exact,
-            other=0,
-        ).to(tl.int64)
+        token_begin = tile * TILE_SIZE
+        page_tile = token_begin < page_tokens
+        if page_tile:
+            page_id = tile.to(tl.int64)
+            page_row = kv_row * PAGE_CAPACITY + page_id
+            populated = tl.load(page_counts + page_row).to(tl.int32)
+            valid = token_lane < populated
+            physical_token = page_row * PAGE_SIZE + token_lane
+            leaf_index = tl.load(
+                page_indices + physical_token, mask=valid, other=0
+            ).to(tl.int64)
+            valid &= (leaf_index >= 0) & (leaf_index < LEAF_CAPACITY)
+            storage_token = kv_row * LEAF_CAPACITY + leaf_index
 
-        exact_token = logical_token - prefix_length
-        exact_page = exact_token // PAGE_SIZE
-        within_page = exact_token % PAGE_SIZE
-        virtual_page = tl.load(
-            exact_page_table + exact_table_base + exact_page,
-            mask=token_valid & is_exact,
-            other=-1,
-        ).to(tl.int64)
-        page_valid = (
-            token_valid
-            & is_exact
-            & (virtual_page >= 0)
-            & (virtual_page < PAGE_CAPACITY)
-        )
-        leaf_index = tl.load(
-            page_indices
-            + (kv_row * PAGE_CAPACITY + tl.where(page_valid, virtual_page, 0))
-            * PAGE_SIZE
-            + within_page,
-            mask=page_valid,
-            other=-1,
-        ).to(tl.int64)
-        leaf_valid = (
-            page_valid & (leaf_index >= 0) & (leaf_index < LEAF_CAPACITY)
-        )
-        physical_token = tl.where(
-            is_exact,
-            ARENA_LEAF_OFFSET + kv_row * LEAF_CAPACITY + leaf_index,
-            prefix_physical,
-        )
-        token_valid &= ~is_exact | leaf_valid
+            packed_keys = tl.load(
+                quantized_leaf_k
+                + storage_token[None, :] * (HEAD_SIZE // 2)
+                + packed_dimension[:, None],
+                mask=valid[None, :],
+                other=0,
+                cache_modifier=".cg",
+            ).to(tl.int32)
+            packed_values = tl.load(
+                quantized_leaf_v
+                + storage_token[:, None] * (HEAD_SIZE // 2)
+                + packed_dimension[None, :],
+                mask=valid[:, None],
+                other=0,
+                cache_modifier=".cg",
+            ).to(tl.int32)
+            shift = (dimension & 1) * 4
+            key_code = ((packed_keys >> shift[:, None]) & 15) - 8
+            value_code = ((packed_values >> shift[None, :]) & 15) - 8
 
-        keys = tl.load(
-            key_cache
-            + physical_token[None, :] * HEAD_SIZE
-            + dimension[:, None],
-            mask=token_valid[None, :],
-            other=0.0,
-            cache_modifier=".cg",
-        ).to(queries.dtype)
-        values = tl.load(
-            value_cache
-            + physical_token[:, None] * HEAD_SIZE
-            + dimension[None, :],
-            mask=token_valid[:, None],
-            other=0.0,
-            cache_modifier=".cg",
-        ).to(queries.dtype)
-        bias = tl.load(
-            key_bias + physical_token,
-            mask=token_valid,
-            other=0.0,
-            cache_modifier=".cg",
-        ).to(tl.float32)
+            scale_row = page_row * (HEAD_SIZE // QUANT_GROUP_SIZE)
+            key_scale = tl.load(
+                page_k_scales + scale_row + dimension // QUANT_GROUP_SIZE
+            ).to(tl.float32)
+            value_scale = tl.load(
+                page_v_scales + scale_row + dimension // QUANT_GROUP_SIZE
+            ).to(tl.float32)
+            key_sum_code = tl.load(
+                quantized_page_sum_k + page_row * HEAD_SIZE + dimension
+            ).to(tl.float32)
+            value_sum_code = tl.load(
+                quantized_page_sum_v + page_row * HEAD_SIZE + dimension
+            ).to(tl.float32)
+            key_sum_scale = tl.load(
+                page_sum_k_scales + scale_row + dimension // QUANT_GROUP_SIZE
+            ).to(tl.float32)
+            value_sum_scale = tl.load(
+                page_sum_v_scales + scale_row + dimension // QUANT_GROUP_SIZE
+            ).to(tl.float32)
+            inverse_count = 1.0 / tl.maximum(populated.to(tl.float32), 1.0)
+            key_anchor = key_sum_code * key_sum_scale * inverse_count
+            value_anchor = value_sum_code * value_sum_scale * inverse_count
+            keys = (
+                key_code.to(tl.float32) * key_scale[:, None]
+                + key_anchor[:, None]
+            ).to(tl.bfloat16)
+            values = (
+                value_code.to(tl.float32) * value_scale[None, :]
+                + value_anchor[None, :]
+            ).to(tl.bfloat16)
+        else:
+            suffix_token = token_begin - page_tokens + token_lane
+            suffix_end = SINK_LEN + local_len
+            valid = suffix_token < suffix_end + INCLUDE_NEW
+            is_sink = valid & (suffix_token < SINK_LEN)
+            is_local = (
+                valid
+                & (suffix_token >= SINK_LEN)
+                & (suffix_token < suffix_end)
+            )
+            is_new = valid & (suffix_token >= suffix_end)
+            sink_token = tl.maximum(suffix_token, 0)
+            local_token = tl.maximum(suffix_token - SINK_LEN, 0)
+            keys = tl.load(
+                sink_k
+                + cache_batch * sink_k_batch_stride
+                + kv_head * sink_k_head_stride
+                + sink_token[None, :] * sink_k_token_stride
+                + dimension[:, None],
+                mask=is_sink[None, :],
+                other=0.0,
+                cache_modifier=".cg",
+            )
+            values = tl.load(
+                sink_v
+                + cache_batch * sink_v_batch_stride
+                + kv_head * sink_v_head_stride
+                + sink_token[:, None] * sink_v_token_stride
+                + dimension[None, :],
+                mask=is_sink[:, None],
+                other=0.0,
+                cache_modifier=".cg",
+            )
+            keys += tl.load(
+                local_k
+                + cache_batch * local_k_batch_stride
+                + kv_head * local_k_head_stride
+                + local_token[None, :] * local_k_token_stride
+                + dimension[:, None],
+                mask=is_local[None, :],
+                other=0.0,
+                cache_modifier=".cg",
+            )
+            values += tl.load(
+                local_v
+                + cache_batch * local_v_batch_stride
+                + kv_head * local_v_head_stride
+                + local_token[:, None] * local_v_token_stride
+                + dimension[None, :],
+                mask=is_local[:, None],
+                other=0.0,
+                cache_modifier=".cg",
+            )
+            keys += tl.load(
+                new_k
+                + logical_batch * new_k_batch_stride
+                + kv_head * new_k_head_stride
+                + dimension[:, None],
+                mask=is_new[None, :],
+                other=0.0,
+            )
+            values += tl.load(
+                new_v
+                + logical_batch * new_v_batch_stride
+                + kv_head * new_v_head_stride
+                + dimension[None, :],
+                mask=is_new[:, None],
+                other=0.0,
+            )
 
-        scores = qk_scale * tl.dot(queries, keys)
-        scores += bias[None, :] * rcp_ln2
+        scores = qk_scale * tl.dot(queries, keys.to(queries.dtype))
         scores = tl.where(
-            query_valid[:, None] & token_valid[None, :],
-            scores,
-            -float("inf"),
+            query_valid[:, None] & valid[None, :], scores, -float("inf")
         )
         tile_maximum = tl.max(scores, axis=1)
         new_maximum = tl.maximum(maximum, tile_maximum)
@@ -603,9 +831,7 @@ def kernel_page1_attention_3d_bias_fixed_mask(
     kv_head = sequence - logical_batch * KV_HEADS
     cache_batch = tl.load(cache_indices + logical_batch).to(tl.int64)
     physical_sequence = cache_batch * KV_HEADS + kv_head
-    full_sequence_length = tl.load(
-        fixed_lengths + physical_sequence
-    ).to(tl.int32)
+    full_sequence_length = tl.load(fixed_lengths + physical_sequence).to(tl.int32)
     sequence_length = tl.maximum(full_sequence_length - PREFIX_SKIP, 0)
     tiles_per_segment = _cdiv(sequence_length, NUM_SEGMENTS * TILE_SIZE)
     tile_begin = segment * tiles_per_segment
@@ -643,10 +869,7 @@ def kernel_page1_attention_3d_bias_fixed_mask(
         token_valid = remote_token < sequence_length
         logical_token = PREFIX_SKIP + remote_token
         tile_has_mass = tl.load(
-            fixed_active_blocks
-            + block_base
-            + PREFIX_SKIP // TILE_SIZE
-            + tile,
+            fixed_active_blocks + block_base + PREFIX_SKIP // TILE_SIZE + tile,
             cache_modifier=".cg",
         ).to(tl.int1)
 
@@ -673,17 +896,13 @@ def kernel_page1_attention_3d_bias_fixed_mask(
                 cache_modifier=".cg",
             ).to(tl.int64)
             keys = tl.load(
-                key_cache
-                + physical_token[None, :] * HEAD_SIZE
-                + dimension[:, None],
+                key_cache + physical_token[None, :] * HEAD_SIZE + dimension[:, None],
                 mask=active[None, :],
                 other=0.0,
                 cache_modifier=".cg",
             ).to(queries.dtype)
             values = tl.load(
-                value_cache
-                + physical_token[:, None] * HEAD_SIZE
-                + dimension[None, :],
+                value_cache + physical_token[:, None] * HEAD_SIZE + dimension[None, :],
                 mask=active[:, None],
                 other=0.0,
                 cache_modifier=".cg",
@@ -704,14 +923,10 @@ def kernel_page1_attention_3d_bias_fixed_mask(
             )
             tile_maximum = tl.max(scores, axis=1)
             new_maximum = tl.maximum(maximum, tile_maximum)
-            new_maximum = tl.where(
-                new_maximum > -float("inf"), new_maximum, 0.0
-            )
+            new_maximum = tl.where(new_maximum > -float("inf"), new_maximum, 0.0)
             correction = tl.math.exp2(maximum - new_maximum)
             probabilities = tl.math.exp2(scores - new_maximum[:, None])
-            denominator = (
-                denominator * correction + tl.sum(probabilities, axis=1)
-            )
+            denominator = denominator * correction + tl.sum(probabilities, axis=1)
             accumulator = accumulator * correction[:, None]
             accumulator = tl.dot(
                 probabilities.to(values.dtype), values, acc=accumulator
@@ -736,685 +951,3 @@ def kernel_page1_attention_3d_bias_fixed_mask(
     )
     tl.store(segment_max + segment_offset, maximum, mask=query_valid)
     tl.store(segment_exp_sum + segment_offset, denominator, mask=query_valid)
-
-
-@triton.jit
-def reduce_page1_hip_consumers(
-    output,
-    previous_total_lse,
-    consumer_output,
-    consumer_max,
-    consumer_exp_sum,
-    cache_indices,
-    stream_counts,
-    opened_counts,
-    producer_done,
-    overflow_flags,
-    query_heads: tl.constexpr,
-    kv_heads: tl.constexpr,
-    head_size: tl.constexpr,
-    num_consumers: tl.constexpr,
-    reduce_consumers: tl.constexpr,
-):
-    """Reduce persistent HIP consumers directly, then recycle route queues."""
-    sequence = tl.program_id(0).to(tl.int64)
-    query_in_group = tl.program_id(1).to(tl.int64)
-    logical_batch = sequence // kv_heads
-    kv_head = sequence - logical_batch * kv_heads
-    cache_batch = tl.load(cache_indices + logical_batch).to(tl.int64)
-    query_head = kv_head * (query_heads // kv_heads) + query_in_group
-    consumer = tl.arange(0, reduce_consumers)
-    valid = consumer < num_consumers
-    scalar = (
-        (sequence * num_consumers + consumer) * 16 + query_in_group
-    )
-    maxima = tl.load(
-        consumer_max + scalar, mask=valid, other=-float("inf")
-    )
-    denominators = tl.load(
-        consumer_exp_sum + scalar, mask=valid, other=0.0
-    )
-    maximum = tl.max(maxima, axis=0)
-    corrections = tl.where(
-        valid & (denominators > 0.0),
-        tl.math.exp2(maxima - maximum),
-        0.0,
-    )
-    denominator = tl.sum(denominators * corrections, axis=0)
-    dimension = tl.arange(0, head_size)
-    partials = tl.load(
-        consumer_output
-        + scalar[:, None] * head_size
-        + dimension[None, :],
-        mask=valid[:, None],
-        other=0.0,
-    )
-    numerator = tl.sum(partials * corrections[:, None], axis=0)
-    tl.store(
-        output
-        + (logical_batch * query_heads + query_head) * head_size
-        + dimension,
-        numerator / denominator,
-    )
-    ln2: tl.constexpr = 0.6931471805599453
-    tl.store(
-        previous_total_lse + cache_batch * query_heads + query_head,
-        (maximum + tl.log2(denominator)) * ln2,
-    )
-    if query_in_group == 0:
-        tl.store(stream_counts + sequence, 0)
-        tl.store(opened_counts + sequence, 0)
-        tl.store(producer_done + sequence, 0)
-        tl.store(overflow_flags + sequence, 0)
-
-
-@triton.jit
-def init_page1_predicted_mass_union(
-    sequence_epochs,
-    union_counts,
-    union_token_counts,
-    SEQUENCES: tl.constexpr,
-):
-    """Advance the route epoch and clear one GQA-union work queue."""
-    sequence = tl.program_id(0)
-    if sequence < SEQUENCES:
-        epoch = tl.load(sequence_epochs + sequence).to(tl.int32)
-        tl.store(sequence_epochs + sequence, epoch + 1)
-        tl.store(union_counts + sequence, 0)
-        tl.store(union_token_counts + sequence, 0)
-
-
-@triton.jit
-def kernel_page1_pilot_z_threshold(
-    query,
-    coarse_key,
-    coarse_bias,
-    counts,
-    cache_indices,
-    calibrated_bounds,
-    absolute_thresholds,
-    scale,
-    margin,
-    query_stride_0: tl.int64,
-    query_stride_1: tl.int64,
-    count_batch_stride: tl.int64,
-    count_head_stride: tl.int64,
-    count_token_stride: tl.int64,
-    bound_batch_stride: tl.int64,
-    bound_head_stride: tl.int64,
-    threshold_batch_stride: tl.int64,
-    threshold_head_stride: tl.int64,
-    NUM_QUERY_HEADS: tl.constexpr,
-    KV_HEADS: tl.constexpr,
-    STATE_LEN: tl.constexpr,
-    STATE_CAPACITY: tl.constexpr,
-    COARSE_OFFSET: tl.constexpr,
-    HEAD_SIZE: tl.constexpr,
-    BLOCK_M: tl.constexpr,
-    PROTECTED_LEN: tl.constexpr,
-    PILOT_SIZE: tl.constexpr,
-    MAX_LEAF_TOKENS: tl.constexpr,
-):
-    """Estimate each query's score baseline/scale from one N=64 pilot tile."""
-    sequence = tl.program_id(0).to(tl.int64)
-    logical_batch = sequence // KV_HEADS
-    kv_head = sequence - logical_batch * KV_HEADS
-    cache_batch = tl.load(cache_indices + logical_batch).to(tl.int64)
-    kv_row = cache_batch * KV_HEADS + kv_head
-
-    query_lane = tl.arange(0, BLOCK_M)
-    query_valid = query_lane < NUM_QUERY_HEADS
-    dimension = tl.arange(0, HEAD_SIZE)
-    pilot_lane = tl.arange(0, PILOT_SIZE)
-    candidate_count: tl.constexpr = STATE_LEN - PROTECTED_LEN
-    # Uniform deterministic samples make calibration and decode use the same
-    # state geometry without materializing an index vector.
-    token = PROTECTED_LEN + (pilot_lane * candidate_count) // PILOT_SIZE
-    count = tl.load(
-        counts
-        + cache_batch * count_batch_stride
-        + kv_head * count_head_stride
-        + token * count_token_stride,
-    ).to(tl.float32)
-    pilot_valid = (count > 0.0) & (
-        (MAX_LEAF_TOKENS <= 0) | (count < MAX_LEAF_TOKENS)
-    )
-
-    queries = tl.load(
-        query
-        + sequence * query_stride_0
-        + query_lane[:, None] * query_stride_1
-        + dimension[None, :],
-        mask=query_valid[:, None],
-        other=0.0,
-    )
-    physical_token = COARSE_OFFSET + kv_row * STATE_CAPACITY + token
-    keys = tl.load(
-        coarse_key
-        + physical_token[None, :] * HEAD_SIZE
-        + dimension[:, None],
-        mask=pilot_valid[None, :],
-        other=0.0,
-        cache_modifier=".cg",
-    ).to(queries.dtype)
-    bias = tl.load(
-        coarse_bias + physical_token,
-        mask=pilot_valid,
-        other=0.0,
-        cache_modifier=".cg",
-    ).to(tl.float32)
-    scores = scale * tl.dot(queries, keys) + bias[None, :]
-    pilot_population = tl.sum(pilot_valid.to(tl.float32), axis=0)
-    mean = tl.sum(
-        tl.where(pilot_valid[None, :], scores, 0.0), axis=1
-    ) / tl.maximum(pilot_population, 1.0)
-    centered = scores - mean[:, None]
-    variance = tl.sum(
-        tl.where(pilot_valid[None, :], centered * centered, 0.0), axis=1
-    ) / tl.maximum(pilot_population, 1.0)
-    standard_deviation = tl.sqrt(tl.maximum(variance, 1.0e-6))
-
-    query_head = kv_head * NUM_QUERY_HEADS + query_lane
-    calibrated = tl.load(
-        calibrated_bounds
-        + cache_batch * bound_batch_stride
-        + query_head * bound_head_stride,
-        mask=query_valid,
-        other=float("inf"),
-    ).to(tl.float32)
-    threshold = tl.where(
-        pilot_population > 0.0,
-        mean + (calibrated - margin) * standard_deviation,
-        float("inf"),
-    )
-    tl.store(
-        absolute_thresholds
-        + cache_batch * threshold_batch_stride
-        + query_head * threshold_head_stride,
-        threshold,
-        mask=query_valid,
-    )
-
-
-@triton.jit
-def kernel_page1_predicted_mass_union(
-    query,
-    coarse_key,
-    coarse_bias,
-    counts,
-    cache_indices,
-    previous_total_lse,
-    seen_stamps,
-    sequence_epochs,
-    union_counts,
-    union_slots,
-    scale,
-    query_stride_0: tl.int64,
-    query_stride_1: tl.int64,
-    count_batch_stride: tl.int64,
-    count_head_stride: tl.int64,
-    count_token_stride: tl.int64,
-    previous_lse_batch_stride: tl.int64,
-    previous_lse_head_stride: tl.int64,
-    NUM_QUERY_HEADS: tl.constexpr,
-    KV_HEADS: tl.constexpr,
-    STATE_LEN: tl.constexpr,
-    STATE_CAPACITY: tl.constexpr,
-    COARSE_OFFSET: tl.constexpr,
-    UNION_CAPACITY: tl.constexpr,
-    TILE_SIZE: tl.constexpr,
-    HEAD_SIZE: tl.constexpr,
-    BLOCK_M: tl.constexpr,
-    PROTECTED_LEN: tl.constexpr,
-    MAX_LEAF_TOKENS: tl.constexpr,
-    LOG_MASS_FRACTION: tl.constexpr,
-):
-    """Route centroids against the preceding token's total attention mass.
-
-    This is the QK half of :func:`kernel_page1_attention_3d_bias`: it keeps
-    the same M=16/N=64 page-size-one MFMA layout, but compares each current
-    centroid score directly with ``previous_lse + log(mass_fraction)`` and
-    compacts the union across the GQA query heads.  No score table or top-k
-    reduction is materialized.
-    """
-    sequence = tl.program_id(0).to(tl.int64)
-    tile = tl.program_id(1).to(tl.int64)
-    logical_batch = sequence // KV_HEADS
-    kv_head = sequence - logical_batch * KV_HEADS
-    cache_batch = tl.load(cache_indices + logical_batch).to(tl.int64)
-    kv_row = cache_batch * KV_HEADS + kv_head
-
-    query_lane = tl.arange(0, BLOCK_M)
-    query_valid = query_lane < NUM_QUERY_HEADS
-    dimension = tl.arange(0, HEAD_SIZE)
-    token_lane = tl.arange(0, TILE_SIZE)
-    token = tile * TILE_SIZE + token_lane
-    token_valid = token < STATE_LEN
-
-    queries = tl.load(
-        query
-        + sequence * query_stride_0
-        + query_lane[:, None] * query_stride_1
-        + dimension[None, :],
-        mask=query_valid[:, None],
-        other=0.0,
-    )
-    physical_token = COARSE_OFFSET + kv_row * STATE_CAPACITY + token
-    keys = tl.load(
-        coarse_key
-        + physical_token[None, :] * HEAD_SIZE
-        + dimension[:, None],
-        mask=token_valid[None, :],
-        other=0.0,
-        cache_modifier=".cg",
-    ).to(queries.dtype)
-    bias = tl.load(
-        coarse_bias + physical_token,
-        mask=token_valid,
-        other=-float("inf"),
-        cache_modifier=".cg",
-    ).to(tl.float32)
-    count = tl.load(
-        counts
-        + cache_batch * count_batch_stride
-        + kv_head * count_head_stride
-        + token * count_token_stride,
-        mask=token_valid,
-        other=0.0,
-    ).to(tl.float32)
-
-    rcp_ln2: tl.constexpr = 1.4426950408889634
-    scores = scale * rcp_ln2 * tl.dot(queries, keys)
-    scores += bias[None, :] * rcp_ln2
-    previous_lse = tl.load(
-        previous_total_lse
-        + cache_batch * previous_lse_batch_stride
-        + (kv_head * NUM_QUERY_HEADS + query_lane)
-            * previous_lse_head_stride,
-        mask=query_valid,
-        other=float("inf"),
-    ).to(tl.float32)
-    # The retained mass is stored in natural-log units; scores use log2 to
-    # match AITER's exp2 online-softmax path.
-    threshold = (previous_lse + LOG_MASS_FRACTION) * rcp_ln2
-    selected_by_head = (
-        query_valid[:, None]
-        & token_valid[None, :]
-        & (scores > threshold[:, None])
-    )
-    selected = tl.sum(selected_by_head.to(tl.int32), axis=0) > 0
-    eligible = (
-        token_valid
-        & (token >= PROTECTED_LEN)
-        & (count > 0.0)
-        & ((MAX_LEAF_TOKENS <= 0) | (count < MAX_LEAF_TOKENS))
-    )
-    selected &= eligible
-
-    selected_integer = selected.to(tl.int32)
-    destination_in_tile = tl.cumsum(selected_integer, axis=0) - 1
-    selected_count = tl.sum(selected_integer, axis=0)
-    tile_base = tl.atomic_add(
-        union_counts + sequence,
-        selected_count,
-        sem="relaxed",
-    ).to(tl.int32)
-    destination = tile_base + destination_in_tile
-    epoch = tl.load(sequence_epochs + sequence).to(tl.int32)
-    tl.store(
-        seen_stamps + sequence * STATE_CAPACITY + token,
-        epoch,
-        mask=selected & (destination < UNION_CAPACITY),
-    )
-    tl.store(
-        union_slots + sequence * UNION_CAPACITY + destination,
-        token,
-        mask=selected & (destination < UNION_CAPACITY),
-    )
-
-
-@triton.jit
-def kernel_page1_predicted_mass_fixed_prepare(
-    query,
-    coarse_key,
-    coarse_bias,
-    counts,
-    cache_indices,
-    previous_remote_lse,
-    seen_stamps,
-    sequence_epochs,
-    union_counts,
-    union_slots,
-    remote_group_lse,
-    local_lens,
-    fixed_lengths,
-    context_lens,
-    launch_lens,
-    new_k,
-    new_v,
-    arena_k,
-    arena_v,
-    execution_marker,
-    previous_cache_rows,
-    previous_union_counts,
-    previous_union_slots,
-    fixed_slot_offsets,
-    active_mask,
-    active_blocks,
-    scale,
-    query_stride_0: tl.int64,
-    query_stride_1: tl.int64,
-    count_batch_stride: tl.int64,
-    count_head_stride: tl.int64,
-    count_token_stride: tl.int64,
-    previous_lse_batch_stride: tl.int64,
-    previous_lse_head_stride: tl.int64,
-    remote_lse_row_stride: tl.int64,
-    new_k_batch_stride: tl.int64,
-    new_k_head_stride: tl.int64,
-    new_v_batch_stride: tl.int64,
-    new_v_head_stride: tl.int64,
-    slot_offset_stride: tl.int64,
-    mask_stride: tl.int64,
-    block_stride: tl.int64,
-    NUM_QUERY_HEADS: tl.constexpr,
-    KV_HEADS: tl.constexpr,
-    STATE_LEN: tl.constexpr,
-    STATE_CAPACITY: tl.constexpr,
-    COARSE_OFFSET: tl.constexpr,
-    UNION_CAPACITY: tl.constexpr,
-    REMOTE_MAX_GROUPS: tl.constexpr,
-    TILE_SIZE: tl.constexpr,
-    HEAD_SIZE: tl.constexpr,
-    BLOCK_M: tl.constexpr,
-    PROTECTED_LEN: tl.constexpr,
-    MAX_LEAF_TOKENS: tl.constexpr,
-    LOG_MASS_FRACTION: tl.constexpr,
-    LOCAL_OFFSET: tl.constexpr,
-    LOCAL_CAPACITY: tl.constexpr,
-    LOCAL_LIMIT: tl.constexpr,
-    SINK_LEN: tl.constexpr,
-    LEAF_BEGIN: tl.constexpr,
-    MASK_CAPACITY: tl.constexpr,
-    RESET_BLOCK_N: tl.constexpr,
-    RESET_BLOCKS_N: tl.constexpr,
-    INCLUDE_NEW: tl.constexpr,
-    STORE_REMOTE_LSE: tl.constexpr,
-):
-    """Predicted remote-mass routing plus fixed-mask preparation.
-
-    The threshold denominator is the preceding token's eligible remote-coarse
-    LSE, matching the centroid-score numerator. The first token uses one
-    current-query winner per N=64 tile, avoiding both an empty bootstrap and a
-    global top-k barrier. The same tile grid resets prior leaf ranges and
-    prepares the fixed prefix before publishing the current sparse union.
-    """
-    sequence = tl.program_id(0).to(tl.int64)
-    tile = tl.program_id(1).to(tl.int64)
-    logical_batch = sequence // KV_HEADS
-    kv_head = sequence - logical_batch * KV_HEADS
-    cache_batch = tl.load(cache_indices + logical_batch).to(tl.int64)
-    kv_row = cache_batch * KV_HEADS + kv_head
-    query_lane = tl.arange(0, BLOCK_M)
-    query_valid = query_lane < NUM_QUERY_HEADS
-    dimension = tl.arange(0, HEAD_SIZE)
-    token_lane = tl.arange(0, TILE_SIZE)
-    token = tile * TILE_SIZE + token_lane
-    token_valid = token < STATE_LEN
-
-    # Prefix/coarse mask preparation is distributed across route tiles.
-    local_length = tl.minimum(
-        tl.load(local_lens + cache_batch).to(tl.int32), LOCAL_LIMIT
-    )
-    active_local = local_length + INCLUDE_NEW
-    tl.store(
-        active_mask + sequence * mask_stride + token,
-        (token < active_local).to(tl.uint8),
-        mask=token < LOCAL_LIMIT,
-    )
-    tl.store(
-        active_mask
-        + sequence * mask_stride
-        + LOCAL_LIMIT
-        + SINK_LEN
-        + token,
-        1,
-        mask=token < STATE_CAPACITY,
-    )
-    route_tiles: tl.constexpr = (STATE_LEN + TILE_SIZE - 1) // TILE_SIZE
-    prefix_blocks: tl.constexpr = (LEAF_BEGIN + TILE_SIZE - 1) // TILE_SIZE
-    tl.store(
-        active_blocks + sequence * block_stride + tile,
-        1,
-        mask=tile < prefix_blocks,
-    )
-    second_prefix_block = tile + route_tiles
-    tl.store(
-        active_blocks + sequence * block_stride + second_prefix_block,
-        1,
-        mask=second_prefix_block < prefix_blocks,
-    )
-    if tile == 0:
-        sink_lane = tl.arange(0, 1 if SINK_LEN == 0 else SINK_LEN)
-        tl.store(
-            active_mask
-            + sequence * mask_stride
-            + LOCAL_LIMIT
-            + sink_lane,
-            1,
-            mask=sink_lane < SINK_LEN,
-        )
-        fixed_length = tl.load(fixed_lengths + kv_row).to(tl.int32)
-        tl.store(context_lens + sequence, fixed_length)
-        tl.store(launch_lens + sequence, tl.maximum(fixed_length, 1))
-        tl.store(execution_marker, 2, mask=sequence == 0)
-        if INCLUDE_NEW:
-            current_key = tl.load(
-                new_k
-                + logical_batch * new_k_batch_stride
-                + kv_head * new_k_head_stride
-                + dimension
-            )
-            current_value = tl.load(
-                new_v
-                + logical_batch * new_v_batch_stride
-                + kv_head * new_v_head_stride
-                + dimension
-            )
-            physical_local = (
-                LOCAL_OFFSET + kv_row * LOCAL_CAPACITY + local_length
-            )
-            tl.store(
-                arena_k + physical_local * HEAD_SIZE + dimension,
-                current_key,
-            )
-            tl.store(
-                arena_v + physical_local * HEAD_SIZE + dimension,
-                current_value,
-            )
-
-    # Reset one previous-union entry per route tile.
-    previous_count = tl.load(previous_union_counts + sequence).to(tl.int32)
-    previous_valid = tile < previous_count
-    previous_slot = tl.load(
-        previous_union_slots + sequence * UNION_CAPACITY + tile,
-        mask=previous_valid,
-        other=0,
-    ).to(tl.int32)
-    previous_valid &= (previous_slot >= 0) & (previous_slot < STATE_CAPACITY)
-    safe_previous = tl.where(previous_valid, previous_slot, 0)
-    previous_cache_batch = tl.load(previous_cache_rows + sequence).to(tl.int64)
-    previous_valid &= previous_cache_batch >= 0
-    previous_offset_base = (
-        tl.maximum(previous_cache_batch, 0) * KV_HEADS + kv_head
-    ) * slot_offset_stride
-    previous_start = tl.load(
-        fixed_slot_offsets + previous_offset_base + safe_previous,
-        mask=previous_valid,
-        other=0,
-        cache_modifier=".cg",
-    ).to(tl.int32)
-    previous_stop = tl.load(
-        fixed_slot_offsets + previous_offset_base + safe_previous + 1,
-        mask=previous_valid,
-        other=0,
-        cache_modifier=".cg",
-    ).to(tl.int32)
-    previous_leaf_count = tl.where(
-        previous_valid, previous_stop - previous_start, 0
-    )
-    reset_lane = tl.arange(0, RESET_BLOCK_N)
-    for reset_begin in tl.range(
-        0, previous_leaf_count, RESET_BLOCK_N, num_stages=1
-    ):
-        reset_offset = reset_begin + reset_lane
-        logical_token = LEAF_BEGIN + previous_start + reset_offset
-        tl.store(
-            active_mask + sequence * mask_stride + logical_token,
-            0,
-            mask=(
-                previous_valid
-                & (reset_offset < previous_leaf_count)
-                & (logical_token < MASK_CAPACITY)
-            ),
-        )
-    first_block = (LEAF_BEGIN + previous_start) // TILE_SIZE
-    last_block = (
-        LEAF_BEGIN + previous_stop + TILE_SIZE - 1
-    ) // TILE_SIZE
-    reset_block = tl.arange(0, RESET_BLOCKS_N)
-    for reset_begin in tl.range(
-        0, last_block - first_block, RESET_BLOCKS_N, num_stages=1
-    ):
-        logical_block = first_block + reset_begin + reset_block
-        reset_valid = (
-            previous_valid
-            & (reset_begin + reset_block < last_block - first_block)
-            & (logical_block < (MASK_CAPACITY + TILE_SIZE - 1) // TILE_SIZE)
-            & (logical_block * TILE_SIZE >= LEAF_BEGIN)
-        )
-        tl.store(
-            active_blocks + sequence * block_stride + logical_block,
-            0,
-            mask=reset_valid,
-        )
-
-    # Current-query centroid mass and matching remote-mass denominator.
-    queries = tl.load(
-        query
-        + sequence * query_stride_0
-        + query_lane[:, None] * query_stride_1
-        + dimension[None, :],
-        mask=query_valid[:, None],
-        other=0.0,
-    )
-    physical_token = COARSE_OFFSET + kv_row * STATE_CAPACITY + token
-    keys = tl.load(
-        coarse_key
-        + physical_token[None, :] * HEAD_SIZE
-        + dimension[:, None],
-        mask=token_valid[None, :],
-        other=0.0,
-        cache_modifier=".cg",
-    ).to(queries.dtype)
-    bias = tl.load(
-        coarse_bias + physical_token,
-        mask=token_valid,
-        other=-float("inf"),
-        cache_modifier=".cg",
-    ).to(tl.float32)
-    count = tl.load(
-        counts
-        + cache_batch * count_batch_stride
-        + kv_head * count_head_stride
-        + token * count_token_stride,
-        mask=token_valid,
-        other=0.0,
-    ).to(tl.float32)
-    eligible = (
-        token_valid
-        & (token >= PROTECTED_LEN)
-        & (count > 0.0)
-        & ((MAX_LEAF_TOKENS <= 0) | (count < MAX_LEAF_TOKENS))
-    )
-    rcp_ln2: tl.constexpr = 1.4426950408889634
-    scores = scale * rcp_ln2 * tl.dot(queries, keys)
-    scores += bias[None, :] * rcp_ln2
-    query_head = kv_head * NUM_QUERY_HEADS + query_lane
-    eligible_scores = tl.where(
-        query_valid[:, None] & eligible[None, :],
-        scores,
-        -float("inf"),
-    )
-    if STORE_REMOTE_LSE:
-        tile_maximum = tl.max(eligible_scores, axis=1)
-        tile_denominator = tl.sum(
-            tl.where(
-                eligible[None, :] & (tile_maximum[:, None] > -float("inf")),
-                tl.math.exp2(eligible_scores - tile_maximum[:, None]),
-                0.0,
-            ),
-            axis=1,
-        )
-        tile_lse = tl.where(
-            tile_denominator > 0.0,
-            (tile_maximum + tl.log2(tile_denominator)) / rcp_ln2,
-            -float("inf"),
-        )
-        remote_row = logical_batch * (KV_HEADS * NUM_QUERY_HEADS) + query_head
-        tl.store(
-            remote_group_lse + remote_row * remote_lse_row_stride + tile,
-            tile_lse,
-            mask=query_valid & (tile < REMOTE_MAX_GROUPS),
-        )
-
-    previous_lse = tl.load(
-        previous_remote_lse
-        + cache_batch * previous_lse_batch_stride
-        + query_head * previous_lse_head_stride,
-        mask=query_valid,
-        other=float("inf"),
-    ).to(tl.float32)
-    previous_valid = (
-        query_valid
-        & (previous_lse == previous_lse)
-        & (previous_lse < float("inf"))
-        & (previous_lse > -float("inf"))
-    )
-    threshold = (previous_lse + LOG_MASS_FRACTION) * rcp_ln2
-    selected_by_head = (
-        previous_valid[:, None]
-        & eligible[None, :]
-        & (scores > threshold[:, None])
-    )
-    selected = tl.sum(selected_by_head.to(tl.int32), axis=0) > 0
-
-    # On an uninitialized first token, retain one current-query winner per
-    # tile. This is parallel and conservative without introducing top-k.
-    bootstrap = tl.sum((query_valid & ~previous_valid).to(tl.int32), axis=0) > 0
-    across_heads = tl.max(eligible_scores, axis=0)
-    best_value = tl.max(across_heads, axis=0)
-    tied_best = eligible & (across_heads == best_value)
-    first_best = tied_best & (tl.cumsum(tied_best.to(tl.int32), axis=0) == 1)
-    selected |= bootstrap & first_best & (best_value > -float("inf"))
-
-    selected_integer = selected.to(tl.int32)
-    destination_in_tile = tl.cumsum(selected_integer, axis=0) - 1
-    selected_count = tl.sum(selected_integer, axis=0)
-    tile_base = tl.atomic_add(
-        union_counts + sequence,
-        selected_count,
-        sem="relaxed",
-    ).to(tl.int32)
-    destination = tile_base + destination_in_tile
-    epoch = tl.load(sequence_epochs + sequence).to(tl.int32)
-    tl.store(
-        seen_stamps + sequence * STATE_CAPACITY + token,
-        epoch,
-        mask=selected & (destination < UNION_CAPACITY),
-    )
-    tl.store(
-        union_slots + sequence * UNION_CAPACITY + destination,
-        token,
-        mask=selected & (destination < UNION_CAPACITY),
-    )

@@ -222,6 +222,8 @@ def main() -> None:
         timeout=args.request_timeout,
     )
     if args.warmup_batches and pending:
+        # The documented timing setup disables prefix caching, so warming the
+        # real prompts compiles exactly the shapes measured in the first batch.
         warmup = pending[: args.workers]
         with ThreadPoolExecutor(max_workers=args.workers) as executor:
             for _ in range(args.warmup_batches):

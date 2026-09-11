@@ -23,6 +23,8 @@ from .pool import VLLMLayerLODPool
 
 logger = logging.getLogger(__name__)
 
+_DEFERRED_PREFILL_STREAM_COUNT = 4
+
 
 def _input_batch_max_query_len(input_batch: Any) -> int:
     """Read the largest scheduled query across old and new vLLM batches."""
@@ -139,9 +141,16 @@ class VLLMLODRuntime:
         self.free_lod_rows = list(range(self.pool_size - 1, -1, -1))
         self.logical_lengths = [0] * self.pool_size
         self._active_decode_rows: tuple[int, ...] | None = None
+        self.direct_prefill_rejection: str | None = None
         self.initialized = False
         self.allocate_pools()
-        settings_json = json.dumps(asdict(self.settings), sort_keys=True)
+        # vLLM's persistent graph cache otherwise sees only public settings;
+        # a kernel-call ABI change in this plugin can incorrectly replay an
+        # older captured graph after the package is upgraded.
+        settings_json = json.dumps(
+            {"implementation_abi": 2, "settings": asdict(self.settings)},
+            sort_keys=True,
+        )
         config.additional_config["lod_attention_compile_settings"] = sha256(
             settings_json.encode()
         ).hexdigest()
@@ -180,12 +189,14 @@ class VLLMLODRuntime:
             decode_sizes.add(self.pool_size)
         norm_flags = self._attention_norm_flags()
         prefix_rollback_tokens = self._prefix_rollback_tokens()
-        # One FIFO stream is shared across layers.  Each layer's attention
-        # output can feed the next layer immediately while its independent
-        # semantic-cache maintenance runs behind it; a per-row event makes the
-        # next scheduler chunk or decode wait only when that row is consumed.
-        deferred_prefill_stream: torch.cuda.Stream | None = None
-        for name, layer in self.layers.items():
+        # A small fixed stream pool overlaps independent per-layer cache builds
+        # without exposing a deployment knob. Each row records a completion
+        # event; the next scheduler use synchronizes it before consuming the row.
+        deferred_prefill_streams = [
+            torch.cuda.Stream(device=self.model_state.device)
+            for _ in range(min(_DEFERRED_PREFILL_STREAM_COUNT, len(self.layers)))
+        ]
+        for layer_index, (name, layer) in enumerate(self.layers.items()):
             has_query_norm, has_key_norm = norm_flags.get(name, (False, False))
             pool = VLLMLayerLODPool(
                 layer,
@@ -198,14 +209,13 @@ class VLLMLODRuntime:
                 has_query_norm=has_query_norm,
                 has_key_norm=has_key_norm,
                 prefix_rollback_tokens=prefix_rollback_tokens,
+                speculative_tokens=self.speculative_tokens,
             )
             for rows in sorted(decode_sizes):
                 pool.reserve_decode_buffers(rows)
-            if deferred_prefill_stream is None:
-                deferred_prefill_stream = torch.cuda.Stream(
-                    device=self.model_state.device
-                )
-            pool.deferred_prefill_stream = deferred_prefill_stream
+            pool.deferred_prefill_stream = deferred_prefill_streams[
+                layer_index % len(deferred_prefill_streams)
+            ]
             self.pools[name] = pool
             self.borrowed_dummy_lens[name] = torch.zeros_like(pool.local_lens)
             layer._vllm_lod_pool = pool
@@ -998,11 +1008,17 @@ class VLLMLODRuntime:
             )
             for entry in self.cached_rows.values()
         ]
+        mapped = sorted(
+            ((str(slot), row) for slot, row in self.lod_row_by_slot.items()),
+            key=lambda item: item[1],
+        )
         raise RuntimeError(
             "external LOD attention has no native remote K/V fallback; the "
             "request needs a matching retained semantic prefix; "
             f"active(slot,row,ready,coverage,total)={active}, "
             f"retained(row,total,coverage)={retained}, "
+            f"mapped(slot,row)={mapped}, free_rows={sorted(self.free_lod_rows)}, "
+            f"direct_prefill_rejection={self.direct_prefill_rejection}, "
             "restore(attempts,no_row,short,tokens,coverage,last_prefix,"
             "last_coverage,last_total)="
             f"({reference_pool.retained_restore_attempts},"
@@ -1023,7 +1039,11 @@ class VLLMLODRuntime:
         prompt_lengths: np.ndarray,
     ) -> bool:
         """Prepare direct LOD only when every authoritative row advances exactly."""
+        self.direct_prefill_rejection = None
         if len(slots) > self.pool_size:
+            self.direct_prefill_rejection = (
+                f"request_rows={len(slots)} exceeds pool_size={self.pool_size}"
+            )
             return False
         if len(query_starts) != len(slots) + 1:
             raise ValueError("vLLM query boundaries do not match the request batch")
@@ -1036,6 +1056,9 @@ class VLLMLODRuntime:
             if missing:
                 evicted = self._evict_cached_rows(missing)
                 if len(evicted) != missing:
+                    self.direct_prefill_rejection = (
+                        f"needed {missing} rows but evicted {len(evicted)}"
+                    )
                     return False
                 self.free_lod_rows.extend(evicted)
                 self.free_lod_rows.sort(reverse=True)
@@ -1057,14 +1080,61 @@ class VLLMLODRuntime:
                 for slot, row in zip(slots, sorted(rows), strict=True):
                     self.lod_row_by_slot[slot] = row
 
-        plan: list[tuple[int, int, int, int]] = []
+        # vLLM can interleave one-token decode rows with newly admitted
+        # prefill rows. Decode advances the graph-visible recent-cache length,
+        # while the Python metadata is intentionally refreshed only when the
+        # row next reaches host scheduling. Bring those live rows current
+        # before treating the mixed batch as cached prefill; otherwise the
+        # stale ``total_len`` makes a valid continuation look like a missing
+        # semantic prefix.
+        continuations: list[tuple[int, int]] = []
         for request_row, slot in enumerate(slots):
+            begin = int(query_starts[request_row])
+            end = int(query_starts[request_row + 1])
+            if end <= begin:
+                continue
+            previous_length = int(computed_lengths[request_row])
+            if previous_length <= 0:
+                continue
             lod_row = self._lod_row(slot)
+            if not all(pool.ready[lod_row] for pool in self.pools.values()):
+                continue
+            if any(
+                int(pool.metadata[lod_row].get("total_len", -1))
+                < previous_length
+                for pool in self.pools.values()
+            ):
+                continuations.append((lod_row, previous_length))
+        self._catch_up_decode_rows(continuations)
+        # ``_catch_up_decode_rows`` deliberately avoids touching every
+        # layer's Python metadata between semantic update boundaries.  That is
+        # important on the steady one-token decode path, but this transition
+        # back through direct prefill immediately validates ``total_len`` on
+        # every layer.  Refresh those cheap host fields here; the device-local
+        # K/V and ``local_lens`` were already advanced by captured decode.
+        for lod_row, previous_length in continuations:
+            for pool in self.pools.values():
+                pool.catch_up(lod_row, previous_length)
+
+        plan: list[tuple[int, int, int, int]] = []
+        prepared_prompt_lengths: dict[int, int] = {}
+        for request_row, slot in enumerate(slots):
             previous_length = int(computed_lengths[request_row])
             begin = int(query_starts[request_row])
             end = int(query_starts[request_row + 1])
-            if end <= begin or previous_length + end - begin > self.request_capacity:
+            # vLLM's persistent batch can retain an admitted row that receives
+            # no tokens in this scheduler step. It has no attention work and
+            # must not force the active rows onto the nonexistent native-cache
+            # fallback.
+            if end <= begin:
+                continue
+            if previous_length + end - begin > self.request_capacity:
+                self.direct_prefill_rejection = (
+                    f"slot={slot} previous={previous_length} scheduled={end - begin} "
+                    f"exceeds capacity={self.request_capacity}"
+                )
                 return False
+            lod_row = self._lod_row(slot)
             ready = [pool.ready[lod_row] for pool in self.pools.values()]
             if previous_length == 0:
                 compatible = not any(ready)
@@ -1089,17 +1159,26 @@ class VLLMLODRuntime:
                     for pool in self.pools.values():
                         pool.restore_prefix(lod_row, previous_length)
             if not compatible:
+                self.direct_prefill_rejection = (
+                    f"slot={slot} previous={previous_length} scheduled={end - begin} "
+                    f"ready={ready} total_lengths={total_lengths if previous_length else []}"
+                )
                 return False
             plan.append((lod_row, begin, end, previous_length))
+            prepared_prompt_lengths[lod_row] = int(prompt_lengths[request_row])
 
         prepared = tuple(plan)
+        # Mixed scheduler steps can advance decode rows through this prefill
+        # path alongside a long newly admitted request.  Keep the runtime's
+        # retained-prefix length current here too; otherwise a request that
+        # finishes without another pure-decode step is cached using an older
+        # length than the semantic row that was just advanced.
+        for lod_row, begin, end, previous_length in prepared:
+            self.logical_lengths[lod_row] = previous_length + end - begin
         for pool in self.pools.values():
             pool.decode_enabled = False
             pool.direct_prefill_plan = prepared
-            pool.direct_prefill_prompt_lengths = {
-                lod_row: int(prompt_lengths[request_row])
-                for request_row, (lod_row, _, _, _) in enumerate(prepared)
-            }
+            pool.direct_prefill_prompt_lengths = prepared_prompt_lengths.copy()
         return True
 
     def _pad_decode_rows(self, lod_rows: list[int], padded_rows: int) -> list[int]:
@@ -1469,7 +1548,7 @@ def install_legacy_runner_hooks() -> None:
         self: Any, req_id: str, req_state: Any | None
     ) -> None:
         runtime = getattr(self, "_vllm_lod_runtime", None)
-        if runtime is not None and req_state is not None:
+        if runtime is not None:
             runtime.remove_request(
                 req_id,
                 token_ids=runtime._legacy_token_ids(req_state),

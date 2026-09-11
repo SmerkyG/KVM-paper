@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 from lod_attention._config import (
+    EXACT_DECODE_LIMIT,
     LODConfig,
     LODMode,
     ModelFamily,
@@ -93,3 +94,32 @@ def test_profile_fixes_top_four_for_both_families(
     assert engine.prefill_two_level_topk == ROUTE_COUNT
     assert engine.recursive_prefill_all_leaves is True
     assert engine.separate_sink_cache is True
+
+
+@pytest.mark.parametrize(
+    ("mode", "exact_limit"),
+    [
+        (LODMode.TWO_TIER, EXACT_DECODE_LIMIT),
+        (LODMode.THREE_TIER_BF16, EXACT_DECODE_LIMIT),
+        (LODMode.THREE_TIER_INT4, EXACT_DECODE_LIMIT),
+    ],
+)
+def test_modes_use_exact_short_decode(
+    mode: LODMode, exact_limit: int
+) -> None:
+    engine = SimpleNamespace(
+        config=SimpleNamespace(
+            num_attention_heads=24,
+            num_key_value_heads=4,
+        ),
+        head_dim=256,
+    )
+    configure_engine(
+        engine,
+        family=ModelFamily.QWEN38,
+        mode=mode,
+        request_capacity=131_072,
+        has_query_norm=True,
+        has_key_norm=True,
+    )
+    assert engine.exact_decode_limit == exact_limit

@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from ._config import (
+    EXACT_DECODE_LIMIT,
     LODMode,
     ModelFamily,
     PREFILL_CHUNK_SIZE,
@@ -24,9 +25,10 @@ def configure_engine(
 ) -> None:
     """Apply the measured release profile to a projection-free engine.
 
-    The attention calculation is identical for both families: top-four in
+    The attention calculation is shared across both families: top-four in
     prefill and decode, count-corrected coarse mass, and exact replacement of
-    selected regions. Differences below are only launch geometry or storage.
+    selected regions. Differences below are launch geometry, storage, and the
+    fixed K2 INT4 maintenance interval.
     """
 
     gqa = engine.config.num_attention_heads // engine.config.num_key_value_heads
@@ -48,6 +50,7 @@ def configure_engine(
     engine.prefill_local_len = PREFILL_LOCAL_WINDOW
     engine.prefill_state_update_len = PREFILL_CHUNK_SIZE
     engine.prefill_exact_first_chunk = True
+    engine.exact_decode_limit = EXACT_DECODE_LIMIT
     engine.split_prefill_local_attention = True
     engine.prefill_local_attention_backend = "aiter"
     engine.fused_prefill_route_coarse = True
@@ -80,6 +83,9 @@ def configure_engine(
         engine.prefill_coarse_route_num_warps = 8
     else:
         engine.prefill_coarse_direct_gqa = False
+        engine.prefill_coarse_max_grouped_rows = 64
+        engine.prefill_coarse_route_block_n = 32
+        engine.prefill_coarse_route_num_warps = 8
         engine.decode_route_group_size = 64
         engine.decode_route_segment_tiles = 1
         engine.decode_route_num_warps = 1

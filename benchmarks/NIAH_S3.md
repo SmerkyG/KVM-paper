@@ -5,23 +5,29 @@ the generator from `lm-eval==0.4.12`, essay haystacks, word keys, UUID values,
 the canonical random seeds, each model's chat template, and thinking disabled.
 A sample is correct when the generated response contains the target UUID.
 
-## Archived results
+## Results
 
-The clean 64K archive for the finalized uniform top-4 policy contains the full
-and two-tier BF16 controls below.
+Every row below uses 128 examples at each context length. LoD uses the release's
+uniform top-4 policy after 16K. At 8K and 16K, decode instead scans every leaf
+in the authoritative LoD cache, matching the exact first-prefill-chunk policy
+and removing short-context routing misses.
 
-| Model | Full attention | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
+| Model / mode | 8K | 16K | 32K | 64K |
 |---|---:|---:|---:|---:|
-| Qwen3.8-27B-FP8 | 8/8 | 8/8 | not archived | not archived |
-| K2-Horizon-32B-FP8 | 8/8 | 8/8 | not archived | not archived |
+| Qwen3.8 full | 128/128 | 128/128 | 128/128 | 128/128 |
+| Qwen3.8 two-tier BF16 | 128/128 | 128/128 | 125/128 | 127/128 |
+| Qwen3.8 three-tier BF16 | 128/128 | 128/128 | 120/128 | 126/128 |
+| Qwen3.8 three-tier INT4 | 128/128 | 128/128 | 121/128 | 127/128 |
+| K2 Horizon full | 128/128 | 128/128 | 128/128 | 128/128 |
+| K2 Horizon two-tier BF16 | 128/128 | 128/128 | 128/128 | 128/128 |
+| K2 Horizon three-tier BF16 | 128/128 | 128/128 | 128/128 | 128/128 |
+| K2 Horizon three-tier INT4 | 128/128 | 128/128 | 128/128 | 128/128 |
 
-“Not archived” is not a failed result. Earlier three-tier runs also scored 8/8
-at 64K, but they used pre-release top-8 decode routing (and, for Qwen, top-8
-prefill routing), so they are not substituted for a finalized top-4/top-4 run.
-
-The Qwen full control additionally scored 8/8 at 128K in the archived panel.
-The reported 64K Qwen two-tier run used batch 8; K2 used batch 4 because of its
-larger per-request cache allocation.
+For Qwen, all 128 generated responses are byte-for-byte identical to full
+attention at both 8K and 16K in every LoD mode. This is stronger than target
+matching alone. The nominal 16K samples contain about 16.10K prompt tokens, so
+their complete 64-token generations remain inside the 16,384-token exact
+decode boundary.
 
 ## Reproduce
 
@@ -38,7 +44,7 @@ uv run python -m benchmarks.niah_s3 \
   --checkpoint Qwen/Qwen3.8-27B-FP8 \
   --mode two-tier \
   --lengths 8192,16384,32768,65536 \
-  --samples 8 \
+  --samples 128 \
   --batch-size 8 \
   --tensor-parallel-size 1 \
   --max-new-tokens 64 \
@@ -52,7 +58,7 @@ uv run python -m benchmarks.niah_s3 \
   --checkpoint IFM/K2-Horizon-32B-FP8 \
   --mode two-tier \
   --lengths 8192,16384,32768,65536 \
-  --samples 8 \
+  --samples 128 \
   --batch-size 4 \
   --tensor-parallel-size 1 \
   --max-new-tokens 64 \

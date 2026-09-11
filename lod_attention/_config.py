@@ -13,6 +13,10 @@ LOCAL_WINDOW = 512
 PREFIX_CACHE_LOCAL_WINDOW = 1_024
 PREFILL_CHUNK_SIZE = 16_384
 PREFILL_LOCAL_WINDOW = PREFILL_CHUNK_SIZE + CHUNK_SIZE
+# Short decode scans every retained leaf through the same first-chunk boundary
+# where prefill is already exact. BF16 is exact; INT4 retains only quantization
+# error and removes the routing approximation.
+EXACT_DECODE_LIMIT = PREFILL_CHUNK_SIZE
 
 
 class LODMode(str, Enum):
@@ -176,4 +180,10 @@ def kernel_config(mode: str | LODMode) -> LODConfig:
     )
 
 
-__all__ = ["LODConfig", "LODMode", "ModelFamily", "PagedLODConfig"]
+__all__ = [
+    "EXACT_DECODE_LIMIT",
+    "LODConfig",
+    "LODMode",
+    "ModelFamily",
+    "PagedLODConfig",
+]
