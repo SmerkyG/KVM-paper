@@ -48,13 +48,27 @@ def test_experimental_kernel_families_stay_removed() -> None:
     kernels = ROOT / "lod_attention" / "kernels"
     csrc = ROOT / "lod_attention" / "csrc"
     for name in (
-        "aiter_prefill_attention.py",
         "centroid_major_route_score.py",
         "gqa16_coarse_score.py",
     ):
         assert not (kernels / name).exists()
+    assert (kernels / "aiter_prefill_attention.py").exists()
     assert not (csrc / "centroid_major_route_score").exists()
     assert not (csrc / "gqa16_coarse_score").exists()
+
+
+def test_aiter_route_workspace_is_tight_for_k2_and_safe_for_qwen() -> None:
+    patch = (
+        ROOT
+        / "integrations"
+        / "vllm_lod"
+        / "patches"
+        / "aiter-mha-prefill-route4.patch"
+    ).read_text()
+    assert "head_size_q == 128 ? 128 : 64" in patch
+    assert "D=256 can dispatch either a 64- or 128-key CK tile" in patch
+    assert "kQKHeaddim == 128 ? index_t{128} : index_t{64}" in patch
+    assert "variant_params.route_seqlen_k, route_storage_tile" in patch
 
 
 def test_paged_kernel_entrypoint_stays_a_small_facade() -> None:

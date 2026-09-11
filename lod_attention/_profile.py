@@ -61,6 +61,7 @@ def configure_engine(
     engine.prefill_overlap_local_lod = False
     engine.fused_state_update = True
     engine.fused_state_maxsim = True
+    engine.prefill_aiter_route_coarse = True
 
     engine.state_clustering_normalization = "none" if has_key_norm else "cosine"
     engine.state_clustering_centroid_rescale = (
@@ -82,6 +83,9 @@ def configure_engine(
         engine.prefill_coarse_route_block_n = 16
         engine.prefill_coarse_route_num_warps = 8
     else:
+        # D=128 K2 queries reuse each routed centroid more efficiently across
+        # 64 rows. This changes only the exact-leaf launch geometry.
+        engine.leaf_block_m = 64
         engine.prefill_coarse_direct_gqa = False
         engine.prefill_coarse_max_grouped_rows = 64
         engine.prefill_coarse_route_block_n = 32

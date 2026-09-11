@@ -330,12 +330,16 @@ class VLLMLayerLODPool:
                 and self.engine.prefill_overlap_coarse_leaf
                 and not self.engine.prefill_overlap_local_lod
             ),
+            "GQA-aware AITER prefill route/coarse": (
+                self.engine.prefill_aiter_route_coarse
+            ),
             "complete-centroid prefill": (
                 not recursive or self.engine.recursive_prefill_all_leaves
             ),
             "leaf geometry": (
                 self.engine.leaf_layout == "expert"
-                and self.engine.leaf_block_m == (64 if k2_int4 else 32)
+                and self.engine.leaf_block_m
+                == (64 if self.family is ModelFamily.K2 else 32)
                 and self.engine.leaf_block_n == 16
                 and self.engine.leaf_num_warps == (4 if k2_int4 else 2)
             ),

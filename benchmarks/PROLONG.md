@@ -71,21 +71,28 @@ The DFlash2 panel was rerun in full with the diagnostics described below.
 
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 1.155 s / 37.42 ms | 1.203 s / 39.70 ms | 1.288 s / 40.49 ms | 1.333 s / 40.08 ms |
-| 16K | 2.603 s / 38.36 ms | 2.541 s / 40.04 ms | 2.711 s / 40.98 ms | 2.722 s / 40.69 ms |
-| 32K | 6.310 s / 38.92 ms | 6.600 s / 40.58 ms | 6.816 s / 42.52 ms | 7.320 s / 41.54 ms |
-| 64K | 17.095 s / 40.81 ms | 16.316 s / 41.00 ms | 16.832 s / 42.86 ms | 18.198 s / 41.91 ms |
-| 128K | 52.783 s / 44.36 ms | 39.077 s / 42.15 ms | 40.511 s / 43.69 ms | 44.506 s / 42.57 ms |
+| 8K | 1.156 s / 37.58 ms | 1.191 s / 39.60 ms | 1.284 s / 41.50 ms | 1.460 s / 40.30 ms |
+| 16K | 2.593 s / 38.16 ms | 2.546 s / 39.99 ms | 2.691 s / 41.95 ms | 2.852 s / 40.77 ms |
+| 32K | 6.324 s / 39.17 ms | 6.001 s / 40.45 ms | 6.167 s / 42.31 ms | 6.717 s / 41.18 ms |
+| 64K | 17.120 s / 41.06 ms | 15.715 s / 41.04 ms | 16.023 s / 42.75 ms | 17.696 s / 41.68 ms |
+| 128K | 52.721 s / 44.46 ms | 34.262 s / 41.99 ms | 35.010 s / 43.36 ms | 39.929 s / 42.40 ms |
 
 ### K2 Horizon, TP4, batch 8
 
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 3.816 s / 22.58 ms | 5.031 s / 24.74 ms | 5.199 s / 26.25 ms | 5.330 s / 25.38 ms |
-| 16K | 8.393 s / 23.53 ms | 10.734 s / 24.74 ms | 10.801 s / 26.80 ms | 10.927 s / 26.02 ms |
-| 32K | 19.223 s / 25.14 ms | 25.036 s / 25.66 ms | 24.458 s / 28.28 ms | 25.245 s / 26.65 ms |
-| 64K | 49.130 s / 28.60 ms | 58.143 s / 26.92 ms | 57.535 s / 29.26 ms | 60.419 s / 27.74 ms |
-| 128K | 139.249 s / 35.44 ms | 134.425 s / 28.75 ms | 135.645 s / 31.49 ms | 144.221 s / 30.34 ms |
+| 8K | 3.831 s / 22.58 ms | 5.020 s / 24.81 ms | 5.201 s / 27.31 ms | 5.484 s / 25.45 ms |
+| 16K | 8.495 s / 23.54 ms | 10.782 s / 24.84 ms | 10.802 s / 27.83 ms | 10.906 s / 26.09 ms |
+| 32K | 19.406 s / 25.17 ms | 25.491 s / 25.60 ms | 24.407 s / 28.27 ms | 25.234 s / 26.64 ms |
+| 64K | 49.427 s / 28.62 ms | 59.488 s / 26.84 ms | 57.184 s / 29.18 ms | 61.076 s / 27.66 ms |
+| 128K | 140.160 s / 35.46 ms | 138.536 s / 28.72 ms | 134.260 s / 31.43 ms | 147.164 s / 30.15 ms |
+
+All K2 cells above, including the full-attention controls, were rerun after
+matching AITER route-candidate storage to the D=128 kernel's native 128-key
+tile and increasing K2's exact-leaf query tile from 32 to 64 rows. The selected
+routes matched the previous exact scorer, and the 64-row exact-leaf output and
+LSE were bit-identical to the 32-row version; these changes affect workspace
+and launch geometry rather than LoD attention math.
 
 ### Qwen3.8 with DFlash2, TP1, batch 1
 

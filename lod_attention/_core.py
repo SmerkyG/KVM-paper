@@ -226,6 +226,9 @@ class TritonLODAttentionCore(nn.Module):
     prefill_coarse_direct_gqa = False
     prefill_coarse_route_block_n = 32
     prefill_coarse_route_num_warps = 8
+    # Use patched AITER FMHA to produce count-corrected coarse attention and
+    # compact per-tile route candidates in one native-GQA pass.
+    prefill_aiter_route_coarse = False
     fused_prefill_route_coarse = False
     fused_prefill_stable_recompute = True
     fused_prefill_external_recompute = True
@@ -2255,7 +2258,6 @@ class TritonLODAttentionCore(nn.Module):
         score definition for unsupported launch shapes.
         """
         del (
-            state_v,
             state_capacity,
             local_k,
             local_v,
@@ -2285,6 +2287,56 @@ class TritonLODAttentionCore(nn.Module):
             )
 
         with torch.no_grad():
+            if query_len > 1 and self.prefill_aiter_route_coarse:
+                if protected_len != 0:
+                    raise RuntimeError(
+                        "AITER route/coarse prefill requires the separate sink cache"
+                    )
+                if route_count != 4 or int(q.size(-1)) > 256:
+                    raise RuntimeError(
+                        "AITER route/coarse prefill requires top-four equal-width "
+                        "heads no wider than 256"
+                    )
+                if int(state_v.size(-1)) != int(q.size(-1)):
+                    raise RuntimeError(
+                        "AITER route/coarse prefill requires equal K/V head widths"
+                    )
+                if not self.split_prefill_local_attention:
+                    raise RuntimeError(
+                        "AITER route/coarse prefill requires split local attention"
+                    )
+                if getattr(self, "mla_state_key_normalization", "none") != "none":
+                    raise RuntimeError(
+                        "AITER route/coarse prefill does not support MLA key "
+                        "normalization"
+                    )
+                from .kernels.aiter_prefill_attention import (
+                    aiter_prefill_route_coarse_attention,
+                )
+
+                active_counts = counts[..., :state_len, :]
+                mean_k = self._mean(
+                    state_k.detach()[..., :state_len, :], active_counts
+                ).contiguous()
+                routed, coarse_output, coarse_lse = (
+                    aiter_prefill_route_coarse_attention(
+                        q.contiguous(),
+                        mean_k,
+                        state_v.contiguous(),
+                        counts.contiguous(),
+                        state_len=state_len,
+                        kv_group_size=self.num_key_value_groups,
+                        scale=self.scaling,
+                        normalize_route_query=self.routing_normalization == "query",
+                    )
+                )
+                self._lod_prefill_fused_coarse = (
+                    coarse_output,
+                    coarse_lse,
+                    False,
+                )
+                return routed
+
             logits = self._state_routing_logits(
                 q,
                 state_k,
@@ -3319,6 +3371,19 @@ class TritonLODAttentionCore(nn.Module):
         query_len = int(q.size(2))
         if int(q.size(-1)) > 512 or int(state_v.size(-1)) > 256:
             raise RuntimeError("the LoD release supports Dq<=512 and Dv<=256")
+
+        fused_prefill = getattr(self, "_lod_prefill_fused_coarse", None)
+        if fused_prefill is not None:
+            del self._lod_prefill_fused_coarse
+            coarse_output, coarse_lse, fused_includes_local = fused_prefill
+            if include_local != fused_includes_local:
+                raise AssertionError("fused prefill local-branch mode drifted")
+            expected_output_shape = (*q.shape[:-1], int(state_v.size(-1)))
+            if tuple(coarse_output.shape) != expected_output_shape:
+                raise AssertionError("fused prefill coarse output shape drifted")
+            if tuple(coarse_lse.shape) != tuple(q.shape[:-1]):
+                raise AssertionError("fused prefill coarse LSE shape drifted")
+            return coarse_output, coarse_lse
 
         route_payload = getattr(self, "_lod_prefill_route_logits", None)
         if route_payload is not None:

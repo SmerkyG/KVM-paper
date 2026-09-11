@@ -49,7 +49,7 @@
                          batch_stride_randval,
                          batch_stride_lse,
                          batch_stride_o,
-@@ -327,8 +341,19 @@
+@@ -327,8 +341,33 @@
  
      at::Tensor p;
      if (return_dropout_randval) {
@@ -59,14 +59,28 @@
 +            p = torch::empty({batch_size, num_heads, seqlen_q, seqlen_k}, opts.dtype(torch::kUInt8));
 +        }
 +        else {
-+            // Experimental LOD route probe. The CK FMHA kernel writes one
-+            // query-normalized routing maximum per native key tile. Reserve
-+            // for the smallest supported tile (64); unused entries stay -inf.
-+            const int route_blocks = (seqlen_k + 63) / 64;
-+            p = torch::full(
-+                {batch_size, num_heads, route_blocks, 8, seqlen_q},
-+                -std::numeric_limits<float>::infinity(),
-+                opts.dtype(torch::kFloat32));
++            // Experimental LOD route probe. D=128 always emits 128-key
++            // tiles; D=256 keeps a safe 64-key grid because its selected CK
++            // instance may use either a 64- or 128-key tile.
++            const int route_tile = head_size_q == 128 ? 128 : 64;
++            const int route_blocks = (seqlen_k + route_tile - 1) / route_tile;
++            if(head_size_q == 128)
++            {
++                // Every release D=128 CK instance uses a 128-key tile, so
++                // every candidate entry is written.
++                p = torch::empty(
++                    {batch_size, num_heads, route_blocks, 8, seqlen_q},
++                    opts.dtype(torch::kFloat32));
++            }
++            else
++            {
++                // D=256 can dispatch either a 64- or 128-key CK tile. Keep a
++                // safe 64-key grid and mask entries unused by a wider tile.
++                p = torch::full(
++                    {batch_size, num_heads, route_blocks, 8, seqlen_q},
++                    -std::numeric_limits<float>::infinity(),
++                    opts.dtype(torch::kFloat32));
++            }
 +        }
      }
      else {
@@ -161,7 +175,16 @@
  
 --- a/3rdparty/composable_kernel/include/ck_tile/ops/fmha/pipeline/block_fmha_pipeline_qr_ks_vs.hpp
 +++ b/3rdparty/composable_kernel/include/ck_tile/ops/fmha/pipeline/block_fmha_pipeline_qr_ks_vs.hpp
-@@ -680,7 +680,14 @@
+@@ -13,0 +14,8 @@
++#ifndef CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE
++#define CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE 1
++#endif
++
++#if CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE != 0 && CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE != 1
++#error "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE must be 0 or 1"
++#endif
++
+@@ -680,7 +688,14 @@
  #endif
              if constexpr(kVPrefetch == VPrefetchPoint::BeforeGemm0Tail)
              {
@@ -177,7 +200,7 @@
              }
              { // tail
                  block_sync_lds();
-@@ -700,7 +707,14 @@
+@@ -700,7 +715,14 @@
              }
              if constexpr(kVPrefetch == VPrefetchPoint::AfterGemm0Tail)
              {
@@ -193,7 +216,7 @@
              }
              // dequant
              auto s_acc_element_func_ = [&s_acc_element_func, k_descale]() {
-@@ -821,6 +835,170 @@
+@@ -821,6 +843,177 @@
              }
  
              const auto s = cast_tile<SMPLComputeDataType>(s_acc); // S{j}
@@ -203,9 +226,14 @@
 +            {
 +                if(variant_params.route_block_max_ptr != nullptr)
 +                {
-+                    // Query normalization belongs only to the routing-candidate
-+                    // elementwise-bias specialization. Keeping it here avoids
-+                    // adding a reduction to ordinary AITER attention.
++                    static_assert(
++                        kQKHeaddim != 128 || kN0 == 128,
++                        "D=128 LOD routing requires 128-key native tiles");
++                    auto route_s = s;
++#if CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE
++                    // Query normalization belongs only to the normalized
++                    // routing-candidate specialization. The raw specialization
++                    // compiles this reduction and transform out entirely.
 +                    auto route_q_square = tile_elementwise_in(
 +                        [](auto x) {
 +                            const float xf = type_convert<float>(x);
@@ -221,7 +249,6 @@
 +                            x = sqrt(x / static_cast<float>(kQKHeaddim));
 +                        },
 +                        route_q_rms);
-+                    auto route_s               = s;
 +                    auto route_bias            = bias_tile;
 +                    constexpr auto route_spans = decltype(route_s)::get_distributed_spans();
 +                    sweep_tile_span(route_spans[number<0>{}], [&](auto idx0) {
@@ -241,8 +268,11 @@
 +                                    (coarse_score - bias_value) / query_rms + bias_value);
 +                        });
 +                    });
++#endif
++                    constexpr index_t route_storage_tile =
++                        kQKHeaddim == 128 ? index_t{128} : index_t{64};
 +                    const index_t route_block_capacity = integer_divide_ceil(
-+                        variant_params.route_seqlen_k, index_t{64});
++                        variant_params.route_seqlen_k, route_storage_tile);
 +                    const auto f_min = [](auto e0, auto e1) { return min(e0, e1); };
 +                    static_for<0, 4, 1>{}([&](auto route_rank) {
 +                        auto route_m_local = block_tile_reduce<SMPLComputeDataType>(
@@ -364,7 +394,7 @@
              auto m_local = block_tile_reduce<SMPLComputeDataType>(
                  s,
                  sequence<1>{},
-@@ -1212,6 +1390,15 @@
+@@ -1212,6 +1405,15 @@
              }
          } while(++i_total_loops < num_total_loop);
  
