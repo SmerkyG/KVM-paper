@@ -15,7 +15,7 @@ from benchmarks.longbench_v2 import (
     summarize,
     truncate_prompt,
 )
-from benchmarks.prolong import comma_separated_ints
+from benchmarks.prolong import comma_separated_ints, speculative_counters
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -28,6 +28,22 @@ class _Tokenizer:
     def decode(self, token_ids: list[int], *, skip_special_tokens: bool) -> str:
         assert skip_special_tokens
         return ",".join(map(str, token_ids))
+
+
+class _Metric:
+    def __init__(self, name: str, value: int) -> None:
+        self.name = name
+        self.value = value
+
+
+class _LLMWithMetrics:
+    def get_metrics(self) -> list[_Metric]:
+        return [
+            _Metric("vllm:spec_decode_num_drafts", 12),
+            _Metric("vllm:spec_decode_num_drafts", 3),
+            _Metric("vllm:spec_decode_num_accepted_tokens", 44),
+            _Metric("vllm:unrelated", 99),
+        ]
 
 
 def test_longbench_middle_truncation_and_answer_parsing() -> None:
@@ -141,3 +157,18 @@ def test_benchmark_cli_and_docs_are_public() -> None:
         document = (ROOT / "benchmarks" / name).read_text()
         assert f"python -m {module}" in document
         assert "cluster-run" not in document
+        assert "## Reproduction requirements" in document
+    assert "--seed 0" in (ROOT / "benchmarks" / "PROLONG.md").read_text()
+    assert "NumPy's generator seed to `1234`" in (
+        ROOT / "benchmarks" / "NIAH_S3.md"
+    ).read_text()
+    assert "no randomized sampling" in (
+        ROOT / "benchmarks" / "LONGBENCH_V2.md"
+    ).read_text()
+
+
+def test_prolong_collects_speculative_counter_totals() -> None:
+    assert speculative_counters(_LLMWithMetrics()) == {
+        "vllm:spec_decode_num_drafts": 15,
+        "vllm:spec_decode_num_accepted_tokens": 44,
+    }

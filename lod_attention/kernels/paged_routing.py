@@ -974,6 +974,7 @@ def _decode_route_coarse_gqa_mtp2_groups_kernel(
     COUNT_HEAD_STRIDE,
     COUNT_TOKEN_STRIDE,
     state_len,
+    state_lens,
     execution_marker,
     local_execution_marker,
     local_lens,
@@ -999,6 +1000,7 @@ def _decode_route_coarse_gqa_mtp2_groups_kernel(
     MAX_LEAF_TOKENS: tl.constexpr,
     USE_DOT: tl.constexpr,
     FUSE_LOCAL: tl.constexpr,
+    USE_STATE_LENS: tl.constexpr = False,
     SCORE_ONLY: tl.constexpr = False,
     CANDIDATES_PER_GROUP: tl.constexpr = 8,
 ):
@@ -1031,6 +1033,21 @@ def _decode_route_coarse_gqa_mtp2_groups_kernel(
             mask=(pair_request_kv == 0) & (group == 0),
         )
 
+    if USE_STATE_LENS:
+        active_state_len = tl.minimum(
+            tl.load(state_lens + cache_batch).to(tl.int32), state_len
+        )
+    else:
+        active_state_len = state_len
+    if FUSE_LOCAL:
+        base_local_len = tl.load(local_lens + base_logical_batch).to(tl.int32)
+        active_local_extent = tl.minimum(
+            base_local_len + 2, local_len + SPECULATIVE_STEPS
+        )
+    else:
+        base_local_len = 0
+        active_local_extent = 0
+
     lane = tl.arange(0, 16)
     query_valid = lane < 2 * KV_GROUP_SIZE
     step = lane // KV_GROUP_SIZE
@@ -1039,8 +1056,33 @@ def _decode_route_coarse_gqa_mtp2_groups_kernel(
     query_head = kv_head * KV_GROUP_SIZE + query_in_group
     query_row = logical_batch * QUERY_HEADS + query_head
     slot = group * GROUP_N + tl.arange(0, GROUP_N)
-    valid = slot < state_len
+    valid = slot < active_state_len
     dim = tl.arange(0, HEAD_DIM)
+    if (
+        group * GROUP_N >= active_state_len
+        and group * GROUP_N >= active_local_extent
+    ):
+        rank = tl.arange(0, CANDIDATES_PER_GROUP)
+        candidate_base = (query_row * MAX_GROUPS + group) * CANDIDATES_PER_GROUP
+        tl.store(
+            candidate_scores + candidate_base[:, None] + rank[None, :],
+            -float("inf"),
+            mask=query_valid[:, None],
+        )
+        tl.store(
+            candidate_indices + candidate_base[:, None] + rank[None, :],
+            -1,
+            mask=query_valid[:, None],
+        )
+        if not SCORE_ONLY:
+            group_row = query_row * MAX_GROUPS + group
+            tl.store(
+                group_out + group_row[:, None] * HEAD_DIM + dim[None, :],
+                0.0,
+                mask=query_valid[:, None],
+            )
+            tl.store(group_lse + group_row, -float("inf"), mask=query_valid)
+        return
     queries = tl.load(
         q + query_row[:, None] * HEAD_DIM + dim[None, :],
         mask=query_valid[:, None],
@@ -1124,7 +1166,6 @@ def _decode_route_coarse_gqa_mtp2_groups_kernel(
             # both proposal positions without adding another launch/barrier.
             # All proposal tokens may temporarily extend past the ordinary
             # local limit before the host advances/catches up the cache.
-            base_local_len = tl.load(local_lens + base_logical_batch).to(tl.int32)
             if group * GROUP_N < base_local_len + 2:
                 local_token = group * GROUP_N + tl.arange(0, GROUP_N)
                 shared_local_valid = (local_token < base_local_len + 2) & (

@@ -1170,6 +1170,7 @@ def fused_decode_paged_lod_attention(
                         )
                         route_kernel[route_rows, active_groups](
                             *route_arguments,
+                            state_lens,
                             execution_marker,
                             local_execution_marker,
                             local_lens,
@@ -1195,6 +1196,7 @@ def fused_decode_paged_lod_attention(
                             MAX_LEAF_TOKENS=max_leaf_tokens or 0,
                             USE_DOT=score_use_dot,
                             FUSE_LOCAL=route_fused_mtp_local,
+                            USE_STATE_LENS=use_state_lens,
                             SCORE_ONLY=gqa_union_score_only,
                             CANDIDATES_PER_GROUP=route_candidates_per_group,
                             num_warps=route_num_warps,

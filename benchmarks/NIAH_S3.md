@@ -7,27 +7,24 @@ A sample is correct when the generated response contains the target UUID.
 
 ## Results
 
-Every row below uses 128 examples at each context length. LoD uses the release's
-uniform top-4 policy after 16K. At 8K and 16K, decode instead scans every leaf
-in the authoritative LoD cache, matching the exact first-prefill-chunk policy
-and removing short-context routing misses.
+Every row below uses 128 examples at each context length. All reported LoD
+lengths use the release's uniform top-4 routing policy; the retained-leaf exact
+decode path ends at 2K.
 
 | Model / mode | 8K | 16K | 32K | 64K |
 |---|---:|---:|---:|---:|
 | Qwen3.8 full | 128/128 | 128/128 | 128/128 | 128/128 |
-| Qwen3.8 two-tier BF16 | 128/128 | 128/128 | 125/128 | 127/128 |
-| Qwen3.8 three-tier BF16 | 128/128 | 128/128 | 120/128 | 126/128 |
-| Qwen3.8 three-tier INT4 | 128/128 | 128/128 | 121/128 | 127/128 |
+| Qwen3.8 two-tier BF16 | 127/128 | 125/128 | 125/128 | 127/128 |
+| Qwen3.8 three-tier BF16 | 127/128 | 121/128 | 120/128 | 126/128 |
+| Qwen3.8 three-tier INT4 | 123/128 | 118/128 | 121/128 | 127/128 |
 | K2 Horizon full | 128/128 | 128/128 | 128/128 | 128/128 |
 | K2 Horizon two-tier BF16 | 128/128 | 128/128 | 128/128 | 128/128 |
 | K2 Horizon three-tier BF16 | 128/128 | 128/128 | 128/128 | 128/128 |
-| K2 Horizon three-tier INT4 | 128/128 | 128/128 | 128/128 | 128/128 |
+| K2 Horizon three-tier INT4 | 128/128 | 127/128 | 128/128 | 128/128 |
 
-For Qwen, all 128 generated responses are byte-for-byte identical to full
-attention at both 8K and 16K in every LoD mode. This is stronger than target
-matching alone. The nominal 16K samples contain about 16.10K prompt tokens, so
-their complete 64-token generations remain inside the 16,384-token exact
-decode boundary.
+The 8K and 16K LoD cells were rerun with exact decode disabled at those
+lengths; the final release cutoff is 2K. The 32K and 64K cells already used
+routed top-4 LoD and are unchanged.
 
 ## Reproduce
 
@@ -68,3 +65,16 @@ uv run python -m benchmarks.niah_s3 \
 Use `--mode full` for the native control, or select `three-tier-bf16` or
 `three-tier-int4` for the other release modes. Each invocation loads one model
 and one cache organization, then evaluates all requested lengths.
+
+## Reproduction requirements
+
+Use the locked `lm-eval==0.4.12` RULER generator. The runner fixes Python's
+generator seed to `0` and NumPy's generator seed to `1234` before constructing
+every length; these are part of the canonical task definition and are not CLI
+parameters. Generation is greedy (`temperature=0`), model thinking is disabled,
+and the commands above fix the sample count, offset, batch size, and output
+limit. Run each cache mode in a fresh process against the same model revision.
+
+As with the ProLong runs, FP8 GPU execution is not guaranteed to be bitwise
+deterministic even with fixed prompt-generation seeds. Preserve the JSON sample
+records, rather than only the aggregate score, when checking a reproduction.

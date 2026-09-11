@@ -42,12 +42,17 @@ chunk is 16,384 tokens. Decode generates 1,025 tokens and measures the final
 path, or two 512-token updates for K2 INT4. Results are medians after one
 warmup and three measured repetitions.
 
+The 8K and 16K LoD cells were rerun with exact decode disabled at those
+lengths; the final release cutoff is 2K. Longer LoD cells already used routed
+top-4 attention; the non-speculative full-attention controls are unchanged.
+The DFlash2 panel was rerun in full with the diagnostics described below.
+
 ### Qwen3.8, TP1, batch 1
 
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 0.998 s / 28.82 ms | 0.913 s / 29.74 ms | 0.935 s / 30.94 ms | 0.922 s / 35.48 ms |
-| 16K | 2.172 s / 29.56 ms | 1.854 s / 28.73 ms | 1.893 s / 29.48 ms | 1.944 s / 29.62 ms |
+| 8K | 0.998 s / 28.82 ms | 0.925 s / 28.53 ms | 0.911 s / 28.98 ms | 0.946 s / 28.89 ms |
+| 16K | 2.172 s / 29.56 ms | 1.877 s / 28.58 ms | 1.863 s / 29.00 ms | 1.897 s / 29.09 ms |
 | 32K | 5.214 s / 30.26 ms | 3.855 s / 28.81 ms | 3.923 s / 29.52 ms | 4.054 s / 29.57 ms |
 | 64K | 13.941 s / 31.65 ms | 8.020 s / 29.00 ms | 8.151 s / 29.63 ms | 8.468 s / 29.88 ms |
 | 128K | 42.227 s / 34.34 ms | 16.716 s / 29.35 ms | 16.973 s / 29.71 ms | 17.718 s / 29.81 ms |
@@ -56,8 +61,8 @@ warmup and three measured repetitions.
 
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 3.500 s / 22.07 ms | 3.376 s / 24.73 ms | 3.557 s / 26.53 ms | 3.638 s / 32.70 ms |
-| 16K | 7.681 s / 23.01 ms | 7.007 s / 22.04 ms | 7.466 s / 22.46 ms | 7.578 s / 22.61 ms |
+| 8K | 3.500 s / 22.07 ms | 3.337 s / 21.72 ms | 3.692 s / 21.75 ms | 3.684 s / 21.91 ms |
+| 16K | 7.681 s / 23.01 ms | 6.954 s / 21.87 ms | 7.488 s / 21.83 ms | 7.485 s / 22.01 ms |
 | 32K | 17.365 s / 24.23 ms | 14.703 s / 22.21 ms | 14.838 s / 22.55 ms | 15.071 s / 22.71 ms |
 | 64K | 43.194 s / 27.17 ms | 30.027 s / 22.65 ms | 30.137 s / 22.63 ms | 30.692 s / 22.84 ms |
 | 128K | 119.801 s / 32.72 ms | 61.561 s / 23.55 ms | 61.838 s / 22.89 ms | 63.410 s / 23.11 ms |
@@ -66,8 +71,8 @@ warmup and three measured repetitions.
 
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 1.155 s / 37.42 ms | 1.192 s / 41.95 ms | 1.290 s / 41.28 ms | 1.314 s / 53.21 ms |
-| 16K | 2.603 s / 38.36 ms | 2.550 s / 39.94 ms | 2.694 s / 42.14 ms | 2.870 s / 41.05 ms |
+| 8K | 1.155 s / 37.42 ms | 1.203 s / 39.70 ms | 1.288 s / 40.49 ms | 1.333 s / 40.08 ms |
+| 16K | 2.603 s / 38.36 ms | 2.541 s / 40.04 ms | 2.711 s / 40.98 ms | 2.722 s / 40.69 ms |
 | 32K | 6.310 s / 38.92 ms | 6.600 s / 40.58 ms | 6.816 s / 42.52 ms | 7.320 s / 41.54 ms |
 | 64K | 17.095 s / 40.81 ms | 16.316 s / 41.00 ms | 16.832 s / 42.86 ms | 18.198 s / 41.91 ms |
 | 128K | 52.783 s / 44.36 ms | 39.077 s / 42.15 ms | 40.511 s / 43.69 ms | 44.506 s / 42.57 ms |
@@ -76,8 +81,8 @@ warmup and three measured repetitions.
 
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 3.816 s / 22.58 ms | 5.001 s / 27.62 ms | 5.208 s / 26.93 ms | 5.290 s / 45.84 ms |
-| 16K | 8.393 s / 23.53 ms | 10.765 s / 24.90 ms | 10.827 s / 27.83 ms | 10.964 s / 26.13 ms |
+| 8K | 3.816 s / 22.58 ms | 5.031 s / 24.74 ms | 5.199 s / 26.25 ms | 5.330 s / 25.38 ms |
+| 16K | 8.393 s / 23.53 ms | 10.734 s / 24.74 ms | 10.801 s / 26.80 ms | 10.927 s / 26.02 ms |
 | 32K | 19.223 s / 25.14 ms | 25.036 s / 25.66 ms | 24.458 s / 28.28 ms | 25.245 s / 26.65 ms |
 | 64K | 49.130 s / 28.60 ms | 58.143 s / 26.92 ms | 57.535 s / 29.26 ms | 60.419 s / 27.74 ms |
 | 128K | 139.249 s / 35.44 ms | 134.425 s / 28.75 ms | 135.645 s / 31.49 ms | 144.221 s / 30.34 ms |
@@ -86,20 +91,43 @@ warmup and three measured repetitions.
 
 This panel uses `z-lab/Qwen3.8-27B-DFlash2` with seven proposed tokens. The
 prefill column remains target-model prefill; the decode column measures the
-complete speculative target-and-draft loop.
+complete speculative target-and-draft loop. Every row and mode was run
+sequentially on one otherwise idle MI325X from the final release checkout,
+with generation seed 0, so GPU contention does not get conflated across arms.
 
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 1.004 s / 8.23 ms | 0.914 s / 11.01 ms | 0.924 s / 9.06 ms | 0.932 s / 8.27 ms |
-| 16K | 2.251 s / 6.45 ms | 1.893 s / 6.20 ms | 1.934 s / 6.37 ms | 1.978 s / 6.09 ms |
-| 32K | 5.358 s / 7.03 ms | 3.939 s / 8.47 ms | 4.008 s / 7.19 ms | 4.121 s / 8.08 ms |
-| 64K | 14.221 s / 10.73 ms | 8.201 s / 10.91 ms | 8.329 s / 7.81 ms | 8.615 s / 7.04 ms |
-| 128K | 42.993 s / 12.96 ms | 17.078 s / 9.35 ms | 17.338 s / 7.24 ms | 18.047 s / 6.83 ms |
+| 8K | 0.979 s / 9.00 ms | 0.915 s / 7.53 ms | 0.926 s / 7.25 ms | 0.977 s / 7.06 ms |
+| 16K | 2.204 s / 6.33 ms | 1.907 s / 6.17 ms | 1.930 s / 5.83 ms | 1.975 s / 6.22 ms |
+| 32K | 5.253 s / 7.03 ms | 3.966 s / 7.89 ms | 3.994 s / 8.37 ms | 4.118 s / 8.53 ms |
+| 64K | 14.017 s / 11.44 ms | 8.263 s / 8.38 ms | 8.310 s / 6.61 ms | 8.608 s / 7.44 ms |
+| 128K | 42.601 s / 10.68 ms | 17.218 s / 7.19 ms | 17.316 s / 7.29 ms | 18.013 s / 7.96 ms |
 
-At 8K, the two BF16 LoD modes use their exact retained-leaf path. DFlash2's
-INT4 target keeps routed attention because its one-token and multi-token
-verification graphs share one cache pool; this avoids reserving an
-incompatible exact-scan graph while preserving the production top-4 policy.
+All displayed DFlash2 lengths use routed top-4 LoD. DFlash2 stays routed at
+shorter lengths too because its captured verifier and ordinary decode graphs
+share one target cache; non-speculative LoD retains the 2K exact path. Decode
+latency is end-to-end speculative latency rather than an isolated target-model
+attention microbenchmark, so it also varies with the draft acceptance length.
+
+The next table separates those effects. Each cell reports milliseconds per
+target verification cycle / mean output tokens produced by that cycle; lower
+is better for the first number and higher is better for the second.
+
+| Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
+|---:|---:|---:|---:|---:|
+| 8K | 39.91 ms / 4.44 | 39.35 ms / 5.26 | 39.27 ms / 5.42 | 39.51 ms / 5.63 |
+| 16K | 41.81 ms / 6.61 | 39.47 ms / 6.44 | 39.29 ms / 6.74 | 39.54 ms / 6.40 |
+| 32K | 44.96 ms / 6.44 | 39.82 ms / 5.07 | 39.50 ms / 4.74 | 39.89 ms / 4.69 |
+| 64K | 51.38 ms / 4.49 | 40.31 ms / 4.82 | 39.82 ms / 6.03 | 40.34 ms / 5.42 |
+| 128K | 63.24 ms / 5.92 | 40.90 ms / 5.70 | 40.12 ms / 5.51 | 40.41 ms / 5.10 |
+
+This distinction matters at 8K. The three measured full-attention repetitions
+were 8.22, 9.00, and 9.48 ms per emitted token, while their verification-cycle
+costs were 39.91, 39.91, and 39.96 ms. The older 8.23 ms result is therefore
+reproduced by the first current repetition; the changed median is an acceptance
+trajectory difference, not a slower full-attention kernel. The result JSON now
+records the speculative counters and output-token hashes needed to diagnose
+this case.
 
 ## Reproduce prompt quality
 
@@ -142,6 +170,7 @@ uv run python -m benchmarks.prolong \
   --tensor-parallel-size 1 \
   --decode-tokens 1025 \
   --repeats 3 \
+  --seed 0 \
   --gpu-memory-utilization 0.7 \
   --output results/prolong-qwen-two-tier-speed-tp1-b1.json
 ```
@@ -167,3 +196,26 @@ To reproduce the DFlash2 panel, add:
 
 to the Qwen speed command. DFlash2 is supported only for Qwen3.8 in this
 release.
+
+## Reproduction requirements
+
+The reported speed panel used one AMD MI325X for TP1 and four MI325X GPUs on
+one node for TP4, vLLM 0.27.1, the release checkout, and the patched AITER build
+described in the root README. Run cache modes as separate processes,
+sequentially on the same otherwise idle GPU set. Preserve the full length list
+in one invocation: this intentionally gives every arm the same 128K configured
+capacity even while measuring 8K. Model startup is excluded, and the runner
+performs one unreported warmup at every length before taking three repetitions.
+
+Speed prompts use the fixed dataset shuffle seed `20260824`; prompt-loss
+samples use seed `42`. Pass `--seed 0` exactly as shown to seed generation. For
+DFlash2, also preserve seven proposed tokens, greedy sampling, and the draft
+checkpoint shown above. The runner records all of these inputs, prompt hashes,
+output-token hashes, and per-repetition timings in its JSON output.
+
+A fixed seed does not make FP8 GEMMs and parallel GPU reductions bitwise
+deterministic. A near-tied token can therefore change the continuation and its
+subsequent draft acceptance even when the kernel cost is unchanged. For
+DFlash2 comparisons, report both end-to-end emitted-token latency and the
+verification-cycle/acceptance diagnostics rather than treating either one in
+isolation as kernel speed.

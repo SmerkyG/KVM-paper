@@ -20,13 +20,11 @@ All modes use exactly four routed regions in prefill and decode, a
 `16 * sqrt(T)` centroid schedule, a 16K prefill catch-up, a 512-token base
 decode window, one separately protected sink, and an exact first 16K prefill
 region. Decode catch-up occurs every 256 tokens, except that K2 INT4 uses a
-fixed 512-token interval to amortize quantized-page maintenance. Both BF16
-modes also keep decode exact while the complete context fits inside that 16K
-region. During ordinary decode, INT4 scans every compressed leaf in this range,
-leaving only residual-quantization error rather than routing error. DFlash2
-retains routed INT4 for both target graphs because its one-token and
-multi-token verifier graphs share one pool. The same decode graph switches to
-routed LoD beyond the boundary. With vLLM prefix caching
+fixed 512-token interval to amortize quantized-page maintenance. Ordinary
+decode scans every retained leaf only while the context is at most 2K; INT4
+then differs solely by residual-quantization error. DFlash2 stays routed at all
+lengths because its one-token and multi-token verifier graphs share one pool.
+With vLLM prefix caching
 enabled, the exact rollback tail is 1,024
 tokens so a retained request can be rewound without restoring native K/V.
 Three-tier pages contain 16 leaves. INT4 is applied only to residuals within a
@@ -166,8 +164,9 @@ only public tools:
   1,025-token decode speed sweeps.
 - [RULER NIAH-S3](benchmarks/NIAH_S3.md): long-context UUID retrieval.
 
-The documents report finalized top-4 measurements from the release checkout,
-separately identifying exact short-context execution where applicable.
+The documents report finalized top-4 measurements from the release checkout.
+The retained-leaf exact decode path is limited to contexts of at most 2,048
+tokens, so every published 4K-and-longer result exercises routed LoD.
 
 This implementation is inference-only and does not return dense attention
 weights. Sliding-window attention, ALiBi, attention soft caps, DCP/PCP, and

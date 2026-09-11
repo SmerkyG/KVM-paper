@@ -135,3 +135,20 @@ To reproduce the eight-GPU protocol, run one server/evaluator pair per GPU and
 add `--num-shards 8 --shard-index N` for `N=0,...,7`. Use distinct ports and
 output files. Accuracy is identical to an unsharded run; sharding changes only
 wall time.
+
+## Reproduction requirements
+
+Use the locked dependency versions (notably vLLM 0.27.1), the dataset revision
+recorded above, the same model revision, and the patched AITER build described
+in the root README. The evaluator has no randomized sampling or dataset
+subsampling: it enumerates all 503 records deterministically, sorts each shard
+by tokenized input length, uses `temperature=0`, disables thinking, and retains
+the default guided A/B/C/D output constraint. Preserve `--workers 8`, one
+warmup batch, the 131,072-token first/last-half truncation rule, and disabled
+prefix caching to reproduce the reported timing protocol.
+
+Run modes sequentially on the same otherwise idle MI325X GPU set. Greedy
+generation needs no stochastic sampling seed here, but FP8 GEMMs and parallel
+GPU reductions are still not guaranteed to be bitwise deterministic. Keep the
+per-example JSONL so any changed answer can be distinguished from a timing
+change.

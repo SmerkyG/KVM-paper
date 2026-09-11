@@ -12,13 +12,14 @@ PUBLIC_ENV = {
 }
 
 
-def test_short_decode_matches_exact_prefill_boundary() -> None:
+def test_exact_decode_is_limited_to_two_thousand_tokens() -> None:
     from lod_attention._config import (
         EXACT_DECODE_LIMIT,
         PREFILL_CHUNK_SIZE,
     )
 
-    assert EXACT_DECODE_LIMIT == PREFILL_CHUNK_SIZE == 16_384
+    assert EXACT_DECODE_LIMIT == 2_048
+    assert PREFILL_CHUNK_SIZE == 16_384
 
 
 def test_no_research_tuning_environment_surface() -> None:

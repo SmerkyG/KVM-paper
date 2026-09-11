@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import defaultdict
 import hashlib
 import math
 import statistics
@@ -53,6 +54,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--tensor-parallel-size", type=int, default=1)
     parser.add_argument("--decode-tokens", type=int, default=1_025)
     parser.add_argument("--repeats", type=int, default=3)
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=0,
+        help="generation seed (default: 0; recorded in the result JSON)",
+    )
     parser.add_argument(
         "--gpu-memory-utilization",
         type=float,
@@ -274,10 +281,18 @@ def timed_generate(
     llm: Any,
     prompts: list[dict[str, list[int]]],
     params: Any,
-) -> tuple[float, float, float, tuple[tuple[int, ...], ...]]:
+) -> tuple[
+    float,
+    float,
+    float,
+    tuple[tuple[int, ...], ...],
+    dict[str, int],
+]:
+    before = speculative_counters(llm)
     started = time.perf_counter()
     outputs = llm.generate(prompts, params, use_tqdm=False)
     elapsed = time.perf_counter() - started
+    after = speculative_counters(llm)
     expected = int(params.max_tokens)
     if any(len(output.outputs[0].token_ids) != expected for output in outputs):
         raise RuntimeError("a speed request stopped before max_tokens")
@@ -290,7 +305,38 @@ def timed_generate(
     token_ids = tuple(
         tuple(map(int, output.outputs[0].token_ids)) for output in outputs
     )
-    return elapsed, first_token - scheduled, last_token - first_token, token_ids
+    counter_delta = {
+        name: after[name] - before.get(name, 0)
+        for name in after
+        if after[name] != before.get(name, 0)
+    }
+    return (
+        elapsed,
+        first_token - scheduled,
+        last_token - first_token,
+        token_ids,
+        counter_delta,
+    )
+
+
+def speculative_counters(llm: Any) -> dict[str, int]:
+    """Read cumulative speculative-decode counters when vLLM exposes them."""
+
+    get_metrics = getattr(llm, "get_metrics", None)
+    if not callable(get_metrics):
+        return {}
+    wanted = {
+        "vllm:spec_decode_num_drafts",
+        "vllm:spec_decode_num_draft_tokens",
+        "vllm:spec_decode_num_accepted_tokens",
+    }
+    counters: defaultdict[str, int] = defaultdict(int)
+    for metric in get_metrics():
+        name = getattr(metric, "name", None)
+        value = getattr(metric, "value", None)
+        if name in wanted and value is not None:
+            counters[name] += int(value)
+    return dict(counters)
 
 
 def evaluate_speed(
@@ -301,11 +347,13 @@ def evaluate_speed(
     batch_size: int,
     decode_tokens: int,
     repeats: int,
+    seed: int,
 ) -> dict[str, Any]:
     from vllm import SamplingParams
 
     params = SamplingParams(
         temperature=0,
+        seed=seed,
         max_tokens=decode_tokens,
         detokenize=False,
         ignore_eos=True,
@@ -317,13 +365,17 @@ def evaluate_speed(
             length=length,
             batch_size=batch_size,
         )
-        *_, reference = timed_generate(llm, prompts, params)
+        *_, reference, _ = timed_generate(llm, prompts, params)
         total_timings = []
         prefill_timings = []
         decode_timings = []
+        speculative_measurements = []
+        output_token_sha256: list[list[str]] = []
         first_mismatch_positions: list[list[int | None]] = []
         for _ in range(repeats):
-            elapsed, prefill, decode, token_ids = timed_generate(llm, prompts, params)
+            elapsed, prefill, decode, token_ids, counters = timed_generate(
+                llm, prompts, params
+            )
             first_mismatch_positions.append(
                 [
                     next(
@@ -344,10 +396,27 @@ def evaluate_speed(
             total_timings.append(elapsed)
             prefill_timings.append(prefill)
             decode_timings.append(decode)
+            output_token_sha256.append(
+                [token_digest(list(row)) for row in token_ids]
+            )
+            drafts = counters.get("vllm:spec_decode_num_drafts", 0)
+            draft_tokens = counters.get("vllm:spec_decode_num_draft_tokens", 0)
+            accepted = counters.get("vllm:spec_decode_num_accepted_tokens", 0)
+            if drafts:
+                speculative_measurements.append(
+                    {
+                        "target_cycles": drafts,
+                        "draft_tokens": draft_tokens,
+                        "accepted_draft_tokens": accepted,
+                        "mean_acceptance_length": 1.0 + accepted / drafts,
+                        "draft_acceptance_rate": accepted / draft_tokens,
+                        "target_cycle_ms": 1_000.0 * decode / drafts,
+                    }
+                )
         prefill = statistics.median(prefill_timings)
         decode = statistics.median(decode_timings)
         decode_steps = decode_tokens - 1
-        result[str(length)] = {
+        measurement = {
             "prefill_seconds": prefill,
             "prefill_prompt_tokens_per_second": batch_size * length / prefill,
             "decode_ms_per_batch_step": 1_000.0 * decode / decode_steps,
@@ -361,8 +430,28 @@ def evaluate_speed(
                 for position in repeat
             ),
             "first_mismatch_positions": first_mismatch_positions,
+            "warmup_output_token_sha256": [
+                token_digest(list(row)) for row in reference
+            ],
+            "output_token_sha256": output_token_sha256,
+            "speculative_measurements": speculative_measurements,
             "prompts": prompt_metadata,
         }
+        if speculative_measurements:
+            measurement.update(
+                speculative_target_cycle_ms=statistics.median(
+                    item["target_cycle_ms"] for item in speculative_measurements
+                ),
+                speculative_mean_acceptance_length=statistics.median(
+                    item["mean_acceptance_length"]
+                    for item in speculative_measurements
+                ),
+                speculative_draft_acceptance_rate=statistics.median(
+                    item["draft_acceptance_rate"]
+                    for item in speculative_measurements
+                ),
+            )
+        result[str(length)] = measurement
     return result
 
 
@@ -423,6 +512,7 @@ def main() -> None:
                 batch_size=args.batch_size,
                 decode_tokens=args.decode_tokens,
                 repeats=args.repeats,
+                seed=args.seed,
             )
         result = {
             "benchmark": "prolong",
@@ -436,6 +526,7 @@ def main() -> None:
             "gpu_memory_utilization": gpu_memory_utilization,
             "scheduler_chunk_tokens": 16_384,
             "decode_tokens": args.decode_tokens if args.measure == "speed" else None,
+            "seed": args.seed if args.measure == "speed" else None,
             "speculative_model": args.speculative_model,
             "num_speculative_tokens": (
                 args.num_speculative_tokens if args.speculative_model else None

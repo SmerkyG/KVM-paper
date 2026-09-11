@@ -95,6 +95,7 @@ class VLLMLayerLODPool:
         self.kv_heads = int(layer.num_kv_heads)
         self.head_dim = int(layer.head_size)
         self.value_dim = int(layer.head_size_v)
+        self.speculative_tokens = int(speculative_tokens)
         gqa = self.query_heads // self.kv_heads
         if self.value_dim != self.head_dim:
             raise NotImplementedError(
@@ -177,10 +178,11 @@ class VLLMLayerLODPool:
             has_query_norm=has_query_norm,
             has_key_norm=has_key_norm,
         )
-        if settings.kv_bits == 4 and speculative_tokens:
+        if self.speculative_tokens:
             # DFlash captures ordinary and flattened verifier graphs over one
-            # target pool. Do not reserve or capture the incompatible exact
-            # residual-INT4 scan in that deployment.
+            # target pool. Its graph warmup cannot safely mix the short-context
+            # all-leaf scan with verifier buffers, so keep speculative decode
+            # on its routed path in every cache organization.
             self.engine.exact_decode_limit = 0
         self._assert_production_profile(
             gqa,
@@ -2214,26 +2216,12 @@ class VLLMLayerLODPool:
                 materialized_state_route=bool(
                     self.settings.levels == 3 and speculative_route_backend == "resplit"
                 ),
-                gqa_union_kv_heads=(
-                    self.kv_heads
-                    if self._speculative_fixed_mask_eligible(steps)
-                    else None
-                ),
-                gqa_union_index_capacity=(
-                    self.leaf_capacity
-                    + int(self.engine.local_len)
-                    + 1
-                    + self.state_capacity
-                    + (
-                        int(self.state["sink_k"].size(2))
-                        if isinstance(self.state.get("sink_k"), torch.Tensor)
-                        else 0
-                    )
-                    if self._speculative_fixed_mask_eligible(steps)
-                    else None
-                ),
+                # Multi-token verification consumes each query's own four
+                # centroids and does not build a GQA-wide leaf union.
+                gqa_union_kv_heads=None,
+                gqa_union_index_capacity=None,
                 gqa_union_hip=True,
-                gqa_union_fixed_mask=self._speculative_fixed_mask_eligible(steps),
+                gqa_union_fixed_mask=False,
                 gqa_union_fixed_mask_tile_size=64,
                 gqa_union_fixed_mask_segments=(
                     self.settings.decode_gqa_fixed_mask_segments
@@ -2299,9 +2287,7 @@ class VLLMLayerLODPool:
     def _parallel_speculative_decode_eligible(self, steps: int) -> bool:
         """Whether one flattened launch can verify all proposal positions."""
         recursive = self.settings.levels == 3
-        two_level = self.settings.levels == 2 and self._speculative_fixed_mask_eligible(
-            steps
-        )
+        two_level = self._parallel_speculative_two_level_eligible(steps)
         return steps >= 2 and (recursive or two_level)
 
     def _speculative_recursive_state_route_backend(self) -> str:
@@ -2317,14 +2303,20 @@ class VLLMLayerLODPool:
             return str(self.engine.recursive_state_route_backend)
         return "fused"
 
-    def _speculative_fixed_mask_eligible(self, steps: int) -> bool:
-        """Whether MTP can reuse the persistent masked page-size-one arena."""
+    def _parallel_speculative_two_level_eligible(self, steps: int) -> bool:
+        """Whether MTP can refine complete centroids for all rows at once."""
+        gqa = self.query_heads // self.kv_heads
         return bool(
             steps >= 2
+            and steps % 2 == 0
+            and self.speculative_tokens > 0
             and self.settings.levels == 2
-            and self.settings.decode_gqa_fixed_mask_aiter
+            and self.settings.family is ModelFamily.QWEN38
             and self.query_heads % self.kv_heads == 0
-            and 1 < self.query_heads // self.kv_heads <= 8
+            and 1 < gqa <= 8
+            and bool(self.engine.decode_route_gqa_grouped)
+            and int(self.engine.decode_route_segment_tiles) == 1
+            and 2 * gqa <= 16
             and self.head_dim in (128, 256)
             and self.dtype == torch.bfloat16
         )
@@ -2434,10 +2426,7 @@ class VLLMLayerLODPool:
                     speculative_steps=(
                         steps
                         if parallel_steps == steps
-                        and (
-                            self._shared_speculative_route_eligible(steps, rows)
-                            or self._speculative_fixed_mask_eligible(steps)
-                        )
+                        and self._shared_speculative_route_eligible(steps, rows)
                         else 1
                     ),
                     recursive_state_route_backend=(
@@ -2537,20 +2526,9 @@ class VLLMLayerLODPool:
             sink_k=self.state.get("sink_k"),
             sink_v=self.state.get("sink_v"),
             state_len=self.state_capacity,
-            # First validate active-prefix bounds on K2's compact-union
-            # geometry. Other families retain their established consumers
-            # until the measured K2 result justifies enabling the same path.
-            state_lens=(
-                self.state_lens
-                if (
-                    (
-                        self.head_dim,
-                        self.query_heads // self.kv_heads,
-                    )
-                    == (128, 8)
-                )
-                else None
-            ),
+            # Allocation size follows the longest configured request, while
+            # each row routes only over the centroid prefix it has populated.
+            state_lens=self.state_lens,
             # A delayed update leaves the displaced prefix exact until the
             # next catch-up. The effective limit reduces to local_len for the
             # ordinary update==chunk schedule.
@@ -2585,9 +2563,15 @@ class VLLMLayerLODPool:
             fuse_final_reduce=bool(self.engine.decode_fuse_final_reduce),
             route_gqa_grouped=bool(self.engine.decode_route_gqa_grouped),
             gqa_cooperative_leaf=False,
-            gqa_union_decode=True,
+            # DFlash already supplies eight independent verifier rows. Keep
+            # ordinary one-token decode on the GQA-shared union, but let
+            # speculative verification consume each query head's four
+            # complete centroids directly instead of building another union.
+            gqa_union_decode=speculative_steps < 2,
             gqa_union_hip=True,
-            gqa_union_fixed_mask_aiter=(self.settings.decode_gqa_fixed_mask_aiter),
+            gqa_union_fixed_mask_aiter=(
+                self.settings.decode_gqa_fixed_mask_aiter and speculative_steps < 2
+            ),
             gqa_union_fixed_mask_adaptive_segments=True,
             gqa_union_fixed_mask_reduce_block_d=(
                 self.settings.decode_gqa_fixed_mask_reduce_block_d

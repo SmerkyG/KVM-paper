@@ -13,10 +13,9 @@ LOCAL_WINDOW = 512
 PREFIX_CACHE_LOCAL_WINDOW = 1_024
 PREFILL_CHUNK_SIZE = 16_384
 PREFILL_LOCAL_WINDOW = PREFILL_CHUNK_SIZE + CHUNK_SIZE
-# Short decode scans every retained leaf through the same first-chunk boundary
-# where prefill is already exact. BF16 is exact; INT4 retains only quantization
-# error and removes the routing approximation.
-EXACT_DECODE_LIMIT = PREFILL_CHUNK_SIZE
+# Very short decode scans every retained leaf. Published 4K-and-longer results
+# therefore exercise routed LoD rather than a full-cache fallback.
+EXACT_DECODE_LIMIT = 2_048
 
 
 class LODMode(str, Enum):
