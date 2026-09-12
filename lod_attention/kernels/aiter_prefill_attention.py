@@ -67,6 +67,7 @@ def _prepare_aiter_state_kernel(
     STATE_CAPACITY: tl.constexpr,
     KV_HEADS: tl.constexpr,
     KV_GROUP_SIZE: tl.constexpr,
+    BLOCK_G: tl.constexpr,
     HEAD_DIM: tl.constexpr,
     BLOCK_D: tl.constexpr,
 ):
@@ -99,7 +100,11 @@ def _prepare_aiter_state_kernel(
     tl.store(mean_k + output_offset, key / count, mask=valid_dimension)
     tl.store(mean_v + output_offset, value / count, mask=valid_dimension)
     tl.store(active_counts + row, count)
-    group = tl.arange(0, KV_GROUP_SIZE)
+    # Triton requires ``tl.arange`` bounds to be powers of two. Qwen3.8 has
+    # six query heads per K/V head, so pad the lane vector and mask its two
+    # inactive entries rather than specializing the calculation to GQA=8.
+    group = tl.arange(0, BLOCK_G)
+    valid_group = group < KV_GROUP_SIZE
     query_head = kv_head * KV_GROUP_SIZE + group
     bias_offset = (
         (batch * KV_HEADS * KV_GROUP_SIZE + query_head) * DISPATCH_STATE_LEN
@@ -108,6 +113,7 @@ def _prepare_aiter_state_kernel(
     tl.store(
         log_count_bias + bias_offset,
         tl.where(valid_slot, tl.log(count), -float("inf")),
+        mask=valid_group,
     )
 
 
@@ -1113,6 +1119,7 @@ def aiter_prefill_route_coarse_attention(
         STATE_CAPACITY=int(state_k.size(2)),
         KV_HEADS=kv_heads,
         KV_GROUP_SIZE=kv_group_size,
+        BLOCK_G=triton.next_power_of_2(kv_group_size),
         HEAD_DIM=head_dim,
         BLOCK_D=triton.next_power_of_2(head_dim),
         num_warps=4,

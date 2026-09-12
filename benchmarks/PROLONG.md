@@ -13,25 +13,29 @@ cohort at offset 8 in `Seerkfang/prolong-64k-512-new`, revision
 
 | Model | Cache | Prefill routes | Loss | Perplexity |
 |---|---|---:|---:|---:|
-| Qwen3.8-27B-FP8 | Full | all | 0.801509 | 2.228902 |
-| Qwen3.8-27B-FP8 | Two-tier BF16 | 4 | 0.804913 | 2.236501 |
-| Qwen3.8-27B-FP8 | Three-tier BF16 | 4 | 0.804743 | 2.236123 |
-| Qwen3.8-27B-FP8 | Three-tier INT4 | 4 | 0.804831 | 2.236319 |
-| K2-Horizon-32B-FP8 | Full | all | 0.521601 | 1.684723 |
-| K2-Horizon-32B-FP8 | Two-tier BF16 | 4 | 0.524196 | 1.689101 |
-| K2-Horizon-32B-FP8 | Three-tier BF16 | 4 | 0.524244 | 1.689181 |
-| K2-Horizon-32B-FP8 | Three-tier INT4 | 4 | 0.524302 | 1.689279 |
+| Qwen3.8-27B-FP8 | Full | all | 1.107629 | 3.027173 |
+| Qwen3.8-27B-FP8 | Two-tier BF16 | 4 | 1.112470 | 3.041864 |
+| Qwen3.8-27B-FP8 | Three-tier BF16 | 4 | 1.112427 | 3.041731 |
+| Qwen3.8-27B-FP8 | Three-tier INT4 | 4 | 1.112835 | 3.042973 |
+| K2-Horizon-32B-FP8 | Full | all | 0.324007 | 1.382657 |
+| K2-Horizon-32B-FP8 | Two-tier BF16 | 4 | 0.323817 | 1.382394 |
+| K2-Horizon-32B-FP8 | Three-tier BF16 | 4 | 0.323757 | 1.382312 |
+| K2-Horizon-32B-FP8 | Three-tier INT4 | 4 | 0.323581 | 1.382068 |
 
 Prompt loss exercises prefill only. Every LoD row above uses the release's
 uniform top-4 prefill policy. Each measurement contains 524,280 predicted
-tokens; the loss is token-weighted across all eight documents.
+tokens; the loss is token-weighted across all eight documents. All eight rows
+were freshly rerun after the release cleanup.
 
 ## Matched speed results
 
-These measurements were freshly collected on AMD MI325X with vLLM 0.27.1;
-the TP4, batch-8 panels were fully refreshed on 2026-09-12. Each cell is
-`prefill seconds / decode milliseconds per batch step`; lower is better. One
-B8 decode step emits eight tokens concurrently.
+These measurements use AMD MI325X with vLLM 0.27.1. Every LoD cell, both Qwen
+full-attention panels, and the K2 TP4 full-attention panel were freshly
+collected on 2026-09-12. The unchanged K2 TP1 and DFlash2 full-attention
+controls are retained from their preceding matched sweeps because the cleanup
+does not touch native attention. Each cell is `prefill seconds / decode
+milliseconds per batch step`; lower is better. One B8 decode step emits eight
+tokens concurrently.
 
 Prompts are raw, distinct ProLong token streams, concatenating different
 documents when needed and never repeating a document to fill a request. The
@@ -50,41 +54,41 @@ The DFlash2 panel was rerun in full with the diagnostics described below.
 
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 0.998 s / 28.82 ms | 0.925 s / 28.53 ms | 0.911 s / 28.98 ms | 0.946 s / 28.89 ms |
-| 16K | 2.172 s / 29.56 ms | 1.877 s / 28.58 ms | 1.863 s / 29.00 ms | 1.897 s / 29.09 ms |
-| 32K | 5.214 s / 30.26 ms | 3.855 s / 28.81 ms | 3.923 s / 29.52 ms | 4.054 s / 29.57 ms |
-| 64K | 13.941 s / 31.65 ms | 8.020 s / 29.00 ms | 8.151 s / 29.63 ms | 8.468 s / 29.88 ms |
-| 128K | 42.227 s / 34.34 ms | 16.716 s / 29.35 ms | 16.973 s / 29.71 ms | 17.718 s / 29.81 ms |
+| 8K | 0.980 s / 28.81 ms | 0.940 s / 28.61 ms | 0.960 s / 29.37 ms | 1.043 s / 29.52 ms |
+| 16K | 2.163 s / 29.62 ms | 2.002 s / 28.64 ms | 2.030 s / 29.48 ms | 2.108 s / 29.39 ms |
+| 32K | 5.205 s / 30.30 ms | 4.091 s / 28.71 ms | 4.137 s / 29.48 ms | 4.270 s / 29.42 ms |
+| 64K | 13.920 s / 31.71 ms | 8.353 s / 28.95 ms | 8.459 s / 29.53 ms | 8.727 s / 29.51 ms |
+| 128K | 42.236 s / 34.29 ms | 17.225 s / 29.25 ms | 17.388 s / 29.45 ms | 18.029 s / 29.65 ms |
 
 ### Qwen3.8, TP4, batch 8
 
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 3.533 s / 22.03 ms | 3.511 s / 21.97 ms | 3.558 s / 22.26 ms | 3.662 s / 22.50 ms |
-| 16K | 7.701 s / 23.02 ms | 7.372 s / 21.98 ms | 7.463 s / 22.41 ms | 7.505 s / 22.68 ms |
-| 32K | 17.428 s / 24.20 ms | 15.134 s / 22.24 ms | 15.143 s / 22.46 ms | 15.289 s / 22.71 ms |
-| 64K | 43.390 s / 27.11 ms | 30.961 s / 22.64 ms | 30.890 s / 22.53 ms | 31.286 s / 22.73 ms |
-| 128K | 120.341 s / 32.72 ms | 63.232 s / 23.56 ms | 62.868 s / 22.82 ms | 64.074 s / 23.06 ms |
+| 8K | 3.480 s / 22.07 ms | 3.510 s / 21.81 ms | 3.472 s / 22.22 ms | 3.687 s / 22.37 ms |
+| 16K | 7.719 s / 23.03 ms | 7.315 s / 21.88 ms | 7.449 s / 22.29 ms | 7.541 s / 22.54 ms |
+| 32K | 17.437 s / 24.17 ms | 14.808 s / 22.09 ms | 15.029 s / 22.39 ms | 15.281 s / 22.52 ms |
+| 64K | 43.388 s / 27.10 ms | 30.036 s / 22.51 ms | 30.415 s / 22.46 ms | 30.964 s / 22.65 ms |
+| 128K | 120.322 s / 32.75 ms | 61.201 s / 23.45 ms | 61.930 s / 22.79 ms | 63.409 s / 22.96 ms |
 
 ### K2 Horizon, TP1, batch 1
 
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 1.156 s / 37.58 ms | 1.191 s / 39.60 ms | 1.284 s / 41.50 ms | 1.460 s / 40.30 ms |
-| 16K | 2.593 s / 38.16 ms | 2.546 s / 39.99 ms | 2.691 s / 41.95 ms | 2.852 s / 40.77 ms |
-| 32K | 6.324 s / 39.17 ms | 6.001 s / 40.45 ms | 6.167 s / 42.31 ms | 6.717 s / 41.18 ms |
-| 64K | 17.120 s / 41.06 ms | 15.715 s / 41.04 ms | 16.023 s / 42.75 ms | 17.696 s / 41.68 ms |
-| 128K | 52.721 s / 44.46 ms | 34.262 s / 41.99 ms | 35.010 s / 43.36 ms | 39.929 s / 42.40 ms |
+| 8K | 1.156 s / 37.58 ms | 1.200 s / 39.89 ms | 1.284 s / 41.81 ms | 1.600 s / 40.20 ms |
+| 16K | 2.593 s / 38.16 ms | 2.556 s / 40.18 ms | 2.704 s / 42.17 ms | 2.981 s / 40.64 ms |
+| 32K | 6.324 s / 39.17 ms | 5.860 s / 40.70 ms | 6.086 s / 42.58 ms | 6.661 s / 41.25 ms |
+| 64K | 17.120 s / 41.06 ms | 13.205 s / 41.25 ms | 13.682 s / 42.99 ms | 15.167 s / 41.70 ms |
+| 128K | 52.721 s / 44.46 ms | 30.113 s / 42.43 ms | 31.216 s / 43.84 ms | 35.616 s / 42.49 ms |
 
 ### K2 Horizon, TP4, batch 8
 
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 3.844 s / 22.60 ms | 4.045 s / 24.54 ms | 4.109 s / 26.72 ms | 4.639 s / 25.32 ms |
-| 16K | 8.511 s / 23.58 ms | 8.436 s / 24.94 ms | 8.805 s / 27.78 ms | 9.281 s / 26.19 ms |
-| 32K | 19.514 s / 25.23 ms | 21.110 s / 25.85 ms | 20.673 s / 28.36 ms | 22.059 s / 26.88 ms |
-| 64K | 49.646 s / 28.69 ms | 53.075 s / 26.60 ms | 51.512 s / 29.08 ms | 55.956 s / 27.78 ms |
-| 128K | 140.750 s / 35.49 ms | 121.681 s / 29.26 ms | 117.998 s / 32.40 ms | 134.733 s / 31.31 ms |
+| 8K | 3.842 s / 22.66 ms | 3.997 s / 24.61 ms | 4.121 s / 26.89 ms | 4.627 s / 25.41 ms |
+| 16K | 8.449 s / 23.59 ms | 8.110 s / 24.99 ms | 8.842 s / 28.02 ms | 9.254 s / 26.30 ms |
+| 32K | 19.343 s / 25.21 ms | 19.457 s / 25.92 ms | 20.222 s / 28.60 ms | 21.578 s / 27.01 ms |
+| 64K | 49.363 s / 28.67 ms | 44.976 s / 26.73 ms | 46.058 s / 29.41 ms | 50.449 s / 27.84 ms |
+| 128K | 139.962 s / 35.51 ms | 106.345 s / 29.11 ms | 108.411 s / 32.42 ms | 125.176 s / 31.34 ms |
 
 Both TP4, batch-8 panels, including their full-attention controls, use the
 release's chunk-aligned async scheduler. A fixed 16,384 aggregate token budget
@@ -94,7 +98,7 @@ then process a second tiny cached-prefill fragment. The aligned scheduler
 exposes the complete 16K prefill allowance plus only the decode work actually
 eligible in that step. Before this scheduler fix, the three K2 16K LoD prefill
 figures were 10.782, 10.802, and 10.906 seconds; the fully rerun values are now
-8.436, 8.805, and 9.281 seconds. No attention math changed. TP1, batch-1 and
+8.110, 8.842, and 9.254 seconds. No attention math changed. TP1, batch-1 and
 DFlash2 batch-1 cannot co-schedule a waiting prefill with a live request, so
 their tables are not affected by this scheduler correction.
 
@@ -115,11 +119,11 @@ with generation seed 0, so GPU contention does not get conflated across arms.
 
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 0.979 s / 9.00 ms | 0.915 s / 7.53 ms | 0.926 s / 7.25 ms | 0.977 s / 7.06 ms |
-| 16K | 2.204 s / 6.33 ms | 1.907 s / 6.17 ms | 1.930 s / 5.83 ms | 1.975 s / 6.22 ms |
-| 32K | 5.253 s / 7.03 ms | 3.966 s / 7.89 ms | 3.994 s / 8.37 ms | 4.118 s / 8.53 ms |
-| 64K | 14.017 s / 11.44 ms | 8.263 s / 8.38 ms | 8.310 s / 6.61 ms | 8.608 s / 7.44 ms |
-| 128K | 42.601 s / 10.68 ms | 17.218 s / 7.19 ms | 17.316 s / 7.29 ms | 18.013 s / 7.96 ms |
+| 8K | 0.979 s / 9.00 ms | 0.930 s / 8.66 ms | 0.966 s / 8.29 ms | 1.043 s / 7.02 ms |
+| 16K | 2.204 s / 6.33 ms | 1.968 s / 8.27 ms | 2.014 s / 7.22 ms | 2.095 s / 7.53 ms |
+| 32K | 5.253 s / 7.03 ms | 4.063 s / 6.83 ms | 4.140 s / 7.38 ms | 4.268 s / 7.96 ms |
+| 64K | 14.017 s / 11.44 ms | 8.360 s / 7.41 ms | 8.491 s / 7.62 ms | 8.747 s / 8.05 ms |
+| 128K | 42.601 s / 10.68 ms | 17.249 s / 10.24 ms | 17.520 s / 10.60 ms | 18.091 s / 8.33 ms |
 
 All displayed DFlash2 lengths use routed top-4 LoD. DFlash2 stays routed at
 shorter lengths too because its captured verifier and ordinary decode graphs
@@ -133,11 +137,11 @@ is better for the first number and higher is better for the second.
 
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 39.91 ms / 4.44 | 39.35 ms / 5.26 | 39.27 ms / 5.42 | 39.51 ms / 5.63 |
-| 16K | 41.81 ms / 6.61 | 39.47 ms / 6.44 | 39.29 ms / 6.74 | 39.54 ms / 6.40 |
-| 32K | 44.96 ms / 6.44 | 39.82 ms / 5.07 | 39.50 ms / 4.74 | 39.89 ms / 4.69 |
-| 64K | 51.38 ms / 4.49 | 40.31 ms / 4.82 | 39.82 ms / 6.03 | 40.34 ms / 5.42 |
-| 128K | 63.24 ms / 5.92 | 40.90 ms / 5.70 | 40.12 ms / 5.51 | 40.41 ms / 5.10 |
+| 8K | 39.91 ms / 4.44 | 39.25 ms / 4.56 | 39.47 ms / 4.77 | 39.48 ms / 5.66 |
+| 16K | 41.81 ms / 6.61 | 39.41 ms / 4.76 | 39.35 ms / 5.48 | 39.56 ms / 5.28 |
+| 32K | 44.96 ms / 6.44 | 39.74 ms / 5.84 | 39.54 ms / 5.37 | 39.75 ms / 5.01 |
+| 64K | 51.38 ms / 4.49 | 40.16 ms / 5.46 | 39.80 ms / 5.24 | 40.03 ms / 4.98 |
+| 128K | 63.24 ms / 5.92 | 40.69 ms / 3.98 | 40.06 ms / 3.79 | 40.43 ms / 4.85 |
 
 This distinction matters at 8K. The three measured full-attention repetitions
 were 8.22, 9.00, and 9.48 ms per emitted token, while their verification-cycle

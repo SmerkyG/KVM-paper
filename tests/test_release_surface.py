@@ -71,6 +71,19 @@ def test_aiter_route_workspace_is_tight_for_k2_and_safe_for_qwen() -> None:
     assert "variant_params.route_seqlen_k, route_storage_tile" in patch
 
 
+def test_aiter_state_preparation_pads_non_power_of_two_gqa() -> None:
+    source = (
+        ROOT / "lod_attention" / "kernels" / "aiter_prefill_attention.py"
+    ).read_text()
+    assert "group = tl.arange(0, BLOCK_G)" in source
+    assert "mask=valid_group" in source
+    launch = source.split(
+        "_prepare_aiter_state_kernel[(batch * kv_heads * dispatch_state_len,)](",
+        maxsplit=1,
+    )[1].split("\n    )", maxsplit=1)[0]
+    assert "BLOCK_G=triton.next_power_of_2(kv_group_size)" in launch
+
+
 def test_paged_kernel_entrypoint_stays_a_small_facade() -> None:
     facade = ROOT / "lod_attention" / "kernels" / "paged_leaf_attention.py"
     assert len(facade.read_text().splitlines()) < 100
