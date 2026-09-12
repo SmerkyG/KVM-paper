@@ -248,6 +248,7 @@ class VLLMLayerLODPool:
         # only the expensive centroid update across layers; page ownership
         # remains local to this pool.
         self.initial_prefill_stager: Any | None = None
+        self.cached_prefill_stager: Any | None = None
         self.deferred_prefill_stream: torch.cuda.Stream | None = None
         self.deferred_prefill_events: list[torch.cuda.Event | None] = [
             None
@@ -1416,6 +1417,7 @@ class VLLMLayerLODPool:
         coverage: int,
         state_len: int,
         owners: torch.Tensor,
+        owner_ranks: torch.Tensor,
     ) -> None:
         """Create per-layer page ownership after a batched centroid update."""
 
@@ -1462,6 +1464,7 @@ class VLLMLayerLODPool:
             leaf_k[..., initial_state_len:archived_len, :],
             leaf_v[..., initial_state_len:archived_len, :],
             owners.long(),
+            owner_ranks=owner_ranks.long(),
         )
         recent_len = total_len - coverage
         state: dict[str, object] = {
@@ -1485,6 +1488,102 @@ class VLLMLayerLODPool:
         if "key_norm_sums" in storage:
             state["key_norm_sums"] = storage["key_norm_sums"]
         self.install_rows(slots, KernelLODCache(state))
+        self.engine.reset_runtime_cache()
+
+    def _stage_cross_layer_cached_cache(
+        self,
+        slots: tuple[int, ...],
+        key: torch.Tensor,
+        value: torch.Tensor,
+        *,
+        previous_len: int,
+    ) -> None:
+        """Persist one aligned continuation before its batched state update."""
+
+        if len(slots) != 1 or int(key.size(0)) != 1:
+            raise ValueError("cross-layer cached construction requires one row")
+        slot = slots[0]
+        metadata = self.metadata[slot]
+        if int(metadata["total_len"]) != previous_len:
+            raise RuntimeError("cross-layer cached prefix length changed while staging")
+        page = self.state.get("page_cache")
+        if not isinstance(page, dict):
+            raise TypeError("cross-layer cached construction lacks its page cache")
+        leaf_k = page.get("leaf_k")
+        leaf_v = page.get("leaf_v")
+        if not isinstance(leaf_k, torch.Tensor) or not isinstance(
+            leaf_v, torch.Tensor
+        ):
+            raise TypeError("cross-layer cached construction needs BF16 leaves")
+
+        sink_len = min(int(self.engine.sink_len), previous_len)
+        archive_begin = previous_len - sink_len
+        archive_end = archive_begin + int(key.size(2))
+        if archive_end > int(leaf_k.size(2)):
+            raise ValueError("cross-layer cached continuation exceeds leaf capacity")
+        leaf_k[slot : slot + 1, :, archive_begin:archive_end, :].copy_(key)
+        leaf_v[slot : slot + 1, :, archive_begin:archive_end, :].copy_(value)
+
+    def _finish_cross_layer_cached_cache(
+        self,
+        slot: int,
+        *,
+        total_len: int,
+        coverage: int,
+        state_len: int,
+        scheduled_state_len: int,
+        owners: torch.Tensor,
+        owner_ranks: torch.Tensor,
+    ) -> None:
+        """Finish page ownership and the exact tail after a batched update."""
+
+        metadata = self.metadata[slot]
+        old_coverage = int(metadata["coverage"])
+        sink_len = min(int(self.engine.sink_len), total_len)
+        archive_begin = old_coverage - sink_len
+        archive_end = coverage - sink_len
+        page_cache = self._row_cache(slot).state["page_cache"]
+        if not isinstance(page_cache, dict):
+            raise TypeError("cross-layer cached construction lost its page cache")
+        leaf_k = page_cache.get("leaf_k")
+        leaf_v = page_cache.get("leaf_v")
+        if not isinstance(leaf_k, torch.Tensor) or not isinstance(
+            leaf_v, torch.Tensor
+        ):
+            raise TypeError("cross-layer cached construction needs BF16 leaves")
+        if int(owners.size(2)) != archive_end - archive_begin:
+            raise AssertionError("cross-layer cached owner archive has the wrong length")
+
+        self.engine._append_page_cache(
+            page_cache,
+            leaf_k[..., archive_begin:archive_end, :],
+            leaf_v[..., archive_begin:archive_end, :],
+            owners.long(),
+            owner_ranks=owner_ranks.long(),
+        )
+        recent_len = total_len - coverage
+        if recent_len > self.local_capacity:
+            raise ValueError("cross-layer cached exact tail exceeds its fixed storage")
+        recent_k = self.state["recent_k"][slot : slot + 1]
+        recent_v = self.state["recent_v"][slot : slot + 1]
+        recent_begin = coverage - sink_len
+        recent_end = total_len - sink_len
+        recent_k[..., :recent_len, :].copy_(leaf_k[..., recent_begin:recent_end, :])
+        recent_v[..., :recent_len, :].copy_(leaf_v[..., recent_begin:recent_end, :])
+
+        self.local_lens[slot].fill_(recent_len)
+        self.state_lens[slot].fill_(state_len)
+        self.leaf_lens[slot].fill_(int(page_cache["leaf_count"]))
+        metadata.update(
+            state_len=state_len,
+            scheduled_state_len=scheduled_state_len,
+            coverage=coverage,
+            total_len=total_len,
+            recent_len=recent_len,
+            leaf_count=int(page_cache["leaf_count"]),
+            overflow_safe_until=int(page_cache["overflow_safe_until"]),
+        )
+        self._refresh_unified_page1_coarse((slot,))
         self.engine.reset_runtime_cache()
 
     def wait_deferred_prefill(self, slots: tuple[int, ...]) -> None:
@@ -1734,7 +1833,28 @@ class VLLMLayerLODPool:
             if packed
             else None
         )
-        defer_cache_update = self.deferred_prefill_stream is not None
+        metadata = self.metadata[slots[0]]
+        exact_lookback = int(self.engine.prefill_local_len) - int(
+            self.engine.prefill_chunk_len
+        )
+        cross_layer_cached = bool(
+            self.cached_prefill_stager is not None
+            and len(slots) == 1
+            and self.settings.levels == 2
+            and self.settings.kv_bits == 0
+            and length == int(self.engine.prefill_chunk_len)
+            and previous_length >= int(self.engine.prefill_chunk_len)
+            and previous_length % int(self.engine.prefill_chunk_len) == 0
+            and int(metadata["coverage"]) == previous_length - exact_lookback
+            and int(metadata["recent_len"]) == exact_lookback
+            and self.engine.virtual_page_storage
+            and self.engine.state_premerge_factor == 1
+            and self.engine.state_split_max_leaves is None
+            and self.engine.state_clustering_query_metric == "none"
+        )
+        defer_cache_update = (
+            not cross_layer_cached and self.deferred_prefill_stream is not None
+        )
         # The final state/page update does not contribute to this layer's
         # output.  Queue it behind the attention work and let subsequent model
         # layers hide it; _range_cache and decode consume the completion event.
@@ -1742,6 +1862,8 @@ class VLLMLayerLODPool:
             self.engine._lod_prefill_deferred_update_stream = (
                 self.deferred_prefill_stream
             )
+        if cross_layer_cached:
+            self.engine._lod_stage_cached_prefill_update = True
         try:
             result, cache = self.engine(
                 q,
@@ -1755,12 +1877,27 @@ class VLLMLayerLODPool:
         finally:
             if defer_cache_update:
                 del self.engine._lod_prefill_deferred_update_stream
+            if cross_layer_cached:
+                del self.engine._lod_stage_cached_prefill_update
         if cache is None:
             raise AssertionError("batched cached LOD prefill did not return a cache")
         if len(slots) > 1:
             self.batched_cached_prefill_calls += 1
             self.batched_cached_prefill_rows += len(slots)
-        if defer_cache_update:
+        if cross_layer_cached:
+            stager = self.cached_prefill_stager
+            if stager is None:
+                raise AssertionError("cross-layer cached stager is missing")
+            stager(
+                self,
+                slots,
+                k,
+                v,
+                previous_len=previous_length,
+                total_len=previous_length + length,
+                finalize_cache_for_decode=finalize_cache_for_decode,
+            )
+        elif defer_cache_update:
             deferred = self.deferred_prefill_stream
             if deferred is None:
                 raise AssertionError("deferred prefill stream is missing")

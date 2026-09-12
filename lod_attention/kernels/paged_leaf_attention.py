@@ -10,6 +10,7 @@ from .paged_cache import (
     quantize_page_summaries_int8,
     quantize_virtual_paged_kv,
     rehash_overflow_pages,
+    stable_owner_ranks,
 )
 from .paged_decode import fused_decode_paged_lod_attention
 from .paged_decode_buffers import (
@@ -44,4 +45,5 @@ __all__ = [
     "quantize_page_summaries_int8",
     "quantize_virtual_paged_kv",
     "rehash_overflow_pages",
+    "stable_owner_ranks",
 ]

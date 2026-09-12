@@ -43,18 +43,19 @@ def test_aiter_prefill_reuses_fused_coarse_result(
     state_v = torch.randn_like(state_k)
     counts = torch.randint(1, 5, (1, 2, 8, 1)).float()
     expected_routes = torch.zeros(1, 4, 3, 4, dtype=torch.long)
-    expected_output = torch.randn_like(q)
-    expected_lse = torch.randn(1, 4, 3)
+    expected_coarse = object()
+    expected_route_head_counts = torch.zeros(4 * 8, dtype=torch.int32)
+    expected_route_offsets = torch.zeros_like(expected_routes, dtype=torch.int32)
 
     def fake_aiter(
         passed_q: torch.Tensor,
-        mean_k: torch.Tensor,
+        passed_k: torch.Tensor,
         passed_v: torch.Tensor,
         passed_counts: torch.Tensor,
         **kwargs: object,
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, object, torch.Tensor, torch.Tensor]:
         torch.testing.assert_close(passed_q, q)
-        torch.testing.assert_close(mean_k, state_k / counts)
+        assert passed_k.data_ptr() == state_k.data_ptr()
         assert passed_v.data_ptr() == state_v.data_ptr()
         assert passed_counts.data_ptr() == counts.data_ptr()
         assert kwargs == {
@@ -62,8 +63,14 @@ def test_aiter_prefill_reuses_fused_coarse_result(
             "kv_group_size": 2,
             "scale": 0.5,
             "normalize_route_query": routing_normalization == "query",
+            "buffers": None,
         }
-        return expected_routes, expected_output, expected_lse
+        return (
+            expected_routes,
+            expected_coarse,
+            expected_route_head_counts,
+            expected_route_offsets,
+        )
 
     monkeypatch.setattr(
         aiter_prefill_attention,
@@ -79,26 +86,9 @@ def test_aiter_prefill_reuses_fused_coarse_result(
         state_capacity=8,
     )
     assert routes is expected_routes
-
-    def fail_route(*args: object, **kwargs: object) -> torch.Tensor:
-        raise AssertionError("fused coarse result was not reused")
-
-    monkeypatch.setattr(engine, "_state_route_logits", fail_route)
-    output, lse = engine._coarse_attention(
-        q,
-        q[:, :2],
-        q[:, :2],
-        state_k,
-        state_v,
-        counts,
-        routes,
-        state_len=8,
-        state_capacity=8,
-        include_local=False,
-    )
-    assert output is expected_output
-    assert lse is expected_lse
-    assert not hasattr(engine, "_lod_prefill_fused_coarse")
+    assert engine._lod_prefill_route_head_counts is expected_route_head_counts
+    assert engine._lod_prefill_route_offsets is expected_route_offsets
+    assert engine._lod_prefill_aiter_coarse is expected_coarse
 
 
 def test_public_modes_map_to_the_three_cache_organizations() -> None:

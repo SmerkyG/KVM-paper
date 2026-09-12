@@ -40,7 +40,9 @@ from .kernels.lod_kernels import (
     prepare_state_clustering_keys,
     route_logits_coarse_attention,
     route_logits_hierarchical_topk,
+    split_append_merge_topk,
     streaming_state_maxsim,
+    tiled_dot_maxsim,
 )
 from ._tensor_ops import (
     all_indices as _all_idx,
@@ -334,6 +336,8 @@ class TritonLODAttentionCore(nn.Module):
         overflow_len = int(scores.size(-1))
         subblock_size = self.state_append_subblock_size
         if subblock_size <= 0:
+            if scores.is_cuda and 0 < n_append < overflow_len:
+                return split_append_merge_topk(scores, n_append)
             sorted_idx = torch.argsort(scores.float(), dim=-1, descending=False)
             return (
                 torch.sort(sorted_idx[..., :n_append], dim=-1).values,
@@ -1401,6 +1405,7 @@ class TritonLODAttentionCore(nn.Module):
         state_capacity: int,
         clustering_query_scale: torch.Tensor | None = None,
         scheduled_state_len: int | None = None,
+        retain_prepared_geometry: bool = True,
     ) -> tuple[
         torch.Tensor,
         torch.Tensor,
@@ -1859,11 +1864,23 @@ class TritonLODAttentionCore(nn.Module):
             active_state_len: int,
         ) -> None:
             if (
-                not use_streaming_state_scan
+                not retain_prepared_geometry
+                or not use_streaming_state_scan
                 or streaming_geometry == "raw"
                 or maxsim_buffers is None
             ):
                 return
+            # A long prefill update can assign thousands of leaves to only a
+            # few thousand centroids.  Refreshing through the raw destination
+            # list then recomputes the same centroid many times (and lets
+            # those duplicate programs race on identical stores).  Once that
+            # list is at least as long as the active state, a dense one-pass
+            # refresh is both exact and strictly less work.
+            refresh_indices = (
+                changed_slots
+                if int(changed_slots.size(2)) < active_state_len
+                else None
+            )
             prepare_state_clustering_keys(
                 state_k,
                 counts,
@@ -1871,7 +1888,7 @@ class TritonLODAttentionCore(nn.Module):
                 state_len=active_state_len,
                 key_norm_sums=key_norm_sums,
                 geometry=streaming_geometry,
-                slot_indices=changed_slots,
+                slot_indices=refresh_indices,
                 prepare_coherence_route=not (
                     self.coherence_single_matmul
                     and streaming_geometry in {"coherence", "spherical_coherence"}
@@ -1930,23 +1947,35 @@ class TritonLODAttentionCore(nn.Module):
                         append_key_norm_sums
                     )
                 owners.scatter_(2, append_idx, append_slots)
-            merge_k = _gather_by_idx(overflow_k, merge_idx)
-            merge_v = _gather_by_idx(overflow_v, merge_idx)
             merge_select_k = _gather_by_idx(overflow_route_k, merge_idx)
-            merge_counts = _gather_by_idx(overflow_counts, merge_idx)
-            merge_key_norm_sums = (
-                _gather_by_idx(overflow_key_norm_sums, merge_idx)
-                if overflow_key_norm_sums is not None
-                else None
-            )
+            if use_fused_state_update and state_k.is_cuda:
+                # The fused update already receives each merge token's source
+                # index. Read K/V and scalar statistics through that index
+                # instead of materializing almost the whole overflow again.
+                merge_k = overflow_k
+                merge_v = overflow_v
+                merge_counts = overflow_counts
+                merge_key_norm_sums = overflow_key_norm_sums
+                indirect_merge_source = True
+            else:
+                merge_k = _gather_by_idx(overflow_k, merge_idx)
+                merge_v = _gather_by_idx(overflow_v, merge_idx)
+                merge_counts = _gather_by_idx(overflow_counts, merge_idx)
+                merge_key_norm_sums = (
+                    _gather_by_idx(overflow_key_norm_sums, merge_idx)
+                    if overflow_key_norm_sums is not None
+                    else None
+                )
+                indirect_merge_source = False
         else:
             merge_k = overflow_k
             merge_v = overflow_v
             merge_select_k = overflow_route_k
             merge_counts = overflow_counts
             merge_key_norm_sums = overflow_key_norm_sums
+            indirect_merge_source = False
 
-        if int(merge_k.size(2)) == 0:
+        if int(merge_idx.size(2)) == 0:
             if n_append and self.state_merge_before_append:
                 state_k[..., current_state_len:desired_state_len, :].copy_(append_k)
                 state_v[..., current_state_len:desired_state_len, :].copy_(append_v)
@@ -1969,12 +1998,34 @@ class TritonLODAttentionCore(nn.Module):
                 destination = old_route_indices.gather(2, merge_idx)
                 destination_scores = merge_old_scores
                 if n_append and not self.state_merge_before_append:
-                    appended_logits = self._state_clustering_similarity(
-                        merge_select_k,
-                        append_select_k.detach(),
-                        purpose="assignment",
+                    use_tiled_append_maxsim = (
+                        maxsim_buffers is not None
+                        and merge_select_k.is_cuda
+                        and merge_select_k.dtype == torch.bfloat16
+                        and int(merge_select_k.size(-1)) == 128
+                        and int(merge_select_k.size(0)) >= 8
+                        and int(merge_select_k.size(2)) >= 128
+                        and int(append_select_k.size(2)) >= 128
+                        and not self.state_clustering_radial_bias
+                        and self.state_clustering_centroid_rescale
+                        not in {"direction_l2"}
+                        and self.state_clustering_normalization != "l2"
                     )
-                    appended_scores, appended_relative = appended_logits.max(dim=-1)
+                    if use_tiled_append_maxsim:
+                        appended_scores, appended_relative = tiled_dot_maxsim(
+                            merge_select_k,
+                            append_select_k.detach(),
+                            maxsim_buffers,
+                        )
+                    else:
+                        appended_logits = self._state_clustering_similarity(
+                            merge_select_k,
+                            append_select_k.detach(),
+                            purpose="assignment",
+                        )
+                        appended_scores, appended_relative = appended_logits.max(
+                            dim=-1
+                        )
                     appended_destination = appended_relative + current_state_len
                     use_appended = appended_scores > merge_old_scores
                     destination = torch.where(
@@ -2059,6 +2110,7 @@ class TritonLODAttentionCore(nn.Module):
                 active_slots=updated_state_len,
                 key_norm_sums=key_norm_sums,
                 merge_key_norm_sums=merge_key_norm_sums,
+                indirect_source=indirect_merge_source,
             )
         else:
             if assignment_t is None:
@@ -2314,27 +2366,29 @@ class TritonLODAttentionCore(nn.Module):
                     aiter_prefill_route_coarse_attention,
                 )
 
-                active_counts = counts[..., :state_len, :]
-                mean_k = self._mean(
-                    state_k.detach()[..., :state_len, :], active_counts
-                ).contiguous()
-                routed, coarse_output, coarse_lse = (
+                (
+                    routed,
+                    coarse,
+                    route_head_counts,
+                    route_offsets,
+                ) = (
                     aiter_prefill_route_coarse_attention(
                         q.contiguous(),
-                        mean_k,
-                        state_v.contiguous(),
-                        counts.contiguous(),
+                        state_k.detach().contiguous(),
+                        state_v.detach().contiguous(),
+                        counts.detach().contiguous(),
                         state_len=state_len,
                         kv_group_size=self.num_key_value_groups,
                         scale=self.scaling,
                         normalize_route_query=self.routing_normalization == "query",
+                        buffers=getattr(
+                            self, "_lod_prefill_attention_buffers", None
+                        ),
                     )
                 )
-                self._lod_prefill_fused_coarse = (
-                    coarse_output,
-                    coarse_lse,
-                    False,
-                )
+                self._lod_prefill_aiter_coarse = coarse
+                self._lod_prefill_route_head_counts = route_head_counts
+                self._lod_prefill_route_offsets = route_offsets
                 return routed
 
             logits = self._state_routing_logits(
@@ -3093,6 +3147,8 @@ class TritonLODAttentionCore(nn.Module):
         k: torch.Tensor,
         v: torch.Tensor,
         owners: torch.Tensor,
+        *,
+        owner_ranks: torch.Tensor | None = None,
     ) -> None:
         append_len = int(owners.size(2))
         if append_len == 0:
@@ -3277,6 +3333,7 @@ class TritonLODAttentionCore(nn.Module):
                     page_sum_v,
                     page_counts,
                     hash_probes=append_hash_probes,
+                    owner_ranks=owner_ranks,
                 )
 
     def _paged_leaf_attention(
@@ -3284,6 +3341,9 @@ class TritonLODAttentionCore(nn.Module):
         q: torch.Tensor,
         top_slots: torch.Tensor,
         cache: dict[str, torch.Tensor | int],
+        *,
+        active_slots: int,
+        reduce_routes: bool = True,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         slot_pages = cache["slot_pages"]
         slot_lengths = cache["slot_lengths"]
@@ -3319,7 +3379,18 @@ class TritonLODAttentionCore(nn.Module):
             "waves_per_eu": self.leaf_waves_per_eu,
             "timing_events": getattr(self, "_lod_leaf_timing_events", None),
             "reduce_num_warps": self.leaf_reduce_num_warps,
+            "buffers": (
+                getattr(self, "_lod_prefill_attention_buffers", None)
+                if int(q.size(2)) > 1
+                else None
+            ),
         }
+        route_head_counts = getattr(self, "_lod_prefill_route_head_counts", None)
+        if route_head_counts is not None:
+            del self._lod_prefill_route_head_counts
+        route_offsets = getattr(self, "_lod_prefill_route_offsets", None)
+        if route_offsets is not None:
+            del self._lod_prefill_route_offsets
         if bool(cache.get("quantization_finalized", False)):
             leaf_kwargs.update(
                 quantized_leaf_k=cache.get("quantized_leaf_k"),
@@ -3348,6 +3419,10 @@ class TritonLODAttentionCore(nn.Module):
             top_slots,
             page_indices=page_indices,
             kv_group_size=self.num_key_value_groups,
+            active_slots=active_slots,
+            route_head_counts=route_head_counts,
+            route_offsets=route_offsets,
+            reduce_routes=reduce_routes,
             scale=self.scaling,
             **leaf_kwargs,
         )
@@ -3860,6 +3935,9 @@ class TritonLODAttentionCore(nn.Module):
             )
         if top_slots is None:
             raise AssertionError("LOD routing did not produce slots")
+        aiter_coarse = getattr(self, "_lod_prefill_aiter_coarse", None)
+        if aiter_coarse is not None:
+            del self._lod_prefill_aiter_coarse
         overlapped_coarse: tuple[torch.Tensor, torch.Tensor] | None = None
         coarse_stream: torch.cuda.Stream | None = None
         foreground_stream: torch.cuda.Stream | None = None
@@ -3869,6 +3947,7 @@ class TritonLODAttentionCore(nn.Module):
             and local_branch is not None
             and self.leaf_attention_backend == "paged"
             and not self.recursive_page_lod
+            and aiter_coarse is None
         ):
             coarse_stream = getattr(self, "_lod_prefill_coarse_stream", None)
             if coarse_stream is None:
@@ -3987,9 +4066,13 @@ class TritonLODAttentionCore(nn.Module):
                     "the LoD release opens complete routed centroids during prefill"
                 )
             exact_output, exact_lse = self._paged_leaf_attention(
-                q, top_slots, page_cache
+                q,
+                top_slots,
+                page_cache,
+                active_slots=state_len,
+                reduce_routes=aiter_coarse is None,
             )
-        if top_slots is not None:
+        if aiter_coarse is None:
             has_exact = top_slots.ge(0).any(dim=-1)
             exact_output = torch.where(
                 has_exact.unsqueeze(-1),
@@ -4000,6 +4083,34 @@ class TritonLODAttentionCore(nn.Module):
                 has_exact,
                 exact_lse,
                 torch.full_like(exact_lse, float("-inf")),
+            )
+        if aiter_coarse is not None:
+            if local_branch is None:
+                raise AssertionError(
+                    "fused AITER prefill refinement requires split local attention"
+                )
+            local_stream = getattr(self, "_lod_prefill_local_stream_pending", None)
+            if local_stream is not None:
+                del self._lod_prefill_local_stream_pending
+                torch.cuda.current_stream(q.device).wait_stream(local_stream)
+            local_output, local_lse = local_branch
+            from .kernels.aiter_prefill_attention import (
+                merge_aiter_prefill_refinement,
+            )
+
+            return merge_aiter_prefill_refinement(
+                q,
+                sink_k,
+                sink_v,
+                aiter_coarse,
+                top_slots,
+                exact_output,
+                exact_lse,
+                local_output,
+                local_lse,
+                kv_group_size=self.num_key_value_groups,
+                scale=self.scaling,
+                output_buffer=output_buffer,
             )
         if overlapped_coarse is None:
             coarse_output, coarse_lse = self._coarse_attention(
@@ -5515,6 +5626,23 @@ class TritonLODAttentionCore(nn.Module):
                 )
             )
             query_begin = query_end
+
+        if bool(getattr(self, "_lod_stage_cached_prefill_update", False)):
+            # The routed output above depends only on the cache that existed
+            # before this scheduler chunk.  vLLM can therefore collect the
+            # new K/V from every layer and run the identical state update in
+            # layer batches after the final attention layer has been visited.
+            # The staging path is enabled only for one aligned prefill block,
+            # for which no update is needed before attention.
+            if state_coverage != initial_coverage:
+                raise AssertionError(
+                    "cross-layer cached prefill performed an early state update"
+                )
+            if output_buffer is not None:
+                return output_buffer
+            if len(outputs) == 1:
+                return outputs[0]
+            return torch.cat(outputs, dim=2)
 
         deferred_update_stream = getattr(
             self, "_lod_prefill_deferred_update_stream", None

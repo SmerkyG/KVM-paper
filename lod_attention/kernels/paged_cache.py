@@ -147,6 +147,25 @@ def _publish_page_ids_kernel(
         )
 
 
+def stable_owner_ranks(owners: torch.Tensor) -> torch.Tensor:
+    """Return each token's chronological rank among equal owner IDs."""
+    batch, kv_heads, tokens = owners.shape
+    del batch, kv_heads
+    positions = torch.arange(tokens, device=owners.device, dtype=owners.dtype).view(
+        1, 1, tokens
+    )
+    order = torch.argsort(owners * tokens + positions, dim=2)
+    sorted_owners = owners.gather(2, order)
+    new_group = torch.ones_like(sorted_owners, dtype=torch.bool)
+    new_group[..., 1:] = sorted_owners[..., 1:] != sorted_owners[..., :-1]
+    sorted_positions = positions.expand_as(owners)
+    group_starts = torch.where(new_group, sorted_positions, 0).cummax(dim=2).values
+    sorted_ranks = sorted_positions - group_starts
+    ranks = torch.empty_like(owners)
+    ranks.scatter_(2, order, sorted_ranks)
+    return ranks
+
+
 def _assign_page_ordinals(
     owners: torch.Tensor,
     slot_lengths: torch.Tensor,
@@ -160,6 +179,7 @@ def _assign_page_ordinals(
     hash_probes: int,
     page_size: int,
     max_leaf_tokens: int | None = None,
+    owner_ranks: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """Assign stable region-local ordinals and publish new logical pages."""
     batch, kv_heads, tokens = owners.shape
@@ -170,18 +190,12 @@ def _assign_page_ordinals(
     # exact same ranks as counting all prior equal owners, without its O(T^2)
     # scan. Page IDs may be reserved in any order: the semantic identity is
     # (owner, page ordinal), not the numeric page ID.
-    positions = torch.arange(tokens, device=owners.device, dtype=owners.dtype).view(
-        1, 1, tokens
-    )
-    order = torch.argsort(owners * tokens + positions, dim=2)
-    sorted_owners = owners.gather(2, order)
-    new_group = torch.ones_like(sorted_owners, dtype=torch.bool)
-    new_group[..., 1:] = sorted_owners[..., 1:] != sorted_owners[..., :-1]
-    sorted_positions = positions.expand(batch, kv_heads, tokens)
-    group_starts = torch.where(new_group, sorted_positions, 0).cummax(dim=2).values
-    sorted_ranks = sorted_positions - group_starts
-    ranks = torch.empty_like(owners)
-    ranks.scatter_(2, order, sorted_ranks)
+    if owner_ranks is None:
+        ranks = stable_owner_ranks(owners)
+    else:
+        if owner_ranks.shape != owners.shape or owner_ranks.dtype != owners.dtype:
+            raise ValueError("precomputed owner ranks do not match owner IDs")
+        ranks = owner_ranks.contiguous()
     ordinals = (slot_lengths.gather(2, owners).to(owners.dtype) + ranks).to(torch.int32)
     if max_leaf_tokens is not None:
         if max_leaf_tokens <= 0:
@@ -1367,6 +1381,7 @@ def append_virtual_paged_kv(
     page_counts: torch.Tensor | None,
     *,
     hash_probes: int = 8,
+    owner_ranks: torch.Tensor | None = None,
 ) -> None:
     """Publish BF16 leaves into their centroid-owned 16-token pages."""
     owners = owners.contiguous()
@@ -1407,6 +1422,7 @@ def append_virtual_paged_kv(
         overflow_flag,
         hash_probes=hash_probes,
         page_size=16,
+        owner_ranks=owner_ranks,
     )
     _write_virtual_page_indices_kernel[(token_rows,)](
         owners,

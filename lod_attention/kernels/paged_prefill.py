@@ -12,6 +12,286 @@ import triton.language as tl
 from ._paged_common import _lookup_page_id
 
 
+def _workspace_tensor(
+    buffers: dict[str, torch.Tensor] | None,
+    name: str,
+    shape: tuple[int, ...],
+    *,
+    dtype: torch.dtype,
+    device: torch.device,
+) -> torch.Tensor:
+    """Return a shared flat workspace view, growing it only when necessary."""
+
+    elements = math.prod(shape)
+    if buffers is None:
+        return torch.empty(shape, dtype=dtype, device=device)
+    storage = buffers.get(name)
+    if (
+        storage is None
+        or storage.dtype != dtype
+        or storage.device != device
+        or int(storage.numel()) < elements
+    ):
+        storage = torch.empty(elements, dtype=dtype, device=device)
+        buffers[name] = storage
+    return storage[:elements].view(shape)
+
+
+@triton.jit(do_not_specialize=["items_per_head", "active_slots"])
+def _count_expert_routes_kernel(
+    top_slots,
+    head_counts,
+    route_offsets,
+    items_per_head,
+    active_slots,
+    BLOCK: tl.constexpr,
+):
+    """Count routes per query head so GQA heads do not contend on one slot."""
+    batch_head = tl.program_id(0)
+    offsets = tl.program_id(1) * BLOCK + tl.arange(0, BLOCK)
+    valid = offsets < items_per_head
+    route_row = batch_head * items_per_head + offsets
+    slot = tl.maximum(
+        tl.load(top_slots + route_row, mask=valid, other=0).to(tl.int32), 0
+    )
+    head_slot = batch_head * active_slots + slot
+    local_offset = tl.atomic_add(
+        head_counts + head_slot, 1, mask=valid, sem="relaxed"
+    )
+    tl.store(route_offsets + route_row, local_offset, mask=valid)
+
+
+@triton.jit(do_not_specialize=["items_per_head", "active_slots"])
+def _scatter_expert_routes_kernel(
+    top_slots,
+    expert_starts,
+    head_offsets,
+    route_offsets,
+    packed_route_rows,
+    expert_block_starts,
+    block_expert,
+    items_per_head,
+    active_slots,
+    QUERY_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    KV_GROUP_SIZE: tl.constexpr,
+    BLOCK_M: tl.constexpr,
+    BLOCK: tl.constexpr,
+):
+    """Pack route-row indices into their expert's contiguous output range."""
+    batch_head = tl.program_id(0)
+    offsets = tl.program_id(1) * BLOCK + tl.arange(0, BLOCK)
+    valid = offsets < items_per_head
+    route_row = batch_head * items_per_head + offsets
+    slot = tl.maximum(
+        tl.load(top_slots + route_row, mask=valid, other=0).to(tl.int32), 0
+    )
+    batch = batch_head // QUERY_HEADS
+    query_head = batch_head - batch * QUERY_HEADS
+    kv_row = batch * KV_HEADS + query_head // KV_GROUP_SIZE
+    expert = kv_row * active_slots + slot
+    head_slot = batch_head * active_slots + slot
+    local_offset = tl.load(route_offsets + route_row, mask=valid, other=0)
+    expert_local_offset = (
+        tl.load(head_offsets + head_slot, mask=valid, other=0) + local_offset
+    )
+    destination = tl.load(
+        expert_starts + expert, mask=valid, other=0
+    ) + expert_local_offset
+    tl.store(packed_route_rows + destination, route_row, mask=valid)
+    starts_block = valid & (expert_local_offset % BLOCK_M == 0)
+    block_destination = tl.load(
+        expert_block_starts + expert,
+        mask=starts_block,
+        other=0,
+    ) + expert_local_offset // BLOCK_M
+    tl.store(
+        block_expert + block_destination,
+        expert,
+        mask=starts_block,
+    )
+
+
+def _pack_expert_routes(
+    top_slots: torch.Tensor,
+    *,
+    active_slots: int,
+    kv_heads: int,
+    kv_group_size: int,
+    expert_count: int,
+    block_m: int,
+    head_counts: torch.Tensor | None = None,
+    route_offsets: torch.Tensor | None = None,
+    buffers: dict[str, torch.Tensor] | None = None,
+) -> tuple[
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    int,
+]:
+    """Group route rows by a dense bounded expert ID in linear time."""
+    if top_slots.ndim != 4 or not top_slots.is_contiguous():
+        raise ValueError("top slots must be a contiguous BHTR tensor")
+    if expert_count <= 0:
+        raise ValueError("expert count must be positive")
+    batch, query_heads, query_len, route_count = top_slots.shape
+    if query_heads != kv_heads * kv_group_size:
+        raise ValueError("query/KV head grouping is inconsistent")
+    items = int(top_slots.numel())
+    items_per_head = query_len * route_count
+    block = 256
+    grid = (batch * query_heads, triton.cdiv(items_per_head, block))
+    expected_head_counts = batch * query_heads * active_slots
+    if head_counts is None:
+        head_counts = _workspace_tensor(
+            buffers,
+            "leaf_route_head_counts",
+            (expected_head_counts,),
+            dtype=torch.int32,
+            device=top_slots.device,
+        )
+        head_counts.zero_()
+        route_offsets = _workspace_tensor(
+            buffers,
+            "leaf_route_offsets",
+            (items,),
+            dtype=torch.int32,
+            device=top_slots.device,
+        )
+        _count_expert_routes_kernel[grid](
+            top_slots,
+            head_counts,
+            route_offsets,
+            items_per_head,
+            active_slots,
+            BLOCK=block,
+            num_warps=4,
+        )
+    else:
+        if (
+            head_counts.dtype != torch.int32
+            or head_counts.device != top_slots.device
+            or not head_counts.is_contiguous()
+            or int(head_counts.numel()) != expected_head_counts
+        ):
+            raise ValueError("precomputed route counts have incompatible geometry")
+        if (
+            route_offsets is None
+            or route_offsets.dtype != torch.int32
+            or route_offsets.device != top_slots.device
+            or not route_offsets.is_contiguous()
+            or int(route_offsets.numel()) != items
+        ):
+            raise ValueError("precomputed route offsets have incompatible geometry")
+    if route_offsets is None:
+        raise AssertionError("route offsets were not constructed")
+    grouped_counts = head_counts.view(
+        batch, kv_heads, kv_group_size, active_slots
+    )
+    counts = _workspace_tensor(
+        buffers,
+        "leaf_expert_counts",
+        (expert_count,),
+        dtype=torch.int32,
+        device=top_slots.device,
+    )
+    torch.sum(
+        grouped_counts,
+        dim=2,
+        dtype=torch.int32,
+        out=counts.view(batch, kv_heads, active_slots),
+    )
+    head_cumulative = _workspace_tensor(
+        buffers,
+        "leaf_head_cumulative",
+        tuple(grouped_counts.shape),
+        dtype=torch.int32,
+        device=top_slots.device,
+    )
+    torch.cumsum(grouped_counts, dim=2, dtype=torch.int32, out=head_cumulative)
+    torch.sub(head_cumulative, grouped_counts, out=head_cumulative)
+    head_offsets = head_cumulative.reshape(-1)
+    cumulative = _workspace_tensor(
+        buffers,
+        "leaf_expert_cumulative",
+        (expert_count + 1,),
+        dtype=torch.int32,
+        device=top_slots.device,
+    )
+    cumulative[0].zero_()
+    torch.cumsum(counts, dim=0, dtype=torch.int32, out=cumulative[1:])
+    starts = cumulative[:-1]
+    expert_blocks = _workspace_tensor(
+        buffers,
+        "leaf_expert_blocks",
+        (expert_count,),
+        dtype=torch.int32,
+        device=top_slots.device,
+    )
+    torch.add(counts, block_m - 1, out=expert_blocks)
+    torch.div(expert_blocks, block_m, rounding_mode="floor", out=expert_blocks)
+    cumulative_blocks = _workspace_tensor(
+        buffers,
+        "leaf_block_cumulative",
+        (expert_count + 1,),
+        dtype=torch.int32,
+        device=top_slots.device,
+    )
+    cumulative_blocks[0].zero_()
+    torch.cumsum(
+        expert_blocks,
+        dim=0,
+        dtype=torch.int32,
+        out=cumulative_blocks[1:],
+    )
+    # Sum(ceil(n_i / block_m)) is bounded by ceil(Sum(n_i) / block_m)
+    # plus the number of experts. Launching that fixed upper bound keeps the
+    # route/leaf path asynchronous; the kernel reads the exact device-side
+    # count and masks the unused suffix.
+    max_blocks = triton.cdiv(items, block_m) + expert_count
+    block_expert = _workspace_tensor(
+        buffers,
+        "leaf_block_expert",
+        (max_blocks,),
+        dtype=torch.int32,
+        device=top_slots.device,
+    )
+    packed_route_rows = _workspace_tensor(
+        buffers,
+        "leaf_packed_route_rows",
+        (items,),
+        dtype=torch.int32,
+        device=top_slots.device,
+    )
+    _scatter_expert_routes_kernel[grid](
+        top_slots,
+        starts,
+        head_offsets,
+        route_offsets,
+        packed_route_rows,
+        cumulative_blocks,
+        block_expert,
+        items_per_head,
+        active_slots,
+        QUERY_HEADS=query_heads,
+        KV_HEADS=kv_heads,
+        KV_GROUP_SIZE=kv_group_size,
+        BLOCK_M=block_m,
+        BLOCK=block,
+        num_warps=4,
+    )
+    return (
+        packed_route_rows,
+        counts,
+        cumulative,
+        block_expert,
+        cumulative_blocks,
+        max_blocks,
+    )
+
+
 @triton.jit
 def _reduce_expert_route_attention_kernel(
     route_out,
@@ -79,8 +359,8 @@ def _reduce_expert_route_attention_kernel(
 
 
 @triton.jit(
-    do_not_specialize=["PROGRAM_OFFSET"],
-    do_not_specialize_on_alignment=["PROGRAM_OFFSET"],
+    do_not_specialize=["PROGRAM_OFFSET", "active_slots"],
+    do_not_specialize_on_alignment=["PROGRAM_OFFSET", "active_slots"],
 )
 def _paged_leaf_attention_kernel(
     q,
@@ -109,13 +389,12 @@ def _paged_leaf_attention_kernel(
     slot_lengths,
     q_lengths,
     cu_q,
-    expert_kv_row,
-    expert_slot,
     out,
     lse,
     PROGRAM_OFFSET,
     program_limit,
     experts,
+    active_slots,
     PAGE_CAPACITY: tl.constexpr,
     LEAF_CAPACITY: tl.constexpr,
     STATE_CAPACITY: tl.constexpr,
@@ -170,8 +449,16 @@ def _paged_leaf_attention_kernel(
             block_starts + expert, mask=valid_program, other=0
         ).to(tl.int64)
     else:
-        expert = tl.load(block_expert + program)
-        query_block = program - tl.load(block_starts + expert)
+        expert = tl.load(
+            block_expert + program,
+            mask=valid_program,
+            other=0,
+        ).to(tl.int64)
+        query_block = program - tl.load(
+            block_starts + expert,
+            mask=valid_program,
+            other=0,
+        )
     query_count = tl.load(q_lengths + expert, mask=valid_program, other=0)
     query_offset = query_block * BLOCK_M + tl.arange(0, BLOCK_M)
     valid_query = valid_program & (query_offset < query_count)
@@ -184,8 +471,8 @@ def _paged_leaf_attention_kernel(
     ).to(tl.int64)
     query_row = route_row // ROUTE_COUNT
 
-    kv_row = tl.load(expert_kv_row + expert).to(tl.int64)
-    slot = tl.load(expert_slot + expert).to(tl.int64)
+    kv_row = expert // active_slots
+    slot = expert - kv_row * active_slots
 
     head_offset = tl.arange(0, HEAD_DIM)
     value_offset = tl.arange(0, VALUE_DIM)
@@ -199,7 +486,11 @@ def _paged_leaf_attention_kernel(
         q_scale = tl.load(q_scales + query_row, mask=valid_query, other=1.0).to(
             tl.float32
         )
-    key_count = tl.load(slot_lengths + kv_row * STATE_CAPACITY + slot).to(tl.int32)
+    key_count = tl.load(
+        slot_lengths + kv_row * STATE_CAPACITY + slot,
+        mask=valid_program,
+        other=0,
+    ).to(tl.int32)
     if HASH_PROBES == 0:
         page_table = (
             slot_pages + (kv_row * STATE_CAPACITY + slot) * INLINE_PAGES_PER_SLOT
@@ -1536,6 +1827,9 @@ def paged_leaf_attention(
     quant_group_size: int = 32,
     quant_token_group_size: int = 16,
     kv_group_size: int,
+    active_slots: int,
+    route_head_counts: torch.Tensor | None = None,
+    route_offsets: torch.Tensor | None = None,
     scale: float,
     hash_probes: int = 8,
     block_m: int = 16,
@@ -1543,6 +1837,8 @@ def paged_leaf_attention(
     num_warps: int = 2,
     waves_per_eu: int = 1,
     reduce_num_warps: int = 1,
+    reduce_routes: bool = True,
+    buffers: dict[str, torch.Tensor] | None = None,
     timing_events: dict[str, list[tuple[torch.cuda.Event, torch.cuda.Event]]]
     | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -1556,6 +1852,8 @@ def paged_leaf_attention(
     page_size = int(page_indices.size(3))
     page_capacity = int(page_indices.size(2))
     state_capacity = int(slot_pages.size(2))
+    if not 0 < active_slots <= state_capacity:
+        raise ValueError("active slot count is outside the state capacity")
     if page_size != 16:
         raise ValueError("the LoD release requires 16-token pages")
     if head_dim != value_dim:
@@ -1626,46 +1924,45 @@ def paged_leaf_attention(
 
     with torch.no_grad():
         rows = batch * query_heads * query_len
-        query_head = torch.arange(query_heads, device=q.device, dtype=torch.int32)
-        kv_head_for_query_head = torch.div(
-            query_head, kv_group_size, rounding_mode="floor"
-        )
-        kv_row_for_head = torch.arange(
-            batch, device=q.device, dtype=torch.int32
-        ).unsqueeze(1) * kv_heads + kv_head_for_query_head.unsqueeze(0)
-        expert_id = (
-            kv_row_for_head[:, :, None, None] * state_capacity
-            + top_slots.clamp_min(0).to(torch.int32)
-        ).reshape(-1)
+        top_slots = top_slots.contiguous()
         record_dispatch_boundary()
-        sorted_expert, order = expert_id.sort(stable=False)
-        record_dispatch_boundary()
-        unique_expert, q_lengths = torch.unique_consecutive(
-            sorted_expert, return_counts=True
-        )
-        expert_kv_row = torch.div(unique_expert, state_capacity, rounding_mode="floor")
-        expert_slot = unique_expert % state_capacity
-        cu_q = F.pad(q_lengths.cumsum(0), (1, 0)).to(torch.int32)
-        expert_index = torch.arange(
-            q_lengths.numel(), device=q.device, dtype=torch.int32
+        expert_count = batch * kv_heads * active_slots
+        (
+            order,
+            q_lengths,
+            cu_q,
+            block_expert,
+            cumulative_blocks,
+            max_blocks,
+        ) = _pack_expert_routes(
+            top_slots,
+            active_slots=active_slots,
+            kv_heads=kv_heads,
+            kv_group_size=kv_group_size,
+            expert_count=expert_count,
+            block_m=block_m,
+            head_counts=route_head_counts,
+            route_offsets=route_offsets,
+            buffers=buffers,
         )
         record_dispatch_boundary()
-        expert_blocks = torch.div(
-            q_lengths + block_m - 1, block_m, rounding_mode="floor"
-        )
-        cumulative_blocks = F.pad(expert_blocks.cumsum(0), (1, 0)).to(torch.int32)
-        total_blocks = int(cumulative_blocks[-1].item())
-        block_expert = torch.repeat_interleave(
-            expert_index, expert_blocks, output_size=total_blocks
-        )
         block_starts = cumulative_blocks[:-1]
-        q_lengths = q_lengths.to(torch.int32)
         record_dispatch_boundary()
     record_boundary()
-    route_out = torch.empty(
-        rows * route_count, value_dim, dtype=q.dtype, device=q.device
+    route_out = _workspace_tensor(
+        buffers,
+        "leaf_route_output",
+        (rows * route_count, value_dim),
+        dtype=q.dtype,
+        device=q.device,
     )
-    route_lse = torch.empty(rows * route_count, dtype=torch.float32, device=q.device)
+    route_lse = _workspace_tensor(
+        buffers,
+        "leaf_route_lse",
+        (rows * route_count,),
+        dtype=torch.float32,
+        device=q.device,
+    )
     leaf_capacity = (
         int(quantized_leaf_k.size(2)) if residual_quantized else int(page_k.size(2))
     )
@@ -1679,7 +1976,7 @@ def paged_leaf_attention(
     page_sum_v_scales_arg = page_sum_v_scales if quantized_summaries else page_v
     page_counts_arg = page_counts if residual_quantized else slot_lengths
     record_boundary()
-    _paged_leaf_attention_kernel[total_blocks,](
+    _paged_leaf_attention_kernel[max_blocks,](
         q,
         q,
         order,
@@ -1706,13 +2003,12 @@ def paged_leaf_attention(
         slot_lengths,
         q_lengths,
         cu_q,
-        expert_kv_row,
-        expert_slot,
         route_out,
         route_lse,
         0,
-        total_blocks,
+        cumulative_blocks[-1:],
         int(q_lengths.numel()),
+        active_slots,
         PAGE_CAPACITY=page_capacity,
         LEAF_CAPACITY=leaf_capacity,
         STATE_CAPACITY=state_capacity,
@@ -1735,13 +2031,20 @@ def paged_leaf_attention(
         QUANT_TOKEN_GROUP_SIZE=quant_token_group_size if residual_quantized else 1,
         QUANTIZED_SUMMARIES=quantized_summaries,
         INDEXED=True,
-        PROGRAMS_POINTER=False,
+        PROGRAMS_POINTER=True,
         SEARCH_BLOCKS=False,
         SEARCH_STEPS=1,
         num_warps=num_warps,
         waves_per_eu=waves_per_eu,
     )
     record_boundary()
+    if not reduce_routes:
+        return (
+            route_out.reshape(
+                batch, query_heads, query_len, route_count, value_dim
+            ),
+            route_lse.reshape(batch, query_heads, query_len, route_count),
+        )
     exact_out = torch.empty(rows, value_dim, dtype=q.dtype, device=q.device)
     exact_lse = torch.empty(rows, dtype=torch.float32, device=q.device)
     _reduce_expert_route_attention_kernel[rows,](
@@ -1759,7 +2062,7 @@ def paged_leaf_attention(
     record_boundary()
     if timing_events is not None:
         for name, begin, end in zip(
-            ("dispatch_prepare", "dispatch_sort", "dispatch_group", "dispatch_blocks"),
+            ("dispatch_prepare", "dispatch_group", "dispatch_blocks"),
             dispatch_boundaries[:-1],
             dispatch_boundaries[1:],
             strict=True,

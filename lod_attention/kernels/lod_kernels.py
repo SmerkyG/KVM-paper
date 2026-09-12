@@ -9,6 +9,8 @@ query-by-state score tensor.
 
 from __future__ import annotations
 
+import math
+
 import torch
 import triton
 import triton.language as tl
@@ -868,6 +870,8 @@ def _route_logits_coarse_attention_kernel(
     do_not_specialize_on_alignment=[
         "MERGE_K_ROW_STRIDE",
         "MERGE_V_ROW_STRIDE",
+        "MERGE_COUNT_ROW_STRIDE",
+        "MERGE_KEY_NORM_ROW_STRIDE",
         "OWNER_ROW_STRIDE",
         "DELTA_K_ROW_STRIDE",
         "DELTA_V_ROW_STRIDE",
@@ -891,6 +895,8 @@ def _accumulate_state_deltas_kernel(
     key_norm_sums,
     MERGE_K_ROW_STRIDE,
     MERGE_V_ROW_STRIDE,
+    MERGE_COUNT_ROW_STRIDE,
+    MERGE_KEY_NORM_ROW_STRIDE,
     OWNER_ROW_STRIDE,
     DELTA_K_ROW_STRIDE,
     DELTA_V_ROW_STRIDE,
@@ -904,6 +910,7 @@ def _accumulate_state_deltas_kernel(
     HEAD_BLOCK_DIM: tl.constexpr,
     VALUE_BLOCK_DIM: tl.constexpr,
     HAS_KEY_NORMS: tl.constexpr,
+    INDIRECT_SOURCE: tl.constexpr,
 ):
     row = tl.program_id(0).to(tl.int64)
     token_block = tl.program_id(1).to(tl.int64)
@@ -918,6 +925,7 @@ def _accumulate_state_deltas_kernel(
     original_token = tl.load(
         merge_indices + row * TOKENS + token, mask=valid, other=0
     ).to(tl.int64)
+    source_token = original_token if INDIRECT_SOURCE else token
     tl.store(
         owners + row * OWNER_ROW_STRIDE + original_token,
         destination,
@@ -927,7 +935,7 @@ def _accumulate_state_deltas_kernel(
     k = tl.load(
         merge_k
         + row * MERGE_K_ROW_STRIDE
-        + token[:, None] * HEAD_DIM
+        + source_token[:, None] * HEAD_DIM
         + key_dim[None, :],
         mask=valid[:, None] & (key_dim[None, :] < HEAD_DIM),
         other=0.0,
@@ -935,17 +943,21 @@ def _accumulate_state_deltas_kernel(
     v = tl.load(
         merge_v
         + row * MERGE_V_ROW_STRIDE
-        + token[:, None] * VALUE_DIM
+        + source_token[:, None] * VALUE_DIM
         + value_dim[None, :],
         mask=valid[:, None] & (value_dim[None, :] < VALUE_DIM),
         other=0.0,
     ).to(tl.float32)
     merge_count = tl.load(
-        merge_counts + row * TOKENS + token, mask=valid, other=0.0
+        merge_counts + row * MERGE_COUNT_ROW_STRIDE + source_token,
+        mask=valid,
+        other=0.0,
     ).to(tl.float32)
     if HAS_KEY_NORMS:
         merge_key_norm = tl.load(
-            merge_key_norm_sums + row * TOKENS + token,
+            merge_key_norm_sums
+            + row * MERGE_KEY_NORM_ROW_STRIDE
+            + source_token,
             mask=valid,
             other=0.0,
         ).to(tl.float32)
@@ -1315,6 +1327,155 @@ def _reduce_route_logits_tile_topk_kernel(
     )
 
 
+@triton.jit(
+    do_not_specialize=["leaf_len", "centroid_len"],
+    do_not_specialize_on_alignment=["leaf_len", "centroid_len"],
+)
+def _tiled_dot_maxsim_kernel(
+    leaves,
+    centroids,
+    tile_scores,
+    tile_indices,
+    LEAF_BATCH_STRIDE: tl.constexpr,
+    LEAF_HEAD_STRIDE: tl.constexpr,
+    LEAF_TOKEN_STRIDE: tl.constexpr,
+    CENTROID_BATCH_STRIDE: tl.constexpr,
+    CENTROID_HEAD_STRIDE: tl.constexpr,
+    CENTROID_TOKEN_STRIDE: tl.constexpr,
+    TILE_BATCH_STRIDE: tl.constexpr,
+    TILE_HEAD_STRIDE: tl.constexpr,
+    TILE_TOKEN_STRIDE: tl.constexpr,
+    leaf_len,
+    centroid_len,
+    HEADS: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    BLOCK_M: tl.constexpr,
+    BLOCK_N: tl.constexpr,
+):
+    """Emit each leaf's exact BF16 maximum for one centroid tile."""
+    batch_head = tl.program_id(0).to(tl.int64)
+    batch = batch_head // HEADS
+    head = batch_head - batch * HEADS
+    leaf = tl.program_id(1).to(tl.int64) * BLOCK_M + tl.arange(0, BLOCK_M)
+    tile = tl.program_id(2).to(tl.int64)
+    centroid_offset = tl.arange(0, BLOCK_N)
+    centroid = tile * BLOCK_N + centroid_offset
+    leaf_valid = leaf < leaf_len
+    centroid_valid = centroid < centroid_len
+    dim = tl.arange(0, HEAD_DIM)
+    leaf_key = tl.load(
+        leaves
+        + batch * LEAF_BATCH_STRIDE
+        + head * LEAF_HEAD_STRIDE
+        + leaf[:, None] * LEAF_TOKEN_STRIDE
+        + dim[None, :],
+        mask=leaf_valid[:, None],
+        other=0.0,
+    )
+    centroid_key = tl.load(
+        centroids
+        + batch * CENTROID_BATCH_STRIDE
+        + head * CENTROID_HEAD_STRIDE
+        + centroid[:, None] * CENTROID_TOKEN_STRIDE
+        + dim[None, :],
+        mask=centroid_valid[:, None],
+        other=0.0,
+    )
+    similarity = tl.dot(leaf_key, tl.trans(centroid_key), out_dtype=tl.float32)
+    # Match the BF16 result type of the former torch.matmul implementation.
+    similarity = similarity.to(tl.bfloat16).to(tl.float32)
+    similarity = tl.where(
+        leaf_valid[:, None] & centroid_valid[None, :],
+        similarity,
+        -float("inf"),
+    )
+    best_score = tl.max(similarity, axis=1)
+    best_offset = tl.min(
+        tl.where(
+            similarity == best_score[:, None],
+            centroid_offset[None, :],
+            BLOCK_N,
+        ),
+        axis=1,
+    )
+    output = (
+        batch * TILE_BATCH_STRIDE
+        + head * TILE_HEAD_STRIDE
+        + leaf * TILE_TOKEN_STRIDE
+        + tile
+    )
+    tl.store(tile_scores + output, best_score, mask=leaf_valid)
+    tl.store(tile_indices + output, best_offset, mask=leaf_valid)
+
+
+@triton.jit(
+    do_not_specialize=["leaf_len", "active_tiles"],
+    do_not_specialize_on_alignment=["leaf_len", "active_tiles"],
+)
+def _reduce_tiled_dot_maxsim_kernel(
+    tile_scores,
+    tile_indices,
+    scores,
+    indices,
+    TILE_BATCH_STRIDE: tl.constexpr,
+    TILE_HEAD_STRIDE: tl.constexpr,
+    TILE_TOKEN_STRIDE: tl.constexpr,
+    OUTPUT_BATCH_STRIDE: tl.constexpr,
+    OUTPUT_HEAD_STRIDE: tl.constexpr,
+    OUTPUT_TOKEN_STRIDE: tl.constexpr,
+    leaf_len,
+    active_tiles,
+    HEADS: tl.constexpr,
+    TILE_WIDTH: tl.constexpr,
+    TILE_BLOCK: tl.constexpr,
+    BLOCK_M: tl.constexpr,
+):
+    """Reduce per-tile winners to one global winner per leaf."""
+    batch_head = tl.program_id(0).to(tl.int64)
+    batch = batch_head // HEADS
+    head = batch_head - batch * HEADS
+    leaf = tl.program_id(1).to(tl.int64) * BLOCK_M + tl.arange(0, BLOCK_M)
+    tile = tl.arange(0, TILE_BLOCK)
+    leaf_valid = leaf < leaf_len
+    valid = leaf_valid[:, None] & (tile[None, :] < active_tiles)
+    tile_offset = (
+        batch * TILE_BATCH_STRIDE
+        + head * TILE_HEAD_STRIDE
+        + leaf[:, None] * TILE_TOKEN_STRIDE
+        + tile[None, :]
+    )
+    candidates = tl.load(
+        tile_scores + tile_offset,
+        mask=valid,
+        other=-float("inf"),
+    ).to(tl.float32)
+    best_score = tl.max(candidates, axis=1)
+    best_tile = tl.min(
+        tl.where(candidates == best_score[:, None], tile[None, :], TILE_BLOCK),
+        axis=1,
+    )
+    best_offset = tl.load(
+        tile_indices
+        + batch * TILE_BATCH_STRIDE
+        + head * TILE_HEAD_STRIDE
+        + leaf * TILE_TOKEN_STRIDE
+        + best_tile,
+        mask=leaf_valid & (best_tile < active_tiles),
+        other=0,
+    ).to(tl.int32)
+    output = (
+        batch * OUTPUT_BATCH_STRIDE
+        + head * OUTPUT_HEAD_STRIDE
+        + leaf * OUTPUT_TOKEN_STRIDE
+    )
+    tl.store(scores + output, best_score, mask=leaf_valid)
+    tl.store(
+        indices + output,
+        best_tile.to(tl.int32) * TILE_WIDTH + best_offset,
+        mask=leaf_valid,
+    )
+
+
 def new_state_delta_buffers(
     state_k: torch.Tensor, state_v: torch.Tensor, capacity: int
 ) -> dict[str, torch.Tensor]:
@@ -1361,10 +1522,245 @@ def new_state_maxsim_buffers(
         "select_scores": torch.empty(
             score_shape, dtype=overflow_k.dtype, device=overflow_k.device
         ),
+        "appended_scores": torch.empty(
+            score_shape, dtype=overflow_k.dtype, device=overflow_k.device
+        ),
+        "appended_indices": torch.empty(
+            score_shape, dtype=torch.long, device=overflow_k.device
+        ),
         "overflow_key_norms": torch.empty(
             score_shape, dtype=torch.float32, device=overflow_k.device
         ),
     }
+
+
+def tiled_dot_maxsim(
+    leaves: torch.Tensor,
+    centroids: torch.Tensor,
+    buffers: dict[str, torch.Tensor],
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Find each leaf's best centroid without materializing all similarities."""
+    if not leaves.is_cuda or not centroids.is_cuda:
+        raise ValueError("tiled dot max-similarity requires CUDA tensors")
+    if leaves.ndim != 4 or centroids.ndim != 4:
+        raise ValueError("tiled dot max-similarity requires rank-four tensors")
+    if leaves.shape[:2] != centroids.shape[:2] or leaves.size(-1) != centroids.size(-1):
+        raise ValueError("leaf and centroid geometry differs")
+    if leaves.dtype != torch.bfloat16 or centroids.dtype != torch.bfloat16:
+        raise ValueError("tiled dot max-similarity requires BF16 inputs")
+    batch, heads, leaf_len, head_dim = leaves.shape
+    centroid_len = int(centroids.size(2))
+    if not leaf_len or not centroid_len:
+        raise ValueError("tiled dot max-similarity requires nonempty inputs")
+    if head_dim != 128 or leaves.stride(-1) != 1 or centroids.stride(-1) != 1:
+        raise ValueError("tiled dot max-similarity requires contiguous D128 keys")
+    scores = buffers["appended_scores"]
+    indices = buffers["appended_indices"]
+    if (
+        tuple(scores.shape[:2]) != (batch, heads)
+        or int(scores.size(2)) < leaf_len
+        or tuple(indices.shape) != tuple(scores.shape)
+    ):
+        raise ValueError("tiled dot max-similarity output buffers are too small")
+
+    block_m = 128
+    block_n = 128
+    active_tiles = triton.cdiv(centroid_len, block_n)
+    tile_shape = (batch, heads, int(scores.size(2)), active_tiles)
+    tile_scores = buffers.get("appended_tile_scores")
+    tile_indices = buffers.get("appended_tile_indices")
+    if (
+        not isinstance(tile_scores, torch.Tensor)
+        or tuple(tile_scores.shape[:3]) != tile_shape[:3]
+        or int(tile_scores.size(3)) < active_tiles
+        or tile_scores.dtype != leaves.dtype
+        or tile_scores.device != leaves.device
+        or not isinstance(tile_indices, torch.Tensor)
+        or tuple(tile_indices.shape) != tuple(tile_scores.shape)
+    ):
+        tile_scores = torch.empty(tile_shape, dtype=leaves.dtype, device=leaves.device)
+        tile_indices = torch.empty(tile_shape, dtype=torch.uint8, device=leaves.device)
+        buffers["appended_tile_scores"] = tile_scores
+        buffers["appended_tile_indices"] = tile_indices
+
+    _tiled_dot_maxsim_kernel[
+        (batch * heads, triton.cdiv(leaf_len, block_m), active_tiles)
+    ](
+        leaves,
+        centroids,
+        tile_scores,
+        tile_indices,
+        LEAF_BATCH_STRIDE=leaves.stride(0),
+        LEAF_HEAD_STRIDE=leaves.stride(1),
+        LEAF_TOKEN_STRIDE=leaves.stride(2),
+        CENTROID_BATCH_STRIDE=centroids.stride(0),
+        CENTROID_HEAD_STRIDE=centroids.stride(1),
+        CENTROID_TOKEN_STRIDE=centroids.stride(2),
+        TILE_BATCH_STRIDE=tile_scores.stride(0),
+        TILE_HEAD_STRIDE=tile_scores.stride(1),
+        TILE_TOKEN_STRIDE=tile_scores.stride(2),
+        leaf_len=leaf_len,
+        centroid_len=centroid_len,
+        HEADS=heads,
+        HEAD_DIM=head_dim,
+        BLOCK_M=block_m,
+        BLOCK_N=block_n,
+        **_launch_kwargs(8),
+    )
+    reduce_block_m = 64
+    _reduce_tiled_dot_maxsim_kernel[
+        (batch * heads, triton.cdiv(leaf_len, reduce_block_m))
+    ](
+        tile_scores,
+        tile_indices,
+        scores,
+        indices,
+        TILE_BATCH_STRIDE=tile_scores.stride(0),
+        TILE_HEAD_STRIDE=tile_scores.stride(1),
+        TILE_TOKEN_STRIDE=tile_scores.stride(2),
+        OUTPUT_BATCH_STRIDE=scores.stride(0),
+        OUTPUT_HEAD_STRIDE=scores.stride(1),
+        OUTPUT_TOKEN_STRIDE=scores.stride(2),
+        leaf_len=leaf_len,
+        active_tiles=active_tiles,
+        HEADS=heads,
+        TILE_WIDTH=block_n,
+        TILE_BLOCK=triton.next_power_of_2(active_tiles),
+        BLOCK_M=reduce_block_m,
+        **_launch_kwargs(4),
+    )
+    active = (..., slice(None, leaf_len))
+    return scores[active], indices[active]
+
+
+@triton.jit(do_not_specialize=["TOKENS"])
+def _count_append_complement_blocks_kernel(
+    append_mask,
+    block_counts,
+    TOKENS,
+    BLOCK: tl.constexpr,
+):
+    row = tl.program_id(0).to(tl.int64)
+    block = tl.program_id(1)
+    token = block * BLOCK + tl.arange(0, BLOCK)
+    valid = token < TOKENS
+    is_merge = valid & (
+        tl.load(append_mask + row * TOKENS + token, mask=valid, other=1) == 0
+    )
+    blocks = tl.cdiv(TOKENS, BLOCK)
+    tl.store(block_counts + row * blocks + block, tl.sum(is_merge))
+
+
+@triton.jit(do_not_specialize=["BLOCKS"])
+def _prefix_append_complement_blocks_kernel(
+    block_counts,
+    block_offsets,
+    BLOCKS,
+    BLOCK_COUNTS: tl.constexpr,
+):
+    row = tl.program_id(0).to(tl.int64)
+    block = tl.arange(0, BLOCK_COUNTS)
+    count = tl.load(
+        block_counts + row * BLOCKS + block,
+        mask=block < BLOCKS,
+        other=0,
+    )
+    inclusive = tl.cumsum(count)
+    tl.store(
+        block_offsets + row * BLOCKS + block,
+        inclusive - count,
+        mask=block < BLOCKS,
+    )
+
+
+@triton.jit(do_not_specialize=["TOKENS", "MERGES"])
+def _write_append_complement_kernel(
+    append_mask,
+    block_offsets,
+    merge_indices,
+    TOKENS,
+    MERGES,
+    BLOCK: tl.constexpr,
+):
+    row = tl.program_id(0).to(tl.int64)
+    block = tl.program_id(1)
+    token = block * BLOCK + tl.arange(0, BLOCK)
+    valid = token < TOKENS
+    is_merge = valid & (
+        tl.load(append_mask + row * TOKENS + token, mask=valid, other=1) == 0
+    )
+    blocks = tl.cdiv(TOKENS, BLOCK)
+    rank = tl.load(block_offsets + row * blocks + block)
+    rank += tl.cumsum(is_merge.to(tl.int32)) - 1
+    tl.store(merge_indices + row * MERGES + rank, token, mask=is_merge)
+
+
+def split_append_merge_topk(
+    scores: torch.Tensor,
+    n_append: int,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Select exact lowest-score appends without sorting the whole overflow."""
+    if not scores.is_cuda or scores.ndim < 1:
+        raise ValueError("top-k append splitting requires a CUDA score tensor")
+    tokens = int(scores.size(-1))
+    if not 0 < n_append < tokens:
+        raise ValueError("top-k append count must split a nonempty overflow")
+    prefix = tuple(scores.shape[:-1])
+    rows = math.prod(prefix)
+    flat_scores = scores.float().reshape(rows, tokens)
+    append_indices = torch.topk(
+        flat_scores,
+        n_append,
+        dim=-1,
+        largest=False,
+        sorted=False,
+    ).indices
+    append_indices = torch.sort(append_indices, dim=-1).values
+
+    # Keep the complement chronological for coalesced indirect source reads
+    # and stable page ordinals. A block scan is much cheaper than sorting all
+    # remaining ~16K positions by their already-known integer index.
+    append_mask = torch.zeros(
+        rows, tokens, dtype=torch.uint8, device=scores.device
+    )
+    append_mask.scatter_(1, append_indices, 1)
+    block = 256
+    blocks = triton.cdiv(tokens, block)
+    block_counts = torch.empty(
+        rows, blocks, dtype=torch.int32, device=scores.device
+    )
+    block_offsets = torch.empty_like(block_counts)
+    merge_count = tokens - n_append
+    merge_indices = torch.empty(
+        rows, merge_count, dtype=torch.long, device=scores.device
+    )
+    _count_append_complement_blocks_kernel[(rows, blocks)](
+        append_mask,
+        block_counts,
+        tokens,
+        BLOCK=block,
+        num_warps=4,
+    )
+    _prefix_append_complement_blocks_kernel[(rows,)](
+        block_counts,
+        block_offsets,
+        blocks,
+        BLOCK_COUNTS=triton.next_power_of_2(blocks),
+        num_warps=1,
+    )
+    _write_append_complement_kernel[(rows, blocks)](
+        append_mask,
+        block_offsets,
+        merge_indices,
+        tokens,
+        merge_count,
+        BLOCK=block,
+        num_warps=4,
+    )
+    return (
+        append_indices.view(*prefix, n_append),
+        merge_indices.view(*prefix, merge_count),
+    )
 
 
 def constituent_rms(key: torch.Tensor) -> torch.Tensor:
@@ -2075,12 +2471,16 @@ def merge_state_in_place(
     active_slots: int | None = None,
     key_norm_sums: torch.Tensor | None = None,
     merge_key_norm_sums: torch.Tensor | None = None,
+    indirect_source: bool = False,
 ) -> None:
     if not all(
         tensor.is_cuda for tensor in (state_k, state_v, counts, merge_k, merge_v)
     ):
         raise ValueError("LOD Triton state update requires CUDA tensors")
-    batch, kv_heads, tokens, head_dim = merge_k.shape
+    batch, kv_heads, source_tokens, head_dim = merge_k.shape
+    if tuple(destinations.shape[:2]) != (batch, kv_heads):
+        raise ValueError("LOD merge destinations have the wrong batch/head shape")
+    tokens = int(destinations.size(2))
     value_dim = int(merge_v.size(-1))
     if (
         state_k.stride(3) != 1
@@ -2090,21 +2490,27 @@ def merge_state_in_place(
         or not merge_v.is_contiguous()
     ):
         raise ValueError("LOD Triton state update received unsupported strides")
+    if tuple(merge_indices.shape) != (batch, kv_heads, tokens):
+        raise ValueError("LOD merge source indices have the wrong shape")
+    if not indirect_source and source_tokens != tokens:
+        raise ValueError("direct LOD merge tensors must match the destination length")
+    if int(merge_v.size(2)) != source_tokens:
+        raise ValueError("LOD merge K/V source lengths differ")
     rows = batch * kv_heads
     if merge_counts is None:
         merge_counts = torch.ones(
             batch,
             kv_heads,
-            tokens,
+            source_tokens,
             dtype=torch.float32,
             device=merge_k.device,
         )
     elif tuple(merge_counts.shape) not in {
-        (batch, kv_heads, tokens),
-        (batch, kv_heads, tokens, 1),
+        (batch, kv_heads, source_tokens),
+        (batch, kv_heads, source_tokens, 1),
     }:
         raise ValueError("LOD merge counts have the wrong shape")
-    merge_counts = merge_counts.reshape(batch, kv_heads, tokens).contiguous()
+    merge_counts = merge_counts.reshape(batch, kv_heads, source_tokens).contiguous()
     has_key_norms = key_norm_sums is not None
     if has_key_norms != (merge_key_norm_sums is not None):
         raise ValueError("state and merge key-norm sums must be supplied together")
@@ -2113,10 +2519,14 @@ def merge_state_in_place(
             raise ValueError("LOD key-norm state update requires CUDA tensors")
         if tuple(key_norm_sums.shape[:3]) != tuple(state_k.shape[:3]):
             raise ValueError("state key-norm sums have the wrong shape")
-        if tuple(merge_key_norm_sums.shape[:3]) != (batch, kv_heads, tokens):
+        if tuple(merge_key_norm_sums.shape[:3]) != (
+            batch,
+            kv_heads,
+            source_tokens,
+        ):
             raise ValueError("merge key-norm sums have the wrong shape")
         merge_key_norm_sums = merge_key_norm_sums.reshape(
-            batch, kv_heads, tokens
+            batch, kv_heads, source_tokens
         ).contiguous()
     else:
         # These pointers are not read by the constexpr-disabled kernel branch.
@@ -2145,6 +2555,8 @@ def merge_state_in_place(
         key_norm_sums,
         merge_k.stride(1),
         merge_v.stride(1),
+        merge_counts.stride(1),
+        merge_key_norm_sums.stride(1),
         owners.stride(1),
         buffers["delta_k"].stride(1),
         buffers["delta_v"].stride(1),
@@ -2158,6 +2570,7 @@ def merge_state_in_place(
         HEAD_BLOCK_DIM=triton.next_power_of_2(head_dim),
         VALUE_BLOCK_DIM=triton.next_power_of_2(value_dim),
         HAS_KEY_NORMS=has_key_norms,
+        INDIRECT_SOURCE=indirect_source,
         **_launch_kwargs(8),
     )
     # The KVM apply kernel uses an 8x128 tile. Preserve the same 1024-lane
@@ -2352,5 +2765,7 @@ __all__ = [
     "prepare_state_clustering_keys",
     "route_logits_coarse_attention",
     "route_logits_hierarchical_topk",
+    "split_append_merge_topk",
     "streaming_state_maxsim",
+    "tiled_dot_maxsim",
 ]
