@@ -1,6 +1,6 @@
 # Lod Attention
 
-Topic hints: Size fused AITER route scratch from dispatched key tiles
+Topic hints: Preserve full LoD prefill chunks beside live decode
 
 ## Lessons
 
@@ -39,3 +39,5 @@ Topic hints: Size fused AITER route scratch from dispatched key tiles
 - A longer LoD decode state-update interval also widens the exact local tail between updates; assess it over at least one full interval because a faster catch-up kernel alone can still yield slower amortized decode and larger cache use.
 
 - In patched AITER fused route/coarse prefill, candidate storage and strides must cover every generated CK kN0 variant. If one head dimension dispatches multiple key-tile widths (Qwen D=256 currently has kN0=64 and 128), allocate for the smallest tile and initialize unwritten candidate blocks to -inf; use a tight uninitialized buffer only when generated variants prove one fixed tile (K2 D=128 currently uses kN0=128).
+
+- When vLLM batches long LoD prefill with live decode, do not set the aggregate token budget equal to the LoD chunk size. Reserve the eligible decode width and cap each mixed step to one full prefill allowance plus only that live decode work; otherwise decode rows shave a few tokens from the prompt and force an expensive near-complete-prefix build followed by a tiny cached-prefill fragment.
