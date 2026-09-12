@@ -6,9 +6,11 @@ from pathlib import Path
 import pytest
 
 from benchmarks._vllm import (
+    LOD_SCHEDULER,
     MODES,
     default_gpu_memory_utilization,
     llm_kwargs,
+    scheduler_budget,
 )
 from benchmarks.longbench_v2 import (
     extract_answer,
@@ -95,10 +97,33 @@ def test_offline_benchmark_uses_only_fixed_release_modes() -> None:
     )
     assert kwargs["attention_config"] == {"backend": "CUSTOM"}
     assert kwargs["model_impl"] == "vllm"
-    assert kwargs["max_num_batched_tokens"] == 16_384
+    assert kwargs["max_num_batched_tokens"] == 16_392
     assert kwargs["long_prefill_token_threshold"] == 16_384
+    assert kwargs["scheduler_cls"] == LOD_SCHEDULER
     assert kwargs["language_model_only"] is True
     assert kwargs["enable_prefix_caching"] is False
+
+
+@pytest.mark.parametrize(
+    "checkpoint",
+    ("Qwen/Qwen3.8-27B-FP8", "IFM/K2-Horizon-32B-FP8"),
+)
+@pytest.mark.parametrize("mode", MODES)
+def test_chunk_aligned_scheduler_applies_to_every_release_path(
+    checkpoint: str,
+    mode: str,
+) -> None:
+    kwargs = llm_kwargs(
+        checkpoint=checkpoint,
+        mode=mode,
+        max_model_len=131_072,
+        batch_size=8,
+        tensor_parallel_size=4,
+        gpu_memory_utilization=0.8,
+        full_attention_backend="ROCM_AITER_UNIFIED_ATTN",
+    )
+    assert kwargs["scheduler_cls"] == LOD_SCHEDULER
+    assert kwargs["max_num_batched_tokens"] == scheduler_budget(8)
 
 
 def test_memory_targets_cover_each_model_side_lod_pool() -> None:
@@ -132,6 +157,9 @@ def test_qwen_dflash2_configuration_is_explicit_and_model_limited() -> None:
         "num_speculative_tokens": 7,
         "attention_backend": "TRITON_ATTN",
     }
+    assert kwargs["max_num_batched_tokens"] == 16_448
+    assert scheduler_budget(8) == 16_392
+    assert scheduler_budget(8, 7) == 16_448
     with pytest.raises(ValueError, match="only with Qwen3.8"):
         llm_kwargs(
             checkpoint="IFM/K2-Horizon-32B-FP8",

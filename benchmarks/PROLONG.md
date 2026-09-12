@@ -28,8 +28,8 @@ tokens; the loss is token-weighted across all eight documents.
 
 ## Matched speed results
 
-These measurements were freshly collected on 2026-09-11 on AMD MI325X with
-vLLM 0.27.1. Each cell is
+These measurements were freshly collected on AMD MI325X with vLLM 0.27.1;
+the TP4, batch-8 panels were fully refreshed on 2026-09-12. Each cell is
 `prefill seconds / decode milliseconds per batch step`; lower is better. One
 B8 decode step emits eight tokens concurrently.
 
@@ -42,9 +42,8 @@ chunk is 16,384 tokens. Decode generates 1,025 tokens and measures the final
 path, or two 512-token updates for K2 INT4. Results are medians after one
 warmup and three measured repetitions.
 
-The 8K and 16K LoD cells were rerun with exact decode disabled at those
-lengths; the final release cutoff is 2K. Longer LoD cells already used routed
-top-4 attention; the non-speculative full-attention controls are unchanged.
+All displayed LoD cells use routed top-4 attention; the final release's exact
+decode cutoff is 2K. Full-attention controls use native attention throughout.
 The DFlash2 panel was rerun in full with the diagnostics described below.
 
 ### Qwen3.8, TP1, batch 1
@@ -61,11 +60,11 @@ The DFlash2 panel was rerun in full with the diagnostics described below.
 
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 3.500 s / 22.07 ms | 3.337 s / 21.72 ms | 3.692 s / 21.75 ms | 3.684 s / 21.91 ms |
-| 16K | 7.681 s / 23.01 ms | 6.954 s / 21.87 ms | 7.488 s / 21.83 ms | 7.485 s / 22.01 ms |
-| 32K | 17.365 s / 24.23 ms | 14.703 s / 22.21 ms | 14.838 s / 22.55 ms | 15.071 s / 22.71 ms |
-| 64K | 43.194 s / 27.17 ms | 30.027 s / 22.65 ms | 30.137 s / 22.63 ms | 30.692 s / 22.84 ms |
-| 128K | 119.801 s / 32.72 ms | 61.561 s / 23.55 ms | 61.838 s / 22.89 ms | 63.410 s / 23.11 ms |
+| 8K | 3.533 s / 22.03 ms | 3.511 s / 21.97 ms | 3.558 s / 22.26 ms | 3.662 s / 22.50 ms |
+| 16K | 7.701 s / 23.02 ms | 7.372 s / 21.98 ms | 7.463 s / 22.41 ms | 7.505 s / 22.68 ms |
+| 32K | 17.428 s / 24.20 ms | 15.134 s / 22.24 ms | 15.143 s / 22.46 ms | 15.289 s / 22.71 ms |
+| 64K | 43.390 s / 27.11 ms | 30.961 s / 22.64 ms | 30.890 s / 22.53 ms | 31.286 s / 22.73 ms |
+| 128K | 120.341 s / 32.72 ms | 63.232 s / 23.56 ms | 62.868 s / 22.82 ms | 64.074 s / 23.06 ms |
 
 ### K2 Horizon, TP1, batch 1
 
@@ -81,11 +80,23 @@ The DFlash2 panel was rerun in full with the diagnostics described below.
 
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 3.831 s / 22.58 ms | 5.020 s / 24.81 ms | 5.201 s / 27.31 ms | 5.484 s / 25.45 ms |
-| 16K | 8.495 s / 23.54 ms | 10.782 s / 24.84 ms | 10.802 s / 27.83 ms | 10.906 s / 26.09 ms |
-| 32K | 19.406 s / 25.17 ms | 25.491 s / 25.60 ms | 24.407 s / 28.27 ms | 25.234 s / 26.64 ms |
-| 64K | 49.427 s / 28.62 ms | 59.488 s / 26.84 ms | 57.184 s / 29.18 ms | 61.076 s / 27.66 ms |
-| 128K | 140.160 s / 35.46 ms | 138.536 s / 28.72 ms | 134.260 s / 31.43 ms | 147.164 s / 30.15 ms |
+| 8K | 3.844 s / 22.60 ms | 4.045 s / 24.54 ms | 4.109 s / 26.72 ms | 4.639 s / 25.32 ms |
+| 16K | 8.511 s / 23.58 ms | 8.436 s / 24.94 ms | 8.805 s / 27.78 ms | 9.281 s / 26.19 ms |
+| 32K | 19.514 s / 25.23 ms | 21.110 s / 25.85 ms | 20.673 s / 28.36 ms | 22.059 s / 26.88 ms |
+| 64K | 49.646 s / 28.69 ms | 53.075 s / 26.60 ms | 51.512 s / 29.08 ms | 55.956 s / 27.78 ms |
+| 128K | 140.750 s / 35.49 ms | 121.681 s / 29.26 ms | 117.998 s / 32.40 ms | 134.733 s / 31.31 ms |
+
+Both TP4, batch-8 panels, including their full-attention controls, use the
+release's chunk-aligned async scheduler. A fixed 16,384 aggregate token budget
+let already-running decode rows remove one to seven tokens from a newly
+admitted 16K prompt. That forced LoD to construct an almost-complete prefix and
+then process a second tiny cached-prefill fragment. The aligned scheduler
+exposes the complete 16K prefill allowance plus only the decode work actually
+eligible in that step. Before this scheduler fix, the three K2 16K LoD prefill
+figures were 10.782, 10.802, and 10.906 seconds; the fully rerun values are now
+8.436, 8.805, and 9.281 seconds. No attention math changed. TP1, batch-1 and
+DFlash2 batch-1 cannot co-schedule a waiting prefill with a live request, so
+their tables are not affected by this scheduler correction.
 
 All K2 cells above, including the full-attention controls, were rerun after
 matching AITER route-candidate storage to the D=128 kernel's native 128-key

@@ -4060,13 +4060,23 @@ class TritonLODAttentionCore(nn.Module):
         *,
         causal: bool,
         valid_starts: torch.Tensor | None = None,
+        output_buffer: torch.Tensor | None = None,
     ) -> torch.Tensor:
         if valid_starts is None and self.prefill_local_attention_backend == "aiter":
             # The exact front is ordinary causal GQA. Reuse the native-GQA CK
             # path used by the local branch instead of physically repeating
             # K/V once per query head for PyTorch SDPA.
-            output, _ = self._prefill_local_attention(q, k, v, query_offset=0)
+            output, _ = self._prefill_local_attention(
+                q,
+                k,
+                v,
+                query_offset=0,
+                output_buffer=output_buffer,
+                return_lse=False,
+            )
             return output
+        if output_buffer is not None:
+            raise ValueError("direct exact-attention output requires AITER")
         k = self._mla_normalize_key(k, state_centroid=False)
         if valid_starts is not None:
             query_len = int(q.size(2))
@@ -4108,7 +4118,16 @@ class TritonLODAttentionCore(nn.Module):
         v: torch.Tensor,
         *,
         query_offset: int,
+        output_buffer: torch.Tensor | None = None,
+        return_lse: bool = True,
     ) -> tuple[torch.Tensor, torch.Tensor]:
+        if output_buffer is not None and tuple(output_buffer.shape) != (
+            int(q.size(0)),
+            int(q.size(1)),
+            int(k.size(2)) - query_offset,
+            int(v.size(-1)),
+        ):
+            raise ValueError("local-attention output buffer has the wrong shape")
         k = self._mla_normalize_key(k, state_centroid=False)
         if int(q.size(-1)) >= 512:
             # The practical AITER path rejects 512-wide Q/K (and wider), while
@@ -4179,7 +4198,7 @@ class TritonLODAttentionCore(nn.Module):
                 # versioned hipGetDevicePropertiesR0600 entry point.
                 sys.setdlopenflags(original_dlopen_flags | deepbind)
             try:
-                from aiter.ops.mha import flash_attn_func
+                from aiter.ops.mha import _flash_attn_forward, flash_attn_func
 
                 batch, query_heads, supplied_query_len, head_dim = q.shape
                 key_len = int(k.size(2))
@@ -4204,14 +4223,41 @@ class TritonLODAttentionCore(nn.Module):
                 dense_k = k.permute(0, 2, 1, 3)
                 dense_v = v.permute(0, 2, 1, 3)
                 try:
-                    output, lse = flash_attn_func(
-                        dense_q,
-                        dense_k,
-                        dense_v,
-                        softmax_scale=self.scaling,
-                        causal=True,
-                        return_lse=True,
-                    )
+                    if output_buffer is None:
+                        result = flash_attn_func(
+                            dense_q,
+                            dense_k,
+                            dense_v,
+                            softmax_scale=self.scaling,
+                            causal=True,
+                            return_lse=return_lse,
+                        )
+                        if return_lse:
+                            output, lse = result
+                        else:
+                            output = result
+                            lse = torch.empty(0, dtype=torch.float32, device=q.device)
+                    else:
+                        dense_output = output_buffer.permute(0, 2, 1, 3)
+                        output, lse, _, _ = _flash_attn_forward(
+                            dense_q,
+                            dense_k,
+                            dense_v,
+                            0.0,
+                            self.scaling,
+                            causal=True,
+                            window_size_left=-1,
+                            window_size_right=-1,
+                            sink_size=0,
+                            bias=None,
+                            alibi_slopes=None,
+                            q_descale=None,
+                            k_descale=None,
+                            v_descale=None,
+                            return_lse=return_lse,
+                            return_softmax=False,
+                            out=dense_output,
+                        )
                 except RuntimeError as exc:
                     raise RuntimeError(
                         "AITER local attention rejected geometry "
@@ -4411,16 +4457,24 @@ class TritonLODAttentionCore(nn.Module):
             else:
                 exact_context = torch.cuda.stream(torch.cuda.current_stream(k.device))
             with exact_context:
+                exact_output_buffer = (
+                    output_buffer[..., :front_len, :]
+                    if output_buffer is not None
+                    and front_len == attention_len
+                    and prefill_valid_starts is None
+                    else None
+                )
                 exact_front = self._exact_attention(
                     q[..., :front_len, :],
                     k[..., :front_len, :],
                     v[..., :front_len, :],
                     causal=True,
                     valid_starts=prefill_valid_starts,
+                    output_buffer=exact_output_buffer,
                 )
                 if output_buffer is None:
                     outputs.append(exact_front)
-                else:
+                elif exact_front.data_ptr() != output_buffer.data_ptr():
                     output_buffer[..., :front_len, :].copy_(exact_front)
 
         initial_len = min(prefill_len, self.chunk_len)

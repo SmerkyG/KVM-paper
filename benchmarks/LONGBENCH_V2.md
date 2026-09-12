@@ -71,15 +71,17 @@ uv run vllm serve Qwen/Qwen3.8-27B-FP8 \
   --kv-cache-dtype bfloat16 \
   --max-model-len 131200 \
   --max-num-seqs 8 \
-  --max-num-batched-tokens 16384 \
+  --max-num-batched-tokens 16392 \
   --long-prefill-token-threshold 16384 \
+  --scheduler-cls vllm_lod_plugin.scheduler.LODChunkAlignedScheduler \
   --no-enable-prefix-caching \
   --gpu-memory-utilization 0.7 \
   --attention-config '{"backend":"CUSTOM"}'
 ```
 
 For K2, use `IFM/K2-Horizon-32B-FP8`, set both pool size and
-`--max-num-seqs` to 4, use `--gpu-memory-utilization 0.8`, and omit
+`--max-num-seqs` to 4, set `--max-num-batched-tokens 16388`, use
+`--gpu-memory-utilization 0.8`, and omit
 `--language-model-only`. The higher target is required because K2's larger
 model-side 131K LoD pool otherwise leaves vLLM no native cache blocks. To test
 a different LoD organization, change only `VLLM_LOD_MODE` to
@@ -124,8 +126,9 @@ uv run vllm serve Qwen/Qwen3.8-27B-FP8 \
   --kv-cache-dtype bfloat16 \
   --max-model-len 131200 \
   --max-num-seqs 8 \
-  --max-num-batched-tokens 16384 \
+  --max-num-batched-tokens 16392 \
   --long-prefill-token-threshold 16384 \
+  --scheduler-cls vllm_lod_plugin.scheduler.LODChunkAlignedScheduler \
   --no-enable-prefix-caching \
   --gpu-memory-utilization 0.9 \
   --attention-config '{"backend":"ROCM_AITER_UNIFIED_ATTN"}'

@@ -525,6 +525,8 @@ def main() -> None:
             "tensor_parallel_size": args.tensor_parallel_size,
             "gpu_memory_utilization": gpu_memory_utilization,
             "scheduler_chunk_tokens": 16_384,
+            "scheduler_budget_tokens": kwargs["max_num_batched_tokens"],
+            "scheduler_cls": kwargs["scheduler_cls"],
             "decode_tokens": args.decode_tokens if args.measure == "speed" else None,
             "seed": args.seed if args.measure == "speed" else None,
             "speculative_model": args.speculative_model,

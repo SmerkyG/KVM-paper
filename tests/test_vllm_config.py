@@ -12,6 +12,7 @@ from lod_attention._config import LODMode, ModelFamily
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "integrations" / "vllm_lod"))
 config_module = importlib.import_module("vllm_lod_plugin.config")
+LOD_SCHEDULER = config_module.LOD_SCHEDULER
 VLLMLODSettings = config_module.VLLMLODSettings
 validate_production_scheduler = config_module.validate_production_scheduler
 
@@ -45,12 +46,22 @@ def test_scheduler_cannot_slice_the_production_prefill() -> None:
     with pytest.raises(RuntimeError, match="max-num-batched-tokens"):
         validate_production_scheduler(
             max_model_len=65_536,
-            max_num_batched_tokens=8_192,
+            max_num_batched_tokens=16_384,
             long_prefill_token_threshold=0,
+            required_decode_reserve=8,
+            scheduler_cls=LOD_SCHEDULER,
         )
     validate_production_scheduler(
         max_model_len=65_536,
-        max_num_batched_tokens=16_384,
+        max_num_batched_tokens=16_392,
         long_prefill_token_threshold=0,
+        required_decode_reserve=8,
+        scheduler_cls=LOD_SCHEDULER,
     )
-
+    with pytest.raises(RuntimeError, match="scheduler-cls"):
+        validate_production_scheduler(
+            max_model_len=65_536,
+            max_num_batched_tokens=16_392,
+            long_prefill_token_threshold=16_384,
+            required_decode_reserve=8,
+        )

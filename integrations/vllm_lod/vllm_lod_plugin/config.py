@@ -12,6 +12,7 @@ _PUBLIC_ENV = {
     "VLLM_LOD_POOL_SIZE",
     "VLLM_LOD_MAX_CONTEXT",
 }
+LOD_SCHEDULER = "vllm_lod_plugin.scheduler.LODChunkAlignedScheduler"
 
 
 def _positive_integer(name: str, default: int) -> int:
@@ -44,14 +45,33 @@ def validate_production_scheduler(
     max_num_batched_tokens: int,
     long_prefill_token_threshold: int,
     required_prefill: int = PREFILL_CHUNK_SIZE,
+    required_decode_reserve: int = 0,
+    scheduler_cls: object = None,
 ) -> None:
     required = min(required_prefill, max_model_len)
-    if max_num_batched_tokens < required or (
+    required_budget = required + required_decode_reserve
+    if max_num_batched_tokens < required_budget or (
         0 < long_prefill_token_threshold < required
     ):
         raise RuntimeError(
             "LoD requires --max-num-batched-tokens >= "
-            f"{required} and --long-prefill-token-threshold 0 (or >= {required})."
+            f"{required_budget} ({required} prefill + "
+            f"{required_decode_reserve} decode reserve) and "
+            "--long-prefill-token-threshold 0 "
+            f"(or >= {required})."
+        )
+    scheduler_name = (
+        scheduler_cls
+        if isinstance(scheduler_cls, str)
+        else (
+            f"{scheduler_cls.__module__}.{scheduler_cls.__qualname__}"
+            if isinstance(scheduler_cls, type)
+            else None
+        )
+    )
+    if scheduler_name != LOD_SCHEDULER:
+        raise RuntimeError(
+            "LoD requires --scheduler-cls " + LOD_SCHEDULER + "."
         )
 
 
@@ -153,4 +173,4 @@ class VLLMLODSettings:
         )
 
 
-__all__ = ["VLLMLODSettings", "validate_production_scheduler"]
+__all__ = ["LOD_SCHEDULER", "VLLMLODSettings", "validate_production_scheduler"]

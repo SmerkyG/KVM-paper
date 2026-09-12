@@ -23,7 +23,6 @@ from .pool import VLLMLayerLODPool
 
 logger = logging.getLogger(__name__)
 
-_DEFERRED_PREFILL_STREAM_COUNT = 4
 
 
 def _input_batch_max_query_len(input_batch: Any) -> int:
@@ -141,6 +140,11 @@ class VLLMLODRuntime:
         self.free_lod_rows = list(range(self.pool_size - 1, -1, -1))
         self.logical_lengths = [0] * self.pool_size
         self._active_decode_rows: tuple[int, ...] | None = None
+        self._initial_prefill_stages: dict[
+            int, tuple[VLLMLayerLODPool, tuple[int, ...], int, int]
+        ] = {}
+        self.cross_layer_initial_prefill_batches = 0
+        self.cross_layer_initial_prefill_layers = 0
         self.direct_prefill_rejection: str | None = None
         self.initialized = False
         self.allocate_pools()
@@ -189,13 +193,6 @@ class VLLMLODRuntime:
             decode_sizes.add(self.pool_size)
         norm_flags = self._attention_norm_flags()
         prefix_rollback_tokens = self._prefix_rollback_tokens()
-        # A small fixed stream pool overlaps independent per-layer cache builds
-        # without exposing a deployment knob. Each row records a completion
-        # event; the next scheduler use synchronizes it before consuming the row.
-        deferred_prefill_streams = [
-            torch.cuda.Stream(device=self.model_state.device)
-            for _ in range(min(_DEFERRED_PREFILL_STREAM_COUNT, len(self.layers)))
-        ]
         for layer_index, (name, layer) in enumerate(self.layers.items()):
             has_query_norm, has_key_norm = norm_flags.get(name, (False, False))
             pool = VLLMLayerLODPool(
@@ -213,9 +210,7 @@ class VLLMLODRuntime:
             )
             for rows in sorted(decode_sizes):
                 pool.reserve_decode_buffers(rows)
-            pool.deferred_prefill_stream = deferred_prefill_streams[
-                layer_index % len(deferred_prefill_streams)
-            ]
+            pool.initial_prefill_stager = self._stage_initial_prefill_layer
             self.pools[name] = pool
             self.borrowed_dummy_lens[name] = torch.zeros_like(pool.local_lens)
             layer._vllm_lod_pool = pool
@@ -238,6 +233,9 @@ class VLLMLODRuntime:
                     pool.settings.prefill_chunk_size
                     for pool in self.pools.values()
                 ),
+                required_decode_reserve=self.pool_size
+                * max(1, self.speculative_tokens + 1),
+                scheduler_cls=scheduler.scheduler_cls,
             )
 
     def _attention_norm_flags(self) -> dict[str, tuple[bool, bool]]:
@@ -950,6 +948,193 @@ class VLLMLODRuntime:
             raise AssertionError("cross-layer LOD catch-up produced no update")
         return True
 
+    def _stage_initial_prefill_layer(
+        self,
+        pool: VLLMLayerLODPool,
+        slots: tuple[int, ...],
+        key: torch.Tensor,
+        value: torch.Tensor,
+        *,
+        total_len: int,
+        coverage: int,
+    ) -> None:
+        """Collect exact-prefix K/V and batch its state update across layers."""
+
+        identity = id(pool)
+        if identity in self._initial_prefill_stages:
+            raise RuntimeError("an LOD layer staged the same initial prefix twice")
+        expected = next(iter(self._initial_prefill_stages.values()), None)
+        if expected is not None and (
+            expected[1] != slots
+            or expected[2] != total_len
+            or expected[3] != coverage
+        ):
+            raise RuntimeError("cross-layer initial-prefix schedules diverged")
+        pool._stage_cross_layer_initial_cache(
+            slots,
+            key,
+            value,
+            coverage=coverage,
+        )
+        self._initial_prefill_stages[identity] = (
+            pool,
+            slots,
+            total_len,
+            coverage,
+        )
+        if len(self._initial_prefill_stages) != len(self.pools):
+            return
+
+        ordered = tuple(
+            self._initial_prefill_stages[id(item)] for item in self.pools.values()
+        )
+        try:
+            self._build_initial_prefill_across_layers(ordered)
+        finally:
+            self._initial_prefill_stages.clear()
+
+    def _build_initial_prefill_across_layers(
+        self,
+        stages: tuple[
+            tuple[VLLMLayerLODPool, tuple[int, ...], int, int], ...
+        ],
+    ) -> None:
+        """Reuse the decode catch-up batching geometry for initial prefixes."""
+
+        reference, slots, total_len, coverage = stages[0]
+        if len(slots) != 1:
+            raise AssertionError("cross-layer initial construction requires B=1")
+        sink_len = min(int(reference.engine.sink_len), total_len)
+        initial_len = min(total_len, int(reference.engine.chunk_len))
+        initial_state_len = initial_len - sink_len
+        overflow_len = coverage - initial_len
+        if overflow_len <= 0:
+            raise AssertionError("cross-layer initial construction has no overflow")
+
+        def signature(pool: VLLMLayerLODPool) -> tuple[object, ...]:
+            engine = pool.engine
+            return (
+                type(engine),
+                pool.kv_heads,
+                pool.head_dim,
+                pool.state_capacity,
+                engine._streaming_state_geometry(),
+                engine.state_premerge_factor,
+                engine.state_clustering_centroid_rescale,
+                engine.state_clustering_centroid_rescale_scope,
+                engine.state_merge_before_append,
+                engine.fused_state_update,
+                engine.fused_state_maxsim,
+            )
+
+        expected_signature = signature(reference)
+        has_norms = isinstance(reference.state.get("key_norm_sums"), torch.Tensor)
+        for pool, other_slots, other_total, other_coverage in stages[1:]:
+            if (
+                other_slots != slots
+                or other_total != total_len
+                or other_coverage != coverage
+                or signature(pool) != expected_signature
+                or isinstance(pool.state.get("key_norm_sums"), torch.Tensor)
+                != has_norms
+            ):
+                raise RuntimeError("cross-layer initial cache geometries diverged")
+
+        group_size = 16
+        slot = slots[0]
+
+        def pack_state(
+            group: tuple[
+                tuple[VLLMLayerLODPool, tuple[int, ...], int, int], ...
+            ],
+            name: str,
+        ) -> torch.Tensor:
+            return torch.cat(
+                [pool.state[name][slot : slot + 1] for pool, *_ in group],
+                dim=0,
+            )
+
+        for start in range(0, len(stages), group_size):
+            group = stages[start : start + group_size]
+            engine = group[0][0].engine
+            buffers = getattr(engine, "_lod_state_maxsim_buffers", None)
+            if isinstance(buffers, dict):
+                buffers.pop("_prepared_identity", None)
+                buffers.pop("_prepared_context_len", None)
+            packed_k = pack_state(group, "state_k")
+            packed_v = pack_state(group, "state_v")
+            packed_counts = pack_state(group, "counts")
+            packed_norms = pack_state(group, "key_norm_sums") if has_norms else None
+            overflow_k = torch.cat(
+                [
+                    pool.state["page_cache"]["leaf_k"][
+                        slot : slot + 1,
+                        :,
+                        initial_state_len : initial_state_len + overflow_len,
+                        :,
+                    ]
+                    for pool, *_ in group
+                ],
+                dim=0,
+            )
+            overflow_v = torch.cat(
+                [
+                    pool.state["page_cache"]["leaf_v"][
+                        slot : slot + 1,
+                        :,
+                        initial_state_len : initial_state_len + overflow_len,
+                        :,
+                    ]
+                    for pool, *_ in group
+                ],
+                dim=0,
+            )
+            (
+                packed_k,
+                packed_v,
+                packed_counts,
+                state_len,
+                owners,
+                old_slot_remap,
+            ) = engine._update_state(
+                packed_k,
+                packed_v,
+                packed_counts,
+                packed_norms,
+                overflow_k,
+                overflow_v,
+                state_len=initial_state_len,
+                ctx_len=total_len,
+                available_context=coverage,
+                state_capacity=reference.state_capacity,
+                clustering_query_scale=None,
+                scheduled_state_len=initial_state_len,
+            )
+            if old_slot_remap is not None:
+                raise AssertionError("paged initial state remapping is unsupported")
+            packed_state = {
+                "state_k": packed_k,
+                "state_v": packed_v,
+                "counts": packed_counts,
+            }
+            if packed_norms is not None:
+                packed_state["key_norm_sums"] = packed_norms
+            for group_row, (pool, group_slots, _, _) in enumerate(group):
+                active = slice(0, state_len)
+                for name, packed in packed_state.items():
+                    pool.state[name][slot, :, active].copy_(
+                        packed[group_row, :, active]
+                    )
+                pool._finish_cross_layer_initial_cache(
+                    group_slots,
+                    total_len=total_len,
+                    coverage=coverage,
+                    state_len=state_len,
+                    owners=owners[group_row : group_row + 1],
+                )
+        self.cross_layer_initial_prefill_batches += 1
+        self.cross_layer_initial_prefill_layers += len(stages)
+
     def _catch_up_decode_rows(self, requests: list[tuple[int, int]]) -> None:
         """Skip layer-by-layer host work between state-update boundaries."""
         if not requests:
@@ -1081,13 +1266,12 @@ class VLLMLODRuntime:
                     self.lod_row_by_slot[slot] = row
 
         # vLLM can interleave one-token decode rows with newly admitted
-        # prefill rows. Decode advances the graph-visible recent-cache length,
-        # while the Python metadata is intentionally refreshed only when the
-        # row next reaches host scheduling. Bring those live rows current
-        # before treating the mixed batch as cached prefill; otherwise the
-        # stale ``total_len`` makes a valid continuation look like a missing
-        # semantic prefix.
+        # prefill rows. Pure captured decode can leave Python lengths behind
+        # its graph-visible recent cache. Mixed decode keeps those lengths
+        # current, but must still perform the normal periodic semantic-state
+        # update. Handle both cases before treating the batch as prefill.
         continuations: list[tuple[int, int]] = []
+        catch_ups: dict[int, int] = {}
         for request_row, slot in enumerate(slots):
             begin = int(query_starts[request_row])
             end = int(query_starts[request_row + 1])
@@ -1099,13 +1283,20 @@ class VLLMLODRuntime:
             lod_row = self._lod_row(slot)
             if not all(pool.ready[lod_row] for pool in self.pools.values()):
                 continue
-            if any(
+            stale_metadata = any(
                 int(pool.metadata[lod_row].get("total_len", -1))
                 < previous_length
                 for pool in self.pools.values()
-            ):
+            )
+            if stale_metadata:
                 continuations.append((lod_row, previous_length))
-        self._catch_up_decode_rows(continuations)
+            # One-token rows execute through the captured decode kernels even
+            # when vLLM classifies the overall step as prefill.  Their host
+            # lengths are current, but they still need the same periodic
+            # semantic-state update as rows in a pure-decode step.
+            if stale_metadata or end - begin == 1:
+                catch_ups[lod_row] = previous_length
+        self._catch_up_decode_rows(list(catch_ups.items()))
         # ``_catch_up_decode_rows`` deliberately avoids touching every
         # layer's Python metadata between semantic update boundaries.  That is
         # important on the steady one-token decode path, but this transition
@@ -1168,6 +1359,19 @@ class VLLMLODRuntime:
             prepared_prompt_lengths[lod_row] = int(prompt_lengths[request_row])
 
         prepared = tuple(plan)
+        mixed_decode_rows = [
+            lod_row
+            for lod_row, begin, end, previous_length in prepared
+            if previous_length > 0 and end - begin == 1
+        ]
+        if mixed_decode_rows:
+            # A long newly admitted prompt can share one scheduler step with
+            # several one-token continuations. They may have different total
+            # lengths, but the decode kernels already consume those ragged
+            # lengths from the per-row cache metadata. Preserve one batched
+            # decode launch instead of turning them into independent B1
+            # cached-prefill calls in every layer.
+            self._set_active_decode_rows(mixed_decode_rows)
         # Mixed scheduler steps can advance decode rows through this prefill
         # path alongside a long newly admitted request.  Keep the runtime's
         # retained-prefix length current here too; otherwise a request that

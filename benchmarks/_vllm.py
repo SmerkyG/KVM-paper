@@ -8,6 +8,14 @@ from typing import Any
 
 MODES = ("full", "two-tier", "three-tier-bf16", "three-tier-int4")
 SCHEDULER_CHUNK = 16_384
+LOD_SCHEDULER = "vllm_lod_plugin.scheduler.LODChunkAlignedScheduler"
+
+
+def scheduler_budget(batch_size: int, speculative_tokens: int = 0) -> int:
+    """Leave room for decode rows without shrinking the 16K prefill chunk."""
+
+    query_tokens = speculative_tokens + 1 if speculative_tokens else 1
+    return SCHEDULER_CHUNK + batch_size * query_tokens
 
 
 def is_qwen38(checkpoint: str) -> bool:
@@ -79,6 +87,7 @@ def llm_kwargs(
         raise ValueError("num_speculative_tokens must be positive")
     configure_environment(mode, batch_size)
     backend = "CUSTOM" if mode != "full" else full_attention_backend
+    active_speculative_tokens = num_speculative_tokens if speculative_model else 0
     kwargs: dict[str, Any] = {
         "model": checkpoint,
         "model_impl": "vllm",
@@ -87,8 +96,11 @@ def llm_kwargs(
         "kv_cache_dtype": "bfloat16",
         "max_model_len": max_model_len,
         "max_num_seqs": batch_size,
-        "max_num_batched_tokens": SCHEDULER_CHUNK,
+        "max_num_batched_tokens": scheduler_budget(
+            batch_size, active_speculative_tokens
+        ),
         "long_prefill_token_threshold": min(SCHEDULER_CHUNK, max_model_len),
+        "scheduler_cls": LOD_SCHEDULER,
         "gpu_memory_utilization": gpu_memory_utilization,
         "tensor_parallel_size": tensor_parallel_size,
         "disable_custom_all_reduce": True,

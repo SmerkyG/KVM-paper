@@ -785,6 +785,7 @@ def _materialize_page1_coarse_means_kernel(
     coarse_k,
     coarse_v,
     coarse_bias,
+    active_state_len,
     STATE_CAPACITY: tl.constexpr,
     HEAD_DIM: tl.constexpr,
     BLOCK_N: tl.constexpr,
@@ -792,7 +793,7 @@ def _materialize_page1_coarse_means_kernel(
     kv_row = tl.program_id(0).to(tl.int64)
     slot = tl.program_id(1).to(tl.int64) * BLOCK_N + tl.arange(0, BLOCK_N)
     dimension = tl.arange(0, HEAD_DIM)
-    active_slot = slot < STATE_CAPACITY
+    active_slot = slot < active_state_len
     count = tl.load(
         counts + kv_row * STATE_CAPACITY + slot,
         mask=active_slot,
@@ -827,6 +828,8 @@ def materialize_page1_coarse_means(
     coarse_k: torch.Tensor,
     coarse_v: torch.Tensor,
     coarse_bias: torch.Tensor,
+    *,
+    active_state_len: int | None = None,
 ) -> None:
     """Refresh persistent centroid means and their natural-log mass bias."""
     if tuple(state_v.shape) != tuple(state_k.shape) or (
@@ -853,9 +856,16 @@ def materialize_page1_coarse_means(
             "page-size-one coarse mean refresh requires contiguous tensors"
         )
     batch, kv_heads, state_capacity, head_dim = state_k.shape
+    if active_state_len is None:
+        active_state_len = state_capacity
+    active_state_len = int(active_state_len)
+    if not 0 <= active_state_len <= state_capacity:
+        raise ValueError("active state length must fit the coarse arena")
+    if active_state_len == 0:
+        return
     block_n = 8
     _materialize_page1_coarse_means_kernel[
-        (batch * kv_heads, triton.cdiv(state_capacity, block_n))
+        (batch * kv_heads, triton.cdiv(active_state_len, block_n))
     ](
         state_k,
         state_v,
@@ -863,6 +873,7 @@ def materialize_page1_coarse_means(
         coarse_k,
         coarse_v,
         coarse_bias,
+        active_state_len,
         STATE_CAPACITY=state_capacity,
         HEAD_DIM=head_dim,
         BLOCK_N=block_n,

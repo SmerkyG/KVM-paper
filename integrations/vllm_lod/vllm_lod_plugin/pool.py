@@ -243,6 +243,11 @@ class VLLMLayerLODPool:
         self.hybrid_full_decode = False
         self.direct_prefill_plan: tuple[tuple[int, int, int, int], ...] | None = None
         self.direct_prefill_prompt_lengths: dict[int, int] = {}
+        # The runtime can defer construction of an exact first prefix until
+        # every attention layer has produced its K/V. The callback batches
+        # only the expensive centroid update across layers; page ownership
+        # remains local to this pool.
+        self.initial_prefill_stager: Any | None = None
         self.deferred_prefill_stream: torch.cuda.Stream | None = None
         self.deferred_prefill_events: list[torch.cuda.Event | None] = [
             None
@@ -1050,6 +1055,10 @@ class VLLMLayerLODPool:
                 end += 1
             start_slot = ordered[begin]
             stop_slot = ordered[end - 1] + 1
+            active_state_len = max(
+                int(self.metadata[slot].get("state_len", 0))
+                for slot in range(start_slot, stop_slot)
+            )
             materialize_page1_coarse_means(
                 self.state["state_k"][start_slot:stop_slot],
                 self.state["state_v"][start_slot:stop_slot],
@@ -1057,6 +1066,7 @@ class VLLMLayerLODPool:
                 coarse_k[start_slot:stop_slot],
                 coarse_v[start_slot:stop_slot],
                 coarse_bias[start_slot:stop_slot],
+                active_state_len=active_state_len,
             )
             begin = end
         self._refresh_unified_page1_fixed(slots)
@@ -1308,6 +1318,175 @@ class VLLMLayerLODPool:
         storage["page_cache"] = page
         return storage
 
+    def _stage_cross_layer_initial_cache(
+        self,
+        slots: tuple[int, ...],
+        key: torch.Tensor,
+        value: torch.Tensor,
+        *,
+        coverage: int,
+    ) -> None:
+        """Persist one exact prefix before its layer-batched state update."""
+
+        if len(slots) != 1 or int(key.size(0)) != 1:
+            raise ValueError("cross-layer initial construction requires one row")
+        storage = self._initial_prefill_storage(slots)
+        if storage is None:
+            raise RuntimeError("cross-layer initial construction needs pool storage")
+        page = storage.get("page_cache")
+        if not isinstance(page, dict):
+            raise TypeError("cross-layer initial construction lacks its page cache")
+        leaf_k = page.get("leaf_k")
+        leaf_v = page.get("leaf_v")
+        if not isinstance(leaf_k, torch.Tensor) or not isinstance(
+            leaf_v, torch.Tensor
+        ):
+            raise TypeError("cross-layer initial construction needs BF16 leaves")
+
+        total_len = int(key.size(2))
+        initial_len = min(total_len, int(self.engine.chunk_len))
+        sink_len = min(int(self.engine.sink_len), initial_len)
+        initial_state_len = initial_len - sink_len
+        archive_len = total_len - sink_len
+        if not 0 <= coverage - sink_len <= archive_len:
+            raise ValueError("cross-layer initial coverage is outside the prefix")
+
+        # Copy into the final chronological leaf allocation now. Holding the
+        # input K/V views until the last layer would pin each layer's much
+        # larger QKV projection allocation.
+        leaf_k[..., :archive_len, :].copy_(key[..., sink_len:total_len, :])
+        leaf_v[..., :archive_len, :].copy_(value[..., sink_len:total_len, :])
+        if sink_len:
+            sink_k = storage.get("sink_k")
+            sink_v = storage.get("sink_v")
+            if not isinstance(sink_k, torch.Tensor) or not isinstance(
+                sink_v, torch.Tensor
+            ):
+                raise TypeError("cross-layer initial construction lacks its sink")
+            sink_k.copy_(key[..., :sink_len, :])
+            sink_v.copy_(value[..., :sink_len, :])
+
+        state_k = storage["state_k"]
+        state_v = storage["state_v"]
+        counts = storage["counts"]
+        if not all(
+            isinstance(tensor, torch.Tensor)
+            for tensor in (state_k, state_v, counts)
+        ):
+            raise TypeError("cross-layer initial state storage is incomplete")
+        state_k[..., :initial_state_len, :].copy_(
+            leaf_k[..., :initial_state_len, :]
+        )
+        state_v[..., :initial_state_len, :].copy_(
+            leaf_v[..., :initial_state_len, :]
+        )
+        counts[..., :initial_state_len, :].fill_(1.0)
+        key_norm_sums = storage.get("key_norm_sums")
+        if key_norm_sums is not None:
+            if not isinstance(key_norm_sums, torch.Tensor):
+                raise TypeError("cross-layer key-norm storage is invalid")
+            key_norm_sums[..., :initial_state_len, :].copy_(
+                self.engine._state_clustering_constituent_rms(
+                    state_k[..., :initial_state_len, :]
+                )
+            )
+
+        recent_len = total_len - coverage
+        recent_k = storage["recent_k"]
+        recent_v = storage["recent_v"]
+        if not isinstance(recent_k, torch.Tensor) or not isinstance(
+            recent_v, torch.Tensor
+        ):
+            raise TypeError("cross-layer recent storage is incomplete")
+        if recent_len > int(recent_k.size(2)):
+            raise ValueError("cross-layer exact tail exceeds its fixed storage")
+        archive_coverage = coverage - sink_len
+        recent_k[..., :recent_len, :].copy_(
+            leaf_k[..., archive_coverage:archive_len, :]
+        )
+        recent_v[..., :recent_len, :].copy_(
+            leaf_v[..., archive_coverage:archive_len, :]
+        )
+
+    def _finish_cross_layer_initial_cache(
+        self,
+        slots: tuple[int, ...],
+        *,
+        total_len: int,
+        coverage: int,
+        state_len: int,
+        owners: torch.Tensor,
+    ) -> None:
+        """Create per-layer page ownership after a batched centroid update."""
+
+        storage = self._initial_prefill_storage(slots)
+        if storage is None:
+            raise RuntimeError("cross-layer initial construction lost pool storage")
+        page = storage.get("page_cache")
+        if not isinstance(page, dict):
+            raise TypeError("cross-layer initial construction lacks its page cache")
+        leaf_k = page.get("leaf_k")
+        leaf_v = page.get("leaf_v")
+        if not isinstance(leaf_k, torch.Tensor) or not isinstance(
+            leaf_v, torch.Tensor
+        ):
+            raise TypeError("cross-layer initial construction needs BF16 leaves")
+
+        sink_len = min(int(self.engine.sink_len), total_len)
+        initial_len = min(total_len, int(self.engine.chunk_len))
+        initial_state_len = initial_len - sink_len
+        archived_len = coverage - sink_len
+        initial_owners = (
+            torch.arange(initial_state_len, device=owners.device, dtype=torch.long)
+            .view(1, 1, initial_state_len)
+            .expand(len(slots), self.kv_heads, initial_state_len)
+        )
+        if initial_state_len + int(owners.size(2)) != archived_len:
+            raise AssertionError("cross-layer owner archive has the wrong length")
+
+        sequence_capacity = _round_up(total_len, int(self.engine.chunk_len)) + max(
+            int(self.engine.chunk_len), int(self.engine.decode_cache_headroom)
+        )
+        page_cache = self.engine._new_page_cache(
+            leaf_k[..., :initial_state_len, :],
+            leaf_v[..., :initial_state_len, :],
+            initial_owners,
+            state_capacity=self.state_capacity,
+            sequence_capacity=sequence_capacity,
+            virtual_k=leaf_k[..., : total_len - sink_len, :],
+            virtual_v=leaf_v[..., : total_len - sink_len, :],
+            destination=page,
+        )
+        self.engine._append_page_cache(
+            page_cache,
+            leaf_k[..., initial_state_len:archived_len, :],
+            leaf_v[..., initial_state_len:archived_len, :],
+            owners.long(),
+        )
+        recent_len = total_len - coverage
+        state: dict[str, object] = {
+            "state_k": storage["state_k"],
+            "state_v": storage["state_v"],
+            "counts": storage["counts"],
+            "state_len": state_len,
+            "scheduled_state_len": state_len,
+            "coverage": coverage,
+            "state_capacity": self.state_capacity,
+            "recent_k": storage["recent_k"],
+            "recent_v": storage["recent_v"],
+            "recent_len": recent_len,
+            "total_len": total_len,
+            "page_cache": page_cache,
+            "pool_backed": True,
+        }
+        if "sink_k" in storage:
+            state["sink_k"] = storage["sink_k"]
+            state["sink_v"] = storage["sink_v"]
+        if "key_norm_sums" in storage:
+            state["key_norm_sums"] = storage["key_norm_sums"]
+        self.install_rows(slots, KernelLODCache(state))
+        self.engine.reset_runtime_cache()
+
     def wait_deferred_prefill(self, slots: tuple[int, ...]) -> None:
         """Make the foreground stream consume any deferred cache builds."""
         if not any(self.deferred_prefill_events[slot] is not None for slot in slots):
@@ -1336,7 +1515,8 @@ class VLLMLayerLODPool:
         if int(source["total_len"]) > self.request_capacity:
             raise ValueError("converted prefix exceeds VLLM_LOD_MAX_CONTEXT")
         self._validate_recent_capacity(source)
-        self.reset(slot)
+        if not self.clean[slot]:
+            self.reset(slot)
         tensor_names = ["state_k", "state_v", "counts", "recent_k", "recent_v"]
         if "sink_k" in source:
             tensor_names.extend(("sink_k", "sink_v"))
@@ -1683,6 +1863,58 @@ class VLLMLayerLODPool:
                 if packed
                 else None
             )
+            cross_layer_initial = bool(
+                self.initial_prefill_stager is not None
+                and len(initial) == 1
+                and len(group) == 1
+                and self.settings.levels == 2
+                and self.settings.kv_bits == 0
+                and self.engine.prefill_exact_first_chunk
+                and int(self.engine.chunk_len) * 2 < length
+                and length <= int(self.engine.prefill_chunk_len)
+                and self.engine.virtual_page_storage
+                and self.engine.state_premerge_factor == 1
+                and self.engine.state_split_max_leaves is None
+                and self.engine.state_clustering_query_metric == "none"
+            )
+            if cross_layer_initial:
+                result = self.engine._exact_attention(
+                    q,
+                    k,
+                    v,
+                    causal=True,
+                    output_buffer=output_view,
+                )
+                if (
+                    output_view is not None
+                    and result.data_ptr() != output_view.data_ptr()
+                ):
+                    output_view.copy_(result)
+                    result = output_view
+                exact_lookback = int(self.engine.prefill_local_len) - int(
+                    self.engine.prefill_chunk_len
+                )
+                coverage = max(
+                    min(length, int(self.engine.chunk_len)),
+                    length - exact_lookback,
+                )
+                self.initial_prefill_stager(
+                    self,
+                    slots,
+                    k,
+                    v,
+                    total_len=length,
+                    coverage=coverage,
+                )
+                if packed:
+                    if output_view is None or result.data_ptr() != output_view.data_ptr():
+                        raise AssertionError(
+                            "cross-layer exact prefill did not use its output buffer"
+                        )
+                else:
+                    for source_slot, (_, begin, end, _) in enumerate(group):
+                        output[begin:end].copy_(result[source_slot].permute(1, 0, 2))
+                continue
             prefill_storage = self._initial_prefill_storage(slots)
             defer_cache = bool(
                 self.engine.prefill_exact_first_chunk
@@ -1696,8 +1928,17 @@ class VLLMLayerLODPool:
                 # event is host-synchronized before any scheduler stream can
                 # consume the completed cache, avoiding the graph-stream race
                 # that a current-stream-only wait allowed.
-                result = self.engine._exact_attention(q, k, v, causal=True)
-                if output_view is not None:
+                result = self.engine._exact_attention(
+                    q,
+                    k,
+                    v,
+                    causal=True,
+                    output_buffer=output_view,
+                )
+                if (
+                    output_view is not None
+                    and result.data_ptr() != output_view.data_ptr()
+                ):
                     output_view.copy_(result)
                     result = output_view
                 foreground = torch.cuda.current_stream(self.device)
@@ -1768,6 +2009,9 @@ class VLLMLayerLODPool:
 
         if not cached:
             return output
+        if all(end - begin == 1 for _, begin, end, _ in cached):
+            self._direct_mixed_decode(query, key, value, output, tuple(cached))
+            return output
         lengths = {end - begin for _, begin, end, _ in cached}
         previous_lengths = {previous_length for _, _, _, previous_length in cached}
         slots = tuple(slot for slot, _, _, _ in cached)
@@ -1816,6 +2060,52 @@ class VLLMLayerLODPool:
                 ),
             )
         return output
+
+    def _direct_mixed_decode(
+        self,
+        query: torch.Tensor,
+        key: torch.Tensor,
+        value: torch.Tensor,
+        output: torch.Tensor,
+        plan: tuple[tuple[int, int, int, int], ...],
+    ) -> None:
+        """Batch one-token rows that vLLM schedules beside a long prefill."""
+        rows = len(plan)
+        first = plan[0][1]
+        packed = all(
+            begin == first + row and end == begin + 1
+            for row, (_, begin, end, _) in enumerate(plan)
+        )
+        if packed:
+            q = query[first : first + rows]
+            k = key[first : first + rows]
+            v = value[first : first + rows]
+            destination = output[first : first + rows]
+        else:
+            positions = torch.tensor(
+                [begin for _, begin, _, _ in plan],
+                dtype=torch.long,
+                device=query.device,
+            )
+            q = query.index_select(0, positions)
+            k = key.index_select(0, positions)
+            v = value.index_select(0, positions)
+            destination = torch.empty_like(q)
+
+        class _Metadata:
+            num_actual_tokens = rows
+            max_seq_len = max(previous_length + 1 for *_, previous_length in plan)
+
+        result = self.decode(q, k, v, _Metadata(), destination)
+        if result.data_ptr() != destination.data_ptr():
+            raise AssertionError("mixed LOD decode did not use its output buffer")
+        if not packed:
+            output.index_copy_(0, positions, result)
+        for slot, _, _, previous_length in plan:
+            metadata = self.metadata[slot]
+            total_len = previous_length + 1
+            metadata["total_len"] = total_len
+            metadata["recent_len"] = total_len - int(metadata["coverage"])
 
     def _row_cache(self, slot: int) -> KernelLODCache:
         return self._range_cache(slot, slot + 1)
@@ -1880,7 +2170,12 @@ class VLLMLayerLODPool:
         coverage = int(metadata["coverage"])
         recent_length = total_length - coverage
         if recent_length < 0 or recent_length > self.local_capacity:
-            raise ValueError("decode-local length exceeds its fixed cache row")
+            raise ValueError(
+                "decode-local length exceeds its fixed cache row: "
+                f"slot={slot}, total={total_length}, coverage={coverage}, "
+                f"recent={recent_length}, capacity={self.local_capacity}, "
+                f"device_recent={int(self.local_lens[slot].item())}"
+            )
         update_len = int(self.engine.decode_state_update_len)
         exact_floor = int(self.engine.local_len - self.engine.chunk_len)
         target_coverage = max(min(total_length, self.engine.chunk_len), coverage)

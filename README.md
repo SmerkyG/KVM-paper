@@ -112,8 +112,9 @@ only three public environment settings:
 - `VLLM_LOD_MAX_CONTEXT`: optional per-row context cap.
 
 Unknown `VLLM_LOD_*` and all old `LOD_DEV_*` tuning flags fail at startup.
-Use a 16K scheduler budget so scheduler slicing cannot silently change the
-state-update policy:
+Use the included chunk-aligned scheduler with a 16K prefill budget plus one
+reserved token per live request. This keeps active decode rows from shaving a
+few tokens off a long prefill and forcing a second tiny cache-construction pass:
 
 ```bash
 VLLM_PLUGINS=lod_attention \
@@ -125,11 +126,15 @@ vllm serve Qwen/Qwen3.8-27B-FP8 \
   --kv-cache-dtype bfloat16 \
   --max-model-len 131072 \
   --max-num-seqs 8 \
-  --max-num-batched-tokens 16384 \
+  --max-num-batched-tokens 16392 \
   --long-prefill-token-threshold 16384 \
+  --scheduler-cls vllm_lod_plugin.scheduler.LODChunkAlignedScheduler \
   --gpu-memory-utilization 0.7 \
   --enable-prefix-caching
 ```
+
+For speculative decoding, reserve the maximum verification width per live
+request instead; batch 8 with seven proposed tokens uses `16448`.
 
 For Qwen, the 0.7 target leaves transient workspace headroom outside vLLM's
 native-cache allocator; LoD's authoritative per-request pool is already
