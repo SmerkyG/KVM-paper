@@ -1,6 +1,6 @@
 # Lod Attention
 
-Topic hints: Preserve full LoD prefill chunks beside live decode
+Topic hints: K2 TP1/B8 128K requires INT4 on a 256 GiB GPU
 
 ## Lessons
 
@@ -41,3 +41,5 @@ Topic hints: Preserve full LoD prefill chunks beside live decode
 - In patched AITER fused route/coarse prefill, candidate storage and strides must cover every generated CK kN0 variant. If one head dimension dispatches multiple key-tile widths (Qwen D=256 currently has kN0=64 and 128), allocate for the smallest tile and initialize unwritten candidate blocks to -inf; use a tight uninitialized buffer only when generated variants prove one fixed tile (K2 D=128 currently uses kN0=128).
 
 - When vLLM batches long LoD prefill with live decode, do not set the aggregate token budget equal to the LoD chunk size. Reserve the eligible decode width and cap each mixed step to one full prefill allowance plus only that live decode work; otherwise decode rows shave a few tokens from the prompt and force an expensive near-complete-prefix build followed by a tiny cached-prefill fragment.
+
+- K2 Horizon TP1/B8 at 128K cannot be benchmarked as full or BF16 LoD on a 256 GiB MI325X because uncompressed K/V leaves alone require 32 GiB per request (256 GiB for eight); require INT4 or reduce batch/TP, and do not time vLLM's 5.74x preempted concurrency as true B8.
