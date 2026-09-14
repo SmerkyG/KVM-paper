@@ -21,7 +21,27 @@ from ._vllm import (
 
 DATASET = "Seerkfang/prolong-64k-512-new"
 DATASET_REVISION = "97295b7d7fe48dc0aa6ba373af3a8b9d945e505b"
-QUALITY_SHUFFLE_SEED = 42
+# Frozen raw-dataset rows, jointly checked to have at least 65,536 tokens under
+# both release-model tokenizers.  Quality offsets index this list, so different
+# tokenizers can never silently substitute different documents.
+QUALITY_DOCUMENT_INDICES = (
+    0,
+    2,
+    3,
+    5,
+    7,
+    10,
+    11,
+    13,
+    14,
+    19,
+    20,
+    23,
+    24,
+    25,
+    27,
+    28,
+)
 SPEED_SHUFFLE_SEED = 20_260_824
 SEPARATOR = "\n\n--- NEXT PROLONG DOCUMENT ---\n\n"
 
@@ -51,6 +71,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--samples", type=int, default=8)
     parser.add_argument("--sample-offset", type=int, default=8)
     parser.add_argument("--batch-size", type=int, default=1)
+    parser.add_argument(
+        "--speed-samples",
+        type=int,
+        help=(
+            "number of speed prompts (default: batch-size); values larger than "
+            "batch-size run the fixed cohort in consecutive execution batches"
+        ),
+    )
     parser.add_argument("--tensor-parallel-size", type=int, default=1)
     parser.add_argument("--decode-tokens", type=int, default=1_025)
     parser.add_argument("--repeats", type=int, default=3)
@@ -87,6 +115,10 @@ def token_digest(token_ids: list[int]) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def document_digest(text: str) -> str:
+    return hashlib.sha256(text.encode()).hexdigest()
+
+
 def select_quality_prompts(
     tokenizer: Any,
     *,
@@ -96,42 +128,59 @@ def select_quality_prompts(
 ) -> tuple[list[dict[str, list[int]]], list[dict[str, Any]]]:
     from datasets import load_dataset
 
+    if samples < 1 or sample_offset < 0:
+        raise ValueError("samples must be positive and sample-offset nonnegative")
+    stop = sample_offset + samples
+    if stop > len(QUALITY_DOCUMENT_INDICES):
+        raise ValueError(
+            "quality sample range exceeds the frozen shared document cohort: "
+            f"requested [{sample_offset}, {stop}), available "
+            f"[0, {len(QUALITY_DOCUMENT_INDICES)})"
+        )
+    selected_indices = QUALITY_DOCUMENT_INDICES[sample_offset:stop]
     dataset = load_dataset(
         DATASET,
         revision=DATASET_REVISION,
         split="train",
         streaming=True,
-    ).shuffle(seed=QUALITY_SHUFFLE_SEED, buffer_size=1_000)
+    )
     prompts = []
     metadata = []
-    eligible = 0
-    for stream_index, document in enumerate(dataset):
-        declared_length = document.get("length")
-        if declared_length is not None and int(declared_length) < length:
+    selected = iter(selected_indices)
+    target_index = next(selected)
+    for dataset_index, document in enumerate(dataset):
+        if dataset_index != target_index:
             continue
+        text = document["text"]
         token_ids = tokenizer(
-            document["text"],
+            text,
             add_special_tokens=False,
             truncation=True,
             max_length=length,
             return_attention_mask=False,
         )["input_ids"]
         if len(token_ids) != length:
-            continue
-        if eligible >= sample_offset:
-            prompts.append({"prompt_token_ids": token_ids})
-            metadata.append(
-                {
-                    "stream_index": stream_index,
-                    "tokens": length,
-                    "token_sha256": token_digest(token_ids),
-                }
+            raise RuntimeError(
+                f"frozen ProLong document {dataset_index} produced only "
+                f"{len(token_ids):,} tokens; {length:,} are required"
             )
-        eligible += 1
-        if len(prompts) == samples:
+        prompts.append({"prompt_token_ids": token_ids})
+        metadata.append(
+            {
+                "dataset_index": dataset_index,
+                "document_sha256": document_digest(text),
+                "tokens": length,
+                "token_sha256": token_digest(token_ids),
+            }
+        )
+        try:
+            target_index = next(selected)
+        except StopIteration:
             break
     if len(prompts) != samples:
-        raise RuntimeError(f"found only {len(prompts)} sufficiently long documents")
+        raise RuntimeError(
+            f"dataset ended after finding {len(prompts)} of {samples} frozen documents"
+        )
     return prompts, metadata
 
 
@@ -339,12 +388,48 @@ def speculative_counters(llm: Any) -> dict[str, int]:
     return dict(counters)
 
 
+def timed_generate_cohort(
+    llm: Any,
+    prompts: list[dict[str, list[int]]],
+    params: Any,
+    *,
+    batch_size: int,
+) -> tuple[
+    float,
+    float,
+    float,
+    tuple[tuple[int, ...], ...],
+    dict[str, int],
+    list[dict[str, int]],
+]:
+    """Run one fixed cohort in execution batches and sum its measurements."""
+
+    elapsed = 0.0
+    prefill = 0.0
+    decode = 0.0
+    token_ids: list[tuple[int, ...]] = []
+    counters: defaultdict[str, int] = defaultdict(int)
+    batch_counters = []
+    for begin in range(0, len(prompts), batch_size):
+        batch = timed_generate(llm, prompts[begin : begin + batch_size], params)
+        batch_elapsed, batch_prefill, batch_decode, batch_tokens, counter_delta = batch
+        elapsed += batch_elapsed
+        prefill += batch_prefill
+        decode += batch_decode
+        token_ids.extend(batch_tokens)
+        batch_counters.append(counter_delta)
+        for name, value in counter_delta.items():
+            counters[name] += value
+    return elapsed, prefill, decode, tuple(token_ids), dict(counters), batch_counters
+
+
 def evaluate_speed(
     llm: Any,
     tokenizer: Any,
     *,
     lengths: list[int],
     batch_size: int,
+    samples: int,
     decode_tokens: int,
     repeats: int,
     seed: int,
@@ -358,23 +443,44 @@ def evaluate_speed(
         detokenize=False,
         ignore_eos=True,
     )
+    if samples % batch_size:
+        raise ValueError("speed-samples must be divisible by batch-size")
+    cohort_batches = samples // batch_size
     result = {}
     for length in lengths:
         prompts, prompt_metadata = make_speed_prompts(
             tokenizer,
             length=length,
+            batch_size=samples,
+        )
+        *_, reference, _, _ = timed_generate_cohort(
+            llm,
+            prompts,
+            params,
             batch_size=batch_size,
         )
-        *_, reference, _ = timed_generate(llm, prompts, params)
         total_timings = []
         prefill_timings = []
         decode_timings = []
+        cohort_total_timings = []
+        cohort_prefill_timings = []
+        cohort_decode_timings = []
         speculative_measurements = []
         output_token_sha256: list[list[str]] = []
         first_mismatch_positions: list[list[int | None]] = []
         for _ in range(repeats):
-            elapsed, prefill, decode, token_ids, counters = timed_generate(
-                llm, prompts, params
+            (
+                cohort_elapsed,
+                cohort_prefill,
+                cohort_decode,
+                token_ids,
+                counters,
+                batch_counters,
+            ) = timed_generate_cohort(
+                llm,
+                prompts,
+                params,
+                batch_size=batch_size,
             )
             first_mismatch_positions.append(
                 [
@@ -393,9 +499,12 @@ def evaluate_speed(
                     )
                 ]
             )
-            total_timings.append(elapsed)
-            prefill_timings.append(prefill)
-            decode_timings.append(decode)
+            total_timings.append(cohort_elapsed / cohort_batches)
+            prefill_timings.append(cohort_prefill / cohort_batches)
+            decode_timings.append(cohort_decode / cohort_batches)
+            cohort_total_timings.append(cohort_elapsed)
+            cohort_prefill_timings.append(cohort_prefill)
+            cohort_decode_timings.append(cohort_decode)
             output_token_sha256.append(
                 [token_digest(list(row)) for row in token_ids]
             )
@@ -403,16 +512,33 @@ def evaluate_speed(
             draft_tokens = counters.get("vllm:spec_decode_num_draft_tokens", 0)
             accepted = counters.get("vllm:spec_decode_num_accepted_tokens", 0)
             if drafts:
-                speculative_measurements.append(
-                    {
-                        "target_cycles": drafts,
-                        "draft_tokens": draft_tokens,
-                        "accepted_draft_tokens": accepted,
-                        "mean_acceptance_length": 1.0 + accepted / drafts,
-                        "draft_acceptance_rate": accepted / draft_tokens,
-                        "target_cycle_ms": 1_000.0 * decode / drafts,
-                    }
-                )
+                measurement = {
+                    "target_cycles": drafts,
+                    "draft_tokens": draft_tokens,
+                    "accepted_draft_tokens": accepted,
+                    "mean_acceptance_length": 1.0 + accepted / drafts,
+                    "draft_acceptance_rate": accepted / draft_tokens,
+                    "target_cycle_ms": 1_000.0 * cohort_decode / drafts,
+                }
+                if batch_size == 1:
+                    per_request_acceptance = [
+                        1.0
+                        + item.get("vllm:spec_decode_num_accepted_tokens", 0)
+                        / item["vllm:spec_decode_num_drafts"]
+                        for item in batch_counters
+                        if item.get("vllm:spec_decode_num_drafts", 0)
+                    ]
+                    if len(per_request_acceptance) != samples:
+                        raise RuntimeError(
+                            "missing DFlash counters for an isolated speed request"
+                        )
+                    measurement.update(
+                        equal_weight_request_mean_acceptance_length=statistics.mean(
+                            per_request_acceptance
+                        ),
+                        per_request_acceptance_lengths=per_request_acceptance,
+                    )
+                speculative_measurements.append(measurement)
         prefill = statistics.median(prefill_timings)
         decode = statistics.median(decode_timings)
         decode_steps = decode_tokens - 1
@@ -424,6 +550,9 @@ def evaluate_speed(
             "prefill_timings_seconds": prefill_timings,
             "decode_timings_seconds": decode_timings,
             "total_timings_seconds": total_timings,
+            "cohort_prefill_timings_seconds": cohort_prefill_timings,
+            "cohort_decode_timings_seconds": cohort_decode_timings,
+            "cohort_total_timings_seconds": cohort_total_timings,
             "greedy_output_identical": all(
                 position is None
                 for repeat in first_mismatch_positions
@@ -451,6 +580,14 @@ def evaluate_speed(
                     for item in speculative_measurements
                 ),
             )
+            if batch_size == 1:
+                equal_weight_acceptance = statistics.median(
+                    item["equal_weight_request_mean_acceptance_length"]
+                    for item in speculative_measurements
+                )
+                measurement[
+                    "speculative_equal_weight_request_mean_acceptance_length"
+                ] = equal_weight_acceptance
         result[str(length)] = measurement
     return result
 
@@ -463,6 +600,13 @@ def main() -> None:
         raise ValueError("sample-offset must be nonnegative")
     if args.decode_tokens < 2:
         raise ValueError("decode-tokens must be at least two")
+    speed_samples = (
+        args.batch_size if args.speed_samples is None else args.speed_samples
+    )
+    if speed_samples < args.batch_size or speed_samples % args.batch_size:
+        raise ValueError(
+            "speed-samples must be at least batch-size and divisible by it"
+        )
 
     from transformers import AutoTokenizer
 
@@ -510,6 +654,7 @@ def main() -> None:
                 tokenizer,
                 lengths=args.lengths,
                 batch_size=args.batch_size,
+                samples=speed_samples,
                 decode_tokens=args.decode_tokens,
                 repeats=args.repeats,
                 seed=args.seed,
@@ -522,6 +667,7 @@ def main() -> None:
             "checkpoint": args.checkpoint,
             "mode": args.mode,
             "batch_size": args.batch_size,
+            "speed_samples": speed_samples if args.measure == "speed" else None,
             "tensor_parallel_size": args.tensor_parallel_size,
             "gpu_memory_utilization": gpu_memory_utilization,
             "scheduler_chunk_tokens": 16_384,

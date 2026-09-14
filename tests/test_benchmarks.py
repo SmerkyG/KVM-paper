@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import sys
+from types import SimpleNamespace
 
 import pytest
 
@@ -17,7 +19,14 @@ from benchmarks.longbench_v2 import (
     summarize,
     truncate_prompt,
 )
-from benchmarks.prolong import comma_separated_ints, speculative_counters
+from benchmarks.prolong import (
+    QUALITY_DOCUMENT_INDICES,
+    comma_separated_ints,
+    document_digest,
+    select_quality_prompts,
+    speculative_counters,
+    timed_generate_cohort,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -200,3 +209,168 @@ def test_prolong_collects_speculative_counter_totals() -> None:
         "vllm:spec_decode_num_drafts": 15,
         "vllm:spec_decode_num_accepted_tokens": 44,
     }
+
+
+def test_prolong_runs_fixed_speed_cohort_in_execution_batches(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import benchmarks.prolong as prolong
+
+    calls: list[list[int]] = []
+
+    def fake_timed_generate(
+        llm: object,
+        prompts: list[dict[str, list[int]]],
+        params: object,
+    ) -> tuple[
+        float,
+        float,
+        float,
+        tuple[tuple[int, ...], ...],
+        dict[str, int],
+    ]:
+        del llm, params
+        prompt_ids = [prompt["prompt_token_ids"][0] for prompt in prompts]
+        calls.append(prompt_ids)
+        count = len(prompts)
+        return (
+            1.0,
+            2.0,
+            3.0,
+            tuple((prompt_id,) for prompt_id in prompt_ids),
+            {
+                "vllm:spec_decode_num_drafts": count,
+                "vllm:spec_decode_num_draft_tokens": 7 * count,
+                "vllm:spec_decode_num_accepted_tokens": 2 * count,
+            },
+        )
+
+    monkeypatch.setattr(prolong, "timed_generate", fake_timed_generate)
+    result = timed_generate_cohort(
+        object(),
+        [{"prompt_token_ids": [index]} for index in range(4)],
+        object(),
+        batch_size=2,
+    )
+
+    elapsed, prefill, decode, token_ids, counters, batch_counters = result
+    assert calls == [[0, 1], [2, 3]]
+    assert (elapsed, prefill, decode) == (2.0, 4.0, 6.0)
+    assert token_ids == ((0,), (1,), (2,), (3,))
+    assert counters == {
+        "vllm:spec_decode_num_drafts": 4,
+        "vllm:spec_decode_num_draft_tokens": 28,
+        "vllm:spec_decode_num_accepted_tokens": 8,
+    }
+    assert len(batch_counters) == 2
+
+
+def test_prolong_speed_cohort_reports_pooled_and_equal_weight_acceptance(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import benchmarks.prolong as prolong
+
+    class SamplingParams:
+        def __init__(self, **kwargs: object) -> None:
+            self.max_tokens = kwargs["max_tokens"]
+
+    monkeypatch.setitem(
+        sys.modules,
+        "vllm",
+        SimpleNamespace(SamplingParams=SamplingParams),
+    )
+    prompts = [{"prompt_token_ids": [0]}, {"prompt_token_ids": [1]}]
+    metadata = [{"request_index": 0}, {"request_index": 1}]
+    monkeypatch.setattr(
+        prolong,
+        "make_speed_prompts",
+        lambda tokenizer, *, length, batch_size: (prompts, metadata),
+    )
+
+    def fake_timed_generate(
+        llm: object,
+        batch: list[dict[str, list[int]]],
+        params: object,
+    ) -> tuple[
+        float,
+        float,
+        float,
+        tuple[tuple[int, ...], ...],
+        dict[str, int],
+    ]:
+        del llm, params
+        prompt_id = batch[0]["prompt_token_ids"][0]
+        drafts, accepted = ((2, 4), (3, 3))[prompt_id]
+        return (
+            5.0,
+            2.0,
+            4.0,
+            ((prompt_id,),),
+            {
+                "vllm:spec_decode_num_drafts": drafts,
+                "vllm:spec_decode_num_draft_tokens": 7 * drafts,
+                "vllm:spec_decode_num_accepted_tokens": accepted,
+            },
+        )
+
+    monkeypatch.setattr(prolong, "timed_generate", fake_timed_generate)
+    result = prolong.evaluate_speed(
+        object(),
+        object(),
+        lengths=[100],
+        batch_size=1,
+        samples=2,
+        decode_tokens=5,
+        repeats=1,
+        seed=0,
+    )["100"]
+
+    assert result["prefill_seconds"] == 2.0
+    assert result["decode_ms_per_batch_step"] == 1_000.0
+    assert result["speculative_target_cycle_ms"] == 1_600.0
+    assert result["speculative_mean_acceptance_length"] == 2.4
+    assert (
+        result["speculative_equal_weight_request_mean_acceptance_length"] == 2.5
+    )
+
+
+def test_prolong_quality_uses_frozen_raw_documents(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import datasets
+
+    documents = [
+        {"text": f"document-{index}", "length": 4}
+        for index in range(max(QUALITY_DOCUMENT_INDICES) + 1)
+    ]
+    monkeypatch.setattr(datasets, "load_dataset", lambda *args, **kwargs: documents)
+
+    class Tokenizer:
+        def __call__(self, text: str, **kwargs: object) -> dict[str, list[int]]:
+            assert kwargs["max_length"] == 4
+            return {"input_ids": [len(text), 1, 2, 3]}
+
+    prompts, metadata = select_quality_prompts(
+        Tokenizer(),
+        length=4,
+        samples=2,
+        sample_offset=8,
+    )
+    expected_indices = list(QUALITY_DOCUMENT_INDICES[8:10])
+    assert [item["dataset_index"] for item in metadata] == expected_indices
+    assert [item["document_sha256"] for item in metadata] == [
+        document_digest(documents[index]["text"]) for index in expected_indices
+    ]
+    assert [prompt["prompt_token_ids"] for prompt in prompts] == [
+        [len(documents[index]["text"]), 1, 2, 3] for index in expected_indices
+    ]
+
+
+def test_prolong_quality_rejects_samples_outside_frozen_cohort() -> None:
+    with pytest.raises(ValueError, match="frozen shared document cohort"):
+        select_quality_prompts(
+            object(),
+            length=65_536,
+            samples=9,
+            sample_offset=8,
+        )
