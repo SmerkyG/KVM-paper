@@ -1,6 +1,6 @@
 # Qwen35 Benchmarks
 
-Topic hints: Fix raw documents before cross-tokenizer loss comparisons
+Topic hints: Separate equal-weight and pooled DFlash acceptance
 
 ## Lessons
 
@@ -11,3 +11,5 @@ Topic hints: Fix raw documents before cross-tokenizer loss comparisons
 - LongBench v2 runs capped at 32 output tokens are dominated by prefill and cannot resolve modest decode-kernel gains; use a matched 1,025-token decode sweep for decode speed, and use LongBench for end-to-end prefill-heavy timing and quality.
 
 - ProLong quality cohorts must use frozen raw dataset indices selected before tokenization and record raw-text hashes; tokenizer-specific length filtering silently evaluates different documents and can reverse small LoD-versus-full deltas.
+
+- DFlash acceptance is trajectory-sensitive even for identical fixed-seed prompts; cohort comparisons should report both the equal-weight mean of per-request acceptance lengths and pooled `1 + sum(accepted)/sum(drafts)`, because vLLM's batch counter reports only the latter and can hide extreme request variance.
