@@ -17,105 +17,185 @@ instead of silently substituting a different document.
 
 | Model | Cache | Prefill routes | Loss | Perplexity |
 |---|---|---:|---:|---:|
-| Qwen3.8-27B-FP8 | Full | all | 0.443036 | 1.557428 |
+| Qwen3.8-27B-FP8 | Full | all | 0.443030 | 1.557420 |
 | Qwen3.8-27B-FP8 | Two-tier BF16 | 4 | 0.447485 | 1.564373 |
-| Qwen3.8-27B-FP8 | Two-tier BF16 | 8 | 0.445344 | 1.561027 |
+| Qwen3.8-27B-FP8 | Two-tier BF16 | 8 | 0.445124 | 1.560683 |
 | Qwen3.8-27B-FP8 | Three-tier BF16 | 4 | 0.447462 | 1.564337 |
-| Qwen3.8-27B-FP8 | Three-tier BF16 | 8 | 0.445109 | 1.560660 |
+| Qwen3.8-27B-FP8 | Three-tier BF16 | 8 | 0.445257 | 1.560891 |
 | Qwen3.8-27B-FP8 | Three-tier INT4 | 4 | 0.447536 | 1.564452 |
-| Qwen3.8-27B-FP8 | Three-tier INT4 | 8 | 0.445317 | 1.560984 |
+| Qwen3.8-27B-FP8 | Three-tier INT4 | 8 | 0.445408 | 1.561127 |
 | K2-Horizon-32B-FP8 | Full | all | 0.495866 | 1.641919 |
 | K2-Horizon-32B-FP8 | Two-tier BF16 | 4 | 0.498166 | 1.645701 |
-| K2-Horizon-32B-FP8 | Two-tier BF16 | 8 | 0.496567 | 1.643071 |
+| K2-Horizon-32B-FP8 | Two-tier BF16 | 8 | 0.496713 | 1.643311 |
 | K2-Horizon-32B-FP8 | Three-tier BF16 | 4 | 0.497483 | 1.644577 |
-| K2-Horizon-32B-FP8 | Three-tier BF16 | 8 | 0.496666 | 1.643234 |
+| K2-Horizon-32B-FP8 | Three-tier BF16 | 8 | 0.496475 | 1.642920 |
 | K2-Horizon-32B-FP8 | Three-tier INT4 | 4 | 0.498337 | 1.645982 |
-| K2-Horizon-32B-FP8 | Three-tier INT4 | 8 | 0.496575 | 1.643084 |
+| K2-Horizon-32B-FP8 | Three-tier INT4 | 8 | 0.496903 | 1.643623 |
 
 Prompt loss exercises prefill only. Each measurement contains 524,280 predicted
 tokens; the loss is token-weighted across all eight documents. The top-4 rows
-are archived baselines from 2026-09-14; the top-8 rows were rerun on 2026-09-17
-using the current unflagged production profile and the same document hashes.
-The K2 top-8 rows include the enlarged exact-leaf query tiles.
+are archived baselines from 2026-09-14. Every full-attention and top-8 row was
+rerun on 2026-09-23 from commit `94ec960c` with the current unflagged
+production profile and identical document and token hashes within each model.
 
 On this shared cohort, top-8 improves loss over top-4 in every LoD mode on
-both models. It remains slightly worse than full attention: about `+0.0021`
-for Qwen and `+0.0007` for K2. The earlier apparent K2 reversal came from
-evaluating a different tokenizer-selected document set.
+both models. It remains slightly worse than full attention: `+0.0021` to
+`+0.0024` for Qwen and `+0.0006` to `+0.0010` for K2. The earlier apparent K2
+reversal came from evaluating a different tokenizer-selected document set.
 
 ## Current routed top-8 speed results
 
-These use the same MI325X, raw prompt cohort, 16,384-token scheduler chunk,
-1,025-token decode, and timing definition as the archived top-4 panel below.
-Full-attention controls are retained because its code and configuration did
-not change. LoD rows were rerun on 2026-09-17 with top-8 in both prefill and
-decode. Each cell is `prefill seconds / decode milliseconds per batch step`.
+Every full-attention, dummy-attention, and LoD arm below was freshly measured
+on 2026-09-23 from commit `94ec960c` (source fingerprint `4e789f03da16`).
+The panel uses MI325X GPUs, the same raw prompt cohort, a 16,384-token scheduler
+chunk, one warmup per length, one measured repetition, and a 1,025-token
+decode. Top-8 is used in both prefill and decode. Each cell is
+`prefill seconds / decode milliseconds per batch step`.
+
+The end-to-end table for each configuration is followed by a matched
+attention-core table. Attention core is ordinary real wall time minus a
+same-configuration dummy-attention wall time with CUDA graphs enabled. It
+includes the attention backend, routing, cache updates, and LoD state
+maintenance, while excluding QKV/RoPE, output projection, MLPs, scheduling,
+and sampling. See [ATTENTION_TIMING.md](ATTENTION_TIMING.md) for the validated
+method and its limitations.
 
 ### Qwen3.8, TP1, batch 1, top-8
 
+End-to-end wall time:
+
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 0.980 s / 28.81 ms | 0.940 s / 28.76 ms | 0.955 s / 29.51 ms | 1.054 s / 29.56 ms |
-| 16K | 2.163 s / 29.62 ms | 2.003 s / 28.76 ms | 2.025 s / 29.47 ms | 2.125 s / 29.59 ms |
-| 32K | 5.205 s / 30.30 ms | 4.128 s / 28.70 ms | 4.181 s / 29.48 ms | 4.367 s / 29.64 ms |
-| 64K | 13.920 s / 31.71 ms | 8.508 s / 28.98 ms | 8.628 s / 29.59 ms | 9.049 s / 29.70 ms |
-| 128K | 42.236 s / 34.29 ms | 17.862 s / 29.29 ms | 18.054 s / 29.59 ms | 19.052 s / 29.84 ms |
+| 8K | 0.992 s / 28.70 ms | 0.915 s / 28.65 ms | 0.930 s / 29.36 ms | 1.012 s / 29.86 ms |
+| 16K | 2.185 s / 29.47 ms | 1.880 s / 28.67 ms | 1.886 s / 29.54 ms | 1.964 s / 29.55 ms |
+| 32K | 5.243 s / 30.24 ms | 3.854 s / 28.78 ms | 3.899 s / 29.45 ms | 4.050 s / 29.56 ms |
+| 64K | 14.054 s / 31.68 ms | 7.993 s / 28.89 ms | 8.084 s / 29.55 ms | 8.422 s / 29.62 ms |
+| 128K | 42.568 s / 34.40 ms | 16.539 s / 29.25 ms | 16.777 s / 29.74 ms | 17.611 s / 30.08 ms |
+
+Attention core (real minus dummy):
+
+| Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
+|---:|---:|---:|---:|---:|
+| 8K | 0.122 s / 0.93 ms | 0.044 s / 0.89 ms | 0.059 s / 1.59 ms | 0.142 s / 2.10 ms |
+| 16K | 0.474 s / 1.72 ms | 0.170 s / 0.91 ms | 0.175 s / 1.78 ms | 0.253 s / 1.80 ms |
+| 32K | 1.837 s / 2.49 ms | 0.448 s / 1.04 ms | 0.493 s / 1.70 ms | 0.643 s / 1.81 ms |
+| 64K | 7.250 s / 4.10 ms | 1.189 s / 1.31 ms | 1.280 s / 1.97 ms | 1.619 s / 2.04 ms |
+| 128K | 28.973 s / 6.78 ms | 2.943 s / 1.63 ms | 3.181 s / 2.11 ms | 4.015 s / 2.46 ms |
 
 ### Qwen3.8, TP1, batch 8, top-8
 
+End-to-end wall time:
+
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 7.908 s / 37.84 ms | 7.661 s / 36.40 ms | 7.560 s / 35.63 ms | 8.274 s / 35.92 ms |
-| 16K | 17.595 s / 40.78 ms | 16.194 s / 36.61 ms | 16.208 s / 35.80 ms | 17.015 s / 36.13 ms |
-| 32K | 42.410 s / 45.85 ms | 33.704 s / 37.53 ms | 33.628 s / 35.89 ms | 35.242 s / 36.22 ms |
-| 64K | 113.494 s / 55.72 ms | 69.869 s / 39.33 ms | 69.577 s / 35.99 ms | 72.793 s / 36.31 ms |
-| 128K | 344.471 s / 74.74 ms | 147.081 s / 43.15 ms | 146.524 s / 36.32 ms | 154.188 s / 36.71 ms |
+| 8K | 7.810 s / 37.79 ms | 7.233 s / 36.41 ms | 7.295 s / 35.57 ms | 7.921 s / 35.80 ms |
+| 16K | 17.422 s / 40.73 ms | 14.907 s / 36.67 ms | 15.070 s / 35.97 ms | 15.663 s / 36.21 ms |
+| 32K | 42.012 s / 45.94 ms | 31.131 s / 37.36 ms | 31.426 s / 36.25 ms | 32.598 s / 36.44 ms |
+| 64K | 112.778 s / 55.71 ms | 64.545 s / 39.37 ms | 65.061 s / 36.74 ms | 67.558 s / 37.05 ms |
+| 128K | 340.893 s / 74.66 ms | 134.499 s / 43.05 ms | 135.977 s / 37.62 ms | 142.278 s / 37.83 ms |
+
+Attention core (real minus dummy):
+
+| Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
+|---:|---:|---:|---:|---:|
+| 8K | 0.982 s / 5.08 ms | 0.405 s / 3.70 ms | 0.466 s / 2.86 ms | 1.093 s / 3.09 ms |
+| 16K | 3.818 s / 8.04 ms | 1.304 s / 3.99 ms | 1.467 s / 3.28 ms | 2.060 s / 3.52 ms |
+| 32K | 14.780 s / 13.12 ms | 3.898 s / 4.55 ms | 4.193 s / 3.44 ms | 5.365 s / 3.63 ms |
+| 64K | 58.285 s / 22.90 ms | 10.052 s / 6.55 ms | 10.568 s / 3.93 ms | 13.064 s / 4.23 ms |
+| 128K | 231.451 s / 42.00 ms | 25.057 s / 10.39 ms | 26.534 s / 4.96 ms | 32.836 s / 5.17 ms |
 
 ### Qwen3.8, TP4, batch 8, top-8
 
+End-to-end wall time:
+
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 3.480 s / 22.07 ms | 3.398 s / 22.13 ms | 3.503 s / 22.41 ms | 3.670 s / 22.47 ms |
-| 16K | 7.719 s / 23.03 ms | 7.234 s / 22.15 ms | 7.373 s / 22.50 ms | 7.558 s / 22.65 ms |
-| 32K | 17.437 s / 24.17 ms | 14.786 s / 22.36 ms | 15.036 s / 22.54 ms | 15.463 s / 22.69 ms |
-| 64K | 43.388 s / 27.10 ms | 30.148 s / 22.81 ms | 30.529 s / 22.66 ms | 31.555 s / 22.82 ms |
-| 128K | 120.322 s / 32.75 ms | 62.107 s / 23.70 ms | 62.903 s / 22.87 ms | 65.642 s / 23.11 ms |
+| 8K | 3.426 s / 22.09 ms | 3.295 s / 22.14 ms | 3.989 s / 22.52 ms | 3.531 s / 22.66 ms |
+| 16K | 7.610 s / 23.04 ms | 6.869 s / 22.00 ms | 6.987 s / 22.67 ms | 7.099 s / 22.85 ms |
+| 32K | 17.253 s / 24.28 ms | 14.040 s / 22.33 ms | 14.253 s / 22.69 ms | 14.573 s / 23.01 ms |
+| 64K | 42.977 s / 27.20 ms | 28.655 s / 22.84 ms | 29.042 s / 22.91 ms | 29.832 s / 23.05 ms |
+| 128K | 119.429 s / 32.85 ms | 58.769 s / 23.76 ms | 59.555 s / 23.28 ms | 61.708 s / 23.58 ms |
+
+Attention core (real minus dummy):
+
+| Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
+|---:|---:|---:|---:|---:|
+| 8K | 0.307 s / 1.57 ms | 0.176 s / 1.63 ms | 0.870 s / 2.00 ms | 0.411 s / 2.14 ms |
+| 16K | 1.156 s / 2.54 ms | 0.415 s / 1.50 ms | 0.533 s / 2.17 ms | 0.645 s / 2.35 ms |
+| 32K | 4.338 s / 3.85 ms | 1.125 s / 1.90 ms | 1.339 s / 2.25 ms | 1.659 s / 2.57 ms |
+| 64K | 17.145 s / 6.79 ms | 2.823 s / 2.43 ms | 3.210 s / 2.50 ms | 3.999 s / 2.63 ms |
+| 128K | 67.765 s / 12.44 ms | 7.105 s / 3.35 ms | 7.891 s / 2.87 ms | 10.044 s / 3.17 ms |
 
 ### K2 Horizon, TP1, batch 1, top-8
 
-These K2 cells use 128-by-32 BF16 exact-leaf tiles and 256-by-16 INT4 tiles.
+End-to-end wall time:
 
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 1.156 s / 37.58 ms | 1.197 s / 40.13 ms | 1.260 s / 41.60 ms | 1.585 s / 40.70 ms |
-| 16K | 2.593 s / 38.16 ms | 2.548 s / 40.32 ms | 2.660 s / 42.03 ms | 2.978 s / 41.11 ms |
-| 32K | 6.324 s / 39.17 ms | 6.050 s / 40.93 ms | 6.236 s / 42.64 ms | 6.814 s / 41.54 ms |
-| 64K | 17.120 s / 41.06 ms | 14.001 s / 41.49 ms | 14.348 s / 42.99 ms | 15.732 s / 41.94 ms |
-| 128K | 52.721 s / 44.46 ms | 33.324 s / 42.87 ms | 34.133 s / 43.78 ms | 37.923 s / 42.98 ms |
+| 8K | 1.158 s / 37.42 ms | 1.200 s / 38.27 ms | 1.270 s / 39.63 ms | 1.589 s / 39.81 ms |
+| 16K | 2.604 s / 38.19 ms | 2.685 s / 38.69 ms | 2.675 s / 39.92 ms | 2.983 s / 40.23 ms |
+| 32K | 6.349 s / 39.07 ms | 6.044 s / 38.82 ms | 6.266 s / 40.47 ms | 6.820 s / 40.79 ms |
+| 64K | 17.191 s / 40.95 ms | 13.948 s / 39.15 ms | 14.395 s / 41.14 ms | 15.729 s / 41.64 ms |
+| 128K | 53.861 s / 44.31 ms | 32.234 s / 39.92 ms | 33.223 s / 42.09 ms | 37.029 s / 42.56 ms |
+
+Attention core (real minus dummy):
+
+| Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
+|---:|---:|---:|---:|---:|
+| 8K | 0.160 s / 1.31 ms | 0.202 s / 2.17 ms | 0.273 s / 3.52 ms | 0.592 s / 3.70 ms |
+| 16K | 0.622 s / 2.04 ms | 0.703 s / 2.53 ms | 0.693 s / 3.76 ms | 1.001 s / 4.07 ms |
+| 32K | 2.385 s / 2.97 ms | 2.080 s / 2.72 ms | 2.302 s / 4.37 ms | 2.855 s / 4.68 ms |
+| 64K | 9.016 s / 4.90 ms | 5.773 s / 3.10 ms | 6.220 s / 5.09 ms | 7.554 s / 5.59 ms |
+| 128K | 37.987 s / 8.35 ms | 16.360 s / 3.96 ms | 17.349 s / 6.13 ms | 21.155 s / 6.60 ms |
 
 ### K2 Horizon, TP1, batch 8, top-8
 
+End-to-end wall time:
+
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 9.227 s / 46.51 ms | 9.622 s / 48.04 ms | 9.938 s / 51.40 ms | 11.373 s / 50.68 ms |
-| 16K | 21.084 s / 50.51 ms | 20.410 s / 49.19 ms | 21.625 s / 52.50 ms | 23.106 s / 51.82 ms |
-| 32K | 51.810 s / 56.90 ms | 50.890 s / 51.53 ms | 52.517 s / 54.35 ms | 55.921 s / 53.86 ms |
-| 64K | 141.656 s / 70.18 ms | 120.959 s / 53.94 ms | 123.473 s / 56.46 ms | 132.990 s / 55.92 ms |
-| 128K | Does not fit B8 | Does not fit B8 | Does not fit B8 | 333.850 s / 61.23 ms |
+| 8K | 9.272 s / 46.33 ms | 9.757 s / 46.49 ms | 9.955 s / 47.99 ms | 11.383 s / 48.58 ms |
+| 16K | 21.121 s / 49.83 ms | 20.703 s / 47.11 ms | 21.669 s / 49.38 ms | 23.087 s / 49.84 ms |
+| 32K | 51.895 s / 56.92 ms | 51.497 s / 49.10 ms | 52.538 s / 51.06 ms | 56.023 s / 51.86 ms |
+| 64K | 141.965 s / 69.56 ms | 122.662 s / 50.51 ms | 123.301 s / 52.84 ms | 133.197 s / 53.39 ms |
+| 128K | Does not fit B8 | Does not fit B8 | Does not fit B8 | 326.523 s / 59.02 ms |
 
 The 128K INT4 cell is a capacity result; BF16 and full-attention caches do
 not fit eight K2 requests on one MI325X. It was measured separately with the
-same eight prompts and a 0.8 GPU-memory fraction.
+same eight prompts and a 0.8 GPU-memory fraction. Because a full-style dummy
+also cannot keep B8 live at 128K, no attention-only subtraction is reported
+for that capacity-only cell.
 
-### K2 Horizon, TP4, batch 8, top-8
+Attention core (real minus dummy), matched through 64K:
 
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 3.842 s / 22.66 ms | 4.008 s / 25.00 ms | 4.095 s / 27.38 ms | 4.619 s / 25.99 ms |
-| 16K | 8.449 s / 23.59 ms | 8.140 s / 25.39 ms | 8.825 s / 28.54 ms | 9.260 s / 26.89 ms |
-| 32K | 19.343 s / 25.21 ms | 20.021 s / 26.34 ms | 20.768 s / 29.13 ms | 21.967 s / 27.62 ms |
-| 64K | 49.363 s / 28.67 ms | 46.930 s / 27.41 ms | 48.046 s / 29.96 ms | 51.656 s / 28.43 ms |
-| 128K | 139.962 s / 35.51 ms | 113.306 s / 30.74 ms | 115.871 s / 33.38 ms | 128.477 s / 32.63 ms |
+| 8K | 1.255 s / 5.68 ms | 1.741 s / 5.84 ms | 1.939 s / 7.34 ms | 3.367 s / 7.93 ms |
+| 16K | 5.083 s / 9.17 ms | 4.664 s / 6.45 ms | 5.630 s / 8.72 ms | 7.049 s / 9.19 ms |
+| 32K | 19.821 s / 16.38 ms | 19.422 s / 8.56 ms | 20.463 s / 10.52 ms | 23.948 s / 11.33 ms |
+| 64K | 77.422 s / 28.84 ms | 58.120 s / 9.79 ms | 58.759 s / 12.11 ms | 68.655 s / 12.67 ms |
+
+### K2 Horizon, TP4, batch 8, top-8
+
+End-to-end wall time:
+
+| Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
+|---:|---:|---:|---:|---:|
+| 8K | 3.792 s / 22.60 ms | 3.969 s / 23.89 ms | 4.123 s / 24.97 ms | 4.615 s / 25.11 ms |
+| 16K | 8.389 s / 23.59 ms | 8.059 s / 24.01 ms | 8.845 s / 26.31 ms | 9.249 s / 26.18 ms |
+| 32K | 19.231 s / 25.23 ms | 19.913 s / 24.60 ms | 20.830 s / 27.03 ms | 21.968 s / 27.03 ms |
+| 64K | 49.199 s / 28.61 ms | 46.686 s / 25.15 ms | 48.044 s / 28.22 ms | 51.590 s / 28.01 ms |
+| 128K | 139.555 s / 35.55 ms | 111.052 s / 26.87 ms | 114.153 s / 31.79 ms | 127.760 s / 32.12 ms |
+
+Attention core (real minus dummy):
+
+| Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
+|---:|---:|---:|---:|---:|
+| 8K | 0.426 s / 2.17 ms | 0.603 s / 3.45 ms | 0.757 s / 4.54 ms | 1.249 s / 4.68 ms |
+| 16K | 1.704 s / 3.16 ms | 1.374 s / 3.57 ms | 2.160 s / 5.88 ms | 2.565 s / 5.74 ms |
+| 32K | 5.865 s / 4.80 ms | 6.546 s / 4.16 ms | 7.464 s / 6.60 ms | 8.602 s / 6.59 ms |
+| 64K | 22.473 s / 8.18 ms | 19.961 s / 4.72 ms | 21.319 s / 7.79 ms | 24.864 s / 7.58 ms |
+| 128K | 86.105 s / 15.11 ms | 57.602 s / 6.43 ms | 60.703 s / 11.36 ms | 74.310 s / 11.69 ms |
 
 ### Qwen3.8 with DFlash2, TP1, batch 1, top-8
 
@@ -124,13 +204,32 @@ DFlash2 panel. Decode measures the complete speculative loop; its time depends
 on draft acceptance as well as target attention. All LoD prompt hashes were
 checked against the same online dataset cohort.
 
+End-to-end wall time:
+
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 0.988 s / 7.76 ms | 0.941 s / 7.93 ms | 0.964 s / 8.39 ms | 1.042 s / 7.63 ms |
-| 16K | 2.153 s / 9.26 ms | 1.989 s / 8.21 ms | 2.019 s / 8.87 ms | 2.095 s / 8.19 ms |
-| 32K | 5.208 s / 10.72 ms | 4.142 s / 8.63 ms | 4.183 s / 9.01 ms | 4.343 s / 8.56 ms |
-| 64K | 13.954 s / 11.44 ms | 8.575 s / 8.31 ms | 8.658 s / 8.61 ms | 8.991 s / 9.03 ms |
-| 128K | 42.470 s / 19.82 ms | 17.974 s / 10.50 ms | 18.207 s / 8.83 ms | 19.062 s / 8.55 ms |
+| 8K | 0.996 s / 8.49 ms | 0.910 s / 7.27 ms | 0.920 s / 8.66 ms | 1.008 s / 7.66 ms |
+| 16K | 2.166 s / 9.23 ms | 1.856 s / 8.72 ms | 1.860 s / 8.99 ms | 1.939 s / 7.75 ms |
+| 32K | 5.200 s / 9.73 ms | 3.840 s / 9.25 ms | 3.877 s / 9.76 ms | 4.033 s / 9.47 ms |
+| 64K | 13.934 s / 10.58 ms | 7.936 s / 8.77 ms | 8.040 s / 8.58 ms | 8.365 s / 8.20 ms |
+| 128K | 42.366 s / 17.63 ms | 16.426 s / 10.37 ms | 16.758 s / 7.61 ms | 17.595 s / 8.49 ms |
+
+Each next cell is `target verification-cycle milliseconds / pooled mean output
+tokens per cycle`. It separates verifier cost from trajectory-dependent draft
+acceptance.
+
+| Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
+|---:|---:|---:|---:|---:|
+| 8K | 40.03 ms / 4.73 | 39.70 ms / 5.48 | 39.74 ms / 4.60 | 39.98 ms / 5.23 |
+| 16K | 41.85 ms / 4.55 | 39.84 ms / 4.58 | 39.81 ms / 4.44 | 39.93 ms / 5.17 |
+| 32K | 45.03 ms / 4.65 | 40.06 ms / 4.35 | 39.95 ms / 4.11 | 40.13 ms / 4.24 |
+| 64K | 51.51 ms / 4.89 | 40.59 ms / 4.64 | 40.11 ms / 4.69 | 40.69 ms / 4.98 |
+| 128K | 63.44 ms / 3.61 | 41.57 ms / 4.03 | 40.69 ms / 5.37 | 41.02 ms / 4.85 |
+
+Attention-core subtraction is not valid for DFlash2: replacing target
+attention changes sampled continuations and draft acceptance, so the dummy and
+real runs no longer execute matched work. The end-to-end and verification-cycle
+tables are the valid speculative measurements.
 
 ## Archived matched top-4 speed results
 
@@ -344,11 +443,37 @@ uv run python -m benchmarks.prolong \
 ```
 
 For TP1, batch 8, change only `--batch-size` to 8. For TP4, batch 8, also
-change `--tensor-parallel-size` to 4. Full attention defaults to the archived
+change `--tensor-parallel-size` to 4. Full attention defaults to the native
 `ROCM_AITER_UNIFIED_ATTN` control backend. The output records each repetition,
 prompt hashes, aggregate prefill throughput, decode batch-step latency, and
-decode token throughput. The benchmark does not run a separate instrumented
-attention pass or alter the production CUDA graph.
+decode token throughput. These ordinary speed runs do not instrument kernels
+or alter the production CUDA graph.
+
+To reproduce an attention-core table, first run and save every ordinary full
+and LoD arm. Then run the same full-attention command with only these changes:
+
+```bash
+  --mode full \
+  --dummy-attention \
+  --output results/prolong-qwen-dummy-speed-tp1-b1.json
+```
+
+Validate the pairing and subtract the matched dummy wall time:
+
+```bash
+uv run python -m benchmarks.attention_timing \
+  --dummy results/prolong-qwen-dummy-speed-tp1-b1.json \
+  --real results/prolong-qwen-full-speed-tp1-b1.json \
+  --real results/prolong-qwen-two-tier-speed-tp1-b1.json \
+  --real results/prolong-qwen-three-tier-bf16-speed-tp1-b1.json \
+  --real results/prolong-qwen-three-tier-int4-speed-tp1-b1.json \
+  --output results/prolong-qwen-attention-speed-tp1-b1.json
+```
+
+The summary command rejects mismatched source/runtime identities,
+configurations, context lengths, or prompt hashes. The dummy run changes no
+CUDA-graph setting; it replaces only the attention backend. DFlash2 cannot use
+this method because dummy target outputs alter its speculative trajectory.
 
 K2 TP1, batch 8 is the capacity exception. Reproduce its matched 8K–64K
 portion with:
@@ -370,7 +495,7 @@ uv run python -m benchmarks.prolong \
 
 Repeat that command with `--mode full`, `three-tier-bf16`, and
 `three-tier-int4` for the other columns. The displayed 128K INT4 cell uses the
-same command with all five lengths through `131072`,
+same command with `--lengths 131072`,
 `--gpu-memory-utilization 0.8`, and `--mode three-tier-int4`. The other three
 modes cannot run eight 128K requests on one 256 GiB device.
 
@@ -397,8 +522,11 @@ one serving batch. DFlash2 is supported only for Qwen3.8 in this release.
 ## Reproduction requirements
 
 The reported speed panel used one AMD MI325X for TP1 and four MI325X GPUs on
-one node for TP4, vLLM 0.27.1, the release checkout, and the patched AITER build
-described in the root README. The refreshed Qwen TP1, batch-8 cache modes and
+one node for TP4, commit `94ec960cfcb3097037e10d136fb4dd403649e056`, source
+fingerprint `4e789f03da16b35908116511ff79a611823783e8b41d43530d75f87d7b7945c6`,
+Python 3.12.13, PyTorch `2.11.0+gitd0c8b1f`, Transformers 5.15.0, Triton
+3.6.0, vLLM `0.27.1+rocm723`, and the patched AITER build described in the
+root README. The refreshed Qwen TP1, batch-8 cache modes and
 the matched K2 TP1, batch-8 8K–64K modes ran concurrently as separate
 processes on otherwise idle MI325X devices; runner settings and prompt hashes
 matched within each panel. Other cache modes were run as separate processes,
@@ -406,7 +534,7 @@ sequentially on the same otherwise idle GPU set. Except for the documented K2
 TP1, batch-8 capacity split, preserve the full length list in one invocation:
 this intentionally gives every arm the same 128K configured capacity even
 while measuring 8K. For K2 TP1, batch 8, preserve the four-length matched list
-through 64K and use the separate five-length INT4 run only for its 128K cell.
+through 64K and use the separate 128K-only INT4 run for its capacity cell.
 Model startup is excluded, and the runner performs one unreported warmup at
 every length before taking one measured repetition.
 
