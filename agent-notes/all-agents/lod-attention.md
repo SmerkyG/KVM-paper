@@ -1,6 +1,6 @@
 # Lod Attention
 
-Topic hints: K2 TP1/B8 128K requires INT4 on a 256 GiB GPU
+Topic hints: Require matched live concurrency for dummy attention subtraction
 
 ## Lessons
 
@@ -43,3 +43,5 @@ Topic hints: K2 TP1/B8 128K requires INT4 on a 256 GiB GPU
 - When vLLM batches long LoD prefill with live decode, do not set the aggregate token budget equal to the LoD chunk size. Reserve the eligible decode width and cap each mixed step to one full prefill allowance plus only that live decode work; otherwise decode rows shave a few tokens from the prompt and force an expensive near-complete-prefix build followed by a tiny cached-prefill fragment.
 
 - K2 Horizon TP1/B8 at 128K cannot be benchmarked as full or BF16 LoD on a 256 GiB MI325X because uncompressed K/V leaves alone require 32 GiB per request (256 GiB for eight); require INT4 or reduce batch/TP, and do not time vLLM's 5.74x preempted concurrency as true B8.
+
+- A real-minus-dummy attention timing is invalid when the dummy cache organization cannot sustain the real arm's live batch. In particular, K2 TP1/B8 at 128K preempts with the full-style BF16 dummy while three-tier INT4 keeps all eight requests live; report attention-only as unavailable unless a dummy using the same LoD cache organization is implemented and measured.
