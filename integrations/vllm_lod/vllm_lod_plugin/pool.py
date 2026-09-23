@@ -3107,10 +3107,20 @@ class VLLMLayerLODPool:
             # complete centroids directly instead of building another union.
             gqa_union_decode=speculative_steps < 2,
             gqa_union_hip=True,
+            # Two-tier keeps a persistent centroid-major leaf list. Publish
+            # only the selected 16-leaf ranges to the attention consumer so
+            # decode work follows the routed union instead of total history.
+            # Recursive caches keep their established consumer unchanged.
             gqa_union_fixed_mask_aiter=(
-                self.settings.decode_gqa_fixed_mask_aiter and speculative_steps < 2
+                self.settings.decode_gqa_fixed_mask_aiter
+                and self.settings.levels != 2
+                and speculative_steps < 2
             ),
-            gqa_union_compact_page_descriptors=False,
+            gqa_union_compact_page_descriptors=(
+                self.settings.decode_gqa_fixed_mask_aiter
+                and self.settings.levels == 2
+                and speculative_steps < 2
+            ),
             gqa_union_fixed_mask_adaptive_segments=True,
             gqa_union_fixed_mask_reduce_block_d=(
                 self.settings.decode_gqa_fixed_mask_reduce_block_d

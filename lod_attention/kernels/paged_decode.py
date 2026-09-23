@@ -964,6 +964,10 @@ def fused_decode_paged_lod_attention(
                 gqa_union_fused_route_union = bool(
                     gqa_union_score_only
                     and not gqa_union_fixed_mask
+                    # Compact descriptors need one complete packed slot list.
+                    # Build it in the dedicated per-GQA workgroup instead of
+                    # atomically appending it from route workgroups.
+                    and not gqa_union_compact_pages
                     and recursive_page_cache is None
                 )
                 gqa_union_direct_page_queue = False
