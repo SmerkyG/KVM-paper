@@ -105,11 +105,12 @@ def configure_engine(
 
     engine.recursive_prefill_all_leaves = True
     engine.recursive_prefill_all_leaves_token_limit = 0
-    engine.recursive_state_route_backend = (
-        "resplit"
-        if family is ModelFamily.QWEN38 and request_capacity >= 22_528
-        else "fused"
-    )
+    # The fused producer is now also the fastest stable path for long Qwen
+    # requests.  The old request-capacity crossover selected the legacy
+    # materialized re-split route on TP1, whose launch floor and variable
+    # decode latency became dominant after the fused route/coarse consumer was
+    # optimized.
+    engine.recursive_state_route_backend = "fused"
     if mode is LODMode.THREE_TIER_INT4:
         engine.leaf_quant_scale_mode = "l2"
         engine.leaf_append_quant_scale_mode = "l2"

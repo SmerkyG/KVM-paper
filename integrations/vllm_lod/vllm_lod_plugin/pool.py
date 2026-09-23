@@ -46,24 +46,6 @@ def _power_of_two(value: int) -> int:
     return 1 << max(1, (value - 1).bit_length())
 
 
-def _recursive_state_route_backend(
-    levels: int,
-    head_dim: int,
-    gqa: int,
-    kv_heads: int,
-    request_capacity: int,
-) -> str:
-    """Resolve the measured recursive coarse-routing implementation."""
-
-    # Re-split has a nearly fixed launch floor, whereas the grouped producer
-    # grows with the allocated state field. Keep Qwen's measured batch-eight
-    # crossover; K2 remains on the grouped producer.
-    crossover = {(256, 6, 4): 22_528}.get((head_dim, gqa, kv_heads))
-    if levels == 3 and crossover is not None and request_capacity >= crossover:
-        return "resplit"
-    return "fused"
-
-
 class VLLMLayerLODPool:
     """One layer's stable request rows and graph-captured decode scratch."""
 
@@ -140,13 +122,6 @@ class VLLMLayerLODPool:
             # prefixes remain supported by restore_prefix() below.
             local_window = max(local_window, prefix_rollback_tokens)
         config_type = PagedLODConfig if settings.levels == 3 else LODConfig
-        recursive_state_route_backend = _recursive_state_route_backend(
-            settings.levels,
-            self.head_dim,
-            gqa,
-            self.kv_heads,
-            request_capacity,
-        )
         config_kwargs = dict(
             chunk_size=CHUNK_SIZE,
             local_window=local_window,
@@ -166,7 +141,7 @@ class VLLMLayerLODPool:
                 page_size=PAGE_SIZE,
                 kv_bits=settings.kv_bits,
                 quant_group_size=settings.quant_group_size,
-                recursive_state_route_backend=recursive_state_route_backend,
+                recursive_state_route_backend="fused",
                 # The compatibility pool uses its fixed graph-safe overflow
                 # hash rather than the flat two-tier directory allocation.
                 leaf_paged_directory=False,

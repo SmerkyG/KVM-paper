@@ -211,6 +211,7 @@ def test_profile_fixes_top_eight_for_both_families(
     assert engine.two_level_topk == ROUTE_COUNT
     assert engine.prefill_two_level_topk == ROUTE_COUNT
     assert engine.recursive_prefill_all_leaves is True
+    assert engine.recursive_state_route_backend == "fused"
     assert engine.separate_sink_cache is True
     assert engine.prefill_aiter_route_coarse is True
     assert engine.leaf_block_m == (256 if family is ModelFamily.K2 else 32)
