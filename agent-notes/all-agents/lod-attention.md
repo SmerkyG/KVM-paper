@@ -1,6 +1,6 @@
 # Lod Attention
 
-Topic hints: Require matched live concurrency for dummy attention subtraction
+Topic hints: Verify the model family activates the benchmarked consumer
 
 ## Lessons
 
@@ -45,3 +45,5 @@ Topic hints: Require matched live concurrency for dummy attention subtraction
 - K2 Horizon TP1/B8 at 128K cannot be benchmarked as full or BF16 LoD on a 256 GiB MI325X because uncompressed K/V leaves alone require 32 GiB per request (256 GiB for eight); require INT4 or reduce batch/TP, and do not time vLLM's 5.74x preempted concurrency as true B8.
 
 - A real-minus-dummy attention timing is invalid when the dummy cache organization cannot sustain the real arm's live batch. In particular, K2 TP1/B8 at 128K preempts with the full-style BF16 dummy while three-tier INT4 keeps all eight requests live; report attention-only as unavailable unless a dummy using the same LoD cache organization is implemented and measured.
+
+- Before interpreting a model-family LoD optimization benchmark, verify the production setting activates that consumer. Qwen3.8 two-tier uses the persistent fixed-mask table, while K2 two-tier already builds a compact selected-leaf union through fused route/top-k reduction; enabling Qwen's fixed-mask consumer on K2 would replace rather than optimize K2's established path.
