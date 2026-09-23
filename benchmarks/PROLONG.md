@@ -56,13 +56,15 @@ chunk, one warmup per length, one measured repetition, and a 1,025-token
 decode. Top-8 is used in both prefill and decode. Each cell is
 `prefill seconds / decode milliseconds per batch step`.
 
-The Qwen TP1 batch-1 two-tier 8K and 64K cells and both three-tier 8K
-cells were subsequently rechecked from the same commit (source fingerprint
-`d99296a97c11`) with each TP1 process holding an otherwise idle eight-GPU
-node. The original three-tier 8K measurements were affected by node
-contention. Attention-core values for these replacement cells use the median
-of a three-repetition dummy-attention run collected under the same exclusive
-node conditions; the real-attention arms remain one measured repetition.
+The Qwen TP1 batch-1 two-tier 8K--64K cells were subsequently replaced by one
+matched three-repetition sweep from commit `07aa3870` (source fingerprint
+`cc735bcc44b4`) with the TP1 process holding an otherwise idle eight-GPU node.
+Both three-tier 8K cells were rechecked separately from commit `e248719a`
+(source fingerprint `d99296a97c11`) under the same exclusive-node policy; the
+original three-tier 8K measurements were affected by node contention. At these
+short lengths, decode attention is a sub-millisecond residual between two
+roughly 28 ms measurements; differences of a few hundredths of a millisecond
+are below the useful resolution and must not be interpreted as reverse scaling.
 
 The end-to-end table for each configuration is followed by a matched
 attention-core table. Attention core is ordinary real wall time minus a
@@ -78,20 +80,20 @@ End-to-end wall time:
 
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 1.085 s / 29.71 ms | 0.917 s / 28.37 ms | 0.916 s / 28.91 ms | 0.933 s / 28.83 ms |
-| 16K | 2.316 s / 30.14 ms | 1.897 s / 29.03 ms | 2.061 s / 29.94 ms | 2.209 s / 30.08 ms |
-| 32K | 5.291 s / 30.52 ms | 3.912 s / 29.24 ms | 4.089 s / 30.76 ms | 4.304 s / 30.66 ms |
-| 64K | 13.886 s / 31.75 ms | 7.890 s / 28.45 ms | 8.223 s / 30.54 ms | 8.645 s / 30.91 ms |
+| 8K | 1.085 s / 29.71 ms | 0.904 s / 28.43 ms | 0.916 s / 28.91 ms | 0.933 s / 28.83 ms |
+| 16K | 2.316 s / 30.14 ms | 1.847 s / 28.40 ms | 2.061 s / 29.94 ms | 2.209 s / 30.08 ms |
+| 32K | 5.291 s / 30.52 ms | 3.817 s / 28.32 ms | 4.089 s / 30.76 ms | 4.304 s / 30.66 ms |
+| 64K | 13.886 s / 31.75 ms | 7.884 s / 28.47 ms | 8.223 s / 30.54 ms | 8.645 s / 30.91 ms |
 | 128K | 42.472 s / 43.57 ms | 16.542 s / 29.62 ms | 16.818 s / 31.01 ms | 17.885 s / 30.86 ms |
 
 Attention core (real minus dummy):
 
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 0.202 s / 1.03 ms | 0.049 s / 0.57 ms | 0.047 s / 1.11 ms | 0.064 s / 1.03 ms |
-| 16K | 0.575 s / 1.56 ms | 0.156 s / 0.46 ms | 0.320 s / 1.36 ms | 0.468 s / 1.50 ms |
-| 32K | 1.808 s / 1.89 ms | 0.430 s / 0.61 ms | 0.606 s / 2.14 ms | 0.821 s / 2.03 ms |
-| 64K | 7.069 s / 3.06 ms | 1.166 s / 0.87 ms | 1.405 s / 1.84 ms | 1.827 s / 2.21 ms |
+| 8K | 0.202 s / 1.03 ms | 0.050 s / 0.87 ms | 0.047 s / 1.11 ms | 0.064 s / 1.03 ms |
+| 16K | 0.575 s / 1.56 ms | 0.150 s / 0.85 ms | 0.320 s / 1.36 ms | 0.468 s / 1.50 ms |
+| 32K | 1.808 s / 1.89 ms | 0.439 s / 0.74 ms | 0.606 s / 2.14 ms | 0.821 s / 2.03 ms |
+| 64K | 7.069 s / 3.06 ms | 1.150 s / 0.73 ms | 1.405 s / 1.84 ms | 1.827 s / 2.21 ms |
 | 128K | 28.840 s / 15.08 ms | 2.909 s / 1.13 ms | 3.186 s / 2.52 ms | 4.253 s / 2.37 ms |
 
 ### Qwen3.8, TP1, batch 8, top-8
