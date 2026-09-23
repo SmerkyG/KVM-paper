@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plot the current Qwen timing panels from benchmarks/PROLONG.md."""
+"""Plot the current Qwen and K2 timing panels from benchmarks/PROLONG.md."""
 
 from __future__ import annotations
 
@@ -15,7 +15,10 @@ import matplotlib.pyplot as plt
 
 
 CONTEXT_RE = re.compile(r"^(\d+)K$")
-HEADING_RE = re.compile(r"^### Qwen3\.8, TP(\d+), batch (\d+), top-8$")
+MODEL_HEADINGS = {
+    "qwen": re.compile(r"^### Qwen3\.8, TP(\d+), batch (\d+), top-8$"),
+    "k2_horizon": re.compile(r"^### K2 Horizon, TP(\d+), batch (\d+), top-8$"),
+}
 CELL_RE = re.compile(r"([0-9.]+) s / ([0-9.]+) ms")
 MODES = ("Full", "Two-tier BF16", "Three-tier BF16", "Three-tier INT4")
 COLORS = {
@@ -38,7 +41,7 @@ class Timing:
     decode_ms: float
 
 
-Panel = dict[str, dict[str, Timing]]
+Panel = dict[str, dict[str, Timing | None]]
 
 
 def _parse_table(lines: list[str], start: int) -> tuple[Panel, int]:
@@ -52,26 +55,28 @@ def _parse_table(lines: list[str], start: int) -> tuple[Panel, int]:
         context_match = CONTEXT_RE.match(cells[0])
         if context_match is None or len(cells) != len(MODES) + 1:
             break
-        row: dict[str, Timing] = {}
+        row: dict[str, Timing | None] = {}
         for mode, cell in zip(MODES, cells[1:], strict=True):
             timing_match = CELL_RE.fullmatch(cell)
             if timing_match is None:
+                if cell == "Does not fit B8":
+                    row[mode] = None
+                    continue
                 raise ValueError(f"Cannot parse timing cell: {cell!r}")
-            row[mode] = Timing(
-                prefill_seconds=float(timing_match.group(1)),
-                decode_ms=float(timing_match.group(2)),
-            )
+            row[mode] = Timing(float(timing_match.group(1)), float(timing_match.group(2)))
         panel[cells[0]] = row
         index += 1
     return panel, index
 
 
-def load_qwen_panels(path: Path) -> dict[str, dict[str, Panel]]:
+def load_panels(
+    path: Path, heading_re: re.Pattern[str]
+) -> dict[str, dict[str, Panel]]:
     lines = path.read_text().splitlines()
     panels: dict[str, dict[str, Panel]] = {}
     index = 0
     while index < len(lines):
-        heading = HEADING_RE.match(lines[index])
+        heading = heading_re.match(lines[index])
         if heading is None:
             index += 1
             continue
@@ -84,7 +89,7 @@ def load_qwen_panels(path: Path) -> dict[str, dict[str, Panel]]:
         attention_core, index = _parse_table(lines, index + 1)
         panels[label] = {"end_to_end": end_to_end, "attention_core": attention_core}
     if not panels:
-        raise ValueError(f"No current Qwen top-8 timing panels found in {path}")
+        raise ValueError(f"No matching current top-8 timing panels found in {path}")
     return panels
 
 
@@ -96,7 +101,7 @@ def _plot_measurement(
     setup_order = ("TP1 / B1", "TP1 / B8", "TP4 / B8")
     missing = set(setup_order) - panels.keys()
     if missing:
-        raise ValueError(f"Missing Qwen timing panels: {sorted(missing)}")
+        raise ValueError(f"Missing timing panels: {sorted(missing)}")
 
     figure, axes = plt.subplots(
         2,
@@ -118,14 +123,15 @@ def _plot_measurement(
                 "markersize": 5.5,
                 "label": mode,
             }
+            timings = [panel[context][mode] for context in contexts]
             axes[0, column].plot(
                 x_values,
-                [panel[context][mode].prefill_seconds for context in contexts],
+                [timing.prefill_seconds if timing else float("nan") for timing in timings],
                 **style,
             )
             axes[1, column].plot(
                 x_values,
-                [panel[context][mode].decode_ms for context in contexts],
+                [timing.decode_ms if timing else float("nan") for timing in timings],
                 **style,
             )
         axes[0, column].set_title(setup, fontsize=12, fontweight="bold")
@@ -137,34 +143,16 @@ def _plot_measurement(
 
     axes[0, 0].set_ylabel("Prefill wall time (s, log scale)")
     axes[1, 0].set_ylabel("Decode latency (ms / batch step)")
-    title = (
-        "Qwen3.8-27B-FP8 end-to-end timings"
-        if measurement == "end_to_end"
-        else "Qwen3.8-27B-FP8 inferred attention-core timings"
-    )
-    figure.suptitle(title, fontsize=15, fontweight="bold", y=0.985)
     handles, labels = axes[0, 0].get_legend_handles_labels()
     figure.legend(
         handles,
         labels,
         loc="upper center",
-        bbox_to_anchor=(0.5, 0.945),
+        bbox_to_anchor=(0.5, 0.985),
         ncol=4,
         frameon=False,
     )
-    bottom = 0.10 if measurement == "end_to_end" else 0.14
-    if measurement == "attention_core":
-        figure.text(
-            0.5,
-            0.025,
-            "Attention core is inferred by subtracting a full-mode dummy-attention run. "
-            "Different cache-maintenance scaling can bias the residual, especially below 1 ms.",
-            ha="center",
-            va="bottom",
-            fontsize=9,
-            color="#555555",
-        )
-    figure.subplots_adjust(top=0.86, bottom=bottom, left=0.075, right=0.985, hspace=0.18)
+    figure.subplots_adjust(top=0.89, bottom=0.09, left=0.075, right=0.985, hspace=0.18)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     figure.savefig(output_path, dpi=180)
     figure.savefig(output_path.with_suffix(".pdf"))
@@ -188,17 +176,18 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    panels = load_qwen_panels(args.input)
-    _plot_measurement(
-        panels,
-        "end_to_end",
-        args.output_dir / "qwen_top8_end_to_end.png",
-    )
-    _plot_measurement(
-        panels,
-        "attention_core",
-        args.output_dir / "qwen_top8_attention_core.png",
-    )
+    for model_slug, heading_re in MODEL_HEADINGS.items():
+        panels = load_panels(args.input, heading_re)
+        _plot_measurement(
+            panels,
+            "end_to_end",
+            args.output_dir / f"{model_slug}_top8_end_to_end.png",
+        )
+        _plot_measurement(
+            panels,
+            "attention_core",
+            args.output_dir / f"{model_slug}_top8_attention_core.png",
+        )
 
 
 if __name__ == "__main__":
