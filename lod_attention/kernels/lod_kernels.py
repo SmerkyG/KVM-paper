@@ -1139,6 +1139,7 @@ def _apply_state_deltas_kernel(
 def _route_logits_tile_topk_kernel(
     route_logits,
     counts,
+    slot_spread,
     candidate_scores,
     candidate_indices,
     LOGIT_BATCH_STRIDE,
@@ -1155,9 +1156,14 @@ def _route_logits_tile_topk_kernel(
     MAX_TILES: tl.constexpr,
     ROUTE_COUNT: tl.constexpr,
     PROTECTED_LEN: tl.constexpr,
+    EXCLUDE_SINGLETONS: tl.constexpr,
     MAX_LEAF_TOKENS: tl.constexpr,
     SCALE: tl.constexpr,
     ROUTE_COUNT_BIAS: tl.constexpr,
+    LARGE_COUNT_PENALTY: tl.constexpr,
+    LARGE_COUNT_THRESHOLD: tl.constexpr,
+    SOFT_COUNT_PIVOT: tl.constexpr,
+    USE_SLOT_SPREAD: tl.constexpr,
     BLOCK_M: tl.constexpr,
     BLOCK_N: tl.constexpr,
 ):
@@ -1194,7 +1200,25 @@ def _route_logits_tile_topk_kernel(
     # Preserve the established route selector's BF16 scale rounding exactly.
     route_scores = (raw_scores.to(tl.bfloat16) * SCALE).to(tl.bfloat16).to(tl.float32)
     route_scores += ROUTE_COUNT_BIAS * tl.log(count)[None, :]
+    if LARGE_COUNT_PENALTY != 0.0:
+        route_scores -= LARGE_COUNT_PENALTY * tl.log(
+            tl.maximum(count / LARGE_COUNT_THRESHOLD, 1.0)
+        )[None, :]
+    if SOFT_COUNT_PIVOT != 0.0:
+        route_scores -= tl.log(1.0 + count / SOFT_COUNT_PIVOT)[None, :]
+    if USE_SLOT_SPREAD:
+        spread = tl.load(
+            slot_spread
+            + batch * COUNT_BATCH_STRIDE
+            + kv_head * COUNT_HEAD_STRIDE
+            + slot * COUNT_TOKEN_STRIDE,
+            mask=state_valid,
+            other=0.0,
+        ).to(tl.float32)
+        route_scores += tl.log(tl.maximum(spread, 1.0e-6))[None, :]
     route_valid = state_valid & (slot >= PROTECTED_LEN)
+    if EXCLUDE_SINGLETONS:
+        route_valid &= count > 1.0
     if MAX_LEAF_TOKENS:
         route_valid &= count <= MAX_LEAF_TOKENS
     remaining = tl.where(
@@ -1213,7 +1237,7 @@ def _route_logits_tile_topk_kernel(
             ),
             axis=1,
         )
-        valid_best = query_valid & (best_position < BLOCK_N)
+        valid_best = query_valid & (best_score > -float("inf")) & (best_position < BLOCK_N)
         tl.store(
             candidate_scores + candidate_base + rank,
             best_score,
@@ -1221,8 +1245,8 @@ def _route_logits_tile_topk_kernel(
         )
         tl.store(
             candidate_indices + candidate_base + rank,
-            tile * BLOCK_N + best_position,
-            mask=valid_best,
+            tl.where(valid_best, tile * BLOCK_N + best_position, -1),
+            mask=query_valid,
         )
         remaining = tl.where(
             token_offset[None, :] == best_position[:, None],
@@ -2346,6 +2370,11 @@ def route_logits_hierarchical_topk(
     kv_group_size: int,
     scale: float,
     route_count_bias: float = 1.0,
+    large_count_penalty: float = 0.0,
+    large_count_threshold: float = 64.0,
+    soft_count_pivot: float | None = None,
+    slot_spread: torch.Tensor | None = None,
+    exclude_singletons: bool = False,
     topk: int = 3,
     protected_len: int = 0,
     max_leaf_tokens: int | None = None,
@@ -2361,6 +2390,12 @@ def route_logits_hierarchical_topk(
         raise ValueError("hierarchical route selection requires contiguous tensors")
     if route_logits.ndim != 4 or counts.ndim != 4 or int(counts.size(-1)) != 1:
         raise ValueError("hierarchical route selection received invalid tensors")
+    if slot_spread is not None and (
+        not slot_spread.is_cuda
+        or not slot_spread.is_contiguous()
+        or slot_spread.shape != counts.shape
+    ):
+        raise ValueError("route key spread must be contiguous and match counts")
     batch, query_heads, query_len, logit_state_len = route_logits.shape
     kv_heads = int(counts.size(1))
     if query_heads != kv_heads * kv_group_size:
@@ -2375,6 +2410,10 @@ def route_logits_hierarchical_topk(
         raise ValueError("protected state leaves too few routing candidates")
     if max_leaf_tokens is not None and max_leaf_tokens <= 0:
         raise ValueError("maximum routed leaf count must be positive")
+    if large_count_penalty < 0 or large_count_threshold <= 0:
+        raise ValueError("large-count penalty must be nonnegative and threshold positive")
+    if soft_count_pivot is not None and soft_count_pivot <= 0:
+        raise ValueError("soft count pivot must be positive")
     if block_m <= 0 or block_m & (block_m - 1):
         raise ValueError("hierarchical route query tile must be a power of two")
     if block_n <= 0 or block_n & (block_n - 1):
@@ -2413,6 +2452,7 @@ def route_logits_hierarchical_topk(
     ](
         route_logits,
         counts,
+        slot_spread if slot_spread is not None else counts,
         candidate_scores,
         candidate_indices,
         route_logits.stride(0),
@@ -2429,9 +2469,14 @@ def route_logits_hierarchical_topk(
         MAX_TILES=max_tiles,
         ROUTE_COUNT=topk,
         PROTECTED_LEN=protected_len,
+        EXCLUDE_SINGLETONS=exclude_singletons,
         MAX_LEAF_TOKENS=max_leaf_tokens or 0,
         SCALE=scale,
         ROUTE_COUNT_BIAS=route_count_bias,
+        LARGE_COUNT_PENALTY=large_count_penalty,
+        LARGE_COUNT_THRESHOLD=large_count_threshold,
+        SOFT_COUNT_PIVOT=soft_count_pivot or 0.0,
+        USE_SLOT_SPREAD=slot_spread is not None,
         BLOCK_M=block_m,
         BLOCK_N=block_n,
         **_launch_kwargs(tile_num_warps),

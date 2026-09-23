@@ -7,24 +7,33 @@ A sample is correct when the generated response contains the target UUID.
 
 ## Results
 
-Every row below uses 128 examples at each context length. All reported LoD
-lengths use the release's uniform top-4 routing policy; the retained-leaf exact
-decode path ends at 2K.
+Every row below uses 128 examples at each context length. The top-4 rows are
+archived release baselines; the top-8 rows were rerun on 2026-09-17 with eight
+routes in both prefill and decode. The retained-leaf exact decode path ends at
+2K, so all displayed lengths exercise routed LoD.
 
 | Model / mode | 8K | 16K | 32K | 64K |
 |---|---:|---:|---:|---:|
 | Qwen3.8 full | 128/128 | 128/128 | 128/128 | 128/128 |
-| Qwen3.8 two-tier BF16 | 127/128 | 125/128 | 125/128 | 127/128 |
-| Qwen3.8 three-tier BF16 | 127/128 | 121/128 | 120/128 | 126/128 |
-| Qwen3.8 three-tier INT4 | 123/128 | 118/128 | 121/128 | 127/128 |
+| Qwen3.8 two-tier BF16, top-4 | 127/128 | 125/128 | 125/128 | 127/128 |
+| Qwen3.8 two-tier BF16, top-8 | 128/128 | 128/128 | 127/128 | 127/128 |
+| Qwen3.8 three-tier BF16, top-4 | 127/128 | 121/128 | 120/128 | 126/128 |
+| Qwen3.8 three-tier BF16, top-8 | 128/128 | 123/128 | 127/128 | 128/128 |
+| Qwen3.8 three-tier INT4, top-4 | 123/128 | 118/128 | 121/128 | 127/128 |
+| Qwen3.8 three-tier INT4, top-8 | 127/128 | 126/128 | 126/128 | 127/128 |
 | K2 Horizon full | 128/128 | 128/128 | 128/128 | 128/128 |
-| K2 Horizon two-tier BF16 | 128/128 | 128/128 | 128/128 | 128/128 |
-| K2 Horizon three-tier BF16 | 128/128 | 128/128 | 128/128 | 128/128 |
-| K2 Horizon three-tier INT4 | 128/128 | 127/128 | 128/128 | 128/128 |
+| K2 Horizon two-tier BF16, top-4 | 128/128 | 128/128 | 128/128 | 128/128 |
+| K2 Horizon two-tier BF16, top-8 | 128/128 | 128/128 | 128/128 | 128/128 |
+| K2 Horizon three-tier BF16, top-4 | 128/128 | 128/128 | 128/128 | 128/128 |
+| K2 Horizon three-tier BF16, top-8 | 128/128 | 128/128 | 128/128 | 128/128 |
+| K2 Horizon three-tier INT4, top-4 | 128/128 | 127/128 | 128/128 | 128/128 |
+| K2 Horizon three-tier INT4, top-8 | 128/128 | 128/128 | 128/128 | 128/128 |
 
-The 8K and 16K LoD cells were rerun with exact decode disabled at those
-lengths; the final release cutoff is 2K. The 32K and 64K cells already used
-routed top-4 LoD and are unchanged.
+The archived top-4 8K and 16K cells were rerun with exact decode disabled at
+those lengths. Every top-8 cell uses the current default with the same 2K
+exact-decode cutoff. Top-8 matches or improves every top-4 score in this panel.
+The K2 top-8 32K and 64K cells were rerun after widening the BF16 and INT4
+exact-leaf query tiles; all six final-geometry cells remained 128/128.
 
 ## Reproduce
 

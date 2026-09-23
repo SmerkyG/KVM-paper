@@ -3,7 +3,7 @@
 This module consumes head-separated query, key, and value tensors after their
 model-specific projections, normalization, and positional encoding. Old KV
 leaves are partitioned into a ``16*sqrt(T)`` state; a query expands the leaves
-of its top-four state slots and uses count-corrected mean KV summaries for every
+of its top-eight state slots and uses count-corrected mean KV summaries for every
 other slot. The exact and coarse branches are combined with their log-sum-exp
 statistics.
 
@@ -81,7 +81,7 @@ def _merge_lse_branches(
 
 
 class TritonLODAttentionCore(nn.Module):
-    """Projection-free mass-corrected top-four LOD implementation."""
+    """Projection-free mass-corrected top-eight LOD implementation."""
 
     chunk_len = 256
     local_len = 512
@@ -106,7 +106,7 @@ class TritonLODAttentionCore(nn.Module):
     # Keep the exact sink outside the centroid state and leaf archive. Its
     # attention contribution is merged as a separate exact branch.
     separate_sink_cache = False
-    two_level_topk = 4
+    two_level_topk = 8
     prefill_two_level_topk: int | None = None
     # Stop archiving exact leaves once a centroid reaches this many members.
     # Its K/V sums and count still receive every assignment, so a sealed
@@ -164,10 +164,16 @@ class TritonLODAttentionCore(nn.Module):
     recursive_prefill_all_leaves = False
     recursive_prefill_all_leaves_token_limit = 0
     recursive_prefill_request_total_len = 0
-    prefill_route_mass_fraction: float | None = None
+    prefill_exact_mass_coverage: float | None = None
+    prefill_max_open_leaf_tokens: int | None = None
+    prefill_route_count_bias = 1.0
+    prefill_route_large_count_penalty = 0.0
+    prefill_route_large_count_threshold = 64.0
+    prefill_route_soft_count_pivot: float | None = None
+    prefill_route_key_spread: str | None = None
+    prefill_route_exclude_singletons = False
     prefill_route_block_m = 16
     prefill_route_num_warps = 4
-    prefill_mass_include_local_lse = True
     prefill_overlap_local_lod = False
     prefill_overlap_coarse_leaf = False
     fused_decode_attention = True
@@ -892,6 +898,12 @@ class TritonLODAttentionCore(nn.Module):
             and self.state_clustering_centroid_rescale_scope == "assignment"
         ):
             return rescale
+        if (
+            normalization == "none"
+            and rescale == "coherence"
+            and self.state_clustering_centroid_rescale_scope == "none"
+        ):
+            return "spherical"
         if normalization == "none" and rescale == "none":
             return "raw"
         return None
@@ -2292,6 +2304,7 @@ class TritonLODAttentionCore(nn.Module):
         state_v: torch.Tensor,
         counts: torch.Tensor,
         *,
+        key_norm_sums: torch.Tensor | None = None,
         state_len: int,
         state_capacity: int,
         local_k: torch.Tensor | None = None,
@@ -2300,9 +2313,10 @@ class TritonLODAttentionCore(nn.Module):
         new_k: torch.Tensor | None = None,
         page_cache: dict[str, torch.Tensor | int] | None = None,
         dynamic_local_lse: torch.Tensor | None = None,
+        sink_k: torch.Tensor | None = None,
         context_len: int | None = None,
     ) -> torch.Tensor:
-        """Select the fixed top-four release routes.
+        """Select the fixed top-eight release routes.
 
         Prefill uses the exact hierarchical selector and preserves its logits
         for the stable coarse-state recomputation. Decode ordinarily routes
@@ -2315,8 +2329,6 @@ class TritonLODAttentionCore(nn.Module):
             local_v,
             local_len,
             new_k,
-            page_cache,
-            dynamic_local_lse,
             context_len,
         )
         query_len = int(q.size(2))
@@ -2332,7 +2344,7 @@ class TritonLODAttentionCore(nn.Module):
         if route_count <= 0:
             return torch.empty(*q.shape[:3], 0, dtype=torch.long, device=q.device)
         if route_count not in (4, 8):
-            raise RuntimeError("the LoD release requires exactly four routes")
+            raise RuntimeError("the LoD release requires four or eight routes")
         if self.routing_normalization not in {"none", "query"}:
             raise RuntimeError(
                 "the LoD release supports only raw or query-normalized routing"
@@ -2344,9 +2356,9 @@ class TritonLODAttentionCore(nn.Module):
                     raise RuntimeError(
                         "AITER route/coarse prefill requires the separate sink cache"
                     )
-                if route_count != 4 or int(q.size(-1)) > 256:
+                if route_count not in (4, 8) or int(q.size(-1)) > 256:
                     raise RuntimeError(
-                        "AITER route/coarse prefill requires top-four equal-width "
+                        "AITER route/coarse prefill requires top-four or top-eight equal-width "
                         "heads no wider than 256"
                     )
                 if int(state_v.size(-1)) != int(q.size(-1)):
@@ -2365,6 +2377,16 @@ class TritonLODAttentionCore(nn.Module):
                 from .kernels.aiter_prefill_attention import (
                     aiter_prefill_route_coarse_attention,
                 )
+                cap_kwargs = {}
+                if self.prefill_max_open_leaf_tokens is not None:
+                    cap_kwargs = {
+                        "max_open_leaf_tokens": self.prefill_max_open_leaf_tokens,
+                        "slot_lengths": (
+                            page_cache.get("slot_lengths")
+                            if page_cache is not None
+                            else None
+                        ),
+                    }
 
                 (
                     routed,
@@ -2377,13 +2399,24 @@ class TritonLODAttentionCore(nn.Module):
                         state_k.detach().contiguous(),
                         state_v.detach().contiguous(),
                         counts.detach().contiguous(),
+                        key_norm_sums=(
+                            key_norm_sums.detach().contiguous()
+                            if getattr(self, "inverse_coherence_mass", False)
+                            and key_norm_sums is not None
+                            else None
+                        ),
+                        route_count=route_count,
                         state_len=state_len,
                         kv_group_size=self.num_key_value_groups,
                         scale=self.scaling,
                         normalize_route_query=self.routing_normalization == "query",
+                        exact_mass_coverage=self.prefill_exact_mass_coverage,
+                        local_lse=dynamic_local_lse,
+                        sink_k=sink_k,
                         buffers=getattr(
                             self, "_lod_prefill_attention_buffers", None
                         ),
+                        **cap_kwargs,
                     )
                 )
                 self._lod_prefill_aiter_coarse = coarse
@@ -2415,16 +2448,42 @@ class TritonLODAttentionCore(nn.Module):
                     1024,
                     max(256, 1 << (state_len - 1).bit_length()),
                 )
+                slot_spread = None
+                route_count_bias = self.prefill_route_count_bias
+                if self.prefill_route_key_spread is not None:
+                    if self.prefill_route_key_spread not in {"total", "per_leaf"}:
+                        raise ValueError("route key spread must be total or per_leaf")
+                    if key_norm_sums is None:
+                        raise ValueError("route key spread requires constituent key norms")
+                    # Normalized within-centroid key dispersion: zero for a
+                    # singleton, small when its leaves are nearly identical.
+                    key_sum_rms = state_k.detach().float().square().mean(
+                        dim=-1, keepdim=True
+                    ).sqrt()
+                    coherence = (
+                        key_sum_rms
+                        / key_norm_sums.detach().float().clamp_min(1.0e-12)
+                    ).clamp(0.0, 1.0)
+                    slot_spread = (1.0 - coherence.square()).clamp_min(0.0)
+                    slot_spread = torch.where(counts > 1, slot_spread, 0.0).contiguous()
+                    route_count_bias = (
+                        1.0 if self.prefill_route_key_spread == "total" else 0.0
+                    )
                 routed = route_logits_hierarchical_topk(
                     logits.contiguous(),
                     counts.detach().contiguous(),
                     state_len=state_len,
                     kv_group_size=self.num_key_value_groups,
                     scale=self.scaling,
-                    route_count_bias=1.0,
+                    route_count_bias=route_count_bias,
+                    large_count_penalty=self.prefill_route_large_count_penalty,
+                    large_count_threshold=self.prefill_route_large_count_threshold,
+                    soft_count_pivot=self.prefill_route_soft_count_pivot,
+                    slot_spread=slot_spread,
+                    exclude_singletons=self.prefill_route_exclude_singletons,
                     topk=route_count,
                     protected_len=protected_len,
-                    max_leaf_tokens=None,
+                    max_leaf_tokens=self.prefill_max_open_leaf_tokens,
                     block_m=8,
                     block_n=hierarchical_block_n,
                     tile_num_warps=2,
@@ -3549,6 +3608,7 @@ class TritonLODAttentionCore(nn.Module):
         exact_k: torch.Tensor,
         exact_v: torch.Tensor,
         *,
+        key_norm_sums: torch.Tensor | None = None,
         state_len: int,
         state_capacity: int,
         page_cache: dict[str, torch.Tensor | int] | None = None,
@@ -3587,7 +3647,7 @@ class TritonLODAttentionCore(nn.Module):
             else self.two_level_topk
         )
         if configured_topk not in (4, 8):
-            raise RuntimeError("the LoD release requires exactly four routes")
+            raise RuntimeError("the LoD release requires four or eight routes")
         if self.leaf_attention_backend != "paged":
             raise RuntimeError("the LoD release requires paged leaf storage")
         indexed_recursive_decode = bool(
@@ -3623,8 +3683,12 @@ class TritonLODAttentionCore(nn.Module):
                 state_k,
                 state_v,
                 counts,
+                key_norm_sums=key_norm_sums,
                 state_len=state_len,
                 state_capacity=state_capacity,
+                page_cache=page_cache,
+                dynamic_local_lse=(local_branch[1] if local_branch is not None else None),
+                sink_k=sink_k,
             )
             if getattr(self, "_lod_padding_state_reserve", 0):
                 query_counts = self._repeat_kv(counts[..., :state_len, :]).squeeze(-1)
@@ -4959,10 +5023,7 @@ class TritonLODAttentionCore(nn.Module):
                         v[..., bswa_begin:query_end, :],
                     )
                     if self.prefill_overlap_local_lod:
-                        if (
-                            self.prefill_route_mass_fraction is not None
-                            and self.prefill_mass_include_local_lse
-                        ):
+                        if self.prefill_exact_mass_coverage is not None:
                             raise ValueError(
                                 "local/LOD overlap requires a remote-state mass cutoff"
                             )
@@ -4995,6 +5056,7 @@ class TritonLODAttentionCore(nn.Module):
                     owners,
                     archive_k,
                     archive_v,
+                    key_norm_sums=key_norm_sums,
                     state_len=state_len,
                     state_capacity=state_capacity,
                     page_cache=page_cache,
@@ -5611,6 +5673,7 @@ class TritonLODAttentionCore(nn.Module):
                     owners,
                     exact_k,
                     exact_v,
+                    key_norm_sums=key_norm_sums,
                     state_len=state_len,
                     state_capacity=state_capacity,
                     page_cache=page_cache,
@@ -5928,6 +5991,7 @@ class TritonLODAttentionCore(nn.Module):
                 owners,
                 exact_k,
                 exact_v,
+                key_norm_sums=key_norm_sums,
                 state_len=state_len,
                 state_capacity=state_capacity,
                 page_cache=page_cache,

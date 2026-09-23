@@ -22,11 +22,14 @@ from benchmarks.longbench_v2 import (
 from benchmarks.prolong import (
     QUALITY_DOCUMENT_INDICES,
     comma_separated_ints,
+    configure_prefill_variant,
     document_digest,
     select_quality_prompts,
     speculative_counters,
     timed_generate_cohort,
 )
+from lod_attention._config import LODMode, ModelFamily
+from lod_attention._profile import configure_engine
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -55,6 +58,43 @@ class _LLMWithMetrics:
             _Metric("vllm:spec_decode_num_accepted_tokens", 44),
             _Metric("vllm:unrelated", 99),
         ]
+
+
+@pytest.mark.parametrize(
+    ("mode", "expected_geometry"),
+    [
+        (LODMode.TWO_TIER, (128, 32)),
+        (LODMode.THREE_TIER_BF16, (128, 32)),
+        (LODMode.THREE_TIER_INT4, (256, 16)),
+    ],
+)
+def test_k2_top4_prefill_keeps_tuned_leaf_geometry(
+    mode: LODMode, expected_geometry: tuple[int, int]
+) -> None:
+    engine = SimpleNamespace(
+        config=SimpleNamespace(num_attention_heads=64, num_key_value_heads=8),
+        head_dim=128,
+    )
+    configure_engine(
+        engine,
+        family=ModelFamily.K2,
+        mode=mode,
+        request_capacity=65_536,
+        has_query_norm=False,
+        has_key_norm=False,
+    )
+    model = SimpleNamespace(
+        modules=lambda: [SimpleNamespace(_vllm_lod_pool=SimpleNamespace(engine=engine))]
+    )
+
+    assert configure_prefill_variant(model, "fast4") == 1
+    assert engine.prefill_two_level_topk == 4
+    assert engine.two_level_topk == 8
+    assert (engine.leaf_block_m, engine.leaf_block_n) == expected_geometry
+
+    assert configure_prefill_variant(model, None, exact_mass_coverage=0.75) == 1
+    assert engine.prefill_exact_mass_coverage == 0.75
+    assert engine.prefill_two_level_topk == 4
 
 
 def test_longbench_middle_truncation_and_answer_parsing() -> None:
@@ -327,6 +367,8 @@ def test_prolong_speed_cohort_reports_pooled_and_equal_weight_acceptance(
 
     assert result["prefill_seconds"] == 2.0
     assert result["decode_ms_per_batch_step"] == 1_000.0
+    assert "total_timings_seconds" not in result
+    assert "cohort_total_timings_seconds" not in result
     assert result["speculative_target_cycle_ms"] == 1_600.0
     assert result["speculative_mean_acceptance_length"] == 2.4
     assert (

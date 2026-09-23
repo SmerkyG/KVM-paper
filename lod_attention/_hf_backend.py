@@ -58,7 +58,7 @@ class HFLODSettings:
 
     def __post_init__(self) -> None:
         if ROUTE_COUNT > self.config.max_routes:
-            raise ValueError("kernel route capacity is smaller than top-four")
+            raise ValueError("kernel route capacity is smaller than top-eight")
 
 
 def _has_attention_norm(module: nn.Module, name: str) -> bool:
@@ -768,7 +768,7 @@ def install_hf_lod_attention(
     *,
     mode: str | LODMode = LODMode.TWO_TIER,
 ) -> list[str]:
-    """Install fixed top-four LoD on supported full-attention layers."""
+    """Install fixed top-eight LoD on supported full-attention layers."""
 
     family = model_family(model)
     resolved_mode = LODMode.parse(mode)

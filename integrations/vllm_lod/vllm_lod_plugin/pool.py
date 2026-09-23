@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import os
 from typing import Any
 
 import torch
@@ -110,6 +111,20 @@ class VLLMLayerLODPool:
                 "the LoD paper release supports only Qwen3.8 (D256/GQA6) "
                 "and K2 Horizon (D128/GQA8)"
             )
+        experiment = os.environ.get("LOD_QWEN_EXPERIMENT", "baseline")
+        if experiment not in {
+            "baseline", "assignment-off", "inverse-mass", "both", "decode-top8"
+        }:
+            raise ValueError(f"unsupported LOD_QWEN_EXPERIMENT: {experiment}")
+        if experiment != "baseline" and self.family != ModelFamily.QWEN38:
+            raise ValueError("LOD_QWEN_EXPERIMENT applies only to Qwen3.8")
+        self.inverse_coherence_mass = experiment in {"inverse-mass", "both"}
+        decode_top8 = os.environ.get("LOD_DECODE_TOP8", "1")
+        if decode_top8 not in {"0", "1"}:
+            raise ValueError("LOD_DECODE_TOP8 must be 0 or 1")
+        self.decode_open_count = (
+            8 if experiment == "decode-top8" or decode_top8 == "1" else 4
+        )
         settings = settings.for_family(self.family)
         self.settings = settings
 
@@ -170,6 +185,7 @@ class VLLMLayerLODPool:
             default_open_count=ROUTE_COUNT,
         )
         self.engine.head_dim = self.head_dim
+        self.engine.inverse_coherence_mass = self.inverse_coherence_mass
         configure_engine(
             self.engine,
             family=self.family,
@@ -178,6 +194,10 @@ class VLLMLayerLODPool:
             has_query_norm=has_query_norm,
             has_key_norm=has_key_norm,
         )
+        if experiment in {"assignment-off", "both"}:
+            # Both append selection and assignment now use the existing
+            # direction-only centroid key; only assignment changes.
+            self.engine.state_clustering_centroid_rescale_scope = "none"
         if self.speculative_tokens:
             # DFlash captures ordinary and flattened verifier graphs over one
             # target pool. Its graph warmup cannot safely mix the short-context
@@ -253,6 +273,10 @@ class VLLMLayerLODPool:
         self.deferred_prefill_events: list[torch.cuda.Event | None] = [
             None
         ] * max_requests
+        # Compact decode needs a centroid-major physical-leaf table. Prefill
+        # can update the semantic archive many times, so invalidate here and
+        # rebuild only when decode is about to consume the row.
+        self.unified_page1_fixed_dirty = [False] * max_requests
         self.install_count = 0
         self.batched_install_calls = 0
         self.direct_prefill_calls = 0
@@ -302,8 +326,12 @@ class VLLMLayerLODPool:
         recursive = self.settings.levels == 3
         expected_bits = self.settings.kv_bits
         k2_int4 = self.family is ModelFamily.K2 and recursive and expected_bits == 4
+        if self.family is ModelFamily.K2:
+            expected_leaf_geometry = (256, 16) if k2_int4 else (128, 32)
+        else:
+            expected_leaf_geometry = (32, 16)
         checks = {
-            "top-four routing": (
+            "top-eight routing": (
                 self.engine.two_level_topk == ROUTE_COUNT
                 and self.engine.prefill_two_level_topk == ROUTE_COUNT
             ),
@@ -344,9 +372,8 @@ class VLLMLayerLODPool:
             ),
             "leaf geometry": (
                 self.engine.leaf_layout == "expert"
-                and self.engine.leaf_block_m
-                == (64 if self.family is ModelFamily.K2 else 32)
-                and self.engine.leaf_block_n == 16
+                and (self.engine.leaf_block_m, self.engine.leaf_block_n)
+                == expected_leaf_geometry
                 and self.engine.leaf_num_warps == (4 if k2_int4 else 2)
             ),
             "fused state update": (
@@ -374,7 +401,10 @@ class VLLMLayerLODPool:
             self.head_dim,
         )
         unified_page1 = (
-            self.settings.levels == 2
+            (
+                self.settings.levels == 2
+                or (self.settings.levels == 3 and self.family is ModelFamily.K2)
+            )
             and self.dtype == torch.bfloat16
             and 1 < self.query_heads // self.kv_heads <= 16
             and self.query_heads % self.kv_heads == 0
@@ -384,7 +414,10 @@ class VLLMLayerLODPool:
         if unified_page1:
             arena_leaf_offset = 0
             kv_rows = r * h
-            arena_local_offset = arena_leaf_offset + kv_rows * self.leaf_capacity
+            arena_leaf_capacity = (
+                self.leaf_capacity if self.settings.levels == 2 else 0
+            )
+            arena_local_offset = arena_leaf_offset + kv_rows * arena_leaf_capacity
             arena_sink_offset = arena_local_offset + kv_rows * self.local_capacity
             arena_coarse_offset = arena_sink_offset + kv_rows * sink_capacity
             arena_padding_index = arena_coarse_offset + kv_rows * self.state_capacity
@@ -407,11 +440,11 @@ class VLLMLayerLODPool:
             recent_v = unified_page1_v[
                 arena_local_offset : arena_local_offset + kv_rows * self.local_capacity
             ].view(r, h, self.local_capacity, d)
-            fixed_mask_page1 = self.settings.decode_gqa_fixed_mask_aiter
-            if fixed_mask_page1:
+            if self.settings.decode_gqa_fixed_mask_aiter:
                 fixed_capacity = (
                     self.leaf_capacity
-                    + int(self.engine.local_len)
+                    + self.decode_local_limit
+                    + 1
                     + sink_capacity
                     + self.state_capacity
                 )
@@ -432,7 +465,7 @@ class VLLMLayerLODPool:
                     dtype=torch.int32,
                     device=self.device,
                 )
-                unified_page1_fixed_slot_offsets = torch.empty(
+                unified_page1_fixed_slot_offsets = torch.zeros(
                     r,
                     h,
                     self.state_capacity + 1,
@@ -731,24 +764,19 @@ class VLLMLayerLODPool:
                 summary_quantization_finalized=True,
             )
         else:
+            recursive_leaf_k = torch.empty(
+                r,
+                h,
+                self.leaf_capacity,
+                d,
+                dtype=self.dtype,
+                device=self.device,
+            )
+            recursive_leaf_v = torch.empty_like(recursive_leaf_k)
             page.update(
                 leaf_quant_bits=0,
-                leaf_k=torch.empty(
-                    r,
-                    h,
-                    self.leaf_capacity,
-                    d,
-                    dtype=self.dtype,
-                    device=self.device,
-                ),
-                leaf_v=torch.empty(
-                    r,
-                    h,
-                    self.leaf_capacity,
-                    d,
-                    dtype=self.dtype,
-                    device=self.device,
-                ),
+                leaf_k=recursive_leaf_k,
+                leaf_v=recursive_leaf_v,
                 page_sum_k=torch.zeros(
                     r,
                     h,
@@ -769,6 +797,29 @@ class VLLMLayerLODPool:
                 summary_quantization_finalized=False,
             )
         state["page_cache"] = page
+        if unified_page1:
+            page.update(
+                unified_page1_k=unified_page1_k,
+                unified_page1_v=unified_page1_v,
+                unified_page1_bias=unified_page1_bias,
+                unified_page1_capacity=arena_capacity,
+                unified_page1_leaf_offset=arena_leaf_offset,
+                unified_page1_local_offset=arena_local_offset,
+                unified_page1_sink_offset=arena_sink_offset,
+                unified_page1_coarse_offset=arena_coarse_offset,
+                unified_page1_padding_index=arena_padding_index,
+            )
+            if isinstance(unified_page1_fixed_indices, torch.Tensor):
+                page.update(
+                    unified_page1_fixed_indices=unified_page1_fixed_indices,
+                    unified_page1_fixed_leaf_owners=(
+                        unified_page1_fixed_leaf_owners
+                    ),
+                    unified_page1_fixed_slot_offsets=(
+                        unified_page1_fixed_slot_offsets
+                    ),
+                    unified_page1_fixed_lengths=unified_page1_fixed_lengths,
+                )
         return state
 
     def reset(self, slot: int) -> None:
@@ -777,6 +828,7 @@ class VLLMLayerLODPool:
         self.wait_deferred_prefill((slot,))
         self.ready[slot] = False
         self.clean[slot] = True
+        self.unified_page1_fixed_dirty[slot] = False
         self.metadata[slot].clear()
         self.local_lens[slot].zero_()
         self.state_lens[slot].zero_()
@@ -810,6 +862,7 @@ class VLLMLayerLODPool:
         for slot in range(start, stop):
             self.ready[slot] = False
             self.clean[slot] = True
+            self.unified_page1_fixed_dirty[slot] = False
             self.metadata[slot].clear()
         self.local_lens[start:stop].zero_()
         self.state_lens[start:stop].zero_()
@@ -1068,12 +1121,28 @@ class VLLMLayerLODPool:
                 coarse_v[start_slot:stop_slot],
                 coarse_bias[start_slot:stop_slot],
                 active_state_len=active_state_len,
+                key_norm_sums=(
+                    self.state["key_norm_sums"][start_slot:stop_slot]
+                    if self.inverse_coherence_mass else None
+                ),
             )
             begin = end
-        self._refresh_unified_page1_fixed(slots)
+        if self.settings.decode_gqa_fixed_mask_aiter:
+            self._refresh_unified_page1_fixed(slots)
+
+    def ensure_unified_page1_fixed(self, slots: tuple[int, ...]) -> None:
+        """Rebuild invalidated compact-decode leaf tables once per update."""
+        dirty = tuple(
+            slot for slot in slots if self.unified_page1_fixed_dirty[slot]
+        )
+        if not dirty:
+            return
+        self._refresh_unified_page1_fixed(dirty)
+        for slot in dirty:
+            self.unified_page1_fixed_dirty[slot] = False
 
     def _refresh_unified_page1_fixed(self, slots: tuple[int, ...]) -> None:
-        """Rebuild Qwen's persistent page-size-one list after an update."""
+        """Rebuild the persistent physical-leaf list after a state update."""
         if not slots:
             return
         page = self.state.get("page_cache")
@@ -1603,7 +1672,6 @@ class VLLMLayerLODPool:
                 event.synchronize()
                 seen.add(identity)
             self.deferred_prefill_events[slot] = None
-
     def install(
         self, slot: int, converted: KernelLODCache, *, source_slot: int = 0
     ) -> None:
@@ -2471,7 +2539,13 @@ class VLLMLayerLODPool:
                 ),
                 gqa_union_kv_heads=(
                     self.kv_heads
-                    if self.settings.levels == 2
+                    if (
+                        self.settings.levels == 2
+                        or (
+                            self.settings.levels == 3
+                            and self.family is ModelFamily.K2
+                        )
+                    )
                     and self.query_heads % self.kv_heads == 0
                     and 1 < self.query_heads // self.kv_heads <= 16
                     and self.head_dim in (128, 256)
@@ -2479,8 +2553,8 @@ class VLLMLayerLODPool:
                     else None
                 ),
                 gqa_union_index_capacity=(
-                    self.leaf_capacity
-                    + int(self.engine.local_len)
+                    (self.leaf_capacity if self.settings.levels == 2 else 0)
+                    + self.decode_local_limit
                     + 1
                     + self.state_capacity
                     + (
@@ -2488,7 +2562,13 @@ class VLLMLayerLODPool:
                         if isinstance(self.state.get("sink_k"), torch.Tensor)
                         else 0
                     )
-                    if self.settings.levels == 2
+                    if (
+                        self.settings.levels == 2
+                        or (
+                            self.settings.levels == 3
+                            and self.family is ModelFamily.K2
+                        )
+                    )
                     and self.query_heads % self.kv_heads == 0
                     and 1 < self.query_heads // self.kv_heads <= 16
                     and self.head_dim in (128, 256)
@@ -2496,12 +2576,58 @@ class VLLMLayerLODPool:
                     else None
                 ),
                 gqa_union_hip=True,
-                gqa_union_fixed_mask=self.settings.decode_gqa_fixed_mask_aiter,
+                gqa_union_fixed_mask=(
+                    self.settings.levels == 2
+                    and self.settings.decode_gqa_fixed_mask_aiter
+                ),
                 gqa_union_fixed_mask_tile_size=64,
                 gqa_union_fixed_mask_segments=(
                     self.settings.decode_gqa_fixed_mask_segments
                 ),
+                gqa_union_hip_segments=32,
             )
+            if self.settings.levels == 3 and self.family is ModelFamily.K2:
+                # Recursive decode always scans the same physical local/sink/
+                # coarse arena layout. Build that page-size-one table once;
+                # the hot route kernel supplies only the current logical length
+                # and current-token K/V before AITER consumes it.
+                table = storage["gqa_union_hip_block_table"]
+                page = self.state["page_cache"]
+                sequences = self.max_requests * self.kv_heads
+                physical_rows = torch.arange(
+                    sequences, dtype=torch.int32, device=self.device
+                ).unsqueeze(1)
+                local_width = self.decode_local_limit + 1
+                sink_width = int(self.state["sink_k"].size(2))
+                local_tokens = torch.arange(
+                    local_width, dtype=torch.int32, device=self.device
+                ).unsqueeze(0)
+                coarse_tokens = torch.arange(
+                    self.state_capacity, dtype=torch.int32, device=self.device
+                ).unsqueeze(0)
+                parts = [
+                    int(page["unified_page1_local_offset"])
+                    + physical_rows * self.local_capacity
+                    + local_tokens,
+                ]
+                if sink_width:
+                    sink_tokens = torch.arange(
+                        sink_width, dtype=torch.int32, device=self.device
+                    ).unsqueeze(0)
+                    parts.append(
+                        int(page["unified_page1_sink_offset"])
+                        + physical_rows * sink_width
+                        + sink_tokens
+                    )
+                parts.append(
+                    int(page["unified_page1_coarse_offset"])
+                    + physical_rows * self.state_capacity
+                    + coarse_tokens
+                )
+                persistent_indices = torch.cat(parts, dim=1)
+                if int(persistent_indices.size(1)) > int(table.size(1)):
+                    raise RuntimeError("recursive AITER index table is undersized")
+                table[:, : persistent_indices.size(1)].copy_(persistent_indices)
             if bool(self.engine.recursive_materialize_page_scores):
                 storage["recursive_page_scores"] = torch.empty(
                     self.max_requests,
@@ -2652,7 +2778,7 @@ class VLLMLayerLODPool:
                 materialized_state_route=bool(
                     self.settings.levels == 3 and speculative_route_backend == "resplit"
                 ),
-                # Multi-token verification consumes each query's own four
+                # Multi-token verification consumes each query's own eight
                 # centroids and does not build a GQA-wide leaf union.
                 gqa_union_kv_heads=None,
                 gqa_union_index_capacity=None,
@@ -2662,6 +2788,7 @@ class VLLMLayerLODPool:
                 gqa_union_fixed_mask_segments=(
                     self.settings.decode_gqa_fixed_mask_segments
                 ),
+                gqa_union_hip_segments=32,
             )
             if self.settings.levels == 3:
                 if bool(self.engine.recursive_materialize_page_scores):
@@ -3001,13 +3128,14 @@ class VLLMLayerLODPool:
             gqa_cooperative_leaf=False,
             # DFlash already supplies eight independent verifier rows. Keep
             # ordinary one-token decode on the GQA-shared union, but let
-            # speculative verification consume each query head's four
+            # speculative verification consume each query head's eight
             # complete centroids directly instead of building another union.
             gqa_union_decode=speculative_steps < 2,
             gqa_union_hip=True,
             gqa_union_fixed_mask_aiter=(
                 self.settings.decode_gqa_fixed_mask_aiter and speculative_steps < 2
             ),
+            gqa_union_compact_page_descriptors=False,
             gqa_union_fixed_mask_adaptive_segments=True,
             gqa_union_fixed_mask_reduce_block_d=(
                 self.settings.decode_gqa_fixed_mask_reduce_block_d
@@ -3018,6 +3146,7 @@ class VLLMLayerLODPool:
             gqa_union_page1_k=page.get("unified_page1_k"),
             gqa_union_page1_v=page.get("unified_page1_v"),
             gqa_union_page1_bias=page.get("unified_page1_bias"),
+            route_use_page1_bias=self.inverse_coherence_mass,
             gqa_union_page1_leaf_offset=int(page.get("unified_page1_leaf_offset", 0)),
             gqa_union_page1_local_offset=int(page.get("unified_page1_local_offset", 0)),
             gqa_union_page1_sink_offset=int(page.get("unified_page1_sink_offset", 0)),
@@ -3033,7 +3162,7 @@ class VLLMLayerLODPool:
             # particular, recursive page refinement has bounded work even when
             # the selected centroid owns a large posting list.
             max_leaf_tokens=None,
-            open_count=ROUTE_COUNT,
+            open_count=self.decode_open_count,
             recursive_page_cache=(page if recursive else None),
             flat_page_indices=(
                 page["page_indices"] if indexed_flat else None

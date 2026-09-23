@@ -180,7 +180,9 @@ class VLLMLODRuntime:
         return bool(self.layers)
 
     def _set_speculative_verification_routes(self, enabled: bool) -> None:
-        """Keep speculative verification on the same top-four calculation."""
+        """Keep speculative verification on the same top-eight calculation."""
+        if self.speculative_tokens == 0:
+            return
         del enabled
         for pool in self.pools.values():
             pool.engine.prefill_two_level_topk = ROUTE_COUNT
@@ -1450,13 +1452,14 @@ class VLLMLODRuntime:
             < reference_pool._catch_up_target(row, length)[1]
         ]
         update_due = bool(due)
-        if update_due:
-            # A semantic update consumes every layer's deferred state. In the
-            # common no-update case, leave the waits attached to each layer's
-            # cache access instead: early decode layers can then overlap the
-            # final cross-layer construction group from prefill.
-            for pool in self.pools.values():
-                pool.wait_deferred_prefill(rows)
+        # Decode can replay a captured graph without re-entering the Python
+        # layer methods.  Order every deferred cache construction here, before
+        # that graph consumer is launched; there is no per-layer cache-access
+        # hook on graph replay where this dependency can be attached safely.
+        # This is paid only at the prefill-to-decode boundary (or before a
+        # semantic catch-up), never once per generated token.
+        for pool in self.pools.values():
+            pool.wait_deferred_prefill(rows)
         used_cross_layer = False
         if len(due) == 1:
             used_cross_layer = self._catch_up_one_across_layers(*due[0])
@@ -1468,6 +1471,8 @@ class VLLMLODRuntime:
         elif update_due:
             for pool in self.pools.values():
                 pool.catch_up_many(requests)
+        for pool in self.pools.values():
+            pool.ensure_unified_page1_fixed(rows)
         for row, length in requests:
             recent_length = length - int(reference_pool.metadata[row]["coverage"])
             if recent_length > reference_pool.decode_local_limit:

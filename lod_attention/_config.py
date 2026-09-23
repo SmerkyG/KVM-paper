@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
-ROUTE_COUNT = 4
+ROUTE_COUNT = 8
 PAGE_SIZE = 16
 CHUNK_SIZE = 256
 LOCAL_WINDOW = 512
@@ -79,7 +79,6 @@ def model_family(config_or_model: Any) -> ModelFamily:
     }
     if root_type == "k2_horizon" or "k2horizonforcausallm" in architectures:
         return ModelFamily.K2
-
     q_heads = int(getattr(text, "num_attention_heads", 0) or 0)
     kv_heads = int(getattr(text, "num_key_value_heads", 0) or 0)
     head_dim = int(getattr(text, "head_dim", 0) or 0)
@@ -124,7 +123,7 @@ class LODConfig:
                 "512-token base window or 1024-token vLLM prefix rollback window"
             )
         if self.max_routes != ROUTE_COUNT:
-            raise ValueError("the paper release has exactly four routes")
+            raise ValueError("the paper release has exactly eight routes")
         if self.protected_prefix != 1:
             raise ValueError("the paper release keeps exactly one protected sink")
         if self.state_clustering_policy not in ("manual", "qk_norm_aware"):

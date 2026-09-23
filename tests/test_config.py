@@ -20,9 +20,13 @@ from lod_attention._profile import configure_engine
 
 
 @pytest.mark.parametrize("routing_normalization", ["query", "none"])
+@pytest.mark.parametrize("inverse_mass", [False, True])
+@pytest.mark.parametrize("route_count", [4, 8])
 def test_aiter_prefill_reuses_fused_coarse_result(
     monkeypatch: pytest.MonkeyPatch,
     routing_normalization: str,
+    inverse_mass: bool,
+    route_count: int,
 ) -> None:
     from lod_attention._core import TritonLODAttentionCore
     from lod_attention.kernels import aiter_prefill_attention
@@ -30,19 +34,21 @@ def test_aiter_prefill_reuses_fused_coarse_result(
     engine = TritonLODAttentionCore()
     engine.num_key_value_groups = 2
     engine.scaling = 0.5
-    engine.two_level_topk = 4
-    engine.prefill_two_level_topk = 4
+    engine.two_level_topk = route_count
+    engine.prefill_two_level_topk = route_count
     engine.separate_sink_cache = True
     engine.routing_normalization = routing_normalization
     engine.prefill_aiter_route_coarse = True
     engine.split_prefill_local_attention = True
     engine.mla_state_key_normalization = "none"
+    engine.inverse_coherence_mass = inverse_mass
 
     q = torch.randn(1, 4, 3, 4)
     state_k = torch.randn(1, 2, 8, 4)
     state_v = torch.randn_like(state_k)
     counts = torch.randint(1, 5, (1, 2, 8, 1)).float()
-    expected_routes = torch.zeros(1, 4, 3, 4, dtype=torch.long)
+    key_norm_sums = counts.clone()
+    expected_routes = torch.zeros(1, 4, 3, route_count, dtype=torch.long)
     expected_coarse = object()
     expected_route_head_counts = torch.zeros(4 * 8, dtype=torch.int32)
     expected_route_offsets = torch.zeros_like(expected_routes, dtype=torch.int32)
@@ -58,11 +64,21 @@ def test_aiter_prefill_reuses_fused_coarse_result(
         assert passed_k.data_ptr() == state_k.data_ptr()
         assert passed_v.data_ptr() == state_v.data_ptr()
         assert passed_counts.data_ptr() == counts.data_ptr()
+        passed_norms = kwargs.pop("key_norm_sums")
+        if inverse_mass:
+            assert isinstance(passed_norms, torch.Tensor)
+            assert passed_norms.data_ptr() == key_norm_sums.data_ptr()
+        else:
+            assert passed_norms is None
         assert kwargs == {
+            "route_count": route_count,
             "state_len": 8,
             "kv_group_size": 2,
             "scale": 0.5,
             "normalize_route_query": routing_normalization == "query",
+            "exact_mass_coverage": None,
+            "local_lse": None,
+            "sink_k": None,
             "buffers": None,
         }
         return (
@@ -82,6 +98,7 @@ def test_aiter_prefill_reuses_fused_coarse_result(
         state_k,
         state_v,
         counts,
+        key_norm_sums=key_norm_sums,
         state_len=8,
         state_capacity=8,
     )
@@ -89,6 +106,34 @@ def test_aiter_prefill_reuses_fused_coarse_result(
     assert engine._lod_prefill_route_head_counts is expected_route_head_counts
     assert engine._lod_prefill_route_offsets is expected_route_offsets
     assert engine._lod_prefill_aiter_coarse is expected_coarse
+
+
+def test_disabling_qwen_coherence_changes_only_assignment_geometry() -> None:
+    from lod_attention._core import TritonLODAttentionCore
+
+    engine = TritonLODAttentionCore()
+    engine.state_clustering_normalization = "none"
+    engine.state_clustering_centroid_rescale = "coherence"
+    key = torch.tensor([[[[1.0, 1.0]]]])
+    radial_rms = torch.tensor([[[[2.0]]]])
+    engine.state_clustering_centroid_rescale_scope = "assignment"
+    baseline_assignment = engine._state_clustering_key(
+        key, role="centroid", radial_rms=radial_rms, purpose="assignment"
+    )
+    baseline_append = engine._state_clustering_key(
+        key, role="centroid", radial_rms=radial_rms, purpose="append"
+    )
+    engine.state_clustering_centroid_rescale_scope = "none"
+    ablated_assignment = engine._state_clustering_key(
+        key, role="centroid", radial_rms=radial_rms, purpose="assignment"
+    )
+    ablated_append = engine._state_clustering_key(
+        key, role="centroid", radial_rms=radial_rms, purpose="append"
+    )
+    torch.testing.assert_close(baseline_assignment, key / 2)
+    torch.testing.assert_close(ablated_assignment, baseline_append)
+    torch.testing.assert_close(ablated_append, baseline_append)
+    assert engine._streaming_state_geometry() == "spherical"
 
 
 def test_public_modes_map_to_the_three_cache_organizations() -> None:
@@ -145,7 +190,7 @@ def test_only_qwen38_and_k2_are_recognized() -> None:
         (ModelFamily.K2, 64, 8, 128),
     ],
 )
-def test_profile_fixes_top_four_for_both_families(
+def test_profile_fixes_top_eight_for_both_families(
     family: ModelFamily, heads: int, kv_heads: int, head_dim: int
 ) -> None:
     engine = SimpleNamespace(
@@ -168,8 +213,19 @@ def test_profile_fixes_top_four_for_both_families(
     assert engine.recursive_prefill_all_leaves is True
     assert engine.separate_sink_cache is True
     assert engine.prefill_aiter_route_coarse is True
-    assert engine.leaf_block_m == (64 if family is ModelFamily.K2 else 32)
+    assert engine.leaf_block_m == (256 if family is ModelFamily.K2 else 32)
+    assert engine.leaf_block_n == 16
     assert engine.leaf_num_warps == (4 if family is ModelFamily.K2 else 2)
+    configure_engine(
+        engine,
+        family=family,
+        mode=LODMode.THREE_TIER_BF16,
+        request_capacity=131_072,
+        has_query_norm=family is ModelFamily.QWEN38,
+        has_key_norm=family is ModelFamily.QWEN38,
+    )
+    assert engine.leaf_block_m == (128 if family is ModelFamily.K2 else 32)
+    assert engine.leaf_block_n == (32 if family is ModelFamily.K2 else 16)
 
 
 @pytest.mark.parametrize(

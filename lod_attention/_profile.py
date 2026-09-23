@@ -25,7 +25,7 @@ def configure_engine(
 ) -> None:
     """Apply the measured release profile to a projection-free engine.
 
-    The attention calculation is shared across both families: top-four in
+    The attention calculation is shared across both families: top-eight in
     prefill and decode, count-corrected coarse mass, and exact replacement of
     selected regions. Differences below are launch geometry, storage, and the
     fixed K2 INT4 maintenance interval.
@@ -83,9 +83,11 @@ def configure_engine(
         engine.prefill_coarse_route_block_n = 16
         engine.prefill_coarse_route_num_warps = 8
     else:
-        # D=128 K2 queries reuse each routed centroid more efficiently across
-        # 64 rows. This changes only the exact-leaf launch geometry.
-        engine.leaf_block_m = 64
+        # Wider K2 query tiles amortize long selected centroids. BF16 uses
+        # 128 rows and 32 leaf columns; INT4 uses 256 rows and retains its
+        # page-sized 16-column dequantization path below.
+        engine.leaf_block_m = 128
+        engine.leaf_block_n = 32
         engine.prefill_coarse_direct_gqa = False
         engine.prefill_coarse_max_grouped_rows = 64
         engine.prefill_coarse_route_block_n = 32
@@ -112,7 +114,8 @@ def configure_engine(
         engine.leaf_quant_scale_mode = "l2"
         engine.leaf_append_quant_scale_mode = "l2"
         if family is ModelFamily.K2:
-            engine.leaf_block_m = 64
+            engine.leaf_block_m = 256
+            engine.leaf_block_n = 16
             engine.leaf_num_warps = 4
             engine.decode_state_update_len = 512
             engine.decode_route_parallel_reduce = True

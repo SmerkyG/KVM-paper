@@ -782,6 +782,7 @@ def _materialize_page1_coarse_means_kernel(
     state_k,
     state_v,
     counts,
+    key_norm_sums,
     coarse_k,
     coarse_v,
     coarse_bias,
@@ -789,6 +790,7 @@ def _materialize_page1_coarse_means_kernel(
     STATE_CAPACITY: tl.constexpr,
     HEAD_DIM: tl.constexpr,
     BLOCK_N: tl.constexpr,
+    HAS_KEY_NORM_SUMS: tl.constexpr,
 ):
     kv_row = tl.program_id(0).to(tl.int64)
     slot = tl.program_id(1).to(tl.int64) * BLOCK_N + tl.arange(0, BLOCK_N)
@@ -804,6 +806,20 @@ def _materialize_page1_coarse_means_kernel(
     key_sum = tl.load(state_k + storage, mask=active[:, None], other=0.0)
     value_sum = tl.load(state_v + storage, mask=active[:, None], other=0.0)
     denominator = tl.where(active, count, 1.0)
+    mass = denominator
+    if HAS_KEY_NORM_SUMS:
+        radial_sum = tl.load(
+            key_norm_sums + kv_row * STATE_CAPACITY + slot,
+            mask=active,
+            other=0.0,
+        ).to(tl.float32)
+        squared_key_sum = tl.sum(
+            key_sum.to(tl.float32) * key_sum.to(tl.float32), axis=1
+        )
+        centroid_rms = tl.sqrt(squared_key_sum / HEAD_DIM) / denominator
+        mass = denominator * tl.maximum(
+            (radial_sum / denominator) / tl.maximum(centroid_rms, 1.0e-12), 1.0
+        )
     tl.store(
         coarse_k + storage,
         key_sum.to(tl.float32) / denominator[:, None],
@@ -816,7 +832,7 @@ def _materialize_page1_coarse_means_kernel(
     )
     tl.store(
         coarse_bias + kv_row * STATE_CAPACITY + slot,
-        tl.where(active, tl.log(count), -float("inf")),
+        tl.where(active, tl.log(mass), -float("inf")),
         mask=active_slot,
     )
 
@@ -830,6 +846,7 @@ def materialize_page1_coarse_means(
     coarse_bias: torch.Tensor,
     *,
     active_state_len: int | None = None,
+    key_norm_sums: torch.Tensor | None = None,
 ) -> None:
     """Refresh persistent centroid means and their natural-log mass bias."""
     if tuple(state_v.shape) != tuple(state_k.shape) or (
@@ -841,17 +858,16 @@ def materialize_page1_coarse_means(
         raise ValueError("page-size-one coarse counts have the wrong shape")
     if tuple(coarse_bias.shape) != tuple(state_k.shape[:-1]):
         raise ValueError("page-size-one coarse bias has the wrong shape")
+    if key_norm_sums is not None and tuple(key_norm_sums.shape) != tuple(counts.shape):
+        raise ValueError("page-size-one key norm sums have the wrong shape")
     if coarse_bias.dtype != torch.float16:
         raise TypeError("page-size-one coarse bias must use FP16 storage")
-    if not all(
-        tensor.is_cuda
-        for tensor in (state_k, state_v, counts, coarse_k, coarse_v, coarse_bias)
-    ):
+    tensors = (state_k, state_v, counts, coarse_k, coarse_v, coarse_bias)
+    if key_norm_sums is not None:
+        tensors += (key_norm_sums,)
+    if not all(tensor.is_cuda for tensor in tensors):
         raise ValueError("page-size-one coarse mean refresh requires CUDA tensors")
-    if not all(
-        tensor.is_contiguous()
-        for tensor in (state_k, state_v, counts, coarse_k, coarse_v, coarse_bias)
-    ):
+    if not all(tensor.is_contiguous() for tensor in tensors):
         raise ValueError(
             "page-size-one coarse mean refresh requires contiguous tensors"
         )
@@ -870,6 +886,7 @@ def materialize_page1_coarse_means(
         state_k,
         state_v,
         counts,
+        key_norm_sums if key_norm_sums is not None else counts,
         coarse_k,
         coarse_v,
         coarse_bias,
@@ -877,6 +894,7 @@ def materialize_page1_coarse_means(
         STATE_CAPACITY=state_capacity,
         HEAD_DIM=head_dim,
         BLOCK_N=block_n,
+        HAS_KEY_NORM_SUMS=key_norm_sums is not None,
         num_warps=4,
     )
 
@@ -1219,14 +1237,24 @@ def _materialize_page1_fixed_leaves_kernel(
         ).to(tl.int32)
         leaf_valid = page_valid & (leaf_index >= 0) & (leaf_index < LEAF_CAPACITY)
         leaf_rank = destination + logical_token
+        leaf_valid &= (leaf_rank >= 0) & (leaf_rank < LEAF_CAPACITY)
+        # Keep the pointer itself in bounds as well as masking the store.
+        # ROCm may still lower an out-of-range address expression before the
+        # lane predicate is applied.
+        safe_leaf_rank = tl.maximum(0, tl.minimum(leaf_rank, LEAF_CAPACITY - 1))
         physical_leaf = ARENA_LEAF_OFFSET + global_sequence * LEAF_CAPACITY + leaf_index
         tl.store(
-            fixed_indices + local_sequence * FIXED_CAPACITY + LEAF_BEGIN + leaf_rank,
+            fixed_indices
+            + local_sequence * FIXED_CAPACITY
+            + LEAF_BEGIN
+            + safe_leaf_rank,
             physical_leaf,
             mask=leaf_valid,
         )
         tl.store(
-            fixed_leaf_owners + local_sequence * LEAF_CAPACITY + leaf_rank,
+            fixed_leaf_owners
+            + local_sequence * LEAF_CAPACITY
+            + safe_leaf_rank,
             slot,
             mask=leaf_valid,
         )

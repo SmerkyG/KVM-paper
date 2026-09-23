@@ -19,24 +19,120 @@ instead of silently substituting a different document.
 |---|---|---:|---:|---:|
 | Qwen3.8-27B-FP8 | Full | all | 0.443036 | 1.557428 |
 | Qwen3.8-27B-FP8 | Two-tier BF16 | 4 | 0.447485 | 1.564373 |
+| Qwen3.8-27B-FP8 | Two-tier BF16 | 8 | 0.445344 | 1.561027 |
 | Qwen3.8-27B-FP8 | Three-tier BF16 | 4 | 0.447462 | 1.564337 |
+| Qwen3.8-27B-FP8 | Three-tier BF16 | 8 | 0.445109 | 1.560660 |
 | Qwen3.8-27B-FP8 | Three-tier INT4 | 4 | 0.447536 | 1.564452 |
+| Qwen3.8-27B-FP8 | Three-tier INT4 | 8 | 0.445317 | 1.560984 |
 | K2-Horizon-32B-FP8 | Full | all | 0.495866 | 1.641919 |
 | K2-Horizon-32B-FP8 | Two-tier BF16 | 4 | 0.498166 | 1.645701 |
+| K2-Horizon-32B-FP8 | Two-tier BF16 | 8 | 0.496567 | 1.643071 |
 | K2-Horizon-32B-FP8 | Three-tier BF16 | 4 | 0.497483 | 1.644577 |
+| K2-Horizon-32B-FP8 | Three-tier BF16 | 8 | 0.496666 | 1.643234 |
 | K2-Horizon-32B-FP8 | Three-tier INT4 | 4 | 0.498337 | 1.645982 |
+| K2-Horizon-32B-FP8 | Three-tier INT4 | 8 | 0.496575 | 1.643084 |
 
-Prompt loss exercises prefill only. Every LoD row above uses the release's
-uniform top-4 prefill policy. Each measurement contains 524,280 predicted
-tokens; the loss is token-weighted across all eight documents. All eight rows
-were freshly rerun on 2026-09-14 after the cohort was standardized.
+Prompt loss exercises prefill only. Each measurement contains 524,280 predicted
+tokens; the loss is token-weighted across all eight documents. The top-4 rows
+are archived baselines from 2026-09-14; the top-8 rows were rerun on 2026-09-17
+using the current unflagged production profile and the same document hashes.
+The K2 top-8 rows include the enlarged exact-leaf query tiles.
 
-On this shared cohort, every LoD aggregate is now worse than its matched full
-attention baseline, removing the earlier K2 reversal caused by evaluating a
-different tokenizer-selected document set. The K2 loss increase remains
-smaller (`+0.001617` to `+0.002471`) than Qwen's (`+0.004426` to `+0.004500`).
+On this shared cohort, top-8 improves loss over top-4 in every LoD mode on
+both models. It remains slightly worse than full attention: about `+0.0021`
+for Qwen and `+0.0007` for K2. The earlier apparent K2 reversal came from
+evaluating a different tokenizer-selected document set.
 
-## Matched speed results
+## Current routed top-8 speed results
+
+These use the same MI325X, raw prompt cohort, 16,384-token scheduler chunk,
+1,025-token decode, and timing definition as the archived top-4 panel below.
+Full-attention controls are retained because its code and configuration did
+not change. LoD rows were rerun on 2026-09-17 with top-8 in both prefill and
+decode. Each cell is `prefill seconds / decode milliseconds per batch step`.
+
+### Qwen3.8, TP1, batch 1, top-8
+
+| Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
+|---:|---:|---:|---:|---:|
+| 8K | 0.980 s / 28.81 ms | 0.940 s / 28.76 ms | 0.955 s / 29.51 ms | 1.054 s / 29.56 ms |
+| 16K | 2.163 s / 29.62 ms | 2.003 s / 28.76 ms | 2.025 s / 29.47 ms | 2.125 s / 29.59 ms |
+| 32K | 5.205 s / 30.30 ms | 4.128 s / 28.70 ms | 4.181 s / 29.48 ms | 4.367 s / 29.64 ms |
+| 64K | 13.920 s / 31.71 ms | 8.508 s / 28.98 ms | 8.628 s / 29.59 ms | 9.049 s / 29.70 ms |
+| 128K | 42.236 s / 34.29 ms | 17.862 s / 29.29 ms | 18.054 s / 29.59 ms | 19.052 s / 29.84 ms |
+
+### Qwen3.8, TP1, batch 8, top-8
+
+| Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
+|---:|---:|---:|---:|---:|
+| 8K | 7.908 s / 37.84 ms | 7.661 s / 36.40 ms | 7.560 s / 35.63 ms | 8.274 s / 35.92 ms |
+| 16K | 17.595 s / 40.78 ms | 16.194 s / 36.61 ms | 16.208 s / 35.80 ms | 17.015 s / 36.13 ms |
+| 32K | 42.410 s / 45.85 ms | 33.704 s / 37.53 ms | 33.628 s / 35.89 ms | 35.242 s / 36.22 ms |
+| 64K | 113.494 s / 55.72 ms | 69.869 s / 39.33 ms | 69.577 s / 35.99 ms | 72.793 s / 36.31 ms |
+| 128K | 344.471 s / 74.74 ms | 147.081 s / 43.15 ms | 146.524 s / 36.32 ms | 154.188 s / 36.71 ms |
+
+### Qwen3.8, TP4, batch 8, top-8
+
+| Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
+|---:|---:|---:|---:|---:|
+| 8K | 3.480 s / 22.07 ms | 3.398 s / 22.13 ms | 3.503 s / 22.41 ms | 3.670 s / 22.47 ms |
+| 16K | 7.719 s / 23.03 ms | 7.234 s / 22.15 ms | 7.373 s / 22.50 ms | 7.558 s / 22.65 ms |
+| 32K | 17.437 s / 24.17 ms | 14.786 s / 22.36 ms | 15.036 s / 22.54 ms | 15.463 s / 22.69 ms |
+| 64K | 43.388 s / 27.10 ms | 30.148 s / 22.81 ms | 30.529 s / 22.66 ms | 31.555 s / 22.82 ms |
+| 128K | 120.322 s / 32.75 ms | 62.107 s / 23.70 ms | 62.903 s / 22.87 ms | 65.642 s / 23.11 ms |
+
+### K2 Horizon, TP1, batch 1, top-8
+
+These K2 cells use 128-by-32 BF16 exact-leaf tiles and 256-by-16 INT4 tiles.
+
+| Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
+|---:|---:|---:|---:|---:|
+| 8K | 1.156 s / 37.58 ms | 1.197 s / 40.13 ms | 1.260 s / 41.60 ms | 1.585 s / 40.70 ms |
+| 16K | 2.593 s / 38.16 ms | 2.548 s / 40.32 ms | 2.660 s / 42.03 ms | 2.978 s / 41.11 ms |
+| 32K | 6.324 s / 39.17 ms | 6.050 s / 40.93 ms | 6.236 s / 42.64 ms | 6.814 s / 41.54 ms |
+| 64K | 17.120 s / 41.06 ms | 14.001 s / 41.49 ms | 14.348 s / 42.99 ms | 15.732 s / 41.94 ms |
+| 128K | 52.721 s / 44.46 ms | 33.324 s / 42.87 ms | 34.133 s / 43.78 ms | 37.923 s / 42.98 ms |
+
+### K2 Horizon, TP1, batch 8, top-8
+
+| Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
+|---:|---:|---:|---:|---:|
+| 8K | 9.227 s / 46.51 ms | 9.622 s / 48.04 ms | 9.938 s / 51.40 ms | 11.373 s / 50.68 ms |
+| 16K | 21.084 s / 50.51 ms | 20.410 s / 49.19 ms | 21.625 s / 52.50 ms | 23.106 s / 51.82 ms |
+| 32K | 51.810 s / 56.90 ms | 50.890 s / 51.53 ms | 52.517 s / 54.35 ms | 55.921 s / 53.86 ms |
+| 64K | 141.656 s / 70.18 ms | 120.959 s / 53.94 ms | 123.473 s / 56.46 ms | 132.990 s / 55.92 ms |
+| 128K | Does not fit B8 | Does not fit B8 | Does not fit B8 | 333.850 s / 61.23 ms |
+
+The 128K INT4 cell is a capacity result; BF16 and full-attention caches do
+not fit eight K2 requests on one MI325X. It was measured separately with the
+same eight prompts and a 0.8 GPU-memory fraction.
+
+### K2 Horizon, TP4, batch 8, top-8
+
+| Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
+|---:|---:|---:|---:|---:|
+| 8K | 3.842 s / 22.66 ms | 4.008 s / 25.00 ms | 4.095 s / 27.38 ms | 4.619 s / 25.99 ms |
+| 16K | 8.449 s / 23.59 ms | 8.140 s / 25.39 ms | 8.825 s / 28.54 ms | 9.260 s / 26.89 ms |
+| 32K | 19.343 s / 25.21 ms | 20.021 s / 26.34 ms | 20.768 s / 29.13 ms | 21.967 s / 27.62 ms |
+| 64K | 49.363 s / 28.67 ms | 46.930 s / 27.41 ms | 48.046 s / 29.96 ms | 51.656 s / 28.43 ms |
+| 128K | 139.962 s / 35.51 ms | 113.306 s / 30.74 ms | 115.871 s / 33.38 ms | 128.477 s / 32.63 ms |
+
+### Qwen3.8 with DFlash2, TP1, batch 1, top-8
+
+This uses the same eight-prompt cohort and seven-token draft as the archived
+DFlash2 panel. Decode measures the complete speculative loop; its time depends
+on draft acceptance as well as target attention. All LoD prompt hashes were
+checked against the same online dataset cohort.
+
+| Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
+|---:|---:|---:|---:|---:|
+| 8K | 0.988 s / 7.76 ms | 0.941 s / 7.93 ms | 0.964 s / 8.39 ms | 1.042 s / 7.63 ms |
+| 16K | 2.153 s / 9.26 ms | 1.989 s / 8.21 ms | 2.019 s / 8.87 ms | 2.095 s / 8.19 ms |
+| 32K | 5.208 s / 10.72 ms | 4.142 s / 8.63 ms | 4.183 s / 9.01 ms | 4.343 s / 8.56 ms |
+| 64K | 13.954 s / 11.44 ms | 8.575 s / 8.31 ms | 8.658 s / 8.61 ms | 8.991 s / 9.03 ms |
+| 128K | 42.470 s / 19.82 ms | 17.974 s / 10.50 ms | 18.207 s / 8.83 ms | 19.062 s / 8.55 ms |
+
+## Archived matched top-4 speed results
 
 These measurements use AMD MI325X with vLLM 0.27.1. Every LoD cell, the three
 non-speculative Qwen full-attention panels, and both K2 batch-8 full-attention
@@ -55,7 +151,8 @@ chunk is 16,384 tokens. Decode generates 1,025 tokens and measures the final
 path, or two 512-token updates for K2 INT4. Results are medians after one
 warmup and three measured repetitions.
 
-All displayed LoD cells use routed top-4 attention; the final release's exact
+All displayed LoD cells in the archived tables below use routed top-4 attention;
+the current top-8 panels appear above. The release's exact
 decode cutoff is 2K. Full-attention controls use native attention throughout.
 The DFlash2 panel was rerun in full with the diagnostics described below.
 
@@ -240,7 +337,7 @@ uv run python -m benchmarks.prolong \
   --batch-size 1 \
   --tensor-parallel-size 1 \
   --decode-tokens 1025 \
-  --repeats 3 \
+  --repeats 1 \
   --seed 0 \
   --gpu-memory-utilization 0.7 \
   --output results/prolong-qwen-two-tier-speed-tp1-b1.json
@@ -250,7 +347,8 @@ For TP1, batch 8, change only `--batch-size` to 8. For TP4, batch 8, also
 change `--tensor-parallel-size` to 4. Full attention defaults to the archived
 `ROCM_AITER_UNIFIED_ATTN` control backend. The output records each repetition,
 prompt hashes, aggregate prefill throughput, decode batch-step latency, and
-decode token throughput.
+decode token throughput. The benchmark does not run a separate instrumented
+attention pass or alter the production CUDA graph.
 
 K2 TP1, batch 8 is the capacity exception. Reproduce its matched 8K–64K
 portion with:
@@ -264,7 +362,7 @@ uv run python -m benchmarks.prolong \
   --batch-size 8 \
   --tensor-parallel-size 1 \
   --decode-tokens 1025 \
-  --repeats 3 \
+  --repeats 1 \
   --seed 0 \
   --gpu-memory-utilization 0.9 \
   --output results/prolong-k2-two-tier-speed-tp1-b8-64k.json
@@ -310,7 +408,7 @@ this intentionally gives every arm the same 128K configured capacity even
 while measuring 8K. For K2 TP1, batch 8, preserve the four-length matched list
 through 64K and use the separate five-length INT4 run only for its 128K cell.
 Model startup is excluded, and the runner performs one unreported warmup at
-every length before taking three repetitions.
+every length before taking one measured repetition.
 
 Speed prompts use the fixed dataset shuffle seed `20260824`. Prompt loss uses
 the frozen raw-document indices listed above; its default `--sample-offset 8`
@@ -319,6 +417,11 @@ as shown to seed generation. For DFlash2, also preserve seven proposed tokens,
 greedy sampling, and the draft checkpoint shown above. The runner records all
 of these inputs, document hashes, prompt hashes, output-token hashes, and
 per-repetition timings in its JSON output.
+
+Resolve the ProLong dataset online when reproducing a speed panel. With
+`HF_HUB_OFFLINE=1`, the cached streaming-dataset shuffle produced a different
+document order despite the pinned revision and shuffle seed. Compare the
+recorded prompt-token hashes between modes before comparing their timings.
 
 A fixed seed does not make FP8 GEMMs and parallel GPU reductions bitwise
 deterministic. A near-tied token can therefore change the continuation and its

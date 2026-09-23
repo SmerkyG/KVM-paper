@@ -6,7 +6,11 @@ import torch
 import triton
 import triton.language as tl
 
-from ._paged_common import _pack_route_score_index, _unpack_route_score_index
+from ._paged_common import (
+    _pack_fp16_route_score_index,
+    _pack_route_score_index,
+    _unpack_route_score_index,
+)
 
 
 @triton.jit
@@ -597,6 +601,7 @@ def _decode_route_coarse_gqa_groups_kernel(
     local_v,
     new_k,
     new_v,
+    baseline_context_lens,
     LOG_COUNT_BIAS_BATCH_STRIDE,
     LOG_COUNT_BIAS_HEAD_STRIDE,
     LOG_COUNT_BIAS_TOKEN_STRIDE,
@@ -618,12 +623,14 @@ def _decode_route_coarse_gqa_groups_kernel(
     FUSE_UNION_INIT: tl.constexpr = False,
     UNION_SEQUENCE_CAPACITY: tl.constexpr = 1,
     PACKED_CANDIDATES: tl.constexpr = False,
-    STORE_ALL_SCORES: tl.constexpr = False,
+    PACKED_FP16_CANDIDATES: tl.constexpr = False,
     USE_LOG_COUNT_BIAS: tl.constexpr = False,
     FUSE_LOCAL: tl.constexpr = False,
     LOCAL_CAPACITY: tl.constexpr = 1,
     LOCAL_LIMIT: tl.constexpr = 0,
     INCLUDE_NEW: tl.constexpr = False,
+    PREPARE_BASELINE: tl.constexpr = False,
+    BASELINE_SINK_LEN: tl.constexpr = 0,
 ):
     """Share each state K/V tile across all query heads in one GQA group."""
     batch_kv = tl.program_id(0).to(tl.int64)
@@ -656,7 +663,7 @@ def _decode_route_coarse_gqa_groups_kernel(
         )
     else:
         active_state_len = state_len
-    if FUSE_LOCAL:
+    if FUSE_LOCAL or PREPARE_BASELINE:
         active_local_len = tl.minimum(
             tl.load(local_lens + cache_batch).to(tl.int32),
             LOCAL_LIMIT,
@@ -675,10 +682,41 @@ def _decode_route_coarse_gqa_groups_kernel(
     slot = group * GROUP_N + tl.arange(0, GROUP_N)
     valid = slot < active_state_len
     dim = tl.arange(0, HEAD_DIM)
+    if PREPARE_BASELINE and group == 0:
+        tl.store(
+            baseline_context_lens + batch_kv,
+            active_local_extent + BASELINE_SINK_LEN + active_state_len,
+        )
+        if INCLUDE_NEW:
+            current_key = tl.load(
+                new_k
+                + (batch * KV_HEADS + kv_head) * HEAD_DIM
+                + dim
+            )
+            current_value = tl.load(
+                new_v
+                + (batch * KV_HEADS + kv_head) * HEAD_DIM
+                + dim
+            )
+            local_storage = (
+                (cache_batch * KV_HEADS + kv_head) * LOCAL_CAPACITY
+                + active_local_len
+            )
+            tl.store(local_k + local_storage * HEAD_DIM + dim, current_key)
+            tl.store(local_v + local_storage * HEAD_DIM + dim, current_value)
     if group * GROUP_N >= active_state_len and group * GROUP_N >= active_local_extent:
         rank = tl.arange(0, CANDIDATES_PER_GROUP)
         candidate_base = (query_row * MAX_GROUPS + group) * CANDIDATES_PER_GROUP
-        if PACKED_CANDIDATES:
+        if PACKED_FP16_CANDIDATES:
+            invalid_packed = tl.full(
+                (CANDIDATES_PER_GROUP,), -2147483648, tl.int32
+            )
+            tl.store(
+                candidate_scores + candidate_base[:, None] + rank[None, :],
+                invalid_packed[None, :].to(tl.float32, bitcast=True),
+                mask=query_valid[:, None],
+            )
+        elif PACKED_CANDIDATES:
             tl.store(
                 candidate_indices + candidate_base[:, None] + rank[None, :],
                 -9187343239835811841,
@@ -734,16 +772,6 @@ def _decode_route_coarse_gqa_groups_kernel(
         mean_keys = (keys.to(tl.float32) / count[:, None]).to(keys.dtype)
     scores = tl.dot(queries, tl.trans(mean_keys), out_dtype=tl.float32)
     scores *= SCALE
-    if STORE_ALL_SCORES:
-        # ``group_out`` is otherwise unused by score-only routing and has at
-        # least MAX_GROUPS * HEAD_DIM entries per query row. Preserve the
-        # already-computed QK term so the attention consumer need not reload
-        # every centroid key and repeat the same matrix multiply.
-        tl.store(
-            group_out + query_row[:, None] * MAX_GROUPS * HEAD_DIM + slot[None, :],
-            scores,
-            mask=query_valid[:, None] & valid[None, :],
-        )
     if USE_LOG_COUNT_BIAS:
         count_bias = tl.load(
             log_count_bias
@@ -799,10 +827,19 @@ def _decode_route_coarse_gqa_groups_kernel(
                 remaining_scores,
             )
     else:
-        packed = _pack_route_score_index(route_scores, slot[None, :])
+        if PACKED_FP16_CANDIDATES:
+            packed = _pack_fp16_route_score_index(route_scores, slot[None, :])
+        else:
+            packed = _pack_route_score_index(route_scores, slot[None, :])
         block_top = tl.topk(packed, CANDIDATES_PER_GROUP, dim=1)
         rank = tl.arange(0, CANDIDATES_PER_GROUP)
-        if PACKED_CANDIDATES:
+        if PACKED_FP16_CANDIDATES:
+            tl.store(
+                candidate_scores + candidate_base[:, None] + rank[None, :],
+                block_top.to(tl.float32, bitcast=True),
+                mask=query_valid[:, None],
+            )
+        elif PACKED_CANDIDATES:
             tl.store(
                 candidate_indices + candidate_base[:, None] + rank[None, :],
                 block_top,
@@ -1255,6 +1292,7 @@ def _decode_route_coarse_gqa_groups_fixed_prepare_kernel(
     state_k,
     state_v,
     counts,
+    log_count_bias,
     cache_indices,
     candidate_scores,
     candidate_indices,
@@ -1284,6 +1322,9 @@ def _decode_route_coarse_gqa_groups_fixed_prepare_kernel(
     COUNT_BATCH_STRIDE,
     COUNT_HEAD_STRIDE,
     COUNT_TOKEN_STRIDE,
+    LOG_COUNT_BIAS_BATCH_STRIDE,
+    LOG_COUNT_BIAS_HEAD_STRIDE,
+    LOG_COUNT_BIAS_TOKEN_STRIDE,
     NEW_K_BATCH_STRIDE,
     NEW_K_HEAD_STRIDE,
     NEW_V_BATCH_STRIDE,
@@ -1318,6 +1359,7 @@ def _decode_route_coarse_gqa_groups_fixed_prepare_kernel(
     KEYS_ARE_MEANS: tl.constexpr,
     REUSE_COARSE: tl.constexpr,
     CANDIDATES_PER_GROUP: tl.constexpr = 8,
+    USE_LOG_COUNT_BIAS: tl.constexpr = False,
 ):
     """Score current centroids while preparing the persistent fixed mask.
 
@@ -1506,7 +1548,18 @@ def _decode_route_coarse_gqa_groups_fixed_prepare_kernel(
     else:
         mean_keys = (keys.to(tl.float32) / count[:, None]).to(keys.dtype)
     scores = tl.dot(queries, tl.trans(mean_keys), out_dtype=tl.float32)
-    scores = scores * SCALE + tl.log(count)[None, :]
+    if USE_LOG_COUNT_BIAS:
+        mass_bias = tl.load(
+            log_count_bias
+            + cache_batch * LOG_COUNT_BIAS_BATCH_STRIDE
+            + kv_head * LOG_COUNT_BIAS_HEAD_STRIDE
+            + slot * LOG_COUNT_BIAS_TOKEN_STRIDE,
+            mask=valid,
+            other=-float("inf"),
+        ).to(tl.float32)
+    else:
+        mass_bias = tl.log(count)
+    scores = scores * SCALE + mass_bias[None, :]
     scores = tl.where(query_valid[:, None] & valid[None, :], scores, -float("inf"))
     route_scores = tl.where(slot[None, :] >= PROTECTED_LEN, scores, -float("inf"))
     if MAX_LEAF_TOKENS:
@@ -1740,6 +1793,7 @@ def _reduce_decode_route_topk_kernel(
     QUERY_HEADS: tl.constexpr,
     KV_HEADS: tl.constexpr,
     KV_GROUP_SIZE: tl.constexpr,
+    GROUP_N: tl.constexpr,
     STATE_CAPACITY: tl.constexpr,
     UNION_CAPACITY: tl.constexpr,
     ROUTE_COUNT: tl.constexpr,
@@ -1753,6 +1807,7 @@ def _reduce_decode_route_topk_kernel(
     FUSE_UNION_BUILD: tl.constexpr = False,
     UNION_SEQUENCE_CAPACITY: tl.constexpr = 1,
     PACKED_CANDIDATES: tl.constexpr = False,
+    PACKED_FP16_CANDIDATES: tl.constexpr = False,
     SORTED_GROUP_MERGE: tl.constexpr = False,
     FLOAT_SCORE_TOP4: tl.constexpr = False,
 ):
@@ -1923,30 +1978,113 @@ def _reduce_decode_route_topk_kernel(
             -float("inf"),
         )
     else:
-        candidate = tl.arange(0, CANDIDATE_BLOCK)
-        valid = candidate < active_candidate_groups * CANDIDATES_PER_GROUP
-        candidate_offset = query_row * MAX_SEGMENTS * CANDIDATES_PER_GROUP + candidate
-        if PACKED_CANDIDATES:
+        # Each route group emits a sorted local top eight. A group whose first
+        # candidate is not among the eight best group maxima cannot contribute
+        # a global top-eight result: eight other group maxima already dominate
+        # every candidate in that group. Select those groups first, then sort
+        # only their 8x8 candidates instead of the padded full candidate list.
+        group_block: tl.constexpr = CANDIDATE_BLOCK // CANDIDATES_PER_GROUP
+        group = tl.arange(0, group_block)
+        valid_group = group < active_candidate_groups
+        first_offset = (
+            query_row * MAX_SEGMENTS * CANDIDATES_PER_GROUP
+            + group * CANDIDATES_PER_GROUP
+        )
+        if PACKED_FP16_CANDIDATES:
+            group_first = tl.load(
+                candidate_scores + first_offset,
+                mask=valid_group,
+                other=0.0,
+            ).to(tl.int32, bitcast=True)
+            group_first = tl.where(valid_group, group_first, -2147483648)
+        elif PACKED_CANDIDATES:
+            group_first = tl.load(
+                candidate_indices + first_offset,
+                mask=valid_group,
+                other=-9187343239835811841,
+            )
+        else:
+            group_first_scores = tl.load(
+                candidate_scores + first_offset,
+                mask=valid_group,
+                other=-float("inf"),
+            )
+            group_first_indices = tl.load(
+                candidate_indices + first_offset,
+                mask=valid_group,
+                other=0,
+            )
+            group_first = _pack_route_score_index(
+                group_first_scores, group_first_indices
+            )
+        best_group_first = tl.topk(group_first, 8, dim=0)
+        if PACKED_FP16_CANDIDATES:
+            best_group_valid = best_group_first != -2147483648
+            best_group_indices = (
+                65535 - (best_group_first & 0xFFFF)
+            ).to(tl.int64)
+        else:
+            best_group_scores, best_group_indices = _unpack_route_score_index(
+                best_group_first
+            )
+        selected_groups = best_group_indices // GROUP_N
+
+        selected_rank_lane = tl.arange(0, 8)
+        selected_group = tl.reshape(
+            selected_groups[:, None] + selected_rank_lane[None, :] * 0,
+            (64,),
+        )
+        if PACKED_FP16_CANDIDATES:
+            selected_group_mask = best_group_valid
+        else:
+            selected_group_mask = best_group_scores > -float("inf")
+        selected_group_valid = tl.reshape(
+            selected_group_mask[:, None] & (selected_rank_lane[None, :] >= 0),
+            (64,),
+        )
+        local_rank = tl.arange(0, 64) % 8
+        selected_offset = (
+            query_row * MAX_SEGMENTS * CANDIDATES_PER_GROUP
+            + selected_group * CANDIDATES_PER_GROUP
+            + local_rank
+        )
+        selected_valid = selected_group_valid & (
+            selected_group < active_candidate_groups
+        )
+        if PACKED_FP16_CANDIDATES:
             packed = tl.load(
-                candidate_indices + candidate_offset,
-                mask=valid,
+                candidate_scores + selected_offset,
+                mask=selected_valid,
+                other=0.0,
+            ).to(tl.int32, bitcast=True)
+            packed = tl.where(selected_valid, packed, -2147483648)
+        elif PACKED_CANDIDATES:
+            packed = tl.load(
+                candidate_indices + selected_offset,
+                mask=selected_valid,
                 other=-9187343239835811841,
             )
         else:
             scores = tl.load(
-                candidate_scores + candidate_offset,
-                mask=valid,
+                candidate_scores + selected_offset,
+                mask=selected_valid,
                 other=-float("inf"),
             )
             indices = tl.load(
-                candidate_indices + candidate_offset,
-                mask=valid,
+                candidate_indices + selected_offset,
+                mask=selected_valid,
                 other=0,
             )
-        if not PACKED_CANDIDATES:
             packed = _pack_route_score_index(scores, indices)
         best = tl.topk(packed, 8, dim=0)
-        best_scores, best_indices = _unpack_route_score_index(best)
+        if PACKED_FP16_CANDIDATES:
+            best_valid = best != -2147483648
+            best_indices = (65535 - (best & 0xFFFF)).to(tl.int64)
+            # The two-tier AITER consumer needs selected indices but not the
+            # routing logits themselves.
+            best_scores = tl.where(best_valid, 0.0, -float("inf"))
+        else:
+            best_scores, best_indices = _unpack_route_score_index(best)
         rank = tl.arange(0, ROUTE_COUNT)
         tl.store(
             top_slots + query_row * ROUTE_COUNT + rank,

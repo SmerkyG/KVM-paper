@@ -2,7 +2,7 @@
 
 LoD Attention is exact for selected high-mass regions and approximate for the
 low-mass remainder. It represents remote context with count-corrected semantic
-centroids, refines the four best regions with exact leaves, and combines those
+centroids, refines the eight best regions with exact leaves, and combines those
 results with an exact local window and protected sink through log-sum-exp.
 
 This branch is the minimal inference release for the LoD Attention paper. It
@@ -16,7 +16,7 @@ contains one fixed production policy, not the research-time tuning matrix.
 | `three-tier-bf16` | best semantic page in each selected centroid | BF16 |
 | `three-tier-int4` | best semantic page in each selected centroid | residual INT4 |
 
-All modes use exactly four routed regions in prefill and decode, a
+All modes use exactly eight routed regions in prefill and decode, a
 `16 * sqrt(T)` centroid schedule, a 16K prefill catch-up, a 512-token base
 decode window, one separately protected sink, and an exact first 16K prefill
 region. Decode catch-up occurs every 256 tokens, except that K2 INT4 uses a
@@ -60,7 +60,9 @@ AITER source used by the runtime and rebuild AITER before benchmarking. The
 patch provides compile-time normalized and raw routing probes. LoD selects the
 normalized specialization for K2 and automatically builds a separately cached
 raw specialization for Qwen; neither kernel branches on normalization at run
-time.
+time. Eight routes are the production default, with a separate AITER
+specialization built using `CK_TILE_FMHA_ROUTE_TOPK=8`. The top-four binary
+remains available for controlled benchmark comparisons.
 
 ## Hugging Face
 
@@ -173,7 +175,8 @@ only public tools:
   1,025-token decode speed sweeps.
 - [RULER NIAH-S3](benchmarks/NIAH_S3.md): long-context UUID retrieval.
 
-The documents report finalized top-4 measurements from the release checkout.
+The benchmark documents retain their labeled top-4 baselines alongside the
+current top-8 production panels.
 The retained-leaf exact decode path is limited to contexts of at most 2,048
 tokens, so every published 4K-and-longer result exercises routed LoD.
 

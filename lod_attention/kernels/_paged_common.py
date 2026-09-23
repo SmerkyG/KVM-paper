@@ -153,3 +153,18 @@ def _unpack_route_score_index(packed):
     )
     scores = score_bits.to(tl.float32, bitcast=True)
     return scores, indices
+
+
+@triton.jit
+def _pack_fp16_route_score_index(scores, indices):
+    """Pack descending FP16 score and ascending uint16 index into int32."""
+    score_bits = scores.to(tl.float16).to(tl.uint16, bitcast=True)
+    negative = (score_bits & 0x8000) != 0
+    ordered_bits = tl.where(
+        negative,
+        score_bits ^ 0xFFFF,
+        score_bits ^ 0x8000,
+    ).to(tl.int32)
+    score_rank = ordered_bits - 32768
+    inverse_index = 65535 - indices.to(tl.int32)
+    return score_rank * 65536 + inverse_index

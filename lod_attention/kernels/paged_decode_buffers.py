@@ -318,6 +318,7 @@ def _decode_topk_gqa_union_kernel(
 def _expand_decode_topk_gqa_union_kernel(
     cache_indices,
     local_lens,
+    exact_leaf_lens,
     page_indices,
     slot_pages,
     overflow_page_keys,
@@ -349,6 +350,8 @@ def _expand_decode_topk_gqa_union_kernel(
     HIP_EXACT: tl.constexpr,
     HIP_UNIFIED_ARENA: tl.constexpr,
     ARENA_LEAF_OFFSET: tl.constexpr,
+    SINK_LEN: tl.constexpr = 0,
+    EXACT_DECODE_THRESHOLD: tl.constexpr = 0,
     IMPLICIT_LOD: tl.constexpr = False,
     PERSISTENT_SLOT_LEAVES: tl.constexpr = False,
     FIXED_CAPACITY: tl.constexpr = 1,
@@ -362,6 +365,32 @@ def _expand_decode_topk_gqa_union_kernel(
     cache_batch = tl.load(cache_indices + batch).to(tl.int64)
     kv_row = cache_batch * KV_HEADS + kv_head
     token_offset = tl.arange(0, BLOCK_K)
+
+    if HIP_UNIFIED_ARENA and EXACT_DECODE_THRESHOLD > 0:
+        active_local = tl.minimum(
+            tl.load(local_lens + cache_batch).to(tl.int32), LOCAL_LIMIT
+        )
+        exact_leaf_len = tl.load(exact_leaf_lens + cache_batch).to(tl.int32)
+        exact_total = exact_leaf_len + active_local + INCLUDE_NEW + SINK_LEN
+        use_exact = exact_total <= EXACT_DECODE_THRESHOLD
+        if use_exact:
+            logical_leaf = work * BLOCK_K + token_offset
+            valid_leaf = logical_leaf < exact_leaf_len
+            physical_leaf = (
+                ARENA_LEAF_OFFSET
+                + kv_row * LEAF_CAPACITY
+                + logical_leaf
+            )
+            tl.store(
+                hip_block_table
+                + sequence * INDEX_CAPACITY
+                + logical_leaf,
+                physical_leaf,
+                mask=valid_leaf,
+            )
+            if work == 0:
+                tl.store(union_token_counts + sequence, exact_leaf_len)
+            return
 
     if work == UNION_CAPACITY:
         if not HIP_UNIFIED_ARENA:
@@ -505,6 +534,7 @@ def _expand_decode_topk_gqa_union_kernel(
 def _append_decode_gqa_union_arena_entries_kernel(
     cache_indices,
     local_lens,
+    exact_leaf_lens,
     state_lens,
     counts,
     seen_stamps,
@@ -538,6 +568,7 @@ def _append_decode_gqa_union_arena_entries_kernel(
     HEAD_DIM: tl.constexpr,
     BLOCK_K: tl.constexpr,
     INCLUDE_NEW: tl.constexpr,
+    EXACT_DECODE_THRESHOLD: tl.constexpr = 0,
     MASK_OPENED: tl.constexpr = True,
     USE_EXACT_PREFIX: tl.constexpr = True,
     USE_STATE_LENS: tl.constexpr = False,
@@ -568,13 +599,22 @@ def _append_decode_gqa_union_arena_entries_kernel(
     )
     local_and_new = active_local + INCLUDE_NEW
     coarse_destination = exact_count + local_and_new + SINK_LEN
+    if EXACT_DECODE_THRESHOLD > 0:
+        exact_leaf_len = tl.load(exact_leaf_lens + cache_batch).to(tl.int32)
+        use_exact = (
+            exact_leaf_len + local_and_new + SINK_LEN
+            <= EXACT_DECODE_THRESHOLD
+        )
+    else:
+        use_exact = False
     token = tl.arange(0, BLOCK_K)
 
     if work == 0:
         destination = exact_count
         tl.store(
             context_lens + sequence,
-            coarse_destination + (active_state_len if INCLUDE_COARSE else 0),
+            coarse_destination
+            + (active_state_len if INCLUDE_COARSE and not use_exact else 0),
         )
         for begin in tl.range(0, LOCAL_LIMIT, BLOCK_K, num_stages=1):
             local_token = begin + token
@@ -618,6 +658,8 @@ def _append_decode_gqa_union_arena_entries_kernel(
                 mask=valid,
             )
     elif INCLUDE_COARSE:
+        if use_exact:
+            return
         if (work - 1) * BLOCK_K >= active_state_len:
             return
         slot = (work - 1) * BLOCK_K + token
@@ -655,6 +697,484 @@ def _append_decode_gqa_union_arena_entries_kernel(
         )
 
 
+@triton.jit
+def _materialize_decode_gqa_union_arena_kernel(
+    cache_indices,
+    local_lens,
+    exact_leaf_lens,
+    state_lens,
+    page_indices,
+    slot_pages,
+    overflow_page_keys,
+    overflow_page_values,
+    overflow_used,
+    slot_lengths,
+    union_counts,
+    union_token_counts,
+    union_slots,
+    counts,
+    seen_stamps,
+    sequence_epochs,
+    new_k,
+    new_v,
+    arena_k,
+    arena_v,
+    arena_bias,
+    block_table,
+    context_lens,
+    COUNT_BATCH_STRIDE,
+    COUNT_HEAD_STRIDE,
+    COUNT_TOKEN_STRIDE,
+    NEW_K_BATCH_STRIDE,
+    NEW_K_HEAD_STRIDE,
+    NEW_V_BATCH_STRIDE,
+    NEW_V_HEAD_STRIDE,
+    KV_HEADS: tl.constexpr,
+    PAGE_CAPACITY: tl.constexpr,
+    LEAF_CAPACITY: tl.constexpr,
+    STATE_LEN: tl.constexpr,
+    STATE_CAPACITY: tl.constexpr,
+    INLINE_PAGES_PER_SLOT: tl.constexpr,
+    HASH_CAPACITY: tl.constexpr,
+    HASH_PROBES: tl.constexpr,
+    PAGE_SIZE: tl.constexpr,
+    INDEX_CAPACITY: tl.constexpr,
+    UNION_CAPACITY: tl.constexpr,
+    UNION_BLOCK: tl.constexpr,
+    LOCAL_OFFSET: tl.constexpr,
+    SINK_OFFSET: tl.constexpr,
+    COARSE_OFFSET: tl.constexpr,
+    LOCAL_CAPACITY: tl.constexpr,
+    SINK_CAPACITY: tl.constexpr,
+    LOCAL_LIMIT: tl.constexpr,
+    SINK_LEN: tl.constexpr,
+    ARENA_LEAF_OFFSET: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    BLOCK_K: tl.constexpr,
+    INCLUDE_NEW: tl.constexpr,
+    EXACT_DECODE_THRESHOLD: tl.constexpr = 0,
+    USE_STATE_LENS: tl.constexpr = False,
+):
+    """Materialize exact leaves and the fixed arena suffix in one launch.
+
+    Prefix offsets are derived from the already-deduplicated centroid list,
+    avoiding the atomics and cross-launch dependency of the older two-kernel
+    expansion path.
+    """
+    sequence = tl.program_id(0).to(tl.int64)
+    work = tl.program_id(1).to(tl.int64)
+    batch = sequence // KV_HEADS
+    kv_head = sequence - batch * KV_HEADS
+    cache_batch = tl.load(cache_indices + batch).to(tl.int64)
+    kv_row = cache_batch * KV_HEADS + kv_head
+    active_local = tl.minimum(
+        tl.load(local_lens + cache_batch).to(tl.int32), LOCAL_LIMIT
+    )
+    local_and_new = active_local + INCLUDE_NEW
+    if USE_STATE_LENS:
+        active_state_len = tl.minimum(
+            tl.load(state_lens + cache_batch).to(tl.int32), STATE_LEN
+        )
+    else:
+        active_state_len = STATE_LEN
+
+    selected_count = tl.load(union_counts + sequence).to(tl.int32)
+    rank = tl.arange(0, UNION_BLOCK)
+    valid_rank = rank < selected_count
+    selected_slots = tl.load(
+        union_slots + sequence * UNION_CAPACITY + rank,
+        mask=valid_rank & (rank < UNION_CAPACITY),
+        other=-1,
+    ).to(tl.int32)
+    valid_rank &= (selected_slots >= 0) & (selected_slots < active_state_len)
+    safe_selected_slots = tl.where(valid_rank, selected_slots, 0)
+    selected_lengths = tl.load(
+        slot_lengths + kv_row * STATE_CAPACITY + safe_selected_slots,
+        mask=valid_rank & (rank < UNION_CAPACITY),
+        other=0,
+    ).to(tl.int32)
+    routed_leaf_count = tl.sum(selected_lengths, axis=0)
+    routed_destination = tl.sum(
+        tl.where(rank < work, selected_lengths, 0), axis=0
+    )
+
+    if EXACT_DECODE_THRESHOLD > 0:
+        exact_leaf_count = tl.load(exact_leaf_lens + cache_batch).to(tl.int32)
+        use_exact = (
+            exact_leaf_count + local_and_new + SINK_LEN
+            <= EXACT_DECODE_THRESHOLD
+        )
+        exact_count = tl.where(use_exact, exact_leaf_count, routed_leaf_count)
+    else:
+        exact_leaf_count = 0
+        use_exact = False
+        exact_count = routed_leaf_count
+
+    token = tl.arange(0, BLOCK_K)
+    if use_exact:
+        logical_leaf = work * BLOCK_K + token
+        valid_leaf = logical_leaf < exact_leaf_count
+        physical_leaf = ARENA_LEAF_OFFSET + kv_row * LEAF_CAPACITY + logical_leaf
+        tl.store(
+            block_table + sequence * INDEX_CAPACITY + logical_leaf,
+            physical_leaf,
+            mask=valid_leaf,
+        )
+    elif work < selected_count:
+        slot = tl.load(union_slots + sequence * UNION_CAPACITY + work).to(tl.int32)
+        leaf_count = tl.load(slot_lengths + kv_row * STATE_CAPACITY + slot).to(
+            tl.int32
+        )
+        for begin in tl.range(0, leaf_count, BLOCK_K, num_stages=1):
+            logical_token = begin + token
+            valid = logical_token < leaf_count
+            page_ordinal = logical_token // PAGE_SIZE
+            within_page = logical_token % PAGE_SIZE
+            page_id = _lookup_page_id(
+                slot_pages,
+                overflow_page_keys,
+                overflow_page_values,
+                overflow_used,
+                kv_row,
+                slot,
+                page_ordinal,
+                valid,
+                STATE_CAPACITY,
+                INLINE_PAGES_PER_SLOT,
+                PAGE_CAPACITY,
+                HASH_CAPACITY,
+                HASH_PROBES,
+            ).to(tl.int64)
+            page_valid = valid & (page_id >= 0) & (page_id < PAGE_CAPACITY)
+            safe_page = tl.where(page_valid, page_id, 0)
+            physical_token = (
+                kv_row * PAGE_CAPACITY + safe_page
+            ) * PAGE_SIZE + within_page
+            leaf_index = tl.load(
+                page_indices + physical_token,
+                mask=page_valid,
+                other=0,
+            ).to(tl.int32)
+            leaf_valid = (
+                page_valid & (leaf_index >= 0) & (leaf_index < LEAF_CAPACITY)
+            )
+            physical_leaf = ARENA_LEAF_OFFSET + kv_row * LEAF_CAPACITY + leaf_index
+            tl.store(
+                block_table
+                + sequence * INDEX_CAPACITY
+                + routed_destination
+                + logical_token,
+                tl.where(leaf_valid, physical_leaf, 0),
+                mask=valid,
+            )
+
+    local_base = LOCAL_OFFSET + kv_row * LOCAL_CAPACITY
+    sink_base = SINK_OFFSET + kv_row * SINK_CAPACITY
+    coarse_base = COARSE_OFFSET + kv_row * STATE_CAPACITY
+    coarse_destination = exact_count + local_and_new + SINK_LEN
+    if work == 0:
+        tl.store(union_token_counts + sequence, exact_count)
+        tl.store(
+            context_lens + sequence,
+            coarse_destination + tl.where(use_exact, 0, active_state_len),
+        )
+        for begin in tl.range(0, LOCAL_LIMIT, BLOCK_K, num_stages=1):
+            local_token = begin + token
+            valid = local_token < active_local
+            tl.store(
+                block_table
+                + sequence * INDEX_CAPACITY
+                + exact_count
+                + local_token,
+                local_base + local_token,
+                mask=valid,
+            )
+        if INCLUDE_NEW:
+            dimension = tl.arange(0, HEAD_DIM)
+            current_key = tl.load(
+                new_k
+                + batch * NEW_K_BATCH_STRIDE
+                + kv_head * NEW_K_HEAD_STRIDE
+                + dimension
+            )
+            current_value = tl.load(
+                new_v
+                + batch * NEW_V_BATCH_STRIDE
+                + kv_head * NEW_V_HEAD_STRIDE
+                + dimension
+            )
+            local_storage = (local_base + active_local) * HEAD_DIM + dimension
+            tl.store(arena_k + local_storage, current_key)
+            tl.store(arena_v + local_storage, current_value)
+            tl.store(
+                block_table
+                + sequence * INDEX_CAPACITY
+                + exact_count
+                + active_local,
+                local_base + active_local,
+            )
+        for begin in tl.range(0, SINK_LEN, BLOCK_K, num_stages=1):
+            sink_token = begin + token
+            valid = sink_token < SINK_LEN
+            tl.store(
+                block_table
+                + sequence * INDEX_CAPACITY
+                + exact_count
+                + local_and_new
+                + sink_token,
+                sink_base + sink_token,
+                mask=valid,
+            )
+    elif not use_exact and (work - 1) * BLOCK_K < active_state_len:
+        slot = (work - 1) * BLOCK_K + token
+        in_state = slot < active_state_len
+        count = tl.load(
+            counts
+            + cache_batch * COUNT_BATCH_STRIDE
+            + kv_head * COUNT_HEAD_STRIDE
+            + slot * COUNT_TOKEN_STRIDE,
+            mask=in_state,
+            other=0.0,
+        ).to(tl.float32)
+        epoch = tl.load(sequence_epochs + sequence).to(tl.int32)
+        opened = (
+            tl.load(
+                seen_stamps + sequence * STATE_CAPACITY + slot,
+                mask=in_state,
+                other=epoch,
+            ).to(tl.int32)
+            == epoch
+        )
+        active = in_state & (count > 0.0) & ~opened
+        tl.store(
+            block_table + sequence * INDEX_CAPACITY + coarse_destination + slot,
+            coarse_base + slot,
+            mask=in_state,
+        )
+        tl.store(
+            arena_bias + coarse_base + slot,
+            tl.where(active, tl.log(count), -float("inf")),
+            mask=in_state,
+        )
+
+
+@triton.jit
+def _materialize_decode_gqa_union_page_descriptors_kernel(
+    cache_indices,
+    local_lens,
+    state_lens,
+    slot_lengths,
+    union_counts,
+    union_token_counts,
+    union_slots,
+    fixed_slot_offsets,
+    counts,
+    seen_stamps,
+    sequence_epochs,
+    new_k,
+    new_v,
+    arena_k,
+    arena_v,
+    arena_bias,
+    prefix_indices,
+    page_descriptors,
+    context_lens,
+    COUNT_BATCH_STRIDE,
+    COUNT_HEAD_STRIDE,
+    COUNT_TOKEN_STRIDE,
+    NEW_K_BATCH_STRIDE,
+    NEW_K_HEAD_STRIDE,
+    NEW_V_BATCH_STRIDE,
+    NEW_V_HEAD_STRIDE,
+    FIXED_OFFSET_STRIDE,
+    KV_HEADS: tl.constexpr,
+    STATE_LEN: tl.constexpr,
+    STATE_CAPACITY: tl.constexpr,
+    INDEX_CAPACITY: tl.constexpr,
+    UNION_CAPACITY: tl.constexpr,
+    UNION_BLOCK: tl.constexpr,
+    LOCAL_OFFSET: tl.constexpr,
+    SINK_OFFSET: tl.constexpr,
+    COARSE_OFFSET: tl.constexpr,
+    LOCAL_CAPACITY: tl.constexpr,
+    SINK_CAPACITY: tl.constexpr,
+    LOCAL_LIMIT: tl.constexpr,
+    SINK_LEN: tl.constexpr,
+    LEAF_BEGIN: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    PAGE_SIZE: tl.constexpr,
+    BLOCK_K: tl.constexpr,
+    INCLUDE_NEW: tl.constexpr,
+    USE_STATE_LENS: tl.constexpr,
+    EXACT_DECODE_THRESHOLD: tl.constexpr = 0,
+):
+    """Build one compact descriptor per selected persistent leaf page.
+
+    Leaves were already resolved into ``fixed_indices`` at the most recent
+    state update. Decode therefore publishes only each selected page's base
+    offset and valid lane count instead of re-materializing one physical index
+    per leaf. Local, sink, and coarse entries remain a short ordinary prefix.
+    """
+    sequence = tl.program_id(0).to(tl.int64)
+    work = tl.program_id(1).to(tl.int64)
+    batch = sequence // KV_HEADS
+    kv_head = sequence - batch * KV_HEADS
+    cache_batch = tl.load(cache_indices + batch).to(tl.int64)
+    kv_row = cache_batch * KV_HEADS + kv_head
+    active_local = tl.minimum(
+        tl.load(local_lens + cache_batch).to(tl.int32), LOCAL_LIMIT
+    )
+    local_and_new = active_local + INCLUDE_NEW
+    if USE_STATE_LENS:
+        active_state_len = tl.minimum(
+            tl.load(state_lens + cache_batch).to(tl.int32), STATE_LEN
+        )
+    else:
+        active_state_len = STATE_LEN
+
+    selected_count = tl.load(union_counts + sequence).to(tl.int32)
+    selected_count = tl.maximum(0, tl.minimum(selected_count, UNION_CAPACITY))
+    rank = tl.arange(0, UNION_BLOCK)
+    valid_rank = rank < selected_count
+    selected_slots = tl.load(
+        union_slots + sequence * UNION_CAPACITY + rank,
+        mask=valid_rank & (rank < UNION_CAPACITY),
+        other=-1,
+    ).to(tl.int32)
+    valid_rank &= (selected_slots >= 0) & (selected_slots < active_state_len)
+    safe_selected_slots = tl.where(valid_rank, selected_slots, 0)
+    selected_lengths = tl.load(
+        slot_lengths + kv_row * STATE_CAPACITY + safe_selected_slots,
+        mask=valid_rank & (rank < UNION_CAPACITY),
+        other=0,
+    ).to(tl.int32)
+    selected_pages = (selected_lengths + PAGE_SIZE - 1) // PAGE_SIZE
+    routed_descriptor_count = tl.sum(selected_pages, axis=0)
+    fixed_leaf_count = tl.load(
+        fixed_slot_offsets
+        + kv_row * FIXED_OFFSET_STRIDE
+        + STATE_CAPACITY
+    ).to(tl.int32)
+    use_exact = (
+        (EXACT_DECODE_THRESHOLD > 0)
+        & (fixed_leaf_count + local_and_new + SINK_LEN <= EXACT_DECODE_THRESHOLD)
+    )
+    exact_descriptor_count = (fixed_leaf_count + PAGE_SIZE - 1) // PAGE_SIZE
+    descriptor_count = tl.minimum(
+        tl.where(use_exact, exact_descriptor_count, routed_descriptor_count),
+        INDEX_CAPACITY,
+    )
+    descriptor_destination = tl.sum(
+        tl.where(rank < work, selected_pages, 0), axis=0
+    )
+
+    if (work < selected_count) & ~use_exact:
+        slot = tl.load(union_slots + sequence * UNION_CAPACITY + work).to(tl.int32)
+        slot_valid = (slot >= 0) & (slot < active_state_len)
+        safe_slot = tl.where(slot_valid, slot, 0)
+        leaf_count = tl.load(
+            slot_lengths + kv_row * STATE_CAPACITY + safe_slot,
+            mask=slot_valid,
+            other=0,
+        ).to(tl.int32)
+        page_count = (leaf_count + PAGE_SIZE - 1) // PAGE_SIZE
+        slot_offset = tl.load(
+            fixed_slot_offsets + kv_row * FIXED_OFFSET_STRIDE + safe_slot,
+            mask=slot_valid,
+            other=0,
+        ).to(tl.int32)
+        page = tl.arange(0, BLOCK_K)
+        for begin in tl.range(0, page_count, BLOCK_K, num_stages=1):
+            page_ordinal = begin + page
+            valid_page = page_ordinal < page_count
+            page_begin = page_ordinal * PAGE_SIZE
+            valid_lanes = tl.minimum(leaf_count - page_begin, PAGE_SIZE)
+            fixed_base = LEAF_BEGIN + slot_offset + page_begin
+            # fixed_base is below 2^24 for every supported release context;
+            # the high byte records the final page's valid lane count.
+            packed = (valid_lanes << 24) | fixed_base
+            tl.store(
+                page_descriptors
+                + sequence * INDEX_CAPACITY
+                + descriptor_destination
+                + page_ordinal,
+                packed,
+                mask=(
+                    valid_page
+                    & (descriptor_destination + page_ordinal < INDEX_CAPACITY)
+                ),
+            )
+    if use_exact & (work < UNION_CAPACITY):
+        for page_ordinal in tl.range(
+            work, exact_descriptor_count, UNION_CAPACITY, num_stages=1
+        ):
+            page_begin = page_ordinal * PAGE_SIZE
+            valid_lanes = tl.minimum(fixed_leaf_count - page_begin, PAGE_SIZE)
+            packed = (valid_lanes << 24) | (LEAF_BEGIN + page_begin)
+            tl.store(
+                page_descriptors
+                + sequence * INDEX_CAPACITY
+                + page_ordinal,
+                packed,
+                mask=page_ordinal < INDEX_CAPACITY,
+            )
+
+    local_base = LOCAL_OFFSET + kv_row * LOCAL_CAPACITY
+    sink_base = SINK_OFFSET + kv_row * SINK_CAPACITY
+    coarse_base = COARSE_OFFSET + kv_row * STATE_CAPACITY
+    prefix_length = local_and_new + SINK_LEN + active_state_len
+    token = tl.arange(0, BLOCK_K)
+    if work == 0:
+        padded_leaf_count = descriptor_count * PAGE_SIZE
+        tl.store(union_token_counts + sequence, padded_leaf_count)
+        tl.store(context_lens + sequence, prefix_length + padded_leaf_count)
+        if INCLUDE_NEW:
+            dimension = tl.arange(0, HEAD_DIM)
+            current_key = tl.load(
+                new_k
+                + batch * NEW_K_BATCH_STRIDE
+                + kv_head * NEW_K_HEAD_STRIDE
+                + dimension
+            )
+            current_value = tl.load(
+                new_v
+                + batch * NEW_V_BATCH_STRIDE
+                + kv_head * NEW_V_HEAD_STRIDE
+                + dimension
+            )
+            local_storage = (local_base + active_local) * HEAD_DIM + dimension
+            tl.store(arena_k + local_storage, current_key)
+            tl.store(arena_v + local_storage, current_value)
+
+    coarse_begin = work * BLOCK_K
+    if coarse_begin < active_state_len:
+        slot = coarse_begin + token
+        in_state = slot < active_state_len
+        count = tl.load(
+            counts
+            + cache_batch * COUNT_BATCH_STRIDE
+            + kv_head * COUNT_HEAD_STRIDE
+            + slot * COUNT_TOKEN_STRIDE,
+            mask=in_state,
+            other=0.0,
+        ).to(tl.float32)
+        epoch = tl.load(sequence_epochs + sequence).to(tl.int32)
+        opened = (
+            tl.load(
+                seen_stamps + sequence * STATE_CAPACITY + slot,
+                mask=in_state,
+                other=epoch,
+            ).to(tl.int32)
+            == epoch
+        )
+        active = in_state & (count > 0.0) & ~opened & ~use_exact
+        tl.store(
+            arena_bias + coarse_base + slot,
+            tl.where(active, tl.log(count), -float("inf")),
+            mask=in_state,
+        )
+
+
 def new_fused_decode_buffers(
     q: torch.Tensor,
     *,
@@ -672,6 +1192,7 @@ def new_fused_decode_buffers(
     gqa_union_fixed_mask: bool = False,
     gqa_union_fixed_mask_tile_size: int = 64,
     gqa_union_fixed_mask_segments: int = 128,
+    gqa_union_hip_segments: int = 32,
 ) -> dict[str, torch.Tensor]:
     batch, query_heads, _, value_dim = q.shape
     if gqa_route_splits is not None and gqa_route_splits not in {4, 8, 16, 32}:
@@ -930,8 +1451,12 @@ def new_fused_decode_buffers(
                     512,
                 ):
                     raise ValueError("unsupported fixed-mask segment count")
+                if gqa_union_hip_segments not in (8, 16, 32, 64, 128, 256, 512):
+                    raise ValueError("unsupported unified attention segment count")
                 unified_segments = (
-                    gqa_union_fixed_mask_segments if gqa_union_fixed_mask else 32
+                    gqa_union_fixed_mask_segments
+                    if gqa_union_fixed_mask
+                    else gqa_union_hip_segments
                 )
                 if unified_segments not in (8, 16, 32, 64, 128, 256, 512):
                     raise ValueError(

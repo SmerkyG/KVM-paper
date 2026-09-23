@@ -80,7 +80,7 @@ class VLLMLODSettings:
     """Three public choices plus family-specific launch geometry.
 
     Model-family differences below change only kernel tiling and dispatch. The
-    attention calculation is top-four in both prefill and decode for every
+    attention calculation is top-eight in both prefill and decode for every
     supported model.
     """
 

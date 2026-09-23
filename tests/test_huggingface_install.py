@@ -36,7 +36,7 @@ def test_qwen38_text_model_installs_only_its_global_attention() -> None:
     settings = model.model.layers[0].self_attn._hf_lod_settings
     assert settings.mode is LODMode.THREE_TIER_INT4
     assert settings.config.kv_bits == 4
-    assert settings.config.max_routes == 4
+    assert settings.config.max_routes == 8
 
 
 def test_hf_example_corrects_qwen_fp8_gate_skip_pattern(monkeypatch) -> None:

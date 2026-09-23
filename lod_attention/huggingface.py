@@ -16,7 +16,7 @@ from ._hf_backend import (
 
 
 def install(model: nn.Module, mode: str | LODMode = LODMode.TWO_TIER) -> list[str]:
-    """Replace supported global-attention layers with production top-four LoD.
+    """Replace supported global-attention layers with production top-eight LoD.
 
     The model must be Qwen3.8 or K2 Horizon. The returned names are the layers
     changed in place. ``model.generate`` creates the appropriate owned cache;

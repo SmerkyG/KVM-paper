@@ -51,9 +51,9 @@ def _count_expert_routes_kernel(
     offsets = tl.program_id(1) * BLOCK + tl.arange(0, BLOCK)
     valid = offsets < items_per_head
     route_row = batch_head * items_per_head + offsets
-    slot = tl.maximum(
-        tl.load(top_slots + route_row, mask=valid, other=0).to(tl.int32), 0
-    )
+    selected_slot = tl.load(top_slots + route_row, mask=valid, other=-1).to(tl.int32)
+    valid &= selected_slot >= 0
+    slot = tl.maximum(selected_slot, 0)
     head_slot = batch_head * active_slots + slot
     local_offset = tl.atomic_add(
         head_counts + head_slot, 1, mask=valid, sem="relaxed"
@@ -83,9 +83,9 @@ def _scatter_expert_routes_kernel(
     offsets = tl.program_id(1) * BLOCK + tl.arange(0, BLOCK)
     valid = offsets < items_per_head
     route_row = batch_head * items_per_head + offsets
-    slot = tl.maximum(
-        tl.load(top_slots + route_row, mask=valid, other=0).to(tl.int32), 0
-    )
+    selected_slot = tl.load(top_slots + route_row, mask=valid, other=-1).to(tl.int32)
+    valid &= selected_slot >= 0
+    slot = tl.maximum(selected_slot, 0)
     batch = batch_head // QUERY_HEADS
     query_head = batch_head - batch * QUERY_HEADS
     kv_row = batch * KV_HEADS + query_head // KV_GROUP_SIZE

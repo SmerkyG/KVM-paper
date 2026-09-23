@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 import torch
@@ -25,6 +26,55 @@ else:
 
 
 _NativeMetadataBuilder = _NativeBackend.get_builder_cls()
+
+
+class DummyAttentionImpl(_NativeImpl):
+    """Benchmark-only attention boundary with no cache or attention work.
+
+    Copying Q into the separately allocated output keeps the same opaque vLLM
+    attention boundary and produces finite activations.  The copy is retained
+    in the dummy baseline, so real-minus-dummy is a conservative estimate of
+    total attention-module cost.
+    """
+
+    def do_kv_cache_update(
+        self,
+        layer: torch.nn.Module,
+        key: torch.Tensor,
+        value: torch.Tensor,
+        kv_cache: torch.Tensor,
+        slot_mapping: torch.Tensor,
+    ) -> None:
+        return
+
+    def fused_rope_kvcache_supported(self) -> bool:
+        return False
+
+    def fused_qk_norm_rope_kvcache_supported(self) -> bool:
+        return False
+
+    def forward(
+        self,
+        layer: torch.nn.Module,
+        query: torch.Tensor,
+        key: torch.Tensor,
+        value: torch.Tensor,
+        kv_cache: torch.Tensor,
+        attn_metadata: Any,
+        output: torch.Tensor,
+        output_scale: torch.Tensor | None = None,
+        output_block_scale: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        if self.head_size != output.shape[-1]:
+            raise NotImplementedError(
+                "dummy attention requires equal query and value head sizes"
+            )
+        if output_scale is not None or output_block_scale is not None:
+            raise NotImplementedError(
+                "dummy attention does not support fused output quantization"
+            )
+        output.copy_(query)
+        return output
 
 
 class LODAttentionMetadataBuilder(_NativeMetadataBuilder):
@@ -238,6 +288,8 @@ class LODAttentionBackend(_NativeBackend):
 
     @staticmethod
     def get_impl_cls() -> type[LODAttentionImpl]:
+        if os.getenv("LOD_BENCHMARK_DUMMY_ATTENTION") == "1":
+            return DummyAttentionImpl
         return LODAttentionImpl
 
     @staticmethod
@@ -249,4 +301,5 @@ __all__ = [
     "LODAttentionBackend",
     "LODAttentionImpl",
     "LODAttentionMetadataBuilder",
+    "DummyAttentionImpl",
 ]

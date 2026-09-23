@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import functools
 import importlib.metadata
 import os
 import random
@@ -21,7 +22,7 @@ from ._vllm import (
     llm_kwargs,
     write_json,
 )
-from .prolong import comma_separated_ints
+from .prolong import comma_separated_ints, configure_prefill_variant
 
 
 def parse_args() -> argparse.Namespace:
@@ -56,6 +57,26 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--full-attention-backend",
         default="ROCM_AITER_UNIFIED_ATTN",
+    )
+    parser.add_argument(
+        "--prefill-variant",
+        choices=("fast4", "fast8", "generic8"),
+        help="Benchmark-only prefill route selector",
+    )
+    parser.add_argument(
+        "--prefill-exact-mass-coverage",
+        type=float,
+        help="Benchmark-only target fraction of full attention mass resolved exactly",
+    )
+    parser.add_argument(
+        "--prefill-max-open-leaf-tokens",
+        type=int,
+        help="Benchmark-only maximum centroid size eligible for prefill refinement",
+    )
+    parser.add_argument(
+        "--prefill-route-key-spread",
+        choices=("total", "per_leaf"),
+        help="Benchmark-only count-normalized key-spread routing",
     )
     return parser.parse_args()
 
@@ -221,6 +242,12 @@ def main() -> None:
         raise ValueError("samples, batch-size, and max-new-tokens must be positive")
     if args.sample_offset < 0:
         raise ValueError("sample-offset must be nonnegative")
+    if args.prefill_variant and args.mode == "full":
+        raise ValueError("--prefill-variant requires a LoD mode")
+    if args.prefill_route_key_spread and args.prefill_variant != "generic8":
+        raise ValueError("key-spread routing requires --prefill-variant generic8")
+    if args.prefill_max_open_leaf_tokens is not None and args.prefill_max_open_leaf_tokens < 1:
+        raise ValueError("prefill-max-open-leaf-tokens must be positive")
     minimum_model_len = max(args.lengths) + args.max_new_tokens + 16
     if (
         args.engine_max_model_len is not None
@@ -255,12 +282,38 @@ def main() -> None:
     from vllm import LLM
 
     llm = LLM(**kwargs)
+    if (
+        args.prefill_variant
+        or args.prefill_exact_mass_coverage is not None
+        or args.prefill_max_open_leaf_tokens is not None
+        or args.prefill_route_key_spread is not None
+    ):
+        changed = llm.apply_model(
+            functools.partial(
+                configure_prefill_variant,
+                variant=args.prefill_variant,
+                exact_mass_coverage=args.prefill_exact_mass_coverage,
+                max_open_leaf_tokens=args.prefill_max_open_leaf_tokens,
+                route_key_spread=args.prefill_route_key_spread,
+            )
+        )
+        if not changed or not all(count > 0 for count in changed):
+            raise RuntimeError("prefill variant found no LoD attention layers")
     result = {
         "benchmark": "ruler_niah_s3",
         "generator": "lm_eval.tasks.ruler.niah_single_3",
         "lm_eval_version": lm_eval_version,
         "checkpoint": args.checkpoint,
         "mode": args.mode,
+        "prefill_variant": args.prefill_variant or "production",
+        "prefill_exact_mass_coverage": args.prefill_exact_mass_coverage,
+        "prefill_max_open_leaf_tokens": args.prefill_max_open_leaf_tokens,
+        "prefill_route_key_spread": args.prefill_route_key_spread,
+        "decode_routes": (
+            None
+            if args.mode == "full"
+            else 8 if os.environ.get("LOD_DECODE_TOP8", "1") == "1" else 4
+        ),
         "lengths": args.lengths,
         "requested_samples": args.samples,
         "sample_offset": args.sample_offset,
