@@ -7,42 +7,44 @@ halves, disables model thinking, and constrains the answer to A/B/C/D.
 
 ## Results
 
-These results were freshly collected on 2026-09-11 with vLLM 0.27.1 on AMD
-MI325X. Both LoD phases routed exactly four centroids. The three-tier modes use
-the same semantic pages, stored either in BF16 or as centroid-relative INT4
-residuals.
+These results were freshly collected on 2026-09-23 from commit `e248719a`
+with vLLM 0.27.1 on AMD MI325X. Both LoD phases route exactly eight centroids.
+The three-tier modes use the same semantic pages, stored either in BF16 or as
+centroid-relative INT4 residuals.
 
 | Model | Full attention | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---|---:|---:|---:|---:|
-| Qwen3.8-27B-FP8 | 265/503 (52.68%) | 270/503 (53.68%) | 262/503 (52.09%) | 267/503 (53.08%) |
-| K2-Horizon-32B-FP8 | 207/503 (41.15%) | 209/503 (41.55%) | 208/503 (41.35%) | 212/503 (42.15%) |
+| Qwen3.8-27B-FP8 | 262/503 (52.09%) | 274/503 (54.47%) | 269/503 (53.48%) | 265/503 (52.68%) |
+| K2-Horizon-32B-FP8 | 210/503 (41.75%) | 214/503 (42.54%) | 214/503 (42.54%) | 211/503 (41.95%) |
 
 | Model / mode | Short (180) | Medium (215) | Long (108) |
 |---|---:|---:|---:|
-| Qwen full | 100 | 112 | 53 |
-| Qwen two-tier BF16 | 97 | 120 | 53 |
-| Qwen three-tier BF16 | 98 | 110 | 54 |
-| Qwen three-tier INT4 | 102 | 112 | 53 |
-| K2 full | 87 | 74 | 46 |
-| K2 two-tier BF16 | 86 | 80 | 43 |
-| K2 three-tier BF16 | 87 | 76 | 45 |
-| K2 three-tier INT4 | 87 | 82 | 43 |
+| Qwen full | 97 | 111 | 54 |
+| Qwen two-tier BF16 | 106 | 116 | 52 |
+| Qwen three-tier BF16 | 103 | 109 | 57 |
+| Qwen three-tier INT4 | 101 | 110 | 54 |
+| K2 full | 89 | 74 | 47 |
+| K2 two-tier BF16 | 85 | 83 | 46 |
+| K2 three-tier BF16 | 89 | 80 | 45 |
+| K2 three-tier INT4 | 86 | 80 | 45 |
 
 All runs contained 503 unique IDs and every response parsed as A/B/C/D. The
 Qwen tokenizer produced 205 truncated prompts; K2 produced 181.
 
-The archived evaluation used eight length-balanced shards on eight GPUs. The
-table below reports evaluator wall time per shard as minimum / mean / maximum;
-startup and warmup are excluded.
+The evaluation used eight length-balanced shards on eight GPUs. The table
+below reports evaluator wall time per shard as minimum / mean / maximum;
+startup and warmup are excluded. Four K2 two-tier shards were rerun cleanly
+from scratch after allocator fragmentation invalidated their original resumed
+wall times.
 
 | Model | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---|---:|---:|---:|---:|
-| Qwen3.8 | 23.38 / 26.88 / 32.22 min | 15.77 / 16.82 / 17.81 min | 16.98 / 19.61 / 22.21 min | 12.25 / 13.35 / 14.94 min |
-| K2 Horizon | 27.69 / 31.59 / 38.75 min | 23.19 / 26.34 / 31.29 min | 23.78 / 27.31 / 32.51 min | 25.90 / 29.35 / 34.51 min |
+| Qwen3.8 | 23.40 / 26.91 / 32.29 min | 13.26 / 16.31 / 20.66 min | 12.95 / 14.49 / 15.76 min | 12.05 / 13.30 / 14.69 min |
+| K2 Horizon | 28.14 / 32.40 / 38.97 min | 23.95 / 27.31 / 32.25 min | 24.25 / 27.76 / 33.30 min | 26.73 / 30.63 / 36.18 min |
 
-All arms were rerun from the release checkout, but each mode used independent
-length-balanced shards rather than an interleaved timing protocol. Treat this
-timing as operational context, not as a controlled kernel-speed comparison.
+All arms were rerun from the current release checkout, but each mode used
+independent length-balanced shards rather than an interleaved timing protocol.
+Treat this timing as operational context, not as a controlled kernel-speed comparison.
 Use the matched sweep in [ProLong](PROLONG.md) for that purpose.
 
 ## Reproduce
@@ -81,7 +83,8 @@ uv run vllm serve Qwen/Qwen3.8-27B-FP8 \
 
 For K2, use `IFM/K2-Horizon-32B-FP8`, set both pool size and
 `--max-num-seqs` to 4, set `--max-num-batched-tokens 16388`, use
-`--gpu-memory-utilization 0.8`, and omit
+`--gpu-memory-utilization 0.8`, set
+`PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`, and omit
 `--language-model-only`. The higher target is required because K2's larger
 model-side 131K LoD pool otherwise leaves vLLM no native cache blocks. To test
 a different LoD organization, change only `VLLM_LOD_MODE` to

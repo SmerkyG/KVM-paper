@@ -17,13 +17,13 @@ instead of silently substituting a different document.
 
 | Model | Cache | Prefill routes | Loss | Perplexity |
 |---|---|---:|---:|---:|
-| Qwen3.8-27B-FP8 | Full | all | 0.443030 | 1.557420 |
+| Qwen3.8-27B-FP8 | Full | all | 0.443006 | 1.557382 |
 | Qwen3.8-27B-FP8 | Two-tier BF16 | 4 | 0.447485 | 1.564373 |
-| Qwen3.8-27B-FP8 | Two-tier BF16 | 8 | 0.445124 | 1.560683 |
+| Qwen3.8-27B-FP8 | Two-tier BF16 | 8 | 0.445054 | 1.560574 |
 | Qwen3.8-27B-FP8 | Three-tier BF16 | 4 | 0.447462 | 1.564337 |
-| Qwen3.8-27B-FP8 | Three-tier BF16 | 8 | 0.445257 | 1.560891 |
+| Qwen3.8-27B-FP8 | Three-tier BF16 | 8 | 0.445347 | 1.561032 |
 | Qwen3.8-27B-FP8 | Three-tier INT4 | 4 | 0.447536 | 1.564452 |
-| Qwen3.8-27B-FP8 | Three-tier INT4 | 8 | 0.445408 | 1.561127 |
+| Qwen3.8-27B-FP8 | Three-tier INT4 | 8 | 0.445263 | 1.560901 |
 | K2-Horizon-32B-FP8 | Full | all | 0.495866 | 1.641919 |
 | K2-Horizon-32B-FP8 | Two-tier BF16 | 4 | 0.498166 | 1.645701 |
 | K2-Horizon-32B-FP8 | Two-tier BF16 | 8 | 0.496713 | 1.643311 |
@@ -35,8 +35,10 @@ instead of silently substituting a different document.
 Prompt loss exercises prefill only. Each measurement contains 524,280 predicted
 tokens; the loss is token-weighted across all eight documents. The top-4 rows
 are archived baselines from 2026-09-14. Every full-attention and top-8 row was
-rerun on 2026-09-23 from commit `94ec960c` with the current unflagged
-production profile and identical document and token hashes within each model.
+rerun on 2026-09-23 with the current unflagged production profile and
+identical document and token hashes within each model. The Qwen top-8 rows use
+commit `e248719a`; the retained K2 rows use the immediately preceding
+production rerun from commit `94ec960c`.
 
 On this shared cohort, top-8 improves loss over top-4 in every LoD mode on
 both models. It remains slightly worse than full attention: `+0.0021` to
@@ -45,12 +47,22 @@ reversal came from evaluating a different tokenizer-selected document set.
 
 ## Current routed top-8 speed results
 
-Every full-attention, dummy-attention, and LoD arm below was freshly measured
-on 2026-09-23 from commit `94ec960c` (source fingerprint `4e789f03da16`).
-The panel uses MI325X GPUs, the same raw prompt cohort, a 16,384-token scheduler
+Every Qwen full-attention, dummy-attention, and LoD arm below was freshly
+measured on 2026-09-23 from commit `e248719a` (source fingerprint
+`cc735bcc44b4`). The K2 panels are retained from commit `94ec960c` because the
+intervening compact selected-range consumer is Qwen-specific. The panels use
+MI325X GPUs, the same raw prompt cohort, a 16,384-token scheduler
 chunk, one warmup per length, one measured repetition, and a 1,025-token
 decode. Top-8 is used in both prefill and decode. Each cell is
 `prefill seconds / decode milliseconds per batch step`.
+
+The Qwen TP1 batch-1 two-tier 8K and 64K cells and both three-tier 8K
+cells were subsequently rechecked from the same commit (source fingerprint
+`d99296a97c11`) with each TP1 process holding an otherwise idle eight-GPU
+node. The original three-tier 8K measurements were affected by node
+contention. Attention-core values for these replacement cells use the median
+of a three-repetition dummy-attention run collected under the same exclusive
+node conditions; the real-attention arms remain one measured repetition.
 
 The end-to-end table for each configuration is followed by a matched
 attention-core table. Attention core is ordinary real wall time minus a
@@ -66,21 +78,21 @@ End-to-end wall time:
 
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 0.992 s / 28.70 ms | 0.915 s / 28.65 ms | 0.930 s / 29.36 ms | 1.012 s / 29.86 ms |
-| 16K | 2.185 s / 29.47 ms | 1.880 s / 28.67 ms | 1.886 s / 29.54 ms | 1.964 s / 29.55 ms |
-| 32K | 5.243 s / 30.24 ms | 3.854 s / 28.78 ms | 3.899 s / 29.45 ms | 4.050 s / 29.56 ms |
-| 64K | 14.054 s / 31.68 ms | 7.993 s / 28.89 ms | 8.084 s / 29.55 ms | 8.422 s / 29.62 ms |
-| 128K | 42.568 s / 34.40 ms | 16.539 s / 29.25 ms | 16.777 s / 29.74 ms | 17.611 s / 30.08 ms |
+| 8K | 1.085 s / 29.71 ms | 0.917 s / 28.37 ms | 0.916 s / 28.91 ms | 0.933 s / 28.83 ms |
+| 16K | 2.316 s / 30.14 ms | 1.897 s / 29.03 ms | 2.061 s / 29.94 ms | 2.209 s / 30.08 ms |
+| 32K | 5.291 s / 30.52 ms | 3.912 s / 29.24 ms | 4.089 s / 30.76 ms | 4.304 s / 30.66 ms |
+| 64K | 13.886 s / 31.75 ms | 7.890 s / 28.45 ms | 8.223 s / 30.54 ms | 8.645 s / 30.91 ms |
+| 128K | 42.472 s / 43.57 ms | 16.542 s / 29.62 ms | 16.818 s / 31.01 ms | 17.885 s / 30.86 ms |
 
 Attention core (real minus dummy):
 
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 0.122 s / 0.93 ms | 0.044 s / 0.89 ms | 0.059 s / 1.59 ms | 0.142 s / 2.10 ms |
-| 16K | 0.474 s / 1.72 ms | 0.170 s / 0.91 ms | 0.175 s / 1.78 ms | 0.253 s / 1.80 ms |
-| 32K | 1.837 s / 2.49 ms | 0.448 s / 1.04 ms | 0.493 s / 1.70 ms | 0.643 s / 1.81 ms |
-| 64K | 7.250 s / 4.10 ms | 1.189 s / 1.31 ms | 1.280 s / 1.97 ms | 1.619 s / 2.04 ms |
-| 128K | 28.973 s / 6.78 ms | 2.943 s / 1.63 ms | 3.181 s / 2.11 ms | 4.015 s / 2.46 ms |
+| 8K | 0.202 s / 1.03 ms | 0.049 s / 0.57 ms | 0.047 s / 1.11 ms | 0.064 s / 1.03 ms |
+| 16K | 0.575 s / 1.56 ms | 0.156 s / 0.46 ms | 0.320 s / 1.36 ms | 0.468 s / 1.50 ms |
+| 32K | 1.808 s / 1.89 ms | 0.430 s / 0.61 ms | 0.606 s / 2.14 ms | 0.821 s / 2.03 ms |
+| 64K | 7.069 s / 3.06 ms | 1.166 s / 0.87 ms | 1.405 s / 1.84 ms | 1.827 s / 2.21 ms |
+| 128K | 28.840 s / 15.08 ms | 2.909 s / 1.13 ms | 3.186 s / 2.52 ms | 4.253 s / 2.37 ms |
 
 ### Qwen3.8, TP1, batch 8, top-8
 
@@ -88,21 +100,21 @@ End-to-end wall time:
 
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 7.810 s / 37.79 ms | 7.233 s / 36.41 ms | 7.295 s / 35.57 ms | 7.921 s / 35.80 ms |
-| 16K | 17.422 s / 40.73 ms | 14.907 s / 36.67 ms | 15.070 s / 35.97 ms | 15.663 s / 36.21 ms |
-| 32K | 42.012 s / 45.94 ms | 31.131 s / 37.36 ms | 31.426 s / 36.25 ms | 32.598 s / 36.44 ms |
-| 64K | 112.778 s / 55.71 ms | 64.545 s / 39.37 ms | 65.061 s / 36.74 ms | 67.558 s / 37.05 ms |
-| 128K | 340.893 s / 74.66 ms | 134.499 s / 43.05 ms | 135.977 s / 37.62 ms | 142.278 s / 37.83 ms |
+| 8K | 7.719 s / 37.94 ms | 7.304 s / 34.49 ms | 7.856 s / 35.55 ms | 7.930 s / 35.89 ms |
+| 16K | 17.440 s / 40.86 ms | 14.923 s / 34.79 ms | 14.955 s / 35.89 ms | 15.782 s / 36.26 ms |
+| 32K | 41.839 s / 46.45 ms | 31.177 s / 35.17 ms | 31.128 s / 36.25 ms | 32.817 s / 36.56 ms |
+| 64K | 112.042 s / 55.77 ms | 64.618 s / 35.79 ms | 64.513 s / 36.65 ms | 67.946 s / 37.00 ms |
+| 128K | 342.808 s / 74.66 ms | 134.521 s / 36.67 ms | 135.291 s / 37.62 ms | 143.629 s / 38.02 ms |
 
 Attention core (real minus dummy):
 
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 0.982 s / 5.08 ms | 0.405 s / 3.70 ms | 0.466 s / 2.86 ms | 1.093 s / 3.09 ms |
-| 16K | 3.818 s / 8.04 ms | 1.304 s / 3.99 ms | 1.467 s / 3.28 ms | 2.060 s / 3.52 ms |
-| 32K | 14.780 s / 13.12 ms | 3.898 s / 4.55 ms | 4.193 s / 3.44 ms | 5.365 s / 3.63 ms |
-| 64K | 58.285 s / 22.90 ms | 10.052 s / 6.55 ms | 10.568 s / 3.93 ms | 13.064 s / 4.23 ms |
-| 128K | 231.451 s / 42.00 ms | 25.057 s / 10.39 ms | 26.534 s / 4.96 ms | 32.836 s / 5.17 ms |
+| 8K | 0.999 s / 4.86 ms | 0.585 s / 1.42 ms | 1.136 s / 2.47 ms | 1.211 s / 2.82 ms |
+| 16K | 3.930 s / 8.01 ms | 1.413 s / 1.95 ms | 1.444 s / 3.04 ms | 2.271 s / 3.41 ms |
+| 32K | 14.834 s / 13.60 ms | 4.172 s / 2.32 ms | 4.124 s / 3.40 ms | 5.812 s / 3.72 ms |
+| 64K | 58.018 s / 22.93 ms | 10.594 s / 2.95 ms | 10.489 s / 3.81 ms | 13.922 s / 4.16 ms |
+| 128K | 234.769 s / 41.85 ms | 26.482 s / 3.85 ms | 27.251 s / 4.81 ms | 35.590 s / 5.20 ms |
 
 ### Qwen3.8, TP4, batch 8, top-8
 
@@ -110,21 +122,21 @@ End-to-end wall time:
 
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 3.426 s / 22.09 ms | 3.295 s / 22.14 ms | 3.989 s / 22.52 ms | 3.531 s / 22.66 ms |
-| 16K | 7.610 s / 23.04 ms | 6.869 s / 22.00 ms | 6.987 s / 22.67 ms | 7.099 s / 22.85 ms |
-| 32K | 17.253 s / 24.28 ms | 14.040 s / 22.33 ms | 14.253 s / 22.69 ms | 14.573 s / 23.01 ms |
-| 64K | 42.977 s / 27.20 ms | 28.655 s / 22.84 ms | 29.042 s / 22.91 ms | 29.832 s / 23.05 ms |
-| 128K | 119.429 s / 32.85 ms | 58.769 s / 23.76 ms | 59.555 s / 23.28 ms | 61.708 s / 23.58 ms |
+| 8K | 3.566 s / 22.07 ms | 3.393 s / 21.31 ms | 3.448 s / 22.51 ms | 3.567 s / 22.57 ms |
+| 16K | 7.720 s / 23.06 ms | 6.886 s / 21.39 ms | 7.063 s / 22.58 ms | 7.148 s / 22.76 ms |
+| 32K | 17.454 s / 24.26 ms | 14.102 s / 21.61 ms | 14.429 s / 22.78 ms | 14.656 s / 22.79 ms |
+| 64K | 43.454 s / 27.20 ms | 28.772 s / 21.71 ms | 29.294 s / 22.81 ms | 30.046 s / 22.94 ms |
+| 128K | 120.498 s / 32.77 ms | 59.019 s / 22.00 ms | 59.991 s / 23.24 ms | 62.118 s / 23.48 ms |
 
 Attention core (real minus dummy):
 
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 0.307 s / 1.57 ms | 0.176 s / 1.63 ms | 0.870 s / 2.00 ms | 0.411 s / 2.14 ms |
-| 16K | 1.156 s / 2.54 ms | 0.415 s / 1.50 ms | 0.533 s / 2.17 ms | 0.645 s / 2.35 ms |
-| 32K | 4.338 s / 3.85 ms | 1.125 s / 1.90 ms | 1.339 s / 2.25 ms | 1.659 s / 2.57 ms |
-| 64K | 17.145 s / 6.79 ms | 2.823 s / 2.43 ms | 3.210 s / 2.50 ms | 3.999 s / 2.63 ms |
-| 128K | 67.765 s / 12.44 ms | 7.105 s / 3.35 ms | 7.891 s / 2.87 ms | 10.044 s / 3.17 ms |
+| 8K | 0.417 s / 1.69 ms | 0.244 s / 0.92 ms | 0.299 s / 2.13 ms | 0.419 s / 2.19 ms |
+| 16K | 1.227 s / 2.59 ms | 0.394 s / 0.92 ms | 0.570 s / 2.12 ms | 0.655 s / 2.29 ms |
+| 32K | 4.488 s / 3.81 ms | 1.137 s / 1.17 ms | 1.463 s / 2.34 ms | 1.690 s / 2.35 ms |
+| 64K | 17.501 s / 6.79 ms | 2.819 s / 1.31 ms | 3.341 s / 2.40 ms | 4.092 s / 2.53 ms |
+| 128K | 68.578 s / 12.40 ms | 7.098 s / 1.62 ms | 8.071 s / 2.86 ms | 10.198 s / 3.10 ms |
 
 ### K2 Horizon, TP1, batch 1, top-8
 
@@ -208,11 +220,11 @@ End-to-end wall time:
 
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 0.996 s / 8.49 ms | 0.910 s / 7.27 ms | 0.920 s / 8.66 ms | 1.008 s / 7.66 ms |
-| 16K | 2.166 s / 9.23 ms | 1.856 s / 8.72 ms | 1.860 s / 8.99 ms | 1.939 s / 7.75 ms |
-| 32K | 5.200 s / 9.73 ms | 3.840 s / 9.25 ms | 3.877 s / 9.76 ms | 4.033 s / 9.47 ms |
-| 64K | 13.934 s / 10.58 ms | 7.936 s / 8.77 ms | 8.040 s / 8.58 ms | 8.365 s / 8.20 ms |
-| 128K | 42.366 s / 17.63 ms | 16.426 s / 10.37 ms | 16.758 s / 7.61 ms | 17.595 s / 8.49 ms |
+| 8K | 0.978 s / 8.10 ms | 0.922 s / 7.44 ms | 0.929 s / 7.45 ms | 1.016 s / 8.38 ms |
+| 16K | 2.149 s / 8.82 ms | 1.852 s / 7.24 ms | 1.872 s / 8.25 ms | 1.955 s / 8.57 ms |
+| 32K | 5.204 s / 9.44 ms | 3.843 s / 9.64 ms | 3.894 s / 9.20 ms | 4.062 s / 8.37 ms |
+| 64K | 14.138 s / 9.94 ms | 7.936 s / 7.72 ms | 8.071 s / 9.34 ms | 8.438 s / 9.21 ms |
+| 128K | 42.817 s / 16.86 ms | 16.430 s / 9.41 ms | 16.831 s / 9.69 ms | 17.700 s / 10.55 ms |
 
 Each next cell is `target verification-cycle milliseconds / pooled mean output
 tokens per cycle`. It separates verifier cost from trajectory-dependent draft
@@ -220,11 +232,11 @@ acceptance.
 
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 40.03 ms / 4.73 | 39.70 ms / 5.48 | 39.74 ms / 4.60 | 39.98 ms / 5.23 |
-| 16K | 41.85 ms / 4.55 | 39.84 ms / 4.58 | 39.81 ms / 4.44 | 39.93 ms / 5.17 |
-| 32K | 45.03 ms / 4.65 | 40.06 ms / 4.35 | 39.95 ms / 4.11 | 40.13 ms / 4.24 |
-| 64K | 51.51 ms / 4.89 | 40.59 ms / 4.64 | 40.11 ms / 4.69 | 40.69 ms / 4.98 |
-| 128K | 63.44 ms / 3.61 | 41.57 ms / 4.03 | 40.69 ms / 5.37 | 41.02 ms / 4.85 |
+| 8K | 39.88 ms / 4.93 | 39.73 ms / 5.35 | 39.68 ms / 5.35 | 39.97 ms / 4.79 |
+| 16K | 41.90 ms / 4.77 | 40.02 ms / 5.54 | 39.77 ms / 4.84 | 40.07 ms / 4.70 |
+| 32K | 44.88 ms / 4.77 | 40.21 ms / 4.18 | 39.99 ms / 4.36 | 40.32 ms / 4.83 |
+| 64K | 51.79 ms / 5.23 | 40.77 ms / 5.30 | 40.24 ms / 4.32 | 41.04 ms / 4.47 |
+| 128K | 63.56 ms / 3.78 | 41.64 ms / 4.43 | 40.62 ms / 4.21 | 41.02 ms / 3.90 |
 
 Attention-core subtraction is not valid for DFlash2: replacing target
 attention changes sampled continuations and draft acceptance, so the dummy and
