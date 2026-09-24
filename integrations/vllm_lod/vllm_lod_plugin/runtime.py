@@ -33,6 +33,37 @@ def _cross_layer_prefill_group_end(built_layers: int, total_layers: int) -> int:
     return min(built_layers + _CROSS_LAYER_PREFILL_GROUP, total_layers)
 
 
+def _ensure_exact_lod_decode_capture_sizes(vllm_config: Any) -> None:
+    """Prevent graph padding from aliasing another request's LOD cache row."""
+    attention = getattr(vllm_config, "attention_config", None)
+    backend = getattr(attention, "backend", None)
+    if getattr(backend, "name", None) != "CUSTOM":
+        return
+    compilation = vllm_config.compilation_config
+    capture_sizes = compilation.cudagraph_capture_sizes
+    if not capture_sizes:
+        return
+    pool_size = VLLMLODSettings.from_environment().pool_size
+    scheduler = getattr(vllm_config, "scheduler_config", None)
+    max_requests = int(getattr(scheduler, "max_num_seqs", pool_size))
+    original_max = int(
+        compilation.max_cudagraph_capture_size or max(map(int, capture_sizes))
+    )
+    exact_rows = min(pool_size, max_requests)
+    ordinary_limit = min(exact_rows, original_max)
+    if ordinary_limit <= 0:
+        return
+    exact_sizes = set(range(1, ordinary_limit + 1))
+    speculative_steps = int(vllm_config.num_speculative_tokens or 0) + 1
+    if speculative_steps > 1:
+        exact_sizes.update(
+            rows * speculative_steps
+            for rows in range(1, exact_rows + 1)
+            if rows * speculative_steps <= original_max
+        )
+    compilation.cudagraph_capture_sizes = sorted(exact_sizes)
+    compilation.max_cudagraph_capture_size = max(exact_sizes)
+
 
 def _input_batch_max_query_len(input_batch: Any) -> int:
     """Read the largest scheduled query across old and new vLLM batches."""
@@ -144,8 +175,6 @@ class VLLMLODRuntime:
         self.cached_rows: dict[int, _CachedLODRow] = {}
         self.request_states: Any | None = None
         self.cache_clock = 0
-        self.borrowed_dummy_rows: set[int] = set()
-        self.borrowed_dummy_lens: dict[str, torch.Tensor] = {}
         self.free_lod_rows = list(range(self.pool_size - 1, -1, -1))
         self.logical_lengths = [0] * self.pool_size
         self._active_decode_rows: tuple[int, ...] | None = None
@@ -234,7 +263,6 @@ class VLLMLODRuntime:
                 self._prefill_attention_buffers
             )
             self.pools[name] = pool
-            self.borrowed_dummy_lens[name] = torch.zeros_like(pool.local_lens)
             layer._vllm_lod_pool = pool
         if self.pools:
             resolved = next(iter(self.pools.values())).settings
@@ -376,7 +404,6 @@ class VLLMLODRuntime:
         """Prepare the persistent-batch runner used by released vLLM wheels."""
         if not self.initialized or not self.enabled:
             return
-        self._restore_borrowed_dummy_rows()
         if for_capture:
             self._prepare_dummy_batch(num_reqs_padded, max_query_len)
             return
@@ -433,7 +460,7 @@ class VLLMLODRuntime:
         lod_rows = []
         for req_id in req_ids:
             lod_rows.append(self._lod_row(req_id))
-        mapped_rows = self._pad_decode_rows(lod_rows, num_reqs_padded)
+        mapped_rows = self._require_exact_decode_rows(lod_rows, num_reqs_padded)
         self._set_active_decode_rows(mapped_rows)
         missing_rows: list[str] = []
         catch_ups: list[tuple[int, int]] = []
@@ -592,7 +619,6 @@ class VLLMLODRuntime:
 
     def _free_lod_row(self, row: int) -> None:
         self.cached_rows.pop(row, None)
-        self.borrowed_dummy_rows.discard(row)
         if self.initialized:
             for pool in self.pools.values():
                 pool.reset(row)
@@ -760,7 +786,7 @@ class VLLMLODRuntime:
         # is much shorter than the refresh interval, so all captured steps see
         # one immutable coarse field and append to its exact recent suffix.
         self._catch_up_decode_rows(catch_ups)
-        mapped_rows = self._pad_decode_rows(lod_rows, padded_rows)
+        mapped_rows = self._require_exact_decode_rows(lod_rows, padded_rows)
         self._set_active_decode_rows(mapped_rows)
         for pool in self.pools.values():
             pool.decode_enabled = False
@@ -1697,71 +1723,17 @@ class VLLMLODRuntime:
             pool.direct_prefill_prompt_lengths = prepared_prompt_lengths.copy()
         return True
 
-    def _pad_decode_rows(self, lod_rows: list[int], padded_rows: int) -> list[int]:
-        dummy_count = padded_rows - len(lod_rows)
-        active_rows = set(self.lod_row_by_slot.values())
-        current_rows = set(lod_rows)
-        unused = [
-            row
-            for row in range(self.pool_size)
-            if row not in active_rows and row not in self.cached_rows
-        ]
-        retained = [
-            entry.row
-            for entry in sorted(
-                self.cached_rows.values(), key=lambda item: item.last_used
-            )
-            if entry.row not in active_rows
-        ]
-        dormant = [
-            row
-            for row in active_rows - current_rows
-            if all(pool.ready[row] for pool in self.pools.values())
-        ]
-        candidates = unused + retained + dormant
-        if dummy_count > len(candidates):
+    def _require_exact_decode_rows(
+        self, lod_rows: list[int], padded_rows: int
+    ) -> list[int]:
+        if padded_rows != len(lod_rows):
             raise RuntimeError(
-                "not enough distinct LOD rows for graph padding without "
-                "overwriting another authoritative request cache"
+                "LoD decode received graph-padded request rows. Exact LoD "
+                "decode capture sizes must be installed before GPUModelRunner "
+                "initialization; refusing to alias padding lanes onto live "
+                "LoD cache rows."
             )
-        dummy_rows = candidates[:dummy_count]
-        if dummy_rows:
-            rows = torch.tensor(
-                dummy_rows, dtype=torch.long, device=self.active_indices.device
-            )
-            unused_rows = [row for row in dummy_rows if row in unused]
-            unused_tensor = (
-                torch.tensor(
-                    unused_rows,
-                    dtype=torch.long,
-                    device=self.active_indices.device,
-                )
-                if unused_rows
-                else None
-            )
-            for name, pool in self.pools.items():
-                if unused_tensor is not None:
-                    pool.local_lens.index_fill_(0, unused_tensor, 0)
-                self.borrowed_dummy_lens[name].index_copy_(
-                    0, rows, pool.local_lens.index_select(0, rows)
-                )
-        self.borrowed_dummy_rows.update(dummy_rows)
-        return lod_rows + dummy_rows
-
-    def _restore_borrowed_dummy_rows(self) -> None:
-        """Discard graph-padding appends before a row is observed again."""
-        if not self.borrowed_dummy_rows:
-            return
-        rows = torch.tensor(
-            sorted(self.borrowed_dummy_rows),
-            dtype=torch.long,
-            device=self.active_indices.device,
-        )
-        for name, pool in self.pools.items():
-            pool.local_lens.index_copy_(
-                0, rows, self.borrowed_dummy_lens[name].index_select(0, rows)
-            )
-        self.borrowed_dummy_rows.clear()
+        return lod_rows
 
     def prepare_capture(
         self, input_batch: Any, kv_cache_config: Any, *, for_capture: bool
@@ -1790,7 +1762,6 @@ class VLLMLODRuntime:
         )
         if input_batch.num_reqs == 0:
             return
-        self._restore_borrowed_dummy_rows()
         if all(str(req_id).startswith("_warmup_") for req_id in input_batch.req_ids):
             # V2 runs explicit prefill, speculative, and ordinary decode
             # warmups after graph setup. They carry request-shaped metadata but
@@ -1863,7 +1834,7 @@ class VLLMLODRuntime:
                 "a padded pure-decode batch exceeds VLLM_LOD_POOL_SIZE; set "
                 "VLLM_LOD_POOL_SIZE and --max-num-seqs to the same value"
             )
-        mapped_rows = self._pad_decode_rows(lod_rows, padded_rows)
+        mapped_rows = self._require_exact_decode_rows(lod_rows, padded_rows)
         self._set_active_decode_rows(mapped_rows)
         missing_slots: list[int] = []
         catch_ups: list[tuple[int, int]] = []
@@ -1991,7 +1962,14 @@ def install_gpu_runner_hooks() -> None:
     if getattr(GPUModelRunner, "_vllm_lod_token_hooks_installed", False):
         return
 
+    original_init = GPUModelRunner.__init__
     original_load_model = GPUModelRunner.load_model
+
+    def initialize_runner(self: Any, *args: Any, **kwargs: Any) -> None:
+        config = kwargs.get("vllm_config", args[0] if args else None)
+        if config is not None:
+            _ensure_exact_lod_decode_capture_sizes(config)
+        original_init(self, *args, **kwargs)
 
     def load_model(self: Any, *args: Any, **kwargs: Any) -> None:
         original_load_model(self, *args, **kwargs)
@@ -1999,6 +1977,7 @@ def install_gpu_runner_hooks() -> None:
         if runtime is not None:
             runtime.request_states = self.req_states
 
+    GPUModelRunner.__init__ = initialize_runner
     GPUModelRunner.load_model = load_model
     GPUModelRunner._vllm_lod_token_hooks_installed = True
 
@@ -2014,10 +1993,17 @@ def install_legacy_runner_hooks() -> None:
     if not hasattr(GPUModelRunner, "_update_states"):
         return
 
+    original_init = GPUModelRunner.__init__
     original_load_model = GPUModelRunner.load_model
     original_initialize_kv_cache = GPUModelRunner.initialize_kv_cache
     original_build_attention_metadata = GPUModelRunner._build_attention_metadata
     original_request_removed = GPUModelRunner._on_request_state_removed
+
+    def initialize_runner(self: Any, *args: Any, **kwargs: Any) -> None:
+        config = kwargs.get("vllm_config", args[0] if args else None)
+        if config is not None:
+            _ensure_exact_lod_decode_capture_sizes(config)
+        original_init(self, *args, **kwargs)
 
     def load_model(self: Any, *args: Any, **kwargs: Any) -> None:
         original_load_model(self, *args, **kwargs)
@@ -2071,6 +2057,7 @@ def install_legacy_runner_hooks() -> None:
             )
         original_request_removed(self, req_id, req_state)
 
+    GPUModelRunner.__init__ = initialize_runner
     GPUModelRunner.load_model = load_model
     GPUModelRunner.initialize_kv_cache = initialize_kv_cache
     GPUModelRunner._build_attention_metadata = build_attention_metadata
