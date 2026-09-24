@@ -155,8 +155,16 @@ def _specialized_route_mha_fwd(
             if route_count == 4
             else "_lod_route8" + ("" if normalize_route_query else "_raw")
         )
-        generated["md_name"] = f"{generated['md_name']}{suffix}"
-        if not normalize_route_query:
+        revision = "_d128w8_mulnorm_v1" if normalize_route_query else ""
+        generated["md_name"] = f"{generated['md_name']}{suffix}{revision}"
+        if normalize_route_query:
+            generated["blob_gen_cmd"] = [
+                command.replace("--receipt 100", "--receipt 101").replace(
+                    " --output_dir", " --optdim 128 --output_dir"
+                )
+                for command in generated["blob_gen_cmd"]
+            ]
+        else:
             generated["blob_gen_cmd"] = [
                 command.replace(" --output_dir", " --optdim 256 --output_dir")
                 for command in generated["blob_gen_cmd"]
@@ -199,8 +207,9 @@ def _specialized_route_mha_fwd(
 
     # AITER registers compiled calls by the Python function name. A shared
     # name would alias top-four and top-eight raw-query variants in one process.
+    revision = "_d128w8_mulnorm_v1" if normalize_route_query else ""
     specialized_route_mha_fwd.__name__ = (
-        f"lod_route_mha_fwd_{route_count}_{int(normalize_route_query)}"
+        f"lod_route_mha_fwd_{route_count}_{int(normalize_route_query)}{revision}"
     )
     return compile_ops(
         "module_mha_fwd",

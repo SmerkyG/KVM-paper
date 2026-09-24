@@ -3395,6 +3395,137 @@ class TritonLODAttentionCore(nn.Module):
                     owner_ranks=owner_ranks,
                 )
 
+    def _finalize_virtual_page_quantization(
+        self,
+        page_cache: dict[str, object],
+        *,
+        destination_page: dict[str, object] | None = None,
+    ) -> None:
+        """Finalize native virtual-page quantization into persistent storage."""
+
+        quantized_counts = page_cache.get("page_quantized_counts")
+        if not isinstance(quantized_counts, torch.Tensor):
+            return
+        if bool(page_cache.get("quantization_finalized", False)):
+            return
+        quantization_names = (
+            "leaf_k",
+            "leaf_v",
+            "page_indices",
+            "page_sum_k",
+            "page_sum_v",
+            "page_counts",
+            "quantized_leaf_k",
+            "quantized_leaf_v",
+            "page_k_scales",
+            "page_v_scales",
+        )
+        quantization_tensors = tuple(
+            page_cache.get(name) for name in quantization_names
+        )
+        if not all(
+            isinstance(value, torch.Tensor) for value in quantization_tensors
+        ):
+            raise RuntimeError("virtual quantized prefill cache is incomplete")
+        if self.leaf_quant_scale_mode not in ("max", "l2"):
+            raise ValueError("leaf quantization scale mode must be max or l2")
+        if self.leaf_append_quant_scale_mode not in ("max", "l2"):
+            raise ValueError("leaf append quantization scale mode must be max or l2")
+        quantize_virtual_paged_kv(
+            *quantization_tensors,
+            quantized_counts,
+            quant_group_size=self.leaf_quant_group_size,
+            quant_token_group_size=self.leaf_quant_token_group_size,
+            quant_bits=int(page_cache.get("leaf_quant_bits", 4)),
+            optimize_scale=self.leaf_quant_scale_mode == "l2",
+        )
+        page_cache["quantization_finalized"] = True
+        if self.page_summary_quant_bits not in (0, 8):
+            raise ValueError("page-summary quantization supports 0 or 8 bits")
+        if self.page_summary_scale_mode not in ("max", "l2"):
+            raise ValueError("page-summary scale mode must be max or l2")
+        if self.page_summary_quant_bits == 8:
+            page_sum_k = page_cache["page_sum_k"]
+            page_sum_v = page_cache["page_sum_v"]
+            if not isinstance(page_sum_k, torch.Tensor) or not isinstance(
+                page_sum_v, torch.Tensor
+            ):
+                raise TypeError("virtual page summaries are missing")
+            quantized_summaries = quantize_page_summaries_int8(
+                page_sum_k,
+                page_sum_v,
+                quant_group_size=self.leaf_quant_group_size,
+                optimize_scale=self.page_summary_scale_mode == "l2",
+            )
+            summary_names = (
+                "quantized_page_sum_k",
+                "quantized_page_sum_v",
+                "page_sum_k_scales",
+                "page_sum_v_scales",
+            )
+            if destination_page is None:
+                for name, value in zip(summary_names, quantized_summaries):
+                    page_cache[name] = value
+            else:
+                for name, value in zip(summary_names, quantized_summaries):
+                    destination_value = destination_page.get(name)
+                    if not isinstance(destination_value, torch.Tensor):
+                        raise TypeError(
+                            f"direct quantized prefill storage lacks {name}"
+                        )
+                    if (
+                        destination_value.shape[:2] != value.shape[:2]
+                        or destination_value.shape[-1] != value.shape[-1]
+                        or int(destination_value.size(2)) < int(value.size(2))
+                    ):
+                        raise ValueError(
+                            f"direct quantized prefill storage {name} is too small"
+                        )
+                    destination_value[..., : value.size(2), :].copy_(value)
+                    page_cache[name] = destination_value
+            page_cache["summary_quantization_finalized"] = True
+            if destination_page is None:
+                page_cache["page_sum_k"] = page_sum_k.new_empty(
+                    *page_sum_k.shape[:2], 1, int(page_sum_k.size(-1))
+                )
+                page_cache["page_sum_v"] = page_sum_v.new_empty(
+                    *page_sum_v.shape[:2], 1, int(page_sum_v.size(-1))
+                )
+            else:
+                destination_sum_k = destination_page.get("page_sum_k")
+                destination_sum_v = destination_page.get("page_sum_v")
+                if not isinstance(destination_sum_k, torch.Tensor) or not isinstance(
+                    destination_sum_v, torch.Tensor
+                ):
+                    raise TypeError(
+                        "direct quantized prefill summary sentinels are missing"
+                    )
+                page_cache["page_sum_k"] = destination_sum_k
+                page_cache["page_sum_v"] = destination_sum_v
+
+        leaf_k = page_cache.get("leaf_k")
+        leaf_v = page_cache.get("leaf_v")
+        if not isinstance(leaf_k, torch.Tensor) or not isinstance(
+            leaf_v, torch.Tensor
+        ):
+            raise TypeError("virtual quantized leaf sources are missing")
+        if destination_page is None:
+            page_cache["leaf_k"] = leaf_k.new_empty(
+                *leaf_k.shape[:2], 1, int(leaf_k.size(-1))
+            )
+            page_cache["leaf_v"] = leaf_v.new_empty(
+                *leaf_v.shape[:2], 1, int(leaf_v.size(-1))
+            )
+        else:
+            destination_leaf_k = destination_page.get("leaf_k")
+            destination_leaf_v = destination_page.get("leaf_v")
+            if not isinstance(destination_leaf_k, torch.Tensor) or not isinstance(
+                destination_leaf_v, torch.Tensor
+            ):
+                raise TypeError("direct quantized prefill leaf sentinels are missing")
+            page_cache["leaf_k"] = destination_leaf_k
+            page_cache["leaf_v"] = destination_leaf_v
+
     def _paged_leaf_attention(
         self,
         q: torch.Tensor,
@@ -5264,108 +5395,17 @@ class TritonLODAttentionCore(nn.Module):
             buffered_v[..., :recent_len, :].copy_(recent_v)
             recent_k = buffered_k
             recent_v = buffered_v
-            quantized_counts = page_cache.get("page_quantized_counts")
-            if isinstance(quantized_counts, torch.Tensor):
-                quantization_names = (
-                    "leaf_k",
-                    "leaf_v",
-                    "page_indices",
-                    "page_sum_k",
-                    "page_sum_v",
-                    "page_counts",
-                    "quantized_leaf_k",
-                    "quantized_leaf_v",
-                    "page_k_scales",
-                    "page_v_scales",
-                )
-                quantization_tensors = tuple(
-                    page_cache.get(name) for name in quantization_names
-                )
-                if not all(
-                    isinstance(value, torch.Tensor) for value in quantization_tensors
-                ):
-                    raise RuntimeError("virtual quantized prefill cache is incomplete")
-                if self.leaf_quant_scale_mode not in ("max", "l2"):
-                    raise ValueError("leaf quantization scale mode must be max or l2")
-                if self.leaf_append_quant_scale_mode not in ("max", "l2"):
-                    raise ValueError(
-                        "leaf append quantization scale mode must be max or l2"
+            destination_page = None
+            if prefill_storage is not None:
+                destination_page = prefill_storage.get("page_cache")
+                if not isinstance(destination_page, dict):
+                    raise TypeError(
+                        "direct quantized prefill storage lacks its page cache"
                     )
-                quantize_virtual_paged_kv(
-                    *quantization_tensors,
-                    quantized_counts,
-                    quant_group_size=self.leaf_quant_group_size,
-                    quant_token_group_size=self.leaf_quant_token_group_size,
-                    quant_bits=int(page_cache.get("leaf_quant_bits", 4)),
-                    optimize_scale=self.leaf_quant_scale_mode == "l2",
-                )
-                page_cache["quantization_finalized"] = True
-                destination_page = None
-                if prefill_storage is not None:
-                    destination_page = prefill_storage.get("page_cache")
-                    if not isinstance(destination_page, dict):
-                        raise TypeError(
-                            "direct quantized prefill storage lacks its page cache"
-                        )
-                if self.page_summary_quant_bits not in (0, 8):
-                    raise ValueError("page-summary quantization supports 0 or 8 bits")
-                if self.page_summary_scale_mode not in ("max", "l2"):
-                    raise ValueError("page-summary scale mode must be max or l2")
-                if self.page_summary_quant_bits == 8:
-                    quantized_summaries = quantize_page_summaries_int8(
-                        page_cache["page_sum_k"],
-                        page_cache["page_sum_v"],
-                        quant_group_size=self.leaf_quant_group_size,
-                        optimize_scale=self.page_summary_scale_mode == "l2",
-                    )
-                    summary_names = (
-                        "quantized_page_sum_k",
-                        "quantized_page_sum_v",
-                        "page_sum_k_scales",
-                        "page_sum_v_scales",
-                    )
-                    if prefill_storage is None:
-                        for name, value in zip(summary_names, quantized_summaries):
-                            page_cache[name] = value
-                    else:
-                        assert isinstance(destination_page, dict)
-                        for name, value in zip(summary_names, quantized_summaries):
-                            destination_value = destination_page.get(name)
-                            if not isinstance(destination_value, torch.Tensor):
-                                raise TypeError(
-                                    f"direct quantized prefill storage lacks {name}"
-                                )
-                            if (
-                                destination_value.shape[:2] != value.shape[:2]
-                                or destination_value.shape[-1] != value.shape[-1]
-                                or int(destination_value.size(2)) < int(value.size(2))
-                            ):
-                                raise ValueError(
-                                    f"direct quantized prefill storage {name} is too small"
-                                )
-                            destination_value[..., : value.size(2), :].copy_(value)
-                            page_cache[name] = destination_value
-                    page_cache["summary_quantization_finalized"] = True
-                    if prefill_storage is None:
-                        page_cache["page_sum_k"] = k.new_empty(
-                            *k.shape[:2], 1, int(k.size(-1))
-                        )
-                        page_cache["page_sum_v"] = v.new_empty(
-                            *v.shape[:2], 1, int(v.size(-1))
-                        )
-                    else:
-                        assert isinstance(destination_page, dict)
-                        page_cache["page_sum_k"] = destination_page["page_sum_k"]
-                        page_cache["page_sum_v"] = destination_page["page_sum_v"]
-                # All archived leaves now live in quantized flat tensors. Keep
-                # only typed pointer sentinels for the compile-time BF16 fallback.
-                if prefill_storage is None:
-                    page_cache["leaf_k"] = k.new_empty(*k.shape[:2], 1, int(k.size(-1)))
-                    page_cache["leaf_v"] = v.new_empty(*v.shape[:2], 1, int(v.size(-1)))
-                else:
-                    assert isinstance(destination_page, dict)
-                    page_cache["leaf_k"] = destination_page["leaf_k"]
-                    page_cache["leaf_v"] = destination_page["leaf_v"]
+            self._finalize_virtual_page_quantization(
+                page_cache,
+                destination_page=destination_page,
+            )
         self._lod_state = {
             "state_k": state_k.detach(),
             "state_v": state_v.detach(),

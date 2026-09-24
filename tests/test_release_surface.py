@@ -69,6 +69,15 @@ def test_aiter_route_workspace_is_tight_for_k2_and_safe_for_qwen() -> None:
     assert "D=256 can dispatch either a 64- or 128-key CK tile" in patch
     assert "kQKHeaddim == 128 ? index_t{128} : index_t{64}" in patch
     assert "variant_params.route_seqlen_k, route_storage_tile" in patch
+    assert "elif receipt in (100, 101)" in patch
+    assert 'receipt == 101 and dtype == "bf16"' in patch
+    assert "coarse_score + (query_rms - 1.0f) * bias_value" in patch
+
+    source = (
+        ROOT / "lod_attention" / "kernels" / "aiter_prefill_attention.py"
+    ).read_text()
+    assert 'replace("--receipt 100", "--receipt 101")' in source
+    assert 'revision = "_d128w8_mulnorm_v1"' in source
 
 
 def test_aiter_state_preparation_pads_non_power_of_two_gqa() -> None:
@@ -96,3 +105,20 @@ def test_dflash2_is_isolated_from_the_attention_engine() -> None:
     assert dflash.exists()
     for path in (ROOT / "lod_attention").rglob("*.py"):
         assert "DFlash" not in path.read_text()
+
+
+def test_cross_layer_prefill_supports_every_release_cache_mode() -> None:
+    plugin = ROOT / "integrations" / "vllm_lod" / "vllm_lod_plugin"
+    pool = (plugin / "pool.py").read_text()
+    runtime = (plugin / "runtime.py").read_text()
+
+    assert pool.count("self.settings.levels in (2, 3)") >= 2
+    assert pool.count("self.settings.kv_bits in (0, 4)") >= 2
+    assert "staged_leaves: tuple[torch.Tensor, torch.Tensor] | None" in pool
+    assert "_initial_prefill_sources" in runtime
+    assert "_cached_prefill_sources" in runtime
+    assert "tensor.record_stream(stream)" in runtime
+    cached_builder = runtime.split(
+        "def _build_cached_prefill_across_layers", 1
+    )[1].split("def _catch_up_decode_rows", 1)[0]
+    assert '"overflow_safe_until"' not in cached_builder

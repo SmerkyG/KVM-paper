@@ -175,8 +175,7 @@ only public tools:
   1,025-token decode speed sweeps.
 - [RULER NIAH-S3](benchmarks/NIAH_S3.md): long-context UUID retrieval.
 
-The benchmark documents retain their labeled top-4 baselines alongside the
-current top-8 production panels.
+The benchmark documents report the current top-8 production results.
 The retained-leaf exact decode path is limited to contexts of at most 2,048
 tokens, so every published 4K-and-longer result exercises routed LoD.
 

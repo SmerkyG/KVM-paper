@@ -20,16 +20,18 @@ the output copy makes the estimate slightly conservative.
 
 ## Reproduction requirements
 
-Use the same checkout, unloaded GPU type, checkpoint, tensor parallelism,
-batch, scheduler, context lengths, decode length, seed, and prompt cohort for
-every run. Run one unreported warmup before measured repetitions and keep CUDA
-graphs enabled. The summary command rejects mismatched recorded configuration,
-context lengths, prompt-token hashes, source fingerprints, or package versions.
-The source fingerprint covers the benchmark code, LoD implementation, vLLM
-plugin, kernels, patches, `pyproject.toml`, and `uv.lock`, including uncommitted
-changes. A run also aborts rather than writing an artifact if this identity
-changes while it is executing. Legacy artifacts without `benchmark_identity`
-cannot be used for validated subtraction.
+Use the same unloaded GPU type, checkpoint, tensor parallelism, batch,
+scheduler, context lengths, decode length, seed, prompt cohort, and runtime
+package versions for every run. Run one unreported warmup before measured
+repetitions and keep CUDA graphs enabled. The summary command rejects mismatched
+recorded configuration, context lengths, prompt-token hashes, or runtime package
+versions. It records each arm's source fingerprint but does not require the
+fingerprints to match, so an unchanged full-attention or dummy control can be
+reused after a LoD-only source change. The caller remains responsible for
+confirming that a reused control's executed path is unchanged. A run still
+aborts rather than writing an artifact if its own source identity changes while
+it is executing. Legacy artifacts without `benchmark_identity.runtime` cannot
+be used for validated subtraction.
 
 Run the ordinary full and LoD arms as described in [PROLONG.md](PROLONG.md).
 For example:

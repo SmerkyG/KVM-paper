@@ -1968,6 +1968,37 @@ def prepare_state_clustering_keys(
     return prepared_route, prepared_append, prepared_scale
 
 
+def _materialized_maxsim_batch_chunk(
+    *,
+    batch: int,
+    kv_heads: int,
+    overflow_len: int,
+    state_len: int,
+    element_size: int,
+    score_fields: int,
+    free_bytes: int,
+) -> int:
+    """Bound dense scratch while retaining the largest power-of-two batch."""
+    bytes_per_batch = (
+        kv_heads
+        * overflow_len
+        * state_len
+        * element_size
+        * score_fields
+    )
+    if batch <= 1 or bytes_per_batch <= 0:
+        return batch
+    # ``mem_get_info`` reports driver-visible free memory.  Leave at least
+    # 1 GiB (or 1/8 of larger free pools) for allocator fragmentation and the
+    # small reduction outputs surrounding the dense score field.
+    headroom = max(1 << 30, free_bytes // 8)
+    workspace_budget = max(bytes_per_batch, free_bytes - headroom)
+    candidate = min(batch, max(1, workspace_budget // bytes_per_batch))
+    if candidate >= batch:
+        return batch
+    return 1 << (candidate.bit_length() - 1)
+
+
 def streaming_state_maxsim(
     overflow_k: torch.Tensor,
     state_k: torch.Tensor,
@@ -2055,6 +2086,71 @@ def streaming_state_maxsim(
             # validity mask and could win the max reduction uninitialized.
             active_route = prepared_route[..., :state_len, :]
             active_append = prepared_append[..., :state_len, :]
+            score_fields = 2 if coherence and not coherence_single_matmul else 1
+            free_bytes, _ = torch.cuda.mem_get_info(overflow_k.device)
+            score_batch_chunk = _materialized_maxsim_batch_chunk(
+                batch=batch,
+                kv_heads=kv_heads,
+                overflow_len=overflow_len,
+                state_len=state_len,
+                element_size=overflow_k.element_size(),
+                score_fields=score_fields,
+                free_bytes=free_bytes,
+            )
+            if score_batch_chunk < batch:
+                for batch_start in range(0, batch, score_batch_chunk):
+                    batch_stop = min(batch, batch_start + score_batch_chunk)
+                    batch_slice = slice(batch_start, batch_stop)
+                    chunk_buffers = {
+                        name: (
+                            value[batch_slice]
+                            if isinstance(value, torch.Tensor)
+                            and value.ndim
+                            and int(value.size(0)) == batch
+                            else value
+                        )
+                        for name, value in buffers.items()
+                    }
+                    chunk_results = streaming_state_maxsim(
+                        overflow_k[batch_slice],
+                        state_k[batch_slice],
+                        counts[batch_slice],
+                        chunk_buffers,
+                        state_len=state_len,
+                        sink_len=sink_len,
+                        key_norm_sums=(
+                            key_norm_sums[batch_slice]
+                            if key_norm_sums is not None
+                            else None
+                        ),
+                        geometry=geometry,
+                        block_m=block_m,
+                        block_n=block_n,
+                        num_warps=num_warps,
+                        prepare_block_s=prepare_block_s,
+                        prepare_num_warps=prepare_num_warps,
+                        prepare_state_geometry=False,
+                        materialize_prepared_scores=materialize_prepared_scores,
+                        coherence_single_matmul=coherence_single_matmul,
+                        mask_invalid_state=mask_invalid_state,
+                        tiled_prepared_scores=tiled_prepared_scores,
+                    )
+                    active_chunk = (..., slice(None, overflow_len))
+                    chunk_buffers["route_scores"][active_chunk].copy_(
+                        chunk_results[0]
+                    )
+                    chunk_buffers["route_indices"][active_chunk].copy_(
+                        chunk_results[1]
+                    )
+                    chunk_buffers["select_scores"][active_chunk].copy_(
+                        chunk_results[2]
+                    )
+                active = (..., slice(None, overflow_len))
+                return (
+                    route_scores[active],
+                    route_indices[active],
+                    select_scores[active],
+                )
             if coherence and coherence_single_matmul:
                 append_scores_dense = torch.matmul(
                     overflow_k, active_append.transpose(-1, -2)

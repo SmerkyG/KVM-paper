@@ -5,64 +5,59 @@ length. Each task contains 500 examples. The evaluator uses `lm-eval==0.4.12`,
 greedy generation through vLLM's OpenAI-compatible completions endpoint, eight
 concurrent requests, and the canonical `42,42,42,42` lm-eval seeds.
 
-## Preliminary results: known-buggy LoD run
-
-**The LoD columns in this section are non-authoritative and must not be cited
-as release results.** During this run, a CUDA-graph padding lane could borrow a
-dormant LoD cache row and mutate it during ragged decode. That could silently
-contaminate later requests or, as happened on Qwen `ruler_vt`, raise a GPU
-memory exception. Full attention does not use the LoD row pool and its columns
-are unaffected. Corrected LoD reruns are in progress.
+## Results
 
 Scores are percentages and higher is better. The metric is each task's
-`65536,none` result reported by lm-eval. Qwen LoD completed 12 of 13 tasks;
-`ruler_vt` is deliberately shown as `crash`, not imputed as zero.
+`65536,none` result reported by lm-eval. All 13 tasks are complete for full
+attention and corrected two-tier LoD on both models; every task contains 500
+examples. The unchanged full-attention controls record repository commit
+`ca7e6648`, while every corrected LoD result records commit `2551051c`. No
+score from the discarded cache-corruption run is retained.
 
 ### Qwen3.8-27B-FP8
 
-| Task | Full attention | Two-tier LoD, buggy |
+| Task | Full attention | Two-tier LoD |
 |---|---:|---:|
 | NIAH single 1 | 100.00 | 100.00 |
 | NIAH single 2 | 100.00 | 100.00 |
-| NIAH single 3 | 100.00 | 99.40 |
-| NIAH multikey 1 | 100.00 | 98.40 |
-| NIAH multikey 2 | 99.80 | 94.80 |
+| NIAH single 3 | 100.00 | 99.60 |
+| NIAH multikey 1 | 100.00 | 99.40 |
+| NIAH multikey 2 | 99.80 | 95.20 |
 | NIAH multikey 3 | 100.00 | 93.80 |
-| NIAH multiquery | 99.95 | 99.75 |
-| NIAH multivalue | 99.85 | 98.25 |
-| Common-words extraction | 97.94 | 98.96 |
-| Frequent-words extraction | 63.73 | 52.60 |
-| HotpotQA | 18.00 | 6.20 |
-| SQuAD QA | 36.50 | 24.53 |
-| Variable tracking | 20.44 | **crash** |
-| **Mean over the 12 completed LoD tasks** | **84.65** | **80.56** |
-| Mean over all 13 tasks | 79.71 | n/a |
+| NIAH multiquery | 99.95 | 99.80 |
+| NIAH multivalue | 99.85 | 97.55 |
+| Common-words extraction | 97.94 | 99.20 |
+| Frequent-words extraction | 63.73 | 52.20 |
+| HotpotQA | 18.00 | 28.20 |
+| SQuAD QA | 36.50 | 24.77 |
+| Variable tracking | 20.44 | 30.80 |
+| **Mean over all 13 tasks** | **79.71** | **78.50** |
 
-The common-task mean compares exactly the same 12 tasks in both columns. It is
-not directly comparable to the 13-task full-attention mean.
+Two-tier LoD is 1.21 percentage points below full attention on the unweighted
+13-task mean.
 
 ### K2-Horizon-32B-FP8
 
-| Task | Full attention | Two-tier LoD, buggy |
+| Task | Full attention | Two-tier LoD |
 |---|---:|---:|
 | NIAH single 1 | 100.00 | 100.00 |
 | NIAH single 2 | 100.00 | 99.80 |
-| NIAH single 3 | 100.00 | 99.80 |
-| NIAH multikey 1 | 100.00 | 99.80 |
-| NIAH multikey 2 | 99.00 | 87.60 |
-| NIAH multikey 3 | 100.00 | 96.00 |
-| NIAH multiquery | 100.00 | 99.60 |
-| NIAH multivalue | 99.80 | 98.45 |
-| Common-words extraction | 88.76 | 89.92 |
-| Frequent-words extraction | 82.60 | 80.80 |
-| HotpotQA | 55.60 | 51.80 |
-| SQuAD QA | 54.60 | 55.17 |
+| NIAH single 3 | 100.00 | 100.00 |
+| NIAH multikey 1 | 100.00 | 99.60 |
+| NIAH multikey 2 | 99.00 | 89.20 |
+| NIAH multikey 3 | 100.00 | 96.80 |
+| NIAH multiquery | 100.00 | 99.70 |
+| NIAH multivalue | 99.80 | 98.20 |
+| Common-words extraction | 88.76 | 89.88 |
+| Frequent-words extraction | 82.60 | 80.93 |
+| HotpotQA | 55.60 | 53.40 |
+| SQuAD QA | 54.60 | 54.37 |
 | Variable tracking | 100.00 | 100.00 |
-| **Mean over all 13 tasks** | **90.80** | **89.13** |
+| **Mean over all 13 tasks** | **90.80** | **89.38** |
 
-The K2 LoD run did not raise the exception, but it used the same faulty cache
-integration and is therefore also non-authoritative. The completed full-
-attention controls remain valid.
+Two-tier LoD is 1.42 percentage points below full attention on the unweighted
+13-task mean. The five cells previously marked pending were rerun through the
+corrected cache-row ownership path and completed cleanly.
 
 ## Reproduce
 

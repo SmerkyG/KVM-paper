@@ -256,3 +256,129 @@ def test_modes_use_exact_short_decode(
         has_key_norm=True,
     )
     assert engine.exact_decode_limit == exact_limit
+
+
+def test_materialized_maxsim_batch_chunk_bounds_dense_workspace() -> None:
+    from lod_attention.kernels.lod_kernels import (
+        _materialized_maxsim_batch_chunk,
+    )
+
+    geometry = {
+        "batch": 16,
+        "kv_heads": 8,
+        "overflow_len": 16_384,
+        "state_len": 4_096,
+        "element_size": 2,
+    }
+    gib = 1 << 30
+    assert (
+        _materialized_maxsim_batch_chunk(
+            **geometry, score_fields=1, free_bytes=64 * gib
+        )
+        == 16
+    )
+    assert (
+        _materialized_maxsim_batch_chunk(
+            **geometry, score_fields=1, free_bytes=8 * gib
+        )
+        == 4
+    )
+    assert (
+        _materialized_maxsim_batch_chunk(
+            **geometry, score_fields=1, free_bytes=3 * gib
+        )
+        == 2
+    )
+    assert (
+        _materialized_maxsim_batch_chunk(
+            **geometry, score_fields=2, free_bytes=8 * gib
+        )
+        == 2
+    )
+
+
+def test_direct_int4_finalization_releases_bf16_construction_sources(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import lod_attention._core as core
+
+    engine = core.TritonLODAttentionCore()
+    engine.leaf_quant_scale_mode = "l2"
+    engine.leaf_append_quant_scale_mode = "l2"
+    engine.leaf_quant_group_size = 2
+    engine.leaf_quant_token_group_size = 2
+    engine.page_summary_quant_bits = 8
+    engine.page_summary_scale_mode = "l2"
+
+    leaf_k = torch.randn(1, 1, 4, 4)
+    leaf_v = torch.randn_like(leaf_k)
+    destination = {
+        "leaf_k": torch.empty(1, 1, 1, 4),
+        "leaf_v": torch.empty(1, 1, 1, 4),
+        "quantized_leaf_k": torch.empty(1, 1, 4, 2, dtype=torch.uint8),
+        "quantized_leaf_v": torch.empty(1, 1, 4, 2, dtype=torch.uint8),
+        "quantized_page_sum_k": torch.empty(1, 1, 2, 4, dtype=torch.int8),
+        "quantized_page_sum_v": torch.empty(1, 1, 2, 4, dtype=torch.int8),
+        "page_sum_k_scales": torch.empty(1, 1, 2, 2),
+        "page_sum_v_scales": torch.empty(1, 1, 2, 2),
+        "page_sum_k": torch.empty(1, 1, 1, 4),
+        "page_sum_v": torch.empty(1, 1, 1, 4),
+    }
+    page_cache: dict[str, object] = {
+        "leaf_k": leaf_k,
+        "leaf_v": leaf_v,
+        "page_indices": torch.zeros(1, 1, 2, 2, dtype=torch.int32),
+        "page_sum_k": torch.randn(1, 1, 2, 4),
+        "page_sum_v": torch.randn(1, 1, 2, 4),
+        "page_counts": torch.ones(1, 1, 2, dtype=torch.int32),
+        "quantized_leaf_k": destination["quantized_leaf_k"],
+        "quantized_leaf_v": destination["quantized_leaf_v"],
+        "page_k_scales": torch.empty(1, 1, 2, 4),
+        "page_v_scales": torch.empty(1, 1, 2, 4),
+        "page_quantized_counts": torch.zeros(1, 1, 2, dtype=torch.int32),
+        "leaf_quant_bits": 4,
+        "quantization_finalized": False,
+    }
+    quantize_calls = 0
+
+    def fake_quantize(*args: object, **kwargs: object) -> None:
+        nonlocal quantize_calls
+        quantize_calls += 1
+        assert kwargs["quant_group_size"] == 2
+        assert kwargs["quant_token_group_size"] == 2
+        assert kwargs["quant_bits"] == 4
+        assert kwargs["optimize_scale"] is True
+        args[6].fill_(3)
+        args[7].fill_(5)
+
+    def fake_summaries(
+        page_sum_k: torch.Tensor,
+        page_sum_v: torch.Tensor,
+        **kwargs: object,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        assert kwargs == {"quant_group_size": 2, "optimize_scale": True}
+        return (
+            torch.full_like(page_sum_k, 7, dtype=torch.int8),
+            torch.full_like(page_sum_v, 9, dtype=torch.int8),
+            torch.full((1, 1, 2, 2), 0.5),
+            torch.full((1, 1, 2, 2), 0.25),
+        )
+
+    monkeypatch.setattr(core, "quantize_virtual_paged_kv", fake_quantize)
+    monkeypatch.setattr(core, "quantize_page_summaries_int8", fake_summaries)
+    engine._finalize_virtual_page_quantization(
+        page_cache,
+        destination_page=destination,
+    )
+
+    assert quantize_calls == 1
+    assert page_cache["quantization_finalized"] is True
+    assert page_cache["summary_quantization_finalized"] is True
+    assert page_cache["leaf_k"].data_ptr() == destination["leaf_k"].data_ptr()
+    assert page_cache["leaf_v"].data_ptr() == destination["leaf_v"].data_ptr()
+    assert page_cache["page_sum_k"].data_ptr() == destination["page_sum_k"].data_ptr()
+    assert page_cache["page_sum_v"].data_ptr() == destination["page_sum_v"].data_ptr()
+    assert bool(destination["quantized_leaf_k"].eq(3).all())
+    assert bool(destination["quantized_leaf_v"].eq(5).all())
+    assert bool(destination["quantized_page_sum_k"].eq(7).all())
+    assert bool(destination["quantized_page_sum_v"].eq(9).all())

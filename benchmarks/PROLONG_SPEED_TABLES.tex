@@ -1,0 +1,253 @@
+% Generated from benchmarks/PROLONG.md.
+% Requires \usepackage{booktabs}.
+% Cells preserve the units documented in the source benchmark tables.
+\begin{table*}[t]
+\centering
+\small
+\caption{Qwen3.8, TP1, batch 1, top-8: end-to-end ProLong timing. Each cell reports prefill seconds / decode milliseconds per batch step.}
+\label{tab:prolong-qwen38-tp1-b1-end-to-end}
+\begin{tabular}{lcccc}
+\toprule
+Context & Full & Two-tier BF16 & Three-tier BF16 & Three-tier INT4 \\
+\midrule
+8K & \(1.085\,\mathrm{s}\,/\,29.71\,\mathrm{ms}\) & \(0.904\,\mathrm{s}\,/\,28.43\,\mathrm{ms}\) & \(0.916\,\mathrm{s}\,/\,28.91\,\mathrm{ms}\) & \(0.933\,\mathrm{s}\,/\,28.83\,\mathrm{ms}\) \\
+16K & \(2.316\,\mathrm{s}\,/\,30.14\,\mathrm{ms}\) & \(1.847\,\mathrm{s}\,/\,28.40\,\mathrm{ms}\) & \(2.061\,\mathrm{s}\,/\,29.94\,\mathrm{ms}\) & \(2.209\,\mathrm{s}\,/\,30.08\,\mathrm{ms}\) \\
+32K & \(5.291\,\mathrm{s}\,/\,30.52\,\mathrm{ms}\) & \(3.817\,\mathrm{s}\,/\,28.32\,\mathrm{ms}\) & \(4.089\,\mathrm{s}\,/\,30.76\,\mathrm{ms}\) & \(4.304\,\mathrm{s}\,/\,30.66\,\mathrm{ms}\) \\
+64K & \(13.886\,\mathrm{s}\,/\,31.75\,\mathrm{ms}\) & \(7.884\,\mathrm{s}\,/\,28.47\,\mathrm{ms}\) & \(8.223\,\mathrm{s}\,/\,30.54\,\mathrm{ms}\) & \(8.645\,\mathrm{s}\,/\,30.91\,\mathrm{ms}\) \\
+128K & \(42.472\,\mathrm{s}\,/\,43.57\,\mathrm{ms}\) & \(16.542\,\mathrm{s}\,/\,29.62\,\mathrm{ms}\) & \(16.818\,\mathrm{s}\,/\,31.01\,\mathrm{ms}\) & \(17.885\,\mathrm{s}\,/\,30.86\,\mathrm{ms}\) \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table*}[t]
+\centering
+\small
+\caption{Qwen3.8, TP1, batch 1, top-8: attention-subsystem timing from matched real-minus-dummy runs. Each cell reports prefill seconds / decode milliseconds per batch step.}
+\label{tab:prolong-qwen38-tp1-b1-attention-core}
+\begin{tabular}{lcccc}
+\toprule
+Context & Full & Two-tier BF16 & Three-tier BF16 & Three-tier INT4 \\
+\midrule
+8K & \(0.202\,\mathrm{s}\,/\,1.03\,\mathrm{ms}\) & \(0.050\,\mathrm{s}\,/\,0.87\,\mathrm{ms}\) & \(0.047\,\mathrm{s}\,/\,1.11\,\mathrm{ms}\) & \(0.064\,\mathrm{s}\,/\,1.03\,\mathrm{ms}\) \\
+16K & \(0.575\,\mathrm{s}\,/\,1.56\,\mathrm{ms}\) & \(0.150\,\mathrm{s}\,/\,0.85\,\mathrm{ms}\) & \(0.320\,\mathrm{s}\,/\,1.36\,\mathrm{ms}\) & \(0.468\,\mathrm{s}\,/\,1.50\,\mathrm{ms}\) \\
+32K & \(1.808\,\mathrm{s}\,/\,1.89\,\mathrm{ms}\) & \(0.439\,\mathrm{s}\,/\,0.74\,\mathrm{ms}\) & \(0.606\,\mathrm{s}\,/\,2.14\,\mathrm{ms}\) & \(0.821\,\mathrm{s}\,/\,2.03\,\mathrm{ms}\) \\
+64K & \(7.069\,\mathrm{s}\,/\,3.06\,\mathrm{ms}\) & \(1.150\,\mathrm{s}\,/\,0.73\,\mathrm{ms}\) & \(1.405\,\mathrm{s}\,/\,1.84\,\mathrm{ms}\) & \(1.827\,\mathrm{s}\,/\,2.21\,\mathrm{ms}\) \\
+128K & \(28.840\,\mathrm{s}\,/\,15.08\,\mathrm{ms}\) & \(2.909\,\mathrm{s}\,/\,1.13\,\mathrm{ms}\) & \(3.186\,\mathrm{s}\,/\,2.52\,\mathrm{ms}\) & \(4.253\,\mathrm{s}\,/\,2.37\,\mathrm{ms}\) \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table*}[t]
+\centering
+\small
+\caption{Qwen3.8, TP1, batch 8, top-8: end-to-end ProLong timing. Each cell reports prefill seconds / decode milliseconds per batch step.}
+\label{tab:prolong-qwen38-tp1-b8-end-to-end}
+\begin{tabular}{lcccc}
+\toprule
+Context & Full & Two-tier BF16 & Three-tier BF16 & Three-tier INT4 \\
+\midrule
+8K & \(7.719\,\mathrm{s}\,/\,37.94\,\mathrm{ms}\) & \(7.304\,\mathrm{s}\,/\,34.49\,\mathrm{ms}\) & \(7.856\,\mathrm{s}\,/\,35.55\,\mathrm{ms}\) & \(7.930\,\mathrm{s}\,/\,35.89\,\mathrm{ms}\) \\
+16K & \(17.440\,\mathrm{s}\,/\,40.86\,\mathrm{ms}\) & \(14.923\,\mathrm{s}\,/\,34.79\,\mathrm{ms}\) & \(14.955\,\mathrm{s}\,/\,35.89\,\mathrm{ms}\) & \(15.782\,\mathrm{s}\,/\,36.26\,\mathrm{ms}\) \\
+32K & \(41.839\,\mathrm{s}\,/\,46.45\,\mathrm{ms}\) & \(31.177\,\mathrm{s}\,/\,35.17\,\mathrm{ms}\) & \(31.128\,\mathrm{s}\,/\,36.25\,\mathrm{ms}\) & \(32.817\,\mathrm{s}\,/\,36.56\,\mathrm{ms}\) \\
+64K & \(112.042\,\mathrm{s}\,/\,55.77\,\mathrm{ms}\) & \(64.618\,\mathrm{s}\,/\,35.79\,\mathrm{ms}\) & \(64.513\,\mathrm{s}\,/\,36.65\,\mathrm{ms}\) & \(67.946\,\mathrm{s}\,/\,37.00\,\mathrm{ms}\) \\
+128K & \(342.808\,\mathrm{s}\,/\,74.66\,\mathrm{ms}\) & \(134.521\,\mathrm{s}\,/\,36.67\,\mathrm{ms}\) & \(135.291\,\mathrm{s}\,/\,37.62\,\mathrm{ms}\) & \(143.629\,\mathrm{s}\,/\,38.02\,\mathrm{ms}\) \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table*}[t]
+\centering
+\small
+\caption{Qwen3.8, TP1, batch 8, top-8: attention-subsystem timing from matched real-minus-dummy runs. Each cell reports prefill seconds / decode milliseconds per batch step.}
+\label{tab:prolong-qwen38-tp1-b8-attention-core}
+\begin{tabular}{lcccc}
+\toprule
+Context & Full & Two-tier BF16 & Three-tier BF16 & Three-tier INT4 \\
+\midrule
+8K & \(0.999\,\mathrm{s}\,/\,4.86\,\mathrm{ms}\) & \(0.585\,\mathrm{s}\,/\,1.42\,\mathrm{ms}\) & \(1.136\,\mathrm{s}\,/\,2.47\,\mathrm{ms}\) & \(1.211\,\mathrm{s}\,/\,2.82\,\mathrm{ms}\) \\
+16K & \(3.930\,\mathrm{s}\,/\,8.01\,\mathrm{ms}\) & \(1.413\,\mathrm{s}\,/\,1.95\,\mathrm{ms}\) & \(1.444\,\mathrm{s}\,/\,3.04\,\mathrm{ms}\) & \(2.271\,\mathrm{s}\,/\,3.41\,\mathrm{ms}\) \\
+32K & \(14.834\,\mathrm{s}\,/\,13.60\,\mathrm{ms}\) & \(4.172\,\mathrm{s}\,/\,2.32\,\mathrm{ms}\) & \(4.124\,\mathrm{s}\,/\,3.40\,\mathrm{ms}\) & \(5.812\,\mathrm{s}\,/\,3.72\,\mathrm{ms}\) \\
+64K & \(58.018\,\mathrm{s}\,/\,22.93\,\mathrm{ms}\) & \(10.594\,\mathrm{s}\,/\,2.95\,\mathrm{ms}\) & \(10.489\,\mathrm{s}\,/\,3.81\,\mathrm{ms}\) & \(13.922\,\mathrm{s}\,/\,4.16\,\mathrm{ms}\) \\
+128K & \(234.769\,\mathrm{s}\,/\,41.85\,\mathrm{ms}\) & \(26.482\,\mathrm{s}\,/\,3.85\,\mathrm{ms}\) & \(27.251\,\mathrm{s}\,/\,4.81\,\mathrm{ms}\) & \(35.590\,\mathrm{s}\,/\,5.20\,\mathrm{ms}\) \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table*}[t]
+\centering
+\small
+\caption{Qwen3.8, TP4, batch 8, top-8: end-to-end ProLong timing. Each cell reports prefill seconds / decode milliseconds per batch step.}
+\label{tab:prolong-qwen38-tp4-b8-end-to-end}
+\begin{tabular}{lcccc}
+\toprule
+Context & Full & Two-tier BF16 & Three-tier BF16 & Three-tier INT4 \\
+\midrule
+8K & \(3.566\,\mathrm{s}\,/\,22.07\,\mathrm{ms}\) & \(3.393\,\mathrm{s}\,/\,21.31\,\mathrm{ms}\) & \(3.448\,\mathrm{s}\,/\,22.51\,\mathrm{ms}\) & \(3.567\,\mathrm{s}\,/\,22.57\,\mathrm{ms}\) \\
+16K & \(7.720\,\mathrm{s}\,/\,23.06\,\mathrm{ms}\) & \(6.886\,\mathrm{s}\,/\,21.39\,\mathrm{ms}\) & \(7.063\,\mathrm{s}\,/\,22.58\,\mathrm{ms}\) & \(7.148\,\mathrm{s}\,/\,22.76\,\mathrm{ms}\) \\
+32K & \(17.454\,\mathrm{s}\,/\,24.26\,\mathrm{ms}\) & \(14.102\,\mathrm{s}\,/\,21.61\,\mathrm{ms}\) & \(14.429\,\mathrm{s}\,/\,22.78\,\mathrm{ms}\) & \(14.656\,\mathrm{s}\,/\,22.79\,\mathrm{ms}\) \\
+64K & \(43.454\,\mathrm{s}\,/\,27.20\,\mathrm{ms}\) & \(28.772\,\mathrm{s}\,/\,21.71\,\mathrm{ms}\) & \(29.294\,\mathrm{s}\,/\,22.81\,\mathrm{ms}\) & \(30.046\,\mathrm{s}\,/\,22.94\,\mathrm{ms}\) \\
+128K & \(120.498\,\mathrm{s}\,/\,32.77\,\mathrm{ms}\) & \(59.019\,\mathrm{s}\,/\,22.00\,\mathrm{ms}\) & \(59.991\,\mathrm{s}\,/\,23.24\,\mathrm{ms}\) & \(62.118\,\mathrm{s}\,/\,23.48\,\mathrm{ms}\) \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table*}[t]
+\centering
+\small
+\caption{Qwen3.8, TP4, batch 8, top-8: attention-subsystem timing from matched real-minus-dummy runs. Each cell reports prefill seconds / decode milliseconds per batch step.}
+\label{tab:prolong-qwen38-tp4-b8-attention-core}
+\begin{tabular}{lcccc}
+\toprule
+Context & Full & Two-tier BF16 & Three-tier BF16 & Three-tier INT4 \\
+\midrule
+8K & \(0.417\,\mathrm{s}\,/\,1.69\,\mathrm{ms}\) & \(0.244\,\mathrm{s}\,/\,0.92\,\mathrm{ms}\) & \(0.299\,\mathrm{s}\,/\,2.13\,\mathrm{ms}\) & \(0.419\,\mathrm{s}\,/\,2.19\,\mathrm{ms}\) \\
+16K & \(1.227\,\mathrm{s}\,/\,2.59\,\mathrm{ms}\) & \(0.394\,\mathrm{s}\,/\,0.92\,\mathrm{ms}\) & \(0.570\,\mathrm{s}\,/\,2.12\,\mathrm{ms}\) & \(0.655\,\mathrm{s}\,/\,2.29\,\mathrm{ms}\) \\
+32K & \(4.488\,\mathrm{s}\,/\,3.81\,\mathrm{ms}\) & \(1.137\,\mathrm{s}\,/\,1.17\,\mathrm{ms}\) & \(1.463\,\mathrm{s}\,/\,2.34\,\mathrm{ms}\) & \(1.690\,\mathrm{s}\,/\,2.35\,\mathrm{ms}\) \\
+64K & \(17.501\,\mathrm{s}\,/\,6.79\,\mathrm{ms}\) & \(2.819\,\mathrm{s}\,/\,1.31\,\mathrm{ms}\) & \(3.341\,\mathrm{s}\,/\,2.40\,\mathrm{ms}\) & \(4.092\,\mathrm{s}\,/\,2.53\,\mathrm{ms}\) \\
+128K & \(68.578\,\mathrm{s}\,/\,12.40\,\mathrm{ms}\) & \(7.098\,\mathrm{s}\,/\,1.62\,\mathrm{ms}\) & \(8.071\,\mathrm{s}\,/\,2.86\,\mathrm{ms}\) & \(10.198\,\mathrm{s}\,/\,3.10\,\mathrm{ms}\) \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table*}[t]
+\centering
+\small
+\caption{K2 Horizon, TP1, batch 1, top-8: end-to-end ProLong timing. Each cell reports prefill seconds / decode milliseconds per batch step.}
+\label{tab:prolong-k2-horizon-tp1-b1-end-to-end}
+\begin{tabular}{lcccc}
+\toprule
+Context & Full & Two-tier BF16 & Three-tier BF16 & Three-tier INT4 \\
+\midrule
+8K & \(1.158\,\mathrm{s}\,/\,37.42\,\mathrm{ms}\) & \(1.200\,\mathrm{s}\,/\,38.27\,\mathrm{ms}\) & \(1.204\,\mathrm{s}\,/\,39.68\,\mathrm{ms}\) & \(1.491\,\mathrm{s}\,/\,39.93\,\mathrm{ms}\) \\
+16K & \(2.604\,\mathrm{s}\,/\,38.19\,\mathrm{ms}\) & \(2.685\,\mathrm{s}\,/\,38.69\,\mathrm{ms}\) & \(2.568\,\mathrm{s}\,/\,40.07\,\mathrm{ms}\) & \(2.855\,\mathrm{s}\,/\,40.36\,\mathrm{ms}\) \\
+32K & \(6.349\,\mathrm{s}\,/\,39.07\,\mathrm{ms}\) & \(6.044\,\mathrm{s}\,/\,38.82\,\mathrm{ms}\) & \(5.918\,\mathrm{s}\,/\,40.72\,\mathrm{ms}\) & \(6.515\,\mathrm{s}\,/\,41.00\,\mathrm{ms}\) \\
+64K & \(17.191\,\mathrm{s}\,/\,40.95\,\mathrm{ms}\) & \(13.948\,\mathrm{s}\,/\,39.15\,\mathrm{ms}\) & \(13.403\,\mathrm{s}\,/\,41.24\,\mathrm{ms}\) & \(14.882\,\mathrm{s}\,/\,41.58\,\mathrm{ms}\) \\
+128K & \(53.861\,\mathrm{s}\,/\,44.31\,\mathrm{ms}\) & \(32.234\,\mathrm{s}\,/\,39.92\,\mathrm{ms}\) & \(30.474\,\mathrm{s}\,/\,42.20\,\mathrm{ms}\) & \(34.615\,\mathrm{s}\,/\,42.47\,\mathrm{ms}\) \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table*}[t]
+\centering
+\small
+\caption{K2 Horizon, TP1, batch 1, top-8: attention-subsystem timing from matched real-minus-dummy runs. Each cell reports prefill seconds / decode milliseconds per batch step.}
+\label{tab:prolong-k2-horizon-tp1-b1-attention-core}
+\begin{tabular}{lcccc}
+\toprule
+Context & Full & Two-tier BF16 & Three-tier BF16 & Three-tier INT4 \\
+\midrule
+8K & \(0.160\,\mathrm{s}\,/\,1.31\,\mathrm{ms}\) & \(0.202\,\mathrm{s}\,/\,2.17\,\mathrm{ms}\) & \(0.206\,\mathrm{s}\,/\,3.57\,\mathrm{ms}\) & \(0.493\,\mathrm{s}\,/\,3.82\,\mathrm{ms}\) \\
+16K & \(0.622\,\mathrm{s}\,/\,2.04\,\mathrm{ms}\) & \(0.703\,\mathrm{s}\,/\,2.53\,\mathrm{ms}\) & \(0.586\,\mathrm{s}\,/\,3.92\,\mathrm{ms}\) & \(0.873\,\mathrm{s}\,/\,4.21\,\mathrm{ms}\) \\
+32K & \(2.385\,\mathrm{s}\,/\,2.97\,\mathrm{ms}\) & \(2.080\,\mathrm{s}\,/\,2.72\,\mathrm{ms}\) & \(1.954\,\mathrm{s}\,/\,4.62\,\mathrm{ms}\) & \(2.551\,\mathrm{s}\,/\,4.90\,\mathrm{ms}\) \\
+64K & \(9.016\,\mathrm{s}\,/\,4.90\,\mathrm{ms}\) & \(5.773\,\mathrm{s}\,/\,3.10\,\mathrm{ms}\) & \(5.228\,\mathrm{s}\,/\,5.19\,\mathrm{ms}\) & \(6.707\,\mathrm{s}\,/\,5.53\,\mathrm{ms}\) \\
+128K & \(37.987\,\mathrm{s}\,/\,8.35\,\mathrm{ms}\) & \(16.360\,\mathrm{s}\,/\,3.96\,\mathrm{ms}\) & \(14.600\,\mathrm{s}\,/\,6.24\,\mathrm{ms}\) & \(18.741\,\mathrm{s}\,/\,6.51\,\mathrm{ms}\) \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table*}[t]
+\centering
+\small
+\caption{K2 Horizon, TP1, batch 8, top-8: end-to-end ProLong timing. Each cell reports prefill seconds / decode milliseconds per batch step.}
+\label{tab:prolong-k2-horizon-tp1-b8-end-to-end}
+\begin{tabular}{lcccc}
+\toprule
+Context & Full & Two-tier BF16 & Three-tier BF16 & Three-tier INT4 \\
+\midrule
+8K & \(9.272\,\mathrm{s}\,/\,46.33\,\mathrm{ms}\) & \(9.697\,\mathrm{s}\,/\,46.46\,\mathrm{ms}\) & \(9.767\,\mathrm{s}\,/\,47.79\,\mathrm{ms}\) & \(11.293\,\mathrm{s}\,/\,48.61\,\mathrm{ms}\) \\
+16K & \(21.121\,\mathrm{s}\,/\,49.83\,\mathrm{ms}\) & \(20.429\,\mathrm{s}\,/\,47.19\,\mathrm{ms}\) & \(20.597\,\mathrm{s}\,/\,49.20\,\mathrm{ms}\) & \(22.066\,\mathrm{s}\,/\,49.88\,\mathrm{ms}\) \\
+32K & \(51.895\,\mathrm{s}\,/\,56.92\,\mathrm{ms}\) & \(49.740\,\mathrm{s}\,/\,49.13\,\mathrm{ms}\) & \(49.410\,\mathrm{s}\,/\,51.12\,\mathrm{ms}\) & \(53.419\,\mathrm{s}\,/\,51.83\,\mathrm{ms}\) \\
+64K & \(141.965\,\mathrm{s}\,/\,69.56\,\mathrm{ms}\) & \(115.998\,\mathrm{s}\,/\,50.44\,\mathrm{ms}\) & \(114.730\,\mathrm{s}\,/\,52.72\,\mathrm{ms}\) & \(126.000\,\mathrm{s}\,/\,53.33\,\mathrm{ms}\) \\
+128K & \textemdash & \textemdash & \textemdash & \(310.522\,\mathrm{s}\,/\,59.20\,\mathrm{ms}\) \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table*}[t]
+\centering
+\small
+\caption{K2 Horizon, TP1, batch 8, top-8: attention-subsystem timing from matched real-minus-dummy runs. Each cell reports prefill seconds / decode milliseconds per batch step.}
+\label{tab:prolong-k2-horizon-tp1-b8-attention-core}
+\begin{tabular}{lcccc}
+\toprule
+Context & Full & Two-tier BF16 & Three-tier BF16 & Three-tier INT4 \\
+\midrule
+8K & \(1.255\,\mathrm{s}\,/\,5.68\,\mathrm{ms}\) & \(1.681\,\mathrm{s}\,/\,5.81\,\mathrm{ms}\) & \(1.750\,\mathrm{s}\,/\,7.14\,\mathrm{ms}\) & \(3.276\,\mathrm{s}\,/\,7.96\,\mathrm{ms}\) \\
+16K & \(5.083\,\mathrm{s}\,/\,9.17\,\mathrm{ms}\) & \(4.391\,\mathrm{s}\,/\,6.53\,\mathrm{ms}\) & \(4.559\,\mathrm{s}\,/\,8.54\,\mathrm{ms}\) & \(6.028\,\mathrm{s}\,/\,9.22\,\mathrm{ms}\) \\
+32K & \(19.821\,\mathrm{s}\,/\,16.38\,\mathrm{ms}\) & \(17.666\,\mathrm{s}\,/\,8.59\,\mathrm{ms}\) & \(17.336\,\mathrm{s}\,/\,10.58\,\mathrm{ms}\) & \(21.345\,\mathrm{s}\,/\,11.29\,\mathrm{ms}\) \\
+64K & \(77.422\,\mathrm{s}\,/\,28.84\,\mathrm{ms}\) & \(51.455\,\mathrm{s}\,/\,9.72\,\mathrm{ms}\) & \(50.187\,\mathrm{s}\,/\,12.00\,\mathrm{ms}\) & \(61.457\,\mathrm{s}\,/\,12.61\,\mathrm{ms}\) \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table*}[t]
+\centering
+\small
+\caption{K2 Horizon, TP4, batch 8, top-8: end-to-end ProLong timing. Each cell reports prefill seconds / decode milliseconds per batch step.}
+\label{tab:prolong-k2-horizon-tp4-b8-end-to-end}
+\begin{tabular}{lcccc}
+\toprule
+Context & Full & Two-tier BF16 & Three-tier BF16 & Three-tier INT4 \\
+\midrule
+8K & \(3.792\,\mathrm{s}\,/\,22.60\,\mathrm{ms}\) & \(3.969\,\mathrm{s}\,/\,23.89\,\mathrm{ms}\) & \(4.086\,\mathrm{s}\,/\,24.88\,\mathrm{ms}\) & \(4.609\,\mathrm{s}\,/\,25.03\,\mathrm{ms}\) \\
+16K & \(8.389\,\mathrm{s}\,/\,23.59\,\mathrm{ms}\) & \(8.059\,\mathrm{s}\,/\,24.01\,\mathrm{ms}\) & \(8.478\,\mathrm{s}\,/\,26.27\,\mathrm{ms}\) & \(8.983\,\mathrm{s}\,/\,26.10\,\mathrm{ms}\) \\
+32K & \(19.231\,\mathrm{s}\,/\,25.23\,\mathrm{ms}\) & \(19.913\,\mathrm{s}\,/\,24.60\,\mathrm{ms}\) & \(19.771\,\mathrm{s}\,/\,27.07\,\mathrm{ms}\) & \(20.985\,\mathrm{s}\,/\,26.91\,\mathrm{ms}\) \\
+64K & \(49.199\,\mathrm{s}\,/\,28.61\,\mathrm{ms}\) & \(46.686\,\mathrm{s}\,/\,25.15\,\mathrm{ms}\) & \(45.268\,\mathrm{s}\,/\,28.11\,\mathrm{ms}\) & \(48.663\,\mathrm{s}\,/\,28.02\,\mathrm{ms}\) \\
+128K & \(139.555\,\mathrm{s}\,/\,35.55\,\mathrm{ms}\) & \(111.052\,\mathrm{s}\,/\,26.87\,\mathrm{ms}\) & \(106.511\,\mathrm{s}\,/\,31.78\,\mathrm{ms}\) & \(118.550\,\mathrm{s}\,/\,31.66\,\mathrm{ms}\) \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table*}[t]
+\centering
+\small
+\caption{K2 Horizon, TP4, batch 8, top-8: attention-subsystem timing from matched real-minus-dummy runs. Each cell reports prefill seconds / decode milliseconds per batch step.}
+\label{tab:prolong-k2-horizon-tp4-b8-attention-core}
+\begin{tabular}{lcccc}
+\toprule
+Context & Full & Two-tier BF16 & Three-tier BF16 & Three-tier INT4 \\
+\midrule
+8K & \(0.426\,\mathrm{s}\,/\,2.17\,\mathrm{ms}\) & \(0.603\,\mathrm{s}\,/\,3.45\,\mathrm{ms}\) & \(0.720\,\mathrm{s}\,/\,4.45\,\mathrm{ms}\) & \(1.243\,\mathrm{s}\,/\,4.60\,\mathrm{ms}\) \\
+16K & \(1.704\,\mathrm{s}\,/\,3.16\,\mathrm{ms}\) & \(1.374\,\mathrm{s}\,/\,3.57\,\mathrm{ms}\) & \(1.793\,\mathrm{s}\,/\,5.84\,\mathrm{ms}\) & \(2.298\,\mathrm{s}\,/\,5.67\,\mathrm{ms}\) \\
+32K & \(5.865\,\mathrm{s}\,/\,4.80\,\mathrm{ms}\) & \(6.546\,\mathrm{s}\,/\,4.16\,\mathrm{ms}\) & \(6.405\,\mathrm{s}\,/\,6.64\,\mathrm{ms}\) & \(7.619\,\mathrm{s}\,/\,6.48\,\mathrm{ms}\) \\
+64K & \(22.473\,\mathrm{s}\,/\,8.18\,\mathrm{ms}\) & \(19.961\,\mathrm{s}\,/\,4.72\,\mathrm{ms}\) & \(18.542\,\mathrm{s}\,/\,7.68\,\mathrm{ms}\) & \(21.937\,\mathrm{s}\,/\,7.59\,\mathrm{ms}\) \\
+128K & \(86.105\,\mathrm{s}\,/\,15.11\,\mathrm{ms}\) & \(57.602\,\mathrm{s}\,/\,6.43\,\mathrm{ms}\) & \(53.061\,\mathrm{s}\,/\,11.34\,\mathrm{ms}\) & \(65.100\,\mathrm{s}\,/\,11.22\,\mathrm{ms}\) \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table*}[t]
+\centering
+\small
+\caption{Qwen3.8 with DFlash2, TP1, batch 1, top-8: end-to-end ProLong timing. Each cell reports prefill seconds / decode milliseconds per output token.}
+\label{tab:prolong-qwen38-dflash2-tp1-b1-end-to-end}
+\begin{tabular}{lcccc}
+\toprule
+Context & Full & Two-tier BF16 & Three-tier BF16 & Three-tier INT4 \\
+\midrule
+8K & \(0.978\,\mathrm{s}\,/\,8.10\,\mathrm{ms}\) & \(0.922\,\mathrm{s}\,/\,7.44\,\mathrm{ms}\) & \(0.929\,\mathrm{s}\,/\,7.45\,\mathrm{ms}\) & \(1.016\,\mathrm{s}\,/\,8.38\,\mathrm{ms}\) \\
+16K & \(2.149\,\mathrm{s}\,/\,8.82\,\mathrm{ms}\) & \(1.852\,\mathrm{s}\,/\,7.24\,\mathrm{ms}\) & \(1.872\,\mathrm{s}\,/\,8.25\,\mathrm{ms}\) & \(1.955\,\mathrm{s}\,/\,8.57\,\mathrm{ms}\) \\
+32K & \(5.204\,\mathrm{s}\,/\,9.44\,\mathrm{ms}\) & \(3.843\,\mathrm{s}\,/\,9.64\,\mathrm{ms}\) & \(3.894\,\mathrm{s}\,/\,9.20\,\mathrm{ms}\) & \(4.062\,\mathrm{s}\,/\,8.37\,\mathrm{ms}\) \\
+64K & \(14.138\,\mathrm{s}\,/\,9.94\,\mathrm{ms}\) & \(7.936\,\mathrm{s}\,/\,7.72\,\mathrm{ms}\) & \(8.071\,\mathrm{s}\,/\,9.34\,\mathrm{ms}\) & \(8.438\,\mathrm{s}\,/\,9.21\,\mathrm{ms}\) \\
+128K & \(42.817\,\mathrm{s}\,/\,16.86\,\mathrm{ms}\) & \(16.430\,\mathrm{s}\,/\,9.41\,\mathrm{ms}\) & \(16.831\,\mathrm{s}\,/\,9.69\,\mathrm{ms}\) & \(17.700\,\mathrm{s}\,/\,10.55\,\mathrm{ms}\) \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table*}[t]
+\centering
+\small
+\caption{Qwen3.8 with DFlash2, TP1, batch 1, top-8: DFlash2 verification behavior. Each cell reports target verification-cycle milliseconds / pooled mean output tokens per cycle.}
+\label{tab:prolong-qwen38-dflash2-tp1-b1-verification}
+\begin{tabular}{lcccc}
+\toprule
+Context & Full & Two-tier BF16 & Three-tier BF16 & Three-tier INT4 \\
+\midrule
+8K & \(39.88\,\mathrm{ms}\,/\,4.93\) & \(39.73\,\mathrm{ms}\,/\,5.35\) & \(39.68\,\mathrm{ms}\,/\,5.35\) & \(39.97\,\mathrm{ms}\,/\,4.79\) \\
+16K & \(41.90\,\mathrm{ms}\,/\,4.77\) & \(40.02\,\mathrm{ms}\,/\,5.54\) & \(39.77\,\mathrm{ms}\,/\,4.84\) & \(40.07\,\mathrm{ms}\,/\,4.70\) \\
+32K & \(44.88\,\mathrm{ms}\,/\,4.77\) & \(40.21\,\mathrm{ms}\,/\,4.18\) & \(39.99\,\mathrm{ms}\,/\,4.36\) & \(40.32\,\mathrm{ms}\,/\,4.83\) \\
+64K & \(51.79\,\mathrm{ms}\,/\,5.23\) & \(40.77\,\mathrm{ms}\,/\,5.30\) & \(40.24\,\mathrm{ms}\,/\,4.32\) & \(41.04\,\mathrm{ms}\,/\,4.47\) \\
+128K & \(63.56\,\mathrm{ms}\,/\,3.78\) & \(41.64\,\mathrm{ms}\,/\,4.43\) & \(40.62\,\mathrm{ms}\,/\,4.21\) & \(41.02\,\mathrm{ms}\,/\,3.90\) \\
+\bottomrule
+\end{tabular}
+\end{table*}

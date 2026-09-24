@@ -80,13 +80,25 @@ def test_attention_timing_rejects_different_prompt_tokens() -> None:
         summarize_attention_time(dummy, [("full", real)])
 
 
-def test_attention_timing_rejects_different_source_identity() -> None:
+def test_attention_timing_allows_different_source_identity() -> None:
     dummy = _result(mode="full", dummy=True, prefill=100.0, decode=30.0)
     real = _result(mode="full", dummy=False, prefill=340.0, decode=72.0)
     real = deepcopy(real)
     real["benchmark_identity"]["source"]["source_sha256"] = "different"
 
-    with pytest.raises(ValueError, match="benchmark_identity"):
+    result = summarize_attention_time(dummy, [("full", real)])
+
+    row = result["measurements"]["131072"]["runs"][0]
+    assert row["benchmark_identity"]["source"]["source_sha256"] == "different"
+
+
+def test_attention_timing_rejects_different_runtime_identity() -> None:
+    dummy = _result(mode="full", dummy=True, prefill=100.0, decode=30.0)
+    real = _result(mode="full", dummy=False, prefill=340.0, decode=72.0)
+    real = deepcopy(real)
+    real["benchmark_identity"]["runtime"]["packages"]["torch"] = "different"
+
+    with pytest.raises(ValueError, match="runtime identities differ"):
         summarize_attention_time(dummy, [("full", real)])
 
 

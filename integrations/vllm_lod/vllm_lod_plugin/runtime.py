@@ -184,6 +184,12 @@ class VLLMLODRuntime:
         self._cached_prefill_stages: dict[
             int, tuple[VLLMLayerLODPool, tuple[int, ...], int, int, bool]
         ] = {}
+        self._initial_prefill_sources: dict[
+            int, tuple[torch.Tensor, torch.Tensor]
+        ] = {}
+        self._cached_prefill_sources: dict[
+            int, tuple[torch.Tensor, torch.Tensor]
+        ] = {}
         self._initial_prefill_built_layers = 0
         self._cached_prefill_built_layers = 0
         self._cross_layer_prefill_stream: torch.cuda.Stream | None = None
@@ -1004,6 +1010,8 @@ class VLLMLODRuntime:
         self,
         stages: tuple[tuple[Any, ...], ...],
         builder: Any,
+        *,
+        record_tensors: tuple[torch.Tensor, ...] = (),
     ) -> None:
         """Queue one layer-batched cache update behind its producing layers."""
 
@@ -1013,7 +1021,13 @@ class VLLMLODRuntime:
         foreground = torch.cuda.current_stream(self.model_state.device)
         stream.wait_stream(foreground)
         with torch.cuda.stream(stream):
-            builder(stages)
+            try:
+                builder(stages)
+            finally:
+                # INT4 construction sources are transient. Record their use on
+                # this stream before the runtime drops its final references.
+                for tensor in record_tensors:
+                    tensor.record_stream(stream)
             completed = torch.cuda.Event()
             completed.record(stream)
         for stage in stages:
@@ -1048,12 +1062,14 @@ class VLLMLODRuntime:
             or expected[3] != coverage
         ):
             raise RuntimeError("cross-layer initial-prefix schedules diverged")
-        pool._stage_cross_layer_initial_cache(
+        staged_source = pool._stage_cross_layer_initial_cache(
             slots,
             key,
             value,
             coverage=coverage,
         )
+        if staged_source is not None:
+            self._initial_prefill_sources[identity] = staged_source
         self._initial_prefill_stages[identity] = (
             pool,
             slots,
@@ -1071,12 +1087,25 @@ class VLLMLODRuntime:
         ]
         if not 0 < len(ordered) <= _CROSS_LAYER_PREFILL_GROUP:
             raise AssertionError("invalid cross-layer initial prefill group")
+        staged_sources = {
+            id(group_pool): self._initial_prefill_sources.pop(id(group_pool))
+            for group_pool, *_ in ordered
+            if id(group_pool) in self._initial_prefill_sources
+        }
+        record_tensors = tuple(
+            tensor for source in staged_sources.values() for tensor in source
+        )
         try:
             self._launch_cross_layer_prefill_group(
-                ordered, self._build_initial_prefill_across_layers
+                ordered,
+                lambda group: self._build_initial_prefill_across_layers(
+                    group, staged_sources=staged_sources
+                ),
+                record_tensors=record_tensors,
             )
         except Exception:
             self._initial_prefill_stages.clear()
+            self._initial_prefill_sources.clear()
             self._initial_prefill_built_layers = 0
             raise
         self._initial_prefill_built_layers = staged_layers
@@ -1084,6 +1113,7 @@ class VLLMLODRuntime:
         if staged_layers == len(self.pools):
             self.cross_layer_initial_prefill_batches += 1
             self._initial_prefill_stages.clear()
+            self._initial_prefill_sources.clear()
             self._initial_prefill_built_layers = 0
 
     def _build_initial_prefill_across_layers(
@@ -1091,10 +1121,16 @@ class VLLMLODRuntime:
         stages: tuple[
             tuple[VLLMLayerLODPool, tuple[int, ...], int, int], ...
         ],
+        *,
+        staged_sources: dict[int, tuple[torch.Tensor, torch.Tensor]] | None = None,
     ) -> None:
         """Reuse the decode catch-up batching geometry for initial prefixes."""
 
+        staged_sources = {} if staged_sources is None else staged_sources
         reference, slots, total_len, coverage = stages[0]
+        expected_staged = reference.settings.kv_bits == 4
+        if expected_staged != (len(staged_sources) == len(stages)):
+            raise RuntimeError("cross-layer initial staging format diverged")
         if len(slots) != 1:
             raise AssertionError("cross-layer initial construction requires B=1")
         sink_len = min(int(reference.engine.sink_len), total_len)
@@ -1147,6 +1183,17 @@ class VLLMLODRuntime:
                 dim=0,
             )
 
+        def archive_source(
+            pool: VLLMLayerLODPool, name: str
+        ) -> torch.Tensor:
+            staged = staged_sources.get(id(pool))
+            if staged is not None:
+                return staged[0 if name == "leaf_k" else 1]
+            value = pool.state["page_cache"].get(name)
+            if not isinstance(value, torch.Tensor):
+                raise TypeError("cross-layer BF16 archive is missing")
+            return value[slot : slot + 1]
+
         for start in range(0, len(stages), group_size):
             group = stages[start : start + group_size]
             engine = group[0][0].engine
@@ -1160,11 +1207,8 @@ class VLLMLODRuntime:
             packed_norms = pack_state(group, "key_norm_sums") if has_norms else None
             overflow_k = torch.cat(
                 [
-                    pool.state["page_cache"]["leaf_k"][
-                        slot : slot + 1,
-                        :,
-                        initial_state_len : initial_state_len + overflow_len,
-                        :,
+                    archive_source(pool, "leaf_k")[
+                        ..., initial_state_len : initial_state_len + overflow_len, :
                     ]
                     for pool, *_ in group
                 ],
@@ -1172,11 +1216,8 @@ class VLLMLODRuntime:
             )
             overflow_v = torch.cat(
                 [
-                    pool.state["page_cache"]["leaf_v"][
-                        slot : slot + 1,
-                        :,
-                        initial_state_len : initial_state_len + overflow_len,
-                        :,
+                    archive_source(pool, "leaf_v")[
+                        ..., initial_state_len : initial_state_len + overflow_len, :
                     ]
                     for pool, *_ in group
                 ],
@@ -1227,7 +1268,9 @@ class VLLMLODRuntime:
                     state_len=state_len,
                     owners=owners[group_row : group_row + 1],
                     owner_ranks=owner_ranks[group_row : group_row + 1],
+                    staged_leaves=staged_sources.get(id(pool)),
                 )
+
     def _stage_cached_prefill_layer(
         self,
         pool: VLLMLayerLODPool,
@@ -1253,12 +1296,14 @@ class VLLMLODRuntime:
         )
         if expected is not None and signature != expected[1:]:
             raise RuntimeError("cross-layer cached-prefix schedules diverged")
-        pool._stage_cross_layer_cached_cache(
+        staged_source = pool._stage_cross_layer_cached_cache(
             slots,
             key,
             value,
             previous_len=previous_len,
         )
+        if staged_source is not None:
+            self._cached_prefill_sources[identity] = staged_source
         self._cached_prefill_stages[identity] = (
             pool,
             slots,
@@ -1277,17 +1322,31 @@ class VLLMLODRuntime:
         ]
         if not 0 < len(ordered) <= _CROSS_LAYER_PREFILL_GROUP:
             raise AssertionError("invalid cross-layer cached prefill group")
+        staged_sources = {
+            id(group_pool): self._cached_prefill_sources.pop(id(group_pool))
+            for group_pool, *_ in ordered
+            if id(group_pool) in self._cached_prefill_sources
+        }
+        record_tensors = tuple(
+            tensor for source in staged_sources.values() for tensor in source
+        )
         try:
             self._launch_cross_layer_prefill_group(
-                ordered, self._build_cached_prefill_across_layers
+                ordered,
+                lambda group: self._build_cached_prefill_across_layers(
+                    group, staged_sources=staged_sources
+                ),
+                record_tensors=record_tensors,
             )
         except Exception:
             self._cached_prefill_stages.clear()
+            self._cached_prefill_sources.clear()
             self._cached_prefill_built_layers = 0
             raise
         self._cached_prefill_built_layers = staged_layers
         if staged_layers == len(self.pools):
             self._cached_prefill_stages.clear()
+            self._cached_prefill_sources.clear()
             self._cached_prefill_built_layers = 0
 
     def _build_cached_prefill_across_layers(
@@ -1295,10 +1354,16 @@ class VLLMLODRuntime:
         stages: tuple[
             tuple[VLLMLayerLODPool, tuple[int, ...], int, int, bool], ...
         ],
+        *,
+        staged_sources: dict[int, tuple[torch.Tensor, torch.Tensor]] | None = None,
     ) -> None:
         """Run one exact prefill-state update for sixteen layers at a time."""
 
+        staged_sources = {} if staged_sources is None else staged_sources
         reference, slots, previous_len, total_len, finalize = stages[0]
+        expected_staged = reference.settings.kv_bits == 4
+        if expected_staged != (len(staged_sources) == len(stages)):
+            raise RuntimeError("cross-layer cached staging format diverged")
         if len(slots) != 1:
             raise AssertionError("cross-layer cached construction requires B=1")
         slot = slots[0]
@@ -1339,15 +1404,22 @@ class VLLMLODRuntime:
 
         expected_signature = signature(reference)
         has_norms = isinstance(reference.state.get("key_norm_sums"), torch.Tensor)
+        # Page-table overflow watermarks are layer-local: centroid ownership
+        # can differ while the shared state-update schedule remains identical.
         scalar_names = (
             "state_len",
             "scheduled_state_len",
             "coverage",
             "recent_len",
             "leaf_count",
-            "overflow_safe_until",
         )
-        for pool, other_slots, other_previous, other_total, other_finalize in stages[1:]:
+        for (
+            pool,
+            other_slots,
+            other_previous,
+            other_total,
+            other_finalize,
+        ) in stages[1:]:
             other_metadata = pool.metadata[slot]
             if (
                 other_slots != slots
@@ -1381,6 +1453,17 @@ class VLLMLODRuntime:
                 dim=0,
             )
 
+        def overflow_source(
+            pool: VLLMLayerLODPool, name: str
+        ) -> torch.Tensor:
+            staged = staged_sources.get(id(pool))
+            if staged is not None:
+                return staged[0 if name == "leaf_k" else 1][..., :overflow_len, :]
+            value = pool.state["page_cache"].get(name)
+            if not isinstance(value, torch.Tensor):
+                raise TypeError("cross-layer BF16 archive is missing")
+            return value[slot : slot + 1, :, archive_begin:archive_end, :]
+
         updated_state_len: int | None = None
         for start in range(0, len(stages), group_size):
             group = stages[start : start + group_size]
@@ -1394,22 +1477,10 @@ class VLLMLODRuntime:
             packed_counts = pack_state(group, "counts")
             packed_norms = pack_state(group, "key_norm_sums") if has_norms else None
             overflow_k = torch.cat(
-                [
-                    pool.state["page_cache"]["leaf_k"][
-                        slot : slot + 1, :, archive_begin:archive_end, :
-                    ]
-                    for pool, *_ in group
-                ],
-                dim=0,
+                [overflow_source(pool, "leaf_k") for pool, *_ in group], dim=0
             )
             overflow_v = torch.cat(
-                [
-                    pool.state["page_cache"]["leaf_v"][
-                        slot : slot + 1, :, archive_begin:archive_end, :
-                    ]
-                    for pool, *_ in group
-                ],
-                dim=0,
+                [overflow_source(pool, "leaf_v") for pool, *_ in group], dim=0
             )
             (
                 packed_k,
@@ -1461,6 +1532,7 @@ class VLLMLODRuntime:
                     scheduled_state_len=group_state_len,
                     owners=owners[group_row : group_row + 1],
                     owner_ranks=owner_ranks[group_row : group_row + 1],
+                    staged_leaves=staged_sources.get(id(pool)),
                 )
         if updated_state_len is None:
             raise AssertionError("cross-layer cached construction produced no update")

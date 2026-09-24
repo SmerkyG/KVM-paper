@@ -1370,8 +1370,8 @@ class VLLMLayerLODPool:
         value: torch.Tensor,
         *,
         coverage: int,
-    ) -> None:
-        """Persist one exact prefix before its layer-batched state update."""
+    ) -> tuple[torch.Tensor, torch.Tensor] | None:
+        """Persist or stage one exact prefix before its layer-batched update."""
 
         if len(slots) != 1 or int(key.size(0)) != 1:
             raise ValueError("cross-layer initial construction requires one row")
@@ -1381,12 +1381,6 @@ class VLLMLayerLODPool:
         page = storage.get("page_cache")
         if not isinstance(page, dict):
             raise TypeError("cross-layer initial construction lacks its page cache")
-        leaf_k = page.get("leaf_k")
-        leaf_v = page.get("leaf_v")
-        if not isinstance(leaf_k, torch.Tensor) or not isinstance(
-            leaf_v, torch.Tensor
-        ):
-            raise TypeError("cross-layer initial construction needs BF16 leaves")
 
         total_len = int(key.size(2))
         initial_len = min(total_len, int(self.engine.chunk_len))
@@ -1396,11 +1390,31 @@ class VLLMLayerLODPool:
         if not 0 <= coverage - sink_len <= archive_len:
             raise ValueError("cross-layer initial coverage is outside the prefix")
 
-        # Copy into the final chronological leaf allocation now. Holding the
-        # input K/V views until the last layer would pin each layer's much
-        # larger QKV projection allocation.
-        leaf_k[..., :archive_len, :].copy_(key[..., sink_len:total_len, :])
-        leaf_v[..., :archive_len, :].copy_(value[..., sink_len:total_len, :])
+        staged_leaves = None
+        if self.settings.kv_bits == 4:
+            # The persistent INT4 cache has no BF16 leaf shadow. A detached
+            # archive keeps only K/V, rather than pinning the much larger QKV
+            # projection allocation while sixteen layers are collected.
+            archive_k = key[..., sink_len:total_len, :].detach().clone()
+            archive_v = value[..., sink_len:total_len, :].detach().clone()
+            staged_leaves = (archive_k, archive_v)
+        elif self.settings.kv_bits == 0:
+            leaf_k = page.get("leaf_k")
+            leaf_v = page.get("leaf_v")
+            if not isinstance(leaf_k, torch.Tensor) or not isinstance(
+                leaf_v, torch.Tensor
+            ):
+                raise TypeError("cross-layer initial construction needs BF16 leaves")
+            if archive_len > int(leaf_k.size(2)) or archive_len > int(leaf_v.size(2)):
+                raise ValueError("cross-layer initial prefix exceeds leaf capacity")
+            # BF16 modes stage directly in their final chronological archive.
+            leaf_k[..., :archive_len, :].copy_(key[..., sink_len:total_len, :])
+            leaf_v[..., :archive_len, :].copy_(value[..., sink_len:total_len, :])
+            archive_k = leaf_k[..., :archive_len, :]
+            archive_v = leaf_v[..., :archive_len, :]
+        else:
+            raise ValueError("cross-layer construction supports BF16 or INT4 leaves")
+
         if sink_len:
             sink_k = storage.get("sink_k")
             sink_v = storage.get("sink_v")
@@ -1420,10 +1434,10 @@ class VLLMLayerLODPool:
         ):
             raise TypeError("cross-layer initial state storage is incomplete")
         state_k[..., :initial_state_len, :].copy_(
-            leaf_k[..., :initial_state_len, :]
+            archive_k[..., :initial_state_len, :]
         )
         state_v[..., :initial_state_len, :].copy_(
-            leaf_v[..., :initial_state_len, :]
+            archive_v[..., :initial_state_len, :]
         )
         counts[..., :initial_state_len, :].fill_(1.0)
         key_norm_sums = storage.get("key_norm_sums")
@@ -1447,11 +1461,12 @@ class VLLMLayerLODPool:
             raise ValueError("cross-layer exact tail exceeds its fixed storage")
         archive_coverage = coverage - sink_len
         recent_k[..., :recent_len, :].copy_(
-            leaf_k[..., archive_coverage:archive_len, :]
+            archive_k[..., archive_coverage:archive_len, :]
         )
         recent_v[..., :recent_len, :].copy_(
-            leaf_v[..., archive_coverage:archive_len, :]
+            archive_v[..., archive_coverage:archive_len, :]
         )
+        return staged_leaves
 
     def _finish_cross_layer_initial_cache(
         self,
@@ -1462,6 +1477,7 @@ class VLLMLayerLODPool:
         state_len: int,
         owners: torch.Tensor,
         owner_ranks: torch.Tensor,
+        staged_leaves: tuple[torch.Tensor, torch.Tensor] | None = None,
     ) -> None:
         """Create per-layer page ownership after a batched centroid update."""
 
@@ -1471,17 +1487,25 @@ class VLLMLayerLODPool:
         page = storage.get("page_cache")
         if not isinstance(page, dict):
             raise TypeError("cross-layer initial construction lacks its page cache")
-        leaf_k = page.get("leaf_k")
-        leaf_v = page.get("leaf_v")
-        if not isinstance(leaf_k, torch.Tensor) or not isinstance(
-            leaf_v, torch.Tensor
-        ):
-            raise TypeError("cross-layer initial construction needs BF16 leaves")
+        if staged_leaves is None:
+            archive_k = page.get("leaf_k")
+            archive_v = page.get("leaf_v")
+            if not isinstance(archive_k, torch.Tensor) or not isinstance(
+                archive_v, torch.Tensor
+            ):
+                raise TypeError("cross-layer initial construction needs BF16 leaves")
+        else:
+            if self.settings.kv_bits != 4:
+                raise ValueError("only INT4 construction may use staged BF16 leaves")
+            archive_k, archive_v = staged_leaves
 
         sink_len = min(int(self.engine.sink_len), total_len)
         initial_len = min(total_len, int(self.engine.chunk_len))
         initial_state_len = initial_len - sink_len
         archived_len = coverage - sink_len
+        archive_len = total_len - sink_len
+        if int(archive_k.size(2)) < archive_len or int(archive_v.size(2)) < archive_len:
+            raise ValueError("cross-layer staged archive is shorter than its prefix")
         initial_owners = (
             torch.arange(initial_state_len, device=owners.device, dtype=torch.long)
             .view(1, 1, initial_state_len)
@@ -1494,22 +1518,27 @@ class VLLMLayerLODPool:
             int(self.engine.chunk_len), int(self.engine.decode_cache_headroom)
         )
         page_cache = self.engine._new_page_cache(
-            leaf_k[..., :initial_state_len, :],
-            leaf_v[..., :initial_state_len, :],
+            archive_k[..., :initial_state_len, :],
+            archive_v[..., :initial_state_len, :],
             initial_owners,
             state_capacity=self.state_capacity,
             sequence_capacity=sequence_capacity,
-            virtual_k=leaf_k[..., : total_len - sink_len, :],
-            virtual_v=leaf_v[..., : total_len - sink_len, :],
+            virtual_k=archive_k[..., :archive_len, :],
+            virtual_v=archive_v[..., :archive_len, :],
             destination=page,
         )
         self.engine._append_page_cache(
             page_cache,
-            leaf_k[..., initial_state_len:archived_len, :],
-            leaf_v[..., initial_state_len:archived_len, :],
+            archive_k[..., initial_state_len:archived_len, :],
+            archive_v[..., initial_state_len:archived_len, :],
             owners.long(),
             owner_ranks=owner_ranks.long(),
         )
+        if staged_leaves is not None:
+            self.engine._finalize_virtual_page_quantization(
+                page_cache,
+                destination_page=page,
+            )
         recent_len = total_len - coverage
         state: dict[str, object] = {
             "state_k": storage["state_k"],
@@ -1541,8 +1570,8 @@ class VLLMLayerLODPool:
         value: torch.Tensor,
         *,
         previous_len: int,
-    ) -> None:
-        """Persist one aligned continuation before its batched state update."""
+    ) -> tuple[torch.Tensor, torch.Tensor] | None:
+        """Persist or stage an aligned continuation for a batched update."""
 
         if len(slots) != 1 or int(key.size(0)) != 1:
             raise ValueError("cross-layer cached construction requires one row")
@@ -1550,6 +1579,25 @@ class VLLMLayerLODPool:
         metadata = self.metadata[slot]
         if int(metadata["total_len"]) != previous_len:
             raise RuntimeError("cross-layer cached prefix length changed while staging")
+
+        if self.settings.kv_bits == 4:
+            recent_len = int(metadata["recent_len"])
+            recent_k = self.state["recent_k"][slot : slot + 1]
+            recent_v = self.state["recent_v"][slot : slot + 1]
+            if recent_len > int(recent_k.size(2)):
+                raise ValueError("cross-layer cached tail exceeds fixed storage")
+            # [old exact tail, new chunk] contains the next overflow followed
+            # by the exact tail needed after this scheduler step.
+            staged_k = torch.cat(
+                (recent_k[..., :recent_len, :], key.detach()), dim=2
+            )
+            staged_v = torch.cat(
+                (recent_v[..., :recent_len, :], value.detach()), dim=2
+            )
+            return staged_k, staged_v
+        if self.settings.kv_bits != 0:
+            raise ValueError("cross-layer construction supports BF16 or INT4 leaves")
+
         page = self.state.get("page_cache")
         if not isinstance(page, dict):
             raise TypeError("cross-layer cached construction lacks its page cache")
@@ -1559,7 +1607,6 @@ class VLLMLayerLODPool:
             leaf_v, torch.Tensor
         ):
             raise TypeError("cross-layer cached construction needs BF16 leaves")
-
         sink_len = min(int(self.engine.sink_len), previous_len)
         archive_begin = previous_len - sink_len
         archive_end = archive_begin + int(key.size(2))
@@ -1567,6 +1614,7 @@ class VLLMLayerLODPool:
             raise ValueError("cross-layer cached continuation exceeds leaf capacity")
         leaf_k[slot : slot + 1, :, archive_begin:archive_end, :].copy_(key)
         leaf_v[slot : slot + 1, :, archive_begin:archive_end, :].copy_(value)
+        return None
 
     def _finish_cross_layer_cached_cache(
         self,
@@ -1578,6 +1626,7 @@ class VLLMLayerLODPool:
         scheduled_state_len: int,
         owners: torch.Tensor,
         owner_ranks: torch.Tensor,
+        staged_leaves: tuple[torch.Tensor, torch.Tensor] | None = None,
     ) -> None:
         """Finish page ownership and the exact tail after a batched update."""
 
@@ -1586,34 +1635,54 @@ class VLLMLayerLODPool:
         sink_len = min(int(self.engine.sink_len), total_len)
         archive_begin = old_coverage - sink_len
         archive_end = coverage - sink_len
+        overflow_len = archive_end - archive_begin
+        recent_len = total_len - coverage
         page_cache = self._row_cache(slot).state["page_cache"]
         if not isinstance(page_cache, dict):
             raise TypeError("cross-layer cached construction lost its page cache")
-        leaf_k = page_cache.get("leaf_k")
-        leaf_v = page_cache.get("leaf_v")
-        if not isinstance(leaf_k, torch.Tensor) or not isinstance(
-            leaf_v, torch.Tensor
-        ):
-            raise TypeError("cross-layer cached construction needs BF16 leaves")
-        if int(owners.size(2)) != archive_end - archive_begin:
-            raise AssertionError("cross-layer cached owner archive has the wrong length")
+        if int(owners.size(2)) != overflow_len:
+            raise AssertionError(
+                "cross-layer cached owner archive has the wrong length"
+            )
+
+        if staged_leaves is None:
+            leaf_k = page_cache.get("leaf_k")
+            leaf_v = page_cache.get("leaf_v")
+            if not isinstance(leaf_k, torch.Tensor) or not isinstance(
+                leaf_v, torch.Tensor
+            ):
+                raise TypeError("cross-layer cached construction needs BF16 leaves")
+            overflow_k = leaf_k[..., archive_begin:archive_end, :]
+            overflow_v = leaf_v[..., archive_begin:archive_end, :]
+            recent_begin = coverage - sink_len
+            recent_end = total_len - sink_len
+            recent_source_k = leaf_k[..., recent_begin:recent_end, :]
+            recent_source_v = leaf_v[..., recent_begin:recent_end, :]
+        else:
+            if self.settings.kv_bits != 4:
+                raise ValueError("only INT4 construction may use staged BF16 leaves")
+            working_k, working_v = staged_leaves
+            required = overflow_len + recent_len
+            if int(working_k.size(2)) != required or int(working_v.size(2)) != required:
+                raise ValueError("cross-layer cached staging has the wrong length")
+            overflow_k = working_k[..., :overflow_len, :]
+            overflow_v = working_v[..., :overflow_len, :]
+            recent_source_k = working_k[..., overflow_len:required, :]
+            recent_source_v = working_v[..., overflow_len:required, :]
 
         self.engine._append_page_cache(
             page_cache,
-            leaf_k[..., archive_begin:archive_end, :],
-            leaf_v[..., archive_begin:archive_end, :],
+            overflow_k,
+            overflow_v,
             owners.long(),
             owner_ranks=owner_ranks.long(),
         )
-        recent_len = total_len - coverage
         if recent_len > self.local_capacity:
             raise ValueError("cross-layer cached exact tail exceeds its fixed storage")
         recent_k = self.state["recent_k"][slot : slot + 1]
         recent_v = self.state["recent_v"][slot : slot + 1]
-        recent_begin = coverage - sink_len
-        recent_end = total_len - sink_len
-        recent_k[..., :recent_len, :].copy_(leaf_k[..., recent_begin:recent_end, :])
-        recent_v[..., :recent_len, :].copy_(leaf_v[..., recent_begin:recent_end, :])
+        recent_k[..., :recent_len, :].copy_(recent_source_k)
+        recent_v[..., :recent_len, :].copy_(recent_source_v)
 
         self.local_lens[slot].fill_(recent_len)
         self.state_lens[slot].fill_(state_len)
@@ -1883,8 +1952,8 @@ class VLLMLayerLODPool:
         cross_layer_cached = bool(
             self.cached_prefill_stager is not None
             and len(slots) == 1
-            and self.settings.levels == 2
-            and self.settings.kv_bits == 0
+            and self.settings.levels in (2, 3)
+            and self.settings.kv_bits in (0, 4)
             and length == int(self.engine.prefill_chunk_len)
             and previous_length >= int(self.engine.prefill_chunk_len)
             and previous_length % int(self.engine.prefill_chunk_len) == 0
@@ -2047,8 +2116,8 @@ class VLLMLayerLODPool:
                 self.initial_prefill_stager is not None
                 and len(initial) == 1
                 and len(group) == 1
-                and self.settings.levels == 2
-                and self.settings.kv_bits == 0
+                and self.settings.levels in (2, 3)
+                and self.settings.kv_bits in (0, 4)
                 and self.engine.prefill_exact_first_chunk
                 and int(self.engine.chunk_len) * 2 < length
                 and length <= int(self.engine.prefill_chunk_len)

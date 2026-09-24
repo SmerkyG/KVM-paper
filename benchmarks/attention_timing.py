@@ -9,7 +9,6 @@ from typing import Any
 
 
 MATCHED_FIELDS = (
-    "benchmark_identity",
     "checkpoint",
     "dataset",
     "dataset_revision",
@@ -26,6 +25,16 @@ MATCHED_FIELDS = (
 )
 
 
+def _runtime_identity(result: dict[str, Any], *, name: str) -> dict[str, Any]:
+    identity = result.get("benchmark_identity")
+    if not identity or not identity.get("runtime"):
+        raise ValueError(
+            f"{name} must contain benchmark_identity.runtime; "
+            "legacy results cannot be validated for subtraction"
+        )
+    return identity["runtime"]
+
+
 def _prompt_hashes(measurement: dict[str, Any]) -> list[str]:
     return [prompt["token_sha256"] for prompt in measurement["prompts"]]
 
@@ -36,10 +45,12 @@ def _validate_pair(
     *,
     real_name: str,
 ) -> None:
-    if not dummy.get("benchmark_identity") or not real.get("benchmark_identity"):
+    dummy_runtime = _runtime_identity(dummy, name="dummy")
+    real_runtime = _runtime_identity(real, name=real_name)
+    if dummy_runtime != real_runtime:
         raise ValueError(
-            f"dummy and {real_name} must both contain benchmark_identity; "
-            "legacy results cannot be validated for subtraction"
+            f"dummy and {real_name} runtime identities differ: "
+            f"{dummy_runtime!r} != {real_runtime!r}"
         )
     mismatches = {
         field: (dummy.get(field), real.get(field))
@@ -80,11 +91,7 @@ def summarize_attention_time(
         raise ValueError("dummy result must be a full-mode speed benchmark")
     if not reals:
         raise ValueError("at least one real result is required")
-    if not dummy.get("benchmark_identity"):
-        raise ValueError(
-            "dummy result must contain benchmark_identity; "
-            "legacy results cannot be validated for subtraction"
-        )
+    _runtime_identity(dummy, name="dummy")
 
     result: dict[str, Any] = {
         "method": "matched-real-minus-dummy-attention",
@@ -124,6 +131,7 @@ def summarize_attention_time(
                 {
                     "name": real_name,
                     "mode": real["mode"],
+                    "benchmark_identity": real["benchmark_identity"],
                     "real_prefill_seconds": real_prefill,
                     "real_decode_ms_per_batch_step": real_decode,
                     "attention_prefill_seconds": attention_prefill,

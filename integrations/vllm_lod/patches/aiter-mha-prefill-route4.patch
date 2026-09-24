@@ -227,7 +227,7 @@
              }
              // dequant
              auto s_acc_element_func_ = [&s_acc_element_func, k_descale]() {
-@@ -821,6 +843,177 @@
+@@ -821,6 +843,181 @@
              }
  
              const auto s = cast_tile<SMPLComputeDataType>(s_acc); // S{j}
@@ -274,9 +274,13 @@
 +#endif
 +                            const float coarse_score =
 +                                type_convert<float>(route_s(i_j_idx));
++                            // Multiplying a row's normalized routing score by its
++                            // positive query RMS preserves its top-k ordering:
++                            //   rms * ((dot / rms) + bias) = dot + rms * bias.
++                            // This avoids one division for every query/key score.
 +                            route_s(i_j_idx) =
 +                                type_convert<SMPLComputeDataType>(
-+                                    (coarse_score - bias_value) / query_rms + bias_value);
++                                    coarse_score + (query_rms - 1.0f) * bias_value);
 +                        });
 +                    });
 +#endif
@@ -421,3 +425,29 @@
          // store lse
          if constexpr(kStoreLSE)
          {
+--- a/3rdparty/composable_kernel/example/ck_tile/01_fmha/codegen/ops/fmha_fwd.py
++++ b/3rdparty/composable_kernel/example/ck_tile/01_fmha/codegen/ops/fmha_fwd.py
+@@ -1501,6 +1501,6 @@
+         return Product(name="PyTorch integration", rule=fit)
+     # Aiter(mha_fwd) integration
+-    elif receipt == 100:
+-
++    elif receipt in (100, 101):
++
+         def fit(problem_ctx: ProblemContext, kernel_ctx: KernelContext) -> bool:
+             cond = problem_ctx.dtype in ["fp16", "bf16", "fp8bf16"]
+@@ -1609,6 +1609,14 @@
+             if optdim_list != [-1]:
+                 if hdim not in optdim_list:
+                     continue
++            # Receipt 101 is reserved for normalized D128 LoD routing. Keep
++            # the ordinary receipt-100 tile set unchanged for dense attention.
++            if receipt == 101 and dtype == "bf16" and (hdim, hdim_v) == (128, 128):
++                tiles = [
++                    FmhaFwdTileSize(
++                        128, 128, 32, 128, 32, 128, 8, 1, 1, 8, 1, 1, 16, 16, 32, 16, 16, 16, -1
++                    )
++                ]
+             for tile, next_tile in zip(tiles, tiles[1:]):
+                 assert next_tile.F_bm0 >= tile.F_bm0, (
+                     "Tiles must be ordered by increasing bm0"
