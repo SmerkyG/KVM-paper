@@ -150,8 +150,8 @@ def _plot_measurement(
         axes[1, column].set_xticks(list(x_values), contexts)
         axes[1, column].set_xlabel("Context length")
 
-    axes[0, 0].set_ylabel("Prefill (s, log scale)")
-    axes[1, 0].set_ylabel("Decode (ms / batch step)")
+    axes[0, 0].set_ylabel("Prefill\n(s, log scale)")
+    axes[1, 0].set_ylabel("Decode\n(ms / batch step)")
     handles, labels = axes[0, 0].get_legend_handles_labels()
     figure.legend(
         handles,
