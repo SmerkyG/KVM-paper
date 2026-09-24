@@ -115,7 +115,7 @@ def _plot_measurement(
     figure, axes = plt.subplots(
         2,
         len(setup_order),
-        figsize=(14.2, 7.7),
+        figsize=(14.2, 8.2),
         sharex=True,
         sharey="row",
         constrained_layout=False,
@@ -143,15 +143,15 @@ def _plot_measurement(
                 [timing.decode_ms if timing else float("nan") for timing in timings],
                 **style,
             )
-        axes[0, column].set_title(setup, fontsize=24, fontweight="bold")
+        axes[0, column].set_title(setup, fontsize=20, fontweight="bold")
         axes[0, column].set_yscale("log")
         axes[0, column].grid(True, which="both", alpha=0.25)
         axes[1, column].grid(True, which="both", alpha=0.25)
         axes[1, column].set_xticks(list(x_values), contexts)
         axes[1, column].set_xlabel("Context length")
 
-    axes[0, 0].set_ylabel("Prefill wall time (s, log scale)")
-    axes[1, 0].set_ylabel("Decode latency (ms / batch step)")
+    axes[0, 0].set_ylabel("Prefill (s, log scale)")
+    axes[1, 0].set_ylabel("Decode (ms / batch step)")
     handles, labels = axes[0, 0].get_legend_handles_labels()
     figure.legend(
         handles,
@@ -161,7 +161,7 @@ def _plot_measurement(
         ncol=4,
         frameon=False,
     )
-    figure.subplots_adjust(top=0.89, bottom=0.09, left=0.075, right=0.985, hspace=0.18)
+    figure.subplots_adjust(top=0.82, bottom=0.10, left=0.11, right=0.985, hspace=0.22)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     figure.savefig(output_path, dpi=180)
     figure.savefig(output_path.with_suffix(".pdf"))
