@@ -13,6 +13,15 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+plt.rcParams.update({
+    "font.size": 20,
+    "axes.titlesize": 24,
+    "axes.labelsize": 20,
+    "xtick.labelsize": 20,
+    "ytick.labelsize": 20,
+    "legend.fontsize": 20,
+})
+
 
 CONTEXT_RE = re.compile(r"^(\d+)K$")
 MODEL_HEADINGS = {
@@ -134,7 +143,7 @@ def _plot_measurement(
                 [timing.decode_ms if timing else float("nan") for timing in timings],
                 **style,
             )
-        axes[0, column].set_title(setup, fontsize=12, fontweight="bold")
+        axes[0, column].set_title(setup, fontsize=24, fontweight="bold")
         axes[0, column].set_yscale("log")
         axes[0, column].grid(True, which="both", alpha=0.25)
         axes[1, column].grid(True, which="both", alpha=0.25)
