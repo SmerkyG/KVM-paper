@@ -345,6 +345,9 @@ class VLLMLayerLODPool:
             "complete-centroid prefill": (
                 not recursive or self.engine.recursive_prefill_all_leaves
             ),
+            "compact recursive page directory": (
+                not recursive or self.engine.leaf_inline_pages_per_slot == 32
+            ),
             "leaf geometry": (
                 self.engine.leaf_layout == "expert"
                 and (self.engine.leaf_block_m, self.engine.leaf_block_n)

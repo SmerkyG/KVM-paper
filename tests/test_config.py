@@ -215,6 +215,7 @@ def test_profile_fixes_top_eight_for_both_families(
     assert engine.separate_sink_cache is True
     assert engine.prefill_aiter_route_coarse is True
     assert engine.decode_state_update_len == 256
+    assert engine.leaf_inline_pages_per_slot == 32
     assert engine.leaf_block_m == (256 if family is ModelFamily.K2 else 32)
     assert engine.leaf_block_n == 16
     assert engine.leaf_num_warps == (4 if family is ModelFamily.K2 else 2)

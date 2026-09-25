@@ -103,6 +103,10 @@ def configure_engine(
         engine.decode_gqa_cooperative_hip = family is ModelFamily.QWEN38
         return
 
+    # Keep the common first 32 pages of each centroid inline. Less common
+    # pages use the already allocated bounded overflow hash, reducing the
+    # persistent per-centroid directory without changing the stored leaves.
+    engine.leaf_inline_pages_per_slot = 32
     engine.recursive_prefill_all_leaves = True
     engine.recursive_prefill_all_leaves_token_limit = 0
     # The fused producer is now also the fastest stable path for long Qwen

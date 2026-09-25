@@ -9,9 +9,9 @@ quantization scales, and indexing metadata.
 ## Result
 
 At 128K context, three-tier INT4 reduces persistent attention-cache memory by
-**56.5%** for Qwen3.8-27B-FP8 and **49.2%** for K2-Horizon-32B-FP8. Their
-equal-model mean is **52.9%**. Using unique tensor payload rather than allocator
-deltas gives 56.8% and 50.0%, respectively, or a 53.4% equal-model mean.
+**57.3%** for Qwen3.8-27B-FP8 and **51.0%** for K2-Horizon-32B-FP8. Their
+equal-model mean is **54.2%**. Using unique tensor payload rather than allocator
+deltas gives 57.7% and 51.7%, respectively, or a 54.7% equal-model mean.
 
 ### Qwen3.8-27B-FP8
 
@@ -21,13 +21,13 @@ the same in full-attention and LoD runs.
 
 | Context | Full BF16 K/V | Three-tier INT4 | Reduction |
 |---:|---:|---:|---:|
-| 8K | 0.500 GiB | 0.440 GiB | 11.9% |
-| 16K | 1.000 GiB | 0.725 GiB | 27.5% |
-| 32K | 2.000 GiB | 1.150 GiB | 42.5% |
-| 64K | 4.000 GiB | 1.969 GiB | 50.8% |
-| 128K | 8.000 GiB | 3.478 GiB | 56.5% |
+| 8K | 0.500 GiB | 0.430 GiB | 13.9% |
+| 16K | 1.000 GiB | 0.685 GiB | 31.5% |
+| 32K | 2.000 GiB | 1.103 GiB | 44.9% |
+| 64K | 4.000 GiB | 1.925 GiB | 51.9% |
+| 128K | 8.000 GiB | 3.413 GiB | 57.3% |
 
-At 128K, the INT4 unique tensor payload is 3.455 GiB, a 56.8% reduction from
+At 128K, the INT4 unique tensor payload is 3.388 GiB, a 57.7% reduction from
 the 8.000 GiB full-attention payload.
 
 ### K2-Horizon-32B-FP8
@@ -36,36 +36,37 @@ K2 has 64 full-attention layers with eight 128-wide K/V heads.
 
 | Context | Full BF16 K/V | Three-tier INT4 | Reduction |
 |---:|---:|---:|---:|
-| 8K | 2.000 GiB | 2.349 GiB | -17.4% |
-| 16K | 4.000 GiB | 3.630 GiB | 9.2% |
-| 32K | 8.000 GiB | 5.650 GiB | 29.4% |
-| 64K | 16.000 GiB | 9.551 GiB | 40.3% |
-| 128K | 32.000 GiB | 16.250 GiB | 49.2% |
+| 8K | 2.000 GiB | 2.207 GiB | -10.3% |
+| 16K | 4.000 GiB | 3.504 GiB | 12.4% |
+| 32K | 8.000 GiB | 5.460 GiB | 31.7% |
+| 64K | 16.000 GiB | 9.145 GiB | 42.8% |
+| 128K | 32.000 GiB | 15.680 GiB | 51.0% |
 
-At 128K, the INT4 unique tensor payload is 16.002 GiB, a 50.0% reduction from
+At 128K, the INT4 unique tensor payload is 15.463 GiB, a 51.7% reduction from
 the 32.000 GiB full-attention payload.
 
 The 128K K2 INT4 unique payload breaks down as follows:
 
 | Component | GiB | Share |
 |---|---:|---:|
-| Packed 4-bit leaf K/V | 8.016 | 50.1% |
-| Quantized page summaries | 1.721 | 10.8% |
-| Page-summary scales | 0.860 | 5.4% |
-| Leaf scales | 0.860 | 5.4% |
-| Centroid sum K/V | 1.438 | 9.0% |
-| Attention-ready centroid/local arena | 1.625 | 10.2% |
-| Inline page directory | 0.719 | 4.5% |
-| Page indices | 0.430 | 2.7% |
+| Packed 4-bit leaf K/V | 8.016 | 51.8% |
+| Quantized page summaries | 1.721 | 11.1% |
+| Page-summary scales | 0.860 | 5.6% |
+| Leaf scales | 0.860 | 5.6% |
+| Centroid sum K/V | 1.438 | 9.3% |
+| Attention-ready centroid/local arena | 1.625 | 10.5% |
+| Inline page directory | 0.180 | 1.2% |
+| Page indices | 0.430 | 2.8% |
 | Overflow hash | 0.250 | 1.6% |
 | Other persistent tensors | 0.083 | 0.5% |
 
 Thus 8.016 GiB is the packed leaf archive itself. The largest reducible
-overheads are the duplicated sum/attention-ready centroid representations,
-page summaries and scales, and the 128-entry inline page directory.
+overheads are the duplicated sum/attention-ready centroid representations and
+the page summaries and scales. The common first 32 pages of each centroid stay
+inline; additional pages use the already allocated bounded overflow hash.
 
 For batch size eight, unique payload scales linearly with the fixed request
-rows: 64.000 to 27.641 GiB for Qwen and 256.000 to 128.014 GiB for K2.
+rows: 64.000 to 27.102 GiB for Qwen and 256.000 to 123.702 GiB for K2.
 
 ## Measurement method
 
@@ -75,8 +76,9 @@ on model geometry, cache organization, request count, and configured context
 capacity. ProLong is used separately for the speed and quality experiments.
 
 The measurements were made on an AMD Instinct MI325X on 2026-09-25 using the
-release checkout with the standardized 256-token decode update interval. For
-each model and context length, the experiment:
+release checkout with the standardized 256-token decode update interval and a
+32-entry inline page directory. For each model and context length, the
+experiment:
 
 1. computed the conventional full-attention BF16 K/V payload as
    `tokens * layers * 2(K,V) * kv_heads * head_dim * 2 bytes`;
@@ -112,6 +114,6 @@ INT4 does not reduce the whole cache by the theoretical 75% because only the
 page-local leaf residual payload is packed to four bits. Centroids, the exact
 local field, the sink, page summaries or scales, and indexing metadata retain
 wider representations. These fixed and lower-order costs are a larger fraction
-at short contexts: K2 INT4 is 17.4% larger than full attention at 8K, crosses
-below it by 16K, and saves 49.2% at 128K. Qwen saves 11.9% at 8K and 56.5% at
+at short contexts: K2 INT4 is 10.3% larger than full attention at 8K, crosses
+below it by 16K, and saves 51.0% at 128K. Qwen saves 13.9% at 8K and 57.3% at
 128K.
