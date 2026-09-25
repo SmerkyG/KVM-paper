@@ -29,6 +29,11 @@ K2 remains 128/128 in every full and LoD cell. Qwen two-tier is near-perfect at
 BF16 scores 499/512 overall and INT4 scores 501/512. The failures are retained
 rather than carrying forward a stronger earlier sample.
 
+The K2 three-tier INT4 row remains valid for the standardized 256-token decode
+update interval. NIAH-S3 generates at most 64 tokens, so it never reaches the
+first cache catch-up under either the former 512-token interval or the current
+256-token interval; its prefill calculation and decoded outputs are unchanged.
+
 ## Reproduce
 
 Install dependencies:

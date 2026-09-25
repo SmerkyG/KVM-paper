@@ -19,9 +19,8 @@ contains one fixed production policy, not the research-time tuning matrix.
 All modes use exactly eight routed regions in prefill and decode, a
 `16 * sqrt(T)` centroid schedule, a 16K prefill catch-up, a 512-token base
 decode window, one separately protected sink, and an exact first 16K prefill
-region. Decode catch-up occurs every 256 tokens, except that K2 INT4 uses a
-fixed 512-token interval to amortize quantized-page maintenance. Ordinary
-decode scans every retained leaf only while the context is at most 2K; INT4
+region. Decode catch-up occurs every 256 tokens. Ordinary decode scans every
+retained leaf only while the context is at most 2K; INT4
 then differs solely by residual-quantization error. DFlash2 stays routed at all
 lengths because its one-token and multi-token verifier graphs share one pool.
 With vLLM prefix caching
@@ -174,6 +173,8 @@ only public tools:
 - [ProLong](benchmarks/PROLONG.md): prompt CE/perplexity and matched prefill and
   1,025-token decode speed sweeps.
 - [RULER NIAH-S3](benchmarks/NIAH_S3.md): long-context UUID retrieval.
+- [KV-cache VRAM](benchmarks/KV_CACHE_VRAM.md): persistent full-attention BF16
+  versus three-tier INT4 cache memory.
 
 The benchmark documents report the current top-8 production results.
 The retained-leaf exact decode path is limited to contexts of at most 2,048

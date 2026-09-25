@@ -27,8 +27,7 @@ def configure_engine(
 
     The attention calculation is shared across both families: top-eight in
     prefill and decode, count-corrected coarse mass, and exact replacement of
-    selected regions. Differences below are launch geometry, storage, and the
-    fixed K2 INT4 maintenance interval.
+    selected regions. Differences below are launch geometry and storage.
     """
 
     gqa = engine.config.num_attention_heads // engine.config.num_key_value_heads
@@ -47,6 +46,7 @@ def configure_engine(
     engine.prefill_two_level_topk = ROUTE_COUNT
     engine.separate_sink_cache = True
     engine.prefill_chunk_len = PREFILL_CHUNK_SIZE
+    engine.decode_state_update_len = 256
     engine.prefill_local_len = PREFILL_LOCAL_WINDOW
     engine.prefill_state_update_len = PREFILL_CHUNK_SIZE
     engine.prefill_exact_first_chunk = True
@@ -118,7 +118,6 @@ def configure_engine(
             engine.leaf_block_m = 256
             engine.leaf_block_n = 16
             engine.leaf_num_warps = 4
-            engine.decode_state_update_len = 512
             engine.decode_route_parallel_reduce = True
             engine.decode_route_parallel_reduce_block_d = 32
 

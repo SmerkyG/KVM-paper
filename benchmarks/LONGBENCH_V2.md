@@ -47,6 +47,12 @@ independent length-balanced shards rather than an interleaved timing protocol.
 Treat this timing as operational context, not as a controlled kernel-speed comparison.
 Use the matched sweep in [ProLong](PROLONG.md) for that purpose.
 
+The K2 three-tier INT4 result remains valid for the standardized 256-token
+decode update interval. LongBench v2 generates at most 32 tokens per request,
+so it never reaches the first cache catch-up under either the former 512-token
+interval or the current 256-token interval; its prefill calculation and decoded
+outputs are unchanged.
+
 ## Reproduce
 
 Install the serving and benchmark dependencies from the repository root:

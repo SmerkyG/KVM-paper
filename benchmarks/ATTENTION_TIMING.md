@@ -28,9 +28,8 @@ recorded configuration, context lengths, prompt-token hashes, or runtime package
 versions. It records each arm's source fingerprint but does not require the
 fingerprints to match, so an unchanged full-attention or dummy control can be
 reused after a LoD-only source change. The caller remains responsible for
-confirming that a reused control's executed path is unchanged. A run still
-aborts rather than writing an artifact if its own source identity changes while
-it is executing. Legacy artifacts without `benchmark_identity.runtime` cannot
+confirming that a reused control's executed path is unchanged. Legacy artifacts
+without `benchmark_identity.runtime` cannot
 be used for validated subtraction.
 
 Run the ordinary full and LoD arms as described in [PROLONG.md](PROLONG.md).

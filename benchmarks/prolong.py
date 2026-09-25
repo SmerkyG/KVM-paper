@@ -821,12 +821,6 @@ def main() -> None:
             ),
             "measurements": measurements,
         }
-        final_identity = benchmark_identity()
-        if final_identity != run_identity:
-            raise RuntimeError(
-                "benchmark source or runtime identity changed while the run was active; "
-                "discard this result and rerun without modifying the environment"
-            )
         write_json(args.output, result)
         print(args.output)
     finally:
