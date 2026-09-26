@@ -17,10 +17,10 @@ loss is token-weighted across the eight documents.
 
 | Model | Unbounded loss | Cap 1,024 loss | Loss change | Unbounded PPL | Cap 1,024 PPL | Relative PPL change |
 |---|---:|---:|---:|---:|---:|---:|
-| Qwen3.8-27B-FP8 | 0.445054 | 0.445288 | +0.000235 | 1.560574 | 1.560940 | +0.0235% |
-| K2-Horizon-32B-FP8 | 0.496713 | 0.496789 | +0.000076 | 1.643311 | 1.643435 | +0.0076% |
+| Qwen3.8-27B-FP8 | 0.445205 | 0.445288 | +0.000084 | 1.560810 | 1.560940 | +0.0084% |
+| K2-Horizon-32B-FP8 | 0.496648 | 0.496789 | +0.000141 | 1.643203 | 1.643435 | +0.0141% |
 
-The cap therefore changes perplexity by less than 0.025% on either model. See
+The cap therefore changes perplexity by less than 0.015% on either model. See
 [PROLONG.md](PROLONG.md) for the complete quality protocol and the comparisons
 against full attention.
 
@@ -30,42 +30,39 @@ The full LongBench-v2 comparison evaluates all 503 examples per model with the
 same deterministic A/B/C/D evaluator, 131,072-token input limit, disabled
 thinking, and top-eight two-tier BF16 LoD configuration.
 
-| Model | Unbounded | Cap 1,024 | Accuracy change | Correct-answer change |
+| Model | Unbounded | Cap 1,024 | Cap accuracy change | Cap correct-answer change |
 |---|---:|---:|---:|---:|
-| Qwen3.8-27B-FP8 | 274/503 (54.47%) | 262/503 (52.09%) | -2.39 pp | -12 |
-| K2-Horizon-32B-FP8 | 214/503 (42.54%) | 221/503 (43.94%) | +1.39 pp | +7 |
-| Pooled | 488/1,006 (48.51%) | 483/1,006 (48.01%) | -0.50 pp | -5 |
+| Qwen3.8-27B-FP8 | 271/503 (53.88%) | 262/503 (52.09%) | -1.79 pp | -9 |
+| K2-Horizon-32B-FP8 | 209/503 (41.55%) | 221/503 (43.94%) | +2.39 pp | +12 |
+| Pooled | 480/1,006 (47.71%) | 483/1,006 (48.01%) | +0.30 pp | +3 |
 
 The changes are not concentrated in the longest examples:
 
 | Model and condition | Short (180) | Medium (215) | Long (108) |
 |---|---:|---:|---:|
-| Qwen, unbounded | 106 | 116 | 52 |
+| Qwen, unbounded | 105 | 114 | 52 |
 | Qwen, cap 1,024 | 100 | 109 | 53 |
-| K2, unbounded | 85 | 83 | 46 |
+| K2, unbounded | 90 | 77 | 42 |
 | K2, cap 1,024 | 90 | 85 | 46 |
 
-Across both models, the cap changes pooled accuracy by -0.50 percentage points.
-Qwen moves downward while K2 moves upward, and neither model loses correct
+Across both models, the cap changes pooled accuracy by +0.30 percentage points.
+Qwen moves downward while K2 moves upward, and both capped runs gain correct
 answers in the long-example stratum. See [LONGBENCH_V2.md](LONGBENCH_V2.md)
 for the full evaluation protocol.
 
 ## Comparability and interpretation
 
-The tables above are archived release-before/after comparisons. They preserve
-the model, data, evaluator, context limit, LoD organization, and top-eight
-routing policy, but the runs have different source fingerprints because other
-implementation work landed between the unbounded and capped measurements.
-They should therefore be interpreted as a production-policy ablation rather
-than a literal one-line source-code A/B.
-
-As a direct isolation check, the cap was also tested with otherwise identical
-source trees on the same deterministic 16-example LongBench-v2 subset. Qwen
-moved from 8/16 to 9/16 and K2 from 8/16 to 10/16. That subset is too small to
-support a standalone accuracy claim, but it provides no evidence that the cap
-itself causes the Qwen decrease in the complete before/after comparison.
+The unbounded condition was freshly rerun on 2026-09-26 from release commit
+`4bec54b1` with the production profile changed only from
+`max_open_centroid_leaves = 1024` to `None`. These results replace the prior
+archived unbounded artifacts whose exact source state was uncertain. The
+production-cap columns are the current official results also reported in
+[PROLONG.md](PROLONG.md) and [LONGBENCH_V2.md](LONGBENCH_V2.md). All fresh
+LongBench-v2 outputs contain 503 unique IDs and 503 parsed A/B/C/D answers per
+model. The ProLong conditions use matching document and token hashes and each
+contains 524,280 predicted tokens.
 
 Taken together, ProLong shows a negligible next-token-prediction change, while
-the complete LongBench-v2 results show mixed model-level movement and a small
-pooled difference. The evidence supports using the 1,024-leaf cap to bound
-exact refinement work without a material aggregate quality loss.
+the complete LongBench-v2 results move in opposite directions by model and are
+slightly positive when pooled. The evidence supports using the 1,024-leaf cap
+to bound exact refinement work without a material aggregate quality loss.

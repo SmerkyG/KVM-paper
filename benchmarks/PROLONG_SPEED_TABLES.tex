@@ -10,11 +10,11 @@
 \toprule
 Context & Full & Two-tier BF16 & Three-tier BF16 & Three-tier INT4 \\
 \midrule
-8K & \(1.085\,\mathrm{s}\,/\,29.71\,\mathrm{ms}\) & \(0.913\,\mathrm{s}\,/\,28.43\,\mathrm{ms}\) & \(0.913\,\mathrm{s}\,/\,29.44\,\mathrm{ms}\) & \(0.991\,\mathrm{s}\,/\,29.58\,\mathrm{ms}\) \\
-16K & \(2.316\,\mathrm{s}\,/\,30.14\,\mathrm{ms}\) & \(1.846\,\mathrm{s}\,/\,28.32\,\mathrm{ms}\) & \(1.868\,\mathrm{s}\,/\,29.47\,\mathrm{ms}\) & \(1.943\,\mathrm{s}\,/\,29.68\,\mathrm{ms}\) \\
-32K & \(5.291\,\mathrm{s}\,/\,30.52\,\mathrm{ms}\) & \(3.828\,\mathrm{s}\,/\,28.35\,\mathrm{ms}\) & \(3.865\,\mathrm{s}\,/\,29.50\,\mathrm{ms}\) & \(4.030\,\mathrm{s}\,/\,29.72\,\mathrm{ms}\) \\
-64K & \(13.886\,\mathrm{s}\,/\,31.75\,\mathrm{ms}\) & \(7.902\,\mathrm{s}\,/\,28.49\,\mathrm{ms}\) & \(7.999\,\mathrm{s}\,/\,29.52\,\mathrm{ms}\) & \(8.356\,\mathrm{s}\,/\,29.75\,\mathrm{ms}\) \\
-128K & \(42.472\,\mathrm{s}\,/\,43.57\,\mathrm{ms}\) & \(16.375\,\mathrm{s}\,/\,28.71\,\mathrm{ms}\) & \(16.626\,\mathrm{s}\,/\,29.66\,\mathrm{ms}\) & \(17.497\,\mathrm{s}\,/\,29.96\,\mathrm{ms}\) \\
+8K & \(1.002\,\mathrm{s}\,/\,28.84\,\mathrm{ms}\) & \(0.913\,\mathrm{s}\,/\,28.43\,\mathrm{ms}\) & \(0.913\,\mathrm{s}\,/\,29.44\,\mathrm{ms}\) & \(0.991\,\mathrm{s}\,/\,29.58\,\mathrm{ms}\) \\
+16K & \(2.184\,\mathrm{s}\,/\,29.61\,\mathrm{ms}\) & \(1.846\,\mathrm{s}\,/\,28.32\,\mathrm{ms}\) & \(1.868\,\mathrm{s}\,/\,29.47\,\mathrm{ms}\) & \(1.943\,\mathrm{s}\,/\,29.68\,\mathrm{ms}\) \\
+32K & \(5.242\,\mathrm{s}\,/\,30.33\,\mathrm{ms}\) & \(3.828\,\mathrm{s}\,/\,28.35\,\mathrm{ms}\) & \(3.865\,\mathrm{s}\,/\,29.50\,\mathrm{ms}\) & \(4.030\,\mathrm{s}\,/\,29.72\,\mathrm{ms}\) \\
+64K & \(13.996\,\mathrm{s}\,/\,31.63\,\mathrm{ms}\) & \(7.902\,\mathrm{s}\,/\,28.49\,\mathrm{ms}\) & \(7.999\,\mathrm{s}\,/\,29.52\,\mathrm{ms}\) & \(8.356\,\mathrm{s}\,/\,29.75\,\mathrm{ms}\) \\
+128K & \(42.336\,\mathrm{s}\,/\,34.29\,\mathrm{ms}\) & \(16.375\,\mathrm{s}\,/\,28.71\,\mathrm{ms}\) & \(16.626\,\mathrm{s}\,/\,29.66\,\mathrm{ms}\) & \(17.497\,\mathrm{s}\,/\,29.96\,\mathrm{ms}\) \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -28,11 +28,11 @@ Context & Full & Two-tier BF16 & Three-tier BF16 & Three-tier INT4 \\
 \toprule
 Context & Full & Two-tier BF16 & Three-tier BF16 & Three-tier INT4 \\
 \midrule
-8K & \(0.202\,\mathrm{s}\,/\,1.03\,\mathrm{ms}\) & \(0.059\,\mathrm{s}\,/\,0.87\,\mathrm{ms}\) & \(0.044\,\mathrm{s}\,/\,1.64\,\mathrm{ms}\) & \(0.122\,\mathrm{s}\,/\,1.78\,\mathrm{ms}\) \\
-16K & \(0.575\,\mathrm{s}\,/\,1.56\,\mathrm{ms}\) & \(0.149\,\mathrm{s}\,/\,0.77\,\mathrm{ms}\) & \(0.127\,\mathrm{s}\,/\,0.89\,\mathrm{ms}\) & \(0.202\,\mathrm{s}\,/\,1.10\,\mathrm{ms}\) \\
-32K & \(1.808\,\mathrm{s}\,/\,1.89\,\mathrm{ms}\) & \(0.450\,\mathrm{s}\,/\,0.77\,\mathrm{ms}\) & \(0.382\,\mathrm{s}\,/\,0.88\,\mathrm{ms}\) & \(0.547\,\mathrm{s}\,/\,1.09\,\mathrm{ms}\) \\
-64K & \(7.069\,\mathrm{s}\,/\,3.06\,\mathrm{ms}\) & \(1.168\,\mathrm{s}\,/\,0.75\,\mathrm{ms}\) & \(1.181\,\mathrm{s}\,/\,0.82\,\mathrm{ms}\) & \(1.538\,\mathrm{s}\,/\,1.05\,\mathrm{ms}\) \\
-128K & \(28.840\,\mathrm{s}\,/\,15.08\,\mathrm{ms}\) & \(2.742\,\mathrm{s}\,/\,0.22\,\mathrm{ms}\) & \(2.994\,\mathrm{s}\,/\,1.17\,\mathrm{ms}\) & \(3.865\,\mathrm{s}\,/\,1.47\,\mathrm{ms}\) \\
+8K & \(0.132\,\mathrm{s}\,/\,1.25\,\mathrm{ms}\) & \(0.043\,\mathrm{s}\,/\,0.85\,\mathrm{ms}\) & \(0.043\,\mathrm{s}\,/\,1.86\,\mathrm{ms}\) & \(0.121\,\mathrm{s}\,/\,2.00\,\mathrm{ms}\) \\
+16K & \(0.486\,\mathrm{s}\,/\,2.00\,\mathrm{ms}\) & \(0.148\,\mathrm{s}\,/\,0.71\,\mathrm{ms}\) & \(0.170\,\mathrm{s}\,/\,1.86\,\mathrm{ms}\) & \(0.245\,\mathrm{s}\,/\,2.07\,\mathrm{ms}\) \\
+32K & \(1.863\,\mathrm{s}\,/\,2.62\,\mathrm{ms}\) & \(0.449\,\mathrm{s}\,/\,0.64\,\mathrm{ms}\) & \(0.486\,\mathrm{s}\,/\,1.80\,\mathrm{ms}\) & \(0.651\,\mathrm{s}\,/\,2.02\,\mathrm{ms}\) \\
+64K & \(7.263\,\mathrm{s}\,/\,4.08\,\mathrm{ms}\) & \(1.169\,\mathrm{s}\,/\,0.95\,\mathrm{ms}\) & \(1.266\,\mathrm{s}\,/\,1.98\,\mathrm{ms}\) & \(1.623\,\mathrm{s}\,/\,2.21\,\mathrm{ms}\) \\
+128K & \(28.860\,\mathrm{s}\,/\,6.74\,\mathrm{ms}\) & \(2.899\,\mathrm{s}\,/\,1.16\,\mathrm{ms}\) & \(3.149\,\mathrm{s}\,/\,2.11\,\mathrm{ms}\) & \(4.021\,\mathrm{s}\,/\,2.41\,\mathrm{ms}\) \\
 \bottomrule
 \end{tabular}
 \end{table*}

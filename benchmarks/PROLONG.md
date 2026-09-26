@@ -44,13 +44,15 @@ document set.
 
 ## Current routed top-8 speed results
 
-The full-attention and mode-matched dummy-attention controls below are retained
-unchanged. Every LoD arm was freshly measured on 2026-09-25--26 from the
-current release checkout (source fingerprint `9e316f18f0c85ba`) with the
-standardized 256-token decode update interval. The panels use MI325X GPUs, the
-same raw prompt cohort, a 16,384-token scheduler chunk, one warmup per length,
-one measured repetition, and a 1,025-token decode. Top-8 is used in both
-prefill and decode. Each cell is
+Every LoD arm was freshly measured on 2026-09-25--26 from the current release
+checkout (source fingerprint `9e316f18f0c85ba`) with the standardized
+256-token decode update interval. The Qwen TP1/B1 full-attention control and a
+single dummy-attention control shared by all four Qwen TP1/B1 columns were
+rerun together on 2026-09-26; their strict matched subtraction is preserved in
+`results/qwen-tp1-b1-dummy-audit/attention.json`. The panels use MI325X GPUs,
+the same raw prompt cohort, a 16,384-token scheduler chunk, one warmup per
+length, one measured repetition, and a 1,025-token decode. Top-8 is used in
+both prefill and decode. Each cell is
 `prefill seconds / decode milliseconds per batch step`.
 
 The refreshed K2 INT4 128K capacity cell was measured separately with the same
@@ -59,12 +61,13 @@ is a small residual between two much larger end-to-end measurements, so
 hundredths of a millisecond are below the useful resolution.
 
 The end-to-end table for each configuration is followed by a matched
-attention-core table. Attention core is ordinary real wall time minus the
-unchanged, mode-matched dummy-attention wall time with CUDA graphs enabled. It
-includes the attention backend, routing, cache updates, and LoD state
-maintenance, while excluding QKV/RoPE, output projection, MLPs, scheduling,
-and sampling. See [ATTENTION_TIMING.md](ATTENTION_TIMING.md) for the validated
-method and its limitations.
+attention-core table. Attention core is ordinary real wall time minus one
+configuration-matched dummy-attention control shared by every attention mode
+in that panel, with CUDA graphs enabled. It includes the attention backend,
+routing, cache updates, and LoD state maintenance, while excluding QKV/RoPE,
+output projection, MLPs, scheduling, and sampling. See
+[ATTENTION_TIMING.md](ATTENTION_TIMING.md) for the validated method and its
+limitations.
 
 ### Qwen3.8, TP1, batch 1, top-8
 
@@ -72,21 +75,21 @@ End-to-end wall time:
 
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 1.085 s / 29.71 ms | 0.913 s / 28.43 ms | 0.913 s / 29.44 ms | 0.991 s / 29.58 ms |
-| 16K | 2.316 s / 30.14 ms | 1.846 s / 28.32 ms | 1.868 s / 29.47 ms | 1.943 s / 29.68 ms |
-| 32K | 5.291 s / 30.52 ms | 3.828 s / 28.35 ms | 3.865 s / 29.50 ms | 4.030 s / 29.72 ms |
-| 64K | 13.886 s / 31.75 ms | 7.902 s / 28.49 ms | 7.999 s / 29.52 ms | 8.356 s / 29.75 ms |
-| 128K | 42.472 s / 43.57 ms | 16.375 s / 28.71 ms | 16.626 s / 29.66 ms | 17.497 s / 29.96 ms |
+| 8K | 1.002 s / 28.84 ms | 0.913 s / 28.43 ms | 0.913 s / 29.44 ms | 0.991 s / 29.58 ms |
+| 16K | 2.184 s / 29.61 ms | 1.846 s / 28.32 ms | 1.868 s / 29.47 ms | 1.943 s / 29.68 ms |
+| 32K | 5.242 s / 30.33 ms | 3.828 s / 28.35 ms | 3.865 s / 29.50 ms | 4.030 s / 29.72 ms |
+| 64K | 13.996 s / 31.63 ms | 7.902 s / 28.49 ms | 7.999 s / 29.52 ms | 8.356 s / 29.75 ms |
+| 128K | 42.336 s / 34.29 ms | 16.375 s / 28.71 ms | 16.626 s / 29.66 ms | 17.497 s / 29.96 ms |
 
 Attention core (real minus dummy):
 
 | Context | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---:|---:|---:|---:|---:|
-| 8K | 0.202 s / 1.03 ms | 0.059 s / 0.87 ms | 0.044 s / 1.64 ms | 0.122 s / 1.78 ms |
-| 16K | 0.575 s / 1.56 ms | 0.149 s / 0.77 ms | 0.127 s / 0.89 ms | 0.202 s / 1.10 ms |
-| 32K | 1.808 s / 1.89 ms | 0.450 s / 0.77 ms | 0.382 s / 0.88 ms | 0.547 s / 1.09 ms |
-| 64K | 7.069 s / 3.06 ms | 1.168 s / 0.75 ms | 1.181 s / 0.82 ms | 1.538 s / 1.05 ms |
-| 128K | 28.840 s / 15.08 ms | 2.742 s / 0.22 ms | 2.994 s / 1.17 ms | 3.865 s / 1.47 ms |
+| 8K | 0.132 s / 1.25 ms | 0.043 s / 0.85 ms | 0.043 s / 1.86 ms | 0.121 s / 2.00 ms |
+| 16K | 0.486 s / 2.00 ms | 0.148 s / 0.71 ms | 0.170 s / 1.86 ms | 0.245 s / 2.07 ms |
+| 32K | 1.863 s / 2.62 ms | 0.449 s / 0.64 ms | 0.486 s / 1.80 ms | 0.651 s / 2.02 ms |
+| 64K | 7.263 s / 4.08 ms | 1.169 s / 0.95 ms | 1.266 s / 1.98 ms | 1.623 s / 2.21 ms |
+| 128K | 28.860 s / 6.74 ms | 2.899 s / 1.16 ms | 3.149 s / 2.11 ms | 4.021 s / 2.41 ms |
 
 ### Qwen3.8, TP1, batch 8, top-8
 
