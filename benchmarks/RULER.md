@@ -11,10 +11,9 @@ generation prefix is represented as an assistant-prefill message using
 ## Results
 
 Scores are percentages and higher is better. The metric is each task's
-`65536,none` result reported by lm-eval 0.4.13. All 13 Qwen tasks are complete
-for full attention and two-tier LoD. All 13 K2 two-tier tasks are complete;
-the matched K2 full-attention cells remain pending. Every completed task
-contains exactly 500 logged examples and no evaluator-fatal errors.
+`65536,none` result reported by lm-eval 0.4.13. All 13 tasks are complete for
+both models under full attention and two-tier LoD. Every task contains exactly
+500 logged examples and no evaluator-fatal errors.
 
 ### Qwen3.8-27B-FP8
 
@@ -42,24 +41,25 @@ Two-tier LoD is 1.78 percentage points below full attention on the unweighted
 
 | Task | Full attention | Two-tier LoD |
 |---|---:|---:|
-| NIAH single 1 | — | 100.00 |
-| NIAH single 2 | — | 100.00 |
-| NIAH single 3 | — | 100.00 |
-| NIAH multikey 1 | — | 99.60 |
-| NIAH multikey 2 | — | 93.00 |
-| NIAH multikey 3 | — | 98.20 |
-| NIAH multiquery | — | 100.00 |
-| NIAH multivalue | — | 95.95 |
-| Common-words extraction | — | 94.90 |
-| Frequent-words extraction | — | 85.40 |
-| HotpotQA | — | 57.40 |
-| SQuAD QA | — | 72.08 |
-| Variable tracking | — | 100.00 |
-| **Mean over all 13 tasks** | **—** | **92.04** |
+| NIAH single 1 | 100.00 | 100.00 |
+| NIAH single 2 | 100.00 | 100.00 |
+| NIAH single 3 | 100.00 | 100.00 |
+| NIAH multikey 1 | 100.00 | 99.60 |
+| NIAH multikey 2 | 99.00 | 93.00 |
+| NIAH multikey 3 | 100.00 | 98.20 |
+| NIAH multiquery | 100.00 | 100.00 |
+| NIAH multivalue | 97.70 | 95.95 |
+| Common-words extraction | 92.10 | 94.90 |
+| Frequent-words extraction | 85.33 | 85.40 |
+| HotpotQA | 60.40 | 57.40 |
+| SQuAD QA | 75.30 | 72.08 |
+| Variable tracking | 100.00 | 100.00 |
+| **Mean over all 13 tasks** | **93.06** | **92.04** |
 
-The K2 two-tier category means are 98.34 for NIAH, 90.15 for extraction,
-64.74 for QA, and 100.00 for variable tracking. Full-attention deltas will be
-added after the currently running matched controls finish.
+Two-tier LoD is 1.02 percentage points below full attention on the unweighted
+13-task mean. The K2 full-attention versus two-tier category means are 99.59
+versus 98.34 for NIAH, 88.72 versus 90.15 for extraction, 67.85 versus 64.74
+for QA, and 100.00 versus 100.00 for variable tracking.
 
 ## Reproduce
 
