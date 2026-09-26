@@ -1632,7 +1632,12 @@ def _reduce_decode_route_coarse_kernel(
     top_scores,
     coarse_out,
     coarse_lse,
+    slot_lengths,
+    cache_indices,
     active_groups,
+    QUERY_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    KV_GROUP_SIZE: tl.constexpr,
     HEAD_DIM: tl.constexpr,
     STATE_CAPACITY: tl.constexpr,
     ROUTE_COUNT: tl.constexpr,
@@ -1643,6 +1648,7 @@ def _reduce_decode_route_coarse_kernel(
     LOG_MASS_FRACTION: tl.constexpr,
     CANDIDATES_PER_GROUP: tl.constexpr = 8,
     EXACT_TOP4: tl.constexpr = False,
+    MAX_OPEN_LEAVES: tl.constexpr = 0,
 ):
     query_row = tl.program_id(0).to(tl.int64)
     candidate_offset = tl.arange(0, CANDIDATE_TILE)
@@ -1708,9 +1714,24 @@ def _reduce_decode_route_coarse_kernel(
     )
     if EXACT_TOP4:
         rank = tl.arange(0, 4)
+        selected = (rank < OPEN_COUNT) & best_valid
+        if MAX_OPEN_LEAVES > 0:
+            batch = query_row // QUERY_HEADS
+            query_head = query_row - batch * QUERY_HEADS
+            kv_head = query_head // KV_GROUP_SIZE
+            cache_batch = tl.load(cache_indices + batch).to(tl.int64)
+            safe_slot = tl.where(selected, best_indices, 0).to(tl.int64)
+            slot_length = tl.load(
+                slot_lengths
+                + (cache_batch * KV_HEADS + kv_head) * STATE_CAPACITY
+                + safe_slot,
+                mask=selected,
+                other=0,
+            )
+            selected &= slot_length <= MAX_OPEN_LEAVES
         tl.store(
             top_slots + query_row * ROUTE_COUNT + rank,
-            tl.where(best_valid, best_indices, -1),
+            tl.where(selected, best_indices, -1),
         )
         tl.store(top_scores + query_row * ROUTE_COUNT + rank, best_scores)
         tl.store(top_slots + query_row * ROUTE_COUNT + 4 + rank, -1)
@@ -1720,17 +1741,28 @@ def _reduce_decode_route_coarse_kernel(
         )
     elif ROUTE_COUNT == 8:
         rank = tl.arange(0, 8)
+        selected = (rank < OPEN_COUNT) & best_valid
+        if MAX_OPEN_LEAVES > 0:
+            batch = query_row // QUERY_HEADS
+            query_head = query_row - batch * QUERY_HEADS
+            kv_head = query_head // KV_GROUP_SIZE
+            cache_batch = tl.load(cache_indices + batch).to(tl.int64)
+            safe_slot = tl.where(selected, best_indices, 0).to(tl.int64)
+            slot_length = tl.load(
+                slot_lengths
+                + (cache_batch * KV_HEADS + kv_head) * STATE_CAPACITY
+                + safe_slot,
+                mask=selected,
+                other=0,
+            )
+            selected &= slot_length <= MAX_OPEN_LEAVES
         # A routing guard (for example MAX_LEAF_TOKENS) represents excluded
         # centroids with -inf.  Do not let their otherwise arbitrary packed
         # indices leak through when fewer than ROUTE_COUNT finite candidates
         # remain.
         tl.store(
             top_slots + query_row * ROUTE_COUNT + rank,
-            tl.where(
-                (rank < OPEN_COUNT) & best_valid,
-                best_indices,
-                -1,
-            ),
+            tl.where(selected, best_indices, -1),
         )
         tl.store(top_scores + query_row * ROUTE_COUNT + rank, best_scores)
 
@@ -1760,7 +1792,7 @@ def _reduce_decode_route_coarse_kernel(
             tl.store(
                 top_slots + query_row * ROUTE_COUNT + rank,
                 tl.where(
-                    best_valid & (best_scores > full_lse + LOG_MASS_FRACTION),
+                    selected & (best_scores > full_lse + LOG_MASS_FRACTION),
                     best_indices,
                     -1,
                 ),
@@ -1770,9 +1802,7 @@ def _reduce_decode_route_coarse_kernel(
             tl.store(
                 top_slots + query_row * ROUTE_COUNT + rank,
                 tl.where(
-                    (rank < OPEN_COUNT)
-                    & best_valid
-                    & (best_scores > full_lse + LOG_MASS_FRACTION),
+                    selected & (best_scores > full_lse + LOG_MASS_FRACTION),
                     best_indices,
                     -1,
                 ),
@@ -1790,6 +1820,8 @@ def _reduce_decode_route_topk_kernel(
     sequence_epochs,
     union_counts,
     union_slots,
+    slot_lengths,
+    cache_indices,
     QUERY_HEADS: tl.constexpr,
     KV_HEADS: tl.constexpr,
     KV_GROUP_SIZE: tl.constexpr,
@@ -1810,6 +1842,7 @@ def _reduce_decode_route_topk_kernel(
     PACKED_FP16_CANDIDATES: tl.constexpr = False,
     SORTED_GROUP_MERGE: tl.constexpr = False,
     FLOAT_SCORE_TOP4: tl.constexpr = False,
+    MAX_OPEN_LEAVES: tl.constexpr = 0,
 ):
     """Reduce score-only route candidates without serial coarse PV work."""
     query_row = tl.program_id(0).to(tl.int64)
@@ -1961,16 +1994,6 @@ def _reduce_decode_route_topk_kernel(
                 best = tl.topk(packed, 4, dim=0)
                 best_scores, best_indices = _unpack_route_score_index(best)
         rank = tl.arange(0, 4)
-        tl.store(
-            top_slots + query_row * ROUTE_COUNT + rank,
-            tl.where(
-                (best_scores > -float("inf"))
-                & (best_indices >= 0)
-                & (best_indices < STATE_CAPACITY),
-                best_indices,
-                -1,
-            ),
-        )
         tl.store(top_scores + query_row * ROUTE_COUNT + rank, best_scores)
         tl.store(top_slots + query_row * ROUTE_COUNT + 4 + rank, -1)
         tl.store(
@@ -2086,18 +2109,32 @@ def _reduce_decode_route_topk_kernel(
         else:
             best_scores, best_indices = _unpack_route_score_index(best)
         rank = tl.arange(0, ROUTE_COUNT)
-        tl.store(
-            top_slots + query_row * ROUTE_COUNT + rank,
-            tl.where(
-                (rank < OPEN_COUNT)
-                & (best_scores > -float("inf"))
-                & (best_indices >= 0)
-                & (best_indices < STATE_CAPACITY),
-                best_indices,
-                -1,
-            ),
-        )
         tl.store(top_scores + query_row * ROUTE_COUNT + rank, best_scores)
+
+    selected = (
+        (rank < OPEN_COUNT)
+        & (best_scores > -float("inf"))
+        & (best_indices >= 0)
+        & (best_indices < STATE_CAPACITY)
+    )
+    if MAX_OPEN_LEAVES > 0:
+        batch = query_row // QUERY_HEADS
+        query_head = query_row - batch * QUERY_HEADS
+        kv_head = query_head // KV_GROUP_SIZE
+        cache_batch = tl.load(cache_indices + batch).to(tl.int64)
+        safe_slot = tl.where(selected, best_indices, 0).to(tl.int64)
+        slot_length = tl.load(
+            slot_lengths
+            + (cache_batch * KV_HEADS + kv_head) * STATE_CAPACITY
+            + safe_slot,
+            mask=selected,
+            other=0,
+        )
+        selected &= slot_length <= MAX_OPEN_LEAVES
+    tl.store(
+        top_slots + query_row * ROUTE_COUNT + rank,
+        tl.where(selected, best_indices, -1),
+    )
 
     if STAMP_SELECTED:
         batch = query_row // QUERY_HEADS
@@ -2105,12 +2142,6 @@ def _reduce_decode_route_topk_kernel(
         kv_head = query_head // KV_GROUP_SIZE
         sequence = batch * KV_HEADS + kv_head
         epoch = tl.load(sequence_epochs + sequence).to(tl.int32)
-        selected = (
-            (rank < OPEN_COUNT)
-            & (best_scores > -float("inf"))
-            & (best_indices >= 0)
-            & (best_indices < STATE_CAPACITY)
-        )
         tl.store(
             seen_stamps + sequence * STATE_CAPACITY + best_indices,
             epoch,
@@ -2124,8 +2155,8 @@ def _reduce_decode_route_topk_kernel(
         sequence = batch * KV_HEADS + kv_head
         union_row_valid = sequence < UNION_SEQUENCE_CAPACITY
         safe_sequence = tl.where(union_row_valid, sequence, 0)
-        selected = union_row_valid & (rank < OPEN_COUNT) & (best_scores > -float("inf"))
-        slot = tl.where(selected, best_indices, 0).to(tl.int32)
+        union_selected = union_row_valid & selected
+        slot = tl.where(union_selected, best_indices, 0).to(tl.int32)
         stamp_pointer = seen_stamps + safe_sequence * STATE_CAPACITY + slot
         epoch = tl.load(
             sequence_epochs + safe_sequence,
@@ -2133,14 +2164,16 @@ def _reduce_decode_route_topk_kernel(
             other=0,
         ).to(tl.int32)
         epoch_vector = slot * 0 + epoch
-        observed_epoch = tl.load(stamp_pointer, mask=selected, other=epoch_vector)
+        observed_epoch = tl.load(
+            stamp_pointer, mask=union_selected, other=epoch_vector
+        )
         old_epoch = tl.atomic_cas(
             stamp_pointer,
-            tl.where(selected, observed_epoch, -1),
+            tl.where(union_selected, observed_epoch, -1),
             epoch_vector,
             sem="relaxed",
         )
-        unique = selected & (old_epoch != epoch_vector)
+        unique = union_selected & (old_epoch != epoch_vector)
         unique_integer = unique.to(tl.int32)
         local_rank = tl.cumsum(unique_integer, axis=0) - 1
         unique_count = tl.sum(unique_integer, axis=0)
@@ -2168,8 +2201,13 @@ def _reduce_decode_route_coarse_vector_topk_kernel(
     top_scores,
     coarse_out,
     coarse_lse,
+    slot_lengths,
+    cache_indices,
     active_segments,
     active_candidate_groups,
+    QUERY_HEADS: tl.constexpr,
+    KV_HEADS: tl.constexpr,
+    KV_GROUP_SIZE: tl.constexpr,
     HEAD_DIM: tl.constexpr,
     STATE_CAPACITY: tl.constexpr,
     ROUTE_COUNT: tl.constexpr,
@@ -2181,6 +2219,7 @@ def _reduce_decode_route_coarse_vector_topk_kernel(
     LOG_MASS_FRACTION: tl.constexpr,
     CANDIDATES_PER_GROUP: tl.constexpr = 8,
     EXACT_TOP4: tl.constexpr = False,
+    MAX_OPEN_LEAVES: tl.constexpr = 0,
 ):
     """Reduce route candidates and segment outputs with parallel axes."""
     query_row = tl.program_id(0).to(tl.int64)
@@ -2205,14 +2244,25 @@ def _reduce_decode_route_coarse_vector_topk_kernel(
         & (best_indices < STATE_CAPACITY)
     )
     rank = tl.arange(0, 4 if EXACT_TOP4 else 8)
+    selected = (rank < OPEN_COUNT) & best_valid
+    if MAX_OPEN_LEAVES > 0:
+        batch = query_row // QUERY_HEADS
+        query_head = query_row - batch * QUERY_HEADS
+        kv_head = query_head // KV_GROUP_SIZE
+        cache_batch = tl.load(cache_indices + batch).to(tl.int64)
+        safe_slot = tl.where(selected, best_indices, 0).to(tl.int64)
+        slot_length = tl.load(
+            slot_lengths
+            + (cache_batch * KV_HEADS + kv_head) * STATE_CAPACITY
+            + safe_slot,
+            mask=selected,
+            other=0,
+        )
+        selected &= slot_length <= MAX_OPEN_LEAVES
     if ROUTE_COUNT == 8:
         tl.store(
             top_slots + query_row * ROUTE_COUNT + rank,
-            tl.where(
-                (rank < OPEN_COUNT) & best_valid,
-                best_indices,
-                -1,
-            ),
+            tl.where(selected, best_indices, -1),
         )
         tl.store(top_scores + query_row * ROUTE_COUNT + rank, best_scores)
         if EXACT_TOP4:
@@ -2248,9 +2298,7 @@ def _reduce_decode_route_coarse_vector_topk_kernel(
         tl.store(
             top_slots + query_row * ROUTE_COUNT + rank,
             tl.where(
-                (rank < OPEN_COUNT)
-                & best_valid
-                & (best_scores > full_lse + LOG_MASS_FRACTION),
+                selected & (best_scores > full_lse + LOG_MASS_FRACTION),
                 best_indices,
                 -1,
             ),

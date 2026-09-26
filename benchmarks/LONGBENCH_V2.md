@@ -7,26 +7,27 @@ halves, disables model thinking, and constrains the answer to A/B/C/D.
 
 ## Results
 
-These results were freshly collected on 2026-09-23 from commit `e248719a`
-with vLLM 0.27.1 on AMD MI325X. Both LoD phases route exactly eight centroids.
-The three-tier modes use the same semantic pages, stored either in BF16 or as
-centroid-relative INT4 residuals.
+The full-attention controls are retained from the matched 2026-09-23 runs. All
+six LoD columns were freshly collected on 2026-09-26 from the current release
+checkout with vLLM 0.27.1 on AMD MI325X. Both LoD phases route exactly eight
+centroids. The three-tier modes use the same semantic pages, stored either in
+BF16 or as centroid-relative INT4 residuals.
 
 | Model | Full attention | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---|---:|---:|---:|---:|
-| Qwen3.8-27B-FP8 | 262/503 (52.09%) | 274/503 (54.47%) | 269/503 (53.48%) | 265/503 (52.68%) |
-| K2-Horizon-32B-FP8 | 210/503 (41.75%) | 214/503 (42.54%) | 214/503 (42.54%) | 211/503 (41.95%) |
+| Qwen3.8-27B-FP8 | 262/503 (52.09%) | 262/503 (52.09%) | 267/503 (53.08%) | 267/503 (53.08%) |
+| K2-Horizon-32B-FP8 | 210/503 (41.75%) | 221/503 (43.94%) | 213/503 (42.35%) | 211/503 (41.95%) |
 
 | Model / mode | Short (180) | Medium (215) | Long (108) |
 |---|---:|---:|---:|
 | Qwen full | 97 | 111 | 54 |
-| Qwen two-tier BF16 | 106 | 116 | 52 |
-| Qwen three-tier BF16 | 103 | 109 | 57 |
-| Qwen three-tier INT4 | 101 | 110 | 54 |
+| Qwen two-tier BF16 | 100 | 109 | 53 |
+| Qwen three-tier BF16 | 99 | 113 | 55 |
+| Qwen three-tier INT4 | 103 | 112 | 52 |
 | K2 full | 89 | 74 | 47 |
-| K2 two-tier BF16 | 85 | 83 | 46 |
-| K2 three-tier BF16 | 89 | 80 | 45 |
-| K2 three-tier INT4 | 86 | 80 | 45 |
+| K2 two-tier BF16 | 90 | 85 | 46 |
+| K2 three-tier BF16 | 88 | 80 | 45 |
+| K2 three-tier INT4 | 89 | 80 | 42 |
 
 All runs contained 503 unique IDs and every response parsed as A/B/C/D. The
 Qwen tokenizer produced 205 truncated prompts; K2 produced 181.
@@ -39,19 +40,18 @@ wall times.
 
 | Model | Full | Two-tier BF16 | Three-tier BF16 | Three-tier INT4 |
 |---|---:|---:|---:|---:|
-| Qwen3.8 | 23.40 / 26.91 / 32.29 min | 13.26 / 16.31 / 20.66 min | 12.95 / 14.49 / 15.76 min | 12.05 / 13.30 / 14.69 min |
-| K2 Horizon | 28.14 / 32.40 / 38.97 min | 23.95 / 27.31 / 32.25 min | 24.25 / 27.76 / 33.30 min | 26.73 / 30.63 / 36.18 min |
+| Qwen3.8 | 23.40 / 26.91 / 32.29 min | 11.48 / 14.19 / 16.50 min | 10.91 / 15.53 / 20.11 min | 11.74 / 13.03 / 15.26 min |
+| K2 Horizon | 28.14 / 32.40 / 38.97 min | 20.71 / 23.58 / 27.94 min | 20.84 / 23.81 / 28.12 min | 23.01 / 26.10 / 30.83 min |
 
 All arms were rerun from the current release checkout, but each mode used
 independent length-balanced shards rather than an interleaved timing protocol.
 Treat this timing as operational context, not as a controlled kernel-speed comparison.
 Use the matched sweep in [ProLong](PROLONG.md) for that purpose.
 
-The K2 three-tier INT4 result remains valid for the standardized 256-token
-decode update interval. LongBench v2 generates at most 32 tokens per request,
-so it never reaches the first cache catch-up under either the former 512-token
-interval or the current 256-token interval; its prefill calculation and decoded
-outputs are unchanged.
+The K2 three-tier INT4 result uses the standardized 256-token decode update
+interval. LongBench v2 generates at most 32 tokens per request, so it never
+reaches the first cache catch-up; its score exercises the current prefill path
+and short decode path.
 
 ## Reproduce
 

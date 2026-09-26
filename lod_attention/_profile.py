@@ -44,6 +44,9 @@ def configure_engine(
 
     engine.two_level_topk = ROUTE_COUNT
     engine.prefill_two_level_topk = ROUTE_COUNT
+    # Keep oversized regions at coarse resolution. This bounds exact leaf work
+    # in two-tier mode and page-summary work in three-tier mode.
+    engine.max_open_centroid_leaves = 1024
     engine.separate_sink_cache = True
     engine.prefill_chunk_len = PREFILL_CHUNK_SIZE
     engine.decode_state_update_len = 256

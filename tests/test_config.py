@@ -229,6 +229,20 @@ def test_profile_fixes_top_eight_for_both_families(
     )
     assert engine.leaf_block_m == (128 if family is ModelFamily.K2 else 32)
     assert engine.leaf_block_n == (32 if family is ModelFamily.K2 else 16)
+    for capped_mode in (
+        LODMode.TWO_TIER,
+        LODMode.THREE_TIER_BF16,
+        LODMode.THREE_TIER_INT4,
+    ):
+        configure_engine(
+            engine,
+            family=family,
+            mode=capped_mode,
+            request_capacity=131_072,
+            has_query_norm=family is ModelFamily.QWEN38,
+            has_key_norm=family is ModelFamily.QWEN38,
+        )
+        assert engine.max_open_centroid_leaves == 1024
 
 
 @pytest.mark.parametrize(

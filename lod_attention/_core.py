@@ -97,6 +97,7 @@ class TritonLODAttentionCore(nn.Module):
     state_growth_factor = 16.0
     state_min_len = 256
     state_size_offset = 0
+    max_open_centroid_leaves: int | None = None
     state_premerge_factor = 1
     state_split_max_leaves: int | None = None
     sink_len = 1
@@ -3821,6 +3822,34 @@ class TritonLODAttentionCore(nn.Module):
                 dynamic_local_lse=(local_branch[1] if local_branch is not None else None),
                 sink_k=sink_k,
             )
+            if self.max_open_centroid_leaves is not None:
+                if page_cache is None or not isinstance(
+                    page_cache.get("slot_lengths"), torch.Tensor
+                ):
+                    raise RuntimeError("centroid leaf cap requires slot lengths")
+                query_lengths = self._repeat_kv(
+                    page_cache["slot_lengths"][..., :state_len]
+                )
+                safe_slots = top_slots.clamp_min(0)
+                selected_lengths = torch.gather(
+                    query_lengths.unsqueeze(2).expand(-1, -1, query_len, -1),
+                    -1,
+                    safe_slots,
+                )
+                top_slots = torch.where(
+                    top_slots.ge(0)
+                    & selected_lengths.le(self.max_open_centroid_leaves),
+                    top_slots,
+                    torch.full_like(top_slots, -1),
+                )
+                # AITER packed the unfiltered routes. Force the leaf path to
+                # rebuild its metadata from the post-ranking open set.
+                for name in (
+                    "_lod_prefill_route_head_counts",
+                    "_lod_prefill_route_head_offsets",
+                ):
+                    if hasattr(self, name):
+                        delattr(self, name)
             if getattr(self, "_lod_padding_state_reserve", 0):
                 query_counts = self._repeat_kv(counts[..., :state_len, :]).squeeze(-1)
                 safe_slots = top_slots.clamp_min(0)
@@ -4056,6 +4085,7 @@ class TritonLODAttentionCore(nn.Module):
                 slot_lengths,
                 top_slots,
                 state_len=state_len,
+                max_open_centroid_leaves=self.max_open_centroid_leaves,
                 local_len=local_len,
                 new_k=new_k,
                 new_v=new_v,

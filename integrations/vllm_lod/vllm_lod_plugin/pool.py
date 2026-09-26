@@ -3139,6 +3139,7 @@ class VLLMLayerLODPool:
             # Allocation size follows the longest configured request, while
             # each row routes only over the centroid prefix it has populated.
             state_lens=self.state_lens,
+            max_open_centroid_leaves=self.engine.max_open_centroid_leaves,
             # A delayed update leaves the displaced prefix exact until the
             # next catch-up. The effective limit reduces to local_len for the
             # ordinary update==chunk schedule.

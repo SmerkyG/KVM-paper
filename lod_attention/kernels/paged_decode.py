@@ -63,6 +63,7 @@ def fused_decode_paged_lod_attention(
     sink_v: torch.Tensor | None = None,
     state_len: int,
     state_lens: torch.Tensor | None = None,
+    max_open_centroid_leaves: int | None = None,
     local_len: int | None = None,
     cache_indices: torch.Tensor | None = None,
     local_lens: torch.Tensor | None = None,
@@ -1333,6 +1334,8 @@ def fused_decode_paged_lod_attention(
                                     buffers["gqa_union_epochs"],
                                     buffers["gqa_union_counts"],
                                     buffers["gqa_union_slots"],
+                                    slot_lengths,
+                                    cache_indices,
                                     QUERY_HEADS=query_heads,
                                     KV_HEADS=kv_heads,
                                     KV_GROUP_SIZE=kv_group_size,
@@ -1368,6 +1371,11 @@ def fused_decode_paged_lod_attention(
                                     UNION_SEQUENCE_CAPACITY=int(
                                         buffers["gqa_union_counts"].numel()
                                     ),
+                                    MAX_OPEN_LEAVES=(
+                                        int(max_open_centroid_leaves)
+                                        if max_open_centroid_leaves is not None
+                                        else 0
+                                    ),
                                     num_warps=2
                                     if packed_fp16_route_candidates
                                     else route_reduce_num_warps,
@@ -1387,8 +1395,13 @@ def fused_decode_paged_lod_attention(
                         buffers["route_top_scores"],
                         buffers["coarse_out"],
                         buffers["coarse_lse"],
+                        slot_lengths,
+                        cache_indices,
                         active_groups,
                         active_groups,
+                        QUERY_HEADS=query_heads,
+                        KV_HEADS=kv_heads,
+                        KV_GROUP_SIZE=kv_group_size,
                         HEAD_DIM=head_dim,
                         STATE_CAPACITY=int(state_k.size(2)),
                         ROUTE_COUNT=8,
@@ -1404,6 +1417,11 @@ def fused_decode_paged_lod_attention(
                         else 0.0,
                         CANDIDATES_PER_GROUP=route_candidates_per_group,
                         EXACT_TOP4=use_compact_top4_candidates,
+                        MAX_OPEN_LEAVES=(
+                            int(max_open_centroid_leaves)
+                            if max_open_centroid_leaves is not None
+                            else 0
+                        ),
                         num_warps=route_reduce_num_warps,
                         waves_per_eu=waves_per_eu,
                     )
@@ -1420,7 +1438,12 @@ def fused_decode_paged_lod_attention(
                         buffers["route_top_scores"],
                         buffers["coarse_out"],
                         buffers["coarse_lse"],
+                        slot_lengths,
+                        cache_indices,
                         active_groups,
+                        QUERY_HEADS=query_heads,
+                        KV_HEADS=kv_heads,
+                        KV_GROUP_SIZE=kv_group_size,
                         HEAD_DIM=head_dim,
                         STATE_CAPACITY=int(state_k.size(2)),
                         ROUTE_COUNT=8,
@@ -1437,6 +1460,11 @@ def fused_decode_paged_lod_attention(
                         else 0.0,
                         CANDIDATES_PER_GROUP=route_candidates_per_group,
                         EXACT_TOP4=use_compact_top4_candidates,
+                        MAX_OPEN_LEAVES=(
+                            int(max_open_centroid_leaves)
+                            if max_open_centroid_leaves is not None
+                            else 0
+                        ),
                         num_warps=route_reduce_num_warps,
                         waves_per_eu=waves_per_eu,
                     )

@@ -1289,7 +1289,7 @@ wheels = [
 
 [[package]]
 name = "lm-eval"
-version = "0.4.12"
+version = "0.4.13"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "datasets" },
@@ -1307,9 +1307,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "word2number" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/12/32/783623b1d1fe7c89ebd774db46bef4c787fe93e7c5e1b4877c7dfbf1abbe/lm_eval-0.4.12.tar.gz", hash = "sha256:45938d7c8024d5eee5c8a0da36abe7cc09c252413c577cf81666f0fcd28b4345", size = 3360517, upload-time = "2026-05-11T13:05:52.297Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/89/b1/cfcdf2a8c8b8e755ec7103a7d4b6f8673f7916641ca08df83412c531935b/lm_eval-0.4.13.tar.gz", hash = "sha256:f592269f21a5e173d7993ae01267f61fc84be393cee1f51779e3e104a70c967e", size = 3471075, upload-time = "2026-08-31T20:42:39.438Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bd/43/944724465ed73ec2889f58007c114ce8dd2023324bc86d3e6f41ce00e2e8/lm_eval-0.4.12-py3-none-any.whl", hash = "sha256:02971ff68284dd14cfa7fce9310a58452c4162e8d413ba96aa7988a0ff9352ef", size = 8903672, upload-time = "2026-05-11T13:05:48.902Z" },
+    { url = "https://files.pythonhosted.org/packages/7d/e8/e90272ef920d5a77c91bf0473e325113950f37bfeaca2fa3b98e16142961/lm_eval-0.4.13-py3-none-any.whl", hash = "sha256:5daaa1973bf874005f64f28d3834b875f6886f0d6475878e6a6c821994a5286a", size = 9149387, upload-time = "2026-08-31T20:42:37.071Z" },
 ]
 
 [package.optional-dependencies]
@@ -1363,7 +1363,7 @@ vllm = [
 requires-dist = [
     { name = "datasets", marker = "extra == 'benchmarks'", specifier = "==4.6.1" },
     { name = "kernels", specifier = ">=0.16,<0.17" },
-    { name = "lm-eval", extras = ["ruler"], marker = "extra == 'benchmarks'", specifier = "==0.4.12" },
+    { name = "lm-eval", extras = ["ruler"], marker = "extra == 'benchmarks'", specifier = "==0.4.13" },
     { name = "matplotlib", marker = "extra == 'benchmarks'", specifier = ">=3.10,<4" },
     { name = "numpy", specifier = ">=1.26" },
     { name = "openai", marker = "extra == 'benchmarks'", specifier = "==2.53.0" },
