@@ -2349,12 +2349,10 @@ class TritonLODAttentionCore(nn.Module):
                     kv_group_size=self.num_key_value_groups,
                     scale=self.scaling,
                     normalize_route_query=self.routing_normalization == "query",
-                    max_open_leaf_tokens=self.max_open_centroid_leaves,
-                    slot_lengths=(
-                        page_cache.get("slot_lengths")
-                        if page_cache is not None
-                        else None
-                    ),
+                    # Rank the same top eight as the uncapped calculation.
+                    # Oversized winners are closed immediately after routing.
+                    max_open_leaf_tokens=None,
+                    slot_lengths=None,
                     buffers=getattr(self, "_lod_prefill_attention_buffers", None),
                 )
                 self._lod_prefill_aiter_coarse = coarse
@@ -2393,7 +2391,7 @@ class TritonLODAttentionCore(nn.Module):
                     kv_group_size=self.num_key_value_groups,
                     scale=self.scaling,
                     protected_len=protected_len,
-                    max_leaf_tokens=self.max_open_centroid_leaves,
+                    max_leaf_tokens=None,
                     block_m=8,
                     block_n=hierarchical_block_n,
                     tile_num_warps=2,
@@ -3745,7 +3743,7 @@ class TritonLODAttentionCore(nn.Module):
                 # rebuild its metadata from the post-ranking open set.
                 for name in (
                     "_lod_prefill_route_head_counts",
-                    "_lod_prefill_route_head_offsets",
+                    "_lod_prefill_route_offsets",
                 ):
                     if hasattr(self, name):
                         delattr(self, name)

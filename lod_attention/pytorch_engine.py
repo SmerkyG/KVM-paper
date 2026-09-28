@@ -510,11 +510,19 @@ class PytorchLODAttention(nn.Module):
             _scores(route_query, mean_key, scale)
             + count.clamp_min(1).log()[:, :, None, :]
         )
-        eligible = count.gt(0) & count.le(self.config.max_region_size)
-        route_score = route_score.masked_fill(~eligible[:, :, None, :], -torch.inf)
+        route_score = route_score.masked_fill(
+            ~count.gt(0)[:, :, None, :], -torch.inf
+        )
         route_count = min(self.config.route_count, state.size)
         routes = route_score.topk(route_count, dim=-1).indices
-        active = route_score.gather(-1, routes).isfinite()
+        selected_count = torch.gather(
+            count[:, :, None, :].expand(-1, -1, int(query.size(2)), -1),
+            -1,
+            routes,
+        )
+        active = route_score.gather(-1, routes).isfinite() & selected_count.le(
+            self.config.max_region_size
+        )
         return (
             coarse_score,
             mean_value,

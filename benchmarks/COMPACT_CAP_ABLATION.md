@@ -24,6 +24,41 @@ The cap therefore changes perplexity by less than 0.015% on either model. See
 [PROLONG.md](PROLONG.md) for the complete quality protocol and the comparisons
 against full attention.
 
+### Release-code verification
+
+A fresh K2-Horizon-32B-FP8 check on 2026-09-28 verified the cap's placement in
+the fused prefill path. The fused route/coarse kernel first ranks the ordinary
+top eight centroids. The caller then declines exact refinement for any selected
+centroid with more than 1,024 leaves; that centroid still contributes through
+its count-corrected coarse summary. The cap therefore does not replace an
+oversized winner with a lower-ranked centroid.
+
+On the same eight 65,536-token documents and 524,280 predicted tokens, the
+fresh unbounded run obtained loss 0.496621 and perplexity 1.643160, while the
+capped run obtained loss 0.496799 and perplexity 1.643453. This is a loss
+change of +0.000178 and a relative perplexity change of +0.0178%.
+
+The following matched K2 two-tier BF16 speed check used TP4, batch 8, 1,025
+generated tokens, one warmup, one measured repetition, a 16,384-token prefill
+chunk, and identical prompt hashes. Only the prefill cap differed; decode used
+the production cap in both conditions.
+
+| Context | Unbounded prefill (s) | Cap 1,024 prefill (s) | Capped wall-time change |
+|---:|---:|---:|---:|
+| 8K | 3.960 | 3.992 | +0.80% |
+| 16K | 8.048 | 8.112 | +0.80% |
+| 32K | 19.335 | 19.690 | +1.83% |
+| 64K | 44.354 | 44.977 | +1.41% |
+| 128K | 102.297 | 101.559 | -0.72% |
+
+The 8K and 16K prompts use the exact first-prefill block, so their differences
+are a direct estimate of measurement noise rather than a cap effect. Across
+the full sweep, decode latency differed by at most 0.28%. Consequently this
+experiment does not resolve a finite-length speed benefit below 128K; at 128K
+the cap saves 0.72% wall time, which remains close to the measured noise floor.
+Its important operational benefit is the explicit upper bound on exact leaf
+work.
+
 ## LongBench v2
 
 The full LongBench-v2 comparison evaluates all 503 examples per model with the

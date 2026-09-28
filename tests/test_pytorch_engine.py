@@ -207,6 +207,27 @@ def test_two_tier_replaces_only_the_selected_summary() -> None:
     assert result.routes.item() == 0
 
 
+def test_region_cap_filters_after_ranking_without_substitution() -> None:
+    from lod_attention.pytorch_engine import PytorchLODState
+
+    state = PytorchLODState(
+        key_sum=torch.tensor([[[[10.0], [1.0]]]]),
+        value_sum=torch.tensor([[[[5.0], [1.0]]]]),
+        count=torch.tensor([[[5.0, 1.0]]]),
+        key_rms_sum=torch.tensor([[[5.0, 1.0]]]),
+    )
+    engine = PytorchLODAttention(
+        replace(_small_config(), route_count=1, max_region_size=4),
+        normalize_routing_query=False,
+    )
+
+    _, _, routes = engine._routes(torch.ones(1, 1, 1, 1), state, scale=1.0)
+
+    # Region 0 wins the uncapped ranking but is too large to refine. The
+    # lower-ranked region 1 must not be substituted; both remain coarse.
+    assert routes.item() == -1
+
+
 def test_recursive_mode_uses_one_exact_page_and_disjoint_residual() -> None:
     from lod_attention.pytorch_engine import PytorchLODCache, PytorchLODState
 
