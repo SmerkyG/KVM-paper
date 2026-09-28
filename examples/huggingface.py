@@ -39,6 +39,12 @@ def main() -> None:
         choices=[mode.value for mode in LODMode],
         default=LODMode.TWO_TIER.value,
     )
+    parser.add_argument(
+        "--implementation",
+        choices=("kernel", "pytorch"),
+        default="kernel",
+        help="use the optimized kernels or the readable BF16 reference engine",
+    )
     parser.add_argument("--prompt", default="Explain LoD Attention.")
     parser.add_argument("--max-new-tokens", type=int, default=128)
     args = parser.parse_args()
@@ -52,7 +58,7 @@ def main() -> None:
         device_map="auto",
         trust_remote_code=True,
     )
-    install(model, mode=args.mode)
+    install(model, mode=args.mode, implementation=args.implementation)
     inputs = tokenizer(args.prompt, return_tensors="pt").to(model.device)
     output = model.generate(**inputs, max_new_tokens=args.max_new_tokens)
     print(tokenizer.decode(output[0], skip_special_tokens=True))

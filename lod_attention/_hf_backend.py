@@ -55,10 +55,17 @@ class HFLODSettings:
     request_capacity: int
     has_query_norm: bool
     has_key_norm: bool
+    implementation: str = "kernel"
 
     def __post_init__(self) -> None:
         if ROUTE_COUNT > self.config.max_routes:
             raise ValueError("kernel route capacity is smaller than top-eight")
+        if self.implementation not in ("kernel", "pytorch"):
+            raise ValueError("LoD implementation must be 'kernel' or 'pytorch'")
+        if self.implementation == "pytorch" and self.mode is LODMode.THREE_TIER_INT4:
+            raise ValueError(
+                "the pure PyTorch reference supports BF16 frontiers, not INT4 storage"
+            )
 
 
 def _has_attention_norm(module: nn.Module, name: str) -> bool:
@@ -84,6 +91,7 @@ def _build_engine(
             "qk_norm_aware routing must be resolved for each attention module "
             "by install_hf_lod_attention"
         )
+
     def finish_engine(engine: nn.Module) -> nn.Module:
         if stats_owner is not None:
             engine._lod_dynamic_stats_owner = weakref.ref(stats_owner)
@@ -94,6 +102,24 @@ def _build_engine(
         if scale is not None
         else float(query.size(-1)) ** -0.5
     )
+    if settings.implementation == "pytorch":
+        from .pytorch_engine import PytorchLODAttention, PytorchLODConfig
+
+        return finish_engine(
+            PytorchLODAttention(
+                PytorchLODConfig(
+                    chunk_size=config.chunk_size,
+                    local_window=config.local_window,
+                    state_growth_factor=config.state_growth_factor,
+                    state_min_size=config.state_min_size,
+                    route_count=config.max_routes,
+                    page_size=int(getattr(config, "page_size", 16)),
+                ),
+                mode=settings.mode,
+                normalized_keys=settings.has_key_norm,
+                normalize_routing_query=not settings.has_query_norm,
+            )
+        )
     geometry = {
         "query_heads": int(query.size(1)),
         "key_value_heads": int(key.size(1)),
@@ -286,7 +312,9 @@ class HFLODCacheLayer(CacheLayerMixin):
             raise RuntimeError("cannot convert while an LOD cache update is staged")
         if self.total_length or self.lod_cache is not None:
             raise RuntimeError("full-cache conversion requires an empty LOD layer")
-        if not isinstance(self.settings.config, PagedLODConfig):
+        if self.settings.implementation != "kernel" or not isinstance(
+            self.settings.config, PagedLODConfig
+        ):
             raise NotImplementedError(
                 "full-cache conversion currently requires the kernel recursive-paged engine"
             )
@@ -767,11 +795,18 @@ def install_hf_lod_attention(
     model: nn.Module,
     *,
     mode: str | LODMode = LODMode.TWO_TIER,
+    implementation: str = "kernel",
 ) -> list[str]:
     """Install fixed top-eight LoD on supported full-attention layers."""
 
     family = model_family(model)
     resolved_mode = LODMode.parse(mode)
+    if implementation not in ("kernel", "pytorch"):
+        raise ValueError("LoD implementation must be 'kernel' or 'pytorch'")
+    if implementation == "pytorch" and resolved_mode is LODMode.THREE_TIER_INT4:
+        raise ValueError(
+            "the pure PyTorch reference supports BF16 frontiers, not INT4 storage"
+        )
     config = kernel_config(resolved_mode)
     register_hf_lod_attention()
 
@@ -804,6 +839,7 @@ def install_hf_lod_attention(
             request_capacity=request_capacity,
             has_query_norm=has_query_norm,
             has_key_norm=has_key_norm,
+            implementation=implementation,
         )
         module._hf_lod_active_cache_layer = None
         installed.append(name)

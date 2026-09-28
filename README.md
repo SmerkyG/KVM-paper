@@ -103,6 +103,43 @@ Select `three-tier-bf16` or `three-tier-int4` with the same `mode` argument.
 Generation automatically creates the LoD-owned cache. For direct model calls,
 `lod_attention.new_cache(model)` returns an empty cache explicitly.
 
+### Pure PyTorch reference
+
+For clarity and portability, the package also includes a standalone reference
+engine in `lod_attention/pytorch_engine.py`. It uses ordinary PyTorch tensor
+operations and the same paper methodology as the optimized implementation:
+the separate sink, exact first 16K prefill block, 16K prefill catch-up, 256-token
+decode catch-up, 512-token decode-local field, `16 * sqrt(T)` semantic state,
+architecture-aware region assignment and routing, top-eight refinement, the
+1,024-entry region cap, count-corrected summaries, and LSE branch merging.
+Two-tier and recursive three-tier BF16 frontiers are supported. INT4 is omitted
+because it is a specialized page-storage encoding rather than part of the
+attention definition.
+
+Use it through the same Hugging Face adapter:
+
+```python
+from lod_attention import install
+
+install(model, mode="two-tier", implementation="pytorch")
+# Recursive BF16 is also available:
+# install(model, mode="three-tier-bf16", implementation="pytorch")
+```
+
+Or call the post-RoPE engine directly:
+
+```python
+from lod_attention import PytorchLODAttention
+
+attention = PytorchLODAttention(mode="two-tier")
+output, cache = attention(query, key, value, use_cache=True)
+```
+
+The reference implementation intentionally materializes remote leaf scores and
+uses straightforward Python loops for recursive page selection. It is meant
+for reading, testing, and porting the algorithm—not for reproducing the release
+kernel speed or memory use.
+
 ## vLLM
 
 Installing the package registers the `CUSTOM` attention backend. There are
@@ -155,7 +192,8 @@ ineligible local/recurrent layers retain their native vLLM caches.
 
 ## Repository layout
 
-- `lod_attention/`: model-independent HF adapter, cache, engines, and kernels.
+- `lod_attention/`: model-independent HF adapter, PyTorch reference, cache,
+  optimized engines, and kernels.
 - `integrations/vllm_lod/vllm_lod_plugin/`: vLLM backend and cache lifecycle.
 - `integrations/vllm_lod/vllm_lod_plugin/models/`: K2 and Qwen DFlash2 shims.
 - `integrations/vllm_lod/patches/`: the required AITER patch.

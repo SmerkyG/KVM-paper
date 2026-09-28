@@ -15,17 +15,24 @@ from ._hf_backend import (
 )
 
 
-def install(model: nn.Module, mode: str | LODMode = LODMode.TWO_TIER) -> list[str]:
+def install(
+    model: nn.Module,
+    mode: str | LODMode = LODMode.TWO_TIER,
+    *,
+    implementation: str = "kernel",
+) -> list[str]:
     """Replace supported global-attention layers with production top-eight LoD.
 
     The model must be Qwen3.8 or K2 Horizon. The returned names are the layers
     changed in place. ``model.generate`` creates the appropriate owned cache;
-    direct cached calls can use :func:`new_cache`.
+    direct cached calls can use :func:`new_cache`. Pass
+    ``implementation="pytorch"`` for the readable, unoptimized BF16 reference
+    engine used to explain the algorithm.
     """
 
     resolved = LODMode.parse(mode)
     model_family(model)  # fail before mutating an unsupported model
-    return install_hf_lod_attention(model, mode=resolved)
+    return install_hf_lod_attention(model, mode=resolved, implementation=implementation)
 
 
 def new_cache(model: nn.Module) -> Any:
