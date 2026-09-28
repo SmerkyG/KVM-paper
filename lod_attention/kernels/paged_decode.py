@@ -88,8 +88,6 @@ def fused_decode_paged_lod_attention(
     route_num_warps: int = 4,
     route_reduce_num_warps: int = 4,
     route_parallel_reduce: bool = False,
-    route_parallel_reduce_block_d: int = 0,
-    compact_top4_candidates: bool = True,
     fuse_route_local: bool = True,
     final_reduce_num_warps: int = 4,
     fuse_final_reduce: bool = False,
@@ -154,6 +152,8 @@ def fused_decode_paged_lod_attention(
     precomputed_coarse_lse: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """Fuse coarse, exact-leaf, local, and branch-merge decode attention."""
+    if open_count != 8:
+        raise ValueError("the LoD release decode path requires top-eight routing")
     batch, query_heads, query_len, head_dim = q.shape
     kv_heads = int(state_k.size(1))
     precomputed_route_values = (
@@ -274,20 +274,16 @@ def fused_decode_paged_lod_attention(
                 )
             exact_context_lens = buffers.get("exact_context_lens")
             exact_exp_sums = buffers.get("exact_exp_sums")
-            if not isinstance(
-                exact_context_lens, torch.Tensor
-            ) or not isinstance(exact_exp_sums, torch.Tensor):
+            if not isinstance(exact_context_lens, torch.Tensor) or not isinstance(
+                exact_exp_sums, torch.Tensor
+            ):
                 raise ValueError(
                     "short-context exact decode requires fixed scratch buffers"
                 )
             return (
-                partial_out.reshape(
-                    sequence_count, kv_group_size, split_kv, head_dim
-                ),
+                partial_out.reshape(sequence_count, kv_group_size, split_kv, head_dim),
                 partial_lse.reshape(sequence_count, kv_group_size, split_kv),
-                exact_exp_sums.reshape(
-                    sequence_count, kv_group_size, split_kv
-                ),
+                exact_exp_sums.reshape(sequence_count, kv_group_size, split_kv),
                 exact_context_lens[:sequence_count],
                 split_kv,
             )
@@ -307,9 +303,7 @@ def fused_decode_paged_lod_attention(
                     "and BF16 leaf lengths"
                 )
             sequence_count = batch * kv_heads
-            exact_query = q[:, :, 0, :].reshape(
-                sequence_count, kv_group_size, head_dim
-            )
+            exact_query = q[:, :, 0, :].reshape(sequence_count, kv_group_size, head_dim)
             exact_output = output[:, :, 0, :].reshape(
                 sequence_count, kv_group_size, head_dim
             )
@@ -330,9 +324,7 @@ def fused_decode_paged_lod_attention(
             exact_include_new = bool(
                 include_new and (early_execution or not advance_local_lens)
             )
-            kernel_exact_tiered_attention_3d[
-                sequence_count, 1, exact_segments
-            ](
+            kernel_exact_tiered_attention_3d[sequence_count, 1, exact_segments](
                 exact_segment_out,
                 exact_segment_max,
                 exact_segment_exp_sum,
@@ -495,9 +487,7 @@ def fused_decode_paged_lod_attention(
             exact_include_new = bool(
                 include_new and (early_execution or not advance_local_lens)
             )
-            kernel_exact_residual_int4_attention_3d[
-                sequence_count, 1, exact_segments
-            ](
+            kernel_exact_residual_int4_attention_3d[sequence_count, 1, exact_segments](
                 exact_segment_out,
                 exact_segment_max,
                 exact_segment_exp_sum,
@@ -626,18 +616,14 @@ def fused_decode_paged_lod_attention(
             ):
                 advance_decode_cache_lengths(cache_indices, local_lens)
 
-        def apply_exact_flat_bf16_override(
-            *, early_execution: bool = False
-        ) -> None:
+        def apply_exact_flat_bf16_override(*, early_execution: bool = False) -> None:
             if exact_decode_threshold <= 0:
                 return
             if flat_page_indices is None or flat_int8:
                 raise ValueError(
                     "short-context exact decode requires an indexed BF16 leaf cache"
                 )
-            apply_exact_bf16_override(
-                page_k, page_v, early_execution=early_execution
-            )
+            apply_exact_bf16_override(page_k, page_v, early_execution=early_execution)
 
         # Uniform short decode batches need no routing or coarse approximation.
         # Execute the exact cache scan directly rather than calculating routed
@@ -895,9 +881,7 @@ def fused_decode_paged_lod_attention(
         gqa_union_direct_candidate_expand = False
         gqa_union_padded_candidate_expand = False
         gqa_union_fused_topk_expand = False
-        gqa_union_direct_top4_attention = False
         gqa_union_grouped_topk_page_prefix = False
-        gqa_union_direct_page_queue = False
         gqa_union_direct_slot_queue = False
         if (
             execute_state_route
@@ -954,13 +938,7 @@ def fused_decode_paged_lod_attention(
                 else:
                     route_kernel = _decode_route_coarse_gqa_groups_kernel
                 score_use_dot = True
-                use_compact_top4_candidates = bool(
-                    compact_top4_candidates and open_count == 4
-                )
-                top4_candidates_requested = use_compact_top4_candidates
-                route_candidates_per_group = (
-                    4 if top4_candidates_requested and open_count == 4 else 8
-                )
+                route_candidates_per_group = 8
                 gqa_union_fused_route_union = bool(
                     gqa_union_score_only
                     and not gqa_union_fixed_mask
@@ -970,11 +948,8 @@ def fused_decode_paged_lod_attention(
                     and not gqa_union_compact_pages
                     and recursive_page_cache is None
                 )
-                gqa_union_direct_page_queue = False
                 gqa_union_direct_slot_queue = False
-                gqa_union_direct_top4_attention = False
                 gqa_union_grouped_topk_page_prefix = False
-                gqa_union_overlap_page_queue = False
                 gqa_union_direct_candidate_expand = False
                 gqa_union_padded_candidate_expand = False
                 gqa_union_fused_topk_expand = False
@@ -1096,8 +1071,7 @@ def fused_decode_paged_lod_attention(
                         ),
                         "FUSE_LOCAL": route_fused_decode_local,
                         "PREPARE_BASELINE": (
-                            recursive_page_cache is not None
-                            and gqa_union_score_only
+                            recursive_page_cache is not None and gqa_union_score_only
                         ),
                         "BASELINE_SINK_LEN": (
                             int(sink_k.size(2)) if include_sink else 0
@@ -1230,9 +1204,7 @@ def fused_decode_paged_lod_attention(
                             "speculative_local_execution_marker"
                         )
                         route_fused_mtp_local = bool(
-                            "1" != "0"
-                            and "1" != "0"
-                            and local_lens_are_logical
+                            local_lens_are_logical
                             and (not gqa_union_score_only)
                             and (route_mass_fraction is None)
                             and (route_residual_mass is None)
@@ -1296,7 +1268,6 @@ def fused_decode_paged_lod_attention(
                             SCORE_ONLY=gqa_union_score_only,
                             USE_STATE_LENS=use_state_lens,
                             CANDIDATES_PER_GROUP=route_candidates_per_group,
-                            FLOAT_TOP4=False,
                             FUSE_UNION_INIT=gqa_union_fused_route_union
                             or gqa_union_direct_candidate_expand,
                             UNION_SEQUENCE_CAPACITY=int(
@@ -1345,20 +1316,10 @@ def fused_decode_paged_lod_attention(
                                         )
                                     ),
                                     CANDIDATES_PER_GROUP=route_candidates_per_group,
-                                    EXACT_TOP4=use_compact_top4_candidates,
-                                    FLOAT_TOP4=False,
-                                    STAMP_SELECTED=gqa_union_direct_top4_attention
-                                    and (
-                                        not gqa_union_direct_page_queue
-                                        or gqa_union_overlap_page_queue
-                                    )
-                                    and (not gqa_union_direct_slot_queue),
                                     FUSE_UNION_BUILD=gqa_union_fused_route_union
                                     or gqa_union_direct_slot_queue,
                                     PACKED_CANDIDATES=packed_route_candidates,
                                     PACKED_FP16_CANDIDATES=packed_fp16_route_candidates,
-                                    SORTED_GROUP_MERGE=False,
-                                    FLOAT_SCORE_TOP4=False,
                                     UNION_SEQUENCE_CAPACITY=int(
                                         buffers["gqa_union_counts"].numel()
                                     ),
@@ -1407,7 +1368,6 @@ def fused_decode_paged_lod_attention(
                         if route_mass_fraction is not None
                         else 0.0,
                         CANDIDATES_PER_GROUP=route_candidates_per_group,
-                        EXACT_TOP4=use_compact_top4_candidates,
                         MAX_OPEN_LEAVES=(
                             int(max_open_centroid_leaves)
                             if max_open_centroid_leaves is not None
@@ -1440,17 +1400,12 @@ def fused_decode_paged_lod_attention(
                         ROUTE_COUNT=8,
                         OPEN_COUNT=open_count,
                         MAX_GROUPS=max_groups,
-                        CANDIDATE_TILE=(
-                            candidate_tile
-                            if use_compact_top4_candidates
-                            else min(1024, candidate_tile)
-                        ),
+                        CANDIDATE_TILE=min(1024, candidate_tile),
                         APPLY_MASS_CUTOFF=route_mass_fraction is not None,
                         LOG_MASS_FRACTION=math.log(float(route_mass_fraction))
                         if route_mass_fraction is not None
                         else 0.0,
                         CANDIDATES_PER_GROUP=route_candidates_per_group,
-                        EXACT_TOP4=use_compact_top4_candidates,
                         MAX_OPEN_LEAVES=(
                             int(max_open_centroid_leaves)
                             if max_open_centroid_leaves is not None
@@ -1497,9 +1452,7 @@ def fused_decode_paged_lod_attention(
                     :sequence_count
                 ]
                 baseline_exp_sums = buffers["gqa_union_hip_exp_sums"][:sequence_count]
-                kernel_page1_attention_3d_bias[
-                    sequence_count, 1, baseline_segments
-                ](
+                kernel_page1_attention_3d_bias[sequence_count, 1, baseline_segments](
                     baseline_segment_out,
                     baseline_max_logits,
                     baseline_exp_sums,
@@ -1810,7 +1763,6 @@ def fused_decode_paged_lod_attention(
             and (not route_fused_mtp_local)
             and (not gqa_union_fixed_mask)
             and local_lens_are_logical
-            and ("1" != "0")
             and fuse_state_route
             and (recursive_page_cache is None)
             and (2 * kv_group_size <= 16)
@@ -1917,11 +1869,9 @@ def fused_decode_paged_lod_attention(
         )
         cooperative_hip_eligible = False
         if gqa_cooperative_hip and q.is_cuda:
-            from lod_attention.kernels.gqa_cooperative_decode import (
-                gqa_cooperative_decode_available,
-            )
-
             device_index = q.device.index
+            properties = torch.cuda.get_device_properties(device_index)
+            architecture = str(getattr(properties, "gcnArchName", ""))
             cooperative_hip_eligible = bool(
                 speculative_steps == 1
                 and kv_group_size == 4
@@ -1937,7 +1887,8 @@ def fused_decode_paged_lod_attention(
                     )
                 )
                 and (hash_probes in {-1, 0})
-                and gqa_cooperative_decode_available(device_index)
+                and torch.version.hip is not None
+                and architecture.split(":", 1)[0] == "gfx942"
             )
         cooperative_leaf = bool(
             gqa_cooperative_leaf
@@ -2358,7 +2309,6 @@ def fused_decode_paged_lod_attention(
                     gqa_union_page1_k,
                     gqa_union_page1_v,
                     gqa_union_page1_bias,
-                    hip_block_table,
                     buffers["gqa_union_token_indices"],
                     hip_context_lens,
                     counts.stride(0),
@@ -2379,10 +2329,8 @@ def fused_decode_paged_lod_attention(
                     UNION_CAPACITY=union_capacity,
                     UNION_BLOCK=triton.next_power_of_2(union_capacity),
                     LOCAL_OFFSET=gqa_union_page1_local_offset,
-                    SINK_OFFSET=gqa_union_page1_sink_offset,
                     COARSE_OFFSET=gqa_union_page1_coarse_offset,
                     LOCAL_CAPACITY=int(local_k.size(2)),
-                    SINK_CAPACITY=int(sink_k.size(2)) if include_sink else 0,
                     LOCAL_LIMIT=local_len,
                     SINK_LEN=int(sink_k.size(2)) if include_sink else 0,
                     LEAF_BEGIN=(
@@ -2437,7 +2385,6 @@ def fused_decode_paged_lod_attention(
                     gqa_union_page1_k,
                     gqa_union_page1_v,
                     gqa_union_page1_bias,
-                    hip_block_table,
                     buffers["gqa_union_token_indices"],
                     gqa_union_fixed_indices,
                     cache_indices,
@@ -2445,7 +2392,6 @@ def fused_decode_paged_lod_attention(
                     buffers["gqa_union_token_counts"],
                     local_lens,
                     float(scale),
-                    hip_block_table.stride(0),
                     buffers["gqa_union_token_indices"].stride(0),
                     gqa_union_fixed_indices.stride(1),
                     compact_query.stride(0),
@@ -2467,9 +2413,7 @@ def fused_decode_paged_lod_attention(
                 compact_out = output[:, :, 0, :].reshape(
                     sequence_count, kv_group_size, head_dim
                 )
-                reduce_page1_segments_advance_local[
-                    sequence_count, kv_group_size
-                ](
+                reduce_page1_segments_advance_local[sequence_count, kv_group_size](
                     compact_out,
                     compact_segment_out,
                     compact_max_logits,
@@ -2504,9 +2448,7 @@ def fused_decode_paged_lod_attention(
                 ](
                     cache_indices,
                     local_lens,
-                    exact_leaf_lens
-                    if exact_leaf_lens is not None
-                    else local_lens,
+                    exact_leaf_lens if exact_leaf_lens is not None else local_lens,
                     state_lens,
                     flat_page_indices,
                     slot_pages,
@@ -2619,9 +2561,7 @@ def fused_decode_paged_lod_attention(
                                     ARENA_LEAF_OFFSET=gqa_union_page1_leaf_offset
                                     if gqa_union_aiter_final
                                     else 0,
-                                    SINK_LEN=int(sink_k.size(2))
-                                    if include_sink
-                                    else 0,
+                                    SINK_LEN=int(sink_k.size(2)) if include_sink else 0,
                                     EXACT_DECODE_THRESHOLD=exact_decode_threshold
                                     if gqa_union_inline_exact
                                     else 0,
@@ -2650,9 +2590,7 @@ def fused_decode_paged_lod_attention(
                     ](
                         cache_indices,
                         local_lens,
-                        exact_leaf_lens
-                        if exact_leaf_lens is not None
-                        else local_lens,
+                        exact_leaf_lens if exact_leaf_lens is not None else local_lens,
                         state_lens,
                         counts,
                         buffers["gqa_union_seen_stamps"],
@@ -2820,9 +2758,7 @@ def fused_decode_paged_lod_attention(
                         apply_exact_flat_bf16_override()
                     return output
         elif not cooperative_leaf:
-            decode_stripe_override = None
-            if decode_stripe_override is None:
-                stripe_route_leaves = speculative_steps <= 1 or "1" != "0"
+            stripe_route_leaves = True
             _split_decode_paged_lod_attention_kernel[batch * query_heads, split_kv](
                 q,
                 cache_indices,

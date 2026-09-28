@@ -1,4 +1,4 @@
-"""AITER-backed top-four/top-eight routing and coarse attention for prefill."""
+"""AITER-backed top-eight routing and coarse attention for prefill."""
 
 from __future__ import annotations
 
@@ -109,9 +109,8 @@ def _prepare_aiter_state_kernel(
     valid_group = group < KV_GROUP_SIZE
     query_head = kv_head * KV_GROUP_SIZE + group
     bias_offset = (
-        (batch * KV_HEADS * KV_GROUP_SIZE + query_head) * DISPATCH_STATE_LEN
-        + slot
-    )
+        batch * KV_HEADS * KV_GROUP_SIZE + query_head
+    ) * DISPATCH_STATE_LEN + slot
     tl.store(
         log_count_bias + bias_offset,
         tl.where(valid_slot, tl.log(count), -float("inf")),
@@ -121,14 +120,11 @@ def _prepare_aiter_state_kernel(
 
 @lru_cache(maxsize=3)
 def _specialized_route_mha_fwd(
-    route_count: int, normalize_route_query: bool
+    normalize_route_query: bool,
 ) -> Callable[..., tuple[torch.Tensor, ...]]:
     """Build raw-query or eight-route AITER probe specializations."""
     from aiter.jit.core import compile_ops, get_args_of_build
     from aiter.ops.mha import cmdGenFunc_mha_fwd
-
-    if route_count not in (4, 8):
-        raise ValueError("AITER routing supports four or eight routes")
 
     def route_build_args(*args: object, **kwargs: object) -> dict[str, object]:
         q = args[0] if args else kwargs["q"]
@@ -137,11 +133,7 @@ def _specialized_route_mha_fwd(
         if not normalize_route_query and int(q.size(-1)) != 256:
             raise ValueError("raw AITER routing is specialized for Qwen D=256")
         generated = cmdGenFunc_mha_fwd(*args, **kwargs)
-        suffix = (
-            "_lod_route_raw"
-            if route_count == 4
-            else "_lod_route8" + ("" if normalize_route_query else "_raw")
-        )
+        suffix = "_lod_route8" + ("" if normalize_route_query else "_raw")
         revision = "_d128w8_mulnorm_v1" if normalize_route_query else ""
         generated["md_name"] = f"{generated['md_name']}{suffix}{revision}"
         if normalize_route_query:
@@ -165,7 +157,7 @@ def _specialized_route_mha_fwd(
             )
         ] + [
             f"-DCK_TILE_FMHA_ROUTE_QUERY_NORMALIZE={int(normalize_route_query)}",
-            f"-DCK_TILE_FMHA_ROUTE_TOPK={route_count}",
+            "-DCK_TILE_FMHA_ROUTE_TOPK=8",
         ]
         return generated
 
@@ -192,11 +184,9 @@ def _specialized_route_mha_fwd(
         sink_ptr: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]: ...
 
-    # AITER registers compiled calls by the Python function name. A shared
-    # name would alias top-four and top-eight raw-query variants in one process.
     revision = "_d128w8_mulnorm_v1" if normalize_route_query else ""
     specialized_route_mha_fwd.__name__ = (
-        f"lod_route_mha_fwd_{route_count}_{int(normalize_route_query)}{revision}"
+        f"lod_route_mha_fwd_8_{int(normalize_route_query)}{revision}"
     )
     return compile_ops(
         "module_mha_fwd",
@@ -248,24 +238,19 @@ def _reduce_route_candidates_kernel(
             mask=valid_query[:, None] & valid_block[None, :],
             other=-float("inf"),
         ).to(tl.float32)
-        packed_blocks = _pack_route_score_index(
-            first_scores, block_lane[None, :]
-        )
+        packed_blocks = _pack_route_score_index(first_scores, block_lane[None, :])
         best_blocks = tl.topk(packed_blocks, ROUTE_COUNT, dim=1)
         _, selected_blocks = _unpack_route_score_index(best_blocks)
         local_rank_lane = tl.arange(0, ROUTE_COUNT)
         block = tl.reshape(
-            selected_blocks[:, :, None]
-            + local_rank_lane[None, None, :] * 0,
+            selected_blocks[:, :, None] + local_rank_lane[None, None, :] * 0,
             (BLOCK_M, ROUTE_COUNT * ROUTE_COUNT),
         )
         rank = tl.arange(0, ROUTE_COUNT * ROUTE_COUNT) % ROUTE_COUNT
         valid_candidate = block < ACTIVE_BLOCKS
         base = (
-            ((batch_head * ACTIVE_BLOCKS + block) * (2 * ROUTE_COUNT) + rank)
-            * QUERY_LEN
-            + query[:, None]
-        )
+            (batch_head * ACTIVE_BLOCKS + block) * (2 * ROUTE_COUNT) + rank
+        ) * QUERY_LEN + query[:, None]
         scores = tl.load(
             candidates + base,
             mask=valid_query[:, None] & valid_candidate,
@@ -283,10 +268,8 @@ def _reduce_route_candidates_kernel(
         rank = candidate - block * ROUTE_COUNT
         valid_candidate = block < ACTIVE_BLOCKS
         base = (
-            ((batch_head * ACTIVE_BLOCKS + block) * (2 * ROUTE_COUNT) + rank)
-            * QUERY_LEN
-            + query[:, None]
-        )
+            (batch_head * ACTIVE_BLOCKS + block) * (2 * ROUTE_COUNT) + rank
+        ) * QUERY_LEN + query[:, None]
         scores = tl.load(
             candidates + base,
             mask=valid_query[:, None] & valid_candidate[None, :],
@@ -370,9 +353,7 @@ def _reduce_route_candidates_kernel(
             0x7FFFFFFFFFFFFFFF,
             remaining_slots,
         )
-    tl.store(
-        output + output_base + ROUTE_COUNT - 1, boundary_slot, mask=valid_query
-    )
+    tl.store(output + output_base + ROUTE_COUNT - 1, boundary_slot, mask=valid_query)
     ordered_slots = tl.where(
         route_rank[None, :] == ROUTE_COUNT - 1,
         boundary_slot[:, None],
@@ -401,11 +382,11 @@ def _reduce_route_candidates(
     *,
     slot_lengths: torch.Tensor | None = None,
     max_open_leaf_tokens: int | None = None,
-    route_count: int,
     state_len: int,
     head_dim: int,
     buffers: dict[str, torch.Tensor] | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    route_count = 8
     if not candidates.is_cuda or not candidates.is_contiguous():
         raise ValueError("AITER route candidates must be contiguous on the GPU")
     if candidates.ndim != 5 or int(candidates.size(3)) != 2 * route_count:
@@ -413,7 +394,7 @@ def _reduce_route_candidates(
             f"active AITER returned route candidates shaped {tuple(candidates.shape)}, "
             f"expected [batch, heads, blocks, {2 * route_count}, queries]; "
             "apply integrations/vllm_lod/patches/"
-            "aiter-mha-prefill-route4.patch and rebuild AITER"
+            "aiter-mha-prefill-route8.patch and rebuild AITER"
         )
     batch, query_heads, active_blocks, _, query_len = candidates.shape
     output = _workspace_tensor(
@@ -440,9 +421,7 @@ def _reduce_route_candidates(
     )
     candidate_block = triton.next_power_of_2(active_blocks * route_count)
     hierarchical_top8 = (
-        route_count == 8
-        and max_open_leaf_tokens is None
-        and active_blocks * route_count > 128
+        max_open_leaf_tokens is None and active_blocks * route_count > 128
     )
     if head_dim <= 128:
         block_m = 16
@@ -523,9 +502,7 @@ def _reduce_split_route_candidates_kernel(
     if HIERARCHICAL_TOP8:
         block_lane = tl.arange(0, CANDIDATE_BLOCK // ROUTE_COUNT)
         first_block = block_lane < ACTIVE_BLOCKS_0
-        local_block = tl.where(
-            first_block, block_lane, block_lane - ACTIVE_BLOCKS_0
-        )
+        local_block = tl.where(first_block, block_lane, block_lane - ACTIVE_BLOCKS_0)
         valid_first_block = first_block & (local_block < ACTIVE_BLOCKS_0)
         valid_second_block = (~first_block) & (local_block < ACTIVE_BLOCKS_1)
         first_base_0 = (
@@ -545,44 +522,35 @@ def _reduce_split_route_candidates_kernel(
             other=-float("inf"),
         ).to(tl.float32)
         first_scores = tl.where(first_block[None, :], first_score_0, first_score_1)
-        packed_blocks = _pack_route_score_index(
-            first_scores, block_lane[None, :]
-        )
+        packed_blocks = _pack_route_score_index(first_scores, block_lane[None, :])
         best_blocks = tl.topk(packed_blocks, ROUTE_COUNT, dim=1)
         _, selected_blocks = _unpack_route_score_index(best_blocks)
         local_rank_lane = tl.arange(0, ROUTE_COUNT)
         global_block = tl.reshape(
-            selected_blocks[:, :, None]
-            + local_rank_lane[None, None, :] * 0,
+            selected_blocks[:, :, None] + local_rank_lane[None, None, :] * 0,
             (BLOCK_M, ROUTE_COUNT * ROUTE_COUNT),
         )
         rank = tl.arange(0, ROUTE_COUNT * ROUTE_COUNT) % ROUTE_COUNT
         from_first = global_block < ACTIVE_BLOCKS_0
-        block = tl.where(
-            from_first, global_block, global_block - ACTIVE_BLOCKS_0
-        )
+        block = tl.where(from_first, global_block, global_block - ACTIVE_BLOCKS_0)
         valid_first = from_first & (block < ACTIVE_BLOCKS_0)
         valid_second = (~from_first) & (block < ACTIVE_BLOCKS_1)
         candidate = tl.arange(0, ROUTE_COUNT * ROUTE_COUNT)
     else:
         candidate = tl.arange(0, CANDIDATE_BLOCK)
         from_first = candidate < first_candidates
-        local_candidate = tl.where(
-            from_first, candidate, candidate - first_candidates
-        )
+        local_candidate = tl.where(from_first, candidate, candidate - first_candidates)
         block = local_candidate // ROUTE_COUNT
         rank = local_candidate - block * ROUTE_COUNT
         valid_first = from_first & (block < ACTIVE_BLOCKS_0)
         valid_second = (~from_first) & (block < ACTIVE_BLOCKS_1)
 
     base_0 = (
-        ((batch_head * ACTIVE_BLOCKS_0 + block) * (2 * ROUTE_COUNT) + rank) * QUERY_LEN
-        + query[:, None]
-    )
+        (batch_head * ACTIVE_BLOCKS_0 + block) * (2 * ROUTE_COUNT) + rank
+    ) * QUERY_LEN + query[:, None]
     base_1 = (
-        ((batch_head * ACTIVE_BLOCKS_1 + block) * (2 * ROUTE_COUNT) + rank) * QUERY_LEN
-        + query[:, None]
-    )
+        (batch_head * ACTIVE_BLOCKS_1 + block) * (2 * ROUTE_COUNT) + rank
+    ) * QUERY_LEN + query[:, None]
     score_0 = tl.load(
         candidates_0 + base_0,
         mask=valid_query[:, None] & valid_first,
@@ -682,9 +650,7 @@ def _reduce_split_route_candidates_kernel(
             0x7FFFFFFFFFFFFFFF,
             remaining_slots,
         )
-    tl.store(
-        output + output_base + ROUTE_COUNT - 1, boundary_slot, mask=valid_query
-    )
+    tl.store(output + output_base + ROUTE_COUNT - 1, boundary_slot, mask=valid_query)
     ordered_slots = tl.where(
         route_rank[None, :] == ROUTE_COUNT - 1,
         boundary_slot[:, None],
@@ -714,12 +680,12 @@ def _reduce_split_route_candidates(
     *,
     slot_lengths: torch.Tensor | None = None,
     max_open_leaf_tokens: int | None = None,
-    route_count: int,
     second_index_offset: int,
     state_len: int,
     head_dim: int,
     buffers: dict[str, torch.Tensor] | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    route_count = 8
     if not candidates_0.is_cuda or not candidates_1.is_cuda:
         raise ValueError("AITER route candidates must be on the GPU")
     if not candidates_0.is_contiguous() or not candidates_1.is_contiguous():
@@ -759,12 +725,9 @@ def _reduce_split_route_candidates(
         dtype=torch.int32,
         device=candidates_0.device,
     )
-    candidate_block = triton.next_power_of_2(
-        (blocks_0 + blocks_1) * route_count
-    )
+    candidate_block = triton.next_power_of_2((blocks_0 + blocks_1) * route_count)
     hierarchical_top8 = (
-        route_count == 8
-        and max_open_leaf_tokens is None
+        max_open_leaf_tokens is None
         and (blocks_0 + blocks_1) * route_count > 128
     )
     if head_dim <= 128:
@@ -801,292 +764,6 @@ def _reduce_split_route_candidates(
         num_warps=num_warps,
     )
     return output, head_counts, route_offsets
-
-
-@triton.jit(do_not_specialize=["QUERY_LEN", "STATE_LEN"])
-def _select_routes_by_mass_coverage_kernel(
-    q,
-    mean_k,
-    masses,
-    coarse_lse_0,
-    coarse_lse_1,
-    local_lse,
-    sink_k,
-    slots,
-    head_counts,
-    route_offsets,
-    QUERY_LEN,
-    STATE_LEN,
-    MEAN_K_STRIDE,
-    LOCAL_LSE_BATCH_STRIDE: tl.constexpr,
-    LOCAL_LSE_HEAD_STRIDE: tl.constexpr,
-    LOCAL_LSE_TOKEN_STRIDE: tl.constexpr,
-    SINK_K_BATCH_STRIDE: tl.constexpr,
-    SINK_K_HEAD_STRIDE: tl.constexpr,
-    SINK_K_TOKEN_STRIDE: tl.constexpr,
-    QUERY_HEADS: tl.constexpr,
-    KV_HEADS: tl.constexpr,
-    KV_GROUP_SIZE: tl.constexpr,
-    HEAD_DIM: tl.constexpr,
-    ROUTE_COUNT: tl.constexpr,
-    SINK_LEN: tl.constexpr,
-    HAS_SECOND_PARTITION: tl.constexpr,
-    SCALE: tl.constexpr,
-    COVERAGE: tl.constexpr,
-    BLOCK_M: tl.constexpr,
-    BLOCK_D: tl.constexpr,
-):
-    """Refine up to eight regions until local+sink+refined mass reaches p."""
-    batch_head = tl.program_id(0)
-    query = tl.program_id(1) * BLOCK_M + tl.arange(0, BLOCK_M)
-    dim = tl.arange(0, BLOCK_D)
-    rank_vector = tl.arange(0, ROUTE_COUNT)
-    valid_query = query < QUERY_LEN
-    batch = batch_head // QUERY_HEADS
-    query_head = batch_head % QUERY_HEADS
-    kv_head = query_head // KV_GROUP_SIZE
-    query_row = batch_head * QUERY_LEN + query
-    query_value = tl.load(
-        q + query_row[:, None] * HEAD_DIM + dim[None, :],
-        mask=valid_query[:, None] & (dim[None, :] < HEAD_DIM),
-        other=0.0,
-    ).to(tl.float32)
-
-    remote_lse = tl.load(
-        coarse_lse_0 + query_row, mask=valid_query, other=0.0
-    ).to(tl.float32)
-    if HAS_SECOND_PARTITION:
-        second_lse = tl.load(
-            coarse_lse_1 + query_row, mask=valid_query, other=-float("inf")
-        ).to(tl.float32)
-        maximum = tl.maximum(remote_lse, second_lse)
-        remote_lse = maximum + tl.log(
-            tl.exp(remote_lse - maximum) + tl.exp(second_lse - maximum)
-        )
-    local_score = tl.load(
-        local_lse
-        + batch * LOCAL_LSE_BATCH_STRIDE
-        + query_head * LOCAL_LSE_HEAD_STRIDE
-        + query * LOCAL_LSE_TOKEN_STRIDE,
-        mask=valid_query,
-        other=-float("inf"),
-    ).to(tl.float32)
-    sink_lse = tl.full((BLOCK_M,), -float("inf"), tl.float32)
-    for sink_index in tl.static_range(0, SINK_LEN):
-        sink_key = tl.load(
-            sink_k
-            + batch * SINK_K_BATCH_STRIDE
-            + kv_head * SINK_K_HEAD_STRIDE
-            + sink_index * SINK_K_TOKEN_STRIDE
-            + dim,
-            mask=dim < HEAD_DIM,
-            other=0.0,
-        ).to(tl.float32)
-        sink_score = tl.sum(query_value * sink_key[None, :], axis=1) * SCALE
-        maximum = tl.maximum(sink_lse, sink_score)
-        sink_lse = maximum + tl.log(
-            tl.exp(sink_lse - maximum) + tl.exp(sink_score - maximum)
-        )
-    maximum = tl.maximum(remote_lse, local_score)
-    total_lse = maximum + tl.log(
-        tl.exp(remote_lse - maximum) + tl.exp(local_score - maximum)
-    )
-    maximum = tl.maximum(total_lse, sink_lse)
-    total_lse = maximum + tl.log(
-        tl.exp(total_lse - maximum) + tl.exp(sink_lse - maximum)
-    )
-    covered = tl.exp(local_score - total_lse) + tl.exp(sink_lse - total_lse)
-
-    logits = tl.full((BLOCK_M, ROUTE_COUNT), -float("inf"), tl.float32)
-    for rank in tl.static_range(0, ROUTE_COUNT):
-        slot = tl.load(
-            slots + query_row * ROUTE_COUNT + rank,
-            mask=valid_query,
-            other=-1,
-        ).to(tl.int32)
-        valid_slot = valid_query & (slot >= 0) & (slot < STATE_LEN)
-        safe_slot = tl.maximum(slot, 0)
-        key_row = (
-            (batch * KV_HEADS + kv_head) * MEAN_K_STRIDE + safe_slot
-        ) * HEAD_DIM
-        key = tl.load(
-            mean_k + key_row[:, None] + dim[None, :],
-            mask=valid_slot[:, None] & (dim[None, :] < HEAD_DIM),
-            other=0.0,
-        ).to(tl.float32)
-        mass = tl.load(
-            masses + (batch * KV_HEADS + kv_head) * MEAN_K_STRIDE + safe_slot,
-            mask=valid_slot,
-            other=1.0,
-        ).to(tl.float32)
-        logit = tl.sum(query_value * key, axis=1) * SCALE + tl.log(mass)
-        logits = tl.where(
-            rank_vector[None, :] == rank,
-            tl.where(valid_slot, logit, -float("inf"))[:, None],
-            logits,
-        )
-    remaining = logits
-    selected = tl.full((BLOCK_M, ROUTE_COUNT), False, tl.int1)
-    for _ in tl.static_range(0, ROUTE_COUNT):
-        best_rank = tl.argmax(remaining, axis=1)
-        best_logit = tl.max(remaining, axis=1)
-        open_region = valid_query & (covered < COVERAGE) & (
-            best_logit > -float("inf")
-        )
-        selected |= (rank_vector[None, :] == best_rank[:, None]) & open_region[:, None]
-        covered += tl.where(open_region, tl.exp(best_logit - total_lse), 0.0)
-        remaining = tl.where(
-            rank_vector[None, :] == best_rank[:, None],
-            -float("inf"),
-            remaining,
-        )
-    for rank in tl.static_range(0, ROUTE_COUNT):
-        slot = tl.load(
-            slots + query_row * ROUTE_COUNT + rank,
-            mask=valid_query,
-            other=-1,
-        ).to(tl.int32)
-        keep_rank = tl.sum(
-            tl.where(rank_vector[None, :] == rank, selected.to(tl.int32), 0), axis=1
-        ) > 0
-        keep = valid_query & (slot >= 0) & (slot < STATE_LEN) & keep_rank
-        tl.store(
-            slots + query_row * ROUTE_COUNT + rank,
-            tl.where(keep, slot, -1),
-            mask=valid_query,
-        )
-        local_offset = tl.atomic_add(
-            head_counts + batch_head * STATE_LEN + tl.maximum(slot, 0),
-            1,
-            mask=keep,
-            sem="relaxed",
-        )
-        tl.store(
-            route_offsets + query_row * ROUTE_COUNT + rank,
-            local_offset,
-            mask=keep,
-        )
-
-
-@triton.jit(
-    do_not_specialize=["QUERY_LEN", "STATE_LEN"],
-    do_not_specialize_on_alignment=["QUERY_LEN", "STATE_LEN"],
-)
-def _remove_route4_from_coarse_kernel(
-    q,
-    mean_k,
-    mean_v,
-    counts,
-    slots,
-    attention_out_0,
-    attention_lse_0,
-    attention_out_1,
-    attention_lse_1,
-    output,
-    QUERY_LEN,
-    STATE_LEN,
-    QUERY_HEADS: tl.constexpr,
-    KV_HEADS: tl.constexpr,
-    KV_GROUP_SIZE: tl.constexpr,
-    HEAD_DIM: tl.constexpr,
-    SCALE: tl.constexpr,
-    BLOCK_M: tl.constexpr,
-    BLOCK_D: tl.constexpr,
-    HAS_SECOND_PARTITION: tl.constexpr,
-):
-    """Remove the four refined centroids from AITER's coarse partition."""
-    batch_head = tl.program_id(0).to(tl.int64)
-    query = tl.program_id(1) * BLOCK_M + tl.arange(0, BLOCK_M)
-    batch = batch_head // QUERY_HEADS
-    query_head = batch_head - batch * QUERY_HEADS
-    kv_head = query_head // KV_GROUP_SIZE
-    dim = tl.arange(0, BLOCK_D)
-    valid_query = query < QUERY_LEN
-    valid_dim = dim < HEAD_DIM
-    query_row = (batch * QUERY_HEADS + query_head) * QUERY_LEN + query
-    query_value = tl.load(
-        q + query_row[:, None] * HEAD_DIM + dim[None, :],
-        mask=valid_query[:, None] & valid_dim[None, :],
-        other=0.0,
-    )
-    lse_0 = tl.load(
-        attention_lse_0 + query_row,
-        mask=valid_query,
-        other=0.0,
-    ).to(tl.float32)
-    aiter_row = (batch * QUERY_LEN + query) * QUERY_HEADS + query_head
-    remainder_0 = tl.load(
-        attention_out_0 + aiter_row[:, None] * HEAD_DIM + dim[None, :],
-        mask=valid_query[:, None] & valid_dim[None, :],
-        other=0.0,
-    ).to(tl.float32)
-    if HAS_SECOND_PARTITION:
-        lse_1 = tl.load(
-            attention_lse_1 + query_row,
-            mask=valid_query,
-            other=0.0,
-        ).to(tl.float32)
-        remainder_1 = tl.load(
-            attention_out_1 + aiter_row[:, None] * HEAD_DIM + dim[None, :],
-            mask=valid_query[:, None] & valid_dim[None, :],
-            other=0.0,
-        ).to(tl.float32)
-        full_lse = tl.maximum(lse_0, lse_1)
-        partition_mass_0 = tl.exp(lse_0 - full_lse)
-        partition_mass_1 = tl.exp(lse_1 - full_lse)
-        partition_mass = partition_mass_0 + partition_mass_1
-        full_lse += tl.log(partition_mass)
-        remainder = (
-            partition_mass_0[:, None] * remainder_0
-            + partition_mass_1[:, None] * remainder_1
-        ) / partition_mass[:, None]
-    else:
-        full_lse = lse_0
-        remainder = remainder_0
-    selected_mass = tl.zeros((BLOCK_M,), tl.float32)
-    selected_value = tl.zeros((BLOCK_M, BLOCK_D), tl.float32)
-    for rank in tl.static_range(0, 4):
-        slot = tl.load(
-            slots + query_row * 4 + rank,
-            mask=valid_query,
-            other=-1,
-        ).to(tl.int64)
-        valid_slot = valid_query & (slot >= 0) & (slot < STATE_LEN)
-        safe_slot = tl.where(valid_slot, slot, 0)
-        state_row = (
-            (batch * KV_HEADS + kv_head) * STATE_LEN + safe_slot
-        ) * HEAD_DIM
-        count = tl.load(
-            counts + (batch * KV_HEADS + kv_head) * STATE_LEN + safe_slot,
-            mask=valid_slot,
-            other=1.0,
-        ).to(tl.float32)
-        key = tl.load(
-            mean_k + state_row[:, None] + dim[None, :],
-            mask=valid_slot[:, None] & valid_dim[None, :],
-            other=0.0,
-        )
-        value = tl.load(
-            mean_v + state_row[:, None] + dim[None, :],
-            mask=valid_slot[:, None] & valid_dim[None, :],
-            other=0.0,
-        )
-        score = tl.sum(query_value * key, axis=1) * SCALE + tl.log(count)
-        mass = tl.where(valid_slot, tl.exp(score - full_lse), 0.0)
-        selected_mass += mass
-        selected_value += mass[:, None] * value
-
-    remaining_mass = tl.maximum(1.0 - selected_mass, 1.0e-7)
-    tl.store(
-        output + query_row[:, None] * HEAD_DIM + dim[None, :],
-        (remainder - selected_value) / remaining_mass[:, None],
-        mask=valid_query[:, None] & valid_dim[None, :],
-    )
-    tl.store(
-        attention_lse_0 + query_row,
-        full_lse + tl.log(remaining_mass),
-        mask=valid_query,
-    )
 
 
 @triton.jit(
@@ -1201,9 +878,7 @@ def _merge_route_refinement_kernel(
         ).to(tl.int64)
         valid_slot = valid_query & (slot >= 0) & (slot < STATE_LEN)
         safe_slot = tl.where(valid_slot, slot, 0)
-        state_row = (
-            (batch * KV_HEADS + kv_head) * STATE_LEN + safe_slot
-        ) * HEAD_DIM
+        state_row = ((batch * KV_HEADS + kv_head) * STATE_LEN + safe_slot) * HEAD_DIM
         count = tl.load(
             counts + (batch * KV_HEADS + kv_head) * STATE_LEN + safe_slot,
             mask=valid_slot,
@@ -1238,12 +913,14 @@ def _merge_route_refinement_kernel(
     route_rank = tl.arange(0, ROUTE_COUNT)
     route_scores = tl.load(
         route_lse + query_row[:, None] * ROUTE_COUNT + route_rank[None, :],
-        mask=valid_query[:, None] & (
+        mask=valid_query[:, None]
+        & (
             tl.load(
                 slots + query_row[:, None] * ROUTE_COUNT + route_rank[None, :],
                 mask=valid_query[:, None],
                 other=-1,
-            ) >= 0
+            )
+            >= 0
         ),
         other=-float("inf"),
     ).to(tl.float32)
@@ -1353,8 +1030,8 @@ def merge_aiter_prefill_refinement(
     kv_heads = int(coarse.mean_k.size(1))
     state_len = int(coarse.mean_k.size(2))
     route_count = int(slots.size(-1))
-    if route_count not in (4, 8):
-        raise ValueError("AITER refinement requires four or eight routes")
+    if route_count != 8:
+        raise ValueError("AITER refinement requires exactly eight routes")
     expected = (batch, query_heads, query_len, head_dim)
     if query_heads != kv_heads * kv_group_size:
         raise ValueError("AITER refinement has incompatible GQA geometry")
@@ -1436,39 +1113,28 @@ def aiter_prefill_route_coarse_attention(
     state_v: torch.Tensor,
     counts: torch.Tensor,
     *,
-    route_count: int = 4,
     state_len: int,
     kv_group_size: int,
     scale: float,
     normalize_route_query: bool,
-    exact_mass_coverage: float | None = None,
     max_open_leaf_tokens: int | None = None,
     slot_lengths: torch.Tensor | None = None,
-    local_lse: torch.Tensor | None = None,
-    sink_k: torch.Tensor | None = None,
     buffers: dict[str, torch.Tensor] | None = None,
-) -> tuple[
-    torch.Tensor, AiterPrefillCoarse, torch.Tensor, torch.Tensor
-]:
+) -> tuple[torch.Tensor, AiterPrefillCoarse, torch.Tensor, torch.Tensor]:
     """Compute exact top-k routes and retain unmodified coarse attention.
 
     The patched AITER FMHA emits k winners per native key tile while it
     computes ordinary count-weighted centroid attention. Only those compact
     candidates are reduced, so no query-by-centroid routing tensor is stored.
     """
-    if route_count not in (4, 8):
-        raise ValueError("AITER prefill requires four or eight routes")
-    if exact_mass_coverage is not None:
-        if not (0.0 < exact_mass_coverage <= 1.0):
-            raise ValueError("exact mass coverage must be in (0, 1]")
-        if local_lse is None or sink_k is None:
-            raise ValueError("exact mass coverage requires local LSE and sink keys")
     if max_open_leaf_tokens is not None:
         if max_open_leaf_tokens < 1:
             raise ValueError("maximum open leaf tokens must be positive")
-        if slot_lengths is None or tuple(slot_lengths.shape[:2]) != (
-            q.size(0), state_k.size(1)
-        ) or int(slot_lengths.size(2)) < state_len:
+        if (
+            slot_lengths is None
+            or tuple(slot_lengths.shape[:2]) != (q.size(0), state_k.size(1))
+            or int(slot_lengths.size(2)) < state_len
+        ):
             raise ValueError("maximum open leaf tokens requires matching slot lengths")
         if (
             not slot_lengths.is_cuda
@@ -1476,8 +1142,6 @@ def aiter_prefill_route_coarse_attention(
             or slot_lengths.stride(2) != 1
         ):
             raise ValueError("slot lengths must be GPU int32 with contiguous slots")
-    if max_open_leaf_tokens is not None and exact_mass_coverage is not None:
-        raise ValueError("leaf-size cap and mass coverage cannot be combined")
     tensors = (q, state_k, state_v, counts)
     if not all(tensor.is_cuda for tensor in tensors):
         raise ValueError("AITER route/coarse prefill requires GPU tensors")
@@ -1491,9 +1155,9 @@ def aiter_prefill_route_coarse_attention(
         raise ValueError("AITER route/coarse prefill has incompatible GQA geometry")
     if head_dim > 256 or int(state_v.size(-1)) != head_dim:
         raise ValueError("AITER route/coarse prefill requires equal heads up to 256")
-    if tuple(state_k.shape[:2]) != (batch, kv_heads) or tuple(
-        state_k.shape[-1:]
-    ) != (head_dim,):
+    if tuple(state_k.shape[:2]) != (batch, kv_heads) or tuple(state_k.shape[-1:]) != (
+        head_dim,
+    ):
         raise ValueError("AITER route/coarse prefill received the wrong state keys")
     if tuple(state_v.shape[:3]) != tuple(counts.shape[:3]):
         raise ValueError("AITER route/coarse state/count geometry differs")
@@ -1501,15 +1165,6 @@ def aiter_prefill_route_coarse_attention(
         raise ValueError("AITER route/coarse state heads differ")
     if state_len > int(state_v.size(2)):
         raise ValueError("AITER route/coarse state exceeds its storage")
-    if exact_mass_coverage is not None:
-        if tuple(local_lse.shape) != (batch, query_heads, query_len):
-            raise ValueError("local LSE has incompatible route geometry")
-        if (
-            tuple(sink_k.shape[:2]) != (batch, kv_heads)
-            or int(sink_k.size(-1)) != head_dim
-            or not sink_k.is_cuda
-        ):
-            raise ValueError("sink keys have incompatible route geometry")
 
     # CK's MI325X prefill dispatch has severe cliffs when K is not a complete
     # native 128-key tile. Padding with zero K/V and -inf bias is
@@ -1586,13 +1241,7 @@ def aiter_prefill_route_coarse_attention(
     if deepbind:
         sys.setdlopenflags(original_dlopen_flags | deepbind)
     try:
-        from aiter.ops.mha import mha_fwd
-
-        route_mha_fwd = (
-            mha_fwd
-            if route_count == 4 and normalize_route_query
-            else _specialized_route_mha_fwd(route_count, normalize_route_query)
-        )
+        route_mha_fwd = _specialized_route_mha_fwd(normalize_route_query)
 
         def run_partition(
             begin: int,
@@ -1652,7 +1301,6 @@ def aiter_prefill_route_coarse_attention(
             candidates_1,
             slot_lengths=slot_lengths,
             max_open_leaf_tokens=max_open_leaf_tokens,
-            route_count=route_count,
             second_index_offset=split_at,
             state_len=state_len,
             head_dim=head_dim,
@@ -1663,49 +1311,9 @@ def aiter_prefill_route_coarse_attention(
             candidates_0,
             slot_lengths=slot_lengths,
             max_open_leaf_tokens=max_open_leaf_tokens,
-            route_count=route_count,
             state_len=state_len,
             head_dim=head_dim,
             buffers=buffers,
-        )
-    if exact_mass_coverage is not None:
-        # Compare coarse region mass against the full denominator; local and
-        # sink are already exact and count toward the coverage target.
-        route_head_counts.zero_()
-        _select_routes_by_mass_coverage_kernel[
-            (batch * query_heads, triton.cdiv(query_len, 16))
-        ](
-            q,
-            mean_k,
-            active_counts,
-            attention_lse_0,
-            attention_lse_1,
-            local_lse,
-            sink_k,
-            top_slots,
-            route_head_counts,
-            route_offsets,
-            query_len,
-            state_len,
-            dispatch_state_len,
-            LOCAL_LSE_BATCH_STRIDE=local_lse.stride(0),
-            LOCAL_LSE_HEAD_STRIDE=local_lse.stride(1),
-            LOCAL_LSE_TOKEN_STRIDE=local_lse.stride(2),
-            SINK_K_BATCH_STRIDE=sink_k.stride(0),
-            SINK_K_HEAD_STRIDE=sink_k.stride(1),
-            SINK_K_TOKEN_STRIDE=sink_k.stride(2),
-            QUERY_HEADS=query_heads,
-            KV_HEADS=kv_heads,
-            KV_GROUP_SIZE=kv_group_size,
-            HEAD_DIM=head_dim,
-            ROUTE_COUNT=route_count,
-            SINK_LEN=int(sink_k.size(2)),
-            HAS_SECOND_PARTITION=split_at != 0,
-            SCALE=float(scale),
-            COVERAGE=float(exact_mass_coverage),
-            BLOCK_M=16,
-            BLOCK_D=triton.next_power_of_2(head_dim),
-            num_warps=8 if head_dim > 128 else 4,
         )
     coarse = AiterPrefillCoarse(
         output_0=attention_out_0,

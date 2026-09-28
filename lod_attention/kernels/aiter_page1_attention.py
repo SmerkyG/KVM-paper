@@ -80,10 +80,7 @@ def reduce_page1_segments_advance_local(
     numerator = tl.sum(partials * corrections[:, None], axis=0)
     result = tl.where(denominator == 0.0, 0.0, numerator / denominator)
     tl.store(
-        output
-        + sequence * output_stride_0
-        + query_head * output_stride_1
-        + dimension,
+        output + sequence * output_stride_0 + query_head * output_stride_1 + dimension,
         result,
     )
 
@@ -92,7 +89,6 @@ def reduce_page1_segments_advance_local(
         cache_batch = tl.load(cache_indices + batch).to(tl.int64)
         local_length = tl.load(local_lens + cache_batch)
         tl.store(local_lens + cache_batch, local_length + 1)
-
 
 
 @triton.jit
@@ -278,7 +274,6 @@ def kernel_page1_attention_3d_bias_compact_pages(
     key_cache,
     value_cache,
     key_bias,
-    prefix_indices,
     page_descriptors,
     fixed_indices,
     cache_indices,
@@ -286,7 +281,6 @@ def kernel_page1_attention_3d_bias_compact_pages(
     exact_token_counts,
     local_lens,
     scale,
-    prefix_stride: tl.int64,
     descriptor_stride: tl.int64,
     fixed_index_stride: tl.int64,
     query_stride_0: tl.int64,
@@ -335,7 +329,6 @@ def kernel_page1_attention_3d_bias_compact_pages(
     kv_head = sequence - logical_batch * KV_HEADS
     cache_batch = tl.load(cache_indices + logical_batch).to(tl.int64)
     physical_sequence = cache_batch * KV_HEADS + kv_head
-    prefix_base = sequence * prefix_stride
     descriptor_base = sequence * descriptor_stride
     fixed_base = physical_sequence * fixed_index_stride
     local_token_count = (
@@ -376,8 +369,8 @@ def kernel_page1_attention_3d_bias_compact_pages(
         # Prefix lanes have negative descriptor ranks. Masked loads do not
         # make an invalid pointer safe on every ROCm code-generation path, so
         # clamp the address before applying the exact-lane mask.
-        descriptor_valid = (
-            (descriptor_rank >= 0) & (descriptor_rank < descriptor_stride)
+        descriptor_valid = (descriptor_rank >= 0) & (
+            descriptor_rank < descriptor_stride
         )
         safe_descriptor_rank = tl.maximum(
             0, tl.minimum(descriptor_rank, descriptor_stride - 1)
@@ -407,9 +400,7 @@ def kernel_page1_attention_3d_bias_compact_pages(
             other=0,
         ).to(tl.int64)
         physical_token = tl.where(is_exact, exact_physical, prefix_physical)
-        physical_valid = (
-            (physical_token >= 0) & (physical_token < KEY_CACHE_CAPACITY)
-        )
+        physical_valid = (physical_token >= 0) & (physical_token < KEY_CACHE_CAPACITY)
         token_valid &= (~is_exact | exact_valid) & physical_valid
         physical_token = tl.maximum(
             0, tl.minimum(physical_token, KEY_CACHE_CAPACITY - 1)
@@ -447,9 +438,7 @@ def kernel_page1_attention_3d_bias_compact_pages(
         probabilities = tl.math.exp2(scores - new_maximum[:, None])
         denominator = denominator * correction + tl.sum(probabilities, axis=1)
         accumulator = accumulator * correction[:, None]
-        accumulator = tl.dot(
-            probabilities.to(values.dtype), values, acc=accumulator
-        )
+        accumulator = tl.dot(probabilities.to(values.dtype), values, acc=accumulator)
         maximum = new_maximum
 
     segment_output_offset = (
@@ -613,9 +602,7 @@ def kernel_exact_tiered_attention_3d(
     ):
         token_begin = tile * TILE_SIZE
         token = token_begin + token_lane
-        leaf_only = (token_begin >= sink_end) & (
-            token_begin + TILE_SIZE <= leaf_end
-        )
+        leaf_only = (token_begin >= sink_end) & (token_begin + TILE_SIZE <= leaf_end)
         if leaf_only:
             # Almost every short-context tile lies wholly inside the
             # chronological leaf archive. Avoid issuing masked loads against
@@ -726,9 +713,7 @@ def kernel_exact_tiered_attention_3d(
             )
 
         scores = qk_scale * tl.dot(queries, keys.to(queries.dtype))
-        scores = tl.where(
-            query_valid[:, None] & valid[None, :], scores, -float("inf")
-        )
+        scores = tl.where(query_valid[:, None] & valid[None, :], scores, -float("inf"))
         tile_maximum = tl.max(scores, axis=1)
         new_maximum = tl.maximum(maximum, tile_maximum)
         new_maximum = tl.where(new_maximum > -float("inf"), new_maximum, 0.0)
@@ -736,9 +721,7 @@ def kernel_exact_tiered_attention_3d(
         probabilities = tl.math.exp2(scores - new_maximum[:, None])
         denominator = denominator * correction + tl.sum(probabilities, axis=1)
         accumulator = accumulator * correction[:, None]
-        accumulator = tl.dot(
-            probabilities.to(values.dtype), values, acc=accumulator
-        )
+        accumulator = tl.dot(probabilities.to(values.dtype), values, acc=accumulator)
         maximum = new_maximum
 
     segment_output_offset = (
@@ -922,9 +905,9 @@ def kernel_exact_residual_int4_attention_3d(
             populated = tl.load(page_counts + page_row).to(tl.int32)
             valid = token_lane < populated
             physical_token = page_row * PAGE_SIZE + token_lane
-            leaf_index = tl.load(
-                page_indices + physical_token, mask=valid, other=0
-            ).to(tl.int64)
+            leaf_index = tl.load(page_indices + physical_token, mask=valid, other=0).to(
+                tl.int64
+            )
             valid &= (leaf_index >= 0) & (leaf_index < LEAF_CAPACITY)
             storage_token = kv_row * LEAF_CAPACITY + leaf_index
 
@@ -971,23 +954,17 @@ def kernel_exact_residual_int4_attention_3d(
             key_anchor = key_sum_code * key_sum_scale * inverse_count
             value_anchor = value_sum_code * value_sum_scale * inverse_count
             keys = (
-                key_code.to(tl.float32) * key_scale[:, None]
-                + key_anchor[:, None]
+                key_code.to(tl.float32) * key_scale[:, None] + key_anchor[:, None]
             ).to(tl.bfloat16)
             values = (
-                value_code.to(tl.float32) * value_scale[None, :]
-                + value_anchor[None, :]
+                value_code.to(tl.float32) * value_scale[None, :] + value_anchor[None, :]
             ).to(tl.bfloat16)
         else:
             suffix_token = token_begin - page_tokens + token_lane
             suffix_end = SINK_LEN + local_len
             valid = suffix_token < suffix_end + INCLUDE_NEW
             is_sink = valid & (suffix_token < SINK_LEN)
-            is_local = (
-                valid
-                & (suffix_token >= SINK_LEN)
-                & (suffix_token < suffix_end)
-            )
+            is_local = valid & (suffix_token >= SINK_LEN) & (suffix_token < suffix_end)
             is_new = valid & (suffix_token >= suffix_end)
             sink_token = tl.maximum(suffix_token, 0)
             local_token = tl.maximum(suffix_token - SINK_LEN, 0)
@@ -1049,9 +1026,7 @@ def kernel_exact_residual_int4_attention_3d(
             )
 
         scores = qk_scale * tl.dot(queries, keys.to(queries.dtype))
-        scores = tl.where(
-            query_valid[:, None] & valid[None, :], scores, -float("inf")
-        )
+        scores = tl.where(query_valid[:, None] & valid[None, :], scores, -float("inf"))
         tile_maximum = tl.max(scores, axis=1)
         new_maximum = tl.maximum(maximum, tile_maximum)
         new_maximum = tl.where(new_maximum > -float("inf"), new_maximum, 0.0)
@@ -1059,9 +1034,7 @@ def kernel_exact_residual_int4_attention_3d(
         probabilities = tl.math.exp2(scores - new_maximum[:, None])
         denominator = denominator * correction + tl.sum(probabilities, axis=1)
         accumulator = accumulator * correction[:, None]
-        accumulator = tl.dot(
-            probabilities.to(values.dtype), values, acc=accumulator
-        )
+        accumulator = tl.dot(probabilities.to(values.dtype), values, acc=accumulator)
         maximum = new_maximum
 
     segment_output_offset = (

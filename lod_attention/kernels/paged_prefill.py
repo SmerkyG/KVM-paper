@@ -5,7 +5,6 @@ from __future__ import annotations
 import math
 
 import torch
-import torch.nn.functional as F
 import triton
 import triton.language as tl
 
@@ -55,9 +54,7 @@ def _count_expert_routes_kernel(
     valid &= selected_slot >= 0
     slot = tl.maximum(selected_slot, 0)
     head_slot = batch_head * active_slots + slot
-    local_offset = tl.atomic_add(
-        head_counts + head_slot, 1, mask=valid, sem="relaxed"
-    )
+    local_offset = tl.atomic_add(head_counts + head_slot, 1, mask=valid, sem="relaxed")
     tl.store(route_offsets + route_row, local_offset, mask=valid)
 
 
@@ -95,16 +92,19 @@ def _scatter_expert_routes_kernel(
     expert_local_offset = (
         tl.load(head_offsets + head_slot, mask=valid, other=0) + local_offset
     )
-    destination = tl.load(
-        expert_starts + expert, mask=valid, other=0
-    ) + expert_local_offset
+    destination = (
+        tl.load(expert_starts + expert, mask=valid, other=0) + expert_local_offset
+    )
     tl.store(packed_route_rows + destination, route_row, mask=valid)
     starts_block = valid & (expert_local_offset % BLOCK_M == 0)
-    block_destination = tl.load(
-        expert_block_starts + expert,
-        mask=starts_block,
-        other=0,
-    ) + expert_local_offset // BLOCK_M
+    block_destination = (
+        tl.load(
+            expert_block_starts + expert,
+            mask=starts_block,
+            other=0,
+        )
+        + expert_local_offset // BLOCK_M
+    )
     tl.store(
         block_expert + block_destination,
         expert,
@@ -187,9 +187,7 @@ def _pack_expert_routes(
             raise ValueError("precomputed route offsets have incompatible geometry")
     if route_offsets is None:
         raise AssertionError("route offsets were not constructed")
-    grouped_counts = head_counts.view(
-        batch, kv_heads, kv_group_size, active_slots
-    )
+    grouped_counts = head_counts.view(batch, kv_heads, kv_group_size, active_slots)
     counts = _workspace_tensor(
         buffers,
         "leaf_expert_counts",
@@ -2040,9 +2038,7 @@ def paged_leaf_attention(
     record_boundary()
     if not reduce_routes:
         return (
-            route_out.reshape(
-                batch, query_heads, query_len, route_count, value_dim
-            ),
+            route_out.reshape(batch, query_heads, query_len, route_count, value_dim),
             route_lse.reshape(batch, query_heads, query_len, route_count),
         )
     exact_out = torch.empty(rows, value_dim, dtype=q.dtype, device=q.device)

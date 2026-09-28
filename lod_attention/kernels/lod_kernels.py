@@ -955,9 +955,7 @@ def _accumulate_state_deltas_kernel(
     ).to(tl.float32)
     if HAS_KEY_NORMS:
         merge_key_norm = tl.load(
-            merge_key_norm_sums
-            + row * MERGE_KEY_NORM_ROW_STRIDE
-            + source_token,
+            merge_key_norm_sums + row * MERGE_KEY_NORM_ROW_STRIDE + source_token,
             mask=valid,
             other=0.0,
         ).to(tl.float32)
@@ -1139,7 +1137,6 @@ def _apply_state_deltas_kernel(
 def _route_logits_tile_topk_kernel(
     route_logits,
     counts,
-    slot_spread,
     candidate_scores,
     candidate_indices,
     LOGIT_BATCH_STRIDE,
@@ -1156,14 +1153,8 @@ def _route_logits_tile_topk_kernel(
     MAX_TILES: tl.constexpr,
     ROUTE_COUNT: tl.constexpr,
     PROTECTED_LEN: tl.constexpr,
-    EXCLUDE_SINGLETONS: tl.constexpr,
     MAX_LEAF_TOKENS: tl.constexpr,
     SCALE: tl.constexpr,
-    ROUTE_COUNT_BIAS: tl.constexpr,
-    LARGE_COUNT_PENALTY: tl.constexpr,
-    LARGE_COUNT_THRESHOLD: tl.constexpr,
-    SOFT_COUNT_PIVOT: tl.constexpr,
-    USE_SLOT_SPREAD: tl.constexpr,
     BLOCK_M: tl.constexpr,
     BLOCK_N: tl.constexpr,
 ):
@@ -1199,26 +1190,8 @@ def _route_logits_tile_topk_kernel(
     ).to(tl.float32)
     # Preserve the established route selector's BF16 scale rounding exactly.
     route_scores = (raw_scores.to(tl.bfloat16) * SCALE).to(tl.bfloat16).to(tl.float32)
-    route_scores += ROUTE_COUNT_BIAS * tl.log(count)[None, :]
-    if LARGE_COUNT_PENALTY != 0.0:
-        route_scores -= LARGE_COUNT_PENALTY * tl.log(
-            tl.maximum(count / LARGE_COUNT_THRESHOLD, 1.0)
-        )[None, :]
-    if SOFT_COUNT_PIVOT != 0.0:
-        route_scores -= tl.log(1.0 + count / SOFT_COUNT_PIVOT)[None, :]
-    if USE_SLOT_SPREAD:
-        spread = tl.load(
-            slot_spread
-            + batch * COUNT_BATCH_STRIDE
-            + kv_head * COUNT_HEAD_STRIDE
-            + slot * COUNT_TOKEN_STRIDE,
-            mask=state_valid,
-            other=0.0,
-        ).to(tl.float32)
-        route_scores += tl.log(tl.maximum(spread, 1.0e-6))[None, :]
+    route_scores += tl.log(count)[None, :]
     route_valid = state_valid & (slot >= PROTECTED_LEN)
-    if EXCLUDE_SINGLETONS:
-        route_valid &= count > 1.0
     if MAX_LEAF_TOKENS:
         route_valid &= count <= MAX_LEAF_TOKENS
     remaining = tl.where(
@@ -1237,7 +1210,9 @@ def _route_logits_tile_topk_kernel(
             ),
             axis=1,
         )
-        valid_best = query_valid & (best_score > -float("inf")) & (best_position < BLOCK_N)
+        valid_best = (
+            query_valid & (best_score > -float("inf")) & (best_position < BLOCK_N)
+        )
         tl.store(
             candidate_scores + candidate_base + rank,
             best_score,
@@ -1744,15 +1719,11 @@ def split_append_merge_topk(
     # Keep the complement chronological for coalesced indirect source reads
     # and stable page ordinals. A block scan is much cheaper than sorting all
     # remaining ~16K positions by their already-known integer index.
-    append_mask = torch.zeros(
-        rows, tokens, dtype=torch.uint8, device=scores.device
-    )
+    append_mask = torch.zeros(rows, tokens, dtype=torch.uint8, device=scores.device)
     append_mask.scatter_(1, append_indices, 1)
     block = 256
     blocks = triton.cdiv(tokens, block)
-    block_counts = torch.empty(
-        rows, blocks, dtype=torch.int32, device=scores.device
-    )
+    block_counts = torch.empty(rows, blocks, dtype=torch.int32, device=scores.device)
     block_offsets = torch.empty_like(block_counts)
     merge_count = tokens - n_append
     merge_indices = torch.empty(
@@ -1979,13 +1950,7 @@ def _materialized_maxsim_batch_chunk(
     free_bytes: int,
 ) -> int:
     """Bound dense scratch while retaining the largest power-of-two batch."""
-    bytes_per_batch = (
-        kv_heads
-        * overflow_len
-        * state_len
-        * element_size
-        * score_fields
-    )
+    bytes_per_batch = kv_heads * overflow_len * state_len * element_size * score_fields
     if batch <= 1 or bytes_per_batch <= 0:
         return batch
     # ``mem_get_info`` reports driver-visible free memory.  Leave at least
@@ -2023,7 +1988,7 @@ def streaming_state_maxsim(
     """Scan transient leaf keys without materializing leaf-by-state scores."""
     if not all(tensor.is_cuda for tensor in (overflow_k, state_k, counts)):
         raise ValueError("streaming LOD state routing requires CUDA tensors")
-    batch, kv_heads, overflow_len, head_dim = overflow_k.shape
+    batch, kv_heads, overflow_len, _ = overflow_k.shape
     if geometry not in {"raw", "spherical", "coherence", "spherical_coherence"}:
         raise ValueError(f"unsupported streaming state geometry: {geometry}")
     coherence = geometry in {"coherence", "spherical_coherence"}
@@ -2136,15 +2101,9 @@ def streaming_state_maxsim(
                         tiled_prepared_scores=tiled_prepared_scores,
                     )
                     active_chunk = (..., slice(None, overflow_len))
-                    chunk_buffers["route_scores"][active_chunk].copy_(
-                        chunk_results[0]
-                    )
-                    chunk_buffers["route_indices"][active_chunk].copy_(
-                        chunk_results[1]
-                    )
-                    chunk_buffers["select_scores"][active_chunk].copy_(
-                        chunk_results[2]
-                    )
+                    chunk_buffers["route_scores"][active_chunk].copy_(chunk_results[0])
+                    chunk_buffers["route_indices"][active_chunk].copy_(chunk_results[1])
+                    chunk_buffers["select_scores"][active_chunk].copy_(chunk_results[2])
                 active = (..., slice(None, overflow_len))
                 return (
                     route_scores[active],
@@ -2465,13 +2424,6 @@ def route_logits_hierarchical_topk(
     state_len: int,
     kv_group_size: int,
     scale: float,
-    route_count_bias: float = 1.0,
-    large_count_penalty: float = 0.0,
-    large_count_threshold: float = 64.0,
-    soft_count_pivot: float | None = None,
-    slot_spread: torch.Tensor | None = None,
-    exclude_singletons: bool = False,
-    topk: int = 3,
     protected_len: int = 0,
     max_leaf_tokens: int | None = None,
     block_m: int = 16,
@@ -2480,36 +2432,23 @@ def route_logits_hierarchical_topk(
     reduce_num_warps: int = 4,
 ) -> torch.Tensor:
     """Select exact routes with centroid-tile parallelism and a small reduction."""
+    route_count = 8
     if not route_logits.is_cuda or not counts.is_cuda:
         raise ValueError("hierarchical route selection requires CUDA tensors")
     if not route_logits.is_contiguous() or not counts.is_contiguous():
         raise ValueError("hierarchical route selection requires contiguous tensors")
     if route_logits.ndim != 4 or counts.ndim != 4 or int(counts.size(-1)) != 1:
         raise ValueError("hierarchical route selection received invalid tensors")
-    if slot_spread is not None and (
-        not slot_spread.is_cuda
-        or not slot_spread.is_contiguous()
-        or slot_spread.shape != counts.shape
-    ):
-        raise ValueError("route key spread must be contiguous and match counts")
     batch, query_heads, query_len, logit_state_len = route_logits.shape
     kv_heads = int(counts.size(1))
     if query_heads != kv_heads * kv_group_size:
         raise ValueError("query heads do not match the requested GQA grouping")
-    if topk not in (2, 3, 4, 8):
-        raise ValueError(
-            "hierarchical route selection currently supports top-2/top-3/top-4/top-8"
-        )
     if not 0 < state_len <= logit_state_len or state_len > int(counts.size(2)):
         raise ValueError("active route state exceeds the supplied storage")
-    if protected_len < 0 or protected_len + topk > state_len:
+    if protected_len < 0 or protected_len + route_count > state_len:
         raise ValueError("protected state leaves too few routing candidates")
     if max_leaf_tokens is not None and max_leaf_tokens <= 0:
         raise ValueError("maximum routed leaf count must be positive")
-    if large_count_penalty < 0 or large_count_threshold <= 0:
-        raise ValueError("large-count penalty must be nonnegative and threshold positive")
-    if soft_count_pivot is not None and soft_count_pivot <= 0:
-        raise ValueError("soft count pivot must be positive")
     if block_m <= 0 or block_m & (block_m - 1):
         raise ValueError("hierarchical route query tile must be a power of two")
     if block_n <= 0 or block_n & (block_n - 1):
@@ -2522,7 +2461,7 @@ def route_logits_hierarchical_topk(
         query_heads,
         query_len,
         max_tiles,
-        topk,
+        route_count,
         dtype=torch.float32,
         device=route_logits.device,
     )
@@ -2531,7 +2470,7 @@ def route_logits_hierarchical_topk(
         query_heads,
         query_len,
         max_tiles,
-        topk,
+        route_count,
         dtype=torch.int32,
         device=route_logits.device,
     )
@@ -2539,7 +2478,7 @@ def route_logits_hierarchical_topk(
         batch,
         query_heads,
         query_len,
-        topk,
+        route_count,
         dtype=torch.long,
         device=route_logits.device,
     )
@@ -2548,7 +2487,6 @@ def route_logits_hierarchical_topk(
     ](
         route_logits,
         counts,
-        slot_spread if slot_spread is not None else counts,
         candidate_scores,
         candidate_indices,
         route_logits.stride(0),
@@ -2563,21 +2501,15 @@ def route_logits_hierarchical_topk(
         QUERY_HEADS=query_heads,
         KV_GROUP_SIZE=kv_group_size,
         MAX_TILES=max_tiles,
-        ROUTE_COUNT=topk,
+        ROUTE_COUNT=route_count,
         PROTECTED_LEN=protected_len,
-        EXCLUDE_SINGLETONS=exclude_singletons,
         MAX_LEAF_TOKENS=max_leaf_tokens or 0,
         SCALE=scale,
-        ROUTE_COUNT_BIAS=route_count_bias,
-        LARGE_COUNT_PENALTY=large_count_penalty,
-        LARGE_COUNT_THRESHOLD=large_count_threshold,
-        SOFT_COUNT_PIVOT=soft_count_pivot or 0.0,
-        USE_SLOT_SPREAD=slot_spread is not None,
         BLOCK_M=block_m,
         BLOCK_N=block_n,
         **_launch_kwargs(tile_num_warps),
     )
-    candidate_block = triton.next_power_of_2(max_tiles * topk)
+    candidate_block = triton.next_power_of_2(max_tiles * route_count)
     _reduce_route_logits_tile_topk_kernel[
         (batch * query_heads, triton.cdiv(query_len, block_m))
     ](
@@ -2588,8 +2520,8 @@ def route_logits_hierarchical_topk(
         active_tiles,
         QUERY_HEADS=query_heads,
         MAX_TILES=max_tiles,
-        ROUTE_COUNT=topk,
-        ROUTE_BLOCK=triton.next_power_of_2(topk),
+        ROUTE_COUNT=route_count,
+        ROUTE_BLOCK=triton.next_power_of_2(route_count),
         CANDIDATE_BLOCK=candidate_block,
         BLOCK_M=block_m,
         **_launch_kwargs(reduce_num_warps),

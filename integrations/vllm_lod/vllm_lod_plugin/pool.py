@@ -317,7 +317,6 @@ class VLLMLayerLODPool:
                 and self.engine.fused_prefill_external_recompute
                 and self.engine.prefill_hierarchical_route
                 and self.engine.prefill_overlap_coarse_leaf
-                and not self.engine.prefill_overlap_local_lod
             ),
             "GQA-aware AITER prefill route/coarse": (
                 self.engine.prefill_aiter_route_coarse
@@ -372,9 +371,7 @@ class VLLMLayerLODPool:
         if unified_page1:
             arena_leaf_offset = 0
             kv_rows = r * h
-            arena_leaf_capacity = (
-                self.leaf_capacity if self.settings.levels == 2 else 0
-            )
+            arena_leaf_capacity = self.leaf_capacity if self.settings.levels == 2 else 0
             arena_local_offset = arena_leaf_offset + kv_rows * arena_leaf_capacity
             arena_sink_offset = arena_local_offset + kv_rows * self.local_capacity
             arena_coarse_offset = arena_sink_offset + kv_rows * sink_capacity
@@ -770,12 +767,8 @@ class VLLMLayerLODPool:
             if isinstance(unified_page1_fixed_indices, torch.Tensor):
                 page.update(
                     unified_page1_fixed_indices=unified_page1_fixed_indices,
-                    unified_page1_fixed_leaf_owners=(
-                        unified_page1_fixed_leaf_owners
-                    ),
-                    unified_page1_fixed_slot_offsets=(
-                        unified_page1_fixed_slot_offsets
-                    ),
+                    unified_page1_fixed_leaf_owners=(unified_page1_fixed_leaf_owners),
+                    unified_page1_fixed_slot_offsets=(unified_page1_fixed_slot_offsets),
                     unified_page1_fixed_lengths=unified_page1_fixed_lengths,
                 )
         return state
@@ -1086,9 +1079,7 @@ class VLLMLayerLODPool:
 
     def ensure_unified_page1_fixed(self, slots: tuple[int, ...]) -> None:
         """Rebuild invalidated compact-decode leaf tables once per update."""
-        dirty = tuple(
-            slot for slot in slots if self.unified_page1_fixed_dirty[slot]
-        )
+        dirty = tuple(slot for slot in slots if self.unified_page1_fixed_dirty[slot])
         if not dirty:
             return
         self._refresh_unified_page1_fixed(dirty)
@@ -1282,9 +1273,7 @@ class VLLMLayerLODPool:
                 raise AssertionError("permuted LOD row indices are missing")
             self.local_lens.index_fill_(0, slot_indices, recent_len)
             self.state_lens.index_fill_(0, slot_indices, state_len)
-            self.leaf_lens.index_fill_(
-                0, slot_indices, int(source_page["leaf_count"])
-            )
+            self.leaf_lens.index_fill_(0, slot_indices, int(source_page["leaf_count"]))
         for slot in slots:
             self.metadata[slot].update(
                 state_len=state_len,
@@ -1408,16 +1397,11 @@ class VLLMLayerLODPool:
         state_v = storage["state_v"]
         counts = storage["counts"]
         if not all(
-            isinstance(tensor, torch.Tensor)
-            for tensor in (state_k, state_v, counts)
+            isinstance(tensor, torch.Tensor) for tensor in (state_k, state_v, counts)
         ):
             raise TypeError("cross-layer initial state storage is incomplete")
-        state_k[..., :initial_state_len, :].copy_(
-            archive_k[..., :initial_state_len, :]
-        )
-        state_v[..., :initial_state_len, :].copy_(
-            archive_v[..., :initial_state_len, :]
-        )
+        state_k[..., :initial_state_len, :].copy_(archive_k[..., :initial_state_len, :])
+        state_v[..., :initial_state_len, :].copy_(archive_v[..., :initial_state_len, :])
         counts[..., :initial_state_len, :].fill_(1.0)
         key_norm_sums = storage.get("key_norm_sums")
         if key_norm_sums is not None:
@@ -1567,12 +1551,8 @@ class VLLMLayerLODPool:
                 raise ValueError("cross-layer cached tail exceeds fixed storage")
             # [old exact tail, new chunk] contains the next overflow followed
             # by the exact tail needed after this scheduler step.
-            staged_k = torch.cat(
-                (recent_k[..., :recent_len, :], key.detach()), dim=2
-            )
-            staged_v = torch.cat(
-                (recent_v[..., :recent_len, :], value.detach()), dim=2
-            )
+            staged_k = torch.cat((recent_k[..., :recent_len, :], key.detach()), dim=2)
+            staged_v = torch.cat((recent_v[..., :recent_len, :], value.detach()), dim=2)
             return staged_k, staged_v
         if self.settings.kv_bits != 0:
             raise ValueError("cross-layer construction supports BF16 or INT4 leaves")
@@ -1582,9 +1562,7 @@ class VLLMLayerLODPool:
             raise TypeError("cross-layer cached construction lacks its page cache")
         leaf_k = page.get("leaf_k")
         leaf_v = page.get("leaf_v")
-        if not isinstance(leaf_k, torch.Tensor) or not isinstance(
-            leaf_v, torch.Tensor
-        ):
+        if not isinstance(leaf_k, torch.Tensor) or not isinstance(leaf_v, torch.Tensor):
             raise TypeError("cross-layer cached construction needs BF16 leaves")
         sink_len = min(int(self.engine.sink_len), previous_len)
         archive_begin = previous_len - sink_len
@@ -1695,6 +1673,7 @@ class VLLMLayerLODPool:
                 event.synchronize()
                 seen.add(identity)
             self.deferred_prefill_events[slot] = None
+
     def install(
         self, slot: int, converted: KernelLODCache, *, source_slot: int = 0
     ) -> None:
@@ -2135,7 +2114,10 @@ class VLLMLayerLODPool:
                     coverage=coverage,
                 )
                 if packed:
-                    if output_view is None or result.data_ptr() != output_view.data_ptr():
+                    if (
+                        output_view is None
+                        or result.data_ptr() != output_view.data_ptr()
+                    ):
                         raise AssertionError(
                             "cross-layer exact prefill did not use its output buffer"
                         )
@@ -2550,8 +2532,7 @@ class VLLMLayerLODPool:
                 splits=int(self.engine.decode_split_kv),
                 exact_kv_heads=(
                     self.kv_heads
-                    if self.engine.exact_decode_limit > 0
-                    and self.settings.levels == 3
+                    if self.engine.exact_decode_limit > 0 and self.settings.levels == 3
                     else None
                 ),
                 state_capacity=self.state_capacity,
@@ -2564,10 +2545,7 @@ class VLLMLayerLODPool:
                     self.kv_heads
                     if (
                         self.settings.levels == 2
-                        or (
-                            self.settings.levels == 3
-                            and self.family is ModelFamily.K2
-                        )
+                        or (self.settings.levels == 3 and self.family is ModelFamily.K2)
                     )
                     and self.query_heads % self.kv_heads == 0
                     and 1 < self.query_heads // self.kv_heads <= 16
@@ -2587,10 +2565,7 @@ class VLLMLayerLODPool:
                     )
                     if (
                         self.settings.levels == 2
-                        or (
-                            self.settings.levels == 3
-                            and self.family is ModelFamily.K2
-                        )
+                        or (self.settings.levels == 3 and self.family is ModelFamily.K2)
                     )
                     and self.query_heads % self.kv_heads == 0
                     and 1 < self.query_heads // self.kv_heads <= 16
@@ -2666,9 +2641,7 @@ class VLLMLayerLODPool:
                     dtype=torch.int32,
                     device=self.device,
                 )
-                storage["exact_exp_sums"] = torch.empty_like(
-                    storage["partial_lse"]
-                )
+                storage["exact_exp_sums"] = torch.empty_like(storage["partial_lse"])
             if (
                 self.head_dim in (128, 256)
                 and 1 < self.query_heads // self.kv_heads <= 16
@@ -2791,8 +2764,7 @@ class VLLMLayerLODPool:
                 splits=int(self.engine.decode_split_kv),
                 exact_kv_heads=(
                     self.kv_heads
-                    if self.engine.exact_decode_limit > 0
-                    and self.settings.levels == 3
+                    if self.engine.exact_decode_limit > 0 and self.settings.levels == 3
                     else None
                 ),
                 state_capacity=self.state_capacity,
@@ -3143,9 +3115,6 @@ class VLLMLayerLODPool:
             route_num_warps=int(self.engine.decode_route_num_warps),
             route_reduce_num_warps=int(self.engine.decode_route_reduce_num_warps),
             route_parallel_reduce=bool(self.engine.decode_route_parallel_reduce),
-            route_parallel_reduce_block_d=int(
-                self.engine.decode_route_parallel_reduce_block_d
-            ),
             final_reduce_num_warps=int(self.engine.decode_final_reduce_num_warps),
             fuse_final_reduce=bool(self.engine.decode_fuse_final_reduce),
             route_gqa_grouped=bool(self.engine.decode_route_gqa_grouped),
@@ -3197,9 +3166,7 @@ class VLLMLayerLODPool:
             max_leaf_tokens=None,
             open_count=ROUTE_COUNT,
             recursive_page_cache=(page if recursive else None),
-            flat_page_indices=(
-                page["page_indices"] if indexed_flat else None
-            ),
+            flat_page_indices=(page["page_indices"] if indexed_flat else None),
             flat_page_k_scales=(page.get("page_k_token_scales") if flat_int8 else None),
             flat_page_v_scales=(page.get("page_v_token_scales") if flat_int8 else None),
             recursive_quant_group_size=int(self.engine.leaf_quant_group_size),
@@ -3218,8 +3185,7 @@ class VLLMLayerLODPool:
             exact_decode_threshold=exact_decode_limit,
             exact_all_rows=(
                 exact_decode_limit > 0
-                and 0 < int(getattr(metadata, "max_seq_len", 0))
-                <= exact_decode_limit
+                and 0 < int(getattr(metadata, "max_seq_len", 0)) <= exact_decode_limit
             ),
             exact_leaf_lens=self.leaf_lens,
             output_buffer=output[:rows].unsqueeze(2),

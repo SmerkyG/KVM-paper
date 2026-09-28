@@ -844,7 +844,7 @@ class VLLMLODRuntime:
         if len(pools) < 2:
             return False
         reference = pools[0]
-        recent_length, target_coverage = reference._catch_up_target(
+        _, target_coverage = reference._catch_up_target(
             row, total_length
         )
         metadata = reference.metadata[row]

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import ast
+from collections import Counter
 import re
 from pathlib import Path
 
@@ -9,6 +11,14 @@ PUBLIC_ENV = {
     "VLLM_LOD_MODE",
     "VLLM_LOD_POOL_SIZE",
     "VLLM_LOD_MAX_CONTEXT",
+}
+
+# vLLM finds these through fully qualified names or plugin registration rather
+# than ordinary Python references.
+DYNAMIC_ENTRY_POINTS = {
+    "LODAttentionBackend",
+    "LODChunkAlignedScheduler",
+    "K2HorizonForCausalLM",
 }
 
 
@@ -57,13 +67,80 @@ def test_experimental_kernel_families_stay_removed() -> None:
     assert not (csrc / "gqa16_coarse_score").exists()
 
 
+def test_release_python_symbols_have_a_consumer() -> None:
+    roots = (
+        ROOT / "lod_attention",
+        ROOT / "integrations" / "vllm_lod" / "vllm_lod_plugin",
+        ROOT / "benchmarks",
+        ROOT / "examples",
+    )
+    references: Counter[str] = Counter()
+    definitions: list[tuple[Path, int, str]] = []
+    for root in roots:
+        for path in root.rglob("*.py"):
+            tree = ast.parse(path.read_text())
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
+                    references[node.id] += 1
+                elif isinstance(node, ast.Attribute) and isinstance(node.ctx, ast.Load):
+                    references[node.attr] += 1
+                elif isinstance(node, ast.ImportFrom):
+                    for imported in node.names:
+                        references[imported.name] += 1
+            definitions.extend(
+                (path, node.lineno, node.name)
+                for node in tree.body
+                if isinstance(
+                    node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+                )
+            )
+
+    unreachable = [
+        f"{path.relative_to(ROOT)}:{line}: {name}"
+        for path, line, name in definitions
+        if not name.startswith("__")
+        and name not in DYNAMIC_ENTRY_POINTS
+        and references[name] == 0
+    ]
+    assert unreachable == []
+
+
+def test_removed_release_ablation_surfaces_stay_removed() -> None:
+    roots = (ROOT / "lod_attention", ROOT / "benchmarks", ROOT / "tests")
+    source = "\n".join(
+        path.read_text()
+        for root in roots
+        for path in root.rglob("*.py")
+        if path != Path(__file__)
+    )
+    for vestige in (
+        "compact_top4_candidates",
+        "EXACT_TOP4",
+        "FLOAT_TOP4",
+        "prefill_exact_mass_coverage",
+        "prefill_route_key_spread",
+        "prefill_route_exclude_singleton",
+    ):
+        assert vestige not in source
+    assert not (
+        ROOT / "lod_attention" / "kernels" / "gqa_cooperative_decode.py"
+    ).exists()
+    assert not (
+        ROOT
+        / "lod_attention"
+        / "csrc"
+        / "gqa_cooperative_decode"
+        / "gqa_cooperative_decode.cu"
+    ).exists()
+
+
 def test_aiter_route_workspace_is_tight_for_k2_and_safe_for_qwen() -> None:
     patch = (
         ROOT
         / "integrations"
         / "vllm_lod"
         / "patches"
-        / "aiter-mha-prefill-route4.patch"
+        / "aiter-mha-prefill-route8.patch"
     ).read_text()
     assert "head_size_q == 128 ? 128 : 64" in patch
     assert "D=256 can dispatch either a 64- or 128-key CK tile" in patch
@@ -118,7 +195,7 @@ def test_cross_layer_prefill_supports_every_release_cache_mode() -> None:
     assert "_initial_prefill_sources" in runtime
     assert "_cached_prefill_sources" in runtime
     assert "tensor.record_stream(stream)" in runtime
-    cached_builder = runtime.split(
-        "def _build_cached_prefill_across_layers", 1
-    )[1].split("def _catch_up_decode_rows", 1)[0]
+    cached_builder = runtime.split("def _build_cached_prefill_across_layers", 1)[
+        1
+    ].split("def _catch_up_decode_rows", 1)[0]
     assert '"overflow_safe_until"' not in cached_builder

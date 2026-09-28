@@ -54,14 +54,13 @@ uv pip install -e .
 ```
 
 The optimized prefill path requires the AITER change in
-`integrations/vllm_lod/patches/aiter-mha-prefill-route4.patch`. Apply it to the
+`integrations/vllm_lod/patches/aiter-mha-prefill-route8.patch`. Apply it to the
 AITER source used by the runtime and rebuild AITER before benchmarking. The
 patch provides compile-time normalized and raw routing probes. LoD selects the
 normalized specialization for K2 and automatically builds a separately cached
 raw specialization for Qwen; neither kernel branches on normalization at run
-time. Eight routes are the production default, with a separate AITER
-specialization built using `CK_TILE_FMHA_ROUTE_TOPK=8`. The top-four binary
-remains available for controlled benchmark comparisons.
+time. The release specialization is built with
+`CK_TILE_FMHA_ROUTE_TOPK=8`.
 
 ## Hugging Face
 

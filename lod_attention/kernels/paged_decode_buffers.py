@@ -73,7 +73,6 @@ def _prepare_speculative_decode_kv_kernel(
     LOCAL_V_HEAD_STRIDE,
     LOCAL_V_TOKEN_STRIDE,
     ROWS: tl.constexpr,
-    STEPS: tl.constexpr,
     KV_HEADS: tl.constexpr,
     HEAD_DIM: tl.constexpr,
     BLOCK_D: tl.constexpr,
@@ -185,7 +184,6 @@ def prepare_speculative_decode_kv(
         local_v.stride(1),
         local_v.stride(2),
         ROWS=rows,
-        STEPS=steps,
         KV_HEADS=kv_heads,
         HEAD_DIM=head_dim,
         BLOCK_D=block_d,
@@ -376,15 +374,9 @@ def _expand_decode_topk_gqa_union_kernel(
         if use_exact:
             logical_leaf = work * BLOCK_K + token_offset
             valid_leaf = logical_leaf < exact_leaf_len
-            physical_leaf = (
-                ARENA_LEAF_OFFSET
-                + kv_row * LEAF_CAPACITY
-                + logical_leaf
-            )
+            physical_leaf = ARENA_LEAF_OFFSET + kv_row * LEAF_CAPACITY + logical_leaf
             tl.store(
-                hip_block_table
-                + sequence * INDEX_CAPACITY
-                + logical_leaf,
+                hip_block_table + sequence * INDEX_CAPACITY + logical_leaf,
                 physical_leaf,
                 mask=valid_leaf,
             )
@@ -601,10 +593,7 @@ def _append_decode_gqa_union_arena_entries_kernel(
     coarse_destination = exact_count + local_and_new + SINK_LEN
     if EXACT_DECODE_THRESHOLD > 0:
         exact_leaf_len = tl.load(exact_leaf_lens + cache_batch).to(tl.int32)
-        use_exact = (
-            exact_leaf_len + local_and_new + SINK_LEN
-            <= EXACT_DECODE_THRESHOLD
-        )
+        use_exact = exact_leaf_len + local_and_new + SINK_LEN <= EXACT_DECODE_THRESHOLD
     else:
         use_exact = False
     token = tl.arange(0, BLOCK_K)
@@ -794,15 +783,12 @@ def _materialize_decode_gqa_union_arena_kernel(
         other=0,
     ).to(tl.int32)
     routed_leaf_count = tl.sum(selected_lengths, axis=0)
-    routed_destination = tl.sum(
-        tl.where(rank < work, selected_lengths, 0), axis=0
-    )
+    routed_destination = tl.sum(tl.where(rank < work, selected_lengths, 0), axis=0)
 
     if EXACT_DECODE_THRESHOLD > 0:
         exact_leaf_count = tl.load(exact_leaf_lens + cache_batch).to(tl.int32)
         use_exact = (
-            exact_leaf_count + local_and_new + SINK_LEN
-            <= EXACT_DECODE_THRESHOLD
+            exact_leaf_count + local_and_new + SINK_LEN <= EXACT_DECODE_THRESHOLD
         )
         exact_count = tl.where(use_exact, exact_leaf_count, routed_leaf_count)
     else:
@@ -822,9 +808,7 @@ def _materialize_decode_gqa_union_arena_kernel(
         )
     elif work < selected_count:
         slot = tl.load(union_slots + sequence * UNION_CAPACITY + work).to(tl.int32)
-        leaf_count = tl.load(slot_lengths + kv_row * STATE_CAPACITY + slot).to(
-            tl.int32
-        )
+        leaf_count = tl.load(slot_lengths + kv_row * STATE_CAPACITY + slot).to(tl.int32)
         for begin in tl.range(0, leaf_count, BLOCK_K, num_stages=1):
             logical_token = begin + token
             valid = logical_token < leaf_count
@@ -855,9 +839,7 @@ def _materialize_decode_gqa_union_arena_kernel(
                 mask=page_valid,
                 other=0,
             ).to(tl.int32)
-            leaf_valid = (
-                page_valid & (leaf_index >= 0) & (leaf_index < LEAF_CAPACITY)
-            )
+            leaf_valid = page_valid & (leaf_index >= 0) & (leaf_index < LEAF_CAPACITY)
             physical_leaf = ARENA_LEAF_OFFSET + kv_row * LEAF_CAPACITY + leaf_index
             tl.store(
                 block_table
@@ -882,10 +864,7 @@ def _materialize_decode_gqa_union_arena_kernel(
             local_token = begin + token
             valid = local_token < active_local
             tl.store(
-                block_table
-                + sequence * INDEX_CAPACITY
-                + exact_count
-                + local_token,
+                block_table + sequence * INDEX_CAPACITY + exact_count + local_token,
                 local_base + local_token,
                 mask=valid,
             )
@@ -907,10 +886,7 @@ def _materialize_decode_gqa_union_arena_kernel(
             tl.store(arena_k + local_storage, current_key)
             tl.store(arena_v + local_storage, current_value)
             tl.store(
-                block_table
-                + sequence * INDEX_CAPACITY
-                + exact_count
-                + active_local,
+                block_table + sequence * INDEX_CAPACITY + exact_count + active_local,
                 local_base + active_local,
             )
         for begin in tl.range(0, SINK_LEN, BLOCK_K, num_stages=1):
@@ -976,7 +952,6 @@ def _materialize_decode_gqa_union_page_descriptors_kernel(
     arena_k,
     arena_v,
     arena_bias,
-    prefix_indices,
     page_descriptors,
     context_lens,
     COUNT_BATCH_STRIDE,
@@ -994,10 +969,8 @@ def _materialize_decode_gqa_union_page_descriptors_kernel(
     UNION_CAPACITY: tl.constexpr,
     UNION_BLOCK: tl.constexpr,
     LOCAL_OFFSET: tl.constexpr,
-    SINK_OFFSET: tl.constexpr,
     COARSE_OFFSET: tl.constexpr,
     LOCAL_CAPACITY: tl.constexpr,
-    SINK_CAPACITY: tl.constexpr,
     LOCAL_LIMIT: tl.constexpr,
     SINK_LEN: tl.constexpr,
     LEAF_BEGIN: tl.constexpr,
@@ -1051,22 +1024,17 @@ def _materialize_decode_gqa_union_page_descriptors_kernel(
     selected_pages = (selected_lengths + PAGE_SIZE - 1) // PAGE_SIZE
     routed_descriptor_count = tl.sum(selected_pages, axis=0)
     fixed_leaf_count = tl.load(
-        fixed_slot_offsets
-        + kv_row * FIXED_OFFSET_STRIDE
-        + STATE_CAPACITY
+        fixed_slot_offsets + kv_row * FIXED_OFFSET_STRIDE + STATE_CAPACITY
     ).to(tl.int32)
-    use_exact = (
-        (EXACT_DECODE_THRESHOLD > 0)
-        & (fixed_leaf_count + local_and_new + SINK_LEN <= EXACT_DECODE_THRESHOLD)
+    use_exact = (EXACT_DECODE_THRESHOLD > 0) & (
+        fixed_leaf_count + local_and_new + SINK_LEN <= EXACT_DECODE_THRESHOLD
     )
     exact_descriptor_count = (fixed_leaf_count + PAGE_SIZE - 1) // PAGE_SIZE
     descriptor_count = tl.minimum(
         tl.where(use_exact, exact_descriptor_count, routed_descriptor_count),
         INDEX_CAPACITY,
     )
-    descriptor_destination = tl.sum(
-        tl.where(rank < work, selected_pages, 0), axis=0
-    )
+    descriptor_destination = tl.sum(tl.where(rank < work, selected_pages, 0), axis=0)
 
     if (work < selected_count) & ~use_exact:
         slot = tl.load(union_slots + sequence * UNION_CAPACITY + work).to(tl.int32)
@@ -1112,15 +1080,12 @@ def _materialize_decode_gqa_union_page_descriptors_kernel(
             valid_lanes = tl.minimum(fixed_leaf_count - page_begin, PAGE_SIZE)
             packed = (valid_lanes << 24) | (LEAF_BEGIN + page_begin)
             tl.store(
-                page_descriptors
-                + sequence * INDEX_CAPACITY
-                + page_ordinal,
+                page_descriptors + sequence * INDEX_CAPACITY + page_ordinal,
                 packed,
                 mask=page_ordinal < INDEX_CAPACITY,
             )
 
     local_base = LOCAL_OFFSET + kv_row * LOCAL_CAPACITY
-    sink_base = SINK_OFFSET + kv_row * SINK_CAPACITY
     coarse_base = COARSE_OFFSET + kv_row * STATE_CAPACITY
     prefix_length = local_and_new + SINK_LEN + active_state_len
     token = tl.arange(0, BLOCK_K)

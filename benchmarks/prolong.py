@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 from collections import defaultdict
-import functools
 import hashlib
 import math
 import os
@@ -118,73 +117,7 @@ def parse_args() -> argparse.Namespace:
             "real-minus-dummy timing"
         ),
     )
-    parser.add_argument(
-        "--prefill-variant",
-        choices=("fast4", "fast8", "generic4", "generic8"),
-        help="Benchmark-only K2/Qwen prefill route comparison",
-    )
-    parser.add_argument(
-        "--prefill-exact-mass-coverage",
-        type=float,
-        help="Benchmark-only target fraction of full attention mass resolved exactly",
-    )
-    parser.add_argument(
-        "--prefill-max-open-leaf-tokens",
-        type=int,
-        help="Benchmark-only cap on leaves in a centroid eligible for prefill refinement",
-    )
-    parser.add_argument("--prefill-route-count-bias", type=float, default=1.0)
-    parser.add_argument("--prefill-route-large-count-penalty", type=float, default=0.0)
-    parser.add_argument("--prefill-route-large-count-threshold", type=float, default=64.0)
-    parser.add_argument(
-        "--prefill-route-soft-count-pivot",
-        type=float,
-        help="Benchmark-only pivot in log(n) - log(1 + n/pivot) route score",
-    )
-    parser.add_argument(
-        "--prefill-route-key-spread",
-        choices=("total", "per_leaf"),
-        help="Benchmark-only count-normalized key-spread routing",
-    )
-    parser.add_argument(
-        "--prefill-route-exclude-singletons",
-        action="store_true",
-        help="Benchmark-only route filter for centroids with one archived leaf",
-    )
     return parser.parse_args()
-
-
-def configure_prefill_variant(
-    model: Any,
-    variant: str | None,
-    exact_mass_coverage: float | None = None,
-    max_open_leaf_tokens: int | None = None,
-    route_count_bias: float = 1.0,
-    route_large_count_penalty: float = 0.0,
-    route_large_count_threshold: float = 64.0,
-    route_soft_count_pivot: float | None = None,
-    route_key_spread: str | None = None,
-    route_exclude_singletons: bool = False,
-) -> int:
-    """Select a prefill route count without changing decode or tuned leaf tiles."""
-    changed = 0
-    for module in model.modules():
-        pool = getattr(module, "_vllm_lod_pool", None)
-        if pool is None:
-            continue
-        if variant is not None:
-            pool.engine.prefill_two_level_topk = 8 if variant.endswith("8") else 4
-            pool.engine.prefill_aiter_route_coarse = variant.startswith("fast")
-        pool.engine.prefill_exact_mass_coverage = exact_mass_coverage
-        pool.engine.prefill_max_open_leaf_tokens = max_open_leaf_tokens
-        pool.engine.prefill_route_count_bias = route_count_bias
-        pool.engine.prefill_route_large_count_penalty = route_large_count_penalty
-        pool.engine.prefill_route_large_count_threshold = route_large_count_threshold
-        pool.engine.prefill_route_soft_count_pivot = route_soft_count_pivot
-        pool.engine.prefill_route_key_spread = route_key_spread
-        pool.engine.prefill_route_exclude_singletons = route_exclude_singletons
-        changed += 1
-    return changed
 
 
 def token_digest(token_ids: list[int]) -> str:
@@ -578,9 +511,7 @@ def evaluate_speed(
             decode_timings.append(cohort_decode / cohort_batches)
             cohort_prefill_timings.append(cohort_prefill)
             cohort_decode_timings.append(cohort_decode)
-            output_token_sha256.append(
-                [token_digest(list(row)) for row in token_ids]
-            )
+            output_token_sha256.append([token_digest(list(row)) for row in token_ids])
             drafts = counters.get("vllm:spec_decode_num_drafts", 0)
             draft_tokens = counters.get("vllm:spec_decode_num_draft_tokens", 0)
             accepted = counters.get("vllm:spec_decode_num_accepted_tokens", 0)
@@ -643,12 +574,10 @@ def evaluate_speed(
                     item["target_cycle_ms"] for item in speculative_measurements
                 ),
                 speculative_mean_acceptance_length=statistics.median(
-                    item["mean_acceptance_length"]
-                    for item in speculative_measurements
+                    item["mean_acceptance_length"] for item in speculative_measurements
                 ),
                 speculative_draft_acceptance_rate=statistics.median(
-                    item["draft_acceptance_rate"]
-                    for item in speculative_measurements
+                    item["draft_acceptance_rate"] for item in speculative_measurements
                 ),
             )
             if batch_size == 1:
@@ -666,9 +595,8 @@ def evaluate_speed(
 def main() -> None:
     args = parse_args()
     run_identity = benchmark_identity()
-    # This offline benchmark sends only its own callbacks to local vLLM
-    # workers. vLLM 0.27 otherwise rejects both the existing route-ablation
-    # callbacks and the attention-timing callbacks as non-msgpack objects.
+    # The attention-timing callback is not a msgpack object, so vLLM 0.27
+    # requires explicit opt-in before sending it to local workers.
     os.environ["VLLM_ALLOW_INSECURE_SERIALIZATION"] = "1"
     if args.dummy_attention:
         if args.measure != "speed" or args.mode != "full":
@@ -676,24 +604,6 @@ def main() -> None:
         if args.speculative_model:
             raise ValueError("--dummy-attention does not support speculative decoding")
         os.environ["LOD_BENCHMARK_DUMMY_ATTENTION"] = "1"
-    if (
-        args.prefill_route_count_bias != 1.0
-        or args.prefill_route_large_count_penalty != 0.0
-        or args.prefill_route_soft_count_pivot is not None
-        or args.prefill_route_key_spread is not None
-        or args.prefill_route_exclude_singletons
-    ) and args.prefill_variant not in {"generic4", "generic8"}:
-        raise ValueError("route count-bias ablations require --prefill-variant generic4/generic8")
-    if args.prefill_route_key_spread and args.prefill_route_exclude_singletons:
-        raise ValueError("test key spread and singleton exclusion separately")
-    if args.prefill_route_key_spread is not None and (
-        args.prefill_route_count_bias != 1.0
-        or args.prefill_route_large_count_penalty != 0.0
-        or args.prefill_route_soft_count_pivot is not None
-    ):
-        raise ValueError("key-spread routing cannot be combined with count-bias ablations")
-    if args.prefill_variant and args.mode == "full":
-        raise ValueError("--prefill-variant requires a LoD mode")
     if min(args.length, args.samples, args.batch_size, args.repeats) < 1:
         raise ValueError("length, samples, batch-size, and repeats must be positive")
     if args.sample_offset < 0:
@@ -742,27 +652,6 @@ def main() -> None:
 
     llm = LLM(**kwargs)
     try:
-        if (
-            args.prefill_variant
-            or args.prefill_exact_mass_coverage is not None
-            or args.prefill_max_open_leaf_tokens is not None
-        ):
-            changed = llm.apply_model(
-                functools.partial(
-                    configure_prefill_variant,
-                    variant=args.prefill_variant,
-                    exact_mass_coverage=args.prefill_exact_mass_coverage,
-                    max_open_leaf_tokens=args.prefill_max_open_leaf_tokens,
-                    route_count_bias=args.prefill_route_count_bias,
-                    route_large_count_penalty=args.prefill_route_large_count_penalty,
-                    route_large_count_threshold=args.prefill_route_large_count_threshold,
-                    route_soft_count_pivot=args.prefill_route_soft_count_pivot,
-                    route_key_spread=args.prefill_route_key_spread,
-                    route_exclude_singletons=args.prefill_route_exclude_singletons,
-                )
-            )
-            if not changed or not all(count > 0 for count in changed):
-                raise RuntimeError("prefill variant found no LoD attention layers")
         if args.measure == "quality":
             measurements = evaluate_quality(
                 llm,
@@ -792,15 +681,6 @@ def main() -> None:
             "checkpoint": args.checkpoint,
             "mode": args.mode,
             "dummy_attention": args.dummy_attention,
-            "prefill_variant": args.prefill_variant or "production",
-            "prefill_exact_mass_coverage": args.prefill_exact_mass_coverage,
-            "prefill_max_open_leaf_tokens": args.prefill_max_open_leaf_tokens,
-            "prefill_route_count_bias": args.prefill_route_count_bias,
-            "prefill_route_large_count_penalty": args.prefill_route_large_count_penalty,
-            "prefill_route_large_count_threshold": args.prefill_route_large_count_threshold,
-            "prefill_route_soft_count_pivot": args.prefill_route_soft_count_pivot,
-            "prefill_route_key_spread": args.prefill_route_key_spread,
-            "prefill_route_exclude_singletons": args.prefill_route_exclude_singletons,
             "decode_routes": None if args.mode == "full" else 8,
             "batch_size": args.batch_size,
             "speed_samples": speed_samples if args.measure == "speed" else None,

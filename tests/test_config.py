@@ -20,11 +20,9 @@ from lod_attention._profile import configure_engine
 
 
 @pytest.mark.parametrize("routing_normalization", ["query", "none"])
-@pytest.mark.parametrize("route_count", [4, 8])
 def test_aiter_prefill_reuses_fused_coarse_result(
     monkeypatch: pytest.MonkeyPatch,
     routing_normalization: str,
-    route_count: int,
 ) -> None:
     from lod_attention._core import TritonLODAttentionCore
     from lod_attention.kernels import aiter_prefill_attention
@@ -32,8 +30,8 @@ def test_aiter_prefill_reuses_fused_coarse_result(
     engine = TritonLODAttentionCore()
     engine.num_key_value_groups = 2
     engine.scaling = 0.5
-    engine.two_level_topk = route_count
-    engine.prefill_two_level_topk = route_count
+    engine.two_level_topk = ROUTE_COUNT
+    engine.prefill_two_level_topk = ROUTE_COUNT
     engine.separate_sink_cache = True
     engine.routing_normalization = routing_normalization
     engine.prefill_aiter_route_coarse = True
@@ -44,8 +42,7 @@ def test_aiter_prefill_reuses_fused_coarse_result(
     state_k = torch.randn(1, 2, 8, 4)
     state_v = torch.randn_like(state_k)
     counts = torch.randint(1, 5, (1, 2, 8, 1)).float()
-    key_norm_sums = counts.clone()
-    expected_routes = torch.zeros(1, 4, 3, route_count, dtype=torch.long)
+    expected_routes = torch.zeros(1, 4, 3, ROUTE_COUNT, dtype=torch.long)
     expected_coarse = object()
     expected_route_head_counts = torch.zeros(4 * 8, dtype=torch.int32)
     expected_route_offsets = torch.zeros_like(expected_routes, dtype=torch.int32)
@@ -62,14 +59,12 @@ def test_aiter_prefill_reuses_fused_coarse_result(
         assert passed_v.data_ptr() == state_v.data_ptr()
         assert passed_counts.data_ptr() == counts.data_ptr()
         assert kwargs == {
-            "route_count": route_count,
             "state_len": 8,
             "kv_group_size": 2,
             "scale": 0.5,
             "normalize_route_query": routing_normalization == "query",
-            "exact_mass_coverage": None,
-            "local_lse": None,
-            "sink_k": None,
+            "max_open_leaf_tokens": None,
+            "slot_lengths": None,
             "buffers": None,
         }
         return (
@@ -89,14 +84,14 @@ def test_aiter_prefill_reuses_fused_coarse_result(
         state_k,
         state_v,
         counts,
-        key_norm_sums=key_norm_sums,
         state_len=8,
-        state_capacity=8,
     )
     assert routes is expected_routes
     assert engine._lod_prefill_route_head_counts is expected_route_head_counts
     assert engine._lod_prefill_route_offsets is expected_route_offsets
     assert engine._lod_prefill_aiter_coarse is expected_coarse
+
+
 def test_public_modes_map_to_the_three_cache_organizations() -> None:
     two = kernel_config(LODMode.TWO_TIER)
     bf16 = kernel_config(LODMode.THREE_TIER_BF16)
@@ -129,7 +124,7 @@ def test_only_qwen38_and_k2_are_recognized() -> None:
     qwen = SimpleNamespace(
         model_type="qwen3_5",
         architectures=["Qwen3_5ForConditionalGeneration"],
-        get_text_config=lambda decoder=True: qwen_text,
+        get_text_config=lambda _decoder=True: qwen_text,
     )
     k2 = SimpleNamespace(
         model_type="k2_horizon",
@@ -214,9 +209,7 @@ def test_profile_fixes_top_eight_for_both_families(
         (LODMode.THREE_TIER_INT4, EXACT_DECODE_LIMIT),
     ],
 )
-def test_modes_use_exact_short_decode(
-    mode: LODMode, exact_limit: int
-) -> None:
+def test_modes_use_exact_short_decode(mode: LODMode, exact_limit: int) -> None:
     engine = SimpleNamespace(
         config=SimpleNamespace(
             num_attention_heads=24,
@@ -255,21 +248,15 @@ def test_materialized_maxsim_batch_chunk_bounds_dense_workspace() -> None:
         == 16
     )
     assert (
-        _materialized_maxsim_batch_chunk(
-            **geometry, score_fields=1, free_bytes=8 * gib
-        )
+        _materialized_maxsim_batch_chunk(**geometry, score_fields=1, free_bytes=8 * gib)
         == 4
     )
     assert (
-        _materialized_maxsim_batch_chunk(
-            **geometry, score_fields=1, free_bytes=3 * gib
-        )
+        _materialized_maxsim_batch_chunk(**geometry, score_fields=1, free_bytes=3 * gib)
         == 2
     )
     assert (
-        _materialized_maxsim_batch_chunk(
-            **geometry, score_fields=2, free_bytes=8 * gib
-        )
+        _materialized_maxsim_batch_chunk(**geometry, score_fields=2, free_bytes=8 * gib)
         == 2
     )
 

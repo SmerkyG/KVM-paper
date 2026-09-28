@@ -191,7 +191,7 @@ def fused_mova_impl(
     assert hidden_states.dtype in [torch.float32, torch.float16, torch.bfloat16]
 
     num_tokens = hidden_states.size(0)
-    E, N, K = w1.size()
+    E, N, _ = w1.size()
 
     if global_num_experts == -1:
         global_num_experts = E

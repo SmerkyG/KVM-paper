@@ -60,7 +60,7 @@
 +        }
 +        else {
 +#ifndef CK_TILE_FMHA_ROUTE_TOPK
-+#define CK_TILE_FMHA_ROUTE_TOPK 4
++#define CK_TILE_FMHA_ROUTE_TOPK 8
 +#endif
 +            // Experimental LOD route probe. D=128 always emits 128-key
 +            // tiles; D=256 keeps a safe 64-key grid because its selected CK
@@ -188,11 +188,11 @@
 +#endif
 +
 +#ifndef CK_TILE_FMHA_ROUTE_TOPK
-+#define CK_TILE_FMHA_ROUTE_TOPK 4
++#define CK_TILE_FMHA_ROUTE_TOPK 8
 +#endif
 +
-+#if CK_TILE_FMHA_ROUTE_TOPK != 4 && CK_TILE_FMHA_ROUTE_TOPK != 8
-+#error "CK_TILE_FMHA_ROUTE_TOPK must be 4 or 8"
++#if CK_TILE_FMHA_ROUTE_TOPK != 8
++#error "CK_TILE_FMHA_ROUTE_TOPK must be 8"
 +#endif
 +
 @@ -680,7 +688,14 @@

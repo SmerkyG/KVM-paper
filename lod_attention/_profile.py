@@ -61,15 +61,12 @@ def configure_engine(
     engine.fused_prefill_external_recompute = True
     engine.prefill_hierarchical_route = True
     engine.prefill_overlap_coarse_leaf = True
-    engine.prefill_overlap_local_lod = False
     engine.fused_state_update = True
     engine.fused_state_maxsim = True
     engine.prefill_aiter_route_coarse = True
 
     engine.state_clustering_normalization = "none" if has_key_norm else "cosine"
-    engine.state_clustering_centroid_rescale = (
-        "coherence" if has_key_norm else "none"
-    )
+    engine.state_clustering_centroid_rescale = "coherence" if has_key_norm else "none"
     engine.state_clustering_centroid_rescale_scope = "assignment"
     engine.routing_normalization = "none" if has_query_norm else "query"
 
@@ -126,7 +123,6 @@ def configure_engine(
             engine.leaf_block_n = 16
             engine.leaf_num_warps = 4
             engine.decode_route_parallel_reduce = True
-            engine.decode_route_parallel_reduce_block_d = 32
 
 
 __all__ = ["configure_engine"]
