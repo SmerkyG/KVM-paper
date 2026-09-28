@@ -801,11 +801,7 @@ def main() -> None:
             "prefill_route_soft_count_pivot": args.prefill_route_soft_count_pivot,
             "prefill_route_key_spread": args.prefill_route_key_spread,
             "prefill_route_exclude_singletons": args.prefill_route_exclude_singletons,
-            "decode_routes": (
-                None
-                if args.mode == "full"
-                else 8 if os.environ.get("LOD_DECODE_TOP8", "1") == "1" else 4
-            ),
+            "decode_routes": None if args.mode == "full" else 8,
             "batch_size": args.batch_size,
             "speed_samples": speed_samples if args.measure == "speed" else None,
             "tensor_parallel_size": args.tensor_parallel_size,

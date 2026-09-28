@@ -2400,12 +2400,6 @@ class TritonLODAttentionCore(nn.Module):
                         state_k.detach().contiguous(),
                         state_v.detach().contiguous(),
                         counts.detach().contiguous(),
-                        key_norm_sums=(
-                            key_norm_sums.detach().contiguous()
-                            if getattr(self, "inverse_coherence_mass", False)
-                            and key_norm_sums is not None
-                            else None
-                        ),
                         route_count=route_count,
                         state_len=state_len,
                         kv_group_size=self.num_key_value_groups,
@@ -4735,17 +4729,17 @@ class TritonLODAttentionCore(nn.Module):
             )
             if tuple(prefill_valid_starts.shape) != (batch_size,):
                 raise ValueError("prefill valid starts must have one entry per row")
+            valid_start_limit = min(prefill_len, self.chunk_len)
             if bool(
-                (prefill_valid_starts.lt(0) | prefill_valid_starts.ge(self.chunk_len))
+                (
+                    prefill_valid_starts.lt(0)
+                    | prefill_valid_starts.ge(valid_start_limit)
+                )
                 .any()
                 .item()
             ):
                 raise ValueError(
                     "chunk-aligned padding must fit entirely in the first chunk"
-                )
-            if self.separate_sink_cache:
-                raise NotImplementedError(
-                    "chunk-aligned padding does not yet support a separate sink cache"
                 )
             self._lod_padding_state_reserve = int(prefill_valid_starts.max().item())
         else:
@@ -4817,12 +4811,38 @@ class TritonLODAttentionCore(nn.Module):
         separated_sink_len = (
             min(self.sink_len, initial_len) if self.separate_sink_cache else 0
         )
+        if prefill_valid_starts is not None and bool(
+            (prefill_valid_starts + separated_sink_len > initial_len).any().item()
+        ):
+            raise ValueError("each padded row must contain its protected sink")
         sink_k = None
         sink_v = None
         if separated_sink_len:
+            if prefill_valid_starts is None:
+                source_sink_k = k[..., :separated_sink_len, :]
+                source_sink_v = v[..., :separated_sink_len, :]
+            else:
+                sink_positions = prefill_valid_starts.unsqueeze(1) + torch.arange(
+                    separated_sink_len,
+                    device=k.device,
+                ).unsqueeze(0)
+                sink_key_index = sink_positions[:, None, :, None].expand(
+                    -1,
+                    self.config.num_key_value_heads,
+                    -1,
+                    int(k.size(-1)),
+                )
+                sink_value_index = sink_positions[:, None, :, None].expand(
+                    -1,
+                    self.config.num_key_value_heads,
+                    -1,
+                    int(v.size(-1)),
+                )
+                source_sink_k = torch.gather(k, 2, sink_key_index)
+                source_sink_v = torch.gather(v, 2, sink_value_index)
             if prefill_storage is None:
-                sink_k = k[..., :separated_sink_len, :].detach().contiguous()
-                sink_v = v[..., :separated_sink_len, :].detach().contiguous()
+                sink_k = source_sink_k.detach().contiguous()
+                sink_v = source_sink_v.detach().contiguous()
             else:
                 sink_k = prefill_storage.get("sink_k")
                 sink_v = prefill_storage.get("sink_v")
@@ -4840,10 +4860,32 @@ class TritonLODAttentionCore(nn.Module):
                     raise ValueError(
                         "direct prefill sink K/V storage has incompatible shape"
                     )
-                sink_k.copy_(k[..., :separated_sink_len, :])
-                sink_v.copy_(v[..., :separated_sink_len, :])
-        archive_k = k[..., separated_sink_len:, :]
-        archive_v = v[..., separated_sink_len:, :]
+                sink_k.copy_(source_sink_k)
+                sink_v.copy_(source_sink_v)
+        if prefill_valid_starts is not None and separated_sink_len:
+            archive_position = torch.arange(
+                attention_len - separated_sink_len, device=k.device
+            )
+            archive_source = archive_position.unsqueeze(0) + (
+                archive_position.unsqueeze(0) >= prefill_valid_starts.unsqueeze(1)
+            ).to(torch.long) * separated_sink_len
+            archive_key_index = archive_source[:, None, :, None].expand(
+                -1,
+                self.config.num_key_value_heads,
+                -1,
+                int(k.size(-1)),
+            )
+            archive_value_index = archive_source[:, None, :, None].expand(
+                -1,
+                self.config.num_key_value_heads,
+                -1,
+                int(v.size(-1)),
+            )
+            archive_k = torch.gather(k, 2, archive_key_index)
+            archive_v = torch.gather(v, 2, archive_value_index)
+        else:
+            archive_k = k[..., separated_sink_len:, :]
+            archive_v = v[..., separated_sink_len:, :]
         initial_leaf_len = initial_len - separated_sink_len
         initial_state_len = initial_leaf_len
         if prefill_valid_starts is None:
@@ -4878,10 +4920,10 @@ class TritonLODAttentionCore(nn.Module):
                 int(v.size(-1)),
             )
             initial_state_k = torch.gather(
-                k[..., :initial_state_len, :], 2, gather_key_index
+                archive_k[..., :initial_state_len, :], 2, gather_key_index
             ).masked_fill(~initial_valid[:, None, :, None], 0)
             initial_state_v = torch.gather(
-                v[..., :initial_state_len, :], 2, gather_value_index
+                archive_v[..., :initial_state_len, :], 2, gather_value_index
             ).masked_fill(~initial_valid[:, None, :, None], 0)
             physical = slot.unsqueeze(0).expand(batch_size, -1)
             compact_owner = physical - prefill_valid_starts.unsqueeze(1)

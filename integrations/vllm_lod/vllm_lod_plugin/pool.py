@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import math
-import os
 from typing import Any
 
 import torch
@@ -93,20 +92,6 @@ class VLLMLayerLODPool:
                 "the LoD paper release supports only Qwen3.8 (D256/GQA6) "
                 "and K2 Horizon (D128/GQA8)"
             )
-        experiment = os.environ.get("LOD_QWEN_EXPERIMENT", "baseline")
-        if experiment not in {
-            "baseline", "assignment-off", "inverse-mass", "both", "decode-top8"
-        }:
-            raise ValueError(f"unsupported LOD_QWEN_EXPERIMENT: {experiment}")
-        if experiment != "baseline" and self.family != ModelFamily.QWEN38:
-            raise ValueError("LOD_QWEN_EXPERIMENT applies only to Qwen3.8")
-        self.inverse_coherence_mass = experiment in {"inverse-mass", "both"}
-        decode_top8 = os.environ.get("LOD_DECODE_TOP8", "1")
-        if decode_top8 not in {"0", "1"}:
-            raise ValueError("LOD_DECODE_TOP8 must be 0 or 1")
-        self.decode_open_count = (
-            8 if experiment == "decode-top8" or decode_top8 == "1" else 4
-        )
         settings = settings.for_family(self.family)
         self.settings = settings
 
@@ -160,7 +145,6 @@ class VLLMLayerLODPool:
             default_open_count=ROUTE_COUNT,
         )
         self.engine.head_dim = self.head_dim
-        self.engine.inverse_coherence_mass = self.inverse_coherence_mass
         configure_engine(
             self.engine,
             family=self.family,
@@ -169,10 +153,6 @@ class VLLMLayerLODPool:
             has_query_norm=has_query_norm,
             has_key_norm=has_key_norm,
         )
-        if experiment in {"assignment-off", "both"}:
-            # Both append selection and assignment now use the existing
-            # direction-only centroid key; only assignment changes.
-            self.engine.state_clustering_centroid_rescale_scope = "none"
         if self.speculative_tokens:
             # DFlash captures ordinary and flattened verifier graphs over one
             # target pool. Its graph warmup cannot safely mix the short-context
@@ -1099,10 +1079,6 @@ class VLLMLayerLODPool:
                 coarse_v[start_slot:stop_slot],
                 coarse_bias[start_slot:stop_slot],
                 active_state_len=active_state_len,
-                key_norm_sums=(
-                    self.state["key_norm_sums"][start_slot:stop_slot]
-                    if self.inverse_coherence_mass else None
-                ),
             )
             begin = end
         if self.settings.decode_gqa_fixed_mask_aiter:
@@ -3204,7 +3180,6 @@ class VLLMLayerLODPool:
             gqa_union_page1_k=page.get("unified_page1_k"),
             gqa_union_page1_v=page.get("unified_page1_v"),
             gqa_union_page1_bias=page.get("unified_page1_bias"),
-            route_use_page1_bias=self.inverse_coherence_mass,
             gqa_union_page1_leaf_offset=int(page.get("unified_page1_leaf_offset", 0)),
             gqa_union_page1_local_offset=int(page.get("unified_page1_local_offset", 0)),
             gqa_union_page1_sink_offset=int(page.get("unified_page1_sink_offset", 0)),
@@ -3220,7 +3195,7 @@ class VLLMLayerLODPool:
             # particular, recursive page refinement has bounded work even when
             # the selected centroid owns a large posting list.
             max_leaf_tokens=None,
-            open_count=self.decode_open_count,
+            open_count=ROUTE_COUNT,
             recursive_page_cache=(page if recursive else None),
             flat_page_indices=(
                 page["page_indices"] if indexed_flat else None

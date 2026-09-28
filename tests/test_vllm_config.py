@@ -27,8 +27,14 @@ def test_environment_exposes_only_mode_and_capacity(monkeypatch: pytest.MonkeyPa
     assert settings.request_capacity == 65_536
 
 
-def test_removed_tuning_flag_fails_loudly(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("VLLM_LOD_OPEN_COUNT", "8")
+@pytest.mark.parametrize(
+    "name",
+    ["VLLM_LOD_OPEN_COUNT", "LOD_QWEN_EXPERIMENT", "LOD_DECODE_TOP8"],
+)
+def test_removed_tuning_flag_fails_loudly(
+    monkeypatch: pytest.MonkeyPatch, name: str
+) -> None:
+    monkeypatch.setenv(name, "8")
     with pytest.raises(ValueError, match="has no tuning flags"):
         VLLMLODSettings.from_environment()
 

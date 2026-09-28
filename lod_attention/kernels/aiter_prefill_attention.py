@@ -60,7 +60,6 @@ def _prepare_aiter_state_kernel(
     state_k,
     state_v,
     counts,
-    key_norm_sums,
     mean_k,
     mean_v,
     active_counts,
@@ -73,7 +72,6 @@ def _prepare_aiter_state_kernel(
     BLOCK_G: tl.constexpr,
     HEAD_DIM: tl.constexpr,
     BLOCK_D: tl.constexpr,
-    HAS_KEY_NORM_SUMS: tl.constexpr,
 ):
     """Materialize contiguous means and count bias in one launch."""
 
@@ -103,18 +101,7 @@ def _prepare_aiter_state_kernel(
     )
     tl.store(mean_k + output_offset, key / count, mask=valid_dimension)
     tl.store(mean_v + output_offset, value / count, mask=valid_dimension)
-    mass = count
-    if HAS_KEY_NORM_SUMS:
-        radial_sum = tl.load(key_norm_sums + source_row, mask=valid_slot, other=0.0)
-        squared_key_sum = tl.sum(
-            tl.where(valid_dimension, key.to(tl.float32) * key.to(tl.float32), 0.0),
-            axis=0,
-        )
-        centroid_rms = tl.sqrt(squared_key_sum / HEAD_DIM) / count
-        mass = count * tl.maximum(
-            (radial_sum / count) / tl.maximum(centroid_rms, 1.0e-12), 1.0
-        )
-    tl.store(active_counts + row, mass)
+    tl.store(active_counts + row, count)
     # Triton requires ``tl.arange`` bounds to be powers of two. Qwen3.8 has
     # six query heads per K/V head, so pad the lane vector and mask its two
     # inactive entries rather than specializing the calculation to GQA=8.
@@ -127,7 +114,7 @@ def _prepare_aiter_state_kernel(
     )
     tl.store(
         log_count_bias + bias_offset,
-        tl.where(valid_slot, tl.log(mass), -float("inf")),
+        tl.where(valid_slot, tl.log(count), -float("inf")),
         mask=valid_group,
     )
 
@@ -1449,7 +1436,6 @@ def aiter_prefill_route_coarse_attention(
     state_v: torch.Tensor,
     counts: torch.Tensor,
     *,
-    key_norm_sums: torch.Tensor | None = None,
     route_count: int = 4,
     state_len: int,
     kv_group_size: int,
@@ -1493,10 +1479,6 @@ def aiter_prefill_route_coarse_attention(
     if max_open_leaf_tokens is not None and exact_mass_coverage is not None:
         raise ValueError("leaf-size cap and mass coverage cannot be combined")
     tensors = (q, state_k, state_v, counts)
-    if key_norm_sums is not None:
-        if tuple(key_norm_sums.shape) != tuple(counts.shape):
-            raise ValueError("AITER mass correction requires one key norm sum per slot")
-        tensors += (key_norm_sums,)
     if not all(tensor.is_cuda for tensor in tensors):
         raise ValueError("AITER route/coarse prefill requires GPU tensors")
     if not all(tensor.is_contiguous() for tensor in tensors):
@@ -1581,7 +1563,6 @@ def aiter_prefill_route_coarse_attention(
         state_k,
         state_v,
         counts,
-        key_norm_sums if key_norm_sums is not None else counts,
         mean_k,
         mean_v,
         active_counts,
@@ -1594,7 +1575,6 @@ def aiter_prefill_route_coarse_attention(
         BLOCK_G=triton.next_power_of_2(kv_group_size),
         HEAD_DIM=head_dim,
         BLOCK_D=triton.next_power_of_2(head_dim),
-        HAS_KEY_NORM_SUMS=key_norm_sums is not None,
         num_warps=4,
     )
     q_aiter = q.permute(0, 2, 1, 3)

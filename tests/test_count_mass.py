@@ -7,7 +7,7 @@ import torch
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="requires a GPU")
-def test_inverse_coherence_mass_agrees_in_prefill_and_decode() -> None:
+def test_standard_count_mass_agrees_in_prefill_and_decode() -> None:
     from lod_attention.kernels.aiter_prefill_attention import (
         _prepare_aiter_state_kernel,
     )
@@ -17,13 +17,12 @@ def test_inverse_coherence_mass_agrees_in_prefill_and_decode() -> None:
 
     device = torch.device("cuda")
     state_k = torch.zeros(1, 1, 8, 256, dtype=torch.bfloat16, device=device)
-    state_k[0, 0, 0, :2] = 1  # Sum of two orthogonal unit keys.
+    state_k[0, 0, 0, :2] = 1
     state_k[0, 0, 1, 0] = 1
     state_v = state_k.clone()
     counts = torch.zeros(1, 1, 8, 1, dtype=torch.float32, device=device)
     counts[0, 0, 0, 0] = 2
     counts[0, 0, 1, 0] = 1
-    key_norm_sums = counts / math.sqrt(256)
 
     mean_k = torch.empty(1, 1, 2, 256, dtype=state_k.dtype, device=device)
     mean_v = torch.empty_like(mean_k)
@@ -33,7 +32,6 @@ def test_inverse_coherence_mass_agrees_in_prefill_and_decode() -> None:
         state_k,
         state_v,
         counts,
-        key_norm_sums,
         mean_k,
         mean_v,
         masses,
@@ -46,7 +44,6 @@ def test_inverse_coherence_mass_agrees_in_prefill_and_decode() -> None:
         BLOCK_G=2,
         HEAD_DIM=256,
         BLOCK_D=256,
-        HAS_KEY_NORM_SUMS=True,
     )
 
     coarse_k = torch.empty_like(state_k)
@@ -60,13 +57,11 @@ def test_inverse_coherence_mass_agrees_in_prefill_and_decode() -> None:
         coarse_v,
         decode_bias,
         active_state_len=2,
-        key_norm_sums=key_norm_sums,
     )
 
-    expected_mass = 2 * math.sqrt(2)
-    assert masses[0, 0, 0, 0].item() == pytest.approx(expected_mass, rel=1e-5)
-    assert masses[0, 0, 1, 0].item() == pytest.approx(1.0, rel=1e-5)
-    expected_bias = math.log(expected_mass)
+    assert masses[0, 0, 0, 0].item() == pytest.approx(2.0)
+    assert masses[0, 0, 1, 0].item() == pytest.approx(1.0)
+    expected_bias = math.log(2.0)
     assert prefill_bias[0, 0, 0, 0].item() == pytest.approx(expected_bias, abs=1e-3)
     assert decode_bias[0, 0, 0].item() == pytest.approx(expected_bias, abs=1e-3)
     assert decode_bias[0, 0, 1].item() == pytest.approx(0.0, abs=1e-3)

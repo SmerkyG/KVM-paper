@@ -309,11 +309,7 @@ def main() -> None:
         "prefill_exact_mass_coverage": args.prefill_exact_mass_coverage,
         "prefill_max_open_leaf_tokens": args.prefill_max_open_leaf_tokens,
         "prefill_route_key_spread": args.prefill_route_key_spread,
-        "decode_routes": (
-            None
-            if args.mode == "full"
-            else 8 if os.environ.get("LOD_DECODE_TOP8", "1") == "1" else 4
-        ),
+        "decode_routes": None if args.mode == "full" else 8,
         "lengths": args.lengths,
         "requested_samples": args.samples,
         "sample_offset": args.sample_offset,

@@ -12,6 +12,10 @@ _PUBLIC_ENV = {
     "VLLM_LOD_POOL_SIZE",
     "VLLM_LOD_MAX_CONTEXT",
 }
+_REMOVED_ENV = {
+    "LOD_DECODE_TOP8",
+    "LOD_QWEN_EXPERIMENT",
+}
 LOD_SCHEDULER = "vllm_lod_plugin.scheduler.LODChunkAlignedScheduler"
 
 
@@ -30,7 +34,11 @@ def _reject_removed_options() -> None:
     removed = sorted(
         name
         for name in os.environ
-        if name.startswith(("VLLM_LOD_", "LOD_DEV_")) and name not in _PUBLIC_ENV
+        if (
+            name in _REMOVED_ENV
+            or name.startswith(("VLLM_LOD_", "LOD_DEV_"))
+            and name not in _PUBLIC_ENV
+        )
     )
     if removed:
         raise ValueError(

@@ -118,7 +118,6 @@ def fused_decode_paged_lod_attention(
     gqa_union_page1_k: torch.Tensor | None = None,
     gqa_union_page1_v: torch.Tensor | None = None,
     gqa_union_page1_bias: torch.Tensor | None = None,
-    route_use_page1_bias: bool = False,
     gqa_union_page1_leaf_offset: int = 0,
     gqa_union_page1_local_offset: int = 0,
     gqa_union_page1_sink_offset: int = 0,
@@ -1050,16 +1049,8 @@ def fused_decode_paged_lod_attention(
                     and state_len > 4096
                     and int(state_k.size(2)) < 65536
                 )
-                reuse_route_log_bias = route_use_page1_bias
-                if reuse_route_log_bias:
-                    if not isinstance(gqa_union_page1_bias, torch.Tensor):
-                        raise ValueError("corrected route mass requires page-one bias")
-                    coarse_rows = state_k.numel() // head_dim
-                    route_log_count_bias = gqa_union_page1_bias.narrow(
-                        0, gqa_union_page1_coarse_offset, coarse_rows
-                    ).view(*state_k.shape[:-1])
-                else:
-                    route_log_count_bias = counts
+                reuse_route_log_bias = False
+                route_log_count_bias = counts
                 route_log_count_bias_strides = (
                     route_log_count_bias.stride(0),
                     route_log_count_bias.stride(1),

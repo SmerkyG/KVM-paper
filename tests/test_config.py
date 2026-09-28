@@ -20,12 +20,10 @@ from lod_attention._profile import configure_engine
 
 
 @pytest.mark.parametrize("routing_normalization", ["query", "none"])
-@pytest.mark.parametrize("inverse_mass", [False, True])
 @pytest.mark.parametrize("route_count", [4, 8])
 def test_aiter_prefill_reuses_fused_coarse_result(
     monkeypatch: pytest.MonkeyPatch,
     routing_normalization: str,
-    inverse_mass: bool,
     route_count: int,
 ) -> None:
     from lod_attention._core import TritonLODAttentionCore
@@ -41,7 +39,6 @@ def test_aiter_prefill_reuses_fused_coarse_result(
     engine.prefill_aiter_route_coarse = True
     engine.split_prefill_local_attention = True
     engine.mla_state_key_normalization = "none"
-    engine.inverse_coherence_mass = inverse_mass
 
     q = torch.randn(1, 4, 3, 4)
     state_k = torch.randn(1, 2, 8, 4)
@@ -64,12 +61,6 @@ def test_aiter_prefill_reuses_fused_coarse_result(
         assert passed_k.data_ptr() == state_k.data_ptr()
         assert passed_v.data_ptr() == state_v.data_ptr()
         assert passed_counts.data_ptr() == counts.data_ptr()
-        passed_norms = kwargs.pop("key_norm_sums")
-        if inverse_mass:
-            assert isinstance(passed_norms, torch.Tensor)
-            assert passed_norms.data_ptr() == key_norm_sums.data_ptr()
-        else:
-            assert passed_norms is None
         assert kwargs == {
             "route_count": route_count,
             "state_len": 8,
@@ -106,36 +97,6 @@ def test_aiter_prefill_reuses_fused_coarse_result(
     assert engine._lod_prefill_route_head_counts is expected_route_head_counts
     assert engine._lod_prefill_route_offsets is expected_route_offsets
     assert engine._lod_prefill_aiter_coarse is expected_coarse
-
-
-def test_disabling_qwen_coherence_changes_only_assignment_geometry() -> None:
-    from lod_attention._core import TritonLODAttentionCore
-
-    engine = TritonLODAttentionCore()
-    engine.state_clustering_normalization = "none"
-    engine.state_clustering_centroid_rescale = "coherence"
-    key = torch.tensor([[[[1.0, 1.0]]]])
-    radial_rms = torch.tensor([[[[2.0]]]])
-    engine.state_clustering_centroid_rescale_scope = "assignment"
-    baseline_assignment = engine._state_clustering_key(
-        key, role="centroid", radial_rms=radial_rms, purpose="assignment"
-    )
-    baseline_append = engine._state_clustering_key(
-        key, role="centroid", radial_rms=radial_rms, purpose="append"
-    )
-    engine.state_clustering_centroid_rescale_scope = "none"
-    ablated_assignment = engine._state_clustering_key(
-        key, role="centroid", radial_rms=radial_rms, purpose="assignment"
-    )
-    ablated_append = engine._state_clustering_key(
-        key, role="centroid", radial_rms=radial_rms, purpose="append"
-    )
-    torch.testing.assert_close(baseline_assignment, key / 2)
-    torch.testing.assert_close(ablated_assignment, baseline_append)
-    torch.testing.assert_close(ablated_append, baseline_append)
-    assert engine._streaming_state_geometry() == "spherical"
-
-
 def test_public_modes_map_to_the_three_cache_organizations() -> None:
     two = kernel_config(LODMode.TWO_TIER)
     bf16 = kernel_config(LODMode.THREE_TIER_BF16)
