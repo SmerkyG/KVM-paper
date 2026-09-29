@@ -303,8 +303,9 @@ def _write_virtual_page_indices_kernel(
     kv_row = token_row // TOKENS
     owner = tl.load(owners + token_row).to(tl.int64)
     ordinal = tl.load(ordinals + token_row).to(tl.int64)
-    page_ordinal = ordinal // PAGE_SIZE
-    within_page = ordinal % PAGE_SIZE
+    valid = ordinal >= 0
+    page_ordinal = tl.where(valid, ordinal // PAGE_SIZE, 0)
+    within_page = tl.where(valid, ordinal % PAGE_SIZE, 0)
     page_id = _lookup_page_id(
         slot_pages,
         overflow_page_keys,
@@ -313,15 +314,17 @@ def _write_virtual_page_indices_kernel(
         kv_row,
         owner,
         page_ordinal,
-        True,
+        valid,
         STATE_CAPACITY,
         INLINE_PAGES_PER_SLOT,
         PAGE_CAPACITY,
         HASH_CAPACITY,
         HASH_PROBES,
     ).to(tl.int64)
-    physical_token = (kv_row * PAGE_CAPACITY + page_id) * PAGE_SIZE + within_page
-    tl.store(page_indices + physical_token, LEAF_OFFSET + token)
+    valid &= (page_id >= 0) & (page_id < PAGE_CAPACITY)
+    safe_page_id = tl.where(valid, page_id, 0)
+    physical_token = (kv_row * PAGE_CAPACITY + safe_page_id) * PAGE_SIZE + within_page
+    tl.store(page_indices + physical_token, LEAF_OFFSET + token, mask=valid)
 
 
 @triton.jit(
@@ -393,6 +396,8 @@ def _update_page_summaries_kernel(
         HASH_CAPACITY,
         HASH_PROBES,
     ).to(tl.int64)
+    refresh &= (page_id >= 0) & (page_id < PAGE_CAPACITY)
+    page_id = tl.where(refresh, page_id, 0)
     page_count = tl.where(completes_page, PAGE_SIZE, ordinal % PAGE_SIZE + 1)
     page_offset = tl.arange(0, PAGE_SIZE)
     dimension = dimension_block * BLOCK_D + tl.arange(0, BLOCK_D)
@@ -1159,7 +1164,7 @@ def _append_quantized_virtual_pages_grouped_int4_kernel(
     slot_length = tl.load(slot_lengths + kv_row * STATE_CAPACITY + owner).to(tl.int64)
     completes_page = ordinal % 16 == 15
     is_partial_tail = ordinal == slot_length - 1
-    refresh = completes_page | is_partial_tail
+    refresh = (ordinal >= 0) & (completes_page | is_partial_tail)
     page_ordinal = ordinal // 16
     page_id = _lookup_page_id(
         slot_pages,
@@ -1176,6 +1181,8 @@ def _append_quantized_virtual_pages_grouped_int4_kernel(
         HASH_CAPACITY,
         HASH_PROBES,
     ).to(tl.int64)
+    refresh &= (page_id >= 0) & (page_id < PAGE_CAPACITY)
+    page_id = tl.where(refresh, page_id, 0)
     old_count = tl.load(
         page_counts + kv_row * PAGE_CAPACITY + page_id,
         mask=refresh,
@@ -1190,6 +1197,9 @@ def _append_quantized_virtual_pages_grouped_int4_kernel(
         mask=valid_token,
         other=0,
     ).to(tl.int64)
+    valid_token &= (leaf_index >= 0) & (leaf_index < LEAF_CAPACITY)
+    old_token &= valid_token
+    leaf_index = tl.where(valid_token, leaf_index, 0)
     _requantize_appended_virtual_page_tensor_grouped_int4(
         append_k,
         page_sum_k,
@@ -1284,7 +1294,7 @@ def _finalize_appended_virtual_page_counts_kernel(
     slot_length = tl.load(slot_lengths + kv_row * STATE_CAPACITY + owner).to(tl.int64)
     completes_page = ordinal % PAGE_SIZE == PAGE_SIZE - 1
     is_partial_tail = ordinal == slot_length - 1
-    refresh = completes_page | is_partial_tail
+    refresh = (ordinal >= 0) & (completes_page | is_partial_tail)
     page_ordinal = ordinal // PAGE_SIZE
     page_id = _lookup_page_id(
         slot_pages,
@@ -1301,6 +1311,8 @@ def _finalize_appended_virtual_page_counts_kernel(
         HASH_CAPACITY,
         HASH_PROBES,
     ).to(tl.int64)
+    refresh &= (page_id >= 0) & (page_id < PAGE_CAPACITY)
+    page_id = tl.where(refresh, page_id, 0)
     new_count = tl.where(completes_page, PAGE_SIZE, ordinal % PAGE_SIZE + 1)
     tl.store(
         page_counts + kv_row * PAGE_CAPACITY + page_id,

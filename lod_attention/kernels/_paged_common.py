@@ -33,6 +33,12 @@ def _lookup_page_id(
     HASH_CAPACITY: tl.constexpr,
     HASH_PROBES: tl.constexpr,
 ):
+    # Keep address arithmetic in bounds even for masked lanes. ROCm may lower
+    # the pointer expression before applying a load predicate, so relying on a
+    # false mask alone is not sufficient for sentinel slots/ordinals.
+    valid &= (slot >= 0) & (slot < STATE_CAPACITY) & (page_ordinal >= 0)
+    slot = tl.where(valid, slot, 0)
+    page_ordinal = tl.where(valid, page_ordinal, 0)
     if HASH_PROBES == -1:
         # Two-level page directory.  ``slot_pages`` is the compact root table;
         # every root entry uses one physical K/V page ID as the handle for a
@@ -53,9 +59,10 @@ def _lookup_page_id(
         directory_valid = (
             root_valid & (directory_id >= 0) & (directory_id < HASH_CAPACITY)
         )
+        safe_directory_id = tl.where(directory_valid, directory_id, 0)
         page_id = tl.load(
             overflow_page_values
-            + (kv_row * HASH_CAPACITY + directory_id) * 64
+            + (kv_row * HASH_CAPACITY + safe_directory_id) * 64
             + directory_offset,
             mask=directory_valid,
             other=-1,

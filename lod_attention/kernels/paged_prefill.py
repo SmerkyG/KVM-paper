@@ -537,6 +537,9 @@ def _paged_leaf_attention_kernel(
                     HASH_CAPACITY,
                     HASH_PROBES,
                 ).to(tl.int64)
+            valid_page &= (page_id_scalar >= 0) & (page_id_scalar < PAGE_CAPACITY)
+            page_id_scalar = tl.where(valid_page, page_id_scalar, 0)
+            valid_key &= valid_page
             page_id = page_id_scalar + tl.zeros((BLOCK_N,), tl.int64)
         else:
             page_ordinal = logical_key // PAGE_SIZE
@@ -561,11 +564,16 @@ def _paged_leaf_attention_kernel(
                     HASH_CAPACITY,
                     HASH_PROBES,
                 ).to(tl.int64)
+            page_valid = valid_key & (page_id >= 0) & (page_id < PAGE_CAPACITY)
+            page_id = tl.where(page_valid, page_id, 0)
+            valid_key = page_valid
         physical_token = (kv_row * PAGE_CAPACITY + page_id) * PAGE_SIZE + within_page
         if INDEXED:
             leaf_index = tl.load(
                 page_indices + physical_token, mask=valid_key, other=0
             ).to(tl.int64)
+            valid_key &= (leaf_index >= 0) & (leaf_index < LEAF_CAPACITY)
+            leaf_index = tl.where(valid_key, leaf_index, 0)
             storage_token = kv_row * LEAF_CAPACITY + leaf_index
         else:
             storage_token = physical_token
@@ -591,7 +599,7 @@ def _paged_leaf_attention_kernel(
             key_code = ((packed_keys >> key_shift[:, None]) & 15) - 8
             value_code = ((packed_values >> value_shift[None, :]) & 15) - 8
             if page_aligned_quant:
-                page_valid_scalar = key_begin < split_count
+                page_valid_scalar = tl.sum(valid_key.to(tl.int32), axis=0) > 0
                 page_row = kv_row * PAGE_CAPACITY + tl.sum(
                     tl.where(token_offset == 0, page_id, 0), axis=0
                 )
