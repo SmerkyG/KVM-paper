@@ -69,18 +69,17 @@ during warmup. Neither produced a valid prefill or decode result. These are
 recorded in `oct4-b1-long-capacity-failures.json`; 512K two-tier LoD has **not**
 yet been shown to fit, and 1020K LoD has not been measured.
 
-Fresh dense B1/512K and B1/1020K baselines are running in 21017, using 1,025
+Fresh dense B1/512K and B1/1020K baselines completed in 21017, using 1,025
 generated tokens, the improved Gluon dense decoder, one warmup and one
 measurement, and a 4 GiB/rank native cache. The historical long dense rows
 below remain labeled historical until the new audited results are available.
 
-Completed points are preserved in
-`oct4-full-b1-512k1020k-decode1025.partial.json` while the sweep continues:
+The completed source is `oct4-full-b1-512k1020k-decode1025.json`:
 
 | Context | Dense prefill (s) | Dense decode (ms/batch step) | LoD prefill | LoD decode |
 |--:|--:|--:|:--|:--|
 | 512K | 118.730 | 24.686 | Warmup OOM | Not measured |
-| 1020K | Pending | Pending | Not measured | Not measured |
+| 1020K | 344.493 | 27.378 | Not measured | Not measured |
 
 The 512K point has a 25.278921 s decode window / 1,024 steps and a
 144.025411 s whole-generation wall time. Prefill + decode is 144.008690 s;
@@ -91,8 +90,33 @@ zero prefix-cache hits. The prompt hash is
 `4312e2120861896344fd516cb5f0f94fb885130c879d3f648ed74c5465aabfda`;
 the 1,025-token natural continuation hash is
 `b621d1d69218d5d4cc63fed239d1f9dd293dd1666d792921cd3e07fb7f6c05cc`.
-This validates this dense decode point; it does not validate today's LoD
+The 1020K decode window is 28.035058 s / 1,024 steps; its whole-generation
+wall time is 372.561775 s, with 0.034157 s outside the request-metric window.
+It likewise has zero preemptions/cache hits and real captured dense decode.
+The long dense decode means closely reproduce the historical 24.68/27.37 ms
+figures, while their prefill times are somewhat lower. This validates these
+dense decode points; it does not validate today's LoD
 decode or turn the prefill-only sweep into a decode comparison.
+
+### Current 64K decode checks
+
+Fresh 64K B1/B8 comparisons use the corrected sink, the prefill sweep's
+runtime retention policy, 1,025 natural-trace output tokens, one full-shape
+warmup and one measured pass. Both modes use the same native reservation
+within each pair (1 GiB/rank at B1, 3 GiB/rank at B8) and run sequentially on
+node 4. Existing per-layer catch-up counters are now read immediately before
+and after measured generation through an out-of-band worker RPC. No per-step
+instrumentation, GPU events, profiler, or additional synchronization is added
+inside the timed generation. The difference is stored in each measurement's
+`measured_decode_update_counters`, separately for every worker and layer.
+
+These counters verify that state updates actually ran. The latency itself
+still comes from request timestamps, not from summing component timings.
+A 1,024-step window spans four periods, but can include three catch-up calls
+when its initial state is already caught up and the next boundary is just
+past its last input. Observed counters, not an assumed count of four, are the
+audit. The counter reader's six unit tests pass; the shared benchmark suite
+also passes 33 tests.
 
 ### B1 / B8 scaling sweep
 

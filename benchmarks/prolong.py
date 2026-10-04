@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from ._identity import benchmark_identity
+from ._decode_update_audit import decode_update_deltas, read_decode_update_counters
 from ._vllm import (
     MODES,
     SCHEDULER_CHUNK,
@@ -1300,7 +1301,11 @@ def evaluate_speed(
         speculative_measurements = []
         output_token_sha256: list[list[str]] = []
         first_mismatch_positions: list[list[int | None]] = []
+        measured_decode_update_counters = []
         for _ in range(repeats):
+            # Existing host counters, sampled outside the generation timer.
+            # In particular, this adds no events inside captured decode graphs.
+            updates_before = llm.collective_rpc(read_decode_update_counters)
             (
                 _cohort_elapsed,
                 cohort_prefill,
@@ -1315,6 +1320,9 @@ def evaluate_speed(
                 params,
                 batch_size=batch_size,
             )
+            measured_decode_update_counters.append(decode_update_deltas(
+                updates_before, llm.collective_rpc(read_decode_update_counters)
+            ))
             first_mismatch_positions.append(
                 [
                     next(
@@ -1394,6 +1402,7 @@ def evaluate_speed(
             ],
             "warmup_batch_timings": warmup_batch_timings,
             "measured_batch_timings": measured_batch_timings,
+            "measured_decode_update_counters": measured_decode_update_counters,
             "greedy_output_identical": all(
                 position is None
                 for repeat in first_mismatch_positions
@@ -1676,6 +1685,7 @@ def main() -> None:
                     else "release-before-measurement"
                 ),
                 "decode_steps": "generated_tokens_minus_one",
+                "decode_update_audit": "existing-pool-counters-outside-timers",
                 "preemptions": "recorded-and-rejected",
                 "prefix_cache_hits": "recorded-and-rejected",
                 "context_panel": (
