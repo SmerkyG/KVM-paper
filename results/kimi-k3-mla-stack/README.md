@@ -1571,3 +1571,54 @@ benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_latent_merge \
   --stable-ties --merge-token-block 4 --merge-state-block 4 \
   --output results/kimi-k3-mla-stack/trained-shared-latent-4x4-controls.json
 ```
+
+### Query sharing and direct-workspace graph checks
+
+`trained-shared-query-layout.json` (20995) tests the actual token-major
+projection viewed as noncontiguous BHQD queries. Sharing one contiguous copy
+between coarse and fine attention gives **5.824 / 5.656 / 5.687 ms** for
+ordinary/candidate/ordinary whole-attention GPU-stage controls. Original and
+changed queries/weights match bitwise. This is a small difference relative
+to the control spread, not demonstrated full-model acceleration, so no
+serving query-layout change was made. Local/sink records are cyclically
+reused trained records to fill the geometry, not a new quality sequence.
+
+`DirectStateUpdateGraph` is a standalone benchmark experiment that captures
+updates on already-stable caller-owned storage, avoiding the earlier graph's
+extra state/overflow input copies and state-output copies. Caller input
+restoration and independent ownership output remain timed. It requires
+identical storage pointers, strides and shapes before replay; capture itself
+restores the caller state after warmup. The direct GPU test (20999) validates
+fresh data against ownership-based scatter sums, unchanged capture inputs,
+independent ownership outputs, and rejection of replacement storage.
+
+The initial stage check (20996, `trained-direct-update-graph.json`) is
+1.988 ms eager / 1.738 ms replay. However, the paired control (20998,
+`trained-direct-update-graph-controls.json`) is **1.968 / 1.741 / 1.722 ms**
+for eager/replay/eager. The later eager control is already as fast as replay;
+the initial apparent gain is not stable enough to claim a graph win. Fresh
+state/count/ownership comparisons pass, with zero measured state error.
+These use the previously documented stable-tie diagnostic, not a changed
+serving append selector.
+
+A proposed fixture integration returning shared graph scratch directly was
+stopped at preflight: DCP shadows retain centroid-state views across calls,
+so they cannot retain storage that the next graph replay overwrites. A real
+no-copy integration would require stable cache-owned state storage, rather
+than only graph-owned scratch. That prototype and its option were removed;
+the serving implementation remains unchanged and no candidate timing from
+that canceled test is reported.
+
+```bash
+env LOD_KIMI_SUBTILE64=score \
+  LOD_KIMI_CHUNK_TILE_PACK=1 LOD_KIMI_TILE_PACK_QUERY_BLOCK=1024 \
+  LOD_KIMI_SORT_LEAF_ROUTES=1 LOD_KIMI_LEAF_BLOCK_M=64 LOD_KIMI_LEAF_WARPS=1 \
+  benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_query_layout \
+  --input results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt \
+  --output results/kimi-k3-mla-stack/trained-shared-query-layout.json
+
+benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_update_graph \
+  --input results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt \
+  --stable-ties --direct-workspaces \
+  --output results/kimi-k3-mla-stack/trained-direct-update-graph-controls.json
+```

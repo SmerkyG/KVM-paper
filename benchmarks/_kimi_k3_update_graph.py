@@ -88,3 +88,59 @@ class FixedStateUpdateGraph:
         # Callers may retain ownership while another layer group replays this
         # graph. Return independent ownership storage, not a shared scratch.
         return state_k, state_v, counts, self.outputs[3], self.outputs[4].clone(), None
+
+
+class DirectStateUpdateGraph:
+    """Benchmark a replay on already-stable caller-owned update workspaces.
+
+    The caller must refill the same storage before replay. Unlike the existing
+    graph this adds no state/overflow input copies or state-output copies.
+    Capture warmups restore live state before returning, and every call checks
+    all pointers/strides so a new layer's storage cannot be silently ignored.
+    This experiment is not attached to the serving runtime.
+    """
+
+    @staticmethod
+    def _signature(inputs):
+        return tuple(None if tensor is None else (
+            tensor.data_ptr(), tuple(tensor.shape), tuple(tensor.stride()),
+            tensor.dtype, tensor.device) for tensor in inputs)
+
+    def __init__(self, update, inputs, options):
+        state_k, state_v, counts, norms, overflow_k, overflow_v = inputs
+        if norms is not None or not _prefix_alias(state_k, state_v):
+            raise ValueError("direct experiment requires prefix-aliased state without norms")
+        if not all(t.is_cuda for t in (state_k, state_v, counts, overflow_k, overflow_v)):
+            raise ValueError("direct experiment requires CUDA inputs")
+        self.signature = self._signature(inputs)
+        self.inputs = inputs  # Own references until the graph is destroyed.
+        original_key, original_count = state_k.clone(), counts.clone()
+
+        def restore():
+            state_k.copy_(original_key)
+            counts.copy_(original_count)
+
+        foreground = torch.cuda.current_stream(state_k.device)
+        stream = torch.cuda.Stream(device=state_k.device)
+        stream.wait_stream(foreground)
+        with torch.cuda.stream(stream), torch.inference_mode():
+            for _ in range(2):
+                restore()
+                update(*inputs, **options)
+            restore()
+        stream.synchronize()
+        self.graph = torch.cuda.CUDAGraph()
+        with torch.cuda.graph(self.graph, stream=stream), torch.inference_mode():
+            self.outputs = update(*inputs, **options)
+        foreground.wait_stream(stream)
+        restore()
+        if self.outputs[5] is not None:
+            raise ValueError("direct experiment does not support state remapping")
+
+    @torch.inference_mode()
+    def __call__(self, *inputs):
+        if self._signature(inputs) != self.signature:
+            raise ValueError("direct state-update replay requires the same input storage")
+        self.graph.replay()
+        state_k, state_v, counts, *_ = inputs
+        return state_k, state_v, counts, self.outputs[3], self.outputs[4].clone(), None

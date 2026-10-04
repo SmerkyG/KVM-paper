@@ -1,0 +1,55 @@
+{
+  "scope": "serial fixed-geometry state-update GPU stage; not model latency",
+  "source": "results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt",
+  "layers": 4,
+  "state_len": 2048,
+  "state_capacity": 4096,
+  "overflow_len": 16384,
+  "key_dim": 576,
+  "value_dim": 512,
+  "stable_tie_diagnostic": true,
+  "direct_caller_workspaces": true,
+  "eager": {
+    "median_ms": 1.9680910110473633,
+    "samples_ms": [
+      2.012049913406372,
+      1.9692519903182983,
+      1.9680910110473633,
+      1.7395340204238892,
+      1.7154150009155273
+    ]
+  },
+  "graph_including_input_output_copies": {
+    "median_ms": 1.7411749362945557,
+    "samples_ms": [
+      1.7489349842071533,
+      1.7516950368881226,
+      1.7406549453735352,
+      1.7377749681472778,
+      1.7411749362945557
+    ]
+  },
+  "eager_after": {
+    "median_ms": 1.7223349809646606,
+    "samples_ms": [
+      1.7223349809646606,
+      1.7315349578857422,
+      1.7182960510253906,
+      1.715975046157837,
+      1.7258960008621216
+    ]
+  },
+  "eager_over_graph": 1.1303235361495119,
+  "eager_repeat": {
+    "state_equal": true,
+    "counts_equal": true,
+    "owner_mismatches": 0,
+    "selection_score_mismatches": 0,
+    "selection_score_max_error": 0.0
+  },
+  "owner_mismatches": 0,
+  "counts_mismatches": 0,
+  "old_state_max_error": 0.0,
+  "new_state_max_error": 0.0,
+  "fresh_input_correctness": "passed"
+}

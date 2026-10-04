@@ -17,7 +17,7 @@ from benchmarks.kimi_k3_leaf_replay import timed
 from lod_attention._config import LODMode, ModelFamily
 from lod_attention._engines import KernelTwoLevelLODAttention
 from lod_attention._profile import configure_engine
-from benchmarks._kimi_k3_update_graph import FixedStateUpdateGraph
+from benchmarks._kimi_k3_update_graph import DirectStateUpdateGraph, FixedStateUpdateGraph
 
 
 def reconstruct_centroids(payload):
@@ -59,6 +59,8 @@ def main():
     parser.add_argument("--layers", type=int, default=4)
     parser.add_argument("--stable-ties", action="store_true",
                         help="diagnose append ties using a stable sort, not serving policy")
+    parser.add_argument("--direct-workspaces", action="store_true",
+                        help="replay on the same caller workspace without extra state copies")
     args = parser.parse_args()
     if args.layers < 1:
         raise ValueError("layers must be positive")
@@ -119,7 +121,8 @@ def main():
                                                 - reference_scores.float()).abs().max()),
         }
         restore()
-        graph = FixedStateUpdateGraph(engine._update_state, inputs, options)
+        graph_type = DirectStateUpdateGraph if args.direct_workspaces else FixedStateUpdateGraph
+        graph = graph_type(engine._update_state, inputs, options)
 
         def replay():
             restore()
@@ -127,13 +130,19 @@ def main():
 
         graph_timing = timed(replay)
         replayed = replay()
+        replay_values = state_k.clone(), counts.clone(), replayed[4].clone()
+        eager_after_timing = timed(eager)
+        state_k.copy_(replay_values[0])
+        counts.copy_(replay_values[1])
         diagnostic = {
             "scope": "serial fixed-geometry state-update GPU stage; not model latency",
             "source": str(args.input), "layers": args.layers,
             "state_len": state_len, "state_capacity": capacity,
             "overflow_len": overflow_len, "key_dim": width, "value_dim": 512,
             "stable_tie_diagnostic": args.stable_ties,
+            "direct_caller_workspaces": args.direct_workspaces,
             "eager": eager_timing, "graph_including_input_output_copies": graph_timing,
+            "eager_after": eager_after_timing,
             "eager_over_graph": eager_timing["median_ms"] / graph_timing["median_ms"],
             "eager_repeat": eager_repeat,
             "owner_mismatches": int(replayed[4].ne(reference_values[2]).sum()),

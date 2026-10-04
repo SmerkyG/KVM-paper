@@ -144,6 +144,50 @@ def test_fixed_state_update_graph_refreshes_sources_and_owns_membership(monkeypa
     assert manager.fallback_count == 2 and manager.replay_count == 2
 
 
+def test_direct_update_graph_requires_stable_storage_and_refreshes_data():
+    if not torch.cuda.is_available():
+        pytest.skip("GPU direct-workspace replay")
+    from benchmarks._kimi_k3_update_graph import DirectStateUpdateGraph
+    from lod_attention._engines import KernelTwoLevelLODAttention
+
+    engine = KernelTwoLevelLODAttention(query_heads=12, key_value_heads=1, scale=1)
+    engine.head_dim = 576
+    configure_engine(engine, family=ModelFamily.KIMI_K3, mode=LODMode.TWO_TIER,
+                     request_capacity=16384, has_query_norm=True, has_key_norm=False)
+    engine.state_growth_factor, engine.state_min_len = 2, 4
+    initial = torch.zeros(2, 1, 32, 576, dtype=torch.bfloat16, device="cuda")
+    initial[..., :8, :].normal_()
+    initial_counts = torch.zeros(2, 1, 32, 1, device="cuda")
+    initial_counts[..., :8, :].fill_(1)
+    keys, counts = initial.clone(), initial_counts.clone()
+    overflow = torch.randn(2, 1, 129, 576, device="cuda").bfloat16()
+    inputs = keys, keys[..., :512], counts, None, overflow, overflow[..., :512]
+    options = dict(state_len=8, ctx_len=192, available_context=192,
+                   state_capacity=32, scheduled_state_len=8,
+                   clustering_query_scale=None, retain_prepared_geometry=False)
+    graph = DirectStateUpdateGraph(engine._update_state, inputs, options)
+    torch.testing.assert_close(keys, initial, atol=0, rtol=0)
+    torch.testing.assert_close(counts, initial_counts, atol=0, rtol=0)
+    old_storage = old_owners = None
+    for scale in (1, -1.25):
+        keys.copy_(initial)
+        counts.copy_(initial_counts)
+        overflow.mul_(scale)
+        result = graph(*inputs)
+        expected_counts = initial_counts.clone()
+        expected_counts.scatter_add_(2, result[4][..., None],
+                                     torch.ones_like(result[4][..., None]).float())
+        expected_keys = initial.float().clone()
+        expected_keys.scatter_add_(2, result[4][..., None].expand_as(overflow), overflow.float())
+        torch.testing.assert_close(counts, expected_counts, atol=0, rtol=0)
+        torch.testing.assert_close(keys, expected_keys.bfloat16(), atol=0.04, rtol=0.02)
+        if old_storage is not None:
+            torch.testing.assert_close(old_storage, old_owners, atol=0, rtol=0)
+        old_storage, old_owners = result[4], result[4].clone()
+    with pytest.raises(ValueError, match="same input storage"):
+        graph(*(inputs[:2] + (counts.clone(),) + inputs[3:]))
+
+
 def test_shared_weight_cache_retains_distinct_layer_layouts(monkeypatch) -> None:
     from lod_attention.kernels.aiter_mla_prefill_attention import _cached_flat_weight
 
