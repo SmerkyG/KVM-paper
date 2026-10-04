@@ -27,6 +27,108 @@ than per sequence.
 
 ## Latest corrected full-model prefill check (October 4)
 
+### B1 / B8 scaling sweep
+
+The current sweep measures **prefill only**, at 16K, 32K, 64K, 128K and
+256K, using the corrected sink and the 4 GiB runtime retention reserve.
+Each point has one exact-shape warmup and one measured pass on actual
+ProLong tokens, with final LoD cache construction included before first
+token. The two-token forced continuation is not an amortized decode test.
+Full and LoD run sequentially on node 4, sharing the idle packed-weight
+daemon, TP8/DCP8/EP8 and the same logical 16K scheduler chunks.
+
+The fresh matched B1 sweep and B8 16K/128K checks are complete.
+No estimated timings are included below.
+
+| Context | B1 full prefill (s) | B1 LoD prefill (s) | B1 full / LoD | B8 full prefill (s) | B8 LoD prefill (s) | B8 full / LoD |
+|--:|--:|--:|--:|--:|--:|--:|
+| 16K | 2.0375 | 2.0368 | 1.000x | 16.3863 | 16.4093 | 0.999x |
+| 32K | 4.1805 | 4.1838 | 0.999x | 33.5666 | 33.6356 | 0.998x |
+| 64K | 8.7910 | 8.5136 | 1.033x | 70.5637 | 68.4368 | 1.031x |
+| 128K | 19.3016 | 17.3786 | 1.111x | 155.4086 | 143.8071 | 1.081x |
+| 256K | 45.5186 | 36.0147 | 1.264x | — | Does not fit | — |
+
+B1 sources: `oct4-full-prefill-scale-b1-1g-16k256k.json` (21006) and
+`oct4-lod-prefill-scale-retention4g-b1-1g-16k256k.json` (21005). Both reserve
+1 GiB/rank for the native cache; all prompt/continuation records and timing
+protocol fields match directly. Their single natural-token prompt uses
+nested prefixes through 256K. B8 32K/64K sources are the matched
+20952/20997 pair below, with 3 GiB/rank and eight prompts through 64K.
+Their full prompt/continuation records were checked against the short-panel
+generator and match exactly; these baselines are reused, not rerun merely
+because the development commit changed. Longer B8 prompts concatenate more
+distinct documents and therefore require new matched full/LoD measurements.
+The native cache reservation is identical within the B1 and short B8 pairs.
+For long B8, each mode's reservation must support eight resident requests:
+LoD's native descriptor covers its remaining chronological window, while
+remote history resides in its own cache. Reserving the dense pool size for
+LoD unnecessarily consumes headroom. At 128K/B8, full reserves 5 GiB/rank
+(capacity 10.080 requests) and LoD 1 GiB/rank (capacity 17.333 requests).
+These are native-pool reservations, **not total cache VRAM**: LoD also owns
+its remote-history cache. Prompt/continuation records, maximum model length,
+timing protocol, seed, scheduler budget, TP/DCP and model weights match.
+Sources: `oct4-full-prefill-scale-b8-5g-128k.json` (21009) and
+`oct4-lod-prefill-scale-retention4g-b8-1g-128k.json` (21008).
+The completed B8 16K pair is
+`oct4-full-prefill-scale-b8-3g-16k.json` and
+`oct4-lod-prefill-scale-retention4g-b8-3g-16k.json` (both 21009), with
+identical prompt/continuation metadata, timing protocol and native reservation,
+zero preemptions/cache hits, and all eight requests live during decode.
+
+The 256K-capacity B8 LoD engine fails even during its first 128K warmup
+request, after 81,920 computed tokens, with zero physical free memory at an
+RCCL launch (21007). Sizing the engine for 128K lets the entire B8 pair run.
+Thus 256K/B8 is a **capacity failure for this configuration**, not a timing
+point, and no fresh 256K/B8 dense rerun is needed to form a nonexistent
+speedup. Neither chunking nor attention rules were changed to force a fit.
+The B8 128K control is a separate, matched natural-document cohort; the
+B8 short and long cohorts are not identical across lengths.
+
+**Capacity caveat:** an initial B1 LoD sweep with an overprovisioned 5 GiB
+native pool failed in the 256K warmup. An isolated fresh 256K run also failed
+around 192K, reporting zero physical free memory during an RCCL launch.
+These are capacity failures, not timings; see
+`oct4-prefill-scale-capacity-failures.json`. Reducing the native reservation
+to the audited one-request size fixes the B1 failure without changing
+attention math, routing, model weights or either update cadence. The matched
+1 GiB dense pool has capacity 1.087 requests at the maximum context;
+the LoD descriptor has capacity 17.333. The preliminary 5 GiB dense sweep
+(`oct4-full-prefill-scale-b1-16k256k.json`, 21002) agrees closely with the
+current dense timings but is not the table's comparator.
+
+LoD retains at all ten runtime reclamation checks per worker across the B1
+sweep, with minimum observed headroom 4.22 GiB. The separate, common
+post-warmup 8 GiB check reclaims on all ranks at 128K and five ranks at 256K;
+this remains part of the stated matched protocol, not an unrecorded change.
+There are no preemptions or prefix-cache hits. The prefill speedup increases
+from a tie at 32K to 1.264x at 256K; no decode-speed claim follows from this
+two-token trace. At B8/128K, the runtime pressure guard reclaims at 117 of
+128 worker/request checks across warmup and measurement, retaining at only
+11; minimum recorded free memory is 2.068 GiB. The common post-warmup check
+reclaims on one rank. Both modes keep all eight requests resident through
+the decode barrier, with zero preemptions and cache hits. The lower reserve
+does not guarantee retention or a fit at arbitrary long-context capacities;
+the general default remains 8 GiB.
+
+The benchmark now saves audited completed points to a sibling
+`.partial.json` after each length, outside timed generation, so a later
+capacity failure does not discard valid shorter results. A completed sweep
+still writes the usual final JSON; the partial artifact alone is explicitly
+marked as an incomplete sweep. Benchmark unit tests pass 33 cases, including
+preservation of a completed point when a later shape raises an exception.
+
+To reproduce B1, use the development command below with
+`--lengths 16384,32768,65536,131072,262144 --batch-size 1 --speed-samples 1
+--kv-cache-memory-bytes 1073741824`. For the B8 128K pair, use
+`--lengths 131072 --batch-size 8 --speed-samples 8`, with cache reservations
+`5368709120` for full and `1073741824` for LoD. The B8 16K pair uses
+`--lengths 16384`, B8 and `3221225472` in both modes. Change the output path
+for each run. Dense uses `--mode full` and omits the LoD-only development
+environment variables; the shared image, MoE configuration, warmup policy,
+trace and scheduler flags stay the same. The token-cache `.pt` is an optional,
+untracked startup optimization: omit `PROLONG_SPEED_TOKEN_CACHE` to tokenize
+the same frozen shuffled ProLong dataset directly.
+
 ### Allocator-retention audit
 
 The host-only audit in `oct4-lod-prefill-allocator-audit-b8-64k.json`
@@ -405,7 +507,17 @@ starting Python. The preceding two-shape trials used the prototype before
 removing its additional `16K + batch_size` descriptor. Their explicit sizes
 are retained in each JSON's worker audit.
 
-## Matched results
+## Historical matched results (not the current decode panel)
+
+These rows predate the latest corrected-sink prefill path and allocator
+configuration. Several older JSONs also lack the current timing-protocol and
+worker-audit fields. They are retained as historical measurements, not a
+validated decode-speed claim for today's implementation. The October 4
+scaling sweep above uses only two generated tokens and cannot replace them
+as an amortized decode benchmark. A fresh long-context pair uses 1,025
+generated tokens (1,024 timed decode steps), one exact-shape warmup and one
+measurement, with final cache construction charged to prefill and the
+256-global-token update cadence unchanged.
 
 | Batch | Context | Full prefill | LoD prefill | Prefill speedup | Full decode | LoD decode | Decode speedup |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |

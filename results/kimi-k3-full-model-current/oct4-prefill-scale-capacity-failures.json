@@ -1,0 +1,38 @@
+{
+  "status": "failed-warmups-not-timing-results",
+  "mode": "two-tier",
+  "batch_size": 1,
+  "tensor_parallel_size": 8,
+  "decode_context_parallel_size": 8,
+  "scheduler_chunk_tokens": 16384,
+  "kv_cache_memory_bytes": 5368709120,
+  "runtime_retention_reserve_gib": 4,
+  "failures": [
+    {
+      "job": "21003-kimi-lod-prefill-scale-b1",
+      "lengths": [16384, 32768, 65536, 131072, 262144],
+      "failed_phase": "262144-token warmup, first scheduler chunk",
+      "completed_shorter_points_saved": false,
+      "error": "HSA_STATUS_ERROR_OUT_OF_RESOURCES in ncclDevKernel_Generic_2",
+      "reported_physical_free_memory_mb": 0
+    },
+    {
+      "job": "21004-kimi-lod-prefill-scale-b1-256k-isolated",
+      "lengths": [262144],
+      "failed_phase": "warmup, scheduler chunk after 196608 computed tokens",
+      "error": "HSA_STATUS_ERROR_OUT_OF_RESOURCES in ncclDevKernel_Generic_2",
+      "reported_physical_free_memory_mb": 0
+    },
+    {
+      "job": "21007-kimi-lod-prefill-scale-b8-long-1g",
+      "batch_size": 8,
+      "kv_cache_memory_bytes": 1073741824,
+      "lengths": [131072, 262144],
+      "failed_phase": "first 128K-request warmup, scheduler chunk after 81920 computed tokens",
+      "error": "HSA_STATUS_ERROR_OUT_OF_RESOURCES in ncclDevKernel_Generic_2",
+      "reported_physical_free_memory_mb": 0,
+      "completed_points_saved": false
+    }
+  ],
+  "note": "The isolated B1 failure demonstrates pressure within one long request, not just accumulation across lengths. The subsequent 1-GiB native-cache B1 sweep completes without cadence, routing or kernel math changes. A 1-GiB native pool alone is insufficient for the 256K-capacity B8 LoD engine."
+}

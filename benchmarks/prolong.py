@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Callable
 from collections import defaultdict
 import hashlib
 import math
@@ -1239,6 +1240,7 @@ def evaluate_speed(
     fixed_decode_trace: bool = False,
     retain_warmup_allocator: bool = False,
     diagnostic_prefill_profile: bool = False,
+    progress_callback: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     from vllm import SamplingParams
 
@@ -1427,6 +1429,10 @@ def evaluate_speed(
                     "speculative_equal_weight_request_mean_acceptance_length"
                 ] = equal_weight_acceptance
         result[str(length)] = measurement
+        if progress_callback is not None:
+            # Preserve completed points if a later, larger shape exhausts
+            # memory. This write is outside every timed generation window.
+            progress_callback(dict(result))
         if diagnostic_prefill_profile:
             from benchmarks._prefill_profile import (
                 start_prefill_profile,
@@ -1590,6 +1596,29 @@ def main() -> None:
                 batch_size=args.batch_size,
             )
         else:
+            def save_speed_progress(measurements: dict[str, Any]) -> None:
+                audit = llm.collective_rpc(audit_worker_attention_mode)
+                validate_worker_attention_mode(
+                    audit,
+                    mode=args.mode,
+                    dummy_attention=args.dummy_attention,
+                    require_loaded_kimi_lod=True,
+                )
+                write_json(
+                    args.output.with_suffix(".partial.json"),
+                    {
+                        "status": "incomplete-sweep-completed-points-audited",
+                        "benchmark": "prolong",
+                        "benchmark_identity": run_identity,
+                        "argv": sys.argv,
+                        "benchmark_environment": benchmark_environment(),
+                        "cohort_capacity": cohort_capacity,
+                        "worker_attention_audit_before": worker_attention_audit_before,
+                        "worker_attention_audit": audit,
+                        "measurements": measurements,
+                    },
+                )
+
             measurements = evaluate_speed(
                 llm,
                 tokenizer,
@@ -1602,6 +1631,7 @@ def main() -> None:
                 fixed_decode_trace=args.fixed_decode_trace,
                 retain_warmup_allocator=args.retain_warmup_allocator,
                 diagnostic_prefill_profile=args.diagnostic_prefill_profile,
+                progress_callback=save_speed_progress,
             )
         worker_attention_audit = llm.collective_rpc(audit_worker_attention_mode)
         validate_worker_attention_mode(

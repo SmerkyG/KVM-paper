@@ -513,6 +513,7 @@ def test_prolong_speed_cohort_reports_pooled_and_equal_weight_acceptance(
 
     monkeypatch.setattr(prolong, "timed_generate", fake_timed_generate)
     fake_llm = SimpleNamespace(collective_rpc=lambda _function: None)
+    progress = []
     result = prolong.evaluate_speed(
         fake_llm,
         object(),
@@ -522,6 +523,7 @@ def test_prolong_speed_cohort_reports_pooled_and_equal_weight_acceptance(
         decode_tokens=5,
         repeats=1,
         seed=0,
+        progress_callback=progress.append,
     )["100"]
 
     assert result["prefill_seconds"] == 2.0
@@ -530,6 +532,47 @@ def test_prolong_speed_cohort_reports_pooled_and_equal_weight_acceptance(
     assert result["speculative_target_cycle_ms"] == 1_600.0
     assert result["speculative_mean_acceptance_length"] == 2.4
     assert result["speculative_equal_weight_request_mean_acceptance_length"] == 2.5
+    assert progress == [{"100": result}]
+
+
+def test_prolong_speed_preserves_progress_before_later_shape_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import benchmarks.prolong as prolong
+
+    monkeypatch.setitem(
+        sys.modules, "vllm", SimpleNamespace(SamplingParams=lambda **kwargs: object())
+    )
+    monkeypatch.setattr(
+        prolong,
+        "make_speed_prompts",
+        lambda tokenizer, *, length, batch_size: (
+            [{"prompt_token_ids": [length]}], [{"tokens": length}]
+        ),
+    )
+
+    def generate(llm, prompts, params, *, batch_size):
+        if prompts[0]["prompt_token_ids"] == [8]:
+            raise RuntimeError("later shape does not fit")
+        return 3.0, 2.0, 1.0, ((7, 9),), {}, [{}], [{}]
+
+    monkeypatch.setattr(prolong, "timed_generate_cohort", generate)
+    progress = []
+    with pytest.raises(RuntimeError, match="later shape does not fit"):
+        prolong.evaluate_speed(
+            SimpleNamespace(collective_rpc=lambda function: None),
+            object(),
+            lengths=[4, 8],
+            batch_size=1,
+            samples=1,
+            decode_tokens=2,
+            repeats=1,
+            seed=0,
+            progress_callback=progress.append,
+        )
+    assert len(progress) == 1
+    assert set(progress[0]) == {"4"}
+    assert progress[0]["4"]["prefill_seconds"] == 2.0
 
 
 def test_prolong_quality_uses_frozen_raw_documents(
