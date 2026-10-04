@@ -54,8 +54,7 @@ def _list_fragment_work(starts, work, FRAGMENTS: tl.constexpr,
              mask=(fragment[:, None] < FRAGMENTS) & (program < end[:, None]))
 
 
-def pack_chunked_kimi_tile_queries(selected, *, tiles, block_m, buffers=None, pack_q=256,
-                                   compact_work=True):
+def pack_chunked_kimi_tile_queries(selected, *, tiles, block_m, buffers=None, pack_q=256):
     """Return fixed query-fragment rows and compact rescoring work metadata."""
     batch, heads, queries, routes = selected.shape
     if routes != 8 or not selected.is_cuda or not selected.is_contiguous():
@@ -72,15 +71,13 @@ def pack_chunked_kimi_tile_queries(selected, *, tiles, block_m, buffers=None, pa
                              dtype=torch.int32, device=selected.device)
     counts = _workspace_tensor(buffers, "kimi_fragment_counts", (fragments,),
                                dtype=torch.int32, device=selected.device)
-    _pack_fragments[(batch * heads, tiles, chunks)](
-        selected, rows, counts, queries, tiles, CHUNKS=chunks, PACK_Q=pack_q, num_warps=4)
-    if not compact_work:
-        return rows, counts, None, None, fragments, chunks
     starts = _workspace_tensor(buffers, "kimi_fragment_starts", (fragments + 1,),
                                dtype=torch.int32, device=selected.device)
     max_blocks = triton.cdiv(selected.numel(), block_m) + fragments
     work = _workspace_tensor(buffers, "kimi_fragment_work", (max_blocks,),
                              dtype=torch.int32, device=selected.device)
+    _pack_fragments[(batch * heads, tiles, chunks)](
+        selected, rows, counts, queries, tiles, CHUNKS=chunks, PACK_Q=pack_q, num_warps=4)
     _prefix_fragment_work[(1,)](
         counts, starts, FRAGMENTS=fragments, BLOCK=triton.next_power_of_2(fragments),
         BLOCK_M=block_m, num_warps=8)

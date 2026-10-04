@@ -1458,3 +1458,6 @@ coarse output and LSE bitwise-identical on original and changed Q/K.
 All 180 exact-refinement tests pass with this path enabled (20977).
 Fewer launches and allocations therefore do not establish a win here;
 this is not promoted or rerun on the giant model.
+Its prototype and flag were removed after validation; the exact experiment
+is preserved in local commit `b13aaf8` and the JSON above. No user data or
+benchmark result was deleted.

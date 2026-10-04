@@ -188,14 +188,12 @@ def refine_kimi_centroid_tiles(
         raise ValueError("Kimi tile-packing query block must be 256, 512 or 1024")
     chunked = (os.environ.get("LOD_KIMI_CHUNK_TILE_PACK") == "1"
                and batch * heads * tiles * triton.cdiv(queries, pack_q) <= 32768)
-    fixed_fragments = chunked and os.environ.get("LOD_KIMI_FIXED_FRAGMENT_RESCORE") == "1"
     if chunked:
         from .kimi_route_chunk_pack import pack_chunked_kimi_tile_queries
 
         packed, counts, block_starts, block_experts, max_blocks, fragment_chunks = (
             pack_chunked_kimi_tile_queries(selected, tiles=tiles, block_m=block_m,
-                                           buffers=buffers, pack_q=pack_q,
-                                           compact_work=not fixed_fragments))
+                                           buffers=buffers, pack_q=pack_q))
         starts = block_starts
         rescore_grid = (max_blocks,)
         dense = False
@@ -229,17 +227,6 @@ def refine_kimi_centroid_tiles(
     if required_tiles < 8:
         output.fill_(-float("inf"))
         output[:, :, :, 8:].fill_(-1)
-    if fixed_fragments:
-        from .kimi_route_fragment_rescore import rescore_fixed_fragments
-
-        rescore_fixed_fragments[rescore_grid](
-            q, expanded_k, log_counts, packed, counts, output,
-            queries, tiles, state_len, HEADS=heads,
-            K_BATCH_STRIDE=expanded_k.stride(0), K_HEAD_STRIDE=expanded_k.stride(2),
-            K_TOKEN_STRIDE=expanded_k.stride(1), COUNT_BATCH_STRIDE=log_counts.stride(0),
-            CHUNKS=fragment_chunks, PACK_Q=pack_q, BLOCK_M=block_m, BLOCK_N=tile_n,
-            SCALE_LOG2=scale / math.log(2), num_warps=4)
-        return output
     _rescore_centroid_tiles[rescore_grid](
         q, expanded_k, log_counts, packed, block_experts, block_starts[:-1],
         counts, starts[:-1], block_starts[-1:], output,
