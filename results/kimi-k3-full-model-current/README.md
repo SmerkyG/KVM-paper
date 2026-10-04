@@ -1,0 +1,403 @@
+# Kimi K3 full-model attention timings
+
+The tables below are historical full-model measurements, not a benchmark of
+the latest October 4 experimental path. Current **fixture-only** comparisons
+and their audits are in [the MLA-stack results](../kimi-k3-mla-stack/README.md),
+under "Allocator reuse: current successful fixture path". A full-model
+resident-weight prefill check is recorded below; no fixture speedup should be
+reported as a full-model speedup. The rejected tile-max-only **v10** route
+binary is not valid top-eight evidence; this rejection does not automatically
+invalidate other revisions whose audited flags differ.
+
+These are the full-model measurements previously collected for dense full
+attention and two-tier BF16 LoD attention. Prefill is total wall time for the
+entire request batch. Decode is latency per batched generation step, rather
+than per sequence.
+
+## October 4 matched full-model prefill check
+
+These fresh controls use the same eight real ProLong prompts, TP8/DCP8/EP8,
+16K scheduler chunks, a 2 GiB native-cache reservation per rank, the resident
+`kimi-k3-shared-int4-v6` weight daemon, one exact-shape warmup, and one measured
+pass. The final LoD construction completion is included before first token.
+Prompt and continuation hashes and timing protocols match. Neither run had
+preemptions or prefix-cache hits. Both ran sequentially on node 4 with the
+weight daemon idle; no timed model processes overlapped.
+
+| Batch | Context | Full prefill | LoD prefill | Full / LoD |
+| ---: | ---: | ---: | ---: | ---: |
+| 8 | 32K | 33.635 s | 33.951 s | 0.991x |
+
+This is essentially a tie, **not** evidence of a clear full-model speedup at
+32K. Sources: `oct4-full-prefill-b8-32k.json` (job 20820) and
+`oct4-prefill-reuse-b8-32k.json` (job 20818). The LoD candidate combines exact
+tile refinement, direct leaf-result consumption, final-only allocator
+reclamation, and pressure-guarded allocator reuse. Its effective construction
+group is **four layers**, as recorded by the worker audit (the module's generic
+default constant of 12 is not K3's effective group size).
+
+The two generated tokens are a forced natural-text continuation, used solely
+to measure prefill cheaply. They do **not** establish quality or amortized
+decode performance. In particular, the single decode-step number in these
+JSONs is not a 256-token-update-amortized decode benchmark. Model parameters
+were mapped from the resident daemon, not reloaded or rematerialized.
+
+Reproduction on a machine with the prepared v10 userspace and resident cache:
+
+```bash
+env LOD_KIMI_PREFILL_RECLAIM_INTERVAL=0 \
+  LOD_KIMI_REUSE_PREFILL_ALLOCATOR=1 LOD_KIMI_TILE_REFINE=1 \
+  LOD_KIMI_DIRECT_LEAF_RESULT=1 LOD_BENCHMARK_SYNC_PREFILL_CACHE=1 \
+  TRITON_CACHE_AUTOTUNING=1 VLLM_USE_TRITON_AWQ=1 \
+  PROLONG_SPEED_TOKEN_CACHE="$PWD/results/kimi-k3-full-model-current/prolong-kimi-k3-speed-token-cache.pt" \
+  AITER_CONFIG_FMOE="$PWD/results/kimi-k3-full-model-current/kimik3_i4_tuned_fmoe_b2x16k_merged.csv" \
+  benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.prolong \
+  --checkpoint /tmp/dan-agent-kimi-k3-f831ab66814297da540d832a5235f8e904f29d06 \
+  --mode two-tier --measure speed --lengths 32768 \
+  --batch-size 8 --speed-samples 8 --tensor-parallel-size 8 \
+  --decode-context-parallel-size 8 --dcp-comm-backend ag_rs \
+  --decode-tokens 2 --fixed-decode-trace --synchronized-decode \
+  --repeats 1 --seed 0 --gpu-memory-utilization 0.8 \
+  --kv-cache-memory-bytes 2147483648 --kimi-gfx942-int4-moe \
+  --weight-cache --weight-cache-id kimi-k3-shared-int4-v6 \
+  --allow-experimental-environment \
+  --output results/kimi-k3-full-model-current/oct4-prefill-reuse-b8-32k.json
+```
+
+The full-attention control uses the same command with `--mode full`, omits the
+four `LOD_KIMI_*` experiment variables, and writes a separate output. Native
+AITER handles prefill; the decoder choice must be audited separately in any
+future amortized decode panel.
+
+The 64K LoD check completed in 72.297 s
+(`oct4-prefill-reuse-b8-64k.json`, job 20821). Its initial dense control with
+2 GiB native allocation was cancelled: vLLM reported capacity for **7.21**
+65,554-token requests, insufficient for a synchronized eight-request cohort.
+Seven completed prefills held their blocks at the decode barrier, leaving the
+eighth unable to finish. No timing is reported from that stalled job 20824.
+The benchmark now checks vLLM's hybrid-cache concurrency before admitting a
+synchronized cohort. The replacement uses 3 GiB for both attention modes.
+
+An explicitly labeled warm-serving comparison additionally uses
+`--retain-warmup-allocator` **in both modes**. The ordinary ProLong benchmark
+empties idle allocator blocks between warmup and measurement; the fixture
+tuner does not. This distinction is now recorded in `timing_protocol` and
+per-worker `allocator_after_warmup`, including any pressure-triggered fallback.
+Old measurements are not silently relabeled as warm-allocation results.
+
+The replacement matched 64K warm-serving pair completed:
+
+| Batch | Context | Full prefill | LoD prefill | Full / LoD |
+| ---: | ---: | ---: | ---: | ---: |
+| 8 | 64K | 70.538 s | 72.259 s | 0.976x |
+
+Sources: `oct4-full-warm-prefill-b8-64k.json` (job 20828) and
+`oct4-lod-warm-prefill-b8-64k.json` (job 20833). Prompt/continuation metadata
+and timing protocols match; both reserve 3 GiB native cache per rank and retain
+the warmup allocator with the same 8 GiB pressure guard. All eight workers
+retained their allocator blocks, and all mode/binary audits passed. Neither
+run had preemption or prefix-cache hits. This is **not a full-model win**;
+the fixture improvement has not transferred. The two-token decode caveat
+above still applies. Reproduce with the preceding command, changing the
+length to 65536, native reservation to 3221225472 bytes, and adding
+`--retain-warmup-allocator` identically to both modes.
+
+### Graph-capture and real-input leaf diagnostic
+
+Both matched full-model logs explicitly downgrade `FULL_AND_PIECEWISE` to
+`FULL_DECODE_ONLY`: the image's native K3 model supplies neither a compiled
+submodule nor breakable CUDA graphs. This affects **both dense and LoD**.
+Ordinary decode graph capture succeeds; full prefill is not currently captured.
+LoD additionally has host-side per-request cache plans, changing active-state
+lengths, and cache-construction completion/reclamation waits. Scratch reuse
+alone does not make that entire path graph-replayable.
+
+A separate diagnostic captured real trained inputs from the first MLA layer
+on a 16K-query chunk with 16,127 archived leaves and 2,048 centroids. All eight
+routes are open here: approximately 408.54 underlying leaves/query and 51.07
+leaves/opened centroid on average. The capture contains actual model tensors
+from ProLong, not randomized query/key data. It is a local diagnostic artifact,
+not a model checkpoint or a release quality benchmark.
+
+`trained-leaf-tiling.json` (job 20837) tests fixed routes/ownership with different
+exact-attention tiles. The current 32x16/one-wave tile wins at 1.407 ms; tested
+larger tiles range from 1.602 to 2.255 ms. Output relative L2 errors are below
+0.0007 and LSE maximum errors below 0.000002. Leaf projection separately takes
+0.248 ms. These are serial warmed single-layer kernel diagnostics, not model
+wall times or an additive attention-time attribution.
+
+The same real leaf stage **successfully captures and replays a graph** despite
+its ordinary PyTorch temporary-allocation calls. `trained-leaf-fixed-graph.json`
+(job 20838) measures 1.409 ms ordinary versus 1.402 ms graph replay: essentially
+unchanged. Thus allocation/launch overhead is not a demonstrated major cost
+for that warmed leaf stage. This proves only fixed-input leaf-stage capture,
+not dynamic serving or whole-model prefill capture.
+
+The full-model GPU profiler attempt (job 20836) fails inside the ROCm profiling
+stack with `HSA: read-modify-write on a device resident signal value word is
+not supported`. It produced the capture before failing, but **no valid full-model
+profiler result**. Do not interpret or report that failed diagnostic as a
+canonical speed measurement. The matched 20828/20833 measurements above were
+completed separately, without any profiler or capture hooks.
+
+## Matched results
+
+| Batch | Context | Full prefill | LoD prefill | Prefill speedup | Full decode | LoD decode | Decode speedup |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 16K | 2.039 s | 2.145 s | 0.95x | 21.38 ms | 20.65 ms | 1.04x |
+| 1 | 32K | 4.182 s | 4.398 s | 0.95x | 21.80 ms | 20.64 ms | 1.06x |
+| 1 | 64K | 10.489 s | 9.220 s | 1.14x | 22.15 ms | 20.65 ms | 1.07x |
+| 1 | 128K | 19.293 s | 18.042 s | 1.07x | 22.29 ms | 21.43 ms | 1.04x |
+| 1 | 256K | 45.519 s | 49.999 s | 0.91x | 23.32 ms | 25.03 ms | 0.93x |
+| 8 | 16K | 17.240 s | pending | -- | 31.42 ms | pending | -- |
+| 8 | 32K | 35.346 s | pending | -- | 32.72 ms | pending | -- |
+| 8 | 64K | 73.895 s | 80.079 s | 0.92x | 33.39 ms | 28.22 ms | 1.18x |
+
+Speedup is `full / LoD`, so values greater than one favor LoD.
+
+### Fixed-budget batching probe
+
+A dense full-model control divided the same 16K aggregate scheduler budget
+across eight live requests (B8 x 2K per model pass).  Eight 16K-token prompts
+completed prefill in 16.032 s, or 8,175 aggregate prompt tok/s.  The ordinary
+16K-chunk B8 control took 17.240 s (7,603 tok/s), while the B1 16K control took
+2.039 s (8,035 tok/s).  Thus B8 x 2K fits and modestly improves concurrent
+throughput, but does not unlock a new full-model throughput regime: the MoE
+stack is already well occupied by one 16K flattened-token pass.  The source is
+`full-tp8-dcp8-b8x2k-16k.json`.
+
+### B2 x 16K MoE tuning
+
+Two simultaneous 16K chunks give the K3 MoE a 32,768-token flattened input,
+which is beyond the largest shape in AMD's shipped K3 tuning table.  The
+untuned path therefore used a 64x128x128 stage-one kernel followed by an atomic
+stage-two reduction.  A targeted search selected the same 64x128x128 stage-one
+geometry with `bnt0`, but changed stage two to the 64x128x128 reduce kernel.
+The merged configuration retains every shipped row for smaller shapes.
+
+| Measurement | Untuned | Tuned | Speedup |
+| --- | ---: | ---: | ---: |
+| Isolated 32K-token FMoE pair | 87.211 ms | 70.292 ms | 1.24x |
+| Full model, B2 x 16K prompt | 8.165 s | 5.770 s | 1.42x |
+| Full model, B2 x 64K prompt | 17.209 s | 16.744 s | 1.03x |
+
+The 64K figures are medians of three measured passes on the same node, after a
+separate warmup pass; the untuned samples were 18.393, 17.200, and 17.209 s,
+while the tuned samples were 19.249, 16.725, and 16.744 s.  This resolves the
+opposite result from the earlier single-sample comparison: the tuned kernel is
+modestly faster once startup variation is removed.  Its smaller end-to-end
+gain at 64K is expected because attention and the rest of the model occupy a
+larger fraction of the four-cohort request.
+
+The B2 setting does not reduce persistent cache capacity.  Both variants kept
+the explicitly requested 5.0 GiB native cache on every GPU, corresponding to
+1,179,972 cached tokens or 18 concurrent 65,554-token requests.  A B4 x 16K
+probe still failed before cache allocation because the transient MoE workspace
+needed another 7 GiB with only 3.70--5.23 GiB free; shrinking the persistent
+cache to 1 GiB therefore did not make that shape viable.
+
+The reusable tuner entry points are `benchmarks/tune_kimi_k3_fmoe.py` and
+`benchmarks/_kimi_k3_fmoe_tuner.py`.  The selected row and merged runtime table
+are `kimi-k3-i4-b2x16k-tuned-fmoe.csv` and
+`kimik3_i4_tuned_fmoe_b2x16k_merged.csv`, respectively.
+
+The current update interval is **256 global sequence tokens per request**,
+not 256 rank-local records. DCP8 therefore contributes approximately 32 local
+records per update, and B8 processes eight requests' shares. A current
+1,025-token trace spans four global update periods; DCP must not silently
+stretch that interval to 2,048 global tokens. Earlier records using the
+rank-local cadence do not validate the current decode-update amortization.
+Consult each JSON's protocol and implementation audit rather than assuming
+that every historical row used the current rule. The dense 16K--32K controls use
+1,025 tokens; some longer dense-only baselines use 258 tokens as identified
+below because dense attention has no periodic LoD update. The batch-eight rows
+additionally use synchronized decode so request staggering does not change the
+effective batch size.
+
+The current 256K LoD prefill entry uses final-only allocator reclamation and a
+single cross-layer max-sim/update workspace reused by all six four-layer
+groups. The 1,025-step decode entry comes from that same bounded construction
+path. Reclamation changes only host synchronization and releases unused
+allocator blocks, not the constructed LoD state or decode kernels.
+
+The older LoD 16K--64K measurements are intentionally omitted. Their warmup
+request was not removed from the fixed LoD pool by vLLM 0.30's concrete
+`DefaultModelState.remove_request` override, so the measured request reused
+stale semantic state. The runtime now patches that concrete lifecycle hook.
+The replacement 16K--64K rows above use fresh state in one warmed process and
+the same 1,025-token fixed decode trace as the 128K and 256K measurements.
+
+## Dense baseline sweep
+
+The dense reference now covers every requested power of two from 16K through
+512K at both batch sizes, plus 1,020K at batch one. These are the baselines for
+the long-context LoD work below.
+
+| Context | B=1 prefill | B=1 decode | B=8 prefill | B=8 decode |
+| ---: | ---: | ---: | ---: | ---: |
+| 16K | 2.039 s | 21.38 ms | 17.240 s | 31.42 ms |
+| 32K | 4.182 s | 21.80 ms | 35.346 s | 32.72 ms |
+| 64K | 10.489 s | 22.15 ms | 73.895 s | 33.39 ms |
+| 128K | 19.293 s | 22.29 ms | 163.268 s | 37.08 ms |
+| 256K | 45.519 s | 23.32 ms | 380.950 s | 40.90 ms |
+| 512K | 123.212 s | 24.68 ms | 1005.590 s | 46.29 ms |
+| 1,044,480 (~1.02M) | 352.355 s | 27.37 ms | pending | pending |
+
+The first B=8/1.02M attempt had enough native KV capacity (8.80M tokens for
+8.36M requested), but left only 20 MiB free for an RCCL collective and failed
+with `HSA_STATUS_ERROR_OUT_OF_RESOURCES`. A repeat with a minimally sized
+native cache also failed because the 16K scheduler activation left only 12 MiB
+free. The table deliberately does not substitute either failed attempt for a
+timing. The separate B=8/64K LoD control also exposed that 128 MiB is too small
+for eight recurrent-cache rows (six were allocated), while 256 MiB permits
+only 4.33 concurrent 64K requests. Its valid retry therefore uses 512 MiB.
+The next 1.02M attempt will retain the matched model/cache configuration while
+using an 8K scheduler chunk to lower transient activation memory.
+
+## Historical LoD prefill diagnosis
+
+The earlier controlled diagnostic uses the 24-layer MLA-only stack (all
+K3 attention layers, with the MoE/FFN work removed).  This is a better proxy
+for cross-layer construction and synchronization than the earlier one-layer
+fixture, while remaining much faster to iterate than the complete model.
+
+| Batch | Context | Dense MLA-stack prefill | LoD MLA-stack prefill | Speedup |
+| ---: | ---: | ---: | ---: | ---: |
+| 8 | 16K | 1.162 s | 1.434 s | 0.81x |
+| 8 | 64K | 9.534 s | 9.054 s | 1.05x |
+| 1 | 128K | 3.929 s | 3.738 s | 1.05x |
+| 1 | 256K | 14.370 s | 9.944 s | 1.45x |
+
+These rows show the intended trend: LoD crosses dense between 16K and 64K in
+the true-batch-eight fixture and its advantage grows at longer context.  They
+come from `../kimi-k3-mla-stack/full-tp8-dcp8-b8-true-cohort.json`,
+`../kimi-k3-mla-stack/two-tier-tp8-dcp8-b8-true-cohort.json`,
+`../kimi-k3-mla-stack/full-tp8-dcp8-b1-long.json`, and
+`../kimi-k3-mla-stack/two-tier-tp8-dcp8-b1-group4-nomidreclaim-long.json`.
+
+### Historical one-layer geometry diagnostic
+
+A correctness-fixed, full-K3-geometry one-layer fixture initially measured
+2.082 s for direct latent-space leaves versus 2.605 s for projected leaves at
+256K, but those cold requests included different Triton compilation costs. The
+valid warmed comparison reverses that conclusion: direct latent leaves take
+1.819 s, the original corrected projected path takes 1.161 s, and a new
+coalesced D128+D64 key-packing path takes 1.114 s. The automatic switch to the
+compact latent consumer after 64K has therefore been removed. These remain
+one-layer diagnostics rather than full-model performance claims; the new path
+is being checked end to end below.
+
+The historical batch-eight one-layer sweep also includes the corrected
+request-state lifecycle. Earlier warmed fixture runs leaked the completed
+request's LoD row into the measured request and are not valid fresh-prefill
+measurements. With fresh state, that projected/packed path measured:
+
+| Context | Dense fixture prefill | Current LoD fixture prefill | Speedup |
+| ---: | ---: | ---: | ---: |
+| 64K | 1.015 s | 2.318 s | 0.44x |
+| 256K | 11.213 s | 7.192 s | 1.56x |
+
+This older fixture established improving asymptotic behavior and a crossover
+between 64K and 256K. It is retained as a kernel-geometry diagnostic, not as
+the current headline result.
+
+A full-model boundary probe then found that allocator reclamation was forcing
+the background cross-layer builder to synchronize after every 16K scheduler
+chunk. In the measured 64K pass, the first three waits were 1.835 s, 1.954 s,
+and 2.001 s; the final wait was already effectively zero because the work had
+finished. Retaining the 16K attention/update schedule but reclaiming transient
+allocations only at 64K boundaries reduced B=1/64K prefill from 9.411 s to
+8.918 s (5.2%). The initial form exhausted transient VRAM at longer contexts;
+a 32K compromise reached 256K at 52.555 s.
+
+The current implementation instead reuses one maximum-capacity score/update
+workspace across the sequential four-layer groups and drops it at the final
+DCP conversion. That bounds allocation growth without periodic reclamation:
+the 256K run completes with final-only reclamation in 49.999 s. Profiling shows
+ordinary 16K state construction takes about 20--33 ms GPU and 9--12 ms of host
+submission across all 24 attention layers. It is therefore not the remaining
+multi-second full-model prefill bottleneck.
+
+## Longer but unmatched measurements
+
+| Mode | Batch | Context | Prefill | Decode | Status |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Full attention | 8 | 128K | 163.268 s | 37.08 ms | 258-step synchronized decode |
+| Full attention | 8 | 256K | 380.950 s | 40.90 ms | 258-step synchronized decode |
+| Full attention | 8 | 512K | 1005.590 s | 46.29 ms | 258-step synchronized decode |
+| Full attention | 1 | 512K | 123.212 s | 24.68 ms | 1,025-step decode |
+| Three-tier INT4 LoD | 1 | 512K | 146.529 s | 30.52 ms | 2-step fit/correctness timing |
+| Full attention | 1 | 1,044,480 (~1.02M) | 352.355 s | 27.37 ms | 1,025-step decode |
+
+The matched table stops at 64K for B=1 and 32K for B=8 because longer LoD runs
+were short kernel-development diagnostics, not because these lengths were
+shown not to fit. Dense B=1 full attention successfully ran at 512K and about
+1.02M; dense B=8 successfully ran through 512K. A matched long-context LoD
+sweep therefore remains to be run. The dense B=8 1.02M allocation/timing test
+is still pending.
+
+Three-tier INT4 now completes the full-model 512K request. Releasing the shared
+state-update/max-sim workspace before final rank-local dequantization removes
+the former RCCL out-of-resources failure. After conversion each rank reports
+9.006 GB allocated and about 24.4 GB free. This run is a fit and correctness
+measurement rather than a competitive timing result: its 146.529 s prefill
+and 30.52 ms two-token decode are slower than dense full attention. Longer
+decode is still required before quoting a steady-state INT4 decode number.
+
+## 128K-to-256K decode follow-up
+
+The current full-model two-tier artifacts increase from 21.43 ms/step at 128K
+to 25.03 ms/step at 256K. A matched 24-layer MLA-only run isolates the entire
+LoD attention stack from K3's dynamic MoE/FFN stack: it rises only from
+2.8863 ms to 2.9756 ms over the same context change, an increase of 0.0893 ms
+(3.1%). Thus the full-model bend is not evidence of a coarse-attention tile or
+LoD scan regression. The natural 128K and 256K prefixes produce different
+hidden-state and expert-routing traces, while attention itself is only about
+3 ms of the 21--25 ms full-model step.
+
+The consumer split screen is consistent with that result: over representative
+6,560- and 8,960-row effective sequences, 64 and 128 splits both take about
+0.050 ms, while 256 splits are slower. A direct 128-row tile is not viable in
+the present absorbed-MLA kernel because it requires 128 KiB of shared memory,
+above MI325X's 64 KiB workgroup limit. No short-context-only geometry override
+is therefore enabled at 256K.
+
+The construction-memory problem that previously prevented this comparison is
+also resolved. Reusing one maximum-capacity state workspace across sequential
+layer groups reaches 256K with final-only reclamation. Construction-only
+scratch is dropped before the final global-to-rank-local DCP conversion and is
+not retained during decode.
+
+## Source artifacts
+
+The matched rows above come from:
+
+- `full-tp8-dcp8-b1-short-v5.json`
+- `full-tp8-dcp8-b1-512k-1020k.json`
+- `full-tp8-dcp8-b8-16k-32k-sync.json`
+- `full-tp8-dcp8-b8-64k-short.json`
+- `full-tp8-dcp8-b8-128k-256k-short.json`
+- `full-tp8-dcp8-b8-512k-short.json`
+- `full-tp8-dcp8-b1-128k-256k-short.json`
+- `full-tp8-dcp8-trueb2-16k-64k.json`
+- `full-tp8-dcp8-trueb2-16k-64k-moe-tuned.json`
+- `full-tp8-dcp8-trueb2-64k-moe-ab-baseline.json`
+- `full-tp8-dcp8-trueb2-64k-moe-ab-tuned.json`
+- `../kimi-k3-full-geometry/256k-compact-correct.json`
+- `../kimi-k3-full-geometry/256k-expanded-correct.json`
+- `../kimi-k3-full-geometry/256k-compact-warm-m32n32w4.json`
+- `../kimi-k3-full-geometry/256k-expanded-warm-correct.json`
+- `../kimi-k3-full-geometry/256k-packed-key-warm.json`
+- `../kimi-k3-full-geometry/prefill-b8-dcp8-two-tier-packed-current.json`
+- `lod-tp8-dcp8-b1-128k-decode1025-current.json`
+- `lod-tp8-dcp8-b1-256k-decode1025-current.json`
+- `lod-tp8-dcp8-b8-64k-decode1025-current.json`
+- `lod-tp8-dcp8-b1-64k-reclaim-profile.json`
+- `lod-tp8-dcp8-b1-64k-reclaim64k.json`
+- `lod-tp8-dcp8-b1-256k-reclaim32k.json`
+- `schema14-lod-b1-16k-64k-current.json`
+- `schema10-lod-b1-128k-group4-decode1025.json`
+- `schema10-lod-b1-256k-group4-reused-state-workspace.json`
+- `schema13-int4-lod-b1-512k-prefinal-release.json`
+- `../kimi-k3-mla-stack/lod-s64-b1-128k-decode1025.json`
+- `../kimi-k3-mla-stack/lod-s64-b1-256k-decode1025.json`

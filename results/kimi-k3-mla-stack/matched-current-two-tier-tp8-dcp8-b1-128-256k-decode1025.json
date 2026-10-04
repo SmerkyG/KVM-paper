@@ -1,0 +1,41 @@
+{
+  "checkpoint": "tests/fixtures/kimi-k3-mla-stack",
+  "mode": "two-tier",
+  "batch_size": 1,
+  "decode_tokens": 1025,
+  "tensor_parallel_size": 8,
+  "decode_context_parallel_size": 8,
+  "repeats": 1,
+  "measurements": {
+    "131072": {
+      "elapsed_seconds": 6.955450160428882,
+      "prefill_seconds": 4.015773270279169,
+      "elapsed_samples_seconds": [
+        6.955450160428882
+      ],
+      "prefill_samples_seconds": [
+        4.015773270279169
+      ],
+      "decode_ms_per_batch_step": 2.864563652110519,
+      "decode_samples_seconds_per_batch_step": [
+        0.002864563652110519
+      ],
+      "aggregate_prompt_tokens_per_second": 32639.29290283067
+    },
+    "262144": {
+      "elapsed_seconds": 13.141405755653977,
+      "prefill_seconds": 10.073380840942264,
+      "elapsed_samples_seconds": [
+        13.141405755653977
+      ],
+      "prefill_samples_seconds": [
+        10.073380840942264
+      ],
+      "decode_ms_per_batch_step": 2.9844259297533426,
+      "decode_samples_seconds_per_batch_step": [
+        0.0029844259297533426
+      ],
+      "aggregate_prompt_tokens_per_second": 26023.437824820594
+    }
+  }
+}

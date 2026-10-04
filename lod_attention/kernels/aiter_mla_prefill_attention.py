@@ -165,6 +165,7 @@ def _pack_kimi_expanded_keys_kernel(
     heads: tl.constexpr,
     source_batch_stride: tl.constexpr,
     source_token_stride: tl.constexpr,
+    projected_row_stride: tl.constexpr,
     BLOCK_D: tl.constexpr,
 ):
     row = tl.program_id(0).to(tl.int64)
@@ -174,7 +175,7 @@ def _pack_kimi_expanded_keys_kernel(
     batch = token_row // rows
     token = token_row - batch * rows
     no_pe = tl.load(
-        projected_nope + row * 128 + dimension,
+        projected_nope + row * projected_row_stride + dimension,
         mask=dimension < 128,
         other=0.0,
     )
@@ -260,6 +261,38 @@ def expand_kimi_leaf_kv(
     if tuple(w_uv.shape) != (heads, 512, 128):
         raise ValueError("Kimi leaf W_UV has incompatible geometry")
     latent = key[:, 0, :, :512].reshape(batch * tokens, 512)
+    if os.environ.get("LOD_KIMI_FUSED_LEAF_KV") == "1":
+        # Both projections consume the same latent rows. Interleaving their
+        # columns makes one GEMM emit [K_nope,V] per head; V remains a strided
+        # view, accepted directly by the existing leaf-attention consumer.
+        name = f"kimi_leaf_combined_weight_{w_uk_t.data_ptr()}_{w_uv.data_ptr()}_{heads}"
+        weight = None if buffers is None else buffers.get(name)
+        if weight is None:
+            weight = torch.cat((w_uk_t.transpose(1, 2), w_uv), dim=-1)
+            weight = weight.permute(1, 0, 2).reshape(512, heads * 256).contiguous()
+            if buffers is not None:
+                buffers[name] = weight
+                # Keep source storage alive, matching _cached_flat_weight's
+                # immutable-inference-weight contract and pointer safety.
+                buffers[name + "_uk_source"] = w_uk_t
+                buffers[name + "_uv_source"] = w_uv
+        projected = _workspace_tensor(
+            buffers, "kimi_leaf_fused_kv", (batch, tokens, heads, 256),
+            dtype=key.dtype, device=key.device,
+        )
+        torch.mm(latent, weight, out=projected.view(batch * tokens, heads * 256))
+        expanded_key = _workspace_tensor(
+            buffers, "kimi_leaf_expanded_k_token_major", (batch, tokens, heads, 192),
+            dtype=key.dtype, device=key.device,
+        )
+        _pack_kimi_expanded_keys_kernel[(batch * tokens * heads,)](
+            projected, key, expanded_key, tokens, heads=heads,
+            source_batch_stride=int(key.stride(0)),
+            source_token_stride=int(key.stride(2)),
+            projected_row_stride=256, BLOCK_D=256, num_warps=4,
+        )
+        return (expanded_key.permute(0, 2, 1, 3),
+                projected[..., 128:].permute(0, 2, 1, 3))
     expanded_k_token_major = _workspace_tensor(
         buffers,
         "kimi_leaf_expanded_k_token_major",
@@ -304,6 +337,7 @@ def expand_kimi_leaf_kv(
         heads=heads,
         source_batch_stride=int(key.stride(0)),
         source_token_stride=int(key.stride(2)),
+        projected_row_stride=128,
         BLOCK_D=256,
         num_warps=4,
     )
@@ -860,14 +894,16 @@ def aiter_kimi_expanded_prefill_route_coarse_attention(
         buffers,
         "kimi_coarse_mean_k",
         (batch, 1, dispatch_state_len, 576),
-        dtype=state_k.dtype,
+        # Persistent sums may be FP32 (e.g. exchanged DCP summaries). Divide
+        # before rounding, then project in the model's Q/weight dtype.
+        dtype=q_expanded.dtype,
         device=state_k.device,
     )
     mean_v = _workspace_tensor(
         buffers,
         "kimi_coarse_mean_v",
         (batch, 1, dispatch_state_len, 512),
-        dtype=state_v.dtype,
+        dtype=q_expanded.dtype,
         device=state_v.device,
     )
     active_counts = _workspace_tensor(
@@ -952,7 +988,7 @@ def aiter_kimi_expanded_prefill_route_coarse_attention(
         buffers,
         "kimi_expanded_coarse_v",
         (batch, dispatch_state_len, query_heads, 128),
-        dtype=state_v.dtype,
+        dtype=q_expanded.dtype,
         device=state_v.device,
     )
     flat_value_weight = _cached_flat_weight(
@@ -993,6 +1029,7 @@ def aiter_kimi_expanded_prefill_route_coarse_attention(
             attention_dim,
             async_bias=True,
             fused_route=fused_route_coarse,
+            tile_max_probe=os.environ.get("LOD_KIMI_TILE_REFINE") == "1",
         )
         route_mha_fwd = _specialized_route_mha_fwd(False, route_dim)
 
@@ -1120,6 +1157,15 @@ def aiter_kimi_expanded_prefill_route_coarse_attention(
         attention_end.record(route_stream)
 
     with torch.cuda.stream(route_stream):
+        if os.environ.get("LOD_KIMI_TILE_REFINE") == "1":
+            if split_at:
+                raise RuntimeError("experimental tile refinement requires one coarse partition")
+            from .kimi_route_tile_refine import refine_kimi_centroid_tiles
+
+            candidates_0 = refine_kimi_centroid_tiles(
+                candidates_0, q_expanded.contiguous(), expanded_k, log_counts,
+                state_len=state_len, scale=scale, buffers=buffers,
+            )
         if split_at:
             top_slots, route_head_counts, route_offsets = (
                 _reduce_split_route_candidates(
@@ -1292,43 +1338,36 @@ def aiter_kimi_local_prefill_attention(
                 batch * key_len, query_heads * 128
             ),
         )
-        attention_out = _workspace_tensor(
-            buffers,
-            "kimi_local_attention_out",
-            (batch, query_len, query_heads, 128),
-            dtype=q.dtype,
-            device=q.device,
+        native_local = os.environ.get("LOD_KIMI_NATIVE_LOCAL_PREFILL") == "1"
+        attention_out = None if native_local else _workspace_tensor(
+            buffers, "kimi_local_attention_out",
+            (batch, query_len, query_heads, 128), dtype=q.dtype, device=q.device,
         )
-        # Use the same Dqk=192/Dv=128 CK specialization as coarse MLA.
-        # Unlike the public varlen dispatcher this neither pads values back to
-        # 192 channels nor launches a separate LSE recovery pass.
+        # Dqk=192/Dv=128 is supported by both this CK specialization and the
+        # image's native AITER v3 dispatcher, including LSE. Test the latter
+        # only for the ordinary local field: coarse still needs our bias and
+        # routing extension. Neither path pads V or recovers LSE separately.
         original_dlopen_flags = sys.getdlopenflags()
         deepbind = getattr(os, "RTLD_DEEPBIND", 0)
         if deepbind:
             sys.setdlopenflags(original_dlopen_flags | deepbind)
         try:
-            result = _specialized_kimi_coarse_mha_fwd()(
-                expanded_q.permute(0, 2, 1, 3),
-                expanded_k,
-                expanded_v,
-                0.0,
-                float(scale),
-                True,
-                -1,
-                -1,
-                0,
-                return_lse,
-                False,
-                None,
-                None,
-                attention_out,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-            )
+            if native_local:
+                from aiter import flash_attn_func
+
+                result = flash_attn_func(
+                    expanded_q.permute(0, 2, 1, 3), expanded_k, expanded_v,
+                    softmax_scale=float(scale), causal=True, return_lse=return_lse,
+                )
+                attention_out = result[0] if return_lse else result
+            else:
+                result = _specialized_kimi_coarse_mha_fwd()(
+                    expanded_q.permute(0, 2, 1, 3),
+                    expanded_k, expanded_v,
+                    0.0, float(scale), True, -1, -1, 0, return_lse, False,
+                    None, None, attention_out,
+                    None, None, None, None, None, None,
+                )
         finally:
             if deepbind:
                 sys.setdlopenflags(original_dlopen_flags)
@@ -1590,6 +1629,7 @@ def _merge_mla_route_refinement_kernel(
     local_out,
     local_lse,
     output,
+    output_lse,
     Q_BATCH_STRIDE,
     Q_HEAD_STRIDE,
     Q_TOKEN_STRIDE,
@@ -1625,6 +1665,7 @@ def _merge_mla_route_refinement_kernel(
     ROUTE_COUNT: tl.constexpr,
     PROJECTED_VALUES: tl.constexpr,
     AGGREGATED_ROUTES: tl.constexpr,
+    RETURN_LSE: tl.constexpr,
 ):
     """Exact coarse replacement for asymmetric absorbed-MLA K/V widths."""
     batch_head = tl.program_id(0).to(tl.int64)
@@ -1828,6 +1869,12 @@ def _merge_mla_route_refinement_kernel(
         numerator / denominator[:, None],
         mask=valid_query[:, None],
     )
+    if RETURN_LSE:
+        tl.store(
+            output_lse + query_row,
+            maximum + tl.log(denominator),
+            mask=valid_query,
+        )
 
 
 def merge_aiter_mla_prefill_refinement(
@@ -1844,7 +1891,8 @@ def merge_aiter_mla_prefill_refinement(
     kv_group_size: int,
     scale: float,
     output_buffer: torch.Tensor | None = None,
-) -> torch.Tensor:
+    return_lse: bool = False,
+) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
     """Merge asymmetric MLA coarse, refined, local, and sink branches."""
     batch, query_heads, query_len, key_dim = q.shape
     kv_heads = int(coarse.mean_k.size(1))
@@ -1898,6 +1946,10 @@ def merge_aiter_mla_prefill_refinement(
     )
     if tuple(output.shape) != expected_output or output.stride(-1) != 1:
         raise ValueError("AITER MLA refinement output buffer has wrong geometry")
+    output_lse = (
+        torch.empty(expected_prefix, device=q.device, dtype=torch.float32)
+        if return_lse else None
+    )
 
     block_m = 16
     _merge_mla_route_refinement_kernel[
@@ -1918,6 +1970,7 @@ def merge_aiter_mla_prefill_refinement(
         local_out,
         local_lse,
         output,
+        output_lse,
         q.stride(0),
         q.stride(1),
         q.stride(2),
@@ -1953,10 +2006,11 @@ def merge_aiter_mla_prefill_refinement(
         ROUTE_COUNT=route_count,
         PROJECTED_VALUES=projected_values,
         AGGREGATED_ROUTES=aggregated_routes,
+        RETURN_LSE=return_lse,
         num_warps=8,
         waves_per_eu=1,
     )
-    return output
+    return (output, output_lse) if return_lse else output
 
 
 __all__ = [

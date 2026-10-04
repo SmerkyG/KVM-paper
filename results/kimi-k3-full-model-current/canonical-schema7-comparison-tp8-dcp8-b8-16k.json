@@ -1,0 +1,46 @@
+{
+  "baseline": "full",
+  "candidate": "two-tier",
+  "measurements": {
+    "16384": {
+      "baseline_cohort_unattributed_wall_seconds": [
+        0.005701722577214241,
+        0.0063862912356853485,
+        0.0064344462007284164
+      ],
+      "baseline_decode_ms_per_batch_step": 31.53773379199265,
+      "baseline_prefill_seconds": 16.403154473751783,
+      "candidate_cohort_unattributed_wall_seconds": [
+        0.005827005952596664,
+        0.010634062811732292,
+        0.010563259944319725
+      ],
+      "candidate_decode_ms_per_batch_step": 29.828980041202158,
+      "candidate_prefill_seconds": 16.728653924539685,
+      "decode_speedup": 1.0572850210912417,
+      "decode_speedup_observed_bounds": [
+        1.057018673339303,
+        1.0580119659835103
+      ],
+      "generated_tokens_identical": true,
+      "prefill_speedup": 0.9805424003475607,
+      "prefill_speedup_observed_bounds": [
+        0.9785824628232874,
+        0.9807823852975075
+      ]
+    }
+  },
+  "method": "matched-prolong-end-to-end-v2",
+  "source_identity_equal": true,
+  "timing_protocol": {
+    "clock": "vllm-request-metrics-plus-perf-counter-wall-check",
+    "cohort_decode_window": "latest-first-token-to-latest-last-token",
+    "cohort_prefill_window": "earliest-scheduled-to-latest-first-token",
+    "decode_inputs": "prolong-natural-trace-replay",
+    "decode_steps": "generated_tokens_minus_one",
+    "measured_repetitions": 3,
+    "prefill_completion": "final-kimi-cache-event-before-first-token",
+    "schema": 7,
+    "warmup_generations_per_length": 1
+  }
+}

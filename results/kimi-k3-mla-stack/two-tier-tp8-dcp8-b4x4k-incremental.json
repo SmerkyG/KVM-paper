@@ -1,0 +1,19 @@
+{
+  "checkpoint": "tests/fixtures/kimi-k3-mla-stack",
+  "mode": "two-tier",
+  "batch_size": 4,
+  "tensor_parallel_size": 8,
+  "decode_context_parallel_size": 8,
+  "measurements": {
+    "16384": {
+      "elapsed_seconds": 0.5655686762183905,
+      "prefill_seconds": 0.5548928175121546,
+      "aggregate_prompt_tokens_per_second": 118105.69164298919
+    },
+    "65536": {
+      "elapsed_seconds": 5.459770129993558,
+      "prefill_seconds": 5.42756082303822,
+      "aggregate_prompt_tokens_per_second": 48298.67569374524
+    }
+  }
+}

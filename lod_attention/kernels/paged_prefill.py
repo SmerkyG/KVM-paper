@@ -112,6 +112,33 @@ def _scatter_expert_routes_kernel(
     )
 
 
+def count_expert_routes(
+    top_slots: torch.Tensor,
+    *,
+    active_slots: int,
+    buffers: dict[str, torch.Tensor] | None = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Count each query-head's routes once, for projection and expert packing."""
+    if top_slots.ndim != 4 or not top_slots.is_contiguous():
+        raise ValueError("top slots must be a contiguous BHTR tensor")
+    batch, heads, queries, routes = top_slots.shape
+    counts = _workspace_tensor(
+        buffers, "leaf_route_head_counts", (batch * heads * active_slots,),
+        dtype=torch.int32, device=top_slots.device,
+    )
+    counts.zero_()
+    offsets = _workspace_tensor(
+        buffers, "leaf_route_offsets", tuple(top_slots.shape),
+        dtype=torch.int32, device=top_slots.device,
+    )
+    items_per_head = queries * routes
+    _count_expert_routes_kernel[(batch * heads, triton.cdiv(items_per_head, 256))](
+        top_slots, counts, offsets, items_per_head, active_slots,
+        BLOCK=256, num_warps=4,
+    )
+    return counts, offsets
+
+
 def _pack_expert_routes(
     top_slots: torch.Tensor,
     *,
@@ -145,29 +172,8 @@ def _pack_expert_routes(
     grid = (batch * query_heads, triton.cdiv(items_per_head, block))
     expected_head_counts = batch * query_heads * active_slots
     if head_counts is None:
-        head_counts = _workspace_tensor(
-            buffers,
-            "leaf_route_head_counts",
-            (expected_head_counts,),
-            dtype=torch.int32,
-            device=top_slots.device,
-        )
-        head_counts.zero_()
-        route_offsets = _workspace_tensor(
-            buffers,
-            "leaf_route_offsets",
-            (items,),
-            dtype=torch.int32,
-            device=top_slots.device,
-        )
-        _count_expert_routes_kernel[grid](
-            top_slots,
-            head_counts,
-            route_offsets,
-            items_per_head,
-            active_slots,
-            BLOCK=block,
-            num_warps=4,
+        head_counts, route_offsets = count_expert_routes(
+            top_slots, active_slots=active_slots, buffers=buffers,
         )
     else:
         if (

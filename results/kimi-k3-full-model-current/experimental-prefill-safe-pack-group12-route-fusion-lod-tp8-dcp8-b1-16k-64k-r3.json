@@ -1,0 +1,639 @@
+{
+  "allow_experimental_environment": true,
+  "argv": [
+    "/home/dan/subusers/agent/KVM-paper-release/benchmarks/prolong.py",
+    "--checkpoint",
+    "/tmp/dan-agent-kimi-k3-f831ab66814297da540d832a5235f8e904f29d06",
+    "--mode",
+    "two-tier",
+    "--measure",
+    "speed",
+    "--lengths",
+    "16384,32768,65536",
+    "--batch-size",
+    "1",
+    "--speed-samples",
+    "1",
+    "--tensor-parallel-size",
+    "8",
+    "--decode-context-parallel-size",
+    "8",
+    "--dcp-comm-backend",
+    "ag_rs",
+    "--decode-tokens",
+    "2",
+    "--fixed-decode-trace",
+    "--synchronized-decode",
+    "--repeats",
+    "3",
+    "--seed",
+    "0",
+    "--gpu-memory-utilization",
+    "0.8",
+    "--kv-cache-memory-bytes",
+    "536870912",
+    "--kimi-gfx942-int4-moe",
+    "--weight-cache",
+    "--weight-cache-id",
+    "kimi-k3-shared-int4-v6",
+    "--allow-experimental-environment",
+    "--output",
+    "results/kimi-k3-full-model-current/experimental-prefill-safe-pack-group12-route-fusion-lod-tp8-dcp8-b1-16k-64k-r3.json"
+  ],
+  "batch_size": 1,
+  "benchmark": "prolong",
+  "benchmark_environment": {
+    "AITER_ASM_DIR": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter_meta/hsa/",
+    "AITER_CONFIG_FMOE": "/home/dan/subusers/agent/KVM-paper-release/results/kimi-k3-full-model-current/kimik3_i4_tuned_fmoe_b2x16k_merged.csv",
+    "AITER_GPU_ARCHS": "gfx942",
+    "AITER_ROCM_ARCH": "gfx942;gfx950",
+    "HIP_CLANG_PATH": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/_rocm_sdk_devel/lib/llvm/bin",
+    "HIP_DEVICE_LIB_PATH": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/_rocm_sdk_core/lib/llvm/amdgcn/bitcode",
+    "HIP_FORCE_DEV_KERNARG": "1",
+    "HIP_PATH": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/_rocm_sdk_devel",
+    "LOD_BENCHMARK_SYNCHRONIZED_DECODE": "1",
+    "LOD_BENCHMARK_SYNC_PREFILL_CACHE": "1",
+    "LOD_KIMI_CROSS_LAYER_PREFILL_GROUP": "12",
+    "PROLONG_SPEED_TOKEN_CACHE": "/home/dan/subusers/agent/KVM-paper-release/results/kimi-k3-full-model-current/prolong-kimi-k3-speed-token-cache.pt",
+    "ROCR_VISIBLE_DEVICES": "0,1,2,3,4,5,6,7",
+    "VLLM_ALLOW_INSECURE_SERIALIZATION": "1",
+    "VLLM_LOD_ENABLED": "1",
+    "VLLM_LOD_MODE": "two-tier",
+    "VLLM_LOD_POOL_SIZE": "1",
+    "VLLM_PLUGINS": "lod_attention",
+    "VLLM_ROCM_USE_AITER": "1",
+    "VLLM_ROCM_USE_AITER_MOE": "1",
+    "VLLM_USE_TRITON_AWQ": "1",
+    "VLLM_WORKER_MULTIPROC_METHOD": "spawn"
+  },
+  "benchmark_identity": {
+    "runtime": {
+      "packages": {
+        "aiter": null,
+        "torch": "2.12.0+rocm10.0.0",
+        "transformers": "5.17.0",
+        "triton": "3.8.0+gitc0a142ff",
+        "vllm": "0.30.1rc1.dev143+g29468dde8.rocm100"
+      },
+      "python": "3.12.14"
+    },
+    "schema": 1,
+    "source": {
+      "git_commit": "15ece1bdf9db65c5bbc51fa55ec725e147dd03f4",
+      "source_file_count": 73,
+      "source_sha256": "04cf603be362e4932971ba54e49ea9dfa03a776c072e41c928b1c7230cea0ef9"
+    }
+  },
+  "checkpoint": "/tmp/dan-agent-kimi-k3-f831ab66814297da540d832a5235f8e904f29d06",
+  "dataset": "Seerkfang/prolong-64k-512-new",
+  "dataset_revision": "97295b7d7fe48dc0aa6ba373af3a8b9d945e505b",
+  "dcp_comm_backend": "ag_rs",
+  "decode_context_parallel_size": 8,
+  "decode_input_policy": "prolong-natural-trace-replay",
+  "decode_routes": 8,
+  "decode_tokens": 2,
+  "dummy_attention": false,
+  "effective_attention_config": {
+    "backend": "CUSTOM",
+    "backend_per_kind": {
+      "mla_attention": "TRITON_MLA"
+    }
+  },
+  "enable_prefix_caching": false,
+  "full_attention_backend": "ROCM_AITER_UNIFIED_ATTN",
+  "gpu_memory_utilization": 0.8,
+  "hostname": "dev-shared-research-4-845758c86-vptgr",
+  "kimi_gfx942_int4_moe": true,
+  "kv_cache_memory_bytes": 536870912,
+  "max_model_len": 65554,
+  "max_num_seqs": 1,
+  "measure": "speed",
+  "measurements": {
+    "16384": {
+      "cohort_decode_timings_seconds": [
+        0.022152096033096313,
+        0.02197999693453312,
+        0.02196779102087021
+      ],
+      "cohort_prefill_timings_seconds": [
+        2.0794144757092,
+        2.072406094521284,
+        2.078816032037139
+      ],
+      "cohort_unattributed_wall_seconds": [
+        0.0013439543545246124,
+        0.0015007760375738144,
+        0.0013684462755918503
+      ],
+      "cohort_wall_timings_seconds": [
+        2.102910526096821,
+        2.095886867493391,
+        2.102152269333601
+      ],
+      "decode_ms_per_batch_step": 21.97999693453312,
+      "decode_timings_seconds": [
+        0.022152096033096313,
+        0.02197999693453312,
+        0.02196779102087021
+      ],
+      "decode_tokens_per_second": 45.49591171365835,
+      "first_mismatch_positions": [
+        [
+          null
+        ],
+        [
+          null
+        ],
+        [
+          null
+        ]
+      ],
+      "greedy_output_identical": true,
+      "measured_batch_timings": [
+        [
+          {
+            "all_requests_live_overlap_seconds": 0.022152096033096313,
+            "first_token_spread_seconds": 0.0,
+            "last_token_spread_seconds": 0.0,
+            "metric_window_seconds": 2.101566571742296,
+            "request_decode_seconds": [
+              0.022152096033096313
+            ],
+            "request_prefill_seconds": [
+              2.0794144757092
+            ],
+            "unattributed_wall_seconds": 0.0013439543545246124,
+            "wall_elapsed_seconds": 2.102910526096821
+          }
+        ],
+        [
+          {
+            "all_requests_live_overlap_seconds": 0.02197999693453312,
+            "first_token_spread_seconds": 0.0,
+            "last_token_spread_seconds": 0.0,
+            "metric_window_seconds": 2.0943860914558172,
+            "request_decode_seconds": [
+              0.02197999693453312
+            ],
+            "request_prefill_seconds": [
+              2.072406094521284
+            ],
+            "unattributed_wall_seconds": 0.0015007760375738144,
+            "wall_elapsed_seconds": 2.095886867493391
+          }
+        ],
+        [
+          {
+            "all_requests_live_overlap_seconds": 0.02196779102087021,
+            "first_token_spread_seconds": 0.0,
+            "last_token_spread_seconds": 0.0,
+            "metric_window_seconds": 2.100783823058009,
+            "request_decode_seconds": [
+              0.02196779102087021
+            ],
+            "request_prefill_seconds": [
+              2.078816032037139
+            ],
+            "unattributed_wall_seconds": 0.0013684462755918503,
+            "wall_elapsed_seconds": 2.102152269333601
+          }
+        ]
+      ],
+      "output_token_sha256": [
+        [
+          "17b87e339c5a982649d102c2dd3fa7a2288c4fdd6066303d485eda25ccda3601"
+        ],
+        [
+          "17b87e339c5a982649d102c2dd3fa7a2288c4fdd6066303d485eda25ccda3601"
+        ],
+        [
+          "17b87e339c5a982649d102c2dd3fa7a2288c4fdd6066303d485eda25ccda3601"
+        ]
+      ],
+      "prefill_prompt_tokens_per_second": 7881.409296206203,
+      "prefill_seconds": 2.078816032037139,
+      "prefill_timings_seconds": [
+        2.0794144757092,
+        2.072406094521284,
+        2.078816032037139
+      ],
+      "prompts": [
+        {
+          "request_index": 0,
+          "source_stream_indices": [
+            0
+          ],
+          "token_sha256": "6fe6c0627ecd84db8b87eb3f9fcc44a5b9dca64e0b1981bfb67844d08300952c",
+          "trace_token_sha256": "17b87e339c5a982649d102c2dd3fa7a2288c4fdd6066303d485eda25ccda3601",
+          "trace_tokens": 2,
+          "unique_16_token_block_ratio": 1.0
+        }
+      ],
+      "speculative_measurements": [],
+      "warmup_batch_timings": [
+        {
+          "all_requests_live_overlap_seconds": 0.02232135646045208,
+          "first_token_spread_seconds": 0.0,
+          "last_token_spread_seconds": 0.0,
+          "metric_window_seconds": 2.3868790566921234,
+          "request_decode_seconds": [
+            0.02232135646045208
+          ],
+          "request_prefill_seconds": [
+            2.3645577002316713
+          ],
+          "unattributed_wall_seconds": 0.001773359254002571,
+          "wall_elapsed_seconds": 2.388652415946126
+        }
+      ],
+      "warmup_output_token_sha256": [
+        "17b87e339c5a982649d102c2dd3fa7a2288c4fdd6066303d485eda25ccda3601"
+      ]
+    },
+    "32768": {
+      "cohort_decode_timings_seconds": [
+        0.022163407877087593,
+        0.02197805978357792,
+        0.021820981055498123
+      ],
+      "cohort_prefill_timings_seconds": [
+        4.373116688802838,
+        4.390769548714161,
+        4.475877970457077
+      ],
+      "cohort_unattributed_wall_seconds": [
+        0.0018042586743831635,
+        0.0018883105367422104,
+        0.0018656011670827866
+      ],
+      "cohort_wall_timings_seconds": [
+        4.397084355354309,
+        4.414635919034481,
+        4.499564552679658
+      ],
+      "decode_ms_per_batch_step": 21.97805978357792,
+      "decode_timings_seconds": [
+        0.022163407877087593,
+        0.02197805978357792,
+        0.021820981055498123
+      ],
+      "decode_tokens_per_second": 45.49992173318245,
+      "first_mismatch_positions": [
+        [
+          null
+        ],
+        [
+          null
+        ],
+        [
+          null
+        ]
+      ],
+      "greedy_output_identical": true,
+      "measured_batch_timings": [
+        [
+          {
+            "all_requests_live_overlap_seconds": 0.022163407877087593,
+            "first_token_spread_seconds": 0.0,
+            "last_token_spread_seconds": 0.0,
+            "metric_window_seconds": 4.395280096679926,
+            "request_decode_seconds": [
+              0.022163407877087593
+            ],
+            "request_prefill_seconds": [
+              4.373116688802838
+            ],
+            "unattributed_wall_seconds": 0.0018042586743831635,
+            "wall_elapsed_seconds": 4.397084355354309
+          }
+        ],
+        [
+          {
+            "all_requests_live_overlap_seconds": 0.02197805978357792,
+            "first_token_spread_seconds": 0.0,
+            "last_token_spread_seconds": 0.0,
+            "metric_window_seconds": 4.412747608497739,
+            "request_decode_seconds": [
+              0.02197805978357792
+            ],
+            "request_prefill_seconds": [
+              4.390769548714161
+            ],
+            "unattributed_wall_seconds": 0.0018883105367422104,
+            "wall_elapsed_seconds": 4.414635919034481
+          }
+        ],
+        [
+          {
+            "all_requests_live_overlap_seconds": 0.021820981055498123,
+            "first_token_spread_seconds": 0.0,
+            "last_token_spread_seconds": 0.0,
+            "metric_window_seconds": 4.497698951512575,
+            "request_decode_seconds": [
+              0.021820981055498123
+            ],
+            "request_prefill_seconds": [
+              4.475877970457077
+            ],
+            "unattributed_wall_seconds": 0.0018656011670827866,
+            "wall_elapsed_seconds": 4.499564552679658
+          }
+        ]
+      ],
+      "output_token_sha256": [
+        [
+          "01a994f1627a9a041513951fd625e0fb41905f7c48e5cfb5a54d7e91f82d5ec3"
+        ],
+        [
+          "01a994f1627a9a041513951fd625e0fb41905f7c48e5cfb5a54d7e91f82d5ec3"
+        ],
+        [
+          "01a994f1627a9a041513951fd625e0fb41905f7c48e5cfb5a54d7e91f82d5ec3"
+        ]
+      ],
+      "prefill_prompt_tokens_per_second": 7462.928681737834,
+      "prefill_seconds": 4.390769548714161,
+      "prefill_timings_seconds": [
+        4.373116688802838,
+        4.390769548714161,
+        4.475877970457077
+      ],
+      "prompts": [
+        {
+          "request_index": 0,
+          "source_stream_indices": [
+            0
+          ],
+          "token_sha256": "643959862a12e3b465e477914a90f315b360b13a6b10de22997ddbf7a019d06f",
+          "trace_token_sha256": "01a994f1627a9a041513951fd625e0fb41905f7c48e5cfb5a54d7e91f82d5ec3",
+          "trace_tokens": 2,
+          "unique_16_token_block_ratio": 1.0
+        }
+      ],
+      "speculative_measurements": [],
+      "warmup_batch_timings": [
+        {
+          "all_requests_live_overlap_seconds": 0.021974880248308182,
+          "first_token_spread_seconds": 0.0,
+          "last_token_spread_seconds": 0.0,
+          "metric_window_seconds": 4.696359571069479,
+          "request_decode_seconds": [
+            0.021974880248308182
+          ],
+          "request_prefill_seconds": [
+            4.674384690821171
+          ],
+          "unattributed_wall_seconds": 0.0033799707889556885,
+          "wall_elapsed_seconds": 4.699739541858435
+        }
+      ],
+      "warmup_output_token_sha256": [
+        "01a994f1627a9a041513951fd625e0fb41905f7c48e5cfb5a54d7e91f82d5ec3"
+      ]
+    },
+    "65536": {
+      "cohort_decode_timings_seconds": [
+        0.02184802107512951,
+        0.021665286272764206,
+        0.0217729564756155
+      ],
+      "cohort_prefill_timings_seconds": [
+        9.055112754926085,
+        9.073092324659228,
+        9.0786796156317
+      ],
+      "cohort_unattributed_wall_seconds": [
+        0.002522239461541176,
+        0.002761397510766983,
+        0.0025759991258382797
+      ],
+      "cohort_wall_timings_seconds": [
+        9.079483015462756,
+        9.09751900844276,
+        9.103028571233153
+      ],
+      "decode_ms_per_batch_step": 21.7729564756155,
+      "decode_timings_seconds": [
+        0.02184802107512951,
+        0.021665286272764206,
+        0.0217729564756155
+      ],
+      "decode_tokens_per_second": 45.92853529652458,
+      "first_mismatch_positions": [
+        [
+          null
+        ],
+        [
+          null
+        ],
+        [
+          null
+        ]
+      ],
+      "greedy_output_identical": true,
+      "measured_batch_timings": [
+        [
+          {
+            "all_requests_live_overlap_seconds": 0.02184802107512951,
+            "first_token_spread_seconds": 0.0,
+            "last_token_spread_seconds": 0.0,
+            "metric_window_seconds": 9.076960776001215,
+            "request_decode_seconds": [
+              0.02184802107512951
+            ],
+            "request_prefill_seconds": [
+              9.055112754926085
+            ],
+            "unattributed_wall_seconds": 0.002522239461541176,
+            "wall_elapsed_seconds": 9.079483015462756
+          }
+        ],
+        [
+          {
+            "all_requests_live_overlap_seconds": 0.021665286272764206,
+            "first_token_spread_seconds": 0.0,
+            "last_token_spread_seconds": 0.0,
+            "metric_window_seconds": 9.094757610931993,
+            "request_decode_seconds": [
+              0.021665286272764206
+            ],
+            "request_prefill_seconds": [
+              9.073092324659228
+            ],
+            "unattributed_wall_seconds": 0.002761397510766983,
+            "wall_elapsed_seconds": 9.09751900844276
+          }
+        ],
+        [
+          {
+            "all_requests_live_overlap_seconds": 0.0217729564756155,
+            "first_token_spread_seconds": 0.0,
+            "last_token_spread_seconds": 0.0,
+            "metric_window_seconds": 9.100452572107315,
+            "request_decode_seconds": [
+              0.0217729564756155
+            ],
+            "request_prefill_seconds": [
+              9.0786796156317
+            ],
+            "unattributed_wall_seconds": 0.0025759991258382797,
+            "wall_elapsed_seconds": 9.103028571233153
+          }
+        ]
+      ],
+      "output_token_sha256": [
+        [
+          "a7dc0131a685bb12f7f5cd22a5a2a3d843df8fdcad6864b9fedfa3b9a17c489b"
+        ],
+        [
+          "a7dc0131a685bb12f7f5cd22a5a2a3d843df8fdcad6864b9fedfa3b9a17c489b"
+        ],
+        [
+          "a7dc0131a685bb12f7f5cd22a5a2a3d843df8fdcad6864b9fedfa3b9a17c489b"
+        ]
+      ],
+      "prefill_prompt_tokens_per_second": 7223.116182989071,
+      "prefill_seconds": 9.073092324659228,
+      "prefill_timings_seconds": [
+        9.055112754926085,
+        9.073092324659228,
+        9.0786796156317
+      ],
+      "prompts": [
+        {
+          "request_index": 0,
+          "source_stream_indices": [
+            0
+          ],
+          "token_sha256": "74838f20e7afc5e84c8763c5f3cd109a72d417937c06c7a0ed515e0375ea51fd",
+          "trace_token_sha256": "a7dc0131a685bb12f7f5cd22a5a2a3d843df8fdcad6864b9fedfa3b9a17c489b",
+          "trace_tokens": 2,
+          "unique_16_token_block_ratio": 1.0
+        }
+      ],
+      "speculative_measurements": [],
+      "warmup_batch_timings": [
+        {
+          "all_requests_live_overlap_seconds": 0.021768201142549515,
+          "first_token_spread_seconds": 0.0,
+          "last_token_spread_seconds": 0.0,
+          "metric_window_seconds": 9.173869358375669,
+          "request_decode_seconds": [
+            0.021768201142549515
+          ],
+          "request_prefill_seconds": [
+            9.152101157233119
+          ],
+          "unattributed_wall_seconds": 0.0027053486555814743,
+          "wall_elapsed_seconds": 9.17657470703125
+        }
+      ],
+      "warmup_output_token_sha256": [
+        "a7dc0131a685bb12f7f5cd22a5a2a3d843df8fdcad6864b9fedfa3b9a17c489b"
+      ]
+    }
+  },
+  "mode": "two-tier",
+  "num_speculative_tokens": null,
+  "scheduler_budget_tokens": 16385,
+  "scheduler_chunk_tokens": 16384,
+  "scheduler_cls": "vllm_lod_plugin.scheduler.LODChunkAlignedScheduler",
+  "seed": 0,
+  "speculative_model": null,
+  "speed_samples": 1,
+  "synchronized_decode": true,
+  "tensor_parallel_size": 8,
+  "timing_protocol": {
+    "clock": "vllm-request-metrics-plus-perf-counter-wall-check",
+    "decode_inputs": "prolong-natural-trace-replay",
+    "decode_steps": "generated_tokens_minus_one",
+    "measured_repetitions": 3,
+    "prefill_completion": "final-kimi-cache-event-before-first-token",
+    "schema": 4,
+    "warmup_generations_per_length": 1
+  },
+  "weight_cache": true,
+  "weight_cache_id": "kimi-k3-shared-int4-v6",
+  "worker_attention_audit": [
+    {
+      "attached_lod_layers": 24,
+      "dense_gluon_decode_installed": false,
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_name": "AMD Instinct MI325X",
+      "device_total_memory_bytes": 274861129728,
+      "lod_pool_count": 24,
+      "lod_runtime": true,
+      "torch_hip_version": "7.15.26333"
+    },
+    {
+      "attached_lod_layers": 24,
+      "dense_gluon_decode_installed": false,
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_name": "AMD Instinct MI325X",
+      "device_total_memory_bytes": 274861129728,
+      "lod_pool_count": 24,
+      "lod_runtime": true,
+      "torch_hip_version": "7.15.26333"
+    },
+    {
+      "attached_lod_layers": 24,
+      "dense_gluon_decode_installed": false,
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_name": "AMD Instinct MI325X",
+      "device_total_memory_bytes": 274861129728,
+      "lod_pool_count": 24,
+      "lod_runtime": true,
+      "torch_hip_version": "7.15.26333"
+    },
+    {
+      "attached_lod_layers": 24,
+      "dense_gluon_decode_installed": false,
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_name": "AMD Instinct MI325X",
+      "device_total_memory_bytes": 274861129728,
+      "lod_pool_count": 24,
+      "lod_runtime": true,
+      "torch_hip_version": "7.15.26333"
+    },
+    {
+      "attached_lod_layers": 24,
+      "dense_gluon_decode_installed": false,
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_name": "AMD Instinct MI325X",
+      "device_total_memory_bytes": 274861129728,
+      "lod_pool_count": 24,
+      "lod_runtime": true,
+      "torch_hip_version": "7.15.26333"
+    },
+    {
+      "attached_lod_layers": 24,
+      "dense_gluon_decode_installed": false,
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_name": "AMD Instinct MI325X",
+      "device_total_memory_bytes": 274861129728,
+      "lod_pool_count": 24,
+      "lod_runtime": true,
+      "torch_hip_version": "7.15.26333"
+    },
+    {
+      "attached_lod_layers": 24,
+      "dense_gluon_decode_installed": false,
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_name": "AMD Instinct MI325X",
+      "device_total_memory_bytes": 274861129728,
+      "lod_pool_count": 24,
+      "lod_runtime": true,
+      "torch_hip_version": "7.15.26333"
+    },
+    {
+      "attached_lod_layers": 24,
+      "dense_gluon_decode_installed": false,
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_name": "AMD Instinct MI325X",
+      "device_total_memory_bytes": 274861129728,
+      "lod_pool_count": 24,
+      "lod_runtime": true,
+      "torch_hip_version": "7.15.26333"
+    }
+  ]
+}

@@ -44,6 +44,18 @@ class LODChunkAlignedScheduler(AsyncScheduler):
         return total
 
     def schedule(self, throttle_prefills: bool = False) -> SchedulerOutput:
+        if os.getenv("LOD_BENCHMARK_ROTATE_PREFILLS", "0") == "1":
+            from benchmarks._prefill_rotation import rotate_prefill_requests
+
+            rotate_prefill_requests(
+                self.running,
+                has_waiting=bool(self.waiting or self.skipped_waiting),
+                max_running=self.max_num_running_reqs,
+                next_step=self.current_step + 1,
+                max_prefills=int(os.getenv(
+                    "LOD_BENCHMARK_ROTATING_COHORT", str(self.max_num_running_reqs)
+                )),
+            )
         # Benchmark-only cohort barrier.  With a 16K token budget, equal long
         # prompts otherwise enter decode one at a time as their prefills
         # finish.  Request-level timestamps then measure different live batch

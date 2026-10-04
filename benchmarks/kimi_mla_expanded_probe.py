@@ -39,6 +39,8 @@ def main() -> None:
         help="encode log(count) in a padded D256 Q/K coordinate instead of bias",
     )
     parser.add_argument("--coarse-only", action="store_true")
+    parser.add_argument("--tile-max-probe", action="store_true",
+                        help="coarse timing only; one maximum per native tile, NOT top-eight LoD")
     parser.add_argument(
         "--async-bias",
         action="store_true",
@@ -55,6 +57,8 @@ def main() -> None:
         help="retain the 512-d latent output using 192+192+128 AITER passes",
     )
     args = parser.parse_args()
+    if args.tile_max_probe and not (args.coarse_only and args.async_bias and args.fused_route_coarse):
+        parser.error("tile-max probe requires --coarse-only --async-bias --fused-route-coarse")
 
     torch.manual_seed(29)
     device = torch.device("cuda")
@@ -234,6 +238,7 @@ def main() -> None:
         route_dim,
         async_bias=args.async_bias,
         fused_route=args.fused_route_coarse,
+        tile_max_probe=args.tile_max_probe,
     )
     output_dim = 512 if args.latent_value_chunks else 128
     output = torch.empty(
@@ -366,14 +371,48 @@ def main() -> None:
                 samples.append(start.elapsed_time(stop))
             return statistics.median(samples)
 
-        coarse_only()
+        coarse_result = coarse_only()
         torch.cuda.synchronize()
+        check = None
+        if args.check:
+            # Check only a bounded prefix, not a huge Q x H x S allocation.
+            check_queries = min(args.queries, 128)
+            reference_scores = torch.einsum(
+                "bqhd,bshd->bhqs", q[:, :check_queries].float(), k.float(),
+            ) * 192**-0.5 + bias.float()
+            expected_lse = reference_scores.logsumexp(-1)
+            expected_out = torch.einsum(
+                "bhqs,bshd->bqhd", reference_scores.softmax(-1), v.float(),
+            )
+            torch.testing.assert_close(coarse_result[0][:, :check_queries].float(), expected_out, atol=0.025, rtol=0.025)
+            torch.testing.assert_close(coarse_result[1][..., :check_queries], expected_lse, atol=0.025, rtol=0.005)
+            if args.tile_max_probe:
+                candidates = coarse_result[2]
+                maxima = reference_scores.new_full(
+                    (*reference_scores.shape[:3], math.ceil(args.states / 128) * 128),
+                    -float("inf"),
+                )
+                maxima[..., :args.states] = reference_scores
+                best_scores, _ = maxima.view(
+                    1, args.heads, check_queries, -1, 128,
+                ).max(-1)
+                actual_scores = candidates[:, :, :, 0, :check_queries].transpose(-1, -2)
+                actual_indices = candidates[:, :, :, 8, :check_queries].transpose(-1, -2).long()
+                actual_scores = actual_scores * math.log(2)
+                selected_reference = reference_scores.gather(
+                    -1, actual_indices.long().clamp(0, args.states - 1),
+                )
+                torch.testing.assert_close(actual_scores, best_scores, atol=0.025, rtol=0.005)
+                torch.testing.assert_close(selected_reference, best_scores, atol=0.025, rtol=0.005)
+            check = "passed: coarse output/LSE and native-tile maxima" if args.tile_max_probe else "passed: coarse output/LSE"
         print(json.dumps({
             "queries": args.queries,
             "states": args.states,
             "heads": args.heads,
             "route_dim": route_dim,
             "coarse_ms": measure_coarse(coarse_only),
+            "tile_max_only_not_full_lod": args.tile_max_probe,
+            "check": check,
         }, indent=2))
         return
 

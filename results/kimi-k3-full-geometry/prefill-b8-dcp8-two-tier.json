@@ -1,0 +1,24 @@
+{
+  "checkpoint": "/home/dan/subusers/agent/KVM-paper-release/tests/fixtures/kimi-k3-full-geometry",
+  "mode": "two-tier",
+  "batch_size": 8,
+  "tensor_parallel_size": 8,
+  "decode_context_parallel_size": 8,
+  "measurements": {
+    "16384": {
+      "elapsed_seconds": 0.16590774711221457,
+      "prefill_seconds": 0.16089104488492012,
+      "aggregate_prompt_tokens_per_second": 814663.1162334195
+    },
+    "65536": {
+      "elapsed_seconds": 1.4068320337682962,
+      "prefill_seconds": 1.3833061521872878,
+      "aggregate_prompt_tokens_per_second": 379010.8206856409
+    },
+    "262144": {
+      "elapsed_seconds": 3.6050991294905543,
+      "prefill_seconds": 3.5341292191296816,
+      "aggregate_prompt_tokens_per_second": 593399.9211597721
+    }
+  }
+}

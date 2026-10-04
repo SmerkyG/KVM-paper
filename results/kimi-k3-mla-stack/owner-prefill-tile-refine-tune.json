@@ -1,0 +1,169 @@
+{
+  "scope": "one full-head MLA owner; no MoE",
+  "measurements": {
+    "default": {
+      "32768": {
+        "wall_seconds": 2.317743096500635,
+        "prefill_seconds": 2.315958590246737,
+        "generated_token_ids": [
+          282
+        ]
+      },
+      "65536": {
+        "wall_seconds": 6.719327358528972,
+        "prefill_seconds": 6.71717531606555,
+        "generated_token_ids": [
+          1672
+        ]
+      }
+    },
+    "tile_refine": {
+      "32768": {
+        "wall_seconds": 2.2791112028062344,
+        "prefill_seconds": 2.2769102919846773,
+        "generated_token_ids": [
+          282
+        ]
+      },
+      "65536": {
+        "wall_seconds": 6.2526049399748445,
+        "prefill_seconds": 6.250256882049143,
+        "generated_token_ids": [
+          1672
+        ]
+      }
+    },
+    "default_2": {
+      "32768": {
+        "wall_seconds": 2.328540432266891,
+        "prefill_seconds": 2.3265884183347225,
+        "generated_token_ids": [
+          282
+        ]
+      },
+      "65536": {
+        "wall_seconds": 6.732085136696696,
+        "prefill_seconds": 6.72800125181675,
+        "generated_token_ids": [
+          1672
+        ]
+      }
+    }
+  },
+  "worker_attention_audit": [
+    {
+      "lod_runtime": true,
+      "lod_pool_count": 24,
+      "lod_engine_configurations": [
+        {
+          "family": "kimi-k3",
+          "mode": "two-tier",
+          "levels": 2,
+          "kv_bits": 0,
+          "prefill_routes": 8,
+          "decode_routes": 8,
+          "prefill_chunk_len": 16384,
+          "prefill_state_update_len": 16384,
+          "decode_state_update_len": 256,
+          "local_len": 512,
+          "leaf_page_size": 16,
+          "leaf_block_m": 32,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 2,
+          "prefill_fused_route_coarse": true,
+          "decode_fused_state_route": true,
+          "max_open_centroid_leaves": 1024,
+          "leaf_seal_capacity": null
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "attached_lod_layers": 24,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 0,
+      "model_class": "KimiLinearForCausalLM",
+      "loaded_kimi_lod_modules": [
+        {
+          "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_v12",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_v12.so",
+          "size_bytes": 1140504,
+          "sha256": "595c9497580c1ee5f7d3b42eff720dffd04dd081ee926ae8e5babe94d88c4fcc",
+          "build_manifest_sha256": "311f714827ec83823cd859e1a8a6a4543438ecbbec765e1c6b491619877b833b",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_v13",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_v13.so",
+          "size_bytes": 911128,
+          "sha256": "af038f612d9cf37245876b45799418a6a34b1007627d0a49c410723e18736531",
+          "build_manifest_sha256": "db10675c774752760321523b063527ce3ac75f7901462c37ccce90e997ff3752",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1398784,
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "aiter.jit.mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1378368,
+          "sha256": "e6173c49eb6e1767b7376777a04b76cd1b83652210e9076fdbfac6ef1be8737c",
+          "build_manifest_sha256": "b0959783866081492c84db7eb91d425d593fae6c10f006fe73e24df793edb78c",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        }
+      ],
+      "dense_gluon_decode_installed": false,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333"
+    }
+  ]
+}

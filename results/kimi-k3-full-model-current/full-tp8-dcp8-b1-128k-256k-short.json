@@ -1,0 +1,140 @@
+{
+  "batch_size": 1,
+  "benchmark": "prolong",
+  "benchmark_identity": {
+    "runtime": {
+      "packages": {
+        "aiter": null,
+        "torch": "2.12.0+rocm10.0.0",
+        "transformers": "5.17.0",
+        "triton": "3.8.0+gitc0a142ff",
+        "vllm": "0.30.1rc1.dev143+g29468dde8.rocm100"
+      },
+      "python": "3.12.14"
+    },
+    "schema": 1,
+    "source": {
+      "git_commit": "15ece1bdf9db65c5bbc51fa55ec725e147dd03f4",
+      "source_file_count": 70,
+      "source_sha256": "87d88a4f7e284860fbf6fcadcb16545ce78f5e077efbff3173e551504737621d"
+    }
+  },
+  "checkpoint": "/tmp/dan-agent-kimi-k3-f831ab66814297da540d832a5235f8e904f29d06",
+  "dataset": "Seerkfang/prolong-64k-512-new",
+  "dataset_revision": "97295b7d7fe48dc0aa6ba373af3a8b9d945e505b",
+  "dcp_comm_backend": "ag_rs",
+  "decode_context_parallel_size": 8,
+  "decode_routes": null,
+  "decode_tokens": 258,
+  "dummy_attention": false,
+  "gpu_memory_utilization": 0.9,
+  "kimi_gfx942_int4_moe": true,
+  "kv_cache_memory_bytes": 5368709120,
+  "measure": "speed",
+  "measurements": {
+    "131072": {
+      "cohort_decode_timings_seconds": [
+        5.728571655228734
+      ],
+      "cohort_prefill_timings_seconds": [
+        19.292564971372485
+      ],
+      "decode_ms_per_batch_step": 22.290162082602077,
+      "decode_timings_seconds": [
+        5.728571655228734
+      ],
+      "decode_tokens_per_second": 44.86284111771983,
+      "first_mismatch_positions": [
+        [
+          11
+        ]
+      ],
+      "greedy_output_identical": false,
+      "output_token_sha256": [
+        [
+          "28f214431e4a1c94abb3f9a8a032e6652dcbb41be4ec56e3014206e24406daa8"
+        ]
+      ],
+      "prefill_prompt_tokens_per_second": 6793.912587283901,
+      "prefill_seconds": 19.292564971372485,
+      "prefill_timings_seconds": [
+        19.292564971372485
+      ],
+      "prompts": [
+        {
+          "request_index": 0,
+          "source_stream_indices": [
+            0,
+            1
+          ],
+          "token_sha256": "6b0b90d41b25dc3e2005b03208277854d351bc39f00de6c204e4b0c10e69e32e",
+          "unique_16_token_block_ratio": 1.0
+        }
+      ],
+      "speculative_measurements": [],
+      "warmup_output_token_sha256": [
+        "04217e770860e1758b568d693e63d4a6bf6050e0b8f69374da92926656e8066a"
+      ]
+    },
+    "262144": {
+      "cohort_decode_timings_seconds": [
+        5.992667021229863
+      ],
+      "cohort_prefill_timings_seconds": [
+        45.51863956078887
+      ],
+      "decode_ms_per_batch_step": 23.317770510622037,
+      "decode_timings_seconds": [
+        5.992667021229863
+      ],
+      "decode_tokens_per_second": 42.88574671169639,
+      "first_mismatch_positions": [
+        [
+          145
+        ]
+      ],
+      "greedy_output_identical": false,
+      "output_token_sha256": [
+        [
+          "cbe19fee6f3b559ef2a5057731654bd7c5817f2123d7c242ff72829b63b53c69"
+        ]
+      ],
+      "prefill_prompt_tokens_per_second": 5759.0473381770125,
+      "prefill_seconds": 45.51863956078887,
+      "prefill_timings_seconds": [
+        45.51863956078887
+      ],
+      "prompts": [
+        {
+          "request_index": 0,
+          "source_stream_indices": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "token_sha256": "983ba934f1bdf0952fbd12219438ba800a50fef9c14e15349c00cb2199943b5e",
+          "unique_16_token_block_ratio": 0.9940185546875
+        }
+      ],
+      "speculative_measurements": [],
+      "warmup_output_token_sha256": [
+        "38ff663b196df884c05379a042957c6ff13dbed42d9f7c5d6770a2fb934c2c26"
+      ]
+    }
+  },
+  "mode": "full",
+  "num_speculative_tokens": null,
+  "scheduler_budget_tokens": 16385,
+  "scheduler_chunk_tokens": 16384,
+  "scheduler_cls": "vllm_lod_plugin.scheduler.LODChunkAlignedScheduler",
+  "seed": 0,
+  "speculative_model": null,
+  "speed_samples": 1,
+  "synchronized_decode": true,
+  "tensor_parallel_size": 8,
+  "weight_cache": true,
+  "weight_cache_id": "kimi-k3-dense-int4-v4"
+}

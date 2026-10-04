@@ -1,0 +1,50 @@
+{
+  "scope": "warmed route/coarse including exact global top-eight; synthetic Q/K",
+  "queries": 16384,
+  "states": 3547,
+  "heads": 96,
+  "route_set_matching_fraction": 0.9999987483024597,
+  "checks": "passed",
+  "measurements": [
+    {
+      "variant": "original",
+      "wall_median_ms": 38.12081180512905,
+      "gpu_median_ms": 38.09619903564453,
+      "gpu_samples_ms": [
+        38.14664077758789,
+        38.09619903564453,
+        38.01803970336914
+      ]
+    },
+    {
+      "variant": "tile_refine",
+      "wall_median_ms": 24.368973448872566,
+      "gpu_median_ms": 24.347091674804688,
+      "gpu_samples_ms": [
+        24.347091674804688,
+        24.589929580688477,
+        24.27789306640625
+      ]
+    },
+    {
+      "variant": "original",
+      "wall_median_ms": 37.92412579059601,
+      "gpu_median_ms": 37.90087890625,
+      "gpu_samples_ms": [
+        37.89912033081055,
+        37.90087890625,
+        37.96648025512695
+      ]
+    },
+    {
+      "variant": "tile_refine",
+      "wall_median_ms": 24.30925704538822,
+      "gpu_median_ms": 24.29245376586914,
+      "gpu_samples_ms": [
+        24.38677215576172,
+        24.29245376586914,
+        24.197616577148438
+      ]
+    }
+  ]
+}

@@ -1,0 +1,146 @@
+"""Exact top-eight refinement from eight winning 128-centroid tiles.
+
+Each excluded tile has at least eight selected tile maxima ahead of it, so
+it cannot contain a global top-eight key. This is an experimental prefill
+organization, not a change to the LoD selection rule or leaf cap.
+"""
+
+from __future__ import annotations
+
+import math
+
+import torch
+import triton
+import triton.language as tl
+
+from ._paged_common import _pack_route_score_index, _unpack_route_score_index
+from .aiter_prefill_attention import _workspace_tensor
+from .paged_prefill import _pack_expert_routes
+
+
+@triton.jit
+def _select_centroid_tiles(
+    candidates, selected_tiles, Q, TILES,
+    BLOCK_TILES: tl.constexpr, BLOCK_M: tl.constexpr,
+):
+    head = tl.program_id(0)
+    query = tl.program_id(1) * BLOCK_M + tl.arange(0, BLOCK_M)
+    tile = tl.arange(0, BLOCK_TILES)
+    score = tl.load(
+        candidates + ((head * TILES + tile[None, :]) * 16) * Q + query[:, None],
+        mask=(query[:, None] < Q) & (tile[None, :] < TILES),
+        other=-float("inf"),
+    )
+    packed = _pack_route_score_index(score, tile[None, :])
+    best = tl.topk(packed, 8, dim=1)
+    values, indices = _unpack_route_score_index(best)
+    indices = tl.where((indices < TILES) & (values > -float("inf")), indices, -1)
+    tl.store(
+        selected_tiles + (head * Q + query[:, None]) * 8 + tl.arange(0, 8)[None, :],
+        indices, mask=query[:, None] < Q,
+    )
+
+
+@triton.jit
+def _rescore_centroid_tiles(
+    q, k, log_counts, packed_rows, block_experts, block_starts,
+    query_counts, query_starts, active_programs, output,
+    Q, TILES, STATES,
+    HEADS: tl.constexpr, K_BATCH_STRIDE: tl.constexpr,
+    K_HEAD_STRIDE: tl.constexpr, K_TOKEN_STRIDE: tl.constexpr,
+    COUNT_BATCH_STRIDE: tl.constexpr,
+    BLOCK_M: tl.constexpr, SCALE_LOG2: tl.constexpr,
+):
+    program = tl.program_id(0)
+    valid_program = program < tl.load(active_programs)
+    if valid_program:
+        expert = tl.load(block_experts + program).to(tl.int64)
+        query_block = program - tl.load(block_starts + expert)
+        local_row = query_block * BLOCK_M + tl.arange(0, BLOCK_M)
+        valid_query = local_row < tl.load(query_counts + expert)
+        packed_begin = tl.load(query_starts + expert)
+        route_row = tl.load(packed_rows + packed_begin + local_row, mask=valid_query, other=0).to(tl.int64)
+        query_row = route_row // 8
+        head_row = expert // TILES
+        tile = expert % TILES
+        batch = head_row // HEADS
+        head = head_row % HEADS
+        main_d = tl.arange(0, 128)
+        tail_d = tl.arange(0, 64)
+        key_index = tile * 128 + tl.arange(0, 128)
+        valid_key = key_index < STATES
+        q_main = tl.load(q + query_row[:, None] * 192 + main_d[None, :], mask=valid_query[:, None], other=0.0)
+        q_tail = tl.load(q + query_row[:, None] * 192 + 128 + tail_d[None, :], mask=valid_query[:, None], other=0.0)
+        key_row = batch * K_BATCH_STRIDE + head * K_HEAD_STRIDE + key_index * K_TOKEN_STRIDE
+        k_main = tl.load(k + key_row[None, :] + main_d[:, None], mask=valid_key[None, :], other=0.0)
+        k_tail = tl.load(k + key_row[None, :] + 128 + tail_d[:, None], mask=valid_key[None, :], other=0.0)
+        scores = tl.dot(q_main, k_main) + tl.dot(q_tail, k_tail)
+        count_bias = tl.load(log_counts + batch * COUNT_BATCH_STRIDE + key_index, mask=valid_key, other=-float("inf"))
+        scores = scores * SCALE_LOG2 + count_bias[None, :].to(tl.float32) * 1.4426950408889634
+        scores = tl.where(valid_query[:, None] & valid_key[None, :], scores, -float("inf"))
+        packed = _pack_route_score_index(scores, key_index[None, :])
+        best = tl.topk(packed, 8, dim=1)
+        best_scores, best_indices = _unpack_route_score_index(best)
+        query_index = query_row % Q
+        route = route_row % 8
+        candidate_base = ((head_row * 8 + route) * 16) * Q + query_index
+        rank = tl.arange(0, 8)
+        tl.store(output + candidate_base[:, None] + rank[None, :] * Q,
+                 best_scores, mask=valid_query[:, None])
+        tl.store(output + candidate_base[:, None] + (8 + rank[None, :]) * Q,
+                 best_indices.to(tl.float32), mask=valid_query[:, None])
+
+
+def refine_kimi_centroid_tiles(
+    candidates: torch.Tensor,
+    q: torch.Tensor,
+    expanded_k: torch.Tensor,
+    log_counts: torch.Tensor,
+    *,
+    state_len: int,
+    scale: float,
+    buffers: dict[str, torch.Tensor] | None = None,
+    block_m: int = 64,
+) -> torch.Tensor:
+    """Return ordinary eight-per-tile candidates for the exact global reducer."""
+    if q.ndim != 4 or q.size(-1) != 192 or not q.is_contiguous():
+        raise ValueError("tile refinement requires contiguous BHQ192 queries")
+    batch, heads, queries, _ = q.shape
+    tiles = int(candidates.size(2))
+    if tuple(candidates.shape) != (batch, heads, tiles, 16, queries):
+        raise ValueError("tile-max candidates have incompatible geometry")
+    if expanded_k.shape[0] != batch or expanded_k.shape[2:] != (heads, 192):
+        raise ValueError("tile refinement keys must be BSH192")
+    if tiles != triton.cdiv(state_len, 128):
+        raise ValueError("native centroid tile count is inconsistent")
+    selected = _workspace_tensor(
+        buffers, "tile_refine_selected", (batch, heads, queries, 8),
+        dtype=torch.int64, device=q.device,
+    )
+    _select_centroid_tiles[(batch * heads, triton.cdiv(queries, 32))](
+        candidates, selected, queries, tiles,
+        BLOCK_TILES=max(8, triton.next_power_of_2(tiles)), BLOCK_M=32, num_warps=4,
+    )
+    # Reuse the existing asynchronous expert packer: the experts here are
+    # contiguous key tiles, not semantic centroids or their leaf lists.
+    packed, counts, starts, block_experts, block_starts, max_blocks = _pack_expert_routes(
+        selected, active_slots=tiles, kv_heads=heads, kv_group_size=1,
+        expert_count=batch * heads * tiles, block_m=block_m, buffers=buffers,
+    )
+    output = _workspace_tensor(
+        buffers, "tile_refine_candidates", (batch, heads, 8, 16, queries),
+        dtype=torch.float32, device=q.device,
+    )
+    if tiles < 8:
+        output.fill_(-float("inf"))
+        output[:, :, :, 8:].fill_(-1)
+    _rescore_centroid_tiles[(max_blocks,)](
+        q, expanded_k, log_counts, packed, block_experts, block_starts[:-1],
+        counts, starts[:-1], block_starts[-1:], output,
+        queries, tiles, state_len,
+        HEADS=heads, K_BATCH_STRIDE=expanded_k.stride(0),
+        K_HEAD_STRIDE=expanded_k.stride(2), K_TOKEN_STRIDE=expanded_k.stride(1),
+        COUNT_BATCH_STRIDE=log_counts.stride(0),
+        BLOCK_M=block_m, SCALE_LOG2=scale / math.log(2), num_warps=4,
+    )
+    return output

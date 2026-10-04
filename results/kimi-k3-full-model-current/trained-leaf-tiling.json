@@ -1,0 +1,111 @@
+{
+  "scope": "serial warmed leaf kernels on real trained prefill; not model wall time",
+  "input": "results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt",
+  "query_shape": [
+    1,
+    12,
+    16384,
+    192
+  ],
+  "active_slots": 2048,
+  "leaf_count": 16127,
+  "open_routes_per_query_mean": 8.0,
+  "opened_leaves_per_query_mean": 408.5442199707031,
+  "opened_centroid_length_mean": 51.06803512573242,
+  "tiles": {
+    "32x16x1": {
+      "median_ms": 1.4066599607467651,
+      "samples_ms": [
+        1.4530190229415894,
+        1.4656590223312378,
+        1.3946199417114258,
+        1.4066599607467651,
+        1.377140998840332
+      ],
+      "output_relative_l2": 0.0,
+      "output_max_abs": 0.0,
+      "lse_max_abs": 0.0,
+      "output_finite": true
+    },
+    "32x32x1": {
+      "median_ms": 1.694775938987732,
+      "samples_ms": [
+        2.096450090408325,
+        1.7172160148620605,
+        1.6837769746780396,
+        1.6804569959640503,
+        1.694775938987732
+      ],
+      "output_relative_l2": 0.0005347882979549468,
+      "output_max_abs": 0.00390625,
+      "lse_max_abs": 1.9073486328125e-06,
+      "output_finite": true
+    },
+    "64x32x2": {
+      "median_ms": 1.6022180318832397,
+      "samples_ms": [
+        1.988050937652588,
+        1.6022180318832397,
+        1.6002169847488403,
+        1.6306970119476318,
+        1.5818580389022827
+      ],
+      "output_relative_l2": 0.0005347882979549468,
+      "output_max_abs": 0.00390625,
+      "lse_max_abs": 1.9073486328125e-06,
+      "output_finite": true
+    },
+    "64x64x2": {
+      "median_ms": 1.6228569746017456,
+      "samples_ms": [
+        1.923251986503601,
+        1.6228569746017456,
+        1.6178970336914062,
+        1.6394970417022705,
+        1.5827380418777466
+      ],
+      "output_relative_l2": 0.0006201898213475943,
+      "output_max_abs": 0.00390625,
+      "lse_max_abs": 1.9073486328125e-06,
+      "output_finite": true
+    },
+    "128x64x4": {
+      "median_ms": 1.908532977104187,
+      "samples_ms": [
+        2.1617279052734375,
+        1.9240529537200928,
+        1.908532977104187,
+        1.906893014907837,
+        1.9083729982376099
+      ],
+      "output_relative_l2": 0.0006201898213475943,
+      "output_max_abs": 0.00390625,
+      "lse_max_abs": 1.9073486328125e-06,
+      "output_finite": true
+    },
+    "128x128x4": {
+      "median_ms": 2.2546091079711914,
+      "samples_ms": [
+        2.3753650188446045,
+        2.286407947540283,
+        2.248289108276367,
+        2.2546091079711914,
+        2.237528085708618
+      ],
+      "output_relative_l2": 0.0006791372434236109,
+      "output_max_abs": 0.00390625,
+      "lse_max_abs": 1.9073486328125e-06,
+      "output_finite": true
+    }
+  },
+  "projection": {
+    "median_ms": 0.24791699647903442,
+    "samples_ms": [
+      0.27203500270843506,
+      0.2532370090484619,
+      0.24791699647903442,
+      0.24495600163936615,
+      0.24651700258255005
+    ]
+  }
+}

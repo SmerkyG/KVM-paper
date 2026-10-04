@@ -1,0 +1,91 @@
+{
+  "batch_size": 1,
+  "benchmark": "prolong",
+  "benchmark_identity": {
+    "runtime": {
+      "packages": {
+        "aiter": null,
+        "torch": "2.12.0+rocm10.0.0",
+        "transformers": "5.17.0",
+        "triton": "3.8.0+gitc0a142ff",
+        "vllm": "0.30.1rc1.dev143+g29468dde8.rocm100"
+      },
+      "python": "3.12.14"
+    },
+    "schema": 1,
+    "source": {
+      "git_commit": "15ece1bdf9db65c5bbc51fa55ec725e147dd03f4",
+      "source_file_count": 68,
+      "source_sha256": "c4fd82f46081618c41f7e955c7b47e84299c0bed07697bb0fb0700e1ecd82841"
+    }
+  },
+  "checkpoint": "/tmp/dan-agent-kimi-k3-f831ab66814297da540d832a5235f8e904f29d06",
+  "dataset": "Seerkfang/prolong-64k-512-new",
+  "dataset_revision": "97295b7d7fe48dc0aa6ba373af3a8b9d945e505b",
+  "dcp_comm_backend": "ag_rs",
+  "decode_context_parallel_size": 8,
+  "decode_routes": 8,
+  "decode_tokens": 2,
+  "dummy_attention": false,
+  "gpu_memory_utilization": 0.8,
+  "kimi_gfx942_int4_moe": true,
+  "kv_cache_memory_bytes": 268435456,
+  "measure": "speed",
+  "measurements": {
+    "65536": {
+      "cohort_decode_timings_seconds": [
+        0.02165801264345646
+      ],
+      "cohort_prefill_timings_seconds": [
+        8.723115803673863
+      ],
+      "decode_ms_per_batch_step": 21.65801264345646,
+      "decode_timings_seconds": [
+        0.02165801264345646
+      ],
+      "decode_tokens_per_second": 46.172288125528,
+      "first_mismatch_positions": [
+        [
+          0
+        ]
+      ],
+      "greedy_output_identical": false,
+      "output_token_sha256": [
+        [
+          "341fa4df8ec38ce2a222b19aa4f83fc5d73a497b630e128dfde007a6cef33ab1"
+        ]
+      ],
+      "prefill_prompt_tokens_per_second": 7512.911839643191,
+      "prefill_seconds": 8.723115803673863,
+      "prefill_timings_seconds": [
+        8.723115803673863
+      ],
+      "prompts": [
+        {
+          "request_index": 0,
+          "source_stream_indices": [
+            0
+          ],
+          "token_sha256": "74838f20e7afc5e84c8763c5f3cd109a72d417937c06c7a0ed515e0375ea51fd",
+          "unique_16_token_block_ratio": 1.0
+        }
+      ],
+      "speculative_measurements": [],
+      "warmup_output_token_sha256": [
+        "0acec8efc6aa73b8b23cdecc16013410e07c54ed20fe7f0369e57a78340799e9"
+      ]
+    }
+  },
+  "mode": "two-tier",
+  "num_speculative_tokens": null,
+  "scheduler_budget_tokens": 16385,
+  "scheduler_chunk_tokens": 16384,
+  "scheduler_cls": "vllm_lod_plugin.scheduler.LODChunkAlignedScheduler",
+  "seed": 0,
+  "speculative_model": null,
+  "speed_samples": 1,
+  "synchronized_decode": true,
+  "tensor_parallel_size": 8,
+  "weight_cache": true,
+  "weight_cache_id": "kimi-k3-dense-int4-v4"
+}

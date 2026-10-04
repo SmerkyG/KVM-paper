@@ -232,6 +232,7 @@ def _specialized_kimi_coarse_mha_fwd(
     head_dim: int = 192,
     async_bias: bool = False,
     fused_route: bool = False,
+    tile_max_probe: bool = False,
 ) -> Callable[..., tuple[torch.Tensor, ...]]:
     """Build a non-routing Dqk=192/256, Dv=128 Kimi instance."""
     if head_dim not in (192, 256):
@@ -240,6 +241,8 @@ def _specialized_kimi_coarse_mha_fwd(
         raise ValueError("Kimi async-bias AITER is specialized for Dqk=192")
     if fused_route and not async_bias:
         raise ValueError("Kimi fused routing requires async-bias AITER")
+    if tile_max_probe and not fused_route:
+        raise ValueError("tile-max timing probe requires fused Kimi routing")
     from aiter.jit.core import compile_ops, get_args_of_build
     from aiter.ops.mha import cmdGenFunc_mha_fwd
 
@@ -247,12 +250,13 @@ def _specialized_kimi_coarse_mha_fwd(
         generated = cmdGenFunc_mha_fwd(*args, **kwargs)
         # D192 v3 derives each output row from the original score-tile
         # distribution.  CK's reduced row tile has a different lane ordering.
-        # v10 makes the exact production organization explicit: coarse
+        # v12 makes the exact production organization explicit: coarse
         # attention emits eight winners per native tile with one packed
         # score/index reduction per winner, and Triton performs the small exact
         # global reduction. Keep this module revision stable so every measured
-        # run loads the same audited binary.
-        revision = 10 if fused_route else (3 if head_dim == 192 else 2)
+        # run loads the same audited binary. A prior cached v10 binary had
+        # TILE_MAX_ONLY=1 despite its name; never reuse that specialization.
+        revision = (13 if tile_max_probe else 12) if fused_route else (3 if head_dim == 192 else 2)
         mode_suffix = "_asyncbias" if async_bias else ""
         generated["md_name"] = (
             f"{generated['md_name']}_lod_kimi_d{head_dim}v128"
@@ -279,12 +283,14 @@ def _specialized_kimi_coarse_mha_fwd(
                     "-DCK_TILE_FMHA_ROUTE_QUERY_NORMALIZE=",
                     "-DCK_TILE_FMHA_ROUTE_TOPK=",
                     "-DCK_TILE_FMHA_ROUTE_GLOBAL_TOPK=",
+                    "-DCK_TILE_FMHA_ROUTE_TILE_MAX_ONLY=",
                 )
             )
         ] + [
             "-DCK_TILE_FMHA_ROUTE_QUERY_NORMALIZE=0",
             "-DCK_TILE_FMHA_ROUTE_TOPK=8",
             "-DCK_TILE_FMHA_ROUTE_GLOBAL_TOPK=0",
+            f"-DCK_TILE_FMHA_ROUTE_TILE_MAX_ONLY={int(tile_max_probe)}",
         ]
         return generated
 
@@ -315,6 +321,7 @@ def _specialized_kimi_coarse_mha_fwd(
         f"lod_kimi_coarse_mha_fwd_d{head_dim}v128"
         f"{'_asyncbias' if async_bias else ''}"
         f"{'_route8' if fused_route else ''}"
+        f"{'_tilemax_probe' if tile_max_probe else ''}"
     )
     return compile_ops(
         "module_mha_fwd",

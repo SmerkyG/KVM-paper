@@ -1,0 +1,51 @@
+{
+  "scope": "serial warmed leaf kernels on real trained prefill; not model wall time",
+  "input": "results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt",
+  "query_shape": [
+    1,
+    12,
+    16384,
+    192
+  ],
+  "active_slots": 2048,
+  "leaf_count": 16127,
+  "open_routes_per_query_mean": 8.0,
+  "opened_leaves_per_query_mean": 408.5442199707031,
+  "opened_centroid_length_mean": 51.06803512573242,
+  "tiles": {
+    "32x16x1": {
+      "median_ms": 1.408619999885559,
+      "samples_ms": [
+        1.4557379484176636,
+        1.4363399744033813,
+        1.408619999885559,
+        1.3986200094223022,
+        1.370460033416748
+      ],
+      "fixed_input_graph": {
+        "median_ms": 1.402021050453186,
+        "samples_ms": [
+          1.4594990015029907,
+          1.420300006866455,
+          1.402021050453186,
+          1.3862210512161255,
+          1.3605409860610962
+        ]
+      },
+      "output_relative_l2": 0.0,
+      "output_max_abs": 0.0,
+      "lse_max_abs": 0.0,
+      "output_finite": true
+    }
+  },
+  "projection": {
+    "median_ms": 0.24995599687099457,
+    "samples_ms": [
+      0.2897549867630005,
+      0.259196013212204,
+      0.24995599687099457,
+      0.24807700514793396,
+      0.24647699296474457
+    ]
+  }
+}

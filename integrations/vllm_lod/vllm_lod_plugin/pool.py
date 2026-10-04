@@ -95,10 +95,29 @@ class VLLMLayerLODPool:
         self.kv_heads = int(layer.num_kv_heads)
         self.head_dim = int(layer.head_size)
         self.is_absorbed_mla = bool(getattr(layer, "_vllm_lod_absorbed_mla", False))
+        # Experimental sequence-sliced prefill: keep a whole-sequence-sized
+        # centroid budget on each rank, but archive only that rank's leaves.
+        # This is deliberately opt-in; ordinary DCP decode is unchanged.
+        self.kimi_shared_dcp_prefill = bool(
+            self.is_absorbed_mla and self.dcp_world_size > 1
+            and os.environ.get("LOD_KIMI_DCP_SHARED_PREFILL") == "1"
+        )
+        self.kimi_local_dcp_prefill = bool(
+            self.is_absorbed_mla and self.dcp_world_size > 1
+            and (os.environ.get("LOD_KIMI_DCP_LOCAL_PREFILL") == "1"
+                 or self.kimi_shared_dcp_prefill)
+        )
+        if self.kimi_local_dcp_prefill and settings.levels != 2:
+            raise NotImplementedError("local DCP prefill initially supports two-tier BF16")
         self.value_dim = (
             int(layer.kv_lora_rank)
             if self.is_absorbed_mla
             else int(layer.head_size_v)
+        )
+        self.kimi_head_tiled_decode = bool(
+            self.is_absorbed_mla and self.head_dim == 576
+            and self.value_dim == 512 and self.query_heads > 16
+            and self.query_heads % 16 == 0 and settings.levels == 2
         )
         self.speculative_tokens = int(speculative_tokens)
         gqa = self.query_heads // self.kv_heads
@@ -293,6 +312,7 @@ class VLLMLayerLODPool:
         # semantic cache.  It is released as soon as the final prompt chunk is
         # converted into the fixed-address rank-local row above.
         self.dcp_prefill_shadows: dict[int, KernelLODCache] = {}
+        self.dcp_prefill_summaries: dict[int, dict[str, Any]] = {}
         self.dcp_cross_layer_initial_sinks: dict[
             int, tuple[torch.Tensor, torch.Tensor]
         ] = {}
@@ -504,7 +524,8 @@ class VLLMLayerLODPool:
                 or (self.settings.levels == 3 and self.family is ModelFamily.K2)
             )
             and self.dtype == torch.bfloat16
-            and 1 < self.query_heads // self.kv_heads <= 16
+            and (1 < self.query_heads // self.kv_heads <= 16
+                 or self.kimi_head_tiled_decode)
             and self.query_heads % self.kv_heads == 0
             and (
                 self.head_dim in (128, 256)
@@ -1106,6 +1127,7 @@ class VLLMLayerLODPool:
         self.wait_deferred_prefill(tuple(range(start, stop)))
         for slot in range(start, stop):
             self.dcp_prefill_shadows.pop(slot, None)
+            self.dcp_prefill_summaries.pop(slot, None)
             self.dcp_cross_layer_initial_sinks.pop(slot, None)
             self.ready[slot] = False
             self.clean[slot] = True
@@ -1178,12 +1200,19 @@ class VLLMLayerLODPool:
             name: int(getattr(self.engine, name))
             for name in self._dcp_global_lengths
         }
+        independent_prefill = (
+            getattr(self, "kimi_local_dcp_prefill", False)
+            and not getattr(self, "kimi_shared_dcp_prefill", False)
+        )
         self.engine.state_growth_factor = (
-            self._dcp_global_state_growth_factor / math.sqrt(self.dcp_world_size)
+            self._dcp_global_state_growth_factor
+            * (math.sqrt(self.dcp_world_size) if independent_prefill
+               else 1.0 / math.sqrt(self.dcp_world_size))
         )
         self.engine.state_min_len = max(
             1,
-            math.ceil(self._dcp_global_state_min_len / self.dcp_world_size),
+            (self._dcp_global_state_min_len if independent_prefill
+             else math.ceil(self._dcp_global_state_min_len / self.dcp_world_size)),
         )
         for name, global_length in self._dcp_global_lengths.items():
             setattr(
@@ -4031,14 +4060,17 @@ class VLLMLayerLODPool:
             dtype=self.dtype,
             device=self.device,
         )
-        self._buffers(query, rows)
+        if self.kimi_head_tiled_decode:
+            self._dcp_buffers(query, rows)
+        else:
+            self._buffers(query, rows)
 
     def _dcp_buffers(
         self, query: torch.Tensor, rows: int
     ) -> dict[str, torch.Tensor]:
         """Fixed-address scratch for K3's 96-head DCP decode query."""
 
-        if self.dcp_world_size == 1:
+        if self.dcp_world_size == 1 and not self.kimi_head_tiled_decode:
             return self._buffers(query, rows)
         if not self.is_absorbed_mla or int(query.size(1)) % 16:
             raise ValueError("Kimi DCP LoD requires 16-head query tiles")
@@ -4440,9 +4472,13 @@ class VLLMLayerLODPool:
         value: torch.Tensor,
         output: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Run rank-local Kimi LoD and return its partial value and LSE."""
+        """Run 16-head Kimi tiles over one physical cache, with an LSE.
 
-        if self.dcp_world_size <= 1 or self.dcp_group is None:
+        DCP ranks use this for their partial result. A single-GPU owner uses
+        the same tiles without collectives; cache storage is never duplicated.
+        """
+
+        if self.dcp_world_size <= 1 and not self.kimi_head_tiled_decode:
             raise RuntimeError("decode_dcp requires an initialized DCP group")
         rows, gathered_heads, head_dim = query.shape
         if head_dim != self.head_dim or gathered_heads % 16:
@@ -4455,11 +4491,12 @@ class VLLMLayerLODPool:
         v = value.unsqueeze(2).contiguous()
         cache_indices = self.active_indices[:rows]
         active_slots = self.active_decode_rows[:rows]
-        if len(active_slots) != rows:
+        if self.dcp_world_size > 1 and len(active_slots) != rows:
             raise RuntimeError(
                 "DCP decode has no host-side active-row map for this batch"
             )
-        self.ensure_dcp_sharded(active_slots)
+        if self.dcp_world_size > 1:
+            self.ensure_dcp_sharded(active_slots)
         self.ensure_unified_page1_fixed(active_slots)
 
         buffers = self._dcp_buffers(q, rows)
@@ -4489,6 +4526,7 @@ class VLLMLayerLODPool:
             sink_v=virtual_heads(self.state["sink_v"]),
             state_len=self.state_capacity,
             state_lens=self.state_lens,
+            max_open_centroid_leaves=self.engine.max_open_centroid_leaves,
             local_len=self.decode_local_limit,
             cache_indices=cache_indices,
             local_lens=self.local_lens,
@@ -4534,16 +4572,23 @@ class VLLMLayerLODPool:
             flat_page_indices=virtual_heads(page["page_indices"]),
             exact_decode_threshold=0,
             output_buffer=output.unsqueeze(2),
-            distributed_route_group=self.dcp_group,
+            distributed_route_group=(
+                None if self.kimi_local_dcp_prefill and not self.kimi_shared_dcp_prefill
+                else self.dcp_group
+            ),
             gqa_union_physical_kv_heads=self.kv_heads,
             gqa_union_head_tiled_metadata=True,
-            dcp_global_lens=self.dcp_global_lens,
+            dcp_global_lens=(self.dcp_global_lens if self.dcp_world_size > 1 else None),
             dcp_rank=self.dcp_rank,
             dcp_world_size=self.dcp_world_size,
             dcp_interleave_size=self.dcp_interleave_size,
         )
         if result.data_ptr() != output.data_ptr():
             raise AssertionError("DCP LoD did not use its output buffer")
+        if self.dcp_world_size == 1:
+            # All six head tiles alias the same physical recent-KV row. Advance
+            # its length once, rather than once per virtual KV head.
+            advance_decode_cache_lengths(cache_indices, self.local_lens)
         final_lse = buffers.get("kimi_gluon_final_lse")
         if not isinstance(final_lse, torch.Tensor):
             raise RuntimeError("Kimi DCP compact consumer did not return an LSE")
@@ -4570,6 +4615,16 @@ class VLLMLayerLODPool:
         rows = int(metadata.num_actual_tokens)
         if rows == 0:
             return output
+        if self.kimi_head_tiled_decode:
+            if (cache_indices is not None or local_lens is not None
+                    or decode_buffers is not None or local_lens_are_logical
+                    or not store_new_kv or not advance_local_lens
+                    or speculative_steps != 1):
+                raise NotImplementedError("Kimi owner tiles support ordinary one-token decode")
+            result, _lse = self.decode_dcp(
+                query[:rows], key[:rows], value[:rows], output[:rows],
+            )
+            return result
         # Tensor-parallel head shards can be strided views. Decode routing
         # flattens each query row, so keep that tiny tensor dense for every
         # backend. The AITER GQA-union metadata path additionally requires

@@ -1,0 +1,30 @@
+{
+  "baseline": "full",
+  "candidate": "two-tier",
+  "measurements": {
+    "16384": {
+      "baseline_cohort_unattributed_wall_seconds": [
+        0.0018291529268026352
+      ],
+      "baseline_decode_ms_per_batch_step": 31.523332949291216,
+      "baseline_prefill_seconds": 16.599177207797766,
+      "candidate_cohort_unattributed_wall_seconds": [
+        0.0016244538128376007
+      ],
+      "candidate_decode_ms_per_batch_step": 29.804368256009184,
+      "candidate_prefill_seconds": 17.14687549881637,
+      "decode_speedup": 1.0576749246458346,
+      "generated_tokens_identical": true,
+      "prefill_speedup": 0.96805842026109
+    }
+  },
+  "method": "matched-prolong-end-to-end-v2",
+  "timing_protocol": {
+    "clock": "vllm-request-metrics-plus-perf-counter-wall-check",
+    "decode_inputs": "prolong-natural-trace-replay",
+    "decode_steps": "generated_tokens_minus_one",
+    "measured_repetitions": 1,
+    "schema": 3,
+    "warmup_generations_per_length": 1
+  }
+}

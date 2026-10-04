@@ -1,0 +1,621 @@
+{
+  "scope": "attention-stack owners; no MoE or Q/output transfers",
+  "checkpoint": "tests/fixtures/kimi-k3-mla-stack",
+  "mode": "full",
+  "owners": 8,
+  "tensor_parallel_size_per_owner": 1,
+  "decode_context_parallel_size_per_owner": 1,
+  "scheduler_chunk_per_owner": 16384,
+  "kv_cache_memory_bytes_per_owner": 3221225472,
+  "exact_centroid_tile_refinement": false,
+  "copy_free_leaf_result": false,
+  "measurements": {
+    "32768": {
+      "cohort_wall_seconds": 2.762043056078255,
+      "aggregate_prompt_tokens_per_second": 94909.45458765246,
+      "owner_points": [
+        {
+          "kind": "point",
+          "rank": 0,
+          "gpu": "0",
+          "length": 32768,
+          "started": 5965002.198949585,
+          "finished": 5965004.246793841,
+          "request_prefill_seconds": 2.0457812743261456,
+          "generated_token_ids": [
+            282
+          ]
+        },
+        {
+          "kind": "point",
+          "rank": 1,
+          "gpu": "1",
+          "length": 32768,
+          "started": 5965002.198948335,
+          "finished": 5965004.24617454,
+          "request_prefill_seconds": 2.0449853958562016,
+          "generated_token_ids": [
+            670
+          ]
+        },
+        {
+          "kind": "point",
+          "rank": 2,
+          "gpu": "2",
+          "length": 32768,
+          "started": 5965002.198978825,
+          "finished": 5965004.206825684,
+          "request_prefill_seconds": 2.0061765518039465,
+          "generated_token_ids": [
+            1400
+          ]
+        },
+        {
+          "kind": "point",
+          "rank": 3,
+          "gpu": "3",
+          "length": 32768,
+          "started": 5965002.198971035,
+          "finished": 5965004.227715515,
+          "request_prefill_seconds": 2.026470840908587,
+          "generated_token_ids": [
+            1833
+          ]
+        },
+        {
+          "kind": "point",
+          "rank": 4,
+          "gpu": "4",
+          "length": 32768,
+          "started": 5965002.198965965,
+          "finished": 5965004.499869284,
+          "request_prefill_seconds": 2.2987752482295036,
+          "generated_token_ids": [
+            2006
+          ]
+        },
+        {
+          "kind": "point",
+          "rank": 5,
+          "gpu": "5",
+          "length": 32768,
+          "started": 5965002.198954275,
+          "finished": 5965004.960694145,
+          "request_prefill_seconds": 2.759657987393439,
+          "generated_token_ids": [
+            790
+          ]
+        },
+        {
+          "kind": "point",
+          "rank": 6,
+          "gpu": "6",
+          "length": 32768,
+          "started": 5965002.198958415,
+          "finished": 5965004.747346893,
+          "request_prefill_seconds": 2.546429575420916,
+          "generated_token_ids": [
+            280
+          ]
+        },
+        {
+          "kind": "point",
+          "rank": 7,
+          "gpu": "7",
+          "length": 32768,
+          "started": 5965002.198974865,
+          "finished": 5965004.215379796,
+          "request_prefill_seconds": 2.0142692010849714,
+          "generated_token_ids": [
+            1160
+          ]
+        }
+      ]
+    },
+    "65536": {
+      "cohort_wall_seconds": 9.198843291029334,
+      "aggregate_prompt_tokens_per_second": 56994.99202375619,
+      "owner_points": [
+        {
+          "kind": "point",
+          "rank": 0,
+          "gpu": "0",
+          "length": 65536,
+          "started": 5965014.156906992,
+          "finished": 5965020.963690814,
+          "request_prefill_seconds": 6.804281607270241,
+          "generated_token_ids": [
+            1672
+          ]
+        },
+        {
+          "kind": "point",
+          "rank": 1,
+          "gpu": "1",
+          "length": 65536,
+          "started": 5965014.156881052,
+          "finished": 5965020.957987583,
+          "request_prefill_seconds": 6.798440448008478,
+          "generated_token_ids": [
+            1395
+          ]
+        },
+        {
+          "kind": "point",
+          "rank": 2,
+          "gpu": "2",
+          "length": 65536,
+          "started": 5965014.156902492,
+          "finished": 5965020.968599816,
+          "request_prefill_seconds": 6.809387915767729,
+          "generated_token_ids": [
+            318
+          ]
+        },
+        {
+          "kind": "point",
+          "rank": 3,
+          "gpu": "3",
+          "length": 65536,
+          "started": 5965014.156877112,
+          "finished": 5965020.985382394,
+          "request_prefill_seconds": 6.826024276204407,
+          "generated_token_ids": [
+            667
+          ]
+        },
+        {
+          "kind": "point",
+          "rank": 4,
+          "gpu": "4",
+          "length": 65536,
+          "started": 5965014.156888502,
+          "finished": 5965021.905371489,
+          "request_prefill_seconds": 7.745915772393346,
+          "generated_token_ids": [
+            1722
+          ]
+        },
+        {
+          "kind": "point",
+          "rank": 5,
+          "gpu": "5",
+          "length": 65536,
+          "started": 5965014.156897652,
+          "finished": 5965023.355409098,
+          "request_prefill_seconds": 9.196038750000298,
+          "generated_token_ids": [
+            173
+          ]
+        },
+        {
+          "kind": "point",
+          "rank": 6,
+          "gpu": "6",
+          "length": 65536,
+          "started": 5965014.156912942,
+          "finished": 5965022.633640873,
+          "request_prefill_seconds": 8.474327734671533,
+          "generated_token_ids": [
+            603
+          ]
+        },
+        {
+          "kind": "point",
+          "rank": 7,
+          "gpu": "7",
+          "length": 65536,
+          "started": 5965014.156894622,
+          "finished": 5965020.890330038,
+          "request_prefill_seconds": 6.730659403838217,
+          "generated_token_ids": [
+            329
+          ]
+        }
+      ]
+    }
+  },
+  "worker_attention_audit_status": "passed",
+  "worker_attention_audit": [
+    {
+      "kind": "audit",
+      "rank": 6,
+      "audits": [
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 0,
+          "model_class": "KimiLinearForCausalLM",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333"
+        }
+      ]
+    },
+    {
+      "kind": "audit",
+      "rank": 5,
+      "audits": [
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 0,
+          "model_class": "KimiLinearForCausalLM",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333"
+        }
+      ]
+    },
+    {
+      "kind": "audit",
+      "rank": 4,
+      "audits": [
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 0,
+          "model_class": "KimiLinearForCausalLM",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333"
+        }
+      ]
+    },
+    {
+      "kind": "audit",
+      "rank": 1,
+      "audits": [
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 0,
+          "model_class": "KimiLinearForCausalLM",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333"
+        }
+      ]
+    },
+    {
+      "kind": "audit",
+      "rank": 3,
+      "audits": [
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 0,
+          "model_class": "KimiLinearForCausalLM",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333"
+        }
+      ]
+    },
+    {
+      "kind": "audit",
+      "rank": 2,
+      "audits": [
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 0,
+          "model_class": "KimiLinearForCausalLM",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333"
+        }
+      ]
+    },
+    {
+      "kind": "audit",
+      "rank": 7,
+      "audits": [
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 0,
+          "model_class": "KimiLinearForCausalLM",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333"
+        }
+      ]
+    },
+    {
+      "kind": "audit",
+      "rank": 0,
+      "audits": [
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 0,
+          "model_class": "KimiLinearForCausalLM",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333"
+        }
+      ]
+    }
+  ]
+}

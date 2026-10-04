@@ -57,6 +57,20 @@ def _should_reclaim_prefill(*, total_len: int, prompt_capacity: int) -> bool:
     )
 
 
+def _reclaim_prefill_allocator(device: torch.device) -> None:
+    """Experimental reuse of idle allocations when external work has room.
+
+    This never retains staging tensors or skips their completion fences. It
+    only avoids returning reusable, already-idle PyTorch blocks to HIP on
+    every request/chunk. Memory-pressure reclamation remains available.
+    """
+    if os.environ.get("LOD_KIMI_REUSE_PREFILL_ALLOCATOR") == "1":
+        free_bytes, _ = torch.cuda.mem_get_info(device)
+        if free_bytes >= 8 * 1024**3:
+            return
+    torch.cuda.empty_cache()
+
+
 def _cross_layer_prefill_group_end(
     built_layers: int, total_layers: int, group_size: int
 ) -> int:
@@ -209,6 +223,7 @@ class VLLMLODRuntime:
         )
         self.dcp_rank = 0
         self.dcp_group: Any | None = None
+        self._prefill_construction_group: Any | None = None
         if self.layers and self.dcp_world_size > 1:
             if self.family is not ModelFamily.KIMI_K3:
                 raise NotImplementedError(
@@ -218,6 +233,10 @@ class VLLMLODRuntime:
 
             self.dcp_group = get_dcp_group()
             self.dcp_rank = int(self.dcp_group.rank_in_group)
+            if _DISTRIBUTED_PREFILL_BUILD:
+                from .prefill_collectives import PrefillConstructionGroup
+
+                self._prefill_construction_group = PrefillConstructionGroup(self.dcp_group)
         self.pools: dict[str, VLLMLayerLODPool] = {}
         self.group_by_layer: dict[str, int] = {}
         self.block_size_by_group: dict[int, int] = {}
@@ -1293,9 +1312,9 @@ class VLLMLODRuntime:
             # actually return this chunk's blocks rather than the preceding
             # chunk's blocks.
             stream.synchronize()
-            torch.cuda.empty_cache()
+            _reclaim_prefill_allocator(self.model_state.device)
         elif release_state_workspaces:
-            torch.cuda.empty_cache()
+            _reclaim_prefill_allocator(self.model_state.device)
         if (
             release_state_workspaces
             and os.environ.get("LOD_KIMI_PROFILE_FINAL_PREFILL_MEMORY") == "1"
@@ -1497,6 +1516,10 @@ class VLLMLODRuntime:
                 synchronize_after=(
                     staged_layers == len(self.pools)
                     and os.environ.get("LOD_BENCHMARK_SYNC_PREFILL_CACHE") == "1"
+                    and (
+                        os.environ.get("LOD_BENCHMARK_ROTATE_PREFILLS") != "1"
+                        or total_len >= prompt_capacity
+                    )
                 ),
                 reclaim_after=(
                     staged_layers == len(self.pools)
@@ -1792,19 +1815,22 @@ class VLLMLODRuntime:
         distributed = _DISTRIBUTED_PREFILL_BUILD
         if distributed and (
             self.dcp_group is None
-            or group_size != reference.dcp_world_size
+            or group_size % reference.dcp_world_size
             or len(stages) % group_size
             or not all(pool.is_absorbed_mla for pool, *_ in stages)
         ):
             raise RuntimeError(
-                "distributed Kimi prefill construction requires one layer "
-                "per DCP rank in every cross-layer group"
+                "distributed Kimi prefill construction requires equal layer "
+                "shares per DCP rank in every cross-layer group"
             )
 
         for start in range(0, len(stages), group_size):
             group = stages[start : start + group_size]
+            if distributed:
+                from .prefill_collectives import construction_layer_slice
+
             build_group = (
-                group[self.dcp_rank : self.dcp_rank + 1]
+                group[construction_layer_slice(len(group), reference.dcp_world_size, self.dcp_rank)]
                 if distributed
                 else group
             )
@@ -1920,7 +1946,7 @@ class VLLMLODRuntime:
             if old_slot_remap is not None:
                 raise AssertionError("DCP initial state remapping is unsupported")
             if distributed:
-                process_group = self.dcp_group
+                process_group = self._prefill_construction_group
                 if process_group is None:
                     raise AssertionError("distributed prefill lost its DCP group")
                 active_k = process_group.all_gather(
@@ -2080,6 +2106,10 @@ class VLLMLODRuntime:
                 synchronize_after=(
                     staged_layers == len(self.pools)
                     and os.environ.get("LOD_BENCHMARK_SYNC_PREFILL_CACHE") == "1"
+                    and (
+                        os.environ.get("LOD_BENCHMARK_ROTATE_PREFILLS") != "1"
+                        or finalize_cache_for_decode
+                    )
                 ),
                 reclaim_after=(
                     staged_layers == len(self.pools)
@@ -2290,12 +2320,12 @@ class VLLMLODRuntime:
         distributed = _DISTRIBUTED_PREFILL_BUILD
         if distributed and (
             self.dcp_group is None
-            or len(stages) != reference.dcp_world_size
+            or len(stages) % reference.dcp_world_size
             or not all(pool.is_absorbed_mla for pool, *_ in stages)
         ):
             raise RuntimeError(
-                "distributed Kimi cached-prefill construction requires one "
-                "absorbed-MLA layer per DCP rank"
+                "distributed Kimi cached-prefill construction requires equal "
+                "absorbed-MLA layer shares per DCP rank"
             )
 
         reused_layer_parents = 0
@@ -2372,8 +2402,11 @@ class VLLMLODRuntime:
         updated_state_len: int | None = None
         for start in range(0, len(stages), group_size):
             group = stages[start : start + group_size]
+            if distributed:
+                from .prefill_collectives import construction_layer_slice
+
             build_group = (
-                group[self.dcp_rank : self.dcp_rank + 1]
+                group[construction_layer_slice(len(group), reference.dcp_world_size, self.dcp_rank)]
                 if distributed
                 else group
             )
@@ -2431,7 +2464,7 @@ class VLLMLODRuntime:
             if old_slot_remap is not None:
                 raise AssertionError("paged cached state remapping is unsupported")
             if distributed:
-                process_group = self.dcp_group
+                process_group = self._prefill_construction_group
                 if process_group is None:
                     raise AssertionError("distributed prefill lost its DCP group")
                 active_k = process_group.all_gather(

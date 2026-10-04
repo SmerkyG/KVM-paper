@@ -1,0 +1,169 @@
+{
+  "batch_size": 8,
+  "benchmark": "prolong",
+  "benchmark_identity": {
+    "runtime": {
+      "packages": {
+        "aiter": null,
+        "torch": "2.12.0+rocm10.0.0",
+        "transformers": "5.17.0",
+        "triton": "3.8.0+gitc0a142ff",
+        "vllm": "0.30.1rc1.dev143+g29468dde8.rocm100"
+      },
+      "python": "3.12.14"
+    },
+    "schema": 1,
+    "source": {
+      "git_commit": "15ece1bdf9db65c5bbc51fa55ec725e147dd03f4",
+      "source_file_count": 67,
+      "source_sha256": "a7da3d974a28f43944cc96086d1feae78d943e45fdef7711ff4e78f93cb4d0b5"
+    }
+  },
+  "checkpoint": "/tmp/dan-agent-kimi-k3-f831ab66814297da540d832a5235f8e904f29d06",
+  "dataset": "Seerkfang/prolong-64k-512-new",
+  "dataset_revision": "97295b7d7fe48dc0aa6ba373af3a8b9d945e505b",
+  "dcp_comm_backend": "ag_rs",
+  "decode_context_parallel_size": 8,
+  "decode_routes": 8,
+  "decode_tokens": 3,
+  "dummy_attention": false,
+  "gpu_memory_utilization": 0.9,
+  "kimi_gfx942_int4_moe": true,
+  "kv_cache_memory_bytes": 5368709120,
+  "measure": "speed",
+  "measurements": {
+    "32768": {
+      "cohort_decode_timings_seconds": [
+        0.06442777812480927
+      ],
+      "cohort_prefill_timings_seconds": [
+        36.546619322150946
+      ],
+      "decode_ms_per_batch_step": 32.21388906240463,
+      "decode_timings_seconds": [
+        0.06442777812480927
+      ],
+      "decode_tokens_per_second": 248.34008661613095,
+      "first_mismatch_positions": [
+        [
+          1,
+          null,
+          1,
+          2,
+          null,
+          2,
+          null,
+          1
+        ]
+      ],
+      "greedy_output_identical": false,
+      "output_token_sha256": [
+        [
+          "7aaf407a662d2f81e83e6669f098226f0556f1a11f68d73ddc1a9dcf37695410",
+          "67bd069cefa1013bd7ff0b00806cb975eab6389773276b99e2fe974604b595f5",
+          "a46c241c5e31e7c64a8194fa5ffa87f946a9e7fdd2cf85edaad4a17258575017",
+          "94218dc16b939cb6bdd4c4ed9de0ccb2da9f7731ab06ffe1ed5b1f995c95aa87",
+          "3ed647b9f90cbfb8a0162f599935f79e9af7c09e4414a8a38e513afc11926bd1",
+          "2754ef44d40f0bf0146f2d8923ce61023850bc92e9ff7b43e3f57acc0cd2a593",
+          "36c626a1f2aafbf73465cd7194cd5a9a3886aa1da836120af6da2d7bc7c7506a",
+          "91db3000291ed2d26523aae912c971f37d92753bd9b6d62d751db6e647529320"
+        ]
+      ],
+      "prefill_prompt_tokens_per_second": 7172.865913786839,
+      "prefill_seconds": 36.546619322150946,
+      "prefill_timings_seconds": [
+        36.546619322150946
+      ],
+      "prompts": [
+        {
+          "request_index": 0,
+          "source_stream_indices": [
+            0
+          ],
+          "token_sha256": "643959862a12e3b465e477914a90f315b360b13a6b10de22997ddbf7a019d06f",
+          "unique_16_token_block_ratio": 1.0
+        },
+        {
+          "request_index": 1,
+          "source_stream_indices": [
+            1
+          ],
+          "token_sha256": "430f40af492e31ec5ab0daadc1213ceddc7e13584ecbe4821fb21da628136d45",
+          "unique_16_token_block_ratio": 1.0
+        },
+        {
+          "request_index": 2,
+          "source_stream_indices": [
+            2,
+            3
+          ],
+          "token_sha256": "1bff96ee858c56dd8e7dba1d8634a29326307aa643f368c1d3a4eb7c5dfc540d",
+          "unique_16_token_block_ratio": 0.978515625
+        },
+        {
+          "request_index": 3,
+          "source_stream_indices": [
+            4,
+            5
+          ],
+          "token_sha256": "9bd966a2a03ced5ad22b47c4ee2d7f6b49faaf80c232d61ed82cf02d2ad4a1c4",
+          "unique_16_token_block_ratio": 0.99951171875
+        },
+        {
+          "request_index": 4,
+          "source_stream_indices": [
+            6
+          ],
+          "token_sha256": "ca73d57375b26936df6d80868ea8b3b64ed05d422a408e544a6ad1ddc4c0eb4b",
+          "unique_16_token_block_ratio": 0.990234375
+        },
+        {
+          "request_index": 5,
+          "source_stream_indices": [
+            7
+          ],
+          "token_sha256": "960f67c8798114a83d9e6409a378fec4af1f89cd4ab8faca4ae8919c82a9456e",
+          "unique_16_token_block_ratio": 1.0
+        },
+        {
+          "request_index": 6,
+          "source_stream_indices": [
+            8
+          ],
+          "token_sha256": "37f2dd5319fb8f1a9fbc8e2cc57001bc7e20db8c81edc2ee736828d595623f41",
+          "unique_16_token_block_ratio": 1.0
+        },
+        {
+          "request_index": 7,
+          "source_stream_indices": [
+            9
+          ],
+          "token_sha256": "a69c253739703315352f21f740ad76b5ac9e6fa12ce635d7da9e914b837e8773",
+          "unique_16_token_block_ratio": 1.0
+        }
+      ],
+      "speculative_measurements": [],
+      "warmup_output_token_sha256": [
+        "8fa101601293d2ec6416db49c8d3d40f614e481c49f8395a34be0f5604a2d613",
+        "67bd069cefa1013bd7ff0b00806cb975eab6389773276b99e2fe974604b595f5",
+        "b2a2e71a696e92c948c1db92c4a791ef0fce45a4b0808ccd752fee5592469bee",
+        "ace63bd891590009ffc215c0a88530a4dafeea058c4f65338c0a8c2df3fef425",
+        "3ed647b9f90cbfb8a0162f599935f79e9af7c09e4414a8a38e513afc11926bd1",
+        "afcceea777083c1ee395ca65b1a9ab6a9a9b283493e6bb54b342bb0619c64349",
+        "36c626a1f2aafbf73465cd7194cd5a9a3886aa1da836120af6da2d7bc7c7506a",
+        "5f610063ed4b60c9b67bcd7cd834c28402c4d3cc78c1b238b4b24f2132502166"
+      ]
+    }
+  },
+  "mode": "two-tier",
+  "num_speculative_tokens": null,
+  "scheduler_budget_tokens": 16392,
+  "scheduler_chunk_tokens": 16384,
+  "scheduler_cls": "vllm_lod_plugin.scheduler.LODChunkAlignedScheduler",
+  "seed": 0,
+  "speculative_model": null,
+  "speed_samples": 8,
+  "tensor_parallel_size": 8,
+  "weight_cache": true,
+  "weight_cache_id": "kimi-k3-dense-int4-v4"
+}

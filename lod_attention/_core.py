@@ -3618,12 +3618,58 @@ class TritonLODAttentionCore(nn.Module):
             )
 
             query_heads = int(expanded_kimi_q.size(1))
+            if os.environ.get("LOD_KIMI_PROFILE_PROJECTED_LEAVES") == "1":
+                if route_head_counts is None:
+                    # Diagnostic only: the Kimi route reducer intentionally
+                    # defers contended expert counting to the leaf consumer.
+                    # Count its actual post-cap routes here, not raw winners.
+                    selected_counts = torch.zeros(
+                        (int(q.size(0)), query_heads, active_slots),
+                        dtype=torch.int32, device=top_slots.device,
+                    )
+                    routes = top_slots.reshape(int(q.size(0)), query_heads, -1)
+                    selected_counts.scatter_add_(
+                        -1, routes.clamp(0, active_slots - 1).long(),
+                        ((routes >= 0) & (routes < active_slots)).int(),
+                    )
+                    selected_experts = selected_counts.gt(0)
+                else:
+                    selected_experts = route_head_counts.view(
+                        int(q.size(0)), query_heads, active_slots,
+                    ).gt(0)
+                lengths = slot_lengths[..., :active_slots].expand_as(selected_experts)
+                needed = int((selected_experts * lengths).sum().item())
+                usage = getattr(self, "_lod_kimi_projection_usage", [])
+                usage.append({
+                    "leaf_count": leaf_count, "heads": query_heads,
+                    "selected_experts": int(selected_experts.sum().item()),
+                    "available_experts": selected_experts.numel(),
+                    "needed_leaf_head_pairs": needed,
+                    "all_leaf_head_pairs": int(q.size(0)) * query_heads * leaf_count,
+                })
+                self._lod_kimi_projection_usage = usage
             compact_projection = bool(
                 getattr(self, "_lod_kimi_compact_leaf_prefill", False)
             )
             routed_projection = bool(
                 os.environ.get("LOD_KIMI_ROUTED_LEAF_PROJECTION") == "1"
             )
+            sparse_projection = bool(
+                os.environ.get("LOD_KIMI_SPARSE_LEAF_PROJECTION") == "1"
+                and not compact_projection and not routed_projection
+            )
+            incremental_projection = bool(
+                os.environ.get("LOD_KIMI_INCREMENTAL_LEAF_PROJECTION") == "1"
+                and not sparse_projection and not compact_projection
+                and not routed_projection and int(q.size(0)) == 1
+            )
+            if sparse_projection and route_head_counts is None:
+                from .kernels.paged_prefill import count_expert_routes
+
+                route_head_counts, route_offsets = count_expert_routes(
+                    top_slots.contiguous(), active_slots=active_slots,
+                    buffers=getattr(self, "_lod_prefill_attention_buffers", None),
+                )
             if compact_projection:
                 del self._lod_kimi_compact_leaf_prefill
                 if reduce_routes:
@@ -3660,10 +3706,14 @@ class TritonLODAttentionCore(nn.Module):
                     and query_heads % divisor == 0
                     and divisor <= max_group_heads
                 )
+                if incremental_projection:
+                    # Keep head ranges stable as the archive grows; changing
+                    # 96 to 48 would create a second set of prefix caches.
+                    group_heads = min(query_heads, 48)
             route_count = int(top_slots.size(-1))
             route_shape = (
                 (int(q.size(0)), query_heads, int(q.size(2)), 128)
-                if compact_projection
+                if compact_projection or reduce_routes
                 else (
                     int(q.size(0)),
                     query_heads,
@@ -3673,8 +3723,12 @@ class TritonLODAttentionCore(nn.Module):
                 )
             )
             route_lse_shape = route_shape[:-1]
-            route_output = q.new_empty(route_shape)
-            route_lse_output = torch.empty(
+            direct_result = bool(
+                os.environ.get("LOD_KIMI_DIRECT_LEAF_RESULT") == "1"
+                and group_heads == query_heads
+            )
+            route_output = None if direct_result else q.new_empty(route_shape)
+            route_lse_output = None if direct_result else torch.empty(
                 route_lse_shape, dtype=torch.float32, device=q.device
             )
             for head_begin in range(0, query_heads, group_heads):
@@ -3711,14 +3765,43 @@ class TritonLODAttentionCore(nn.Module):
                         kimi_w_uv=kimi_w_uv[head_begin:head_end],
                     )
                 else:
-                    group_k, group_v = expand_kimi_leaf_kv(
-                        page_k[..., :leaf_count, :],
-                        kimi_w_uk_t[head_begin:head_end],
-                        kimi_w_uv[head_begin:head_end],
-                        buffers=getattr(
-                            self, "_lod_prefill_attention_buffers", None
-                        ),
-                    )
+                    if sparse_projection:
+                        from .kernels.kimi_sparse_leaf_projection import (
+                            project_needed_kimi_leaves,
+                        )
+
+                        group_counts = route_head_counts.view(
+                            int(q.size(0)), query_heads, active_slots,
+                        )[:, head_begin:head_end].contiguous()
+                        group_k, group_v = project_needed_kimi_leaves(
+                            page_k[..., :leaf_count, :],
+                            kimi_w_uk_t[head_begin:head_end],
+                            kimi_w_uv[head_begin:head_end], cache, group_counts,
+                            active_slots=active_slots,
+                            hash_probes=self._page_lookup_probes(cache),
+                            buffers=getattr(self, "_lod_prefill_attention_buffers", None),
+                        )
+                    elif incremental_projection:
+                        from .kernels.kimi_incremental_leaf_projection import (
+                            expand_incremental_kimi_leaves,
+                        )
+
+                        group_k, group_v = expand_incremental_kimi_leaves(
+                            page_k[..., :leaf_count, :],
+                            kimi_w_uk_t[head_begin:head_end],
+                            kimi_w_uv[head_begin:head_end], cache,
+                            head_begin=head_begin,
+                            buffers=getattr(self, "_lod_prefill_attention_buffers", None),
+                        )
+                    else:
+                        group_k, group_v = expand_kimi_leaf_kv(
+                            page_k[..., :leaf_count, :],
+                            kimi_w_uk_t[head_begin:head_end],
+                            kimi_w_uv[head_begin:head_end],
+                            buffers=getattr(
+                                self, "_lod_prefill_attention_buffers", None
+                            ),
+                        )
                     group_q = expanded_kimi_q[:, head_begin:head_end].contiguous()
                     group_kv_size = 1
                     group_leaf_kwargs = dict(leaf_kwargs)
@@ -3729,9 +3812,9 @@ class TritonLODAttentionCore(nn.Module):
                     # one-page centroid.  This changes only tiling; routes,
                     # logits, and the LSE replacement formula are unchanged.
                     group_leaf_kwargs.update(
-                        block_m=32,
+                        block_m=int(os.environ.get("LOD_KIMI_LEAF_BLOCK_M", 32)),
                         block_n=16,
-                        num_warps=1,
+                        num_warps=int(os.environ.get("LOD_KIMI_LEAF_WARPS", 1)),
                     )
                 group_route_head_counts = None
                 group_route_offsets = None
@@ -3785,6 +3868,12 @@ class TritonLODAttentionCore(nn.Module):
                         group_output,
                         kimi_w_uv[head_begin:head_end],
                     )
+                if direct_result:
+                    # One head group already has the requested shape. Its
+                    # workspace is live until the immediately following
+                    # refinement merge, so do not duplicate the full Q*H*8*V
+                    # output and LSE just to copy them back unchanged.
+                    return group_output, group_lse
                 route_output[:, head_begin:head_end].copy_(group_output)
                 route_lse_output[:, head_begin:head_end].copy_(group_lse)
             return route_output, route_lse_output

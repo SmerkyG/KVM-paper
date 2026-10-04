@@ -1,0 +1,100 @@
+{
+  "baseline": "full",
+  "candidate": "two-tier",
+  "measurements": {
+    "16384": {
+      "baseline_cohort_unattributed_wall_seconds": [
+        0.001638270914554596,
+        0.0017097163945436478,
+        0.0015431195497512817
+      ],
+      "baseline_decode_ms_per_batch_step": 21.392057180491975,
+      "baseline_prefill_seconds": 2.038565432652831,
+      "candidate_cohort_unattributed_wall_seconds": [
+        0.001655731350183487,
+        0.0018361695110797882,
+        0.0017501655966043472
+      ],
+      "candidate_decode_ms_per_batch_step": 20.646248736738926,
+      "candidate_prefill_seconds": 2.0849977917969227,
+      "decode_speedup": 1.0361231937705915,
+      "decode_speedup_observed_bounds": [
+        1.0359339300761308,
+        1.0362408111086148
+      ],
+      "generated_tokens_identical": true,
+      "prefill_speedup": 0.9777302597984651,
+      "prefill_speedup_observed_bounds": [
+        0.9724371842155743,
+        0.9793417328651184
+      ]
+    },
+    "32768": {
+      "baseline_cohort_unattributed_wall_seconds": [
+        0.0017874352633953094,
+        0.0019177831709384918,
+        0.0019187908619642258
+      ],
+      "baseline_decode_ms_per_batch_step": 21.64739557156281,
+      "baseline_prefill_seconds": 4.178113590925932,
+      "candidate_cohort_unattributed_wall_seconds": [
+        0.001900484785437584,
+        0.0021321214735507965,
+        0.0019929055124521255
+      ],
+      "candidate_decode_ms_per_batch_step": 20.646849212425877,
+      "candidate_prefill_seconds": 4.4194682370871305,
+      "decode_speedup": 1.0484600022426074,
+      "decode_speedup_observed_bounds": [
+        1.0484228931936508,
+        1.04851361974866
+      ],
+      "generated_tokens_identical": true,
+      "prefill_speedup": 0.9453883061912726,
+      "prefill_speedup_observed_bounds": [
+        0.9180643246697581,
+        0.9538782551630812
+      ]
+    },
+    "65536": {
+      "baseline_cohort_unattributed_wall_seconds": [
+        0.002840133383870125,
+        0.0030093397945165634,
+        0.00285247340798378
+      ],
+      "baseline_decode_ms_per_batch_step": 22.162946252137772,
+      "baseline_prefill_seconds": 8.784807967022061,
+      "candidate_cohort_unattributed_wall_seconds": [
+        0.0026843082159757614,
+        0.003164457157254219,
+        0.0032444093376398087
+      ],
+      "candidate_decode_ms_per_batch_step": 20.649413085266133,
+      "candidate_prefill_seconds": 8.951340826228261,
+      "decode_speedup": 1.0732966675915638,
+      "decode_speedup_observed_bounds": [
+        1.0732182647414854,
+        1.0733883584073227
+      ],
+      "generated_tokens_identical": true,
+      "prefill_speedup": 0.9813957637811932,
+      "prefill_speedup_observed_bounds": [
+        0.977468592911729,
+        0.9819501090025439
+      ]
+    }
+  },
+  "method": "matched-prolong-end-to-end-v2",
+  "source_identity_equal": true,
+  "timing_protocol": {
+    "clock": "vllm-request-metrics-plus-perf-counter-wall-check",
+    "cohort_decode_window": "latest-first-token-to-latest-last-token",
+    "cohort_prefill_window": "earliest-scheduled-to-latest-first-token",
+    "decode_inputs": "prolong-natural-trace-replay",
+    "decode_steps": "generated_tokens_minus_one",
+    "measured_repetitions": 3,
+    "prefill_completion": "final-kimi-cache-event-before-first-token",
+    "schema": 6,
+    "warmup_generations_per_length": 1
+  }
+}

@@ -122,6 +122,22 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--repeats", type=int, default=1)
     parser.add_argument(
+        "--retain-warmup-allocator",
+        action="store_true",
+        help=(
+            "keep reusable warmup allocations when at least 8 GiB remains "
+            "free; apply identically to dense and LoD warm-serving comparisons"
+        ),
+    )
+    parser.add_argument(
+        "--diagnostic-prefill-profile",
+        action="store_true",
+        help=(
+            "run an additional instrumented pass after each measured speed "
+            "point; profiler durations are diagnostics, never benchmark times"
+        ),
+    )
+    parser.add_argument(
         "--seed",
         type=int,
         default=0,
@@ -831,21 +847,62 @@ def timed_generate_cohort(
     )
 
 
-def release_worker_allocator_cache(worker: Any) -> None:
+def release_worker_allocator_cache(worker: Any, retain: bool = False) -> dict[str, Any]:
     """Return dead warm-up allocations without touching persistent caches.
 
     Long Kimi prefill has a large transient MoE/attention high-water mark.  On
     ROCm, leaving those inactive blocks reserved by PyTorch can starve RCCL,
     whose launch resources are allocated outside the caching allocator.  The
     speed benchmark's reference generation is deliberately outside the timed
-    sample, so release only its dead blocks before starting the measurement.
+    sample, so normally release only its dead blocks before the measurement.
+    An explicit warm-serving experiment may retain them with 8 GiB headroom;
+    this policy must be matched across dense and LoD, and is recorded below.
     """
 
     del worker
     import torch
 
     torch.cuda.synchronize()
-    torch.cuda.empty_cache()
+    free_bytes, _ = torch.cuda.mem_get_info()
+    reclaimed = not retain or free_bytes < 8 * 1024**3
+    if reclaimed:
+        torch.cuda.empty_cache()
+    return {
+        "retention_requested": retain,
+        "reclaimed": reclaimed,
+        "free_bytes_before": free_bytes,
+        "free_bytes_after": torch.cuda.mem_get_info()[0],
+        "allocated_bytes": torch.cuda.memory_allocated(),
+        "reserved_bytes": torch.cuda.memory_reserved(),
+    }
+
+
+def audit_worker_cohort_capacity(worker: Any) -> dict[str, Any]:
+    """Reject a synchronized cohort that cannot all stay resident.
+
+    Otherwise completed rows hold their KV blocks at the decode barrier while
+    the final waiting row cannot obtain blocks, silently deadlocking timing.
+    Use vLLM's hybrid-cache calculation, not a naive token/block estimate.
+    """
+    from vllm.v1.core.kv_cache_utils import get_max_concurrency_for_kv_cache_config
+
+    runner = worker.model_runner
+    return {
+        "max_concurrent_requests": get_max_concurrency_for_kv_cache_config(
+            runner.vllm_config, runner.kv_cache_config,
+        ),
+        "num_blocks": int(runner.kv_cache_config.num_blocks),
+    }
+
+
+def validate_cohort_capacity(capacities: list[dict[str, Any]], batch_size: int) -> None:
+    if not capacities or min(
+        item["max_concurrent_requests"] for item in capacities
+    ) < batch_size:
+        raise RuntimeError(
+            f"synchronized batch {batch_size} exceeds native cache capacity: "
+            f"{capacities}; increase --kv-cache-memory-bytes before benchmarking"
+        )
 
 
 def audit_worker_attention_mode(worker: Any) -> dict[str, Any]:
@@ -1137,6 +1194,8 @@ def evaluate_speed(
     repeats: int,
     seed: int,
     fixed_decode_trace: bool = False,
+    retain_warmup_allocator: bool = False,
+    diagnostic_prefill_profile: bool = False,
 ) -> dict[str, Any]:
     from vllm import SamplingParams
 
@@ -1182,7 +1241,11 @@ def evaluate_speed(
             params,
             batch_size=batch_size,
         )
-        llm.collective_rpc(release_worker_allocator_cache)
+        allocator_after_warmup = (
+            llm.collective_rpc(release_worker_allocator_cache, args=(True,))
+            if retain_warmup_allocator
+            else llm.collective_rpc(release_worker_allocator_cache)
+        )
         prefill_timings = []
         decode_timings = []
         cohort_prefill_timings = []
@@ -1298,6 +1361,7 @@ def evaluate_speed(
             "output_token_sha256": output_token_sha256,
             "speculative_measurements": speculative_measurements,
             "prompts": prompt_metadata,
+            "allocator_after_warmup": allocator_after_warmup,
         }
         if speculative_measurements:
             measurement.update(
@@ -1320,6 +1384,22 @@ def evaluate_speed(
                     "speculative_equal_weight_request_mean_acceptance_length"
                 ] = equal_weight_acceptance
         result[str(length)] = measurement
+        if diagnostic_prefill_profile:
+            from benchmarks._prefill_profile import (
+                start_prefill_profile,
+                stop_prefill_profile,
+            )
+
+            # Profiling (and its optional routing-use counters) runs only
+            # after the canonical measurement. Never insert profiler events
+            # or extra synchronizations into the measured generation itself.
+            llm.collective_rpc(start_prefill_profile)
+            try:
+                timed_generate_cohort(llm, prompts, params, batch_size=batch_size)
+            finally:
+                measurement["diagnostic_profiles"] = llm.collective_rpc(
+                    stop_prefill_profile
+                )
     return result
 
 
@@ -1333,6 +1413,10 @@ def main() -> None:
         # rather than the first decode step. Dense attention ignores this
         # common benchmark flag, so matched environments remain identical.
         os.environ["LOD_BENCHMARK_SYNC_PREFILL_CACHE"] = "1"
+    elif args.retain_warmup_allocator:
+        raise ValueError("--retain-warmup-allocator requires --measure speed")
+    if args.diagnostic_prefill_profile and args.measure != "speed":
+        raise ValueError("--diagnostic-prefill-profile requires --measure speed")
     run_identity = benchmark_identity()
     # The attention-timing callback is not a msgpack object, so vLLM 0.27
     # requires explicit opt-in before sending it to local workers.
@@ -1441,6 +1525,10 @@ def main() -> None:
 
     llm = LLM(**kwargs)
     try:
+        cohort_capacity = None
+        if args.synchronized_decode:
+            cohort_capacity = llm.collective_rpc(audit_worker_cohort_capacity)
+            validate_cohort_capacity(cohort_capacity, args.batch_size)
         worker_attention_audit_before = llm.collective_rpc(
             audit_worker_attention_mode
         )
@@ -1469,6 +1557,8 @@ def main() -> None:
                 repeats=args.repeats,
                 seed=args.seed,
                 fixed_decode_trace=args.fixed_decode_trace,
+                retain_warmup_allocator=args.retain_warmup_allocator,
+                diagnostic_prefill_profile=args.diagnostic_prefill_profile,
             )
         worker_attention_audit = llm.collective_rpc(audit_worker_attention_mode)
         validate_worker_attention_mode(
@@ -1479,6 +1569,7 @@ def main() -> None:
         )
         result = {
             "benchmark": "prolong",
+            "cohort_capacity": cohort_capacity,
             "benchmark_identity": run_identity,
             "dataset": DATASET,
             "dataset_revision": DATASET_REVISION,
@@ -1506,6 +1597,11 @@ def main() -> None:
                 ),
                 "warmup_generations_per_length": 1,
                 "measured_repetitions": args.repeats,
+                "warmup_allocator": (
+                    "retain-with-8gib-headroom"
+                    if args.retain_warmup_allocator
+                    else "release-before-measurement"
+                ),
                 "decode_steps": "generated_tokens_minus_one",
                 "preemptions": "recorded-and-rejected",
                 "prefix_cache_hits": "recorded-and-rejected",

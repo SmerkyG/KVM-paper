@@ -1,0 +1,275 @@
+{
+  "batch_size": 8,
+  "benchmark": "prolong",
+  "benchmark_identity": {
+    "runtime": {
+      "packages": {
+        "aiter": null,
+        "torch": "2.12.0+rocm10.0.0",
+        "transformers": "5.17.0",
+        "triton": "3.8.0+gitc0a142ff",
+        "vllm": "0.30.1rc1.dev143+g29468dde8.rocm100"
+      },
+      "python": "3.12.14"
+    },
+    "schema": 1,
+    "source": {
+      "git_commit": "15ece1bdf9db65c5bbc51fa55ec725e147dd03f4",
+      "source_file_count": 70,
+      "source_sha256": "ed2aabcf79f86e7496e3578ba63178fb3215fb253258fe5e0e9fa6224461b706"
+    }
+  },
+  "checkpoint": "/tmp/dan-agent-kimi-k3-f831ab66814297da540d832a5235f8e904f29d06",
+  "dataset": "Seerkfang/prolong-64k-512-new",
+  "dataset_revision": "97295b7d7fe48dc0aa6ba373af3a8b9d945e505b",
+  "dcp_comm_backend": "ag_rs",
+  "decode_context_parallel_size": 8,
+  "decode_routes": null,
+  "decode_tokens": 258,
+  "dummy_attention": false,
+  "gpu_memory_utilization": 0.9,
+  "kimi_gfx942_int4_moe": true,
+  "kv_cache_memory_bytes": 17179869184,
+  "measure": "speed",
+  "measurements": {
+    "524288": {
+      "cohort_decode_timings_seconds": [
+        11.897227987647057
+      ],
+      "cohort_prefill_timings_seconds": [
+        1005.590205444023
+      ],
+      "decode_ms_per_batch_step": 46.292715905241465,
+      "decode_timings_seconds": [
+        11.897227987647057
+      ],
+      "decode_tokens_per_second": 172.81336477158828,
+      "first_mismatch_positions": [
+        [
+          null,
+          84,
+          50,
+          2,
+          33,
+          125,
+          27,
+          null
+        ]
+      ],
+      "greedy_output_identical": false,
+      "output_token_sha256": [
+        [
+          "7a40faa0c84d901293b74b74ac40448e9829ec6044d7dc4b71aa1230ec27d3b4",
+          "c644b2b31166dfa9593827195f151a0ea536c14f2e438212ed0f324d557b5f12",
+          "e54fa54b4ccb597a27509d274a4522fd9671c1a6a6a8423227862c691dcb8fcd",
+          "38fc750eadfd2ad803f62150a8a00de84ce5fdb2fffb653f7d6c562fc3f4295b",
+          "c1f982ec3988294b2c3b26a8de645aaa25e930d33226eae3d139cce607453cae",
+          "e60a6f1870de826f1cd4741b20f20819640cc1a766443e0a380ef2d652f72ab6",
+          "398d00fd83f3e08feaba7c5260adde48279614a69ac4de335069dd79fb0ac14a",
+          "ca2611f9f3fc90ec3fefde0d32120132d45452900d9d93040b76c45fefdeb1e0"
+        ]
+      ],
+      "prefill_prompt_tokens_per_second": 4170.987323954678,
+      "prefill_seconds": 1005.590205444023,
+      "prefill_timings_seconds": [
+        1005.590205444023
+      ],
+      "prompts": [
+        {
+          "request_index": 0,
+          "source_stream_indices": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ],
+          "token_sha256": "4312e2120861896344fd516cb5f0f94fb885130c879d3f648ed74c5465aabfda",
+          "unique_16_token_block_ratio": 0.9942626953125
+        },
+        {
+          "request_index": 1,
+          "source_stream_indices": [
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36
+          ],
+          "token_sha256": "1edf990df4e04fba214030081c57f2b775ce43e82c917540b9db4126eadc9616",
+          "unique_16_token_block_ratio": 0.978790283203125
+        },
+        {
+          "request_index": 2,
+          "source_stream_indices": [
+            62,
+            63,
+            64,
+            65,
+            66,
+            67,
+            68,
+            69,
+            70,
+            71,
+            72
+          ],
+          "token_sha256": "43857b08c0be000c5bf4a2c1ed3ce6e57329aa810bcfcadba2f235172929a87f",
+          "unique_16_token_block_ratio": 0.97601318359375
+        },
+        {
+          "request_index": 3,
+          "source_stream_indices": [
+            73,
+            74,
+            75,
+            76,
+            77,
+            78,
+            79,
+            80,
+            81,
+            82,
+            83,
+            84,
+            85,
+            86
+          ],
+          "token_sha256": "a00647d4d49b056bc8df24042ac66c7f5903ce754e8428de3316e17fb3c112fc",
+          "unique_16_token_block_ratio": 0.97943115234375
+        },
+        {
+          "request_index": 4,
+          "source_stream_indices": [
+            117,
+            118,
+            119,
+            120,
+            121,
+            122,
+            123,
+            124,
+            125,
+            126,
+            127,
+            128,
+            129,
+            130,
+            131,
+            132,
+            133,
+            134,
+            135
+          ],
+          "token_sha256": "95f1c06e65e2c6c5d8fa2efc9be59b332d971abd8a951a52020501055e0aa6c6",
+          "unique_16_token_block_ratio": 0.983306884765625
+        },
+        {
+          "request_index": 5,
+          "source_stream_indices": [
+            136,
+            137,
+            138,
+            139,
+            140,
+            141,
+            142,
+            143,
+            144,
+            145,
+            146,
+            147,
+            148
+          ],
+          "token_sha256": "c84084b4be5eb9c8a79f41f538091e3a9beef18ec75eecb708148e891891dd9f",
+          "unique_16_token_block_ratio": 0.99346923828125
+        },
+        {
+          "request_index": 6,
+          "source_stream_indices": [
+            149,
+            150,
+            151,
+            152,
+            153,
+            154,
+            155,
+            156,
+            157,
+            158,
+            159,
+            160,
+            161,
+            162,
+            163,
+            164,
+            165,
+            166,
+            167,
+            168,
+            169,
+            170
+          ],
+          "token_sha256": "557f6b8cd52a4f8f5c72fae22b6e0a03aec63907e6e64f71fca03e8bf1ea47f1",
+          "unique_16_token_block_ratio": 0.993255615234375
+        },
+        {
+          "request_index": 7,
+          "source_stream_indices": [
+            184,
+            185,
+            186,
+            187,
+            188,
+            189,
+            190,
+            191,
+            192,
+            193
+          ],
+          "token_sha256": "d512239782a0a6ab512fa2bd5414616eee21f82ce710f6ef91410405a01dc169",
+          "unique_16_token_block_ratio": 0.9869384765625
+        }
+      ],
+      "speculative_measurements": [],
+      "warmup_output_token_sha256": [
+        "7a40faa0c84d901293b74b74ac40448e9829ec6044d7dc4b71aa1230ec27d3b4",
+        "17a2da8f80a6611dcb9cbf60d4f27125527c7e9297a0a0b65d3e0a70f5bcb1ce",
+        "6372528ba4972fa4c066473ab6eebd1404dac26891243ef921b94e95e0b7cabb",
+        "22183c4b605c1babf25b2bd1341f39b5c1dbd62f300389669dc938334a0ab8d6",
+        "a9e59557f18a2ca36da935c2a6a2aa31574ae50141e0525b78b5e076e9601ef2",
+        "d98802b7ebb6e0df4bab89fe1d22c945d696c540b70247a297e95652e89a9132",
+        "65f418245561b62cc41038495624f5a29a207c4048f9753586f04c862b7b784e",
+        "ca2611f9f3fc90ec3fefde0d32120132d45452900d9d93040b76c45fefdeb1e0"
+      ]
+    }
+  },
+  "mode": "full",
+  "num_speculative_tokens": null,
+  "scheduler_budget_tokens": 16392,
+  "scheduler_chunk_tokens": 16384,
+  "scheduler_cls": "vllm_lod_plugin.scheduler.LODChunkAlignedScheduler",
+  "seed": 0,
+  "speculative_model": null,
+  "speed_samples": 8,
+  "synchronized_decode": true,
+  "tensor_parallel_size": 8,
+  "weight_cache": true,
+  "weight_cache_id": "kimi-k3-dense-int4-v4"
+}

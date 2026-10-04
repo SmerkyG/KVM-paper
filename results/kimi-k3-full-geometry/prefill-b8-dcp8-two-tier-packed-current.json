@@ -1,0 +1,19 @@
+{
+  "checkpoint": "tests/fixtures/kimi-k3-full-geometry",
+  "mode": "two-tier",
+  "batch_size": 8,
+  "tensor_parallel_size": 8,
+  "decode_context_parallel_size": 8,
+  "measurements": {
+    "65536": {
+      "elapsed_seconds": 2.333209238946438,
+      "prefill_seconds": 2.3183272127062082,
+      "aggregate_prompt_tokens_per_second": 226149.26707778795
+    },
+    "262144": {
+      "elapsed_seconds": 7.251136881299317,
+      "prefill_seconds": 7.1920492351055145,
+      "aggregate_prompt_tokens_per_second": 291593.1094803236
+    }
+  }
+}

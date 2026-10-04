@@ -44,6 +44,16 @@ def _install_attention_only_fixture() -> None:
     original_forward = decoder_layer.forward
 
     def initialize(self: Any, config: Any, *args: Any, **kwargs: Any) -> None:
+        if (
+            os.environ.get("LOD_BENCHMARK_TRACE_TIMEOUT")
+            and not getattr(kimi_linear, "_lod_startup_trace_installed", False)
+        ):
+            import faulthandler
+
+            faulthandler.dump_traceback_later(
+                float(os.environ["LOD_BENCHMARK_TRACE_TIMEOUT"]), repeat=True,
+            )
+            kimi_linear._lod_startup_trace_installed = True
         original_init(self, config, *args, **kwargs)
         enabled = bool(getattr(config, "lod_attention_only_fixture", False))
         self._vllm_lod_attention_only_fixture = enabled
@@ -328,6 +338,14 @@ def _run_lod_mla(
     # sinks, and centroid sums.
     value = record[..., : latent.size(-1)]
     direct_plan = getattr(pool, "direct_prefill_plan", None)
+    if direct_plan and getattr(pool, "kimi_local_dcp_prefill", False):
+        from .kimi_k3_dcp_prefill import local_dcp_prefill, shared_dcp_prefill
+
+        prefill = (shared_dcp_prefill if pool.kimi_shared_dcp_prefill
+                   else local_dcp_prefill)
+        projected = prefill(layer, pool, query, record)
+        shape = output_shape or (query.size(0), layer.num_heads * layer.v_head_dim)
+        return projected.reshape(shape)
     projected_prefill = bool(
         direct_plan
         and any(int(end) - int(begin) > 1 for _, begin, end, _ in direct_plan)
@@ -376,7 +394,10 @@ def _run_lod_mla(
         class _Metadata:
             num_actual_tokens = int(query.size(0))
 
-        pool.decode(q_absorbed, record, value, _Metadata(), attention_output)
+        if getattr(pool, "kimi_head_tiled_decode", False):
+            pool.decode_dcp(q_absorbed, record, value, attention_output)
+        else:
+            pool.decode(q_absorbed, record, value, _Metadata(), attention_output)
     else:
         # Profile and graph-capture warmups carry no logical request. vLLM can
         # warm a 16-row decode graph even when max_num_seqs (and therefore the

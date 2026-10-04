@@ -34,6 +34,39 @@ from benchmarks.prolong import (
     validate_worker_attention_mode,
 )
 
+
+@pytest.mark.parametrize(
+    "retain,free_gib,reclaimed",
+    [(False, 100, True), (True, 100, False), (True, 8, False), (True, 7, True)],
+)
+def test_prolong_warmup_allocator_policy(monkeypatch, retain, free_gib, reclaimed):
+    import torch
+    from benchmarks.prolong import release_worker_allocator_cache
+
+    calls = []
+    monkeypatch.setattr(torch.cuda, "synchronize", lambda: calls.append("wait"))
+    monkeypatch.setattr(torch.cuda, "empty_cache", lambda: calls.append("reclaim"))
+    monkeypatch.setattr(torch.cuda, "mem_get_info", lambda: (free_gib * 1024**3, 256 * 1024**3))
+    monkeypatch.setattr(torch.cuda, "memory_allocated", lambda: 1)
+    monkeypatch.setattr(torch.cuda, "memory_reserved", lambda: 2)
+    result = release_worker_allocator_cache(object(), retain=retain)
+    assert calls == (["wait", "reclaim"] if reclaimed else ["wait"])
+    assert result["retention_requested"] is retain
+    assert result["reclaimed"] is reclaimed
+    assert result["free_bytes_before"] == free_gib * 1024**3
+
+
+def test_prolong_synchronized_cohort_requires_resident_cache_capacity():
+    from benchmarks.prolong import validate_cohort_capacity
+
+    validate_cohort_capacity([{"max_concurrent_requests": 8.0}], 8)
+    with pytest.raises(RuntimeError, match="exceeds native cache capacity"):
+        validate_cohort_capacity([{"max_concurrent_requests": 7.21}], 8)
+    with pytest.raises(RuntimeError, match="exceeds native cache capacity"):
+        validate_cohort_capacity([{"max_concurrent_requests": 9},
+                                  {"max_concurrent_requests": 7.99}], 8)
+
+
 ROOT = Path(__file__).resolve().parents[1]
 
 

@@ -1,0 +1,60 @@
+{
+  "baseline": "full",
+  "candidate": "two-tier",
+  "measurements": {
+    "16384": {
+      "baseline_cohort_unattributed_wall_seconds": [
+        0.0016681253910064697
+      ],
+      "baseline_decode_ms_per_batch_step": 21.40917905489914,
+      "baseline_prefill_seconds": 2.0383577048778534,
+      "candidate_cohort_unattributed_wall_seconds": [
+        0.0015944726765155792
+      ],
+      "candidate_decode_ms_per_batch_step": 20.629085773180122,
+      "candidate_prefill_seconds": 2.116608487442136,
+      "decode_speedup": 1.0378152134465026,
+      "generated_tokens_identical": true,
+      "prefill_speedup": 0.9630301101840302
+    },
+    "32768": {
+      "baseline_cohort_unattributed_wall_seconds": [
+        0.0019512660801410675
+      ],
+      "baseline_decode_ms_per_batch_step": 21.666269160050433,
+      "baseline_prefill_seconds": 4.181219743564725,
+      "candidate_cohort_unattributed_wall_seconds": [
+        0.0019416604191064835
+      ],
+      "candidate_decode_ms_per_batch_step": 20.629024927984574,
+      "candidate_prefill_seconds": 4.4025143180042505,
+      "decode_speedup": 1.0502808172313938,
+      "generated_tokens_identical": true,
+      "prefill_speedup": 0.9497345020470387
+    },
+    "65536": {
+      "baseline_cohort_unattributed_wall_seconds": [
+        0.0027402453124523163
+      ],
+      "baseline_decode_ms_per_batch_step": 22.182285980306915,
+      "baseline_prefill_seconds": 8.78084484487772,
+      "candidate_cohort_unattributed_wall_seconds": [
+        0.0027524959295988083
+      ],
+      "candidate_decode_ms_per_batch_step": 20.63520504270855,
+      "candidate_prefill_seconds": 8.973202832043171,
+      "decode_speedup": 1.074972889021281,
+      "generated_tokens_identical": true,
+      "prefill_speedup": 0.9785630626248029
+    }
+  },
+  "method": "matched-prolong-end-to-end-v2",
+  "timing_protocol": {
+    "clock": "vllm-request-metrics-plus-perf-counter-wall-check",
+    "decode_inputs": "prolong-natural-trace-replay",
+    "decode_steps": "generated_tokens_minus_one",
+    "measured_repetitions": 1,
+    "schema": 3,
+    "warmup_generations_per_length": 1
+  }
+}

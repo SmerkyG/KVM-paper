@@ -834,3 +834,45 @@
              for tile, next_tile in zip(tiles, tiles[1:]):
                  assert next_tile.F_bm0 >= tile.F_bm0, (
                      "Tiles must be ordered by increasing bm0"
+--- a/3rdparty/composable_kernel/include/ck_tile/core/arch/utility.hpp
++++ b/3rdparty/composable_kernel/include/ck_tile/core/arch/utility.hpp
+@@ -47,14 +47,25 @@
+-template <typename T>
+-CK_TILE_DEVICE T warp_shuffle_down(const T& v_local, uint32_t lane_delta)
+-{
+-#if 0
+-    return  __shfl_down(v_local, lane_delta);
+-#elif 1
+-    static_assert(sizeof(T) == sizeof(int32_t), "wrong!");
+-
+-    const int32_t v_remote_tmp = __builtin_amdgcn_ds_bpermute(
+-        (__lane_id() << 2) + (lane_delta << 2), bit_cast<int32_t>(v_local));
+-
+-    return bit_cast<T>(v_remote_tmp);
+-#endif
+-}
++template <typename T>
++CK_TILE_DEVICE T warp_shuffle_down(const T& v_local, uint32_t lane_delta)
++{
++#if 0
++    return  __shfl_down(v_local, lane_delta);
++#elif 1
++    if constexpr(sizeof(T) == 2 * sizeof(int32_t))
++    {
++        // Shuffle both words of LoD's score/index argmax packet together.
++        const uint64_t bits = bit_cast<uint64_t>(v_local);
++        const uint32_t low = warp_shuffle_down(static_cast<uint32_t>(bits), lane_delta);
++        const uint32_t high = warp_shuffle_down(static_cast<uint32_t>(bits >> 32), lane_delta);
++        return bit_cast<T>((static_cast<uint64_t>(high) << 32) | low);
++    }
++    else
++    {
++        static_assert(sizeof(T) == sizeof(int32_t), "wrong!");
++
++        const int32_t v_remote_tmp = __builtin_amdgcn_ds_bpermute(
++            (__lane_id() << 2) + (lane_delta << 2), bit_cast<int32_t>(v_local));
++
++        return bit_cast<T>(v_remote_tmp);
++    }
++#endif
++}

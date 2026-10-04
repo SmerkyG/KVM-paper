@@ -1,0 +1,73 @@
+{
+  "baseline": "full",
+  "candidate": "two-tier",
+  "measurements": {
+    "16384": {
+      "baseline_cohort_unattributed_wall_seconds": [
+        0.00729738362133503,
+        0.008202364668250084,
+        0.007476452738046646
+      ],
+      "baseline_decode_ms_per_batch_step": 31.646085542888613,
+      "baseline_prefill_seconds": 16.40520985238254,
+      "candidate_cohort_unattributed_wall_seconds": [
+        0.008454613387584686,
+        0.010022459551692009,
+        0.01020851917564869
+      ],
+      "candidate_decode_ms_per_batch_step": 29.836540925316513,
+      "candidate_prefill_seconds": 16.72825038060546,
+      "decode_speedup": 1.0606486060867963,
+      "decode_speedup_observed_bounds": [
+        1.0605344866205964,
+        1.0613351822182326
+      ],
+      "generated_tokens_identical": true,
+      "prefill_speedup": 0.9806889231764818,
+      "prefill_speedup_observed_bounds": [
+        0.9798265832557623,
+        0.9814515026599265
+      ]
+    },
+    "32768": {
+      "baseline_cohort_unattributed_wall_seconds": [
+        0.010183818638324738,
+        0.012891322374343872,
+        0.0107906274497509
+      ],
+      "baseline_decode_ms_per_batch_step": 32.85427176524536,
+      "baseline_prefill_seconds": 33.65700666792691,
+      "candidate_cohort_unattributed_wall_seconds": [
+        0.010366935282945633,
+        0.011392207816243172,
+        0.011233100667595863
+      ],
+      "candidate_decode_ms_per_batch_step": 29.851415261873626,
+      "candidate_prefill_seconds": 36.35558705218136,
+      "decode_speedup": 1.1005934384359657,
+      "decode_speedup_observed_bounds": [
+        1.1005408141634905,
+        1.1006801232400263
+      ],
+      "generated_tokens_identical": true,
+      "prefill_speedup": 0.9257726087497592,
+      "prefill_speedup_observed_bounds": [
+        0.923896186185238,
+        0.9276292785942989
+      ]
+    }
+  },
+  "method": "matched-prolong-end-to-end-v2",
+  "source_identity_equal": true,
+  "timing_protocol": {
+    "clock": "vllm-request-metrics-plus-perf-counter-wall-check",
+    "cohort_decode_window": "latest-first-token-to-latest-last-token",
+    "cohort_prefill_window": "earliest-scheduled-to-latest-first-token",
+    "decode_inputs": "prolong-natural-trace-replay",
+    "decode_steps": "generated_tokens_minus_one",
+    "measured_repetitions": 3,
+    "prefill_completion": "final-kimi-cache-event-before-first-token",
+    "schema": 8,
+    "warmup_generations_per_length": 1
+  }
+}
