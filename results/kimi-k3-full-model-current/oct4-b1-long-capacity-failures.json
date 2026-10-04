@@ -1,0 +1,58 @@
+{
+  "status": "failed-warmups-not-timing-results",
+  "mode": "two-tier",
+  "batch_size": 1,
+  "tensor_parallel_size": 8,
+  "decode_context_parallel_size": 8,
+  "scheduler_chunk_tokens": 16384,
+  "decode_tokens": 1025,
+  "failures": [
+    {
+      "job": "21010-kimi-k3-lod-b1-512k-decode1025",
+      "lengths": [524288],
+      "kv_cache_memory_bytes": 1073741824,
+      "prefill_reclaim_interval": 0,
+      "reuse_prefill_allocator": true,
+      "prefill_shadow_grow_chunk": 0,
+      "failed_phase": "warmup, scheduler chunk after 16384 computed tokens",
+      "error": "HSA_STATUS_ERROR_OUT_OF_RESOURCES in ncclDevKernel_Generic_2 and hipBLASLt out of memory",
+      "reported_physical_free_memory_mb": 0
+    },
+    {
+      "job": "21011-kimi-k3-lod-b1-512k-reclaim16k",
+      "lengths": [524288],
+      "kv_cache_memory_bytes": 1073741824,
+      "prefill_reclaim_interval": 16384,
+      "reuse_prefill_allocator": false,
+      "prefill_shadow_grow_chunk": 0,
+      "failed_phase": "warmup, scheduler chunk after 16384 computed tokens",
+      "error": "HSA_STATUS_ERROR_OUT_OF_RESOURCES in ncclDevKernel_Generic_2",
+      "reported_physical_free_memory_mb": 0
+    },
+    {
+      "job": "21014-kimi-k3-lod-b1-512k-growing64k",
+      "lengths": [524288],
+      "kv_cache_memory_bytes": 1073741824,
+      "prefill_reclaim_interval": 16384,
+      "reuse_prefill_allocator": false,
+      "prefill_shadow_grow_chunk": 65536,
+      "hsa_no_scratch_reclaim": 1,
+      "failed_phase": "warmup, scheduler chunk after 196608 computed tokens",
+      "error": "HSA_STATUS_ERROR_OUT_OF_RESOURCES in ncclDevKernel_Generic_2",
+      "reported_physical_free_memory_mb": 0
+    },
+    {
+      "job": "21015-kimi-k3-lod-b1-512k-scratch-reclaim",
+      "lengths": [524288],
+      "kv_cache_memory_bytes": 134217728,
+      "prefill_reclaim_interval": 16384,
+      "reuse_prefill_allocator": false,
+      "prefill_shadow_grow_chunk": 65536,
+      "hsa_no_scratch_reclaim": 0,
+      "failed_phase": "warmup; exact failing sequence position was not logged",
+      "error": "HSA_STATUS_ERROR_OUT_OF_RESOURCES in ncclDevKernel_Generic_2; canceled after the GPU error to release hung benchmark workers",
+      "reported_physical_free_memory_mb": 0
+    }
+  ],
+  "note": "Growing temporary archives reduced upfront memory pressure but did not make the 512K two-tier full-model warmup fit. Reclaiming idle PyTorch blocks, allowing HSA scratch reclamation and shrinking the native descriptor also did not suffice. No failed warmup is a valid timing result. Global attention/update cadences were unchanged."
+}

@@ -61,8 +61,38 @@ fixed-address decode pools are unchanged. The default remains full reservation.
 The GPU insertion test compares growing and preallocated archives and checks
 identical leaf data, page lists and lengths, and latent K/V storage aliasing:
 four tests pass (21013). The K3 plus benchmark CPU suites pass 266 tests with
-35 GPU skips. The full-model growing-archive 512K fit/timing check is 21014;
-results will be entered only after its warmup and measured pass complete.
+35 GPU skips. The growing-archive full-model test (21014) advanced to 192K
+computed tokens, then exhausted memory during warmup. A further test (21015)
+reduced the native descriptor to 128 MiB/rank and allowed HSA scratch
+reclamation (`HSA_NO_SCRATCH_RECLAIM=0`), but still exhausted physical memory
+during warmup. Neither produced a valid prefill or decode result. These are
+recorded in `oct4-b1-long-capacity-failures.json`; 512K two-tier LoD has **not**
+yet been shown to fit, and 1020K LoD has not been measured.
+
+Fresh dense B1/512K and B1/1020K baselines are running in 21017, using 1,025
+generated tokens, the improved Gluon dense decoder, one warmup and one
+measurement, and a 4 GiB/rank native cache. The historical long dense rows
+below remain labeled historical until the new audited results are available.
+
+Completed points are preserved in
+`oct4-full-b1-512k1020k-decode1025.partial.json` while the sweep continues:
+
+| Context | Dense prefill (s) | Dense decode (ms/batch step) | LoD prefill | LoD decode |
+|--:|--:|--:|:--|:--|
+| 512K | 118.730 | 24.686 | Warmup OOM | Not measured |
+| 1020K | Pending | Pending | Not measured | Not measured |
+
+The 512K point has a 25.278921 s decode window / 1,024 steps and a
+144.025411 s whole-generation wall time. Prefill + decode is 144.008690 s;
+the remaining 0.016721 s is untimed API/transport overhead. All eight worker
+audits confirm real dense attention with the Gluon decoder installed and
+`FULL_DECODE_ONLY` graph capture, no dummy attention, zero preemptions and
+zero prefix-cache hits. The prompt hash is
+`4312e2120861896344fd516cb5f0f94fb885130c879d3f648ed74c5465aabfda`;
+the 1,025-token natural continuation hash is
+`b621d1d69218d5d4cc63fed239d1f9dd293dd1666d792921cd3e07fb7f6c05cc`.
+This validates this dense decode point; it does not validate today's LoD
+decode or turn the prefill-only sweep into a decode comparison.
 
 ### B1 / B8 scaling sweep
 
