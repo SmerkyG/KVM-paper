@@ -1100,6 +1100,15 @@ def aiter_kimi_expanded_prefill_route_coarse_attention(
             query_tile=int(os.environ.get("LOD_KIMI_COARSE_QUERY_TILE", "128")),
             key_step=int(os.environ.get("LOD_KIMI_COARSE_KEY_STEP", "32")),
         )
+        subtile_mode = os.environ.get("LOD_KIMI_SUBTILE64", "0")
+        subtile_probe = (subtile_mode in ("1", "score", "reuse")
+                         and os.environ.get("LOD_KIMI_TILE_REFINE") == "1")
+        if subtile_probe:
+            from benchmarks.kimi_k3_subtile_route import serving_subtile_factory
+
+            coarse_mha_fwd = serving_subtile_factory(
+                score_only=subtile_mode in ("score", "reuse"),
+                reuse_max=subtile_mode == "reuse")
         route_mha_fwd = _specialized_route_mha_fwd(False, route_dim)
 
         def run_coarse_partition(
@@ -1235,6 +1244,7 @@ def aiter_kimi_expanded_prefill_route_coarse_attention(
             candidates_0 = refine_kimi_centroid_tiles(
                 candidates_0, q_expanded.contiguous(), expanded_k, log_counts,
                 state_len=state_len, scale=scale, buffers=buffers,
+                tile_n=64 if subtile_probe else 128,
             )
         if split_at:
             top_slots, route_head_counts, route_offsets = (

@@ -78,6 +78,57 @@ Reproduce this candidate with the command below, changing the length to
 `LOD_KIMI_TILE_PACK_QUERY_BLOCK=1024`. As with the other two-token checks,
 this is prefill evidence only, not quality or amortized decode evidence.
 
+The combined exact-layout check (`oct4-lod-combined-b8-64k.json`, 20943)
+takes **71.297 s** at 64K/B8, versus **72.008 s** for the ordinary corrected
+path and **70.538 s** for matched dense attention. This reduces LoD latency by
+about 1.0%, but dense / LoD is still **0.989x**: the full model remains about
+1.1% slower, not crossed over. It combines 1024-query refinement fragments,
+sorted leaf-route ordinals and 64-query/one-warp exact-leaf tiles. Neither
+the top-eight rule, 1024-leaf cap nor global 16K/256 cadence changes.
+
+The recorded `prompts` (including continuation metadata), timing protocol
+and native cache-byte reservation match the dense baseline directly. All
+eight worker audits pass and all warmup allocator blocks are retained. New
+fragment, sort and leaf-tile kernels are observed during warmup. The larger
+fixture gain does not transfer proportionally to the full model; these are
+still two-token **prefill-only** checks, not quality or amortized decode tests.
+
+Reproduce with the same command and reservation as the preceding check,
+additionally setting `LOD_KIMI_SORT_LEAF_ROUTES=1`,
+`LOD_KIMI_LEAF_BLOCK_M=64` and `LOD_KIMI_LEAF_WARPS=1`. The candidate remains
+opt-in until there is stronger full-model evidence.
+
+### Fresh matched dense panel and 64-key subgroup routing
+
+A fresh dense panel (20952, `oct4-full-warm-prefill-b8-32k64k.json`)
+uses the same 3 GiB/rank reservation and retained warm allocator protocol
+at both lengths. Unlike the historical 32K dense row, it is directly matched
+to the corrected October 4 path. The score-only subgroup candidate (20957,
+`oct4-lod-subtile-score-b8-32k64k.json`) keeps the native coarse attention
+tile at 128 keys but emits one maximum per 64-key half. Selecting eight halves
+and rescoring their keys recovers exact global top-eight while halving the
+refinement QK work. It also uses the combined fragment/sorted-leaf layout above.
+
+| Batch | Context | Fresh full prefill | Subgroup LoD prefill | Full / LoD |
+|---:|---:|---:|---:|---:|
+| 8 | 32K | 33.567 s | 34.530 s | 0.972x |
+| 8 | 64K | 70.564 s | 71.332 s | 0.989x |
+
+The recorded `prompts`, timing protocol, seed, native cache reservation,
+scheduler budget, TP/DCP, trace length and resident weight ID match directly.
+All eight candidate workers load the distinct score-only subgroup binary.
+This does **not** establish prefill crossover. Compared with the 71.297 s
+combined 128-key candidate, the 64K difference is negligible. Its 32K result
+is modestly below the earlier corrected ordinary 35.111 s result, but one
+measurement does not establish a robust 32K gain. These remain two-token
+prefill checks, not quality or amortized decode results.
+
+Reproduce with the command/reservation above, `--lengths 32768,65536`,
+`--retain-warmup-allocator`, the combined layout settings, and
+`LOD_KIMI_SUBTILE64=score`. For dense, use `--mode full` without the candidate
+environment settings. Kernel/fixture results and the subsequent shared-maximum
+experiment are documented in the MLA-stack README.
+
 ## Historical October 4 matched prefill check (before sink correction)
 
 These fresh controls use the same eight real ProLong prompts, TP8/DCP8/EP8,

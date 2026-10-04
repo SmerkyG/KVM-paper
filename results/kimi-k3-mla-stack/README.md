@@ -1311,3 +1311,95 @@ benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_owner_tune \
   --kv-cache-memory-bytes 4294967296 \
   --output results/kimi-k3-mla-stack/dcp8-combined-prefill-controls.json
 ```
+
+The corresponding matched full-model check (20943) improves LoD from
+72.008 to **71.297 s** at 64K/B8. Dense is **70.538 s**, so this does not
+establish full-model crossover. See the full-model README for prompt hashes,
+allocator/cache protocol and exact settings; the fixture's 5.5% reduction
+must not be quoted as a full-model reduction.
+
+A packed final-candidate reducer that carries winner scores through the ID
+ordering takes **2.729 / 2.808 / 2.688 ms** for the whole warmed coarse/route
+stage (20945, `trained-packed-reduce-controls.json`). Original and changed
+Q/K routes, scores, coarse output and LSE match exactly. Four direct GPU checks
+passed (20944), and four additional signed-zero tie/closing checks passed
+(20946), but the prototype and its serving option were removed after this
+negative result.
+
+### Exact 64-key routing subgroups inside unchanged CK coarse attention
+
+`benchmarks.kimi_k3_subtile_route` builds a private CK include-tree and wrapper
+copy, never modifying installed AITER. Coarse attention retains its 128-key
+tile. Each half emits its maximum, and the selector chooses eight halves,
+then rescores those 512 keys to recover exact global top-eight. This halves
+the refinement QK work without changing top-eight, the leaf cap, the 512+64
+channels or the per-request global 16K/256 cadence. All controls use 1024-query
+fragment packing. Tests also cover partially populated final halves.
+
+| Captured trained coarse/route stage | Ordinary before (ms) | Candidate (ms) | Ordinary after (ms) |
+|:--|--:|--:|--:|
+| 64-key halves, packet emitter | 2.367 | 2.056 | 2.321 |
+| 64-key halves, score-only emitter | 2.429 | 2.170 | 2.377 |
+| Score-only, reuse maxima for coarse softmax | 2.404 | 1.970 | 2.317 |
+
+Sources: `trained-subtile64-route-controls.json` (20948),
+`trained-subtile64-score-controls.json` (20953) and
+`trained-subtile64-reuse-max-controls.json` (20956). Original and changed Q/K
+routes, selected scores, coarse outputs and LSE match **exactly**. The final
+variant reuses the maximum of the two half-maxima for coarse softmax instead
+of calculating a third full-row maximum. Score-only emission needs one field
+rather than sixteen: at the captured B1/H12/Q16384/S2048 geometry the candidate
+allocation is **24 MiB**, versus 384 MiB for the two-half packet emitter and
+192 MiB for the original 128-key packet emitter. These are candidate buffers,
+not total cache VRAM.
+
+| Fixture context | Combined 128-key before (s) | 64-key packet (s) | Combined 128-key after (s) |
+|--:|--:|--:|--:|
+| 32K | 3.352 | 3.299 | 3.368 |
+| 64K | 8.010 | 7.903 | 8.041 |
+
+Source: `dcp8-combined-subtile-prefill-controls.json` (20950). All eight audits
+pass and fixture output IDs match. A separate packet/score-only/packet control
+(20955, `dcp8-subtile-score-prefill-controls.json`) is neutral: at 64K it is
+7.884 / 7.893 / 7.901 s, retaining the buffer saving without a demonstrated
+additional latency gain. GPU job 20951 passes 117 K3/hash tests; job 20954
+passes all 80 exact-refinement combinations covering 64/128-key tiles,
+one/sixteen fields, multiple packing modes and partial Q/K dimensions.
+
+The shared-maximum candidate passes **156 GPU tests, one skip** (20960),
+and its complete-fixture score-only/candidate/score-only controls (20958,
+`dcp8-subtile-max-prefill-controls.json`) are neutral: **3.269 / 3.286 /
+3.279 s** at 32K and **7.786 / 7.804 / 7.804 s** at 64K. All eight audits
+pass and output IDs match. It remains disabled by default; the isolated
+stage gain is not a reason to repeat a giant-model test without a fixture win.
+The selected CPU suite passes 123 tests with 34 skips.
+
+Expanding the tests to 32-key groups caught an initialization guard that used
+the padded group count rather than the number of real groups. A query can
+have eight padded groups but fewer than eight valid candidates; the remaining
+output entries must be initialized. The guard now uses the real group count,
+and the suite includes the 385-state/64-key case that exercises this boundary.
+After this fix, job 20964 passes **256 GPU tests, one skip**; the selected CPU
+suite passes **223 tests, 34 skips**. The 32-key source emitter is a separate
+standalone experiment, not a serving default.
+
+An instrumented standalone route diagnostic (20947,
+`trained-current-route-phase-diagnostic.json`) was used to choose the next
+target. Its synchronized phase events are not full-model wall attribution.
+The full-model score-only check remains **0.972x / 0.989x** dense at 32K/64K;
+see the full-model README. Kernel-stage and fixture gains are not evidence of
+full-model crossover. All subgroup variants are opt-in.
+
+```bash
+benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_subtile_route \
+  --input results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt \
+  --score-only --reuse-coarse-max \
+  --output results/kimi-k3-mla-stack/trained-subtile64-reuse-max-controls.json
+
+benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_owner_tune \
+  --checkpoint tests/fixtures/kimi-k3-mla-stack --lengths 32768 65536 \
+  --variants reuse_combined reuse_combined_subtile reuse_combined \
+  --batch-size 8 --tensor-parallel-size 8 --decode-context-parallel-size 8 \
+  --kv-cache-memory-bytes 4294967296 \
+  --output results/kimi-k3-mla-stack/dcp8-combined-subtile-prefill-controls.json
+```

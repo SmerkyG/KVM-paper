@@ -1244,10 +1244,12 @@ def test_final_cache_graph_refreshes_data_and_owns_private_update_scratch() -> N
     assert manager.replay_count == 2 and manager.fallback_count == 1
 
 
-@pytest.mark.parametrize("states", [177, 1039])
+@pytest.mark.parametrize("states", [177, 385, 1039])
 @pytest.mark.parametrize("queries", [37, 513])
 @pytest.mark.parametrize("pack", ["ordinary", "dense", "chunk256", "chunk512", "chunk1024"])
-def test_tile_max_refinement_recovers_exact_global_top_eight(states, queries, pack, monkeypatch) -> None:
+@pytest.mark.parametrize("tile_n", [32, 64, 128])
+@pytest.mark.parametrize("fields", [1, 16])
+def test_tile_max_refinement_recovers_exact_global_top_eight(states, queries, pack, tile_n, fields, monkeypatch) -> None:
     if not torch.cuda.is_available():
         return
     monkeypatch.setenv("LOD_KIMI_DENSE_TILE_PACK", "1" if pack == "dense" else "0")
@@ -1265,13 +1267,14 @@ def test_tile_max_refinement_recovers_exact_global_top_eight(states, queries, pa
     scale = 192**-0.5
     scores = torch.einsum("bhqd,bshd->bhqs", q.float(), k.float()) * scale
     scores += logs.float()[:, None, None, :]
-    tiles = math.ceil(states / 128)
-    padded = torch.nn.functional.pad(scores, (0, tiles * 128 - states), value=-float("inf"))
-    maxima = padded.view(batch, heads, queries, tiles, 128).amax(-1)
-    candidates = torch.full((batch, heads, tiles, 16, queries), float("nan"), device="cuda")
+    tiles = math.ceil(states / 128) * (128 // tile_n)
+    padded = torch.nn.functional.pad(scores, (0, tiles * tile_n - states), value=-float("inf"))
+    maxima = padded.view(batch, heads, queries, tiles, tile_n).amax(-1)
+    candidates = torch.full((batch, heads, tiles, fields, queries), float("nan"), device="cuda")
     # No other candidate channel is valid or may be read by the tile selector.
     candidates[:, :, :, 0] = maxima.transpose(-1, -2) / math.log(2)
-    refined = refine_kimi_centroid_tiles(candidates, q, k, logs, state_len=states, scale=scale)
+    refined = refine_kimi_centroid_tiles(candidates, q, k, logs, state_len=states,
+                                          scale=scale, tile_n=tile_n)
     actual_slots, _, _, actual_scores = _reduce_route_candidates(
         refined, state_len=states, head_dim=192, emit_metadata=False,
     )

@@ -1,0 +1,45 @@
+{
+  "scope": "trained coarse/route GPU stage, not model latency",
+  "source": "results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt",
+  "state_len": 2048,
+  "query_shape": [
+    1,
+    12,
+    16384,
+    192
+  ],
+  "all_controls_chunk1024": true,
+  "score_only": true,
+  "reuse_coarse_max": true,
+  "ordinary_before": {
+    "median_ms": 2.4040451049804688,
+    "samples_ms": [
+      2.504124879837036,
+      2.456325054168701,
+      2.4040451049804688,
+      2.3066868782043457,
+      2.3379271030426025
+    ]
+  },
+  "subtile64": {
+    "median_ms": 1.9704910516738892,
+    "samples_ms": [
+      2.0243709087371826,
+      1.9704910516738892,
+      1.9294929504394531,
+      2.011370897293091,
+      1.834854006767273
+    ]
+  },
+  "ordinary_after": {
+    "median_ms": 2.3167669773101807,
+    "samples_ms": [
+      2.3975260257720947,
+      2.3512070178985596,
+      2.2953269481658936,
+      2.3167669773101807,
+      2.2568869590759277
+    ]
+  },
+  "fresh_routes_scores_coarse_lse": "matched exactly"
+}
