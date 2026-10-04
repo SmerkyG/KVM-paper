@@ -1,8 +1,9 @@
 # Kimi K3 full-model attention timings
 
-The tables below are historical full-model measurements, not a benchmark of
-the latest October 4 experimental path. Current **fixture-only** comparisons
-and their audits are in [the MLA-stack results](../kimi-k3-mla-stack/README.md),
+The opening section contains the current corrected full-model prefill checks;
+later sections retain historical measurements with their caveats. Current
+**fixture-only** comparisons and their audits are in
+[the MLA-stack results](../kimi-k3-mla-stack/README.md),
 under "Allocator reuse: current successful fixture path". A full-model
 resident-weight prefill check is recorded below; no fixture speedup should be
 reported as a full-model speedup. The rejected tile-max-only **v10** route
@@ -66,6 +67,57 @@ The allocator policy tests pass seven cases, including exact reserve
 boundaries and invalid reserve settings; the K3/shared-merge CPU suite
 passes 230 tests with 39 GPU skips.
 
+The independent matched repeat
+(`oct4-lod-prefill-retention4g-b8-32k64k.json`, 20997) confirms this effect:
+
+| Context, B8 | Matched dense (s) | LoD, 8 GiB reserve (s) | LoD, 4 GiB reserve repeat (s) | Dense / repeat LoD |
+|--:|--:|--:|--:|--:|
+| 32K | 33.5666 | 34.5297 | 33.6356 | 0.998x |
+| 64K | 70.5637 | 71.3322 | 68.4368 | 1.031x |
+
+Dense is 20952, the earlier 8 GiB score-only control is 20957. All prompt
+and continuation records match directly, and the physical 16392-token
+scheduler budget, logical 16K chunk, native cache reservation, seed,
+TP8/DCP8 and timing protocol remain identical. The repeated 64K result is
+within 0.004 s of 20994; 32K is effectively tied with dense, not a claimed
+speedup. Across the repeat's two warmed/measured lengths, seven ranks retain
+at all 32 checks and one reclaims once below 4 GiB. There are no preemptions,
+prefix-cache hits or RCCL failures.
+
+For the current best **development** configuration, use the score-only
+command below with `--lengths 32768,65536`, the 3 GiB reservation,
+`--retain-warmup-allocator`, and `LOD_KIMI_PREFILL_MIN_FREE_GIB=4`.
+The default reserve remains 8 GiB; a long-context/memory-pressure panel
+should precede changing the general serving default. Fixed-shape graph
+experiments remain separate and disabled: replayability alone has not yet
+demonstrated a transferable speed gain.
+
+Exact current development command (existing local weight daemon and image
+setup required; no cluster runner is needed):
+
+```bash
+env LOD_KIMI_SUBTILE64=score \
+  LOD_KIMI_CHUNK_TILE_PACK=1 LOD_KIMI_TILE_PACK_QUERY_BLOCK=1024 \
+  LOD_KIMI_SORT_LEAF_ROUTES=1 LOD_KIMI_LEAF_BLOCK_M=64 LOD_KIMI_LEAF_WARPS=1 \
+  LOD_KIMI_PREFILL_RECLAIM_INTERVAL=0 LOD_KIMI_REUSE_PREFILL_ALLOCATOR=1 \
+  LOD_KIMI_PREFILL_MIN_FREE_GIB=4 \
+  LOD_KIMI_TILE_REFINE=1 LOD_KIMI_DIRECT_LEAF_RESULT=1 \
+  LOD_BENCHMARK_SYNC_PREFILL_CACHE=1 TRITON_CACHE_AUTOTUNING=1 VLLM_USE_TRITON_AWQ=1 \
+  PROLONG_SPEED_TOKEN_CACHE="$PWD/results/kimi-k3-full-model-current/prolong-kimi-k3-speed-token-cache.pt" \
+  AITER_CONFIG_FMOE="$PWD/results/kimi-k3-full-model-current/kimik3_i4_tuned_fmoe_b2x16k_merged.csv" \
+  benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.prolong \
+  --checkpoint /tmp/dan-agent-kimi-k3-f831ab66814297da540d832a5235f8e904f29d06 \
+  --mode two-tier --measure speed --lengths 32768,65536 \
+  --batch-size 8 --speed-samples 8 --tensor-parallel-size 8 \
+  --decode-context-parallel-size 8 --dcp-comm-backend ag_rs \
+  --decode-tokens 2 --fixed-decode-trace --synchronized-decode \
+  --repeats 1 --seed 0 --gpu-memory-utilization 0.8 \
+  --kv-cache-memory-bytes 3221225472 --kimi-gfx942-int4-moe \
+  --weight-cache --weight-cache-id kimi-k3-shared-int4-v6 \
+  --allow-experimental-environment --retain-warmup-allocator \
+  --output results/kimi-k3-full-model-current/oct4-lod-prefill-retention4g-b8-32k64k.json
+```
+
 | Batch | Context | Full prefill | Corrected LoD prefill | Full / LoD |
 |---:|---:|---:|---:|---:|
 | 8 | 32K | — | 35.111 s | — |
@@ -83,7 +135,7 @@ blocks; no requests are preempted or served from prefix cache. Final cache
 construction is included before first token. The two-token trace is **not**
 an amortized decode or quality result.
 
-The corrected path has **not crossed over on the full model at 64K**. The
+At this checkpoint the corrected path had **not crossed over at 64K**. The
 32K dense cell is intentionally blank: the older 33.635 s baseline used a
 2 GiB reservation and released the warmup allocator, rather than this exact
 protocol. Reproduce LoD with the command below, using `--lengths 32768,65536`,
