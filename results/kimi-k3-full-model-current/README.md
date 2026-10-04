@@ -1,6 +1,6 @@
 # Kimi K3 full-model attention timings
 
-The opening section contains the current corrected full-model prefill checks;
+The opening section contains the current corrected full-model timing checks;
 later sections retain historical measurements with their caveats. Current
 **fixture-only** comparisons and their audits are in
 [the MLA-stack results](../kimi-k3-mla-stack/README.md),
@@ -25,7 +25,7 @@ attention and two-tier BF16 LoD attention. Prefill is total wall time for the
 entire request batch. Decode is latency per batched generation step, rather
 than per sequence.
 
-## Latest corrected full-model prefill check (October 4)
+## Latest corrected full-model timings (October 4)
 
 ### 512K / 1020K B1 extension and decode audit
 
@@ -126,6 +126,7 @@ The completed matched B1 pair is 21018/21019:
 | Context / batch | Dense prefill (s) | LoD prefill (s) | Prefill speedup | Dense decode (ms/step) | LoD decode (ms/step) | Decode speedup |
 |:--|--:|--:|--:|--:|--:|--:|
 | 64K / B1 | 8.783827 | 8.508550 | 1.032x | 22.173212 | 20.641170 | 1.074x |
+| 64K / B8 | 70.467597 | 68.235140 | 1.033x | 34.179869 | 29.363706 | 1.164x |
 
 Each of the 24 MLA layers on all eight LoD workers records three catch-up
 batches and three updated request rows during measured generation. The LoD
@@ -136,8 +137,72 @@ continuation hashes, scheduler parameters, native reservation, seed and
 timing protocol match exactly. Dense has the improved Gluon decoder
 installed, and both use `FULL_DECODE_ONLY` graph capture without dummy
 attention. This closely reproduces the earlier ~20.66 ms B1 LoD measurement,
-this time with explicit update execution verification. Fresh B8 checks are
-in progress; no B8 speedup is inferred from a historical comparator.
+this time with explicit update execution verification.
+
+The matched B8 pair is 21020/21021:
+`oct4-lod-b8-64k-decode-update-audit.json` and
+`oct4-full-b8-64k-decode-update-audit.json`. Prompt and continuation hashes,
+seed, scheduler, native reservation and timing protocol match exactly.
+All eight requests are live for the entire measured decode window in each
+mode and finish simultaneously: 30.068435 s for LoD and 35.000186 s for dense.
+Each of the 24 MLA layers on every rank records three catch-up batches and
+24 updated request rows: three per request, not three shared across the
+batch. The wall/metric discrepancies are 0.021077 s for LoD and 0.016645 s
+for dense, with zero cache hits and preemptions. Both modes use
+`FULL_DECODE_ONLY` capture; dense uses the improved Gluon decoder. The B8
+warmup decode means are 29.634905 ms for LoD and 34.165425 ms for dense,
+close to their measured values. This panel reports one measured pass per
+point, not a confidence interval or a guarantee for every serving workload.
+
+**What the audit establishes:** the recent two-token sweeps are prefill-only
+evidence, not steady-state decode benchmarks. The fresh B1/B8 pairs measure
+1,024 steps and explicitly verify update execution without inserting timing
+events inside CUDA graphs. They confirm the earlier ~20.66 ms B1/64K LoD
+figure and establish the matched speedups above. Three observed updates in
+this finite window are included in the average; a window containing exactly
+four updates could differ by one catch-up cost divided by 1,024. Historical
+decode rows without this audit remain historical rather than being silently
+treated as measurements of the current implementation.
+
+### Reproducing the decode audit
+
+These commands run directly, without `cluster-run`. They require eight
+MI325X GPUs, the unpacked K3 v10 image used by the wrapper, the checkpoint
+staged on local disk, and the resident packed-weight daemon with cache ID
+`kimi-k3-shared-int4-v6`. The exact argument list, effective worker settings,
+prompt hashes and timing protocol are also stored in each result JSON.
+Run modes sequentially; do not overlap another inference job on these GPUs.
+
+```bash
+export LOD_BENCHMARK_SYNC_PREFILL_CACHE=1
+export TRITON_CACHE_AUTOTUNING=1 VLLM_USE_TRITON_AWQ=1
+export PROLONG_SPEED_TOKEN_CACHE="$PWD/results/kimi-k3-full-model-current/prolong-kimi-k3-speed-token-cache.pt"
+export AITER_CONFIG_FMOE="$PWD/results/kimi-k3-full-model-current/kimik3_i4_tuned_fmoe_b2x16k_merged.csv"
+k3_bench=(benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.prolong
+  --checkpoint /tmp/dan-agent-kimi-k3-f831ab66814297da540d832a5235f8e904f29d06
+  --measure speed --tensor-parallel-size 8 --decode-context-parallel-size 8
+  --dcp-comm-backend ag_rs --decode-tokens 1025 --fixed-decode-trace
+  --synchronized-decode --repeats 1 --seed 0 --gpu-memory-utilization 0.8
+  --kimi-gfx942-int4-moe --weight-cache --weight-cache-id kimi-k3-shared-int4-v6
+  --allow-experimental-environment --retain-warmup-allocator)
+
+# B8 matched dense and LoD checks; B1 uses batch/samples 1 and 1073741824 bytes.
+"${k3_bench[@]}" --mode full --lengths 65536 --batch-size 8 --speed-samples 8 \
+  --kv-cache-memory-bytes 3221225472 --output /tmp/k3-full-b8-64k-audit.json
+env LOD_KIMI_SUBTILE64=score LOD_KIMI_CHUNK_TILE_PACK=1 \
+  LOD_KIMI_TILE_PACK_QUERY_BLOCK=1024 LOD_KIMI_SORT_LEAF_ROUTES=1 \
+  LOD_KIMI_LEAF_BLOCK_M=64 LOD_KIMI_LEAF_WARPS=1 \
+  LOD_KIMI_PREFILL_RECLAIM_INTERVAL=0 LOD_KIMI_REUSE_PREFILL_ALLOCATOR=1 \
+  LOD_KIMI_PREFILL_MIN_FREE_GIB=4 LOD_KIMI_TILE_REFINE=1 \
+  LOD_KIMI_DIRECT_LEAF_RESULT=1 \
+  "${k3_bench[@]}" --mode two-tier --lengths 65536 --batch-size 8 --speed-samples 8 \
+  --kv-cache-memory-bytes 3221225472 --output /tmp/k3-lod-b8-64k-audit.json
+
+# Long B1 dense control. LoD has not completed these lengths.
+HSA_NO_SCRATCH_RECLAIM=0 "${k3_bench[@]}" --mode full \
+  --lengths 524288,1044480 --batch-size 1 --speed-samples 1 \
+  --kv-cache-memory-bytes 4294967296 --output /tmp/k3-full-b1-long-audit.json
+```
 
 ### B1 / B8 scaling sweep
 
