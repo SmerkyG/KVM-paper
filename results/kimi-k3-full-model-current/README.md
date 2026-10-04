@@ -27,6 +27,36 @@ than per sequence.
 
 ## Latest corrected full-model timings (October 4)
 
+### Power-of-two decode panel: four updates per request
+
+The requested 16K, 32K, 64K, 128K and 256K B1/B8 panel is now running with
+**1,026 output tokens = 1,025 timed decode steps**, so it includes four
+catch-ups, not three. Catch-up is checked before consuming each next input;
+with 1,025 output tokens the prefill-produced first token plus this ordering
+left the fourth boundary just outside the timed window. The global 256-token
+update cadence itself was not changed. CPU boundary tests check every DCP
+rank and all five prefix lengths. The first measured 16K/B1 LoD point records
+exactly four catch-ups in all 24 MLA layers on all eight ranks.
+
+The automatically updated [four-update panel](DECODE_POWER2.md) contains only
+completed, validated new results. Earlier three-update 64K checks and the
+1,024-step dense long controls below remain separate, with their original
+window sizes. Dense B8 256K/512K controls will also run; B8 LoD at 256K+ and
+B1 LoD at 512K previously failed warmup on VRAM. No estimate fills those gaps.
+
+The standalone orchestrator runs one engine at a time on the resident-weight
+node, reuses only already-validated completed files, verifies four updates
+per LoD request and simultaneous B8 completion, and checks matching prompt
+hashes before forming speedups. It does not require a source-fingerprint
+match and does not add profiling events to graph replay. Reproduce with:
+
+```bash
+# On the eight-GPU K3 v10 / resident-weight-cache host described below:
+python -m benchmarks.kimi_k3_decode_power2 --run
+# Regenerate the table from completed files without launching inference:
+python -m benchmarks.kimi_k3_decode_power2
+```
+
 ### 512K / 1020K B1 extension and decode audit
 
 The requested long B1 extension uses **1,025 generated tokens**, giving
@@ -98,7 +128,7 @@ figures, while their prefill times are somewhat lower. This validates these
 dense decode points; it does not validate today's LoD
 decode or turn the prefill-only sweep into a decode comparison.
 
-### Current 64K decode checks
+### Earlier 64K three-update decode checks
 
 Fresh 64K B1/B8 comparisons use the corrected sink, the prefill sweep's
 runtime retention policy, 1,025 natural-trace output tokens, one full-shape
@@ -164,7 +194,7 @@ four updates could differ by one catch-up cost divided by 1,024. Historical
 decode rows without this audit remain historical rather than being silently
 treated as measurements of the current implementation.
 
-### Reproducing the decode audit
+### Reproducing the earlier three-update audit
 
 These commands run directly, without `cluster-run`. They require eight
 MI325X GPUs, the unpacked K3 v10 image used by the wrapper, the checkpoint

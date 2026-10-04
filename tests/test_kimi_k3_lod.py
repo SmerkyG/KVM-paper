@@ -817,6 +817,29 @@ def test_dcp_prefill_boundary_is_global_not_rank_local() -> None:
     assert expected == [8_160] * 8
 
 
+@pytest.mark.parametrize("prefix", [16_384, 32_768, 65_536, 131_072, 262_144])
+@pytest.mark.parametrize("timed_steps,expected", [(1_024, 3), (1_025, 4)])
+def test_dcp_decode_window_counts_updates_before_current_input(
+    prefix: int, timed_steps: int, expected: int,
+) -> None:
+    # Prefill emits output token one. Decode catches up using the number of
+    # already-computed inputs, before consuming the next token. Thus 1,025
+    # outputs contain 1,024 timed steps but only three catch-ups; one extra
+    # output is needed to include the fourth global 256-token boundary.
+    for rank in range(8):
+        pool = _dcp_schedule_fixture(rank)
+        coverage = pool._dcp_global_decode_coverage(prefix)
+        boundaries = []
+        for computed_length in range(prefix, prefix + timed_steps):
+            target = pool._dcp_global_decode_coverage(computed_length)
+            if target > coverage:
+                assert target - coverage == 256
+                boundaries.append(computed_length - prefix)
+                coverage = target
+        assert len(boundaries) == expected
+        assert boundaries == [256, 512, 768, 1_024][:expected]
+
+
 def test_dcp_batch_does_not_divide_the_per_request_cadence() -> None:
     local_work = 0
     for rank in range(8):
