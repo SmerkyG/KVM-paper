@@ -24,7 +24,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--candidate", choices=("dense-pack", "chunk-pack", "chunk512", "chunk1024", "refine16", "refine32", "refine128", "merge-lists", "coarse64"),
+    parser.add_argument("--candidate", choices=("dense-pack", "chunk-pack", "chunk512", "chunk1024", "refine16", "refine32", "refine128", "merge-lists", "coarse64", "coarsek64"),
                         default="dense-pack")
     args = parser.parse_args()
     os.environ["LOD_KIMI_TILE_REFINE"] = "1"
@@ -58,6 +58,7 @@ def main():
         os.environ["LOD_KIMI_REFINE_BLOCK_M"] = "64"
         os.environ["LOD_KIMI_KWAY_REDUCE"] = "0"
         os.environ["LOD_KIMI_COARSE_QUERY_TILE"] = "128"
+        os.environ["LOD_KIMI_COARSE_KEY_STEP"] = "32"
         result["ordinary_before"] = timed(run)
         reference = tuple(t.clone() for t in run())
         os.environ["LOD_KIMI_DENSE_TILE_PACK"] = "1" if args.candidate == "dense-pack" else "0"
@@ -66,6 +67,7 @@ def main():
             os.environ["LOD_KIMI_TILE_PACK_QUERY_BLOCK"] = args.candidate.removeprefix("chunk")
         os.environ["LOD_KIMI_KWAY_REDUCE"] = "1" if args.candidate == "merge-lists" else "0"
         os.environ["LOD_KIMI_COARSE_QUERY_TILE"] = "64" if args.candidate == "coarse64" else "128"
+        os.environ["LOD_KIMI_COARSE_KEY_STEP"] = "64" if args.candidate == "coarsek64" else "32"
         if args.candidate.startswith("refine"):
             os.environ["LOD_KIMI_REFINE_BLOCK_M"] = args.candidate.removeprefix("refine")
         result[args.candidate.replace("-", "_")] = timed(run)
@@ -81,6 +83,7 @@ def main():
         os.environ["LOD_KIMI_REFINE_BLOCK_M"] = "64"
         os.environ["LOD_KIMI_KWAY_REDUCE"] = "0"
         os.environ["LOD_KIMI_COARSE_QUERY_TILE"] = "128"
+        os.environ["LOD_KIMI_COARSE_KEY_STEP"] = "32"
         for actual, expected in zip(run(), candidate_fresh, strict=True):
             torch.testing.assert_close(actual, expected, atol=0, rtol=0)
         q.copy_(original_q)

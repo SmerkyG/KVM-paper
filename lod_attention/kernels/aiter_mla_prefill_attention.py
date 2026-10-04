@@ -1098,6 +1098,7 @@ def aiter_kimi_expanded_prefill_route_coarse_attention(
             fused_route=fused_route_coarse,
             tile_max_probe=os.environ.get("LOD_KIMI_TILE_REFINE") == "1",
             query_tile=int(os.environ.get("LOD_KIMI_COARSE_QUERY_TILE", "128")),
+            key_step=int(os.environ.get("LOD_KIMI_COARSE_KEY_STEP", "32")),
         )
         route_mha_fwd = _specialized_route_mha_fwd(False, route_dim)
 

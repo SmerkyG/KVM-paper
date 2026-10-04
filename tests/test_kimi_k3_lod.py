@@ -506,8 +506,10 @@ def test_incremental_leaf_projection_preserves_prefix_and_resets_per_request(mon
 
 @pytest.mark.parametrize("queries", [19, 128])
 @pytest.mark.parametrize("tile_refine", [False, True])
-def test_kimi_coarse_projects_fp32_sums_after_dividing(queries: int, monkeypatch, tile_refine) -> None:
+@pytest.mark.parametrize("key_step", [32, 64])
+def test_kimi_coarse_projects_fp32_sums_after_dividing(queries: int, monkeypatch, tile_refine, key_step) -> None:
     monkeypatch.setenv("LOD_KIMI_TILE_REFINE", "1" if tile_refine else "0")
+    monkeypatch.setenv("LOD_KIMI_COARSE_KEY_STEP", str(key_step))
     if not torch.cuda.is_available():
         return
     from lod_attention.kernels.aiter_mla_prefill_attention import (
@@ -625,7 +627,10 @@ def test_dcp_batch_does_not_divide_the_per_request_cadence() -> None:
     assert local_work == 8 * 256
 
 
-def test_full_k3_profile_uses_launchable_unmasked_mla_geometry() -> None:
+def test_full_k3_profile_uses_launchable_unmasked_mla_geometry(monkeypatch) -> None:
+    # This checks the profile default, not an explicit tuning override used by
+    # the GPU suite. Geometry overrides have separate execution checks.
+    monkeypatch.delenv("LOD_KIMI_LEAF_BLOCK_M", raising=False)
     engine = SimpleNamespace(
         config=SimpleNamespace(num_attention_heads=96, num_key_value_heads=1),
         head_dim=576,
@@ -1388,3 +1393,65 @@ def test_kimi_tiled_state_assignment_uses_all_channels_and_partial_tiles(states,
     torch.testing.assert_close(actual[0], expected.values, atol=0, rtol=0)
     # Explicit BF16 rounding and smallest-index tie behavior must match BLAS.
     torch.testing.assert_close(actual[1], expected.indices, atol=0, rtol=0)
+
+
+@pytest.mark.parametrize("states", [177, 1039])
+@pytest.mark.parametrize("queries", [1, 37])
+@pytest.mark.parametrize("key_major", [False, True])
+def test_kimi_fullscore_probe_selector_preserves_ties_and_partial_tiles(states, queries, key_major) -> None:
+    if not torch.cuda.is_available():
+        pytest.skip("requires GPU score selector")
+    from benchmarks.kimi_k3_score_output import select_full_scores
+
+    torch.manual_seed(92)
+    stride = math.ceil(states / 128) * 128
+    scores = torch.randint(-16, 16, (2, 3, queries, stride), device="cuda").float()
+    # Padding is deliberately larger than valid scores; it must not win.
+    scores[..., states:] = 1000
+    buffers = {}
+    for fresh in range(2):
+        if fresh:
+            scores[..., :states].neg_()
+        source = scores.transpose(-1, -2).contiguous() if key_major else scores
+        actual = select_full_scores(source, None, None, None, state_len=states,
+                                    scale=1, buffers=buffers, key_major=key_major)
+        indices = scores[..., :states].argsort(dim=-1, descending=True, stable=True)[..., :8]
+        values = scores[..., :states].gather(-1, indices)
+        torch.testing.assert_close(actual[:, :, 0, :8].transpose(-1, -2), values,
+                                   atol=0, rtol=0)
+        torch.testing.assert_close(actual[:, :, 0, 8:].transpose(-1, -2).long(), indices,
+                                   atol=0, rtol=0)
+
+
+@pytest.mark.parametrize("chunk_items", [512, 1024, 2048])
+@pytest.mark.parametrize("queries,states", [(37, 23), (513, 1039)])
+def test_kimi_sorted_route_ordinals_are_dense_and_unique(chunk_items, queries, states) -> None:
+    if not torch.cuda.is_available():
+        pytest.skip("requires GPU route sorting")
+    from lod_attention.kernels.kimi_sorted_route_counts import count_sorted_kimi_routes
+
+    torch.manual_seed(83)
+    routes = torch.randint(-1, states, (2, 3, queries, 8), device="cuda")
+    routes[0, 0] = 7  # Extreme contention is still an exact dense range.
+    routes[1, 2] = -1  # Empty fragments cannot retain stale counts.
+    buffers = {}
+    items = queries * 8
+    for fresh in range(2):
+        if fresh:
+            routes.copy_(torch.where(routes >= 0, (routes + 3) % states, -1))
+        counts, offsets = count_sorted_kimi_routes(routes, active_slots=states,
+                                                   buffers=buffers, chunk_items=chunk_items)
+        for slots, ordinals, actual_counts in zip(routes.flatten(0, 1).flatten(1),
+                                                 offsets.flatten(0, 1).flatten(1),
+                                                 counts.view(6, states), strict=True):
+            valid = slots >= 0
+            expected_counts = torch.bincount(slots[valid], minlength=states).int()
+            torch.testing.assert_close(actual_counts, expected_counts)
+            actual_pairs = slots[valid] * items + ordinals[valid]
+            sorted_slots = torch.repeat_interleave(torch.arange(states, device="cuda"),
+                                                    expected_counts.long())
+            starts = expected_counts.cumsum(0) - expected_counts
+            sorted_ordinals = (torch.arange(sorted_slots.numel(), device="cuda")
+                               - torch.repeat_interleave(starts, expected_counts.long()))
+            expected_pairs = sorted_slots * items + sorted_ordinals
+            torch.testing.assert_close(actual_pairs.sort().values, expected_pairs)

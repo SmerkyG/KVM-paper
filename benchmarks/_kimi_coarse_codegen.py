@@ -1,8 +1,8 @@
-"""Isolated CK coarse-query-tile experiment; never edits installed AITER.
+"""Isolated CK coarse-tile experiment; never edits installed AITER.
 
-Wrap the canonical generator and change only gfx9 BF16 D192/V128 query tile
-and its query-axis warp count. The 128-key tile and all LoD score math stay
-unchanged. The caller must use a distinct JIT module name.
+Wrap the canonical generator and change gfx9 BF16 D192/V128 query tile,
+query-axis warp count, or feature-axis step. The 128-key token tile and all
+LoD score math stay unchanged. The caller must use a distinct JIT module name.
 """
 
 from __future__ import annotations
@@ -17,7 +17,8 @@ from pathlib import Path
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-generator", type=Path, required=True)
-    parser.add_argument("--query-tile", type=int, choices=(64,), required=True)
+    parser.add_argument("--query-tile", type=int, choices=(64, 128), required=True)
+    parser.add_argument("--key-step", type=int, choices=(32, 64), default=32)
     parser.add_argument("-d", "--direction", default="fwd")
     parser.add_argument("--receipt", type=int, default=104)
     parser.add_argument("--filter", default="*")
@@ -41,7 +42,9 @@ def main():
         tiles = original(dtype)
         if dtype == "bf16" and tiles is not None and (192, 128) in tiles:
             tiles = dict(tiles)
-            tiles[(192, 128)] = [replace(tile, F_bm0=args.query_tile, F_rm0=2, F_rm1=2)
+            warps = 2 if args.query_tile == 64 else 4
+            tiles[(192, 128)] = [replace(tile, F_bm0=args.query_tile, F_rm0=warps,
+                                        F_rm1=warps, F_bk0=args.key_step)
                                   for tile in tiles[(192, 128)]]
         return tiles
 

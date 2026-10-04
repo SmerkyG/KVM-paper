@@ -1,0 +1,62 @@
+{
+  "scope": "serial warmed leaf kernels on real trained prefill; not model wall time",
+  "input": "results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt",
+  "query_shape": [
+    1,
+    12,
+    16384,
+    192
+  ],
+  "active_slots": 2048,
+  "leaf_count": 16127,
+  "open_routes_per_query_mean": 8.0,
+  "opened_leaves_per_query_mean": 408.5442199707031,
+  "opened_centroid_length_mean": 51.06803512573242,
+  "tiles": {
+    "32x16x1": {
+      "median_ms": 1.4083000421524048,
+      "samples_ms": [
+        1.6826159954071045,
+        1.4844199419021606,
+        1.3977010250091553,
+        1.4083000421524048,
+        1.3605810403823853
+      ],
+      "hoisted_query": {
+        "median_ms": 1.3952200412750244,
+        "samples_ms": [
+          1.6098560094833374,
+          1.5579780340194702,
+          1.3677010536193848,
+          1.3568609952926636,
+          1.3952200412750244
+        ],
+        "fresh_queries_bitwise_match": true
+      },
+      "baseline_after_hoist": {
+        "median_ms": 1.373540997505188,
+        "samples_ms": [
+          1.401500940322876,
+          1.446179986000061,
+          1.373540997505188,
+          1.3550610542297363,
+          1.3708209991455078
+        ]
+      },
+      "output_relative_l2": 0.0,
+      "output_max_abs": 0.0,
+      "lse_max_abs": 0.0,
+      "output_finite": true
+    }
+  },
+  "projection": {
+    "median_ms": 0.2535969913005829,
+    "samples_ms": [
+      0.3215950131416321,
+      0.2679559886455536,
+      0.2535969913005829,
+      0.2521570026874542,
+      0.2490359991788864
+    ]
+  }
+}

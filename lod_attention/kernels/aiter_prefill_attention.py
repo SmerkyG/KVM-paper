@@ -234,8 +234,9 @@ def _specialized_kimi_coarse_mha_fwd(
     fused_route: bool = False,
     tile_max_probe: bool = False,
     query_tile: int = 128,
+    key_step: int = 32,
 ) -> Callable[..., tuple[torch.Tensor, ...]]:
-    """Build a non-routing Dqk=192/256, Dv=128 Kimi instance."""
+    """Build Dqk=192/256, Dv=128 Kimi coarse attention, optionally with routes."""
     if head_dim not in (192, 256):
         raise ValueError("Kimi coarse AITER supports Dqk=192 or 256")
     if async_bias and head_dim != 192:
@@ -246,6 +247,8 @@ def _specialized_kimi_coarse_mha_fwd(
         raise ValueError("tile-max timing probe requires fused Kimi routing")
     if query_tile not in (64, 128) or (query_tile != 128 and not async_bias):
         raise ValueError("alternative Kimi query tile requires async biased coarse attention")
+    if key_step not in (32, 64) or (key_step != 32 and not async_bias):
+        raise ValueError("alternative Kimi feature step requires async biased coarse attention")
     from aiter.jit.core import compile_ops, get_args_of_build
     from aiter.ops.mha import cmdGenFunc_mha_fwd
 
@@ -263,7 +266,8 @@ def _specialized_kimi_coarse_mha_fwd(
         mode_suffix = "_asyncbias" if async_bias else ""
         generated["md_name"] = (
             f"{generated['md_name']}_lod_kimi_d{head_dim}v128"
-            f"{mode_suffix}{'_q64_probe2' if query_tile == 64 else ''}_v{revision}"
+            f"{mode_suffix}{'_q64_probe2' if query_tile == 64 else ''}"
+            f"{'_k64_probe1' if key_step == 64 else ''}_v{revision}"
         )
         receipt = 104 if async_bias else 102
         generated["blob_gen_cmd"] = [
@@ -272,7 +276,7 @@ def _specialized_kimi_coarse_mha_fwd(
             )
             for command in generated["blob_gen_cmd"]
         ]
-        if query_tile == 64:
+        if query_tile == 64 or key_step == 64:
             import shlex
             from pathlib import Path
 
@@ -281,7 +285,8 @@ def _specialized_kimi_coarse_mha_fwd(
             for command in generated["blob_gen_cmd"]:
                 generator, remainder = command.split(" -d fwd", 1)
                 commands.append(f"{shlex.quote(str(wrapper))} --base-generator "
-                                f"{shlex.quote(generator)} --query-tile 64 -d fwd{remainder}")
+                                f"{shlex.quote(generator)} --query-tile {query_tile} "
+                                f"--key-step {key_step} -d fwd{remainder}")
             generated["blob_gen_cmd"] = commands
         # The patched CK pipeline references the route constants even when a
         # particular specialization only consumes its ordinary attention

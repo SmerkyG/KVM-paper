@@ -14,7 +14,7 @@ def main():
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--lengths", nargs="+", type=int, default=[32768, 65536])
     parser.add_argument("--variants", nargs="+",
-                        choices=("default", "tile64", "tile128", "routed", "fused", "sparse", "incremental", "tile_refine", "direct", "refine_direct", "final_reclaim", "final_fence", "final_only", "reuse_allocator", "reuse_group1", "reuse_group8", "reuse_group12", "reuse_native_local", "reuse_distributed8", "reuse_overlap_projection", "reuse_dense_tile_pack", "reuse_cached_weights", "reuse_kway", "reuse_tiled_state", "reuse_update_graph", "reuse_chunk_pack", "reuse_chunk512", "reuse_chunk1024"),
+                        choices=("default", "tile64", "tile128", "routed", "fused", "sparse", "incremental", "tile_refine", "direct", "refine_direct", "final_reclaim", "final_fence", "final_only", "reuse_allocator", "reuse_group1", "reuse_group8", "reuse_group12", "reuse_native_local", "reuse_distributed8", "reuse_overlap_projection", "reuse_dense_tile_pack", "reuse_cached_weights", "reuse_kway", "reuse_tiled_state", "reuse_update_graph", "reuse_chunk_pack", "reuse_chunk512", "reuse_chunk1024", "reuse_coarsek64", "reuse_sorted_leaves", "reuse_leaf64", "reuse_combined"),
                         default=["default", "tile64", "tile128", "routed"])
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--batch-size", type=int, default=1)
@@ -80,9 +80,16 @@ def main():
         cached_weights = variant == "reuse_cached_weights"
         kway = variant == "reuse_kway"
         tiled_state = variant == "reuse_tiled_state"
-        chunk_pack = variant in ("reuse_chunk_pack", "reuse_chunk512", "reuse_chunk1024")
+        combined = variant == "reuse_combined"
+        chunk_pack = combined or variant in ("reuse_chunk_pack", "reuse_chunk512", "reuse_chunk1024")
+        coarsek64 = variant == "reuse_coarsek64"
+        sorted_leaves = combined or variant == "reuse_sorted_leaves"
+        leaf64 = combined or variant == "reuse_leaf64"
+        os.environ["LOD_KIMI_SORT_LEAF_ROUTES"] = "1" if sorted_leaves else "0"
+        os.environ["LOD_KIMI_COARSE_KEY_STEP"] = "64" if coarsek64 else "32"
         os.environ["LOD_KIMI_CHUNK_TILE_PACK"] = "1" if chunk_pack else "0"
         os.environ["LOD_KIMI_TILE_PACK_QUERY_BLOCK"] = (
+            "1024" if combined else
             variant.removeprefix("reuse_chunk") if variant in ("reuse_chunk512", "reuse_chunk1024")
             else "256")
         os.environ["LOD_KIMI_TILED_STATE_MAXSIM"] = "1" if tiled_state else "0"
@@ -90,7 +97,7 @@ def main():
         os.environ["LOD_KIMI_CACHE_PROJECTION_WEIGHTS"] = "1" if cached_weights else "0"
         os.environ["LOD_KIMI_DENSE_TILE_PACK"] = "1" if dense_tile_pack else "0"
         os.environ["LOD_KIMI_OVERLAP_LEAF_PROJECTION"] = "1" if overlap_projection else "0"
-        if overlap_projection or dense_tile_pack or cached_weights or kway or tiled_state or update_graph or chunk_pack:
+        if overlap_projection or dense_tile_pack or cached_weights or kway or tiled_state or update_graph or chunk_pack or coarsek64 or sorted_leaves or leaf64:
             variant = "reuse_allocator"
         distributed = variant == "reuse_distributed8"
         runtime._DISTRIBUTED_PREFILL_BUILD = distributed
@@ -109,6 +116,8 @@ def main():
         runtime._CROSS_LAYER_PREFILL_GROUP_OVERRIDDEN = True
         runtime._CROSS_LAYER_PREFILL_GROUP = group_size
         block_m, warps, routed = choices[variant]
+        if leaf64:
+            block_m = 64
         os.environ["LOD_KIMI_LEAF_BLOCK_M"] = str(block_m)
         os.environ["LOD_KIMI_LEAF_WARPS"] = str(warps)
         os.environ["LOD_KIMI_ROUTED_LEAF_PROJECTION"] = "1" if routed else "0"

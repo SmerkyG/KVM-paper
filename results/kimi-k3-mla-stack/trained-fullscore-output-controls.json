@@ -1,0 +1,55 @@
+{
+  "scope": "trained-geometry GPU stage, not model latency",
+  "query_shape": [
+    1,
+    12,
+    16384,
+    192
+  ],
+  "state_len": 2048,
+  "score_workspace_bytes": 1610612736,
+  "ordinary_before": {
+    "median_ms": 2.821439027786255,
+    "samples_ms": [
+      2.945396900177002,
+      2.8721981048583984,
+      2.821439027786255,
+      2.738840103149414,
+      2.6955208778381348
+    ]
+  },
+  "full_score_output": {
+    "median_ms": 6.176429748535156,
+    "samples_ms": [
+      7.002058029174805,
+      6.241589069366455,
+      6.023911952972412,
+      6.176429748535156,
+      6.173349857330322
+    ]
+  },
+  "ordinary_input_check": {
+    "coarse_output_lse_bitwise": true,
+    "route_element_mismatches": 3,
+    "route_set_mismatch_queries": 1,
+    "query_head_rows": 196608,
+    "matching_route_scores_within_1e5": true
+  },
+  "fresh_input_check": {
+    "coarse_output_lse_bitwise": true,
+    "route_element_mismatches": 6,
+    "route_set_mismatch_queries": 0,
+    "query_head_rows": 196608,
+    "matching_route_scores_within_1e5": true
+  },
+  "ordinary_after": {
+    "median_ms": 2.723160982131958,
+    "samples_ms": [
+      2.8180789947509766,
+      2.8438780307769775,
+      2.684441089630127,
+      2.7181599140167236,
+      2.723160982131958
+    ]
+  }
+}

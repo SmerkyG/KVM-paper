@@ -44,6 +44,8 @@ def main():
                         help="also test graph capture of this fixed-input leaf stage")
     parser.add_argument("--scalar-page-lookup", action="store_true",
                         help="compare one directory lookup per aligned page with the baseline")
+    parser.add_argument("--sorted-counts", action="store_true",
+                        help="compare atomics-free sorted route ordinals")
     args = parser.parse_args()
     payload = torch.load(args.input, map_location="cpu", weights_only=True)
     if payload["scope"] != "real trained Kimi K3 late-prefill leaf inputs":
@@ -70,6 +72,10 @@ def main():
     w_uk_t, w_uv = payload["w_uk_t"].cuda(), payload["w_uv"].cuda()
     cache = {key: value.cuda() for key, value in payload["cache"].items()}
     projection_buffers = {}
+    from lod_attention.kernels import paged_prefill
+    original_counts = paged_prefill.count_expert_routes
+    if args.sorted_counts:
+        from lod_attention.kernels.kimi_sorted_route_counts import count_sorted_kimi_routes
 
     def project():
         return expand_kimi_leaf_kv(cache["leaf_k"], w_uk_t, w_uv,
@@ -81,6 +87,11 @@ def main():
         baseline = None
         for tile in args.tiles:
             block_m, block_n, warps = map(int, tile.split("x"))
+            point_name = tile
+            occurrence = 1
+            while point_name in result["tiles"]:
+                occurrence += 1
+                point_name = f"{tile}_{occurrence}"
             buffers = {}
 
             def attend():
@@ -96,6 +107,7 @@ def main():
                 )
 
             try:
+                paged_prefill.count_expert_routes = original_counts
                 scalar_lookup = False
                 point = timed(attend)
                 if args.graph:
@@ -129,6 +141,20 @@ def main():
                         (point["median_ms"] + point["scalar_baseline_after"]["median_ms"])
                         / 2 / point["scalar_page_lookup"]["median_ms"]
                     )
+                if args.sorted_counts:
+                    scalar_lookup = bool(args.scalar_page_lookup)
+                    reference = tuple(t.clone() for t in attend())
+                    paged_prefill.count_expert_routes = count_sorted_kimi_routes
+                    point["sorted_counts"] = timed(attend)
+                    candidate_out, candidate_lse = attend()
+                    torch.testing.assert_close(candidate_out, reference[0], atol=0, rtol=0,
+                                               equal_nan=True)
+                    torch.testing.assert_close(candidate_lse, reference[1], atol=0, rtol=0,
+                                               equal_nan=True)
+                    point["sorted_counts"]["bitwise_output_match"] = True
+                    paged_prefill.count_expert_routes = original_counts
+                    point["sorted_control_after"] = timed(attend)
+                    scalar_lookup = False
                 mask = slots.ge(0)
                 if payload["reduce_routes"]:
                     mask = mask.any(-1)
@@ -146,10 +172,15 @@ def main():
                 del lhs, rhs, error
             except Exception as error:
                 point = {"error": str(error)}
-            result["tiles"][tile] = point
-            print("KIMI_LEAF_REPLAY " + json.dumps({"tile": tile, **point}), flush=True)
+            finally:
+                paged_prefill.count_expert_routes = original_counts
+            result["tiles"][point_name] = point
+            print("KIMI_LEAF_REPLAY " + json.dumps({"tile": point_name, **point}), flush=True)
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(json.dumps(result, indent=2) + "\n")
+    errors = {name: point["error"] for name, point in result["tiles"].items() if "error" in point}
+    if errors:
+        raise RuntimeError(f"leaf replay failed for {list(errors)}; see {args.output}")
 
 
 if __name__ == "__main__":

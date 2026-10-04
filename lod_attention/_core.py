@@ -3837,6 +3837,7 @@ class TritonLODAttentionCore(nn.Module):
                         block_n=16,
                         num_warps=int(os.environ.get("LOD_KIMI_LEAF_WARPS", 1)),
                         scalar_page_lookup=True,
+                        sorted_route_counts=os.environ.get("LOD_KIMI_SORT_LEAF_ROUTES") == "1",
                     )
                 group_route_head_counts = None
                 group_route_offsets = None

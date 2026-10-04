@@ -1136,3 +1136,178 @@ benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_owner_tune \
   --kv-cache-memory-bytes 4294967296 \
   --output results/kimi-k3-mla-stack/dcp8-chunk1024-controls.json
 ```
+
+### Coarse feature-step and leaf-loop follow-ups
+
+An isolated source-derived CK instance changes the QK feature-axis step from
+32 to 64 (`LOD_KIMI_COARSE_KEY_STEP=64`). This is **not** the number of keys
+per tile: the query and key token tiles remain 128, the projected head keeps
+all 128+64 channels, and latent inputs retain all 512+64 channels. The distinct
+`_k64_probe1_v13` module prevents accidental reuse of a different binary.
+The code-generation wrapper does not overwrite installed AITER sources.
+
+The trained-record coarse/routing probe (20921,
+`trained-coarse-key64-controls.json`) takes **2.849 / 2.735 / 2.778 ms** for
+ordinary/candidate/ordinary. Changed Q/K inputs give bitwise-identical routes,
+selected scores, coarse outputs and LSEs. The complete fixture (20922,
+`dcp8-coarse-key64-controls.json`) does not show a meaningful speedup:
+
+| Context | Ordinary before (s) | Feature step 64 (s) | Ordinary after (s) |
+|--:|--:|--:|--:|
+| 32K | 3.472 | 3.483 | 3.506 |
+| 64K | 8.488 | 8.504 | 8.510 |
+
+All eight worker audits pass and fixture output IDs match. There is no reason
+to run this neutral candidate on the giant model or enable it by default.
+
+Two additional exact leaf-loop prototypes were removed after negative tests:
+explicitly hoisting query loads (`trained-leaf-query-reuse-controls.json`,
+20920) takes **1.408 / 1.395 / 1.374 ms**, and two-stage software pipelining
+(`trained-leaf-pipeline2-controls.json`, 20923) takes **1.393 / 1.568 / 1.394 ms**.
+Both keep output and LSE bitwise-identical. Neither beats adjacent controls;
+the latter is about 13% slower. These JSONs preserve failed experiment records,
+not supported serving options. The current leaf kernel remains unchanged.
+
+```bash
+benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_route_pack \
+  --input results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt \
+  --candidate coarsek64 \
+  --output results/kimi-k3-mla-stack/trained-coarse-key64-controls.json
+
+benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_owner_tune \
+  --checkpoint tests/fixtures/kimi-k3-mla-stack --lengths 32768 65536 \
+  --variants reuse_allocator reuse_coarsek64 reuse_allocator \
+  --batch-size 8 --tensor-parallel-size 8 --decode-context-parallel-size 8 \
+  --kv-cache-memory-bytes 4294967296 \
+  --output results/kimi-k3-mla-stack/dcp8-coarse-key64-controls.json
+```
+
+### Direct FP32 score emission: bandwidth tradeoff rejected
+
+`benchmarks.kimi_k3_score_output` privately copies the CK include tree and
+modifies only its route-score emitter plus the C++ score allocation. Installed
+AITER sources are never overwritten. Distinct `_fullscores_probe1` and
+`_fullscores_keymajor_probe1` modules emit every coarse score, followed by one
+exact top-eight reduction instead of query packing and QK rescoring.
+The trained geometry needs **1.5 GiB** of score workspace per call.
+
+| Score layout | Ordinary before (ms) | Emit scores + select (ms) | Ordinary after (ms) |
+|:--|--:|--:|--:|
+| Query-major | 2.821 | 6.176 | 2.723 |
+| Key-major | 2.774 | 4.909 | 2.789 |
+
+Sources: `trained-fullscore-output-controls.json` (20927) and
+`trained-fullscore-keymajor-controls.json` (20929). Both preserve coarse
+outputs and LSE bitwise on original and changed Q/K inputs. Against the
+ordinary Triton rescore, one of 196,608 original query/head rows changes its
+selected set; no changed-input row changes its set. This is consistent with
+the existing CK/Triton near-tie reduction-order difference, not evidence of
+bitwise routing equivalence. Scores for matching routes agree within 1e-5.
+Eight GPU selector tests (20930) cover both layouts, tied scores, partial
+queries/keys, deliberately high padding and fresh input reuse.
+
+Neither layout is competitive, so there is **no serving path, default change
+or giant-model rerun** for this experiment. It remains a standalone benchmark.
+The initial schema and const-tensor compile failures (20924/20925) provide no
+timing data; the successful records above come from the corrected builds.
+
+```bash
+benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_score_output \
+  --input results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt \
+  --output results/kimi-k3-mla-stack/trained-fullscore-output-controls.json
+# Add --key-major and a distinct output file for the second layout.
+```
+
+### Page-sized leaf query tiles and sorted route ordinals
+
+The 16-key page tile is retained while increasing the query tile. On the
+captured trained geometry, 64 queries with **one** warp take **1.247 ms**,
+versus scalar-lookup 32-query controls of **1.299 / 1.296 ms**. Adding more
+warps or using 128-query tiles is slower (1.447--1.886 ms).
+Source: `trained-leaf-page16-querytiles.json` (20931). All variants keep
+output/LSE bitwise-identical. Repeated control tiles now have distinct JSON
+keys rather than overwriting earlier controls; failed variants make the
+benchmark exit unsuccessfully after saving their error record.
+
+An independent metadata optimization assigns dense query-to-centroid ordinals
+using local 2048-item integer sorts and a prefix over per-fragment counts.
+It avoids per-route HBM count atomics while retaining every original route.
+The existing scatter and exact leaf kernels are unchanged.
+`LOD_KIMI_SORT_LEAF_ROUTES=1` opts into it only for projected K3 prefill;
+already supplied route metadata is retained. It is disabled by default.
+
+On the same real trained inputs without scalar lookup, ordinary/candidate/
+ordinary take **1.414 / 1.259 / 1.432 ms** (20934,
+`trained-leaf-sorted-counts-controls.json`). With the production scalar page
+lookup retained, adjacent controls are **1.290 / 1.287 ms** versus **1.094 ms**
+for sorted ordinals (20936, `trained-leaf-sorted-scalar-controls.json`), about
+15% lower stage latency. Outputs and LSE remain bitwise-identical. Six GPU
+metadata checks (20933) cover extreme single-slot contention, empty heads,
+partial fragments, multiple rows/heads, three chunk sizes and fresh reuse.
+These are isolated warmed leaf-stage timings, **not full-model speedups**.
+
+The complete fixture check (`dcp8-sorted-leaves-controls.json`, 20935) shows a
+smaller but consistent benefit; the 64-query leaf tile alone is also tested:
+
+| Context | Ordinary before (s) | Sorted ordinals (s) | 64-query tile only (s) | Ordinary after (s) |
+|--:|--:|--:|--:|--:|
+| 32K | 3.468 | 3.422 | 3.467 | 3.484 |
+| 64K | 8.467 | 8.356 | 8.378 | 8.494 |
+
+All eight worker audits pass and fixture token IDs match. Sorted ordinals
+reduce complete fixture latency by about 1.5%, not the 15% leaf-stage figure.
+GPU job 20937 passes **97** K3/hash tests with the sorted serving path enabled;
+the selected CPU suite passes 76 tests with 33 GPU skips. No model weights,
+top-eight ranking, leaf cap or global sequence cadence changes. Neither
+candidate is promoted based on these modest fixture-only results.
+
+```bash
+benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_leaf_replay \
+  --input results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt \
+  --tiles 32x16x1 64x16x1 64x16x2 64x16x4 128x16x4 128x16x8 32x16x1 \
+  --scalar-page-lookup \
+  --output results/kimi-k3-mla-stack/trained-leaf-page16-querytiles.json
+
+benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_leaf_replay \
+  --input results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt \
+  --tiles 32x16x1 --scalar-page-lookup --sorted-counts \
+  --output results/kimi-k3-mla-stack/trained-leaf-sorted-scalar-controls.json
+
+benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_owner_tune \
+  --checkpoint tests/fixtures/kimi-k3-mla-stack --lengths 32768 65536 \
+  --variants reuse_allocator reuse_sorted_leaves reuse_leaf64 reuse_allocator \
+  --batch-size 8 --tensor-parallel-size 8 --decode-context-parallel-size 8 \
+  --kv-cache-memory-bytes 4294967296 \
+  --output results/kimi-k3-mla-stack/dcp8-sorted-leaves-controls.json
+```
+
+### Combined fixed-fragment routing and leaf tiling
+
+Combining 1024-query coarse-refinement fragments, sorted exact-leaf ordinals,
+and the 64-query/one-warp leaf tile improves the complete 64K/B8 fixture to
+**8.019 s**, between ordinary controls of **8.480 / 8.492 s** (20940,
+`dcp8-combined-prefill-controls.json`), a 5.5% latency reduction. This uses
+the same global 16K/256 cadence, exact top-eight routes and all 512+64 channels;
+no graph variant is enabled. All eight worker audits pass and fixture token
+IDs match. This remains a fixture result, not a full-model crossover claim.
+
+GPU recheck 20942 passes **99 tests** with all three changes enabled. An earlier
+run passed 98 and failed the profile-default assertion because the explicit
+64-query tuning override was active. The default-profile test now clears that
+one override; the execution tests continue using the candidate geometry.
+
+An independent one-query-head metadata shortcut takes **2.828 / 2.788 /
+2.744 ms** for ordinary/candidate/ordinary (20938,
+`trained-single-head-metadata-controls.json`), indistinguishable from the
+adjacent controls. Its two direct GPU metadata tests passed (20939), but the
+prototype and its option were removed rather than adding another neutral
+serving path. The sorted ordinals and ordinary metadata construction remain.
+
+```bash
+benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_owner_tune \
+  --checkpoint tests/fixtures/kimi-k3-mla-stack --lengths 65536 \
+  --variants reuse_allocator reuse_combined reuse_allocator \
+  --batch-size 8 --tensor-parallel-size 8 --decode-context-parallel-size 8 \
+  --kv-cache-memory-bytes 4294967296 \
+  --output results/kimi-k3-mla-stack/dcp8-combined-prefill-controls.json
+```

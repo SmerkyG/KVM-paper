@@ -61,6 +61,23 @@ The fixture's roughly 2% gain did not transfer. The candidate remains opt-in
 (`LOD_KIMI_OVERLAP_LEAF_PROJECTION=1`), and its two-token trace is not a
 quality or update-amortized decode result.
 
+The atomics-free 1024-query packing check
+(`oct4-lod-chunk1024-b8-64k.json`, 20919) takes **71.925 s** at 64K/B8.
+Its prompt/continuation metadata, cache reservation and timing protocol match
+the dense baseline above. All eight workers retain allocator blocks and load
+the audited exact-refinement binaries; the new fragment-packing kernels are
+observed during warmup. The fixture's approximately 2.2% improvement again
+does not establish full-model crossover: this is only 0.083 s below the
+72.008 s ordinary control and remains about 2% slower than dense. Packing
+layout changes neither the 16K per-request prefill cadence nor the global
+256-token decode cadence. It remains opt-in, not a new production default.
+
+Reproduce this candidate with the command below, changing the length to
+65536, native cache reservation to 3221225472, adding
+`--retain-warmup-allocator`, and setting `LOD_KIMI_CHUNK_TILE_PACK=1` plus
+`LOD_KIMI_TILE_PACK_QUERY_BLOCK=1024`. As with the other two-token checks,
+this is prefill evidence only, not quality or amortized decode evidence.
+
 ## Historical October 4 matched prefill check (before sink correction)
 
 These fresh controls use the same eight real ProLong prompts, TP8/DCP8/EP8,

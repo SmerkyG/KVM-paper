@@ -2021,6 +2021,7 @@ def paged_leaf_attention(
     reduce_num_warps: int = 1,
     reduce_routes: bool = True,
     scalar_page_lookup: bool = False,
+    sorted_route_counts: bool = False,
     buffers: dict[str, torch.Tensor] | None = None,
     timing_events: dict[str, list[tuple[torch.cuda.Event, torch.cuda.Event]]]
     | None = None,
@@ -2130,6 +2131,11 @@ def paged_leaf_attention(
         top_slots = top_slots.contiguous()
         record_dispatch_boundary()
         expert_count = batch * kv_heads * active_slots
+        if sorted_route_counts and route_head_counts is None:
+            from .kimi_sorted_route_counts import count_sorted_kimi_routes
+
+            route_head_counts, route_offsets = count_sorted_kimi_routes(
+                top_slots, active_slots=active_slots, buffers=buffers)
         (
             order,
             q_lengths,

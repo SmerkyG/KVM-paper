@@ -1,0 +1,44 @@
+{
+  "scope": "trained-geometry coarse/route stage; not model latency",
+  "source": "results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt",
+  "query_shape": [
+    1,
+    12,
+    16384,
+    192
+  ],
+  "candidate": "coarsek64",
+  "state_len": 2048,
+  "state_sums": "reconstructed from captured memberships",
+  "ordinary_before": {
+    "median_ms": 2.8489608764648438,
+    "samples_ms": [
+      3.105518102645874,
+      2.8606410026550293,
+      2.8489608764648438,
+      2.7122020721435547,
+      2.741041898727417
+    ]
+  },
+  "coarsek64": {
+    "median_ms": 2.734961986541748,
+    "samples_ms": [
+      2.702162981033325,
+      2.7686409950256348,
+      2.734961986541748,
+      2.768202066421509,
+      2.670883893966675
+    ]
+  },
+  "ordinary_after": {
+    "median_ms": 2.7780420780181885,
+    "samples_ms": [
+      2.809360980987549,
+      2.8104019165039062,
+      2.7205629348754883,
+      2.6901628971099854,
+      2.7780420780181885
+    ]
+  },
+  "fresh_input_routes_outputs_scores": "bitwise matched"
+}
