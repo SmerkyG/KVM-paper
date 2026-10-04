@@ -72,7 +72,7 @@ yet been shown to fit, and 1020K LoD has not been measured.
 Fresh dense B1/512K and B1/1020K baselines completed in 21017, using 1,025
 generated tokens, the improved Gluon dense decoder, one warmup and one
 measurement, and a 4 GiB/rank native cache. The historical long dense rows
-below remain labeled historical until the new audited results are available.
+below remain historical; the completed audited results are reported here.
 
 The completed source is `oct4-full-b1-512k1020k-decode1025.json`:
 
@@ -116,7 +116,28 @@ A 1,024-step window spans four periods, but can include three catch-up calls
 when its initial state is already caught up and the next boundary is just
 past its last input. Observed counters, not an assumed count of four, are the
 audit. The counter reader's six unit tests pass; the shared benchmark suite
-also passes 33 tests.
+also passes 33 tests, and an integration test verifies that counter RPCs are
+outside generation and that warmup updates are excluded.
+
+The completed matched B1 pair is 21018/21019:
+`oct4-lod-b1-64k-decode-update-audit.json` and
+`oct4-full-b1-64k-decode-update-audit.json`.
+
+| Context / batch | Dense prefill (s) | LoD prefill (s) | Prefill speedup | Dense decode (ms/step) | LoD decode (ms/step) | Decode speedup |
+|:--|--:|--:|--:|--:|--:|--:|
+| 64K / B1 | 8.783827 | 8.508550 | 1.032x | 22.173212 | 20.641170 | 1.074x |
+
+Each of the 24 MLA layers on all eight LoD workers records three catch-up
+batches and three updated request rows during measured generation. The LoD
+decode window is 21.136558 s / 1,024 steps; dense is 22.705369 s / 1,024.
+Their wall/metric discrepancies are 0.003019 s and 0.003051 s respectively.
+Both have zero preemptions and prefix-cache hits. Prompt and natural
+continuation hashes, scheduler parameters, native reservation, seed and
+timing protocol match exactly. Dense has the improved Gluon decoder
+installed, and both use `FULL_DECODE_ONLY` graph capture without dummy
+attention. This closely reproduces the earlier ~20.66 ms B1 LoD measurement,
+this time with explicit update execution verification. Fresh B8 checks are
+in progress; no B8 speedup is inferred from a historical comparator.
 
 ### B1 / B8 scaling sweep
 
