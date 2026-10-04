@@ -1448,3 +1448,13 @@ benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_joint_projection \
   --input results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt \
   --output results/kimi-k3-mla-stack/trained-existing-joint-projection-controls.json
 ```
+
+The fixed-fragment persistent rescoring trial (20976,
+`trained-persistent-fragment-controls.json`) removes the compact work-list
+prefix and listing launches. One workgroup handles each 1024-query fragment
+and reuses its keys across all populated 64-query tiles. Captured coarse/route
+stage controls are **1.918 / 2.000 / 1.895 ms**, with routes, selected scores,
+coarse output and LSE bitwise-identical on original and changed Q/K.
+All 180 exact-refinement tests pass with this path enabled (20977).
+Fewer launches and allocations therefore do not establish a win here;
+this is not promoted or rerun on the giant model.
