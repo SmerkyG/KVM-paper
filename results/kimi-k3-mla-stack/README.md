@@ -1477,3 +1477,25 @@ benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_subtile_route \
   --report-near-ties --allow-coarse-roundoff \
   --output results/kimi-k3-mla-stack/trained-subtile64-query64-controls.json
 ```
+
+The matched query-128/query-64/query-128 complete-fixture check (20980,
+`dcp8-score-query64-prefill-controls.json`) uses the **same** score-only,
+shared-maximum emitter in all three controls:
+
+| Context | Query-128 before (s) | Query-64 (s) | Query-128 after (s) |
+|--:|--:|--:|--:|
+| 32K | 3.258 | 3.278 | 3.287 |
+| 64K | 7.752 | 7.773 | 7.771 |
+
+Generated IDs match for all eight requests. This is neutral, so query-64 is
+not promoted and does not trigger another giant-model run. The existing
+`LOD_KIMI_COARSE_QUERY_TILE` setting now also applies to the opt-in subgroup
+emitter, with a distinct cached JIT specialization.
+
+A separate trained-leaf tile/graph check (20981,
+`trained-leaf-query-geometry-graph.json`) again favors the existing
+64-query/16-key/one-warp tile: with scalar page lookup and sorted ordinals,
+it takes 0.961 ms, versus 1.189 ms for two warps and 1.219 ms for
+128-query/two-warp tiles. Larger query tiles remain slower. Fixed-input leaf
+graph capture gives only a small gain on the ordinary leaf path (1.301 to
+1.271 ms for query-64); this is not a serving or full-model graph claim.

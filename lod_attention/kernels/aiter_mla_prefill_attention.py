@@ -1108,7 +1108,8 @@ def aiter_kimi_expanded_prefill_route_coarse_attention(
 
             coarse_mha_fwd = serving_subtile_factory(
                 score_only=subtile_mode in ("score", "reuse"),
-                reuse_max=subtile_mode == "reuse")
+                reuse_max=subtile_mode == "reuse",
+                query_tile=int(os.environ.get("LOD_KIMI_COARSE_QUERY_TILE", "128")))
         route_mha_fwd = _specialized_route_mha_fwd(False, route_dim)
 
         def run_coarse_partition(

@@ -226,8 +226,8 @@ def subtile_factory(sources, score_only=False, reuse_max=False, tile_n=64, query
     return subtile_mha
 
 
-@lru_cache(maxsize=3)
-def serving_subtile_factory(score_only=False, reuse_max=False):
+@lru_cache(maxsize=6)
+def serving_subtile_factory(score_only=False, reuse_max=False, query_tile=128):
     """Initialize the opt-in fixture candidate once, then call the loaded op.
 
     The private source tree is required only during the initial JIT build. It
@@ -240,7 +240,8 @@ def serving_subtile_factory(score_only=False, reuse_max=False):
         nonlocal loaded
         if loaded is None:
             with isolated_subtile_sources(score_only, reuse_max) as sources:
-                function = subtile_factory(sources, score_only, reuse_max)
+                function = subtile_factory(sources, score_only, reuse_max,
+                                           query_tile=query_tile)
                 output = function(*args, **kwargs)
                 loaded = function
                 return output
