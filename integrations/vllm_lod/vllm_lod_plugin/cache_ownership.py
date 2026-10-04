@@ -53,6 +53,40 @@ def _install_attention_spec_hook() -> None:
     Attention._vllm_lod_cache_spec_installed = True
 
 
+def _install_mla_spec_hook() -> None:
+    """Give absorbed Kimi MLA the same allocation-free scheduler cache."""
+
+    from vllm.model_executor.layers.attention.mla_attention import MLAAttention
+    from vllm.v1.kv_cache_interface import MLAAttentionSpec
+
+    if getattr(MLAAttention, "_vllm_lod_cache_spec_installed", False):
+        return
+    original = MLAAttention.get_kv_cache_spec
+
+    def get_kv_cache_spec(self: Any, vllm_config: Any) -> Any:
+        spec = original(self, vllm_config)
+        if not bool(getattr(self, "_vllm_lod_absorbed_mla", False)):
+            return spec
+        if not isinstance(spec, MLAAttentionSpec):
+            raise RuntimeError(
+                "Kimi LoD expected an MLA cache spec, got "
+                f"{type(spec).__name__}"
+            )
+        self._vllm_lod_external_kv_cache = True
+        self._vllm_lod_external_scheduler_cache = True
+        # The scheduler needs causal full-history block/hash semantics, not
+        # MLA's physical tensor layout.  Worker storage is owned by LoD.
+        return LODMetadataOnlyFullAttentionSpec(
+            **{
+                field: getattr(spec, field)
+                for field in LODMetadataOnlyFullAttentionSpec.__dataclass_fields__
+            }
+        )
+
+    MLAAttention.get_kv_cache_spec = get_kv_cache_spec
+    MLAAttention._vllm_lod_cache_spec_installed = True
+
+
 def _install_metadata_spec_manager_hook() -> None:
     """Dispatch the LOD spec to its virtual manager without mutating vLLM."""
     from vllm.v1.kv_cache_spec_registry import KVCacheSpecRegistry
@@ -61,10 +95,12 @@ def _install_metadata_spec_manager_hook() -> None:
         return
     original = KVCacheSpecRegistry.get_manager_class.__func__
 
-    def get_manager_class(cls: Any, spec: Any) -> Any:
+    def get_manager_class(
+        cls: Any, spec: Any, *args: Any, **kwargs: Any
+    ) -> Any:
         if isinstance(spec, LODMetadataOnlyFullAttentionSpec):
             return LODMetadataOnlyFullAttentionManager
-        return original(cls, spec)
+        return original(cls, spec, *args, **kwargs)
 
     KVCacheSpecRegistry.get_manager_class = classmethod(get_manager_class)
     KVCacheSpecRegistry._vllm_lod_manager_installed = True
@@ -150,7 +186,9 @@ def _assert_no_external_tensors(
     leaked = {
         name
         for tensor in kv_cache_config.kv_cache_tensors
-        for name in tensor.shared_by
+        # vLLM 0.30 renamed the ownership field while making tensor strides
+        # explicit.  Both names describe the layers backed by this allocation.
+        for name in getattr(tensor, "shared_by", getattr(tensor, "layers", ()))
         if name in external_layer_names
     }
     if leaked:
@@ -162,6 +200,8 @@ def _assert_no_external_tensors(
 
 def _install_core_cache_sizing_hook() -> None:
     """Exclude scheduler-only groups from GPU byte and capacity accounting."""
+    import inspect
+
     import vllm.v1.core.kv_cache_utils as utils
     from vllm.v1.kv_cache_interface import KVCacheConfig
 
@@ -226,14 +266,31 @@ def _install_core_cache_sizing_hook() -> None:
             vllm_config, physical, available_memory, *args, **kwargs
         )
         if not physical:
-            config.num_blocks = _metadata_pool_size()
+            # DCP's warm-up metadata reserves block zero as an invalid/sentinel
+            # entry and requires one additional valid logical block.  These
+            # blocks carry scheduler metadata only, so keeping the second block
+            # for a single-request LoD pool has no GPU K/V storage cost.
+            dcp_size = int(
+                vllm_config.parallel_config.decode_context_parallel_size
+            )
+            config.num_blocks = max(
+                _metadata_pool_size(), 2 if dcp_size > 1 else 1
+            )
         config.kv_cache_groups = groups
         _assert_no_external_tensors(config, external)
         return config
 
-    def pool_bytes(vllm_config: Any, groups: list[Any]) -> int:
-        physical = _physical_groups(groups)
-        return original_pool_bytes(vllm_config, physical) if physical else 1
+    if next(iter(inspect.signature(original_pool_bytes).parameters)) == "vllm_config":
+
+        def pool_bytes(vllm_config: Any, groups: list[Any]) -> int:
+            physical = _physical_groups(groups)
+            return original_pool_bytes(vllm_config, physical) if physical else 1
+
+    else:
+
+        def pool_bytes(groups: list[Any]) -> int:
+            physical = _physical_groups(groups)
+            return original_pool_bytes(physical) if physical else 1
 
     def concurrency(vllm_config: Any, config: Any) -> float:
         physical = _physical_groups(config.kv_cache_groups)
@@ -322,8 +379,6 @@ def _install_external_worker_group_hook() -> None:
     def add_runner_only_layers(self: Any) -> None:
         from collections import defaultdict
 
-        from vllm.config import get_layers_from_vllm_config
-        from vllm.model_executor.layers.attention.attention import Attention
         from vllm.v1.kv_cache_interface import (
             EncoderOnlyAttentionSpec,
             KVCacheGroupSpec,
@@ -331,7 +386,7 @@ def _install_external_worker_group_hook() -> None:
 
         original(self)
         external_specs: dict[Any, list[str]] = defaultdict(list)
-        layers = get_layers_from_vllm_config(self.vllm_config, Attention)
+        layers = self.vllm_config.compilation_config.static_forward_context
         external_layers = {
             layer_name: layer
             for layer_name, layer in layers.items()
@@ -343,11 +398,24 @@ def _install_external_worker_group_hook() -> None:
         if set(logical_groups) != set(external_layers):
             raise RuntimeError("not every external LOD layer retained a logical group")
         for layer_name, layer in external_layers.items():
+            if bool(getattr(layer, "_vllm_lod_absorbed_mla", False)):
+                # The patched Kimi MLA call consumes the runtime plan directly
+                # and never reads ForwardContext attention metadata.  Do not
+                # instantiate vLLM's native MLA builder: smol-K3's absorbed
+                # width (160) is deliberately outside that builder's physical
+                # cache ABI, and no physical MLA cache exists in LoD mode.
+                layer._vllm_lod_external_metadata_group = logical_groups[layer_name]
+                layer._vllm_lod_external_scheduler_group = logical_groups[layer_name]
+                continue
             spec = EncoderOnlyAttentionSpec(
                 block_size=int(self.vllm_config.cache_config.block_size),
                 num_kv_heads=int(layer.num_kv_heads),
                 head_size=int(layer.head_size),
-                dtype=layer.kv_cache_torch_dtype,
+                dtype=getattr(
+                    layer,
+                    "kv_cache_torch_dtype",
+                    self.vllm_config.model_config.dtype,
+                ),
             )
             external_specs[spec].append(layer_name)
             self.runner_only_attn_layers.add(layer_name)
@@ -378,8 +446,6 @@ def _install_v2_external_metadata_hook() -> None:
     """Attach external layers to V2 metadata without cache/block ownership."""
     try:
         import vllm.v1.worker.gpu.model_runner as model_runner
-        from vllm.config import get_layers_from_vllm_config
-        from vllm.model_executor.layers.attention.attention import Attention
         from vllm.v1.kv_cache_interface import EncoderOnlyAttentionSpec
         from vllm.v1.worker.utils import AttentionGroup
     except ImportError:
@@ -396,7 +462,7 @@ def _install_v2_external_metadata_hook() -> None:
         *args: Any,
         **kwargs: Any,
     ) -> Any:
-        layers = get_layers_from_vllm_config(vllm_config, Attention)
+        layers = vllm_config.compilation_config.static_forward_context
         # Draft-model speculators call the same helper with only their own
         # attention layer names active.  Re-externalizing target-model LOD
         # layers in that call removes the native MTP layer from the draft
@@ -449,12 +515,29 @@ def _install_v2_external_metadata_hook() -> None:
             0,
         )
         by_spec: dict[Any, list[str]] = {}
+        metadata_free_mla: list[str] = []
         for layer_name, layer in external.items():
+            if bool(getattr(layer, "_vllm_lod_absorbed_mla", False)):
+                # The Kimi adapter is called directly from MLAAttention and
+                # consumes the runtime's request plan, not backend metadata.
+                # Reusing an MLA metadata builder here would also require a
+                # physical MLAAttentionSpec, defeating external ownership.
+                layer._vllm_lod_external_metadata_group = metadata_group_id
+                if layer_name in logical_groups:
+                    layer._vllm_lod_external_scheduler_group = logical_groups[
+                        layer_name
+                    ]
+                metadata_free_mla.append(layer_name)
+                continue
             spec = EncoderOnlyAttentionSpec(
                 block_size=int(vllm_config.cache_config.block_size),
                 num_kv_heads=int(layer.num_kv_heads),
                 head_size=int(layer.head_size),
-                dtype=layer.kv_cache_torch_dtype,
+                dtype=getattr(
+                    layer,
+                    "kv_cache_torch_dtype",
+                    vllm_config.model_config.dtype,
+                ),
             )
             by_spec.setdefault(spec, []).append(layer_name)
             layer._vllm_lod_external_metadata_group = metadata_group_id
@@ -482,9 +565,10 @@ def _install_v2_external_metadata_hook() -> None:
 
         logger.info(
             "Authoritative LOD cache-ownership invariant active for %d V2 layers: "
-            "metadata group %d, native GPU K/V forbidden",
+            "metadata group %d, native GPU K/V forbidden (%d absorbed MLA)",
             len(external),
             metadata_group_id,
+            len(metadata_free_mla),
         )
         return attn_groups, cg_support, kernel_block_sizes
 
@@ -496,6 +580,8 @@ def _install_v2_external_metadata_hook() -> None:
 
 def _install_v2_external_kv_init_hook() -> None:
     """Exclude worker-only LOD metadata groups from physical KV reshape."""
+    import inspect
+
     try:
         import vllm.v1.worker.gpu.model_runner as model_runner
     except ImportError:
@@ -504,6 +590,32 @@ def _install_v2_external_kv_init_hook() -> None:
     if getattr(model_runner, "_vllm_lod_external_kv_init_installed", False):
         return
     original = model_runner.init_kv_cache
+
+    # vLLM 0.30 moved physical-cache allocation into init_kv_cache itself and
+    # removed both the caller-owned cache list and attention groups from this
+    # helper's signature.  Our cache-spec hooks already omit LoD-owned tensors
+    # from KVCacheConfig, so the newer hook only needs to enforce that invariant
+    # before delegating.
+    if next(iter(inspect.signature(original).parameters)) == "forward_context":
+
+        def init_kv_cache(
+            forward_context: dict[str, Any],
+            kv_cache_config: Any,
+            *args: Any,
+            **kwargs: Any,
+        ) -> Any:
+            external = {
+                name
+                for name, layer in forward_context.items()
+                if bool(getattr(layer, "_vllm_lod_external_kv_cache", False))
+            }
+            if external:
+                _assert_no_external_tensors(kv_cache_config, external)
+            return original(forward_context, kv_cache_config, *args, **kwargs)
+
+        model_runner.init_kv_cache = init_kv_cache
+        model_runner._vllm_lod_external_kv_init_installed = True
+        return
 
     def init_kv_cache(
         runner_kv_caches: Any,
@@ -562,11 +674,14 @@ def _assert_cache_ownership_hooks_installed() -> None:
     """Fail plugin registration if this vLLM version bypasses the invariant."""
     import vllm.v1.core.kv_cache_utils as utils
     from vllm.model_executor.layers.attention.attention import Attention
+    from vllm.model_executor.layers.attention.mla_attention import MLAAttention
     from vllm.v1.kv_cache_spec_registry import KVCacheSpecRegistry
 
     missing = []
     if not getattr(Attention, "_vllm_lod_cache_spec_installed", False):
         missing.append("Attention.get_kv_cache_spec")
+    if not getattr(MLAAttention, "_vllm_lod_cache_spec_installed", False):
+        missing.append("MLAAttention.get_kv_cache_spec")
     if not getattr(utils, "_vllm_lod_metadata_sizing_installed", False):
         missing.append("core cache sizing")
     if not getattr(KVCacheSpecRegistry, "_vllm_lod_manager_installed", False):
@@ -611,6 +726,7 @@ def install_cache_ownership_hooks() -> None:
     _install_metadata_spec_manager_hook()
     _install_core_cache_sizing_hook()
     _install_attention_spec_hook()
+    _install_mla_spec_hook()
     _install_external_worker_group_hook()
     _install_v2_external_metadata_hook()
     _install_v2_external_kv_init_hook()

@@ -7,6 +7,7 @@ routing, and decode kernels can be understood independently.
 from .paged_cache import (
     append_quantized_virtual_paged_kv,
     append_virtual_paged_kv,
+    dequantize_owned_virtual_paged_keys,
     quantize_page_summaries_int8,
     quantize_virtual_paged_kv,
     rehash_overflow_pages,
@@ -19,6 +20,7 @@ from .paged_decode_buffers import (
     prepare_speculative_decode_kv,
 )
 from .paged_decode_kernels import (
+    materialize_absorbed_mla_coarse_means,
     materialize_page1_coarse_means,
     materialize_page1_fixed_indices,
 )
@@ -33,7 +35,9 @@ __all__ = [
     "advance_decode_cache_lengths",
     "append_quantized_virtual_paged_kv",
     "append_virtual_paged_kv",
+    "dequantize_owned_virtual_paged_keys",
     "fused_decode_paged_lod_attention",
+    "materialize_absorbed_mla_coarse_means",
     "materialize_page1_coarse_means",
     "materialize_page1_fixed_indices",
     "materialized_state_route_gqa",

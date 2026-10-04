@@ -49,7 +49,7 @@
                          batch_stride_randval,
                          batch_stride_lse,
                          batch_stride_o,
-@@ -327,8 +341,36 @@
+@@ -327,8 +341,45 @@
  
      at::Tensor p;
      if (return_dropout_randval) {
@@ -62,15 +62,24 @@
 +#ifndef CK_TILE_FMHA_ROUTE_TOPK
 +#define CK_TILE_FMHA_ROUTE_TOPK 8
 +#endif
-+            // Experimental LOD route probe. D=128 always emits 128-key
-+            // tiles; D=256 keeps a safe 64-key grid because its selected CK
-+            // instance may use either a 64- or 128-key tile.
-+            const int route_tile = head_size_q == 128 ? 128 : 64;
-+            const int route_blocks = (seqlen_k + route_tile - 1) / route_tile;
-+            if(head_size_q == 128)
++#ifndef CK_TILE_FMHA_ROUTE_GLOBAL_TOPK
++#define CK_TILE_FMHA_ROUTE_GLOBAL_TOPK 0
++#endif
++#ifndef CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY
++#define CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY 0
++#endif
++            // Experimental LOD route probe. The release D=128 and Kimi MLA
++            // D=192 instances emit 128-key tiles. D=256 keeps a safe 64-key
++            // grid because its selected CK instance may use either tile.
++            const int route_tile =
++                (head_size_q == 128 || head_size_q == 192) ? 128 : 64;
++            const int route_blocks = CK_TILE_FMHA_ROUTE_GLOBAL_TOPK
++                                         ? 1
++                                         : (seqlen_k + route_tile - 1) / route_tile;
++            if(head_size_q == 128 || head_size_q == 192)
 +            {
-+                // Every release D=128 CK instance uses a 128-key tile, so
-+                // every candidate entry is written.
++                // Every release D=128/D=192 CK instance uses a 128-key tile,
++                // so every candidate entry is written.
 +                p = torch::empty(
 +                    {batch_size, num_heads, route_blocks, 2 * CK_TILE_FMHA_ROUTE_TOPK, seqlen_q},
 +                    opts.dtype(torch::kFloat32));
@@ -176,9 +185,36 @@
                  }
              }();
  
+@@ -2335,7 +2356,10 @@
+                 make_tuple(number<FmhaPipeline::kM0>{}, number<FmhaPipeline::kN1>{}),
+                 {i_m0, i_n1});
+ 
+-            EpiloguePipeline{}(o_dram_window, o_acc_tile, nullptr);
++            if(!kargs.route_only)
++            {
++                EpiloguePipeline{}(o_dram_window, o_acc_tile, nullptr);
++            }
+         }
+         else
+         {
+@@ -3129,7 +3153,10 @@
+                 make_tuple(number<FmhaPipeline::kM0>{}, number<FmhaPipeline::kN1>{}),
+                 {i_m0, i_n1});
+ 
+-            EpiloguePipeline{}(o_dram_window, o_acc_tile, nullptr);
++            if(!kargs.route_only)
++            {
++                EpiloguePipeline{}(o_dram_window, o_acc_tile, nullptr);
++            }
+         }
+     }
+ };
 --- a/3rdparty/composable_kernel/include/ck_tile/ops/fmha/pipeline/block_fmha_pipeline_qr_ks_vs.hpp
 +++ b/3rdparty/composable_kernel/include/ck_tile/ops/fmha/pipeline/block_fmha_pipeline_qr_ks_vs.hpp
-@@ -13,0 +14,16 @@
+@@ -11,6 +11,21 @@
+ #include "ck_tile/ops/gemm/warp/warp_wmma_gemm_gfx11_utils.hpp"
+ #include "ck_tile/ops/reduce/block/block_reduce.hpp"
+ 
 +#ifndef CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE
 +#define CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE 1
 +#endif
@@ -194,8 +230,10 @@
 +#if CK_TILE_FMHA_ROUTE_TOPK != 8
 +#error "CK_TILE_FMHA_ROUTE_TOPK must be 8"
 +#endif
-+
-@@ -680,7 +688,14 @@
+ 
+ namespace ck_tile {
+ 
+@@ -681,7 +696,14 @@
  #endif
              if constexpr(kVPrefetch == VPrefetchPoint::BeforeGemm0Tail)
              {
@@ -211,7 +249,7 @@
              }
              { // tail
                  block_sync_lds();
-@@ -700,7 +715,14 @@
+@@ -701,7 +723,14 @@
              }
              if constexpr(kVPrefetch == VPrefetchPoint::AfterGemm0Tail)
              {
@@ -227,7 +265,7 @@
              }
              // dequant
              auto s_acc_element_func_ = [&s_acc_element_func, k_descale]() {
-@@ -821,6 +843,181 @@
+@@ -822,6 +851,185 @@
              }
  
              const auto s = cast_tile<SMPLComputeDataType>(s_acc); // S{j}
@@ -285,7 +323,9 @@
 +                    });
 +#endif
 +                    constexpr index_t route_storage_tile =
-+                        kQKHeaddim == 128 ? index_t{128} : index_t{64};
++                        (kQKHeaddim == 128 || kQKHeaddim == 192)
++                            ? index_t{128}
++                            : index_t{64};
 +                    const index_t route_block_capacity = integer_divide_ceil(
 +                        variant_params.route_seqlen_k, route_storage_tile);
 +                    const auto f_min = [](auto e0, auto e1) { return min(e0, e1); };
@@ -337,29 +377,31 @@
 +                                     2 * CK_TILE_FMHA_ROUTE_TOPK +
 +                                 output_channel) *
 +                                    variant_params.route_seqlen_q;
-+                            auto route_dram =
-+                                make_naive_tensor_view<address_space_enum::global>(
-+                                    route_ptr,
-+                                    make_tuple(variant_params.route_seqlen_q),
-+                                    make_tuple(index_t{1}),
-+                                    number<1>{},
-+                                    number<1>{});
-+                            auto route_window = make_tile_window(
-+                                route_dram,
-+                                make_tuple(number<kM0>{}),
-+                                {q_origin.at(number<0>{})},
-+                                route_m_local.get_tile_distribution());
-+                            if constexpr(output_kind == 0)
-+                            {
-+                                store_tile(route_window, route_m_local);
-+                            }
-+                            else
-+                            {
-+                                auto route_i_float = tile_elementwise_in(
-+                                    [](auto x) { return type_convert<float>(x); },
-+                                    route_i_local);
-+                                store_tile(route_window, route_i_float);
-+                            }
++                            sweep_tile_span(candidate_spans[number<0>{}], [&](auto idx0) {
++                                sweep_tile_span(candidate_spans[number<1>{}], [&](auto idx1) {
++                                    const auto tile_idx =
++                                        get_x_indices_from_distributed_indices(
++                                            route_s.get_tile_distribution(),
++                                            make_tuple(idx0, idx1));
++                                    const index_t global_row =
++                                        q_origin.at(number<0>{}) +
++                                        tile_idx.at(number<0>{});
++                                    if(global_row < variant_params.route_seqlen_q &&
++                                       tile_idx.at(number<1>{}) == 0)
++                                    {
++                                        if constexpr(output_kind == 0)
++                                        {
++                                            route_ptr[global_row] = type_convert<float>(
++                                                route_m_local(make_tuple(idx0)));
++                                        }
++                                        else
++                                        {
++                                            route_ptr[global_row] = type_convert<float>(
++                                                route_i_local(make_tuple(idx0)));
++                                        }
++                                    }
++                                });
++                            });
 +                        });
 +
 +                        sweep_tile_span(candidate_spans[number<0>{}], [&](auto idx0) {
@@ -409,7 +451,7 @@
              auto m_local = block_tile_reduce<SMPLComputeDataType>(
                  s,
                  sequence<1>{},
-@@ -1212,6 +1405,15 @@
+@@ -1213,6 +1421,15 @@
              }
          } while(++i_total_loops < num_total_loop);
  
@@ -425,27 +467,368 @@
          // store lse
          if constexpr(kStoreLSE)
          {
+--- a/3rdparty/composable_kernel/include/ck_tile/ops/fmha/pipeline/block_fmha_pipeline_qr_ks_vs_async.hpp
++++ b/3rdparty/composable_kernel/include/ck_tile/ops/fmha/pipeline/block_fmha_pipeline_qr_ks_vs_async.hpp
+@@ -11,6 +11,32 @@
+ #include "ck_tile/ops/fmha/block/block_dropout.hpp"
+ #include "ck_tile/ops/reduce/block/block_reduce.hpp"
+ 
++#ifndef CK_TILE_FMHA_ROUTE_TOPK
++#define CK_TILE_FMHA_ROUTE_TOPK 8
++#endif
++
++#ifndef CK_TILE_FMHA_ROUTE_GLOBAL_TOPK
++#define CK_TILE_FMHA_ROUTE_GLOBAL_TOPK 0
++#endif
++
++#ifndef CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY
++#define CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY 0
++#endif
++
++#if CK_TILE_FMHA_ROUTE_GLOBAL_TOPK && CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY
++#error "global top-k and tile-max-only routing are mutually exclusive"
++#endif
++
++#if CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY
++#define CK_TILE_FMHA_ROUTE_EMIT_TOPK 1
++#else
++#define CK_TILE_FMHA_ROUTE_EMIT_TOPK CK_TILE_FMHA_ROUTE_TOPK
++#endif
++
++#if CK_TILE_FMHA_ROUTE_TOPK != 8
++#error "CK_TILE_FMHA_ROUTE_TOPK must be 8"
++#endif
++
+ namespace ck_tile {
+ 
+ // a variation of qr/ks/vs, where we use async copy to load k (potentially v in the future)
+@@ -321,6 +333,18 @@
+         auto m     = MLBlockTileType{};
+         auto l     = MLBlockTileType{};
+ 
++#if CK_TILE_FMHA_ROUTE_GLOBAL_TOPK
++        using RouteIndexBlockTileType = decltype(
++            make_static_distributed_tensor<index_t>(m.get_tile_distribution()));
++        std::array<MLBlockTileType, CK_TILE_FMHA_ROUTE_TOPK> route_best_scores{};
++        std::array<RouteIndexBlockTileType, CK_TILE_FMHA_ROUTE_TOPK> route_best_indices{};
++        static_for<0, CK_TILE_FMHA_ROUTE_TOPK, 1>{}([&](auto route_rank) {
++            set_tile(route_best_scores[route_rank],
++                     -numeric<SMPLComputeDataType>::infinity());
++            set_tile(route_best_indices[route_rank], numeric<index_t>::max());
++        });
++#endif
++
+         clear_tile(o_acc);
+         if(__builtin_isinf_sign(sink_v) >= 0)
+         {
+@@ -702,6 +726,210 @@
+ 
+             const auto s = cast_tile<SMPLComputeDataType>(s_acc); // S{j}
+ 
++            // The receipt-104 LoD specialization reuses the already-computed
++            // coarse score tile to emit the eight best entries in every
++            // native 128-key tile.  The ordinary softmax/PV path continues
++            // below, so one QK pass supplies both coarse attention and exact
++            // routing candidates.
++            if constexpr(!kHasLogitsSoftCap &&
++                         BiasEnum == BlockAttentionBiasEnum::ELEMENTWISE_BIAS)
++            {
++                if(variant_params.route_block_max_ptr != nullptr)
++                {
++                    static_assert(kN0 == 128,
++                                  "fused LoD routing requires 128-key native tiles");
++                    auto route_s = s;
++                    const index_t route_block_capacity = integer_divide_ceil(
++                        variant_params.route_seqlen_k, index_t{128});
++                    struct RouteArgmaxPacket
++                    {
++                        SMPLComputeDataType score;
++                        index_t index;
++                    };
++                    const auto f_route_argmax = [](RouteArgmaxPacket e0,
++                                                   RouteArgmaxPacket e1) {
++                        return e0.score > e1.score ||
++                                       (e0.score == e1.score && e0.index < e1.index)
++                                   ? e0
++                                   : e1;
++                    };
++                    static_for<0, CK_TILE_FMHA_ROUTE_EMIT_TOPK, 1>{}([&](auto route_rank) {
++                        auto route_packet_tile =
++                            make_static_distributed_tensor<RouteArgmaxPacket>(
++                                route_s.get_tile_distribution());
++                        constexpr auto candidate_spans =
++                            decltype(route_s)::get_distributed_spans();
++                        sweep_tile_span(candidate_spans[number<0>{}], [&](auto idx0) {
++                            sweep_tile_span(candidate_spans[number<1>{}], [&](auto idx1) {
++                                const auto tile_idx = get_x_indices_from_distributed_indices(
++                                    route_s.get_tile_distribution(), make_tuple(idx0, idx1));
++                                constexpr auto i_j_idx = make_tuple(idx0, idx1);
++                                const index_t global_column =
++                                    kv_load_start + i_total_loops * kN0 +
++                                    tile_idx.at(number<1>{});
++                                route_packet_tile(i_j_idx) =
++                                    RouteArgmaxPacket{route_s(i_j_idx), global_column};
++                            });
++                        });
++                        const auto route_argmax_init = RouteArgmaxPacket{
++                            -numeric<SMPLComputeDataType>::infinity(),
++                            numeric<index_t>::max()};
++                        auto route_packet_local = block_tile_reduce<RouteArgmaxPacket>(
++                            route_packet_tile,
++                            sequence<1>{},
++                            f_route_argmax,
++                            route_argmax_init);
++                        block_tile_reduce_sync(
++                            route_packet_local,
++                            f_route_argmax,
++                            bool_constant<false>{});
++                        auto route_m_local =
++                            make_static_distributed_tensor<SMPLComputeDataType>(
++                                route_packet_local.get_tile_distribution());
++                        auto route_i_local = make_static_distributed_tensor<index_t>(
++                            route_packet_local.get_tile_distribution());
++                        constexpr auto route_row_spans =
++                            decltype(route_packet_local)::get_distributed_spans();
++                        sweep_tile_span(route_row_spans[number<0>{}], [&](auto idx0) {
++                            const auto packet = route_packet_local(make_tuple(idx0));
++                            route_m_local(make_tuple(idx0)) = packet.score;
++                            route_i_local(make_tuple(idx0)) = packet.index;
++                        });
++
++#if CK_TILE_FMHA_ROUTE_GLOBAL_TOPK
++                        // This workgroup already traverses every key tile for
++                        // its query tile. Keep the exact global top eight in
++                        // registers and emit them once, instead of writing
++                        // eight winners per 128-key tile for a second kernel
++                        // to reduce. Insert each tile-local winner into the
++                        // ordered global list; score ties retain the smaller
++                        // key index, matching the downstream packed reducer.
++                        sweep_tile_span(route_row_spans[number<0>{}], [&](auto idx0) {
++                            constexpr auto row_idx = make_tuple(idx0);
++                            auto candidate_score = route_m_local(row_idx);
++                            auto candidate_index = route_i_local(row_idx);
++                            static_for<0, CK_TILE_FMHA_ROUTE_TOPK, 1>{}([&](auto position) {
++                                const auto previous_score = route_best_scores[position](row_idx);
++                                const auto previous_index = route_best_indices[position](row_idx);
++                                const bool better =
++                                    candidate_score > previous_score ||
++                                    (candidate_score == previous_score &&
++                                     candidate_index < previous_index);
++                                route_best_scores[position](row_idx) =
++                                    better ? candidate_score : previous_score;
++                                route_best_indices[position](row_idx) =
++                                    better ? candidate_index : previous_index;
++                                candidate_score = better ? previous_score : candidate_score;
++                                candidate_index = better ? previous_index : candidate_index;
++                            });
++                        });
++#else
++                        static_for<0, 2, 1>{}([&](auto output_kind) {
++                            constexpr index_t output_channel =
++                                route_rank + output_kind * CK_TILE_FMHA_ROUTE_TOPK;
++                            auto* route_ptr = reinterpret_cast<float*>(
++                                variant_params.route_block_max_ptr) +
++                                (((static_cast<long_index_t>(block_indices.batch_idx) *
++                                       variant_params.route_num_heads +
++                                   block_indices.qo_head_idx) *
++                                      route_block_capacity +
++                                  i_total_loops) *
++                                     2 * CK_TILE_FMHA_ROUTE_TOPK +
++                                 output_channel) *
++                                    variant_params.route_seqlen_q;
++                            sweep_tile_span(candidate_spans[number<0>{}], [&](auto idx0) {
++                                sweep_tile_span(candidate_spans[number<1>{}], [&](auto idx1) {
++                                    const auto tile_idx =
++                                        get_x_indices_from_distributed_indices(
++                                            route_s.get_tile_distribution(),
++                                            make_tuple(idx0, idx1));
++                                    const index_t global_row =
++                                        q_origin.at(number<0>{}) +
++                                        tile_idx.at(number<0>{});
++                                    if(global_row < variant_params.route_seqlen_q &&
++                                       tile_idx.at(number<1>{}) == 0)
++                                    {
++                                        if constexpr(output_kind == 0)
++                                        {
++                                            route_ptr[global_row] = type_convert<float>(
++                                                route_m_local(make_tuple(idx0)));
++                                        }
++                                        else
++                                        {
++                                            route_ptr[global_row] = type_convert<float>(
++                                                route_i_local(make_tuple(idx0)));
++                                        }
++                                    }
++                                });
++                            });
++                        });
++#endif
++
++                        sweep_tile_span(candidate_spans[number<0>{}], [&](auto idx0) {
++                            const index_t selected = route_i_local(make_tuple(idx0));
++                            sweep_tile_span(candidate_spans[number<1>{}], [&](auto idx1) {
++                                const auto tile_idx = get_x_indices_from_distributed_indices(
++                                    route_s.get_tile_distribution(), make_tuple(idx0, idx1));
++                                constexpr auto i_j_idx = make_tuple(idx0, idx1);
++                                const index_t global_column =
++                                    kv_load_start + i_total_loops * kN0 +
++                                    tile_idx.at(number<1>{});
++                                if(global_column == selected)
++                                {
++                                    route_s(i_j_idx) =
++                                        -numeric<SMPLComputeDataType>::infinity();
++                                }
++                            });
++                        });
++                    });
++#if CK_TILE_FMHA_ROUTE_GLOBAL_TOPK
++                    if(i_total_loops + 1 == num_total_loop)
++                    {
++                        constexpr auto candidate_spans =
++                            decltype(route_s)::get_distributed_spans();
++                        static_for<0, CK_TILE_FMHA_ROUTE_TOPK, 1>{}([&](auto route_rank) {
++                            static_for<0, 2, 1>{}([&](auto output_kind) {
++                                constexpr index_t output_channel =
++                                    route_rank + output_kind * CK_TILE_FMHA_ROUTE_TOPK;
++                                auto* route_ptr = reinterpret_cast<float*>(
++                                    variant_params.route_block_max_ptr) +
++                                    ((static_cast<long_index_t>(block_indices.batch_idx) *
++                                           variant_params.route_num_heads +
++                                       block_indices.qo_head_idx) *
++                                          2 * CK_TILE_FMHA_ROUTE_TOPK +
++                                      output_channel) *
++                                        variant_params.route_seqlen_q;
++                                sweep_tile_span(candidate_spans[number<0>{}], [&](auto idx0) {
++                                    sweep_tile_span(candidate_spans[number<1>{}], [&](auto idx1) {
++                                        const auto tile_idx =
++                                            get_x_indices_from_distributed_indices(
++                                                route_s.get_tile_distribution(),
++                                                make_tuple(idx0, idx1));
++                                        const index_t global_row =
++                                            q_origin.at(number<0>{}) + tile_idx.at(number<0>{});
++                                        if(global_row < variant_params.route_seqlen_q &&
++                                           tile_idx.at(number<1>{}) == 0)
++                                        {
++                                            constexpr auto row_idx = make_tuple(idx0);
++                                            if constexpr(output_kind == 0)
++                                            {
++                                                route_ptr[global_row] = type_convert<float>(
++                                                    route_best_scores[route_rank](row_idx));
++                                            }
++                                            else
++                                            {
++                                                route_ptr[global_row] = type_convert<float>(
++                                                    route_best_indices[route_rank](row_idx));
++                                            }
++                                        }
++                                    });
++                                });
++                            });
++                        });
++                    }
++#endif
++                }
++            }
+             auto m_local = block_tile_reduce<SMPLComputeDataType>(
+                 s,
+                 sequence<1>{},
 --- a/3rdparty/composable_kernel/example/ck_tile/01_fmha/codegen/ops/fmha_fwd.py
 +++ b/3rdparty/composable_kernel/example/ck_tile/01_fmha/codegen/ops/fmha_fwd.py
-@@ -1501,6 +1501,6 @@
+@@ -820,10 +820,7 @@
+         def check_hdim(problem_ctx: ProblemContext, kernel_ctx: KernelContext) -> bool:
+             # NOTE: this is used to speedup deepseek prefill case, we don't gen training
+             if (problem_ctx.hdim, problem_ctx.hdim_v) == (192, 128):
+-                if (
+-                    kernel_ctx.pipeline.F_bias != "no"
+-                    or kernel_ctx.pipeline.F_dropout == "t"
+-                ):
++                if kernel_ctx.pipeline.F_dropout == "t":
+                     return False
+             return True
+ 
+@@ -973,6 +970,7 @@
+               # (160, 160) : [FmhaFwdTileSize(128, 128 , 32, 160,  32, 160,  4, 1, 1,  4, 1, 1,  32, 32, 16,  32, 32, 16,   1)],
+                 (192, 128) : [FmhaFwdTileSize(128, 128,  32, 128,  32, 192,  4, 1, 1,  4, 1, 1,  32, 32, 16,  32, 32, 16,  -1)],
+                 (192, 192) : [FmhaFwdTileSize(128, 128,  32, 192,  32, 192,  4, 1, 1,  4, 1, 1,  32, 32, 16,  32, 32, 16,   1)],
++                (256, 128) : [FmhaFwdTileSize(128, 128,  32, 128,  32, 256,  4, 1, 1,  4, 1, 1,  32, 32, 16,  32, 32, 16,  -1)],
+                 (256, 256) : [FmhaFwdTileSize(128, 128,  32, 256,  32, 256,  4, 1, 1,  4, 1, 1,  32, 32, 16,  32, 32, 16,  -1)],
+             }  # fmt: skip
+         elif dtype in cls._DT_FP8 or dtype in cls._DT_FP8BF16:
+@@ -1029,7 +1027,7 @@
+                     pipelines.append(FmhaFwdPipeline("qr", "row", "t", "t", "f", "f", logits, bias, lse, dropout, qscale, mask, skip, "f", sink))  # fmt: skip
+                     pipelines.append(FmhaFwdPipeline("qr", "row", "t", "t", "t", "t", logits, bias, lse, dropout, qscale, mask, skip, "f", sink))  # fmt: skip
+                 else:
+-                    if bias == "bias":
++                    if bias == "bias" and receipt != 104:
+                         # TODO: rocm 6.2 compiler problem if using qr_async for bias case
+                         pipelines.append(FmhaFwdPipeline("qr", "row", "f", "f", "f", "f", logits, bias, lse, dropout, qscale, mask, skip, "f", sink))  # fmt: skip
+                         pipelines.append(FmhaFwdPipeline("qr", "row", "t", "t", "t", "t", logits, bias, lse, dropout, qscale, mask, skip, "f", sink))  # fmt: skip
+@@ -1496,7 +1494,7 @@
+ 
          return Product(name="PyTorch integration", rule=fit)
      # Aiter(mha_fwd) integration
 -    elif receipt == 100:
--
 +    elif receipt in (100, 101):
-+
+ 
          def fit(problem_ctx: ProblemContext, kernel_ctx: KernelContext) -> bool:
              cond = problem_ctx.dtype in ["fp16", "bf16", "fp8bf16"]
-@@ -1609,6 +1609,14 @@
+@@ -1507,6 +1505,47 @@
+             return cond
+ 
+         return Product(name="Aiter(mha_fwd) integration", rule=fit)
++    # Kimi LoD projects values to their actual 128-wide per-head output. Its
++    # coarse path may append count mass to D192 and dispatch as D256.
++    elif receipt == 102:
++
++        def fit(problem_ctx: ProblemContext, kernel_ctx: KernelContext) -> bool:
++            cond = problem_ctx.dtype == "bf16"
++            cond &= problem_ctx.mode == "batch"
++            cond &= problem_ctx.hdim in (192, 256) and problem_ctx.hdim_v == 128
++            cond &= kernel_ctx.pipeline.F_vlayout == "row"
++            return cond
++
++        return Product(name="Kimi LoD D192/D256, V128 attention", rule=fit)
++    # The LoD route-only extension currently lives in the QR pipeline.  Do not
++    # allow this specialization to dispatch QR-async and silently omit routes.
++    elif receipt == 103:
++
++        def fit(problem_ctx: ProblemContext, kernel_ctx: KernelContext) -> bool:
++            cond = problem_ctx.dtype == "bf16"
++            cond &= problem_ctx.mode == "batch"
++            cond &= problem_ctx.hdim == 256 and problem_ctx.hdim_v == 256
++            cond &= kernel_ctx.pipeline.F_vlayout == "row"
++            cond &= kernel_ctx.pipeline.tag == "qr"
++            return cond
++
++        return Product(name="Kimi LoD D256 QR route-only", rule=fit)
++    # Kimi LoD key-only count bias on current ROCm compilers.  Older AITER
++    # releases conservatively disabled QR-async for every elementwise-bias
++    # workload due to a ROCm 6.2 compiler issue.  This receipt emits only the
++    # D192/V128 async specialization used by the centroid coarse pass.
++    elif receipt == 104:
++
++        def fit(problem_ctx: ProblemContext, kernel_ctx: KernelContext) -> bool:
++            cond = problem_ctx.dtype == "bf16"
++            cond &= problem_ctx.mode == "batch"
++            cond &= problem_ctx.hdim == 192 and problem_ctx.hdim_v == 128
++            cond &= kernel_ctx.pipeline.F_vlayout == "row"
++            cond &= kernel_ctx.pipeline.F_bias == "bias"
++            cond &= kernel_ctx.pipeline.tag == "qr_async"
++            return cond
++
++        return Product(name="Kimi LoD D192/V128 async biased attention", rule=fit)
+     # Aiter(mha_varlen_fwd) integration
+     elif receipt == 200:
+ 
+@@ -1605,6 +1644,13 @@
              if optdim_list != [-1]:
                  if hdim not in optdim_list:
                      continue
-+            # Receipt 101 is reserved for normalized D128 LoD routing. Keep
-+            # the ordinary receipt-100 tile set unchanged for dense attention.
 +            if receipt == 101 and dtype == "bf16" and (hdim, hdim_v) == (128, 128):
 +                tiles = [
 +                    FmhaFwdTileSize(
-+                        128, 128, 32, 128, 32, 128, 8, 1, 1, 8, 1, 1, 16, 16, 32, 16, 16, 16, -1
++                        128, 128, 32, 128, 32, 128, 8, 1, 1, 8, 1, 1,
++                        16, 16, 32, 16, 16, 16, -1
 +                    )
 +                ]
              for tile, next_tile in zip(tiles, tiles[1:]):

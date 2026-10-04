@@ -51,6 +51,7 @@ class LODMode(str, Enum):
 class ModelFamily(str, Enum):
     QWEN38 = "qwen3.8"
     K2 = "k2-horizon"
+    KIMI_K3 = "kimi-k3"
 
 
 def _text_config(config: Any) -> Any:
@@ -64,7 +65,7 @@ def _text_config(config: Any) -> Any:
 
 
 def model_family(config_or_model: Any) -> ModelFamily:
-    """Identify one of the two model families supported by this release."""
+    """Identify a model family supported by the release kernels."""
 
     config = getattr(config_or_model, "config", config_or_model)
     text = _text_config(config)
@@ -79,6 +80,12 @@ def model_family(config_or_model: Any) -> ModelFamily:
     }
     if root_type == "k2_horizon" or "k2horizonforcausallm" in architectures:
         return ModelFamily.K2
+    if (
+        root_type == "kimi_k3"
+        or text_type == "kimi_linear"
+        or "kimik3forcausallm" in architectures
+    ):
+        return ModelFamily.KIMI_K3
     q_heads = int(getattr(text, "num_attention_heads", 0) or 0)
     kv_heads = int(getattr(text, "num_key_value_heads", 0) or 0)
     head_dim = int(getattr(text, "head_dim", 0) or 0)
@@ -91,7 +98,7 @@ def model_family(config_or_model: Any) -> ModelFamily:
         return ModelFamily.QWEN38
 
     raise ValueError(
-        "This LoD paper release supports only Qwen3.8 and K2 Horizon; "
+        "This LoD release supports Qwen3.8, K2 Horizon, and Kimi K3; "
         f"received model_type={root_type or text_type or '<unknown>'!r}."
     )
 

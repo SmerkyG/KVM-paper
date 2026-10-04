@@ -114,7 +114,7 @@ def test_only_the_base_and_prefix_rollback_windows_are_valid() -> None:
         LODConfig(local_window=768)
 
 
-def test_only_qwen38_and_k2_are_recognized() -> None:
+def test_supported_model_families_are_recognized() -> None:
     qwen_text = SimpleNamespace(
         model_type="qwen3_5_text",
         num_attention_heads=24,
@@ -135,7 +135,12 @@ def test_only_qwen38_and_k2_are_recognized() -> None:
     assert model_family(qwen) is ModelFamily.QWEN38
     assert model_family(qwen_text) is ModelFamily.QWEN38
     assert model_family(k2) is ModelFamily.K2
-    with pytest.raises(ValueError, match="only Qwen3.8 and K2 Horizon"):
+    kimi = SimpleNamespace(
+        model_type="kimi_k3",
+        text_config=SimpleNamespace(model_type="kimi_linear"),
+    )
+    assert model_family(kimi) is ModelFamily.KIMI_K3
+    with pytest.raises(ValueError, match="supports Qwen3.8, K2 Horizon, and Kimi K3"):
         model_family(unsupported)
 
 

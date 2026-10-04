@@ -368,6 +368,8 @@ def _paged_leaf_attention_kernel(
     block_starts,
     page_k,
     page_v,
+    kimi_w_uk_t,
+    kimi_w_uv,
     page_indices,
     page_k_scales,
     page_v_scales,
@@ -393,9 +395,20 @@ def _paged_leaf_attention_kernel(
     program_limit,
     experts,
     active_slots,
+    PAGE_K_HEAD_STRIDE: tl.constexpr,
+    PAGE_V_HEAD_STRIDE: tl.constexpr,
+    PAGE_K_TOKEN_STRIDE: tl.constexpr,
+    PAGE_V_TOKEN_STRIDE: tl.constexpr,
+    KIMI_W_UK_HEAD_STRIDE: tl.constexpr,
+    KIMI_W_UK_ROW_STRIDE: tl.constexpr,
+    KIMI_W_UK_LATENT_STRIDE: tl.constexpr,
+    KIMI_W_UV_HEAD_STRIDE: tl.constexpr,
+    KIMI_W_UV_LATENT_STRIDE: tl.constexpr,
+    KIMI_W_UV_VALUE_STRIDE: tl.constexpr,
     PAGE_CAPACITY: tl.constexpr,
     LEAF_CAPACITY: tl.constexpr,
     STATE_CAPACITY: tl.constexpr,
+    DIRECTORY_GROUP_SIZE: tl.constexpr,
     INLINE_PAGES_PER_SLOT: tl.constexpr,
     HASH_CAPACITY: tl.constexpr,
     HASH_PROBES: tl.constexpr,
@@ -414,6 +427,7 @@ def _paged_leaf_attention_kernel(
     QUANT_GROUP_SIZE: tl.constexpr,
     QUANT_TOKEN_GROUP_SIZE: tl.constexpr,
     QUANTIZED_SUMMARIES: tl.constexpr,
+    KIMI_LATENT_PROJECTION: tl.constexpr,
     INDEXED: tl.constexpr,
     PROGRAMS_POINTER: tl.constexpr,
     SEARCH_BLOCKS: tl.constexpr,
@@ -471,31 +485,43 @@ def _paged_leaf_attention_kernel(
 
     kv_row = expert // active_slots
     slot = expert - kv_row * active_slots
+    # Kimi expands its one latent KV head into one projected K/V field per
+    # query head, but every projected field retains the same leaf/page
+    # ownership.  Address that shared directory directly rather than
+    # materializing twelve identical copies before each layer's attention.
+    directory_kv_row = kv_row // DIRECTORY_GROUP_SIZE
+    query_kv_head = kv_row - directory_kv_row * DIRECTORY_GROUP_SIZE
 
-    head_offset = tl.arange(0, HEAD_DIM)
-    value_offset = tl.arange(0, VALUE_DIM)
-    q_block = tl.load(
-        q + query_row[:, None] * HEAD_DIM + head_offset[None, :],
-        mask=valid_query[:, None],
-        other=0.0,
-    )
-    if INT8_MMA:
-        q_mma = q_block.to(tl.int8)
-        q_scale = tl.load(q_scales + query_row, mask=valid_query, other=1.0).to(
-            tl.float32
+    head_offset = tl.arange(0, triton.next_power_of_2(HEAD_DIM))
+    value_offset = tl.arange(0, triton.next_power_of_2(VALUE_DIM))
+    head_valid = head_offset < HEAD_DIM
+    value_valid = value_offset < VALUE_DIM
+    if HEAD_DIM == triton.next_power_of_2(HEAD_DIM) or INT8_MMA or QUANT_BITS:
+        q_block = tl.load(
+            q + query_row[:, None] * HEAD_DIM + head_offset[None, :],
+            mask=valid_query[:, None] & head_valid[None, :],
+            other=0.0,
         )
+        if INT8_MMA:
+            q_mma = q_block.to(tl.int8)
+            q_scale = tl.load(q_scales + query_row, mask=valid_query, other=1.0).to(
+                tl.float32
+            )
     key_count = tl.load(
-        slot_lengths + kv_row * STATE_CAPACITY + slot,
+        slot_lengths + directory_kv_row * STATE_CAPACITY + slot,
         mask=valid_program,
         other=0,
     ).to(tl.int32)
     if HASH_PROBES == 0:
         page_table = (
-            slot_pages + (kv_row * STATE_CAPACITY + slot) * INLINE_PAGES_PER_SLOT
+            slot_pages
+            + (directory_kv_row * STATE_CAPACITY + slot) * INLINE_PAGES_PER_SLOT
         )
     maximum = tl.where(valid_query, -float("inf"), 0.0).to(tl.float32)
     denominator = tl.where(valid_query, 0.0, 1.0).to(tl.float32)
-    accumulator = tl.zeros((BLOCK_M, VALUE_DIM), tl.float32)
+    accumulator = tl.zeros(
+        (BLOCK_M, triton.next_power_of_2(VALUE_DIM)), tl.float32
+    )
     token_offset = tl.arange(0, BLOCK_N)
 
     keys_per_split = (key_count + SPLIT_N - 1) // SPLIT_N
@@ -527,7 +553,7 @@ def _paged_leaf_attention_kernel(
                     overflow_page_keys,
                     overflow_page_values,
                     overflow_used,
-                    kv_row,
+                    directory_kv_row,
                     slot,
                     page_ordinal_scalar,
                     valid_page,
@@ -554,7 +580,7 @@ def _paged_leaf_attention_kernel(
                     overflow_page_keys,
                     overflow_page_values,
                     overflow_used,
-                    kv_row,
+                    directory_kv_row,
                     slot,
                     page_ordinal,
                     valid_key,
@@ -567,16 +593,25 @@ def _paged_leaf_attention_kernel(
             page_valid = valid_key & (page_id >= 0) & (page_id < PAGE_CAPACITY)
             page_id = tl.where(page_valid, page_id, 0)
             valid_key = page_valid
-        physical_token = (kv_row * PAGE_CAPACITY + page_id) * PAGE_SIZE + within_page
+        directory_token = (
+            directory_kv_row * PAGE_CAPACITY + page_id
+        ) * PAGE_SIZE + within_page
         if INDEXED:
             leaf_index = tl.load(
-                page_indices + physical_token, mask=valid_key, other=0
+                page_indices + directory_token, mask=valid_key, other=0
             ).to(tl.int64)
             valid_key &= (leaf_index >= 0) & (leaf_index < LEAF_CAPACITY)
-            leaf_index = tl.where(valid_key, leaf_index, 0)
             storage_token = kv_row * LEAF_CAPACITY + leaf_index
+            key_storage_offset = (
+                kv_row * PAGE_K_HEAD_STRIDE + leaf_index * PAGE_K_TOKEN_STRIDE
+            )
+            value_storage_offset = (
+                kv_row * PAGE_V_HEAD_STRIDE + leaf_index * PAGE_V_TOKEN_STRIDE
+            )
         else:
-            storage_token = physical_token
+            storage_token = directory_token
+            key_storage_offset = storage_token * PAGE_K_TOKEN_STRIDE
+            value_storage_offset = storage_token * PAGE_V_TOKEN_STRIDE
         if QUANT_BITS:
             packed_head_offset = head_offset // 2
             packed_value_offset = value_offset // 2
@@ -757,19 +792,74 @@ def _paged_leaf_attention_kernel(
                     + value_sum / page_count[:, None]
                 ).to(tl.bfloat16)
         else:
-            k_block = tl.load(
-                page_k + storage_token[None, :] * HEAD_DIM + head_offset[:, None],
-                mask=valid_key[None, :],
-                other=0.0,
-            )
-            v_block = tl.load(
-                page_v + storage_token[:, None] * VALUE_DIM + value_offset[None, :],
-                mask=valid_key[:, None],
-                other=0.0,
-            )
+            if KIMI_LATENT_PROJECTION:
+                # Project only the leaves of this routed (head, centroid)
+                # expert, after resolving its virtual page indices. Computing
+                # each D128 projection in four D128 latent tiles avoids
+                # materializing per-head K/V for the full latent archive.
+                latent_lane = tl.arange(0, 128)
+                nope_lane = tl.arange(0, 128)
+                projected_key = tl.zeros((128, BLOCK_N), tl.float32)
+                projected_value = tl.zeros((BLOCK_N, 128), tl.float32)
+                for latent_begin in tl.static_range(0, 512, 128):
+                    latent_dimension = latent_begin + latent_lane
+                    latent_block = tl.load(
+                        page_k
+                        + key_storage_offset[None, :]
+                        + latent_dimension[:, None],
+                        mask=valid_key[None, :],
+                        other=0.0,
+                    )
+                    key_weight = tl.load(
+                        kimi_w_uk_t
+                        + query_kv_head * KIMI_W_UK_HEAD_STRIDE
+                        + nope_lane[:, None] * KIMI_W_UK_ROW_STRIDE
+                        + latent_dimension[None, :] * KIMI_W_UK_LATENT_STRIDE
+                    )
+                    value_weight = tl.load(
+                        kimi_w_uv
+                        + query_kv_head * KIMI_W_UV_HEAD_STRIDE
+                        + latent_dimension[:, None] * KIMI_W_UV_LATENT_STRIDE
+                        + value_offset[None, :] * KIMI_W_UV_VALUE_STRIDE,
+                        mask=value_valid[None, :],
+                        other=0.0,
+                    )
+                    projected_key += tl.dot(
+                        key_weight, latent_block, out_dtype=tl.float32
+                    )
+                    projected_value += tl.dot(
+                        tl.trans(latent_block), value_weight, out_dtype=tl.float32
+                    )
+                k_block = projected_key.to(tl.bfloat16)
+                v_block = projected_value.to(tl.bfloat16)
+                direct_lane = tl.arange(0, 64)
+                direct_block = tl.load(
+                    page_k
+                    + key_storage_offset[None, :]
+                    + 512
+                    + direct_lane[:, None],
+                    mask=valid_key[None, :],
+                    other=0.0,
+                )
+            else:
+                if HEAD_DIM == triton.next_power_of_2(HEAD_DIM):
+                    k_block = tl.load(
+                        page_k
+                        + key_storage_offset[None, :]
+                        + head_offset[:, None],
+                        mask=head_valid[:, None] & valid_key[None, :],
+                        other=0.0,
+                    )
+                v_block = tl.load(
+                    page_v
+                    + value_storage_offset[:, None]
+                    + value_offset[None, :],
+                    mask=valid_key[:, None] & value_valid[None, :],
+                    other=0.0,
+                )
 
         if INT8_MMA:
-            scale_token = storage_token if INDEXED else physical_token
+            scale_token = storage_token if INDEXED else directory_token
             key_scale = tl.load(
                 page_k_scales + scale_token,
                 mask=valid_key,
@@ -777,6 +867,60 @@ def _paged_leaf_attention_kernel(
             ).to(tl.float32)
             scores = tl.dot(q_mma, k_block, out_dtype=tl.int32).to(tl.float32)
             scores *= SCALE_LOG2 * q_scale[:, None] * key_scale[None, :]
+        elif KIMI_LATENT_PROJECTION:
+            nope_lane = tl.arange(0, 128)
+            direct_lane = tl.arange(0, 64)
+            query_nope = tl.load(
+                q + query_row[:, None] * HEAD_DIM + nope_lane[None, :],
+                mask=valid_query[:, None],
+                other=0.0,
+            )
+            query_direct = tl.load(
+                q + query_row[:, None] * HEAD_DIM + 128 + direct_lane[None, :],
+                mask=valid_query[:, None],
+                other=0.0,
+            )
+            scores = tl.dot(query_nope, k_block, out_dtype=tl.float32)
+            scores += tl.dot(query_direct, direct_block, out_dtype=tl.float32)
+            scores *= SCALE_LOG2
+        elif HEAD_DIM != triton.next_power_of_2(HEAD_DIM) and not QUANT_BITS:
+            # Absorbed MLA concatenates a latent query with direct-key
+            # channels, so its physical width need not be a power of two
+            # (full K3 is 512 + 64 = 576).  Padding that product to 1024
+            # channels exceeds the shared-memory budget.  MLA gives us two
+            # natural power-of-two pieces, so evaluate them as two unmasked
+            # MFMA products instead: the latent 512 and direct-key 64.
+            main_d: tl.constexpr = triton.next_power_of_2(HEAD_DIM) // 2
+            tail_d: tl.constexpr = HEAD_DIM - main_d
+            main_dim = tl.arange(0, main_d)
+            tail_dim = main_d + tl.arange(0, tail_d)
+            q_main = tl.load(
+                q + query_row[:, None] * HEAD_DIM + main_dim[None, :],
+                mask=valid_query[:, None],
+                other=0.0,
+            )
+            k_main = tl.load(
+                page_k
+                + key_storage_offset[None, :]
+                + main_dim[:, None],
+                mask=valid_key[None, :],
+                other=0.0,
+            )
+            q_tail = tl.load(
+                q + query_row[:, None] * HEAD_DIM + tail_dim[None, :],
+                mask=valid_query[:, None],
+                other=0.0,
+            )
+            k_tail = tl.load(
+                page_k
+                + key_storage_offset[None, :]
+                + tail_dim[:, None],
+                mask=valid_key[None, :],
+                other=0.0,
+            )
+            scores = tl.dot(q_main, k_main, out_dtype=tl.float32)
+            scores += tl.dot(q_tail, k_tail, out_dtype=tl.float32)
+            scores *= SCALE_LOG2
         else:
             scores = SCALE_LOG2 * tl.dot(q_block, k_block, out_dtype=tl.float32)
         scores = tl.where(
@@ -861,14 +1005,14 @@ def _paged_leaf_attention_kernel(
         tl.store(
             out + partial_row[:, None] * VALUE_DIM + value_offset[None, :],
             normalized,
-            mask=valid_query[:, None],
+            mask=valid_query[:, None] & value_valid[None, :],
         )
         tl.store(lse + partial_row, natural_lse, mask=valid_query)
     else:
         tl.store(
             out + route_row[:, None] * VALUE_DIM + value_offset[None, :],
             normalized,
-            mask=valid_query[:, None],
+            mask=valid_query[:, None] & value_valid[None, :],
         )
         tl.store(lse + route_row, natural_lse, mask=valid_query)
 
@@ -951,6 +1095,12 @@ def _query_major_residual_page_attention_kernel(
     LEAF_V_BATCH_STRIDE,
     LEAF_V_HEAD_STRIDE,
     LEAF_V_TOKEN_STRIDE,
+    STATE_V_BATCH_STRIDE,
+    STATE_V_HEAD_STRIDE,
+    STATE_V_TOKEN_STRIDE,
+    PAGE_SUM_V_BATCH_STRIDE,
+    PAGE_SUM_V_HEAD_STRIDE,
+    PAGE_SUM_V_TOKEN_STRIDE,
     LEAF_CAPACITY,
     QUANT_GROUP_SIZE: tl.constexpr,
     QUANT_TOKEN_GROUP_SIZE: tl.constexpr,
@@ -1188,7 +1338,9 @@ def _query_major_residual_page_attention_kernel(
             ).to(tl.float32)
             selected_value_sum = tl.load(
                 page_sum_v
-                + (kv_row * PAGE_CAPACITY + selected_page) * VALUE_DIM
+                + cache_batch * PAGE_SUM_V_BATCH_STRIDE
+                + kv_head * PAGE_SUM_V_HEAD_STRIDE
+                + selected_page * PAGE_SUM_V_TOKEN_STRIDE
                 + value_offset,
                 mask=selected_valid & (value_offset < VALUE_DIM),
                 other=0.0,
@@ -1199,7 +1351,11 @@ def _query_major_residual_page_attention_kernel(
             other=0.0,
         ).to(tl.float32)
         state_value_sum = tl.load(
-            state_v + (kv_row * STATE_CAPACITY + slot) * VALUE_DIM + value_offset,
+            state_v
+            + cache_batch * STATE_V_BATCH_STRIDE
+            + kv_head * STATE_V_HEAD_STRIDE
+            + slot * STATE_V_TOKEN_STRIDE
+            + value_offset,
             mask=valid_slot & (value_offset < VALUE_DIM),
             other=0.0,
         ).to(tl.float32)
@@ -1736,6 +1892,12 @@ def query_major_residual_page_attention(
         LEAF_V_BATCH_STRIDE=int(storage_v.stride(0)) if indexed else 0,
         LEAF_V_HEAD_STRIDE=int(storage_v.stride(1)) if indexed else 0,
         LEAF_V_TOKEN_STRIDE=int(storage_v.stride(2)) if indexed else 0,
+        STATE_V_BATCH_STRIDE=int(state_v.stride(0)),
+        STATE_V_HEAD_STRIDE=int(state_v.stride(1)),
+        STATE_V_TOKEN_STRIDE=int(state_v.stride(2)),
+        PAGE_SUM_V_BATCH_STRIDE=int(page_sum_v.stride(0)),
+        PAGE_SUM_V_HEAD_STRIDE=int(page_sum_v.stride(1)),
+        PAGE_SUM_V_TOKEN_STRIDE=int(page_sum_v.stride(2)),
         LEAF_CAPACITY=(
             int(quantized_leaf_k.size(2)) if quantized else int(storage_k.size(2))
         ),
@@ -1830,6 +1992,8 @@ def paged_leaf_attention(
     page_sum_k_scales: torch.Tensor | None = None,
     page_sum_v_scales: torch.Tensor | None = None,
     page_counts: torch.Tensor | None = None,
+    kimi_w_uk_t: torch.Tensor | None = None,
+    kimi_w_uv: torch.Tensor | None = None,
     quant_group_size: int = 32,
     quant_token_group_size: int = 16,
     kv_group_size: int,
@@ -1854,7 +2018,26 @@ def paged_leaf_attention(
     batch, query_heads, query_len, head_dim = q.shape
     route_count = int(top_slots.size(-1))
     kv_heads = int(page_k.size(1))
-    value_dim = int(page_v.size(-1))
+    directory_heads = int(page_indices.size(1))
+    kimi_latent_projection = isinstance(kimi_w_uk_t, torch.Tensor) or isinstance(
+        kimi_w_uv, torch.Tensor
+    )
+    if kimi_latent_projection:
+        if not isinstance(kimi_w_uk_t, torch.Tensor) or not isinstance(
+            kimi_w_uv, torch.Tensor
+        ):
+            raise ValueError("Kimi leaf projection requires both W_UK_T and W_UV")
+        if (
+            head_dim != 192
+            or int(page_k.size(-1)) != 576
+            or tuple(kimi_w_uk_t.shape) != (query_heads, 128, 512)
+            or tuple(kimi_w_uv.shape) != (query_heads, 512, 128)
+            or kv_group_size != 1
+        ):
+            raise ValueError("Kimi routed leaf projection has incompatible geometry")
+        value_dim = 128
+    else:
+        value_dim = int(page_v.size(-1))
     page_size = int(page_indices.size(3))
     page_capacity = int(page_indices.size(2))
     state_capacity = int(slot_pages.size(2))
@@ -1862,10 +2045,11 @@ def paged_leaf_attention(
         raise ValueError("active slot count is outside the state capacity")
     if page_size != 16:
         raise ValueError("the LoD release requires 16-token pages")
-    if head_dim != value_dim:
-        raise ValueError("paged leaf Triton attention requires equal QK/V dimensions")
     if query_heads != kv_heads * kv_group_size:
         raise ValueError("query/KV head grouping is inconsistent")
+    if not 0 < directory_heads <= kv_heads or kv_heads % directory_heads:
+        raise ValueError("leaf page-directory heads do not divide projected KV heads")
+    directory_group_size = kv_heads // directory_heads
     if page_k.dtype == torch.int8 or page_v.dtype == torch.int8:
         raise TypeError("the LoD release does not use flat INT8 leaf storage")
     residual_quantized = isinstance(quantized_leaf_k, torch.Tensor) or isinstance(
@@ -1990,6 +2174,8 @@ def paged_leaf_attention(
         block_starts,
         page_k,
         page_v,
+        kimi_w_uk_t if kimi_latent_projection else q,
+        kimi_w_uv if kimi_latent_projection else q,
         page_indices,
         page_k_scales if residual_quantized else page_k,
         page_v_scales if residual_quantized else page_v,
@@ -2015,9 +2201,32 @@ def paged_leaf_attention(
         cumulative_blocks[-1:],
         int(q_lengths.numel()),
         active_slots,
+        PAGE_K_HEAD_STRIDE=int(page_k.stride(1)),
+        PAGE_V_HEAD_STRIDE=int(page_v.stride(1)),
+        PAGE_K_TOKEN_STRIDE=int(page_k.stride(2)),
+        PAGE_V_TOKEN_STRIDE=int(page_v.stride(2)),
+        KIMI_W_UK_HEAD_STRIDE=(
+            int(kimi_w_uk_t.stride(0)) if kimi_latent_projection else 0
+        ),
+        KIMI_W_UK_ROW_STRIDE=(
+            int(kimi_w_uk_t.stride(1)) if kimi_latent_projection else 0
+        ),
+        KIMI_W_UK_LATENT_STRIDE=(
+            int(kimi_w_uk_t.stride(2)) if kimi_latent_projection else 0
+        ),
+        KIMI_W_UV_HEAD_STRIDE=(
+            int(kimi_w_uv.stride(0)) if kimi_latent_projection else 0
+        ),
+        KIMI_W_UV_LATENT_STRIDE=(
+            int(kimi_w_uv.stride(1)) if kimi_latent_projection else 0
+        ),
+        KIMI_W_UV_VALUE_STRIDE=(
+            int(kimi_w_uv.stride(2)) if kimi_latent_projection else 0
+        ),
         PAGE_CAPACITY=page_capacity,
         LEAF_CAPACITY=leaf_capacity,
         STATE_CAPACITY=state_capacity,
+        DIRECTORY_GROUP_SIZE=directory_group_size,
         INLINE_PAGES_PER_SLOT=int(slot_pages.size(3)),
         HASH_CAPACITY=int(overflow_page_values.size(2)),
         HASH_PROBES=hash_probes,
@@ -2036,6 +2245,7 @@ def paged_leaf_attention(
         QUANT_GROUP_SIZE=quant_group_size if residual_quantized else 1,
         QUANT_TOKEN_GROUP_SIZE=quant_token_group_size if residual_quantized else 1,
         QUANTIZED_SUMMARIES=quantized_summaries,
+        KIMI_LATENT_PROJECTION=kimi_latent_projection,
         INDEXED=True,
         PROGRAMS_POINTER=True,
         SEARCH_BLOCKS=False,
@@ -2045,6 +2255,24 @@ def paged_leaf_attention(
     )
     record_boundary()
     if not reduce_routes:
+        if timing_events is not None:
+            for name, begin, end in zip(
+                ("dispatch_prepare", "dispatch_group", "dispatch_blocks"),
+                dispatch_boundaries[:-1],
+                dispatch_boundaries[1:],
+                strict=True,
+            ):
+                timing_events.setdefault(name, []).append((begin, end))
+            for name, begin, end in zip(
+                ("dispatch", "pack", "kernel"),
+                boundaries[:-1],
+                boundaries[1:],
+                strict=True,
+            ):
+                timing_events.setdefault(name, []).append((begin, end))
+            timing_events.setdefault("total", []).append(
+                (boundaries[0], boundaries[-1])
+            )
         return (
             route_out.reshape(batch, query_heads, query_len, route_count, value_dim),
             route_lse.reshape(batch, query_heads, query_len, route_count),

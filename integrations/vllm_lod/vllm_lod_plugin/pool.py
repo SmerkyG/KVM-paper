@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import math
+import os
+from contextlib import contextmanager
 from typing import Any
 
 import torch
 
 from lod_attention.kernels.paged_leaf_attention import (
     advance_decode_cache_lengths,
+    dequantize_owned_virtual_paged_keys,
     fused_decode_paged_lod_attention,
+    materialize_absorbed_mla_coarse_means,
     materialize_page1_coarse_means,
     materialize_page1_fixed_indices,
     new_fused_decode_buffers,
@@ -62,6 +66,10 @@ class VLLMLayerLODPool:
         has_key_norm: bool = False,
         prefix_rollback_tokens: int = 0,
         speculative_tokens: int = 0,
+        dcp_world_size: int = 1,
+        dcp_rank: int = 0,
+        dcp_group: Any | None = None,
+        dcp_interleave_size: int = 1,
     ) -> None:
         if dtype not in (torch.float16, torch.bfloat16):
             raise ValueError("vLLM LOD conversion requires a native FP16/BF16 KV cache")
@@ -73,24 +81,46 @@ class VLLMLayerLODPool:
         self.active_indices = active_indices
         self.dtype = dtype
         self.device = device
+        self.dcp_world_size = int(dcp_world_size)
+        self.dcp_rank = int(dcp_rank)
+        self.dcp_group = dcp_group
+        self.dcp_interleave_size = int(dcp_interleave_size)
+        if self.dcp_world_size < 1 or not 0 <= self.dcp_rank < self.dcp_world_size:
+            raise ValueError("invalid DCP world size or rank")
+        if (self.dcp_world_size > 1) != (self.dcp_group is not None):
+            raise ValueError("DCP LoD requires its vLLM process group")
+        if self.dcp_interleave_size < 1:
+            raise ValueError("DCP KV interleave size must be positive")
         self.query_heads = int(layer.num_heads)
         self.kv_heads = int(layer.num_kv_heads)
         self.head_dim = int(layer.head_size)
-        self.value_dim = int(layer.head_size_v)
+        self.is_absorbed_mla = bool(getattr(layer, "_vllm_lod_absorbed_mla", False))
+        self.value_dim = (
+            int(layer.kv_lora_rank)
+            if self.is_absorbed_mla
+            else int(layer.head_size_v)
+        )
         self.speculative_tokens = int(speculative_tokens)
         gqa = self.query_heads // self.kv_heads
-        if self.value_dim != self.head_dim:
+        if not self.is_absorbed_mla and self.value_dim != self.head_dim:
             raise NotImplementedError(
                 "LOD vLLM currently requires equal K and V widths"
             )
-        if (self.head_dim, gqa) == (256, 6):
+        if self.is_absorbed_mla:
+            self.family = ModelFamily.KIMI_K3
+            # Kimi supplies an already RMS-normalized latent, but the complete
+            # [latent, direct-key] vector is not unit length.  Preserve raw
+            # dot products and raw centroid sums in latent space.
+            has_query_norm = True
+            has_key_norm = False
+        elif (self.head_dim, gqa) == (256, 6):
             self.family = ModelFamily.QWEN38
         elif (self.head_dim, gqa) == (128, 8):
             self.family = ModelFamily.K2
         else:
             raise ValueError(
-                "the LoD paper release supports only Qwen3.8 (D256/GQA6) "
-                "and K2 Horizon (D128/GQA8)"
+                "the LoD release supports Qwen3.8 (D256/GQA6), K2 Horizon "
+                "(D128/GQA8), and marked absorbed-MLA Kimi K3 layers"
             )
         settings = settings.for_family(self.family)
         self.settings = settings
@@ -141,7 +171,7 @@ class VLLMLayerLODPool:
             config,
             query_heads=self.query_heads,
             key_value_heads=self.kv_heads,
-            scale=float(layer.impl.scale),
+            scale=float(layer.scale if self.is_absorbed_mla else layer.impl.scale),
             default_open_count=ROUTE_COUNT,
         )
         self.engine.head_dim = self.head_dim
@@ -153,6 +183,33 @@ class VLLMLayerLODPool:
             has_query_norm=has_query_norm,
             has_key_norm=has_key_norm,
         )
+        self._dcp_global_state_growth_factor = float(
+            self.engine.state_growth_factor
+        )
+        self._dcp_global_state_min_len = int(self.engine.state_min_len)
+        # DCP shards the chronological sequence, not the LoD policy.  Record
+        # every global token-count parameter so rank-local cache construction
+        # can apply the corresponding 1/D share.  Previously only the sqrt
+        # state schedule was converted; 256-token updates and 512-token local
+        # windows consequently became 2,048 and 4,096 global tokens at DCP8.
+        self._dcp_global_lengths = {
+            name: int(getattr(self.engine, name))
+            for name in (
+                "chunk_len",
+                "local_len",
+                "prefill_chunk_len",
+                "prefill_local_len",
+                "prefill_state_update_len",
+                "decode_state_update_len",
+                "decode_cache_headroom",
+            )
+        }
+        if self.is_absorbed_mla:
+            # The smol-Kimi checkpoint is capped at 4K, below the release
+            # engine's ordinary exact-decode crossover.  Force routed decode
+            # so its smoke test actually exercises the MLA LoD kernels (and
+            # avoid the power-of-two-only AITER exact-cache fallback).
+            self.engine.exact_decode_limit = 0
         if self.speculative_tokens:
             # DFlash captures ordinary and flattened verifier graphs over one
             # target pool. Its graph warmup cannot safely mix the short-context
@@ -164,39 +221,56 @@ class VLLMLayerLODPool:
             has_query_norm=has_query_norm,
             has_key_norm=has_key_norm,
         )
-        self.state_capacity = self.engine._state_capacity(
-            request_capacity, min(request_capacity, CHUNK_SIZE)
+        # DCP decode owns an interleaved 1/D share of the chronological KV
+        # stream.  Allocate the graph-stable persistent rows at that local
+        # capacity from startup.  Incomplete prefill uses a temporary full
+        # prompt shadow and never changes these pointers.
+        self.persistent_request_capacity = (
+            self._dcp_local_length(request_capacity)
+            if self.dcp_world_size > 1
+            else request_capacity
         )
-        self.decode_local_capacity = local_window + int(
-            self.engine.decode_state_update_len
-        )
-        self.decode_local_limit = (
-            int(self.engine.local_len)
-            - int(self.engine.chunk_len)
-            + int(self.engine.decode_state_update_len)
-        )
-        # Exact-first prefill advances the persistent state to within the
-        # decode-local tail before installing a row.  Its much wider local
-        # field is temporary attention workspace, not persistent per-request
-        # cache.  Reserving it for every pool row multiplies a 16K prefill
-        # block by max_requests and can consume tens of GiB per rank.
-        self.local_capacity = (
-            self.decode_local_capacity
-            if self.engine.prefill_exact_first_chunk
-            else max(
-                self.decode_local_capacity,
-                int(self.engine.prefill_local_len),
+        with self._dcp_local_state_schedule():
+            self.state_capacity = self.engine._state_capacity(
+                self.persistent_request_capacity,
+                min(self.persistent_request_capacity, int(self.engine.chunk_len)),
             )
-        )
-        self.leaf_capacity = _round_up(request_capacity, CHUNK_SIZE) + max(
-            CHUNK_SIZE, int(self.engine.decode_cache_headroom)
-        )
+            local_window = int(self.engine.local_len)
+            local_chunk = int(self.engine.chunk_len)
+            local_update = int(self.engine.decode_state_update_len)
+            self.decode_local_capacity = local_window + local_update
+            self.decode_local_limit = local_window - local_chunk + local_update
+            # Exact-first prefill advances the persistent state to within the
+            # decode-local tail before installing a row.  Its much wider local
+            # field is temporary attention workspace, not persistent per-request
+            # cache.  Reserving it for every pool row multiplies a 16K prefill
+            # block by max_requests and can consume tens of GiB per rank.
+            self.local_capacity = (
+                self.decode_local_capacity
+                if self.engine.prefill_exact_first_chunk
+                else max(
+                    self.decode_local_capacity,
+                    int(self.engine.prefill_local_len),
+                )
+            )
+            leaf_rounding = local_chunk
+            leaf_headroom = max(
+                local_chunk, int(self.engine.decode_cache_headroom)
+            )
+        self.leaf_capacity = _round_up(
+            self.persistent_request_capacity, leaf_rounding
+        ) + leaf_headroom
         self.page_capacity = math.ceil(self.leaf_capacity / 16) + self.state_capacity
         self.hash_capacity = _power_of_two(
             self.page_capacity * int(self.engine.leaf_overflow_hash_factor)
         )
         self.state = self._allocate_state()
+        if self.is_absorbed_mla:
+            self._assert_shared_latent_storage()
         self.local_lens = torch.zeros(
+            max_requests, dtype=torch.int32, device=self.device
+        )
+        self.dcp_global_lens = torch.zeros(
             max_requests, dtype=torch.int32, device=self.device
         )
         # Keep the allocation capacity fixed for CUDA graphs, but let decode
@@ -212,6 +286,20 @@ class VLLMLayerLODPool:
         self.metadata = [dict[str, int | bool]() for _ in range(max_requests)]
         self.decode_buffer_storage: dict[str, torch.Tensor] | None = None
         self.decode_buffers: dict[int, dict[str, torch.Tensor]] = {}
+        self.dcp_decode_buffer_storage: dict[str, torch.Tensor] | None = None
+        self.dcp_decode_buffers: dict[int, dict[str, torch.Tensor]] = {}
+        self.dcp_sharded = [self.dcp_world_size == 1] * max_requests
+        # Only actively prefilling DCP requests retain a globally replicated
+        # semantic cache.  It is released as soon as the final prompt chunk is
+        # converted into the fixed-address rank-local row above.
+        self.dcp_prefill_shadows: dict[int, KernelLODCache] = {}
+        self.dcp_cross_layer_initial_sinks: dict[
+            int, tuple[torch.Tensor, torch.Tensor]
+        ] = {}
+        # Runtime owns the host-side row map and updates it only when vLLM's
+        # active batch changes.  Decode must not copy the graph-visible GPU
+        # map back to the CPU on every layer and every token.
+        self.active_decode_rows: tuple[int, ...] = ()
         self.speculative_decode_buffers: dict[tuple[int, int], dict[str, Any]] = {}
         self.decode_enabled = False
         self.speculative_decode_steps = 0
@@ -260,6 +348,38 @@ class VLLMLayerLODPool:
         self.retained_restore_last_coverage = 0
         self.retained_restore_last_total = 0
 
+    def _assert_shared_latent_storage(self) -> None:
+        """Prove that Kimi values are views, never duplicate allocations."""
+
+        pairs: list[tuple[str, torch.Tensor, torch.Tensor]] = []
+        for prefix in ("state", "recent", "sink"):
+            key = self.state.get(f"{prefix}_k")
+            value = self.state.get(f"{prefix}_v")
+            if isinstance(key, torch.Tensor) and isinstance(value, torch.Tensor):
+                pairs.append((prefix, key, value))
+        page = self.state.get("page_cache")
+        if isinstance(page, dict):
+            # BF16 Kimi pages store each value as a prefix view of the
+            # latent-plus-direct key record.  Quantized pages deliberately
+            # use distinct packed K/V arrays because their logical widths are
+            # 576 and 512 respectively; only the unquantized state/local/sink
+            # tensors retain the zero-copy alias invariant in that mode.
+            page_prefixes = (
+                () if int(page.get("leaf_quant_bits", 0)) else ("leaf", "page_sum")
+            )
+            for prefix in page_prefixes:
+                key = page.get(f"{prefix}_k")
+                value = page.get(f"{prefix}_v")
+                if isinstance(key, torch.Tensor) and isinstance(value, torch.Tensor):
+                    pairs.append((prefix, key, value))
+        for name, key, value in pairs:
+            if int(key.size(-1)) != self.head_dim or int(value.size(-1)) != self.value_dim:
+                raise AssertionError(f"Kimi {name} cache has incorrect K/V widths")
+            if key.untyped_storage().data_ptr() != value.untyped_storage().data_ptr():
+                raise AssertionError(f"Kimi {name} values duplicate latent storage")
+            if value.data_ptr() != key.data_ptr() or value.stride() != key.stride():
+                raise AssertionError(f"Kimi {name} values are not the key-prefix view")
+
     def _assert_production_profile(
         self,
         gqa: int,
@@ -269,10 +389,13 @@ class VLLMLayerLODPool:
     ) -> None:
         """Reject any silent deviation from the paper's supported path."""
 
-        expected_geometry = (256, 6) if self.family is ModelFamily.QWEN38 else (128, 8)
+        expected_geometry = {
+            ModelFamily.QWEN38: (256, 6),
+            ModelFamily.K2: (128, 8),
+        }.get(self.family)
         if self.dtype != torch.bfloat16:
             raise RuntimeError("LoD requires BF16 attention K/V inputs")
-        if (self.head_dim, gqa) != expected_geometry:
+        if expected_geometry is not None and (self.head_dim, gqa) != expected_geometry:
             raise RuntimeError(
                 f"{self.family.value} requires D/GQA={expected_geometry}, "
                 f"got {(self.head_dim, gqa)}"
@@ -283,8 +406,18 @@ class VLLMLayerLODPool:
         k2_int4 = self.family is ModelFamily.K2 and recursive and expected_bits == 4
         if self.family is ModelFamily.K2:
             expected_leaf_geometry = (256, 16) if k2_int4 else (128, 32)
+        elif self.family is ModelFamily.KIMI_K3:
+            expected_leaf_geometry = (
+                int(os.getenv("LOD_KIMI_LEAF_BLOCK_M", "32")),
+                16,
+            )
         else:
             expected_leaf_geometry = (32, 16)
+        expected_leaf_warps = (
+            int(os.getenv("LOD_KIMI_LEAF_WARPS", "2"))
+            if self.family is ModelFamily.KIMI_K3
+            else (4 if k2_int4 else 2)
+        )
         checks = {
             "top-eight routing": (
                 self.engine.two_level_topk == ROUTE_COUNT
@@ -311,7 +444,14 @@ class VLLMLayerLODPool:
                 and self.engine.prefill_exact_first_chunk
             ),
             "prefill kernels": (
-                self.engine.prefill_local_attention_backend == "aiter"
+                (
+                    self.engine.prefill_local_attention_backend == "aiter"
+                    or (
+                        self.family is ModelFamily.KIMI_K3
+                        and os.getenv("LOD_KIMI_DISABLE_AITER_PREFILL", "0") == "1"
+                        and self.engine.prefill_local_attention_backend == "torch"
+                    )
+                )
                 and self.engine.fused_prefill_route_coarse
                 and self.engine.fused_prefill_stable_recompute
                 and self.engine.fused_prefill_external_recompute
@@ -320,6 +460,7 @@ class VLLMLayerLODPool:
             ),
             "GQA-aware AITER prefill route/coarse": (
                 self.engine.prefill_aiter_route_coarse
+                or self.family is ModelFamily.KIMI_K3
             ),
             "complete-centroid prefill": (
                 not recursive or self.engine.recursive_prefill_all_leaves
@@ -331,7 +472,7 @@ class VLLMLayerLODPool:
                 self.engine.leaf_layout == "expert"
                 and (self.engine.leaf_block_m, self.engine.leaf_block_n)
                 == expected_leaf_geometry
-                and self.engine.leaf_num_warps == (4 if k2_int4 else 2)
+                and self.engine.leaf_num_warps == expected_leaf_warps
             ),
             "fused state update": (
                 self.engine.fused_state_update and self.engine.fused_state_maxsim
@@ -365,9 +506,24 @@ class VLLMLayerLODPool:
             and self.dtype == torch.bfloat16
             and 1 < self.query_heads // self.kv_heads <= 16
             and self.query_heads % self.kv_heads == 0
-            and self.head_dim in (128, 256)
+            and (
+                self.head_dim in (128, 256)
+                or (
+                    self.is_absorbed_mla
+                    and self.head_dim == 576
+                    and self.value_dim == 512
+                )
+            )
         )
         sink_capacity = int(self.engine.separate_sink_cache)
+
+        def latent_values(records: torch.Tensor) -> torch.Tensor:
+            """Return the value view into a Kimi latent-plus-direct record."""
+
+            if not self.is_absorbed_mla:
+                raise AssertionError("latent value alias requested outside Kimi MLA")
+            return records[..., : self.value_dim]
+
         if unified_page1:
             arena_leaf_offset = 0
             kv_rows = r * h
@@ -380,7 +536,11 @@ class VLLMLayerLODPool:
             unified_page1_k = torch.empty(
                 arena_capacity, d, dtype=self.dtype, device=self.device
             )
-            unified_page1_v = torch.empty_like(unified_page1_k)
+            unified_page1_v = (
+                latent_values(unified_page1_k)
+                if self.is_absorbed_mla
+                else torch.empty_like(unified_page1_k)
+            )
             # Leaves, local tokens, and sinks have no multiplicity bias. Coarse
             # refreshes overwrite only the centroid section with log(count).
             unified_page1_bias = torch.zeros(
@@ -392,9 +552,14 @@ class VLLMLayerLODPool:
             recent_k = unified_page1_k[
                 arena_local_offset : arena_local_offset + kv_rows * self.local_capacity
             ].view(r, h, self.local_capacity, d)
-            recent_v = unified_page1_v[
-                arena_local_offset : arena_local_offset + kv_rows * self.local_capacity
-            ].view(r, h, self.local_capacity, d)
+            recent_v = (
+                latent_values(recent_k)
+                if self.is_absorbed_mla
+                else unified_page1_v[
+                    arena_local_offset : arena_local_offset
+                    + kv_rows * self.local_capacity
+                ].view(r, h, self.local_capacity, self.value_dim)
+            )
             if self.settings.decode_gqa_fixed_mask_aiter:
                 fixed_capacity = (
                     self.leaf_capacity
@@ -451,10 +616,19 @@ class VLLMLayerLODPool:
             recent_k = torch.empty(
                 r, h, self.local_capacity, d, dtype=self.dtype, device=self.device
             )
-            recent_v = torch.empty_like(recent_k)
+            recent_v = (
+                latent_values(recent_k)
+                if self.is_absorbed_mla
+                else torch.empty_like(recent_k)
+            )
+        state_k = torch.zeros(r, h, s, d, dtype=self.dtype, device=self.device)
         state: dict[str, object] = {
-            "state_k": torch.zeros(r, h, s, d, dtype=self.dtype, device=self.device),
-            "state_v": torch.zeros(r, h, s, d, dtype=self.dtype, device=self.device),
+            "state_k": state_k,
+            "state_v": (
+                latent_values(state_k)
+                if self.is_absorbed_mla
+                else torch.zeros(r, h, s, d, dtype=self.dtype, device=self.device)
+            ),
             "counts": torch.zeros(r, h, s, 1, dtype=torch.float32, device=self.device),
             "state_len": s,
             "coverage": 0,
@@ -469,11 +643,15 @@ class VLLMLayerLODPool:
                 state["sink_k"] = unified_page1_k[
                     arena_sink_offset : arena_sink_offset + r * h * sink_capacity
                 ].view(r, h, sink_capacity, d)
-                state["sink_v"] = unified_page1_v[
-                    arena_sink_offset : arena_sink_offset + r * h * sink_capacity
-                ].view(r, h, sink_capacity, d)
+                state["sink_v"] = (
+                    latent_values(state["sink_k"])
+                    if self.is_absorbed_mla
+                    else unified_page1_v[
+                        arena_sink_offset : arena_sink_offset + r * h * sink_capacity
+                    ].view(r, h, sink_capacity, self.value_dim)
+                )
             else:
-                state["sink_k"] = torch.empty(
+                sink_k = torch.empty(
                     r,
                     h,
                     1,
@@ -481,7 +659,12 @@ class VLLMLayerLODPool:
                     dtype=self.dtype,
                     device=self.device,
                 )
-                state["sink_v"] = torch.empty_like(state["sink_k"])
+                state["sink_k"] = sink_k
+                state["sink_v"] = (
+                    latent_values(sink_k)
+                    if self.is_absorbed_mla
+                    else torch.empty_like(sink_k)
+                )
         if self.engine.state_clustering_centroid_rescale != "none":
             state["key_norm_sums"] = torch.zeros(
                 r, h, s, 1, dtype=torch.float32, device=self.device
@@ -512,9 +695,14 @@ class VLLMLayerLODPool:
                 leaf_k = unified_page1_k[
                     arena_leaf_offset : arena_leaf_offset + r * h * self.leaf_capacity
                 ].view(r, h, self.leaf_capacity, d)
-                leaf_v = unified_page1_v[
-                    arena_leaf_offset : arena_leaf_offset + r * h * self.leaf_capacity
-                ].view(r, h, self.leaf_capacity, d)
+                leaf_v = (
+                    latent_values(leaf_k)
+                    if self.is_absorbed_mla
+                    else unified_page1_v[
+                        arena_leaf_offset : arena_leaf_offset
+                        + r * h * self.leaf_capacity
+                    ].view(r, h, self.leaf_capacity, self.value_dim)
+                )
             else:
                 leaf_k = torch.zeros(
                     r,
@@ -524,7 +712,11 @@ class VLLMLayerLODPool:
                     dtype=self.dtype,
                     device=self.device,
                 )
-                leaf_v = torch.zeros_like(leaf_k)
+                leaf_v = (
+                    latent_values(leaf_k)
+                    if self.is_absorbed_mla
+                    else torch.zeros_like(leaf_k)
+                )
             state["page_cache"] = {
                 "region_owned_pages": True,
                 "dense_leaf_storage": True,
@@ -628,47 +820,85 @@ class VLLMLayerLODPool:
                 r, h, self.page_capacity, dtype=torch.int32, device=self.device
             ),
         }
-        groups = d // self.settings.quant_group_size
+        value_dim = self.value_dim
+        key_groups = d // self.settings.quant_group_size
+        value_groups = value_dim // self.settings.quant_group_size
         token_groups = 16 // 16
         if self.settings.kv_bits == 4:
             quant_bits = 4
-            quant_width = d // 2
+            key_quant_width = d // 2
+            value_quant_width = value_dim // 2
             quant_dtype = torch.uint8
+            quantized_leaf_k = torch.empty(
+                r,
+                h,
+                self.leaf_capacity,
+                key_quant_width,
+                dtype=quant_dtype,
+                device=self.device,
+            )
+            page_k_scales = torch.empty(
+                r,
+                h,
+                self.page_capacity,
+                token_groups * key_groups,
+                dtype=self.dtype,
+                device=self.device,
+            )
+            quantized_page_sum_k = torch.empty(
+                r,
+                h,
+                self.page_capacity,
+                d,
+                dtype=torch.int8,
+                device=self.device,
+            )
+            page_sum_k_scales = torch.empty(
+                r,
+                h,
+                self.page_capacity,
+                key_groups,
+                dtype=self.dtype,
+                device=self.device,
+            )
+            shared_quantized_latent = self.is_absorbed_mla
             page.update(
                 leaf_quant_bits=quant_bits,
-                leaf_k=torch.empty(r, h, 1, d, dtype=self.dtype, device=self.device),
-                leaf_v=torch.empty(r, h, 1, d, dtype=self.dtype, device=self.device),
-                quantized_leaf_k=torch.empty(
-                    r,
-                    h,
-                    self.leaf_capacity,
-                    quant_width,
-                    dtype=quant_dtype,
-                    device=self.device,
+                leaf_k=(leaf_record := torch.empty(
+                    r, h, 1, d, dtype=self.dtype, device=self.device
+                )),
+                leaf_v=(
+                    latent_values(leaf_record)
+                    if self.is_absorbed_mla
+                    else torch.empty(
+                        r, h, 1, value_dim, dtype=self.dtype, device=self.device
+                    )
                 ),
-                quantized_leaf_v=torch.empty(
-                    r,
-                    h,
-                    self.leaf_capacity,
-                    quant_width,
-                    dtype=quant_dtype,
-                    device=self.device,
+                quantized_leaf_k=quantized_leaf_k,
+                quantized_leaf_v=(
+                    quantized_leaf_k[..., :value_quant_width]
+                    if shared_quantized_latent
+                    else torch.empty(
+                        r,
+                        h,
+                        self.leaf_capacity,
+                        value_quant_width,
+                        dtype=quant_dtype,
+                        device=self.device,
+                    )
                 ),
-                page_k_scales=torch.empty(
-                    r,
-                    h,
-                    self.page_capacity,
-                    token_groups * groups,
-                    dtype=self.dtype,
-                    device=self.device,
-                ),
-                page_v_scales=torch.empty(
-                    r,
-                    h,
-                    self.page_capacity,
-                    token_groups * groups,
-                    dtype=self.dtype,
-                    device=self.device,
+                page_k_scales=page_k_scales,
+                page_v_scales=(
+                    page_k_scales[..., : token_groups * value_groups]
+                    if shared_quantized_latent
+                    else torch.empty(
+                        r,
+                        h,
+                        self.page_capacity,
+                        token_groups * value_groups,
+                        dtype=self.dtype,
+                        device=self.device,
+                    )
                 ),
                 page_quantized_counts=torch.zeros(
                     r,
@@ -677,44 +907,43 @@ class VLLMLayerLODPool:
                     dtype=torch.int32,
                     device=self.device,
                 ),
-                page_sum_k=torch.empty(
+                page_sum_k=(page_sum_record := torch.empty(
                     r, h, 1, d, dtype=self.dtype, device=self.device
+                )),
+                page_sum_v=(
+                    latent_values(page_sum_record)
+                    if self.is_absorbed_mla
+                    else torch.empty(
+                        r, h, 1, value_dim, dtype=self.dtype, device=self.device
+                    )
                 ),
-                page_sum_v=torch.empty(
-                    r, h, 1, d, dtype=self.dtype, device=self.device
+                quantized_page_sum_k=quantized_page_sum_k,
+                quantized_page_sum_v=(
+                    quantized_page_sum_k[..., :value_dim]
+                    if shared_quantized_latent
+                    else torch.empty(
+                        r,
+                        h,
+                        self.page_capacity,
+                        value_dim,
+                        dtype=torch.int8,
+                        device=self.device,
+                    )
                 ),
-                quantized_page_sum_k=torch.empty(
-                    r,
-                    h,
-                    self.page_capacity,
-                    d,
-                    dtype=torch.int8,
-                    device=self.device,
+                page_sum_k_scales=page_sum_k_scales,
+                page_sum_v_scales=(
+                    page_sum_k_scales[..., :value_groups]
+                    if shared_quantized_latent
+                    else torch.empty(
+                        r,
+                        h,
+                        self.page_capacity,
+                        value_groups,
+                        dtype=self.dtype,
+                        device=self.device,
+                    )
                 ),
-                quantized_page_sum_v=torch.empty(
-                    r,
-                    h,
-                    self.page_capacity,
-                    d,
-                    dtype=torch.int8,
-                    device=self.device,
-                ),
-                page_sum_k_scales=torch.empty(
-                    r,
-                    h,
-                    self.page_capacity,
-                    groups,
-                    dtype=self.dtype,
-                    device=self.device,
-                ),
-                page_sum_v_scales=torch.empty(
-                    r,
-                    h,
-                    self.page_capacity,
-                    groups,
-                    dtype=self.dtype,
-                    device=self.device,
-                ),
+                shared_quantized_latent=shared_quantized_latent,
                 quantization_finalized=True,
                 summary_quantization_finalized=True,
             )
@@ -727,26 +956,35 @@ class VLLMLayerLODPool:
                 dtype=self.dtype,
                 device=self.device,
             )
-            recursive_leaf_v = torch.empty_like(recursive_leaf_k)
+            recursive_leaf_v = (
+                latent_values(recursive_leaf_k)
+                if self.is_absorbed_mla
+                else torch.empty_like(recursive_leaf_k)
+            )
+            page_sum_k = torch.zeros(
+                r,
+                h,
+                self.page_capacity,
+                d,
+                dtype=self.dtype,
+                device=self.device,
+            )
             page.update(
                 leaf_quant_bits=0,
                 leaf_k=recursive_leaf_k,
                 leaf_v=recursive_leaf_v,
-                page_sum_k=torch.zeros(
-                    r,
-                    h,
-                    self.page_capacity,
-                    d,
-                    dtype=self.dtype,
-                    device=self.device,
-                ),
-                page_sum_v=torch.zeros(
-                    r,
-                    h,
-                    self.page_capacity,
-                    d,
-                    dtype=self.dtype,
-                    device=self.device,
+                page_sum_k=page_sum_k,
+                page_sum_v=(
+                    latent_values(page_sum_k)
+                    if self.is_absorbed_mla
+                    else torch.zeros(
+                        r,
+                        h,
+                        self.page_capacity,
+                        d,
+                        dtype=self.dtype,
+                        device=self.device,
+                    )
                 ),
                 quantization_finalized=False,
                 summary_quantization_finalized=False,
@@ -777,11 +1015,15 @@ class VLLMLayerLODPool:
         if not 0 <= slot < self.max_requests:
             raise IndexError("vLLM request slot is outside the LOD pool")
         self.wait_deferred_prefill((slot,))
+        self.dcp_prefill_shadows.pop(slot, None)
+        self.dcp_cross_layer_initial_sinks.pop(slot, None)
         self.ready[slot] = False
         self.clean[slot] = True
         self.unified_page1_fixed_dirty[slot] = False
+        self.dcp_sharded[slot] = self.dcp_world_size == 1
         self.metadata[slot].clear()
         self.local_lens[slot].zero_()
+        self.dcp_global_lens[slot].zero_()
         self.state_lens[slot].zero_()
         self.leaf_lens[slot].zero_()
         self.state["counts"][slot].zero_()
@@ -805,17 +1047,73 @@ class VLLMLayerLODPool:
         if "decode_previous_total_lse" in page:
             page["decode_previous_total_lse"][slot].fill_(float("inf"))
 
+    @staticmethod
+    def _unique_storage_nbytes(value: object) -> int:
+        """Count tensor backing stores once, including aliased arena views."""
+
+        tensors: list[torch.Tensor] = []
+
+        def collect(item: object) -> None:
+            if isinstance(item, torch.Tensor):
+                tensors.append(item)
+            elif isinstance(item, dict):
+                for child in item.values():
+                    collect(child)
+
+        collect(value)
+        storages: dict[tuple[str, int | None, int], int] = {}
+        for tensor in tensors:
+            storage = tensor.untyped_storage()
+            identity = (
+                tensor.device.type,
+                tensor.device.index,
+                int(storage.data_ptr()),
+            )
+            storages.setdefault(identity, int(storage.nbytes()))
+        return sum(storages.values())
+
+    def persistent_cache_nbytes(self) -> int:
+        """Live bytes in graph-stable semantic cache rows for this layer."""
+
+        return self._unique_storage_nbytes(self.state)
+
+    def dcp_prefill_shadow_nbytes(self) -> int:
+        """Live bytes in incomplete replicated DCP prompt caches."""
+
+        return self._unique_storage_nbytes(
+            {slot: cache.state for slot, cache in self.dcp_prefill_shadows.items()}
+        )
+
+    def _profile_dcp_cache_vram(self, event: str, slot: int) -> None:
+        if os.environ.get("LOD_PROFILE_DCP_CACHE_VRAM") != "1":
+            return
+        persistent = self.persistent_cache_nbytes()
+        shadow = self.dcp_prefill_shadow_nbytes()
+        print(
+            "LOD_DCP_CACHE_VRAM "
+            f"event={event} rank={self.dcp_rank} slot={slot} "
+            f"persistent_bytes={persistent} shadow_bytes={shadow} "
+            f"live_bytes={persistent + shadow} "
+            f"global_capacity={self.request_capacity} "
+            f"local_capacity={self.persistent_request_capacity}",
+            flush=True,
+        )
+
     def _reset_range(self, start: int, stop: int) -> None:
         """Reset one contiguous row range with one launch per cache field."""
         if not 0 <= start < stop <= self.max_requests:
             raise IndexError("vLLM request row range is outside the LOD pool")
         self.wait_deferred_prefill(tuple(range(start, stop)))
         for slot in range(start, stop):
+            self.dcp_prefill_shadows.pop(slot, None)
+            self.dcp_cross_layer_initial_sinks.pop(slot, None)
             self.ready[slot] = False
             self.clean[slot] = True
             self.unified_page1_fixed_dirty[slot] = False
+            self.dcp_sharded[slot] = self.dcp_world_size == 1
             self.metadata[slot].clear()
         self.local_lens[start:stop].zero_()
+        self.dcp_global_lens[start:stop].zero_()
         self.state_lens[start:stop].zero_()
         self.leaf_lens[start:stop].zero_()
         self.state["counts"][start:stop].zero_()
@@ -838,6 +1136,303 @@ class VLLMLayerLODPool:
             page["page_quantized_counts"][start:stop].zero_()
         if "decode_previous_total_lse" in page:
             page["decode_previous_total_lse"][start:stop].fill_(float("inf"))
+
+    def _dcp_local_length(self, global_length: int) -> int:
+        """Number of interleaved chronological tokens owned by this rank."""
+
+        if self.dcp_world_size == 1:
+            return int(global_length)
+        length = max(0, int(global_length))
+        block = self.dcp_interleave_size
+        cycle = self.dcp_world_size * block
+        complete, remainder = divmod(length, cycle)
+        rank_begin = self.dcp_rank * block
+        return complete * block + max(0, min(block, remainder - rank_begin))
+
+    def _dcp_owns_position(self, position: int) -> bool:
+        return (
+            (int(position) // self.dcp_interleave_size) % self.dcp_world_size
+            == self.dcp_rank
+        )
+
+    def _dcp_global_decode_coverage(self, global_length: int) -> int:
+        """Paper decode boundary in global, per-request sequence coordinates."""
+
+        length = max(0, int(global_length))
+        chunk = int(self._dcp_global_lengths["chunk_len"])
+        local = int(self._dcp_global_lengths["local_len"])
+        bswa_end = ((length + 1 + chunk - 1) // chunk) * chunk
+        bswa_begin = max(0, bswa_end - local)
+        return min(length, max(min(length, chunk), bswa_begin))
+
+    @contextmanager
+    def _dcp_local_state_schedule(self):
+        """Use one rank's exact share of the paper's global token schedule."""
+
+        if self.dcp_world_size == 1:
+            yield
+            return
+        old_growth = float(self.engine.state_growth_factor)
+        old_minimum = int(self.engine.state_min_len)
+        old_lengths = {
+            name: int(getattr(self.engine, name))
+            for name in self._dcp_global_lengths
+        }
+        self.engine.state_growth_factor = (
+            self._dcp_global_state_growth_factor / math.sqrt(self.dcp_world_size)
+        )
+        self.engine.state_min_len = max(
+            1,
+            math.ceil(self._dcp_global_state_min_len / self.dcp_world_size),
+        )
+        for name, global_length in self._dcp_global_lengths.items():
+            setattr(
+                self.engine,
+                name,
+                max(1, math.ceil(global_length / self.dcp_world_size)),
+            )
+        try:
+            yield
+        finally:
+            self.engine.state_growth_factor = old_growth
+            self.engine.state_min_len = old_minimum
+            for name, old_length in old_lengths.items():
+                setattr(self.engine, name, old_length)
+
+    def ensure_dcp_sharded(self, slots: tuple[int, ...]) -> None:
+        """Convert completed replicated-prefill rows into rank-local LoD rows.
+
+        Prefill keeps the ordinary per-head LoD calculation.  At the first
+        decode step, each rank rebuilds its persistent semantic cache from the
+        exact chronological BF16 archive using vLLM's DCP token ownership.
+        This makes subsequent routing, leaf refinement, and state updates
+        genuinely local without moving leaves between ranks.
+        """
+
+        if self.dcp_world_size == 1:
+            return
+        for slot in slots:
+            if self.dcp_sharded[slot]:
+                continue
+            shadow = self.dcp_prefill_shadows.get(slot)
+            if shadow is not None:
+                self._install_dcp_local_from_cache(slot, shadow)
+                continue
+            if not self.ready[slot]:
+                # Graph/profile rows carry no semantic prompt.
+                self.dcp_sharded[slot] = True
+                continue
+            self.wait_deferred_prefill((slot,))
+            self._install_dcp_local_from_cache(slot, self._row_cache(slot))
+
+    def has_prefill_cache(self, slot: int) -> bool:
+        """Whether a row has either temporary prefill or persistent state."""
+
+        return self.ready[slot] or slot in self.dcp_prefill_shadows
+
+    def _retain_dcp_prefill_shadow(
+        self, slot: int, cache: KernelLODCache
+    ) -> None:
+        """Retain one replicated cache only for an incomplete DCP prompt."""
+
+        if self.dcp_world_size == 1:
+            raise RuntimeError("non-DCP requests do not use prefill shadows")
+        source = cache.state
+        page = source.get("page_cache")
+        if not isinstance(page, dict):
+            raise TypeError("DCP prefill shadow has no semantic page archive")
+        self.dcp_prefill_shadows[slot] = cache
+        self.metadata[slot].update(
+            state_len=int(source["state_len"]),
+            scheduled_state_len=int(
+                source.get("scheduled_state_len", source["state_len"])
+            ),
+            coverage=int(source["coverage"]),
+            total_len=int(source["total_len"]),
+            recent_len=int(source["recent_len"]),
+            leaf_count=int(page["leaf_count"]),
+            overflow_safe_until=int(page["overflow_safe_until"]),
+        )
+        self.ready[slot] = False
+        self.dcp_sharded[slot] = False
+        self._profile_dcp_cache_vram("prefill-shadow", slot)
+
+    def _install_dcp_local_from_cache(
+        self,
+        slot: int,
+        source_cache: KernelLODCache,
+        *,
+        source_slot: int = 0,
+    ) -> None:
+        """Convert one replicated chronological archive into its local row."""
+
+        local_k, local_v, global_length = self._dcp_local_records(
+            source_cache, source_slot=source_slot
+        )
+        if global_length <= 0:
+            self.dcp_prefill_shadows.pop(slot, None)
+            self.dcp_sharded[slot] = True
+            return
+
+        # Do not let the temporary full-prompt capacity override leak into the
+        # local rebuild.  The fixed pool already reserves the maximum local
+        # schedule and archive sizes required by this rank.
+        old_capacity = getattr(self.engine, "_lod_prefill_cache_capacity", None)
+        if old_capacity is not None:
+            del self.engine._lod_prefill_cache_capacity
+        try:
+            with self._dcp_local_state_schedule():
+                global_coverage = self._dcp_global_decode_coverage(global_length)
+                converted = self.engine.build_cache_from_bf16(
+                    local_k,
+                    local_v,
+                    finalize_cache_for_decode=True,
+                    final_cache_coverage=self._dcp_local_length(global_coverage),
+                )
+        finally:
+            if old_capacity is not None:
+                self.engine._lod_prefill_cache_capacity = old_capacity
+        self._install_dcp_converted_row(
+            slot, converted, global_length=global_length
+        )
+
+    def _dcp_local_records(
+        self,
+        source_cache: KernelLODCache,
+        *,
+        source_slot: int = 0,
+    ) -> tuple[torch.Tensor, torch.Tensor, int]:
+        """Extract this rank's chronological raw MLA records from a shadow."""
+
+        source = source_cache.state
+        page = source.get("page_cache")
+        if not isinstance(page, dict):
+            raise TypeError("DCP conversion requires a semantic page archive")
+        global_length = int(source["total_len"])
+        leaf_k = page.get("leaf_k")
+        leaf_v = page.get("leaf_v")
+        if global_length <= 0:
+            if not isinstance(leaf_k, torch.Tensor) or not isinstance(
+                leaf_v, torch.Tensor
+            ):
+                raise TypeError("empty DCP shadow has no leaf storage")
+            empty_k = leaf_k[source_slot : source_slot + 1, :, :0, :]
+            empty_v = leaf_v[source_slot : source_slot + 1, :, :0, :]
+            return empty_k, empty_v, global_length
+        positions = torch.arange(global_length, dtype=torch.long, device=self.device)
+        ownership = (
+            (positions // self.dcp_interleave_size) % self.dcp_world_size
+        ) == self.dcp_rank
+        owned_positions = positions[ownership]
+        local_length = int(owned_positions.numel())
+        if local_length != self._dcp_local_length(global_length):
+            raise AssertionError("DCP local-length calculation diverged")
+
+        sink_k = source.get("sink_k")
+        sink_v = source.get("sink_v")
+        sink_len = int(sink_k.size(2)) if isinstance(sink_k, torch.Tensor) else 0
+        if bool(page.get("quantization_finalized", False)):
+            if not self.is_absorbed_mla:
+                raise NotImplementedError(
+                    "quantized DCP conversion currently requires absorbed MLA"
+                )
+            required = (
+                "page_indices",
+                "page_counts",
+                "next_page",
+                "quantized_leaf_k",
+                "page_k_scales",
+                "quantized_page_sum_k",
+                "page_sum_k_scales",
+            )
+            values = tuple(page.get(name) for name in required)
+            if not all(isinstance(value, torch.Tensor) for value in values):
+                raise RuntimeError("quantized DCP shadow is incomplete")
+            local_k = dequantize_owned_virtual_paged_keys(
+                *values,
+                source_slot=source_slot,
+                sink_len=sink_len,
+                local_length=local_length,
+                dcp_rank=self.dcp_rank,
+                dcp_world_size=self.dcp_world_size,
+                dcp_interleave_size=self.dcp_interleave_size,
+            )
+            coverage = int(source["coverage"])
+            recent_k = source.get("recent_k")
+            recent_len = int(source.get("recent_len", global_length - coverage))
+            recent_owned = owned_positions >= coverage
+            if bool(recent_owned.any()):
+                if not isinstance(recent_k, torch.Tensor):
+                    raise RuntimeError("quantized DCP shadow lost its exact tail")
+                recent_positions = (owned_positions[recent_owned] - coverage).long()
+                if int(recent_positions.max().item()) >= recent_len:
+                    raise AssertionError("DCP exact-tail position is out of range")
+                local_k[..., recent_owned, :].copy_(
+                    recent_k[
+                        source_slot : source_slot + 1, :, recent_positions, :
+                    ]
+                )
+            local_v = local_k[..., : self.value_dim]
+        else:
+            if not isinstance(leaf_k, torch.Tensor) or not isinstance(
+                leaf_v, torch.Tensor
+            ):
+                raise TypeError("BF16 DCP shadow has no leaf storage")
+            archive_positions = torch.clamp(owned_positions - sink_len, min=0)
+            local_k = leaf_k[
+                source_slot : source_slot + 1, :, archive_positions, :
+            ].clone()
+            local_v = (
+                local_k[..., : self.value_dim]
+                if self.is_absorbed_mla
+                else leaf_v[
+                    source_slot : source_slot + 1, :, archive_positions, :
+                ].clone()
+            )
+        owned_sink = owned_positions < sink_len
+        if bool(owned_sink.any()):
+            if not isinstance(sink_k, torch.Tensor) or not isinstance(
+                sink_v, torch.Tensor
+            ):
+                raise RuntimeError("DCP rank lost the protected sink")
+            sink_positions = owned_positions[owned_sink].long()
+            local_k[..., owned_sink, :].copy_(
+                sink_k[source_slot : source_slot + 1, :, sink_positions, :]
+            )
+            local_v[..., owned_sink, :].copy_(
+                sink_v[source_slot : source_slot + 1, :, sink_positions, :]
+            )
+
+        return local_k, local_v, global_length
+
+    def _install_dcp_converted_row(
+        self,
+        slot: int,
+        converted: KernelLODCache,
+        *,
+        global_length: int,
+        source_slot: int = 0,
+    ) -> None:
+        """Install one row from a layer-batched local DCP cache build."""
+
+        self.install(slot, converted, source_slot=source_slot)
+        global_coverage = self._dcp_global_decode_coverage(global_length)
+        expected_local_coverage = self._dcp_local_length(global_coverage)
+        observed_local_coverage = int(self.metadata[slot]["coverage"])
+        if observed_local_coverage != expected_local_coverage:
+            raise AssertionError(
+                "DCP cache construction diverged from its global boundary: "
+                f"global_total={global_length}, global_coverage={global_coverage}, "
+                f"local_expected={expected_local_coverage}, "
+                f"local_observed={observed_local_coverage}"
+            )
+        self.metadata[slot]["dcp_global_total_len"] = global_length
+        self.metadata[slot]["dcp_global_coverage"] = global_coverage
+        self.dcp_global_lens[slot].fill_(global_length)
+        self.dcp_sharded[slot] = True
+        self.dcp_prefill_shadows.pop(slot, None)
+        self.engine.reset_runtime_cache()
+        self._profile_dcp_cache_vram("post-prefill-local", slot)
 
     def truncate_recent(self, slot: int, total_length: int) -> None:
         """Roll a retained cache back inside its unclustered exact tail."""
@@ -1040,10 +1635,6 @@ class VLLMLayerLODPool:
             self.state_capacity,
             self.head_dim,
         )
-        coarse_v = arena_v[
-            coarse_offset : coarse_offset
-            + self.max_requests * self.kv_heads * self.state_capacity
-        ].view_as(coarse_k)
         coarse_bias = arena_bias[
             coarse_offset : coarse_offset
             + self.max_requests * self.kv_heads * self.state_capacity
@@ -1064,15 +1655,28 @@ class VLLMLayerLODPool:
                 int(self.metadata[slot].get("state_len", 0))
                 for slot in range(start_slot, stop_slot)
             )
-            materialize_page1_coarse_means(
-                self.state["state_k"][start_slot:stop_slot],
-                self.state["state_v"][start_slot:stop_slot],
-                self.state["counts"][start_slot:stop_slot],
-                coarse_k[start_slot:stop_slot],
-                coarse_v[start_slot:stop_slot],
-                coarse_bias[start_slot:stop_slot],
-                active_state_len=active_state_len,
-            )
+            if self.is_absorbed_mla:
+                materialize_absorbed_mla_coarse_means(
+                    self.state["state_k"][start_slot:stop_slot],
+                    self.state["counts"][start_slot:stop_slot],
+                    coarse_k[start_slot:stop_slot],
+                    coarse_bias[start_slot:stop_slot],
+                    active_state_len=active_state_len,
+                )
+            else:
+                coarse_v = arena_v[
+                    coarse_offset : coarse_offset
+                    + self.max_requests * self.kv_heads * self.state_capacity
+                ].view_as(coarse_k)
+                materialize_page1_coarse_means(
+                    self.state["state_k"][start_slot:stop_slot],
+                    self.state["state_v"][start_slot:stop_slot],
+                    self.state["counts"][start_slot:stop_slot],
+                    coarse_k[start_slot:stop_slot],
+                    coarse_v[start_slot:stop_slot],
+                    coarse_bias[start_slot:stop_slot],
+                    active_state_len=active_state_len,
+                )
             begin = end
         if self.settings.decode_gqa_fixed_mask_aiter:
             self._refresh_unified_page1_fixed(slots)
@@ -1134,7 +1738,7 @@ class VLLMLayerLODPool:
                 arena_sink_offset=int(page["unified_page1_sink_offset"]),
                 arena_coarse_offset=int(page["unified_page1_coarse_offset"]),
                 local_capacity=self.local_capacity,
-                local_limit=int(self.engine.local_len),
+                local_limit=self.decode_local_limit,
                 sink_capacity=sink_len,
                 sink_len=sink_len,
                 hash_probes=int(self.engine._page_lookup_probes(page)),
@@ -1295,6 +1899,10 @@ class VLLMLayerLODPool:
         self, slots: tuple[int, ...]
     ) -> dict[str, object] | None:
         """Return authoritative row views for allocation-free initial prefill."""
+        if self.dcp_world_size > 1:
+            # The fixed rows are rank-local.  Initial DCP prefill instead uses
+            # a temporary globally replicated cache until its final chunk.
+            return None
         if not slots or slots != tuple(range(slots[0], slots[0] + len(slots))):
             return None
         if not (
@@ -1338,11 +1946,37 @@ class VLLMLayerLODPool:
         value: torch.Tensor,
         *,
         coverage: int,
+        prompt_capacity: int,
     ) -> tuple[torch.Tensor, torch.Tensor] | None:
         """Persist or stage one exact prefix before its layer-batched update."""
 
-        if len(slots) != 1 or int(key.size(0)) != 1:
-            raise ValueError("cross-layer initial construction requires one row")
+        if not slots or int(key.size(0)) != len(slots):
+            raise ValueError("cross-layer initial construction has invalid rows")
+        if self.dcp_world_size > 1:
+            total_len = int(key.size(2))
+            sink_len = min(int(self.engine.sink_len), total_len)
+            # DCP's persistent rows are rank-local and cannot hold the
+            # globally replicated prefill archive.  Stage only one detached
+            # chronological source per attention layer; the runtime batches
+            # centroid construction across layers and turns these sources into
+            # temporary global shadows on its background stream.
+            archive_k = key[..., sink_len:total_len, :].detach().clone()
+            if self.is_absorbed_mla:
+                archive_v = archive_k[..., : self.value_dim]
+                staged_sink_k = key[..., :sink_len, :].detach().clone()
+                staged_sink_v = staged_sink_k[..., : self.value_dim]
+            else:
+                archive_v = value[..., sink_len:total_len, :].detach().clone()
+                staged_sink_k = key[..., :sink_len, :].detach().clone()
+                staged_sink_v = value[..., :sink_len, :].detach().clone()
+            for source_row, slot in enumerate(slots):
+                self.dcp_cross_layer_initial_sinks[slot] = (
+                    staged_sink_k[source_row : source_row + 1],
+                    staged_sink_v[source_row : source_row + 1],
+                )
+            if prompt_capacity < total_len or prompt_capacity > self.request_capacity:
+                raise ValueError("DCP prompt capacity is outside the configured range")
+            return archive_k, archive_v
         storage = self._initial_prefill_storage(slots)
         if storage is None:
             raise RuntimeError("cross-layer initial construction needs pool storage")
@@ -1362,7 +1996,7 @@ class VLLMLayerLODPool:
         if self.settings.kv_bits == 4:
             # The persistent INT4 cache has no BF16 leaf shadow. A detached
             # archive keeps only K/V, rather than pinning the much larger QKV
-            # projection allocation while sixteen layers are collected.
+            # projection allocation while a bounded layer group is collected.
             archive_k = key[..., sink_len:total_len, :].detach().clone()
             archive_v = value[..., sink_len:total_len, :].detach().clone()
             staged_leaves = (archive_k, archive_v)
@@ -1526,6 +2160,288 @@ class VLLMLayerLODPool:
         self.install_rows(slots, KernelLODCache(state))
         self.engine.reset_runtime_cache()
 
+    def _finish_dcp_cross_layer_initial_cache(
+        self,
+        slots: tuple[int, ...],
+        *,
+        total_len: int,
+        coverage: int,
+        state_k: torch.Tensor,
+        state_v: torch.Tensor,
+        counts: torch.Tensor,
+        key_norm_sums: torch.Tensor | None,
+        state_len: int,
+        owners: torch.Tensor,
+        owner_ranks: torch.Tensor,
+        archive_k: torch.Tensor,
+        archive_v: torch.Tensor,
+        prompt_capacity: int,
+    ) -> None:
+        """Install one globally replicated DCP shadow after a batched update."""
+
+        if self.dcp_world_size <= 1:
+            raise RuntimeError("DCP shadow construction requires DCP")
+        sinks = [self.dcp_cross_layer_initial_sinks.pop(slot, None) for slot in slots]
+        if any(sink is None for sink in sinks):
+            raise RuntimeError("DCP cross-layer construction lost its sink")
+        sink_k = torch.cat([sink[0] for sink in sinks if sink is not None], dim=0)
+        sink_v = (
+            sink_k[..., : self.value_dim]
+            if self.is_absorbed_mla
+            else torch.cat([sink[1] for sink in sinks if sink is not None], dim=0)
+        )
+        sink_len = int(sink_k.size(2))
+        initial_len = min(total_len, int(self.engine.chunk_len))
+        initial_state_len = initial_len - sink_len
+        archived_len = coverage - sink_len
+        archive_len = total_len - sink_len
+        if int(archive_k.size(2)) != archive_len or int(archive_v.size(2)) != archive_len:
+            raise ValueError("DCP staged archive has the wrong length")
+        initial_owners = (
+            torch.arange(
+                initial_state_len, device=owners.device, dtype=torch.long
+            )
+            .view(1, 1, initial_state_len)
+            .expand(len(slots), self.kv_heads, initial_state_len)
+        )
+        if initial_state_len + int(owners.size(2)) != archived_len:
+            raise AssertionError("DCP owner archive has the wrong length")
+        sequence_capacity = _round_up(
+            prompt_capacity, int(self.engine.chunk_len)
+        ) + max(
+            int(self.engine.chunk_len), int(self.engine.decode_cache_headroom)
+        )
+        page_cache = self.engine._new_page_cache(
+            archive_k[..., :initial_state_len, :],
+            archive_v[..., :initial_state_len, :],
+            initial_owners,
+            state_capacity=int(state_k.size(2)),
+            sequence_capacity=sequence_capacity,
+            virtual_k=archive_k,
+            virtual_v=archive_v,
+        )
+        self.engine._append_page_cache(
+            page_cache,
+            archive_k[..., initial_state_len:archived_len, :],
+            archive_v[..., initial_state_len:archived_len, :],
+            owners.long(),
+            owner_ranks=owner_ranks.long(),
+        )
+        if int(self.settings.kv_bits) == 4:
+            # The replicated DCP shadow can live for many scheduler chunks.
+            # Quantize it immediately, append later chunks directly into the
+            # residual-INT4 pages, and reconstruct only this rank's records at
+            # the final global-to-local conversion.
+            self.engine._finalize_virtual_page_quantization(page_cache)
+        recent_len = total_len - coverage
+        recent_capacity = max(
+            recent_len,
+            int(self.engine.local_len) + int(self.engine.decode_state_update_len),
+            int(self.engine.chunk_len),
+        )
+        recent_k = archive_k.new_empty(
+            len(slots), self.kv_heads, recent_capacity, int(archive_k.size(-1))
+        )
+        recent_v = (
+            recent_k[..., : self.value_dim]
+            if self.is_absorbed_mla
+            else archive_v.new_empty(
+                len(slots),
+                self.kv_heads,
+                recent_capacity,
+                int(archive_v.size(-1)),
+            )
+        )
+        recent_k[..., :recent_len, :].copy_(archive_k[..., archived_len:, :])
+        recent_v[..., :recent_len, :].copy_(archive_v[..., archived_len:, :])
+        state: dict[str, object] = {
+            "state_k": state_k,
+            "state_v": state_v,
+            "counts": counts,
+            "state_len": state_len,
+            "scheduled_state_len": state_len,
+            "coverage": coverage,
+            "state_capacity": int(state_k.size(2)),
+            "recent_k": recent_k,
+            "recent_v": recent_v,
+            "recent_len": recent_len,
+            "total_len": total_len,
+            "sink_k": sink_k,
+            "sink_v": sink_v,
+            "page_cache": page_cache,
+        }
+        if key_norm_sums is not None:
+            state["key_norm_sums"] = key_norm_sums
+        cache = KernelLODCache(state)
+        for source_row, slot in enumerate(slots):
+            self._retain_dcp_prefill_shadow(
+                slot, self._shadow_row_view(cache, source_row)
+            )
+        self.engine.reset_runtime_cache()
+
+    @staticmethod
+    def _shadow_row_view(cache: KernelLODCache, row: int) -> KernelLODCache:
+        """Return a request-owned view of one row from a batched shadow."""
+
+        state = cache.state
+        state_k = state.get("state_k")
+        if not isinstance(state_k, torch.Tensor):
+            raise TypeError("batched DCP shadow lacks its state tensor")
+        batch = int(state_k.size(0))
+        if not 0 <= row < batch:
+            raise IndexError("DCP shadow row is out of range")
+
+        def row_value(value: object) -> object:
+            if isinstance(value, torch.Tensor) and value.ndim and int(
+                value.size(0)
+            ) == batch:
+                return value[row : row + 1]
+            if isinstance(value, dict):
+                return {name: row_value(item) for name, item in value.items()}
+            return value
+
+        view = KernelLODCache(
+            {name: row_value(value) for name, value in state.items()}
+        )
+        # Keep enough identity to reassemble an equal-length request batch on
+        # its next scheduler chunk without concatenating (and therefore
+        # copying) the full chronological leaf archives.
+        view._lod_batched_parent = cache  # type: ignore[attr-defined]
+        view._lod_batched_row = row  # type: ignore[attr-defined]
+        return view
+
+    def _batched_dcp_shadow(
+        self, slots: tuple[int, ...]
+    ) -> KernelLODCache | None:
+        """Return the shared zero-copy shadow when ``slots`` cover its rows."""
+
+        if not slots:
+            return None
+        shadows = [self.dcp_prefill_shadows.get(slot) for slot in slots]
+        if any(shadow is None for shadow in shadows):
+            return None
+        parents = [
+            getattr(shadow, "_lod_batched_parent", None) for shadow in shadows
+        ]
+        parent = parents[0]
+        if parent is None or any(item is not parent for item in parents):
+            return None
+        rows = tuple(
+            int(getattr(shadow, "_lod_batched_row", -1)) for shadow in shadows
+        )
+        state_k = parent.state.get("state_k")
+        if not isinstance(state_k, torch.Tensor):
+            return None
+        if rows != tuple(range(int(state_k.size(0)))):
+            return None
+        return parent
+
+    def _retain_batched_dcp_shadow(
+        self, slots: tuple[int, ...], cache: KernelLODCache
+    ) -> None:
+        """Publish row views after one batched replicated-cache update."""
+
+        for source_row, slot in enumerate(slots):
+            self._retain_dcp_prefill_shadow(
+                slot, self._shadow_row_view(cache, source_row)
+            )
+
+    def _finish_dcp_cross_layer_cached_cache(
+        self,
+        slots: tuple[int, ...],
+        *,
+        total_len: int,
+        coverage: int,
+        state_k: torch.Tensor,
+        state_v: torch.Tensor,
+        counts: torch.Tensor,
+        key_norm_sums: torch.Tensor | None,
+        state_len: int,
+        scheduled_state_len: int,
+        owners: torch.Tensor,
+        owner_ranks: torch.Tensor,
+        staged_k: torch.Tensor,
+        staged_v: torch.Tensor,
+    ) -> None:
+        """Advance a replicated DCP shadow after one routed prefill block."""
+
+        if not slots:
+            raise ValueError("DCP cached construction requires request rows")
+        shadow = (
+            self._batched_dcp_shadow(slots)
+            if len(slots) > 1
+            else self.dcp_prefill_shadows.get(slots[0])
+        )
+        if shadow is None:
+            raise RuntimeError("DCP cached construction lost its batched shadow")
+        source = shadow.state
+        page_cache = source.get("page_cache")
+        if not isinstance(page_cache, dict):
+            raise TypeError("DCP cached construction lacks its page cache")
+        old_coverages = {int(self.metadata[slot]["coverage"]) for slot in slots}
+        if len(old_coverages) != 1:
+            raise RuntimeError("DCP cached request coverages diverged")
+        old_coverage = old_coverages.pop()
+        sink_len = min(int(self.engine.sink_len), total_len)
+        archive_begin = old_coverage - sink_len
+        archive_end = coverage - sink_len
+        overflow_len = archive_end - archive_begin
+        recent_len = total_len - coverage
+        if int(owners.size(2)) != overflow_len:
+            raise AssertionError("DCP cached owner archive has the wrong length")
+        required_len = overflow_len + recent_len
+        if int(staged_k.size(2)) < required_len or int(
+            staged_v.size(2)
+        ) < required_len:
+            raise ValueError("DCP cached staged source has the wrong length")
+        overflow_k = staged_k[..., :overflow_len, :]
+        overflow_v = staged_v[..., :overflow_len, :]
+        self.engine._append_page_cache(
+            page_cache,
+            overflow_k,
+            overflow_v,
+            owners.long(),
+            owner_ranks=owner_ranks.long(),
+        )
+        recent_k = source.get("recent_k")
+        recent_v = source.get("recent_v")
+        if not isinstance(recent_k, torch.Tensor) or not isinstance(
+            recent_v, torch.Tensor
+        ):
+            raise TypeError("DCP cached construction lacks its exact tail")
+        if recent_len > int(recent_k.size(2)):
+            raise ValueError("DCP cached exact tail exceeds its storage")
+        # This aligned cached-prefill update consumes the whole scheduler
+        # chunk into state, so the remaining exact tail is the suffix after
+        # ``overflow_len``.  Keep raw MLA records here; page insertion applies
+        # the per-token key normalization required by exact leaf attention.
+        recent_k[..., :recent_len, :].copy_(
+            staged_k[..., overflow_len:required_len, :]
+        )
+        recent_v[..., :recent_len, :].copy_(
+            staged_v[..., overflow_len:required_len, :]
+        )
+        source.update(
+            state_k=state_k,
+            state_v=state_v,
+            counts=counts,
+            state_len=state_len,
+            scheduled_state_len=scheduled_state_len,
+            coverage=coverage,
+            state_capacity=int(state_k.size(2)),
+            recent_k=recent_k,
+            recent_v=recent_v,
+            recent_len=recent_len,
+            total_len=total_len,
+        )
+        if key_norm_sums is not None:
+            source["key_norm_sums"] = key_norm_sums
+        if len(slots) > 1:
+            self._retain_batched_dcp_shadow(slots, shadow)
+        else:
+            self._retain_dcp_prefill_shadow(slots[0], shadow)
+        self.engine.reset_runtime_cache()
+
     def _stage_cross_layer_cached_cache(
         self,
         slots: tuple[int, ...],
@@ -1536,14 +2452,52 @@ class VLLMLayerLODPool:
     ) -> tuple[torch.Tensor, torch.Tensor] | None:
         """Persist or stage an aligned continuation for a batched update."""
 
-        if len(slots) != 1 or int(key.size(0)) != 1:
-            raise ValueError("cross-layer cached construction requires one row")
-        slot = slots[0]
-        metadata = self.metadata[slot]
-        if int(metadata["total_len"]) != previous_len:
+        if not slots or int(key.size(0)) != len(slots):
+            raise ValueError("cross-layer cached construction has invalid rows")
+        if any(
+            int(self.metadata[slot]["total_len"]) != previous_len
+            for slot in slots
+        ):
             raise RuntimeError("cross-layer cached prefix length changed while staging")
 
+        if self.dcp_world_size > 1:
+            shadow = (
+                self._batched_dcp_shadow(slots)
+                if len(slots) > 1
+                else self.dcp_prefill_shadows.get(slots[0])
+            )
+            if shadow is None:
+                raise RuntimeError(
+                    "cross-layer DCP continuation lost its batched shadow"
+                )
+            source = shadow.state
+            recent_k = source.get("recent_k")
+            recent_v = source.get("recent_v")
+            recent_len = int(source.get("recent_len", 0))
+            if not isinstance(recent_k, torch.Tensor) or not isinstance(
+                recent_v, torch.Tensor
+            ):
+                raise TypeError("cross-layer DCP continuation lacks its exact tail")
+            # [old exact tail, new chunk] contains the next overflow followed
+            # by the new exact tail. Preserve raw MLA records for centroid
+            # construction; page insertion normalizes only the key view.
+            staged_k = torch.cat(
+                (recent_k[..., :recent_len, :], key.detach()), dim=2
+            )
+            staged_v = (
+                staged_k[..., : self.value_dim]
+                if self.is_absorbed_mla
+                else torch.cat(
+                    (recent_v[..., :recent_len, :], value.detach()), dim=2
+                )
+            )
+            return staged_k, staged_v
+
         if self.settings.kv_bits == 4:
+            if len(slots) != 1:
+                raise ValueError("non-DCP INT4 construction requires one row")
+            slot = slots[0]
+            metadata = self.metadata[slot]
             recent_len = int(metadata["recent_len"])
             recent_k = self.state["recent_k"][slot : slot + 1]
             recent_v = self.state["recent_v"][slot : slot + 1]
@@ -1556,6 +2510,9 @@ class VLLMLayerLODPool:
             return staged_k, staged_v
         if self.settings.kv_bits != 0:
             raise ValueError("cross-layer construction supports BF16 or INT4 leaves")
+        if len(slots) != 1:
+            raise ValueError("non-DCP BF16 construction requires one row")
+        slot = slots[0]
 
         page = self.state.get("page_cache")
         if not isinstance(page, dict):
@@ -1826,12 +2783,53 @@ class VLLMLayerLODPool:
         output: torch.Tensor,
         plan: tuple[tuple[int, int, int, int], ...],
         *,
+        mla_query: torch.Tensor | None = None,
+        mla_w_uk_t: torch.Tensor | None = None,
+        mla_w_uv: torch.Tensor | None = None,
         finalize_cache_for_decode: bool,
+        allow_cross_layer_cached: bool,
     ) -> None:
         """Advance one contiguous equal-length/equal-history cache group."""
         length = plan[0][2] - plan[0][1]
         previous_length = plan[0][3]
         slots = tuple(slot for slot, _, _, _ in plan)
+        # Initial and previous-chunk cache construction may be overlapped with
+        # later model layers.  It must be visible before this layer consumes
+        # the shadow on the next scheduler chunk.
+        self.wait_deferred_prefill(slots)
+        shadow_slots = tuple(
+            slot for slot in slots if slot in self.dcp_prefill_shadows
+        )
+        # A one-row view can outlive the batched parent from which it was
+        # first published.  Cached-prefill updates replace scalar metadata in
+        # that row view (total_len, coverage, ...), whereas the parent's
+        # immutable scalar fields still describe the original prefix.  Only
+        # recover the parent when a multi-row group genuinely needs the shared
+        # tensor batch; singleton continuations must consume their authoritative
+        # request-owned view.
+        batched_shadow = (
+            self._batched_dcp_shadow(slots)
+            if len(shadow_slots) > 1
+            else None
+        )
+        if shadow_slots and len(plan) != 1 and batched_shadow is None:
+            # Each temporary cache owns an independently sized full-prompt
+            # allocation.  Keep batching for persistent rows, but advance
+            # active DCP shadows independently without copying their archives.
+            for item in plan:
+                self._direct_cached_prefill_group(
+                    query,
+                    key,
+                    value,
+                    output,
+                    (item,),
+                    mla_query=mla_query,
+                    mla_w_uk_t=mla_w_uk_t,
+                    mla_w_uv=mla_w_uv,
+                    finalize_cache_for_decode=finalize_cache_for_decode,
+                    allow_cross_layer_cached=allow_cross_layer_cached,
+                )
+            return
         if slots != tuple(range(slots[0], slots[0] + len(slots))):
             # Index-selecting a noncontiguous group copies every persistent
             # tensor, including each row's full-capacity leaf archive. At a
@@ -1849,7 +2847,11 @@ class VLLMLayerLODPool:
                     value,
                     output,
                     plan[run_begin:index],
+                    mla_query=mla_query,
+                    mla_w_uk_t=mla_w_uk_t,
+                    mla_w_uv=mla_w_uv,
                     finalize_cache_for_decode=finalize_cache_for_decode,
+                    allow_cross_layer_cached=allow_cross_layer_cached,
                 )
                 run_begin = index
             return
@@ -1873,6 +2875,22 @@ class VLLMLayerLODPool:
                 [query[begin:end].permute(1, 0, 2) for _, begin, end, _ in plan]
             )
         )
+        kimi_q = (
+            None
+            if mla_query is None
+            else (
+                mla_query[packed_begin:packed_end]
+                .reshape(len(plan), length, *mla_query.shape[1:])
+                .permute(0, 2, 1, 3)
+                if packed
+                else torch.stack(
+                    [
+                        mla_query[begin:end].permute(1, 0, 2)
+                        for _, begin, end, _ in plan
+                    ]
+                )
+            )
+        )
         k = (
             key[packed_begin:packed_end]
             .reshape(len(plan), length, *key.shape[1:])
@@ -1891,10 +2909,22 @@ class VLLMLayerLODPool:
                 [value[begin:end].permute(1, 0, 2) for _, begin, end, _ in plan]
             )
         )
-        cache = self._range_cache(slots[0], slots[-1] + 1)
+        using_shadow = bool(shadow_slots)
+        cache = (
+            (
+                batched_shadow
+                if batched_shadow is not None
+                else self.dcp_prefill_shadows[slots[0]]
+            )
+            if using_shadow
+            else self._range_cache(slots[0], slots[-1] + 1)
+        )
         if cache.total_length != previous_length:
             raise RuntimeError(
-                "batched cached LOD prefill length differs from its prepared plan"
+                "batched cached LOD prefill length differs from its prepared plan: "
+                f"slots={slots}, cache={cache.total_length}, "
+                f"prepared={previous_length}, shadow={using_shadow}, "
+                f"batched_shadow={batched_shadow is not None}"
             )
         output_view = (
             output[packed_begin:packed_end]
@@ -1909,7 +2939,11 @@ class VLLMLayerLODPool:
         )
         cross_layer_cached = bool(
             self.cached_prefill_stager is not None
-            and len(slots) == 1
+            and (
+                len(slots) == 1
+                or (self.dcp_world_size > 1 and batched_shadow is not None)
+            )
+            and allow_cross_layer_cached
             and self.settings.levels in (2, 3)
             and self.settings.kv_bits in (0, 4)
             and length == int(self.engine.prefill_chunk_len)
@@ -1922,8 +2956,21 @@ class VLLMLayerLODPool:
             and self.engine.state_split_max_leaves is None
             and self.engine.state_clustering_query_metric == "none"
         )
+        if (
+            os.environ.get("LOD_KIMI_PROFILE_PREFILL") == "1"
+            and self.dcp_rank == 0
+        ):
+            print(
+                "KIMI_CACHED_STAGE_CHECK "
+                f"enabled={int(cross_layer_cached)} length={length} "
+                f"previous={previous_length} state_len={metadata['state_len']} "
+                f"coverage={metadata['coverage']} recent={metadata['recent_len']} "
+                f"shadow_rows={len(self.dcp_prefill_shadows)}",
+                flush=True,
+            )
         defer_cache_update = (
-            not cross_layer_cached and self.deferred_prefill_stream is not None
+            not cross_layer_cached
+            and self.deferred_prefill_stream is not None
         )
         # The final state/page update does not contribute to this layer's
         # output.  Queue it behind the attention work and let subsequent model
@@ -1934,7 +2981,18 @@ class VLLMLayerLODPool:
             )
         if cross_layer_cached:
             self.engine._lod_stage_cached_prefill_update = True
+        if kimi_q is not None:
+            self.engine._lod_kimi_expanded_prefill_query = kimi_q
+            self.engine._lod_kimi_w_uk_t = mla_w_uk_t
+            self.engine._lod_kimi_w_uv = mla_w_uv
         try:
+            # DCP shadows own their storage format across scheduler chunks.
+            # In INT4 mode they are already finalized after the first chunk,
+            # and _append_page_cache requantizes only pages touched later.
+            engine_finalize = bool(
+                finalize_cache_for_decode
+                and not (using_shadow and self.dcp_world_size > 1)
+            )
             result, cache = self.engine(
                 q,
                 k,
@@ -1942,13 +3000,20 @@ class VLLMLayerLODPool:
                 cache=cache,
                 use_cache=True,
                 output_buffer=output_view,
-                finalize_cache_for_decode=finalize_cache_for_decode,
+                finalize_cache_for_decode=engine_finalize,
             )
         finally:
             if defer_cache_update:
                 del self.engine._lod_prefill_deferred_update_stream
             if cross_layer_cached:
                 del self.engine._lod_stage_cached_prefill_update
+            for name in (
+                "_lod_kimi_expanded_prefill_query",
+                "_lod_kimi_w_uk_t",
+                "_lod_kimi_w_uv",
+            ):
+                if hasattr(self.engine, name):
+                    delattr(self.engine, name)
         if cache is None:
             raise AssertionError("batched cached LOD prefill did not return a cache")
         if len(slots) > 1:
@@ -1958,6 +3023,11 @@ class VLLMLayerLODPool:
             stager = self.cached_prefill_stager
             if stager is None:
                 raise AssertionError("cross-layer cached stager is missing")
+            profile_update = os.environ.get("LOD_KIMI_PROFILE_PREFILL") == "1"
+            update_begin = None
+            if profile_update:
+                update_begin = torch.cuda.Event(enable_timing=True)
+                update_begin.record()
             stager(
                 self,
                 slots,
@@ -1967,16 +3037,32 @@ class VLLMLayerLODPool:
                 total_len=previous_length + length,
                 finalize_cache_for_decode=finalize_cache_for_decode,
             )
+            if update_begin is not None:
+                update_end = torch.cuda.Event(enable_timing=True)
+                update_end.record()
+                torch.cuda.synchronize(self.device)
+                print(
+                    "KIMI_PREFILL_PHASES "
+                    f"cross_layer_update={update_begin.elapsed_time(update_end):.3f}ms",
+                    flush=True,
+                )
         elif defer_cache_update:
             deferred = self.deferred_prefill_stream
             if deferred is None:
                 raise AssertionError("deferred prefill stream is missing")
             with torch.cuda.stream(deferred):
-                self._synchronize_rows(slots, cache)
+                if using_shadow:
+                    self._retain_batched_dcp_shadow(slots, cache)
+                else:
+                    self._synchronize_rows(slots, cache)
                 completed = torch.cuda.Event()
                 completed.record(deferred)
             for slot in slots:
                 self.deferred_prefill_events[slot] = completed
+        elif using_shadow:
+            # Keep final replicated rows until the runtime can shard all
+            # layers in one batched conversion at the decode boundary.
+            self._retain_batched_dcp_shadow(slots, cache)
         else:
             self._synchronize_rows(slots, cache)
         self.engine.reset_runtime_cache()
@@ -1995,8 +3081,23 @@ class VLLMLayerLODPool:
         key: torch.Tensor,
         value: torch.Tensor,
         output: torch.Tensor,
+        *,
+        mla_query: torch.Tensor | None = None,
+        mla_w_uk_t: torch.Tensor | None = None,
+        mla_w_uv: torch.Tensor | None = None,
+        defer_mla_query_absorption: bool = False,
     ) -> torch.Tensor:
         """Run ragged initial or cached prefill into authoritative LOD rows."""
+        if (mla_query is None) != (mla_w_uk_t is None):
+            raise ValueError("Kimi prefill requires both expanded query and W_UK_T")
+        if mla_w_uv is not None and mla_query is None:
+            raise ValueError("Kimi projected prefill requires its expanded query")
+        if defer_mla_query_absorption and (
+            mla_query is None or mla_w_uk_t is None
+        ):
+            raise ValueError("deferred Kimi absorption requires query and W_UK_T")
+        if mla_query is not None and int(mla_query.size(0)) != int(query.size(0)):
+            raise ValueError("Kimi expanded and absorbed query lengths differ")
         plan = self.direct_prefill_plan
         self.direct_prefill_plan = None
         prompt_lengths = self.direct_prefill_prompt_lengths
@@ -2004,27 +3105,32 @@ class VLLMLayerLODPool:
         if plan is None:
             raise RuntimeError("direct LOD prefill has no prepared request plan")
         self.direct_prefill_calls += 1
-        initial: dict[tuple[int, bool], list[tuple[int, int, int, int]]] = {}
+        initial: dict[tuple[int, bool, int], list[tuple[int, int, int, int]]] = {}
         cached: list[tuple[int, int, int, int]] = []
         for item in plan:
             slot, begin, end, previous_length = item
             if end <= begin:
                 continue
-            if previous_length == 0 and not self.ready[slot]:
+            available = self.has_prefill_cache(slot)
+            if previous_length == 0 and not available:
                 if slot not in prompt_lengths:
                     raise RuntimeError("direct LOD prefill has no total prompt length")
                 length = end - begin
-                initial.setdefault((length, length >= prompt_lengths[slot]), []).append(
-                    item
-                )
-            elif previous_length > 0 and self.ready[slot]:
+                # A replicated DCP shadow is request-owned, so keep its first
+                # cache construction singleton.  Ordinary rows retain the
+                # existing equal-length batch path.
+                group_slot = prompt_lengths[slot] if self.dcp_world_size > 1 else -1
+                initial.setdefault(
+                    (length, length >= prompt_lengths[slot], group_slot), []
+                ).append(item)
+            elif previous_length > 0 and available:
                 cached.append(item)
             elif previous_length > 0:
                 raise RuntimeError("cached LOD prefill row is not initialized")
             else:
                 raise RuntimeError("initial LOD prefill row is already initialized")
 
-        for (length, finalize_cache_for_decode), group in initial.items():
+        for (length, finalize_cache_for_decode, _group_slot), group in initial.items():
             slots = tuple(slot for slot, _, _, _ in group)
             self.engine.recursive_prefill_request_total_len = max(
                 prompt_lengths[slot] for slot in slots
@@ -2043,6 +3149,22 @@ class VLLMLayerLODPool:
                 if packed
                 else torch.stack(
                     [query[begin:end].permute(1, 0, 2) for _, begin, end, _ in group]
+                )
+            )
+            kimi_q = (
+                None
+                if mla_query is None
+                else (
+                    mla_query[packed_begin:packed_end]
+                    .reshape(len(group), length, *mla_query.shape[1:])
+                    .permute(0, 2, 1, 3)
+                    if packed
+                    else torch.stack(
+                        [
+                            mla_query[begin:end].permute(1, 0, 2)
+                            for _, begin, end, _ in group
+                        ]
+                    )
                 )
             )
             k = (
@@ -2073,7 +3195,7 @@ class VLLMLayerLODPool:
             cross_layer_initial = bool(
                 self.initial_prefill_stager is not None
                 and len(initial) == 1
-                and len(group) == 1
+                and (self.dcp_world_size > 1 or len(group) == 1)
                 and self.settings.levels in (2, 3)
                 and self.settings.kv_bits in (0, 4)
                 and self.engine.prefill_exact_first_chunk
@@ -2085,13 +3207,26 @@ class VLLMLayerLODPool:
                 and self.engine.state_clustering_query_metric == "none"
             )
             if cross_layer_initial:
-                result = self.engine._exact_attention(
-                    q,
-                    k,
-                    v,
-                    causal=True,
-                    output_buffer=output_view,
-                )
+                if kimi_q is not None:
+                    self.engine._lod_kimi_expanded_prefill_query = kimi_q
+                    self.engine._lod_kimi_w_uk_t = mla_w_uk_t
+                    self.engine._lod_kimi_w_uv = mla_w_uv
+                try:
+                    result = self.engine._exact_attention(
+                        q,
+                        k,
+                        v,
+                        causal=True,
+                        output_buffer=output_view,
+                    )
+                finally:
+                    for name in (
+                        "_lod_kimi_expanded_prefill_query",
+                        "_lod_kimi_w_uk_t",
+                        "_lod_kimi_w_uv",
+                    ):
+                        if hasattr(self.engine, name):
+                            delattr(self.engine, name)
                 if (
                     output_view is not None
                     and result.data_ptr() != output_view.data_ptr()
@@ -2112,6 +3247,7 @@ class VLLMLayerLODPool:
                     v,
                     total_len=length,
                     coverage=coverage,
+                    prompt_capacity=prompt_lengths[slots[0]],
                 )
                 if packed:
                     if (
@@ -2138,13 +3274,26 @@ class VLLMLayerLODPool:
                 # event is host-synchronized before any scheduler stream can
                 # consume the completed cache, avoiding the graph-stream race
                 # that a current-stream-only wait allowed.
-                result = self.engine._exact_attention(
-                    q,
-                    k,
-                    v,
-                    causal=True,
-                    output_buffer=output_view,
-                )
+                if kimi_q is not None:
+                    self.engine._lod_kimi_expanded_prefill_query = kimi_q
+                    self.engine._lod_kimi_w_uk_t = mla_w_uk_t
+                    self.engine._lod_kimi_w_uv = mla_w_uv
+                try:
+                    result = self.engine._exact_attention(
+                        q,
+                        k,
+                        v,
+                        causal=True,
+                        output_buffer=output_view,
+                    )
+                finally:
+                    for name in (
+                        "_lod_kimi_expanded_prefill_query",
+                        "_lod_kimi_w_uk_t",
+                        "_lod_kimi_w_uv",
+                    ):
+                        if hasattr(self.engine, name):
+                            delattr(self.engine, name)
                 if (
                     output_view is not None
                     and result.data_ptr() != output_view.data_ptr()
@@ -2176,7 +3325,10 @@ class VLLMLayerLODPool:
                     finally:
                         if prefill_storage is not None:
                             del self.engine._lod_prefill_storage
-                    self.install_rows(slots, cache)
+                    if self.dcp_world_size > 1:
+                        self._retain_dcp_prefill_shadow(slots[0], cache)
+                    else:
+                        self.install_rows(slots, cache)
                     self.engine.reset_runtime_cache()
                     completed = torch.cuda.Event()
                     completed.record(deferred)
@@ -2185,6 +3337,16 @@ class VLLMLayerLODPool:
             else:
                 if prefill_storage is not None:
                     self.engine._lod_prefill_storage = prefill_storage
+                if self.dcp_world_size > 1:
+                    if len(slots) != 1:
+                        raise AssertionError("DCP prefill shadows must be singleton")
+                    self.engine._lod_prefill_cache_capacity = int(
+                        prompt_lengths[slots[0]]
+                    )
+                if kimi_q is not None:
+                    self.engine._lod_kimi_expanded_prefill_query = kimi_q
+                    self.engine._lod_kimi_w_uk_t = mla_w_uk_t
+                    self.engine._lod_kimi_w_uv = mla_w_uv
                 try:
                     result, cache = self.engine(
                         q,
@@ -2199,12 +3361,29 @@ class VLLMLayerLODPool:
                         self._reset_range(slots[0], slots[-1] + 1)
                     raise
                 finally:
+                    for name in (
+                        "_lod_kimi_expanded_prefill_query",
+                        "_lod_kimi_w_uk_t",
+                        "_lod_kimi_w_uv",
+                    ):
+                        if hasattr(self.engine, name):
+                            delattr(self.engine, name)
                     if prefill_storage is not None:
                         del self.engine._lod_prefill_storage
+                    if hasattr(self.engine, "_lod_prefill_cache_capacity"):
+                        del self.engine._lod_prefill_cache_capacity
             if cache is None:
                 raise AssertionError("direct LOD prefill did not return a cache")
             if not defer_cache:
-                if tuple(sorted(slots)) == tuple(range(min(slots), max(slots) + 1)):
+                if self.dcp_world_size > 1:
+                    slot = slots[0]
+                    if finalize_cache_for_decode:
+                        self._install_dcp_local_from_cache(slot, cache)
+                    else:
+                        self._retain_dcp_prefill_shadow(slot, cache)
+                elif tuple(sorted(slots)) == tuple(
+                    range(min(slots), max(slots) + 1)
+                ):
                     self.install_rows(slots, cache)
                 else:
                     for source_slot, (slot, _, _, _) in enumerate(group):
@@ -2219,8 +3398,33 @@ class VLLMLayerLODPool:
 
         if not cached:
             return output
-        if all(end - begin == 1 for _, begin, end, _ in cached):
-            self._direct_mixed_decode(query, key, value, output, tuple(cached))
+        # vLLM can schedule completed one-token rows beside a long cached
+        # prefill row.  Those rows already own rank-local DCP caches and must
+        # use decode: their prepared ``previous_length`` is global, whereas
+        # ``_range_cache`` deliberately exposes rank-local lengths.  Peel them
+        # off before grouping the remaining cached-prefill work.  The old
+        # all-or-nothing check sent both classes through cached prefill, and it
+        # also disabled cross-layer construction for the actual long row.
+        mixed_decode = tuple(
+            item
+            for item in cached
+            if item[2] - item[1] == 1
+            and item[0] not in self.dcp_prefill_shadows
+        )
+        if mixed_decode:
+            self._direct_mixed_decode(
+                query,
+                key,
+                value,
+                output,
+                mixed_decode,
+                mla_query=(mla_query if defer_mla_query_absorption else None),
+                mla_w_uk_t=(mla_w_uk_t if defer_mla_query_absorption else None),
+                mla_w_uv=mla_w_uv,
+            )
+            mixed_slots = {slot for slot, _, _, _ in mixed_decode}
+            cached = [item for item in cached if item[0] not in mixed_slots]
+        if not cached:
             return output
         lengths = {end - begin for _, begin, end, _ in cached}
         previous_lengths = {previous_length for _, _, _, previous_length in cached}
@@ -2264,10 +3468,14 @@ class VLLMLayerLODPool:
                 value,
                 output,
                 tuple(group),
+                mla_query=mla_query,
+                mla_w_uk_t=mla_w_uk_t,
+                mla_w_uv=mla_w_uv,
                 finalize_cache_for_decode=bool(
                     group[0][2] - group[0][1] + group[0][3]
                     >= prompt_lengths[group[0][0]]
                 ),
+                allow_cross_layer_cached=len(groups) == 1,
             )
         return output
 
@@ -2278,8 +3486,14 @@ class VLLMLayerLODPool:
         value: torch.Tensor,
         output: torch.Tensor,
         plan: tuple[tuple[int, int, int, int], ...],
+        *,
+        mla_query: torch.Tensor | None = None,
+        mla_w_uk_t: torch.Tensor | None = None,
+        mla_w_uv: torch.Tensor | None = None,
     ) -> None:
         """Batch one-token rows that vLLM schedules beside a long prefill."""
+        if (mla_query is None) != (mla_w_uk_t is None):
+            raise ValueError("lazy Kimi decode absorption requires query and W_UK_T")
         rows = len(plan)
         first = plan[0][1]
         packed = all(
@@ -2300,22 +3514,59 @@ class VLLMLayerLODPool:
             q = query.index_select(0, positions)
             k = key.index_select(0, positions)
             v = value.index_select(0, positions)
-            destination = torch.empty_like(q)
+            destination = output.new_empty(rows, *output.shape[1:])
+
+        if mla_query is not None:
+            raw_q = (
+                mla_query[first : first + rows]
+                if packed
+                else mla_query.index_select(0, positions)
+            )
+            from .models.kimi_k3 import absorb_query
+
+            q = absorb_query(
+                raw_q,
+                mla_w_uk_t,
+                nope_dim=int(mla_w_uk_t.size(1)),
+            )
 
         class _Metadata:
             num_actual_tokens = rows
             max_seq_len = max(previous_length + 1 for *_, previous_length in plan)
 
-        result = self.decode(q, k, v, _Metadata(), destination)
-        if result.data_ptr() != destination.data_ptr():
+        decode_destination = destination
+        if mla_w_uv is not None:
+            decode_destination = output.new_empty(
+                rows,
+                self.query_heads,
+                self.value_dim,
+            )
+        result = self.decode(q, k, v, _Metadata(), decode_destination)
+        if result.data_ptr() != decode_destination.data_ptr():
             raise AssertionError("mixed LOD decode did not use its output buffer")
+        if mla_w_uv is not None:
+            from lod_attention.kernels.aiter_mla_prefill_attention import (
+                project_kimi_head_values,
+            )
+
+            projected = project_kimi_head_values(result.unsqueeze(2), mla_w_uv)
+            destination.copy_(projected.squeeze(2))
+            result = destination
         if not packed:
             output.index_copy_(0, positions, result)
         for slot, _, _, previous_length in plan:
             metadata = self.metadata[slot]
-            total_len = previous_length + 1
+            global_total_len = previous_length + 1
+            total_len = (
+                self._dcp_local_length(global_total_len)
+                if self.dcp_world_size > 1 and self.dcp_sharded[slot]
+                else global_total_len
+            )
             metadata["total_len"] = total_len
             metadata["recent_len"] = total_len - int(metadata["coverage"])
+            if self.dcp_world_size > 1:
+                metadata["dcp_global_total_len"] = global_total_len
+                self.dcp_global_lens[slot].fill_(global_total_len)
 
     def _row_cache(self, slot: int) -> KernelLODCache:
         return self._range_cache(slot, slot + 1)
@@ -2377,6 +3628,26 @@ class VLLMLayerLODPool:
 
     def _catch_up_target(self, slot: int, total_length: int) -> tuple[int, int]:
         metadata = self.metadata[slot]
+        if self.dcp_world_size > 1 and self.dcp_sharded[slot]:
+            global_coverage = int(metadata["dcp_global_coverage"])
+            expected_local_coverage = self._dcp_local_length(global_coverage)
+            if int(metadata["coverage"]) != expected_local_coverage:
+                raise AssertionError(
+                    "DCP local coverage no longer represents its global boundary"
+                )
+            local_total_length = self._dcp_local_length(total_length)
+            recent_length = local_total_length - expected_local_coverage
+            target_global_coverage = self._dcp_global_decode_coverage(total_length)
+            target_local_coverage = self._dcp_local_length(target_global_coverage)
+            if recent_length < 0 or recent_length > self.local_capacity:
+                raise ValueError(
+                    "decode-local length exceeds its fixed DCP cache row: "
+                    f"slot={slot}, global_total={total_length}, "
+                    f"global_coverage={global_coverage}, local_total={local_total_length}, "
+                    f"local_coverage={expected_local_coverage}, recent={recent_length}, "
+                    f"capacity={self.local_capacity}"
+                )
+            return recent_length, target_local_coverage
         coverage = int(metadata["coverage"])
         recent_length = total_length - coverage
         if recent_length < 0 or recent_length > self.local_capacity:
@@ -2386,9 +3657,11 @@ class VLLMLayerLODPool:
                 f"recent={recent_length}, capacity={self.local_capacity}, "
                 f"device_recent={int(self.local_lens[slot].item())}"
             )
-        update_len = int(self.engine.decode_state_update_len)
-        exact_floor = int(self.engine.local_len - self.engine.chunk_len)
-        target_coverage = max(min(total_length, self.engine.chunk_len), coverage)
+        with self._dcp_local_state_schedule():
+            update_len = int(self.engine.decode_state_update_len)
+            exact_floor = int(self.engine.local_len - self.engine.chunk_len)
+            initial_chunk = int(self.engine.chunk_len)
+        target_coverage = max(min(total_length, initial_chunk), coverage)
         pending_update = total_length + 1 - target_coverage - exact_floor
         if pending_update > update_len:
             target_coverage += ((pending_update - 1) // update_len) * update_len
@@ -2398,19 +3671,40 @@ class VLLMLayerLODPool:
         if not self.ready[slot]:
             raise RuntimeError("cannot catch up an uninitialized LOD request row")
         metadata = self.metadata[slot]
+        global_total_length = total_length
+        local_total_length = (
+            self._dcp_local_length(total_length)
+            if self.dcp_world_size > 1 and self.dcp_sharded[slot]
+            else total_length
+        )
         coverage = int(metadata["coverage"])
         recent_length, target_coverage = self._catch_up_target(slot, total_length)
         if coverage >= target_coverage:
             # Captured decode already appended K/V and advanced local_lens on
             # device. Most tokens need only this host metadata bookkeeping.
-            metadata["total_len"] = total_length
+            metadata["total_len"] = local_total_length
             metadata["recent_len"] = recent_length
+            if self.dcp_world_size > 1:
+                metadata["dcp_global_total_len"] = global_total_length
+                self.dcp_global_lens[slot].fill_(global_total_length)
             return
         row = self._row_cache(slot)
-        self.engine.catch_up_cache(
-            row, total_length=total_length, recent_length=recent_length
-        )
+        with self._dcp_local_state_schedule():
+            self.engine.catch_up_cache(
+                row, total_length=local_total_length, recent_length=recent_length
+            )
         self._finish_single_catch_up(slot, row)
+        if self.dcp_world_size > 1:
+            global_coverage = self._dcp_global_decode_coverage(global_total_length)
+            if int(self.metadata[slot]["coverage"]) != self._dcp_local_length(
+                global_coverage
+            ):
+                raise AssertionError(
+                    "DCP catch-up did not land on its global sequence boundary"
+                )
+            self.metadata[slot]["dcp_global_total_len"] = global_total_length
+            self.metadata[slot]["dcp_global_coverage"] = global_coverage
+            self.dcp_global_lens[slot].fill_(global_total_length)
 
     def _finish_single_catch_up(self, slot: int, row: KernelLODCache) -> None:
         page = row.state["page_cache"]
@@ -2440,19 +3734,37 @@ class VLLMLayerLODPool:
     ) -> None:
         """Finish one catch-up whose centroid update was batched by layer."""
 
+        global_total_length = total_length
+        local_total_length = (
+            self._dcp_local_length(total_length)
+            if self.dcp_world_size > 1 and self.dcp_sharded[slot]
+            else total_length
+        )
         recent_length, target_coverage = self._catch_up_target(slot, total_length)
         if int(self.metadata[slot]["coverage"]) >= target_coverage:
             raise ValueError("precomputed LOD catch-up has no pending state update")
         row = self._row_cache(slot)
-        self.engine.catch_up_cache(
-            row,
-            total_length=total_length,
-            recent_length=recent_length,
-            _precomputed_update=(state_len, owners, None),
-        )
+        with self._dcp_local_state_schedule():
+            self.engine.catch_up_cache(
+                row,
+                total_length=local_total_length,
+                recent_length=recent_length,
+                _precomputed_update=(state_len, owners, None),
+            )
         self.catch_up_batches += 1
         self.catch_up_rows += 1
         self._finish_single_catch_up(slot, row)
+        if self.dcp_world_size > 1:
+            global_coverage = self._dcp_global_decode_coverage(global_total_length)
+            if int(self.metadata[slot]["coverage"]) != self._dcp_local_length(
+                global_coverage
+            ):
+                raise AssertionError(
+                    "precomputed DCP catch-up missed its global sequence boundary"
+                )
+            self.metadata[slot]["dcp_global_total_len"] = global_total_length
+            self.metadata[slot]["dcp_global_coverage"] = global_coverage
+            self.dcp_global_lens[slot].fill_(global_total_length)
 
     def catch_up_many(self, requests: list[tuple[int, int]]) -> None:
         """Batch equal-metadata contiguous rows at a state-update boundary."""
@@ -2461,13 +3773,29 @@ class VLLMLayerLODPool:
             if not self.ready[slot]:
                 raise RuntimeError("cannot catch up an uninitialized LOD request row")
             metadata = self.metadata[slot]
+            global_total_length = total_length
+            local_total_length = (
+                self._dcp_local_length(total_length)
+                if self.dcp_world_size > 1 and self.dcp_sharded[slot]
+                else total_length
+            )
             recent_length, target_coverage = self._catch_up_target(slot, total_length)
             if int(metadata["coverage"]) >= target_coverage:
-                metadata["total_len"] = total_length
+                metadata["total_len"] = local_total_length
                 metadata["recent_len"] = recent_length
+                if self.dcp_world_size > 1:
+                    metadata["dcp_global_total_len"] = global_total_length
+                    self.dcp_global_lens[slot].fill_(global_total_length)
                 continue
+            target_global_coverage = (
+                self._dcp_global_decode_coverage(global_total_length)
+                if self.dcp_world_size > 1
+                else target_coverage
+            )
             signature = (
-                total_length,
+                local_total_length,
+                global_total_length,
+                target_global_coverage,
                 int(metadata["state_len"]),
                 int(metadata.get("scheduled_state_len", metadata["state_len"])),
                 int(metadata["coverage"]),
@@ -2476,9 +3804,13 @@ class VLLMLayerLODPool:
                 int(metadata["overflow_safe_until"]),
             )
             pending.setdefault(signature, []).append(slot)
+            if self.dcp_world_size > 1:
+                metadata["dcp_global_total_len"] = global_total_length
+                self.dcp_global_lens[slot].fill_(global_total_length)
 
         for signature, slots in pending.items():
             total_length = signature[0]
+            target_global_coverage = signature[2]
             slots.sort()
             begin = 0
             while begin < len(slots):
@@ -2489,11 +3821,12 @@ class VLLMLayerLODPool:
                 stop_slot = slots[end - 1] + 1
                 row = self._range_cache(start_slot, stop_slot)
                 recent_length = total_length - int(row.state["coverage"])
-                self.engine.catch_up_cache(
-                    row,
-                    total_length=total_length,
-                    recent_length=recent_length,
-                )
+                with self._dcp_local_state_schedule():
+                    self.engine.catch_up_cache(
+                        row,
+                        total_length=total_length,
+                        recent_length=recent_length,
+                    )
                 self.catch_up_batches += 1
                 self.catch_up_rows += stop_slot - start_slot
                 page = row.state["page_cache"]
@@ -2509,6 +3842,17 @@ class VLLMLayerLODPool:
                         leaf_count=int(page["leaf_count"]),
                         overflow_safe_until=int(page["overflow_safe_until"]),
                     )
+                    if self.dcp_world_size > 1:
+                        if int(self.metadata[slot]["coverage"]) != (
+                            self._dcp_local_length(target_global_coverage)
+                        ):
+                            raise AssertionError(
+                                "batched DCP catch-up missed its global sequence "
+                                "boundary"
+                            )
+                        self.metadata[slot]["dcp_global_coverage"] = (
+                            target_global_coverage
+                        )
                 self.local_lens[start_slot:stop_slot].fill_(
                     int(row.state["recent_len"])
                 )
@@ -2530,6 +3874,7 @@ class VLLMLayerLODPool:
             storage = new_fused_decode_buffers(
                 template,
                 splits=int(self.engine.decode_split_kv),
+                value_dim=self.value_dim,
                 exact_kv_heads=(
                     self.kv_heads
                     if self.engine.exact_decode_limit > 0 and self.settings.levels == 3
@@ -2549,7 +3894,7 @@ class VLLMLayerLODPool:
                     )
                     and self.query_heads % self.kv_heads == 0
                     and 1 < self.query_heads // self.kv_heads <= 16
-                    and self.head_dim in (128, 256)
+                    and (self.head_dim in (128, 256) or self.is_absorbed_mla)
                     and self.dtype == torch.bfloat16
                     else None
                 ),
@@ -2569,7 +3914,7 @@ class VLLMLayerLODPool:
                     )
                     and self.query_heads % self.kv_heads == 0
                     and 1 < self.query_heads // self.kv_heads <= 16
-                    and self.head_dim in (128, 256)
+                    and (self.head_dim in (128, 256) or self.is_absorbed_mla)
                     and self.dtype == torch.bfloat16
                     else None
                 ),
@@ -2688,6 +4033,74 @@ class VLLMLayerLODPool:
         )
         self._buffers(query, rows)
 
+    def _dcp_buffers(
+        self, query: torch.Tensor, rows: int
+    ) -> dict[str, torch.Tensor]:
+        """Fixed-address scratch for K3's 96-head DCP decode query."""
+
+        if self.dcp_world_size == 1:
+            return self._buffers(query, rows)
+        if not self.is_absorbed_mla or int(query.size(1)) % 16:
+            raise ValueError("Kimi DCP LoD requires 16-head query tiles")
+        storage = self.dcp_decode_buffer_storage
+        if storage is None or storage["partial_out"].device != query.device:
+            virtual_kv_heads = int(query.size(1)) // 16
+            template = query.new_empty(
+                self.max_requests,
+                int(query.size(1)),
+                1,
+                self.head_dim,
+            )
+            sink = self.state.get("sink_k")
+            sink_len = int(sink.size(2)) if isinstance(sink, torch.Tensor) else 0
+            storage = new_fused_decode_buffers(
+                template,
+                splits=int(self.engine.decode_split_kv),
+                value_dim=self.value_dim,
+                state_capacity=self.state_capacity,
+                route_group_size=int(self.engine.decode_route_group_size),
+                route_segment_tiles=int(self.engine.decode_route_segment_tiles),
+                gqa_union_kv_heads=virtual_kv_heads,
+                gqa_union_index_capacity=(
+                    self.leaf_capacity
+                    + self.decode_local_limit
+                    + 1
+                    + self.state_capacity
+                    + sink_len
+                ),
+                gqa_union_hip=True,
+                gqa_union_fixed_mask=False,
+                gqa_union_hip_segments=32,
+            )
+            self.dcp_decode_buffer_storage = storage
+            self.dcp_decode_buffers.clear()
+        buffers = self.dcp_decode_buffers.get(rows)
+        if buffers is None:
+            buffers = {
+                name: (
+                    tensor[:rows]
+                    if tensor.ndim
+                    and int(tensor.size(0)) == self.max_requests
+                    else tensor
+                )
+                for name, tensor in storage.items()
+            }
+            self.dcp_decode_buffers[rows] = buffers
+        return buffers
+
+    def reserve_dcp_decode_buffers(self, rows: int, heads: int) -> None:
+        if self.dcp_world_size == 1:
+            return
+        query = torch.empty(
+            rows,
+            heads,
+            1,
+            self.head_dim,
+            dtype=self.dtype,
+            device=self.device,
+        )
+        self._dcp_buffers(query, rows)
+
     def reserve_speculative_decode_buffers(self, rows: int, steps: int) -> None:
         """Reserve fixed-address request-major/step-major graph staging.
 
@@ -2762,6 +4175,7 @@ class VLLMLayerLODPool:
             staging["decode_buffers"] = new_fused_decode_buffers(
                 template,
                 splits=int(self.engine.decode_split_kv),
+                value_dim=self.value_dim,
                 exact_kv_heads=(
                     self.kv_heads
                     if self.engine.exact_decode_limit > 0 and self.settings.levels == 3
@@ -3018,6 +4432,122 @@ class VLLMLayerLODPool:
             rows, steps, self.query_heads, self.value_dim
         ).copy_(staging["out"].permute(1, 0, 2, 3))
         return output
+
+    def decode_dcp(
+        self,
+        query: torch.Tensor,
+        key: torch.Tensor,
+        value: torch.Tensor,
+        output: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Run rank-local Kimi LoD and return its partial value and LSE."""
+
+        if self.dcp_world_size <= 1 or self.dcp_group is None:
+            raise RuntimeError("decode_dcp requires an initialized DCP group")
+        rows, gathered_heads, head_dim = query.shape
+        if head_dim != self.head_dim or gathered_heads % 16:
+            raise ValueError("unexpected gathered Kimi DCP query geometry")
+        if tuple(key.shape[:2]) != (rows, self.kv_heads):
+            raise ValueError("Kimi DCP current K/V geometry differs from its pool")
+        virtual_kv_heads = gathered_heads // 16
+        q = query.unsqueeze(2).contiguous()
+        k = key.unsqueeze(2).contiguous()
+        v = value.unsqueeze(2).contiguous()
+        cache_indices = self.active_indices[:rows]
+        active_slots = self.active_decode_rows[:rows]
+        if len(active_slots) != rows:
+            raise RuntimeError(
+                "DCP decode has no host-side active-row map for this batch"
+            )
+        self.ensure_dcp_sharded(active_slots)
+        self.ensure_unified_page1_fixed(active_slots)
+
+        buffers = self._dcp_buffers(q, rows)
+        page = self.state["page_cache"]
+
+        def virtual_heads(tensor: torch.Tensor) -> torch.Tensor:
+            if int(tensor.size(1)) != 1:
+                raise ValueError("Kimi DCP expects one physical MLA KV head")
+            return tensor.expand(tensor.size(0), virtual_kv_heads, *tensor.shape[2:])
+
+        result = fused_decode_paged_lod_attention(
+            q,
+            virtual_heads(self.state["state_k"]),
+            virtual_heads(self.state["state_v"]),
+            virtual_heads(self.state["counts"]),
+            virtual_heads(self.state["recent_k"]),
+            virtual_heads(self.state["recent_v"]),
+            virtual_heads(page["leaf_k"]),
+            virtual_heads(page["leaf_v"]),
+            virtual_heads(page["slot_pages"]),
+            virtual_heads(page["overflow_page_keys"]),
+            virtual_heads(page["overflow_page_values"]),
+            page["overflow_used"],
+            virtual_heads(page["slot_lengths"]),
+            None,
+            sink_k=virtual_heads(self.state["sink_k"]),
+            sink_v=virtual_heads(self.state["sink_v"]),
+            state_len=self.state_capacity,
+            state_lens=self.state_lens,
+            local_len=self.decode_local_limit,
+            cache_indices=cache_indices,
+            local_lens=self.local_lens,
+            new_k=k.expand(rows, virtual_kv_heads, 1, self.head_dim),
+            new_v=v.expand(rows, virtual_kv_heads, 1, self.value_dim),
+            store_new_kv=True,
+            advance_local_lens=False,
+            kv_group_size=16,
+            scale=float(self.engine.scaling),
+            hash_probes=int(self.engine._page_lookup_probes(page)),
+            block_n=int(self.engine.decode_block_n),
+            num_warps=int(self.engine.decode_num_warps),
+            waves_per_eu=int(self.engine.leaf_waves_per_eu),
+            split_kv=int(self.engine.decode_split_kv),
+            buffers=buffers,
+            use_dot=bool(self.engine.decode_use_dot),
+            fuse_state_route=True,
+            route_group_size=int(self.engine.decode_route_group_size),
+            route_segment_tiles=int(self.engine.decode_route_segment_tiles),
+            route_num_warps=int(self.engine.decode_route_num_warps),
+            route_reduce_num_warps=int(self.engine.decode_route_reduce_num_warps),
+            route_parallel_reduce=bool(self.engine.decode_route_parallel_reduce),
+            fuse_final_reduce=False,
+            route_gqa_grouped=True,
+            gqa_union_decode=True,
+            gqa_union_hip=True,
+            gqa_union_compact_page_descriptors=True,
+            gqa_union_page1_k=page["unified_page1_k"],
+            gqa_union_page1_v=page["unified_page1_v"],
+            gqa_union_page1_bias=page["unified_page1_bias"],
+            gqa_union_page1_leaf_offset=int(page["unified_page1_leaf_offset"]),
+            gqa_union_page1_local_offset=int(page["unified_page1_local_offset"]),
+            gqa_union_page1_sink_offset=int(page["unified_page1_sink_offset"]),
+            gqa_union_page1_coarse_offset=int(page["unified_page1_coarse_offset"]),
+            gqa_union_fixed_indices=page["unified_page1_fixed_indices"],
+            gqa_union_fixed_leaf_owners=page["unified_page1_fixed_leaf_owners"],
+            gqa_union_fixed_slot_offsets=page[
+                "unified_page1_fixed_slot_offsets"
+            ],
+            gqa_union_fixed_lengths=page["unified_page1_fixed_lengths"],
+            protected_len=0,
+            open_count=ROUTE_COUNT,
+            flat_page_indices=virtual_heads(page["page_indices"]),
+            exact_decode_threshold=0,
+            output_buffer=output.unsqueeze(2),
+            distributed_route_group=self.dcp_group,
+            gqa_union_physical_kv_heads=self.kv_heads,
+            gqa_union_head_tiled_metadata=True,
+            dcp_global_lens=self.dcp_global_lens,
+            dcp_rank=self.dcp_rank,
+            dcp_world_size=self.dcp_world_size,
+            dcp_interleave_size=self.dcp_interleave_size,
+        )
+        if result.data_ptr() != output.data_ptr():
+            raise AssertionError("DCP LoD did not use its output buffer")
+        final_lse = buffers.get("kimi_gluon_final_lse")
+        if not isinstance(final_lse, torch.Tensor):
+            raise RuntimeError("Kimi DCP compact consumer did not return an LSE")
+        return output, final_lse[:rows]
 
     def decode(
         self,

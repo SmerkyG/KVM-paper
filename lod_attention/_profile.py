@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from ._config import (
@@ -36,11 +37,16 @@ def configure_engine(
         # The engine learns D from its first tensors. Model-family validation
         # already fixes the only supported shapes, so use their known widths.
         head_dim = 256 if family is ModelFamily.QWEN38 else 128
-    expected = (256, 6) if family is ModelFamily.QWEN38 else (128, 8)
-    if (int(head_dim), int(gqa)) != expected:
+    expected = {
+        ModelFamily.QWEN38: (256, 6),
+        ModelFamily.K2: (128, 8),
+    }.get(family)
+    if expected is not None and (int(head_dim), int(gqa)) != expected:
         raise ValueError(
             f"{family.value} requires D/GQA={expected}, got {(head_dim, gqa)}"
         )
+    if family is ModelFamily.KIMI_K3 and (int(head_dim) <= 0 or int(gqa) <= 0):
+        raise ValueError("Kimi K3 requires positive absorbed MLA D/GQA geometry")
 
     engine.two_level_topk = ROUTE_COUNT
     engine.prefill_two_level_topk = ROUTE_COUNT
@@ -82,7 +88,7 @@ def configure_engine(
         engine.prefill_coarse_max_grouped_rows = 64
         engine.prefill_coarse_route_block_n = 16
         engine.prefill_coarse_route_num_warps = 8
-    else:
+    elif family is ModelFamily.K2:
         # Wider K2 query tiles amortize long selected centroids. BF16 uses
         # 128 rows and 32 leaf columns; INT4 uses 256 rows and retains its
         # page-sized 16-column dequantization path below.
@@ -96,6 +102,37 @@ def configure_engine(
         engine.decode_route_segment_tiles = 1
         engine.decode_route_num_warps = 1
         engine.decode_route_reduce_num_warps = 2
+    else:
+        # Kimi's MLA cache has a single latent KV head.  Queries are absorbed
+        # through W_UK before entering LoD, so these are ordinary MQA launch
+        # settings over [latent, direct-key] vectors.  Keep the calculation
+        # identical to the other families; only the tile shape differs.
+        # Prefill expands only the routed leaf working set to D192/V128 before
+        # expert attention.  The Kimi-specific leaf geometry is tuned below;
+        # it remains much wider than the legacy raw-D576 16-row tile.
+        engine.leaf_block_m = int(os.getenv("LOD_KIMI_LEAF_BLOCK_M", "32"))
+        engine.leaf_block_n = 16
+        engine.leaf_num_warps = int(os.getenv("LOD_KIMI_LEAF_WARPS", "2"))
+        engine.prefill_coarse_direct_gqa = False
+        engine.prefill_coarse_max_grouped_rows = 64
+        engine.prefill_coarse_route_block_n = 16
+        engine.prefill_coarse_route_num_warps = 8
+        # The source-derived MLA route/coarse kernel preserves the asymmetric
+        # absorbed cache: 512 latent value channels plus 64 direct-key-only
+        # channels.  It follows AITER MLA's one-token/16-head work mapping.
+        engine.prefill_aiter_route_coarse = True
+        engine.decode_route_group_size = 64
+        engine.decode_route_segment_tiles = 1
+        engine.decode_route_num_warps = 1
+        engine.decode_route_reduce_num_warps = 2
+
+        # AMD's K3 v10 image carries a newer AITER host/kernel ABI than the
+        # release branch's source-derived MLA prefill specialization.  Keep a
+        # correctness-first fallback available while that specialization is
+        # ported; decode continues to use the same Gluon LoD kernel.
+        if os.getenv("LOD_KIMI_DISABLE_AITER_PREFILL", "0") == "1":
+            engine.prefill_local_attention_backend = "torch"
+            engine.prefill_aiter_route_coarse = False
 
     if mode.levels == 2:
         engine.virtual_page_storage = True

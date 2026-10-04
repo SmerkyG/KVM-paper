@@ -1687,6 +1687,195 @@ def quantize_virtual_paged_kv(
     )
 
 
+@triton.jit(
+    do_not_specialize=["SINK_LEN", "LOCAL_LENGTH", "DCP_RANK"],
+    do_not_specialize_on_alignment=["SINK_LEN", "LOCAL_LENGTH", "DCP_RANK"],
+)
+def _dequantize_owned_virtual_paged_keys_kernel(
+    page_indices,
+    page_counts,
+    quantized_leaf_k,
+    page_k_scales,
+    quantized_page_sum_k,
+    page_sum_k_scales,
+    output,
+    SINK_LEN,
+    LOCAL_LENGTH,
+    DCP_RANK,
+    KV_HEADS: tl.constexpr,
+    ACTIVE_PAGES: tl.constexpr,
+    PAGE_CAPACITY: tl.constexpr,
+    LEAF_CAPACITY: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    DCP_WORLD_SIZE: tl.constexpr,
+    DCP_INTERLEAVE_SIZE: tl.constexpr,
+    BLOCK_D: tl.constexpr,
+):
+    """Restore one DCP rank's chronological keys from residual INT4 pages."""
+
+    page_row = tl.program_id(0).to(tl.int64)
+    kv_head = page_row // ACTIVE_PAGES
+    page_id = page_row - kv_head * ACTIVE_PAGES
+    dimension = tl.program_id(1).to(tl.int64) * BLOCK_D + tl.arange(0, BLOCK_D)
+    dimension_valid = dimension < HEAD_DIM
+    count = tl.load(
+        page_counts + kv_head * PAGE_CAPACITY + page_id
+    ).to(tl.int64)
+    token = tl.arange(0, 16)
+    token_valid = token < count
+    leaf_index = tl.load(
+        page_indices + (kv_head * PAGE_CAPACITY + page_id) * 16 + token,
+        mask=token_valid,
+        other=-1,
+    ).to(tl.int64)
+    token_valid &= (leaf_index >= 0) & (leaf_index < LEAF_CAPACITY)
+
+    global_position = leaf_index + SINK_LEN
+    interleave_block = global_position // DCP_INTERLEAVE_SIZE
+    owned = token_valid & (interleave_block % DCP_WORLD_SIZE == DCP_RANK)
+    local_position = (
+        (interleave_block // DCP_WORLD_SIZE) * DCP_INTERLEAVE_SIZE
+        + global_position % DCP_INTERLEAVE_SIZE
+    )
+    owned &= (local_position >= 0) & (local_position < LOCAL_LENGTH)
+
+    group = dimension // 4
+    summary_scale = tl.load(
+        page_sum_k_scales
+        + (kv_head * PAGE_CAPACITY + page_id) * (HEAD_DIM // 4)
+        + group,
+        mask=dimension_valid & (count > 0),
+        other=0.0,
+    ).to(tl.float32)
+    summary_code = tl.load(
+        quantized_page_sum_k
+        + (kv_head * PAGE_CAPACITY + page_id) * HEAD_DIM
+        + dimension,
+        mask=dimension_valid & (count > 0),
+        other=0,
+    ).to(tl.float32)
+    centroid = summary_code * summary_scale / tl.maximum(count, 1).to(tl.float32)
+    residual_scale = tl.load(
+        page_k_scales
+        + (kv_head * PAGE_CAPACITY + page_id) * (HEAD_DIM // 4)
+        + group,
+        mask=dimension_valid & (count > 0),
+        other=0.0,
+    ).to(tl.float32)
+    packed = tl.load(
+        quantized_leaf_k
+        + (
+            kv_head * LEAF_CAPACITY + leaf_index[:, None]
+        ) * (HEAD_DIM // 2)
+        + dimension[None, :] // 2,
+        mask=owned[:, None] & dimension_valid[None, :],
+        other=0,
+    ).to(tl.int32)
+    code = tl.where(
+        dimension[None, :] % 2 == 0,
+        packed & 15,
+        (packed >> 4) & 15,
+    ) - 8
+    value = centroid[None, :] + code.to(tl.float32) * residual_scale[None, :]
+    tl.store(
+        output
+        + (
+            kv_head * LOCAL_LENGTH + local_position[:, None]
+        ) * HEAD_DIM
+        + dimension[None, :],
+        value,
+        mask=owned[:, None] & dimension_valid[None, :],
+    )
+
+
+def dequantize_owned_virtual_paged_keys(
+    page_indices: torch.Tensor,
+    page_counts: torch.Tensor,
+    next_page: torch.Tensor,
+    quantized_leaf_k: torch.Tensor,
+    page_k_scales: torch.Tensor,
+    quantized_page_sum_k: torch.Tensor,
+    page_sum_k_scales: torch.Tensor,
+    *,
+    source_slot: int,
+    sink_len: int,
+    local_length: int,
+    dcp_rank: int,
+    dcp_world_size: int,
+    dcp_interleave_size: int,
+) -> torch.Tensor:
+    """Dequantize only the chronological records owned by one DCP rank."""
+
+    tensors = (
+        page_indices,
+        page_counts,
+        next_page,
+        quantized_leaf_k,
+        page_k_scales,
+        quantized_page_sum_k,
+        page_sum_k_scales,
+    )
+    if not all(tensor.is_cuda for tensor in tensors):
+        raise ValueError("DCP page dequantization requires CUDA tensors")
+    batch, kv_heads, page_capacity, page_size = page_indices.shape
+    if page_size != 16:
+        raise ValueError("DCP page dequantization requires 16-token pages")
+    if not 0 <= source_slot < batch:
+        raise IndexError("DCP page-dequantization source slot is out of range")
+    if not 0 <= dcp_rank < dcp_world_size or dcp_interleave_size < 1:
+        raise ValueError("invalid DCP page-dequantization geometry")
+    head_dim = int(quantized_page_sum_k.size(-1))
+    if head_dim % 4 or int(quantized_leaf_k.size(-1)) != head_dim // 2:
+        raise ValueError("DCP page dequantization requires grouped residual INT4")
+    expected_page_shape = (batch, kv_heads, page_capacity)
+    if tuple(page_counts.shape) != expected_page_shape:
+        raise ValueError("DCP page counts do not match the page directory")
+    if tuple(page_k_scales.shape) != expected_page_shape + (head_dim // 4,):
+        raise ValueError("DCP page scales do not match the page directory")
+    if tuple(quantized_page_sum_k.shape) != expected_page_shape + (head_dim,):
+        raise ValueError("DCP quantized summaries do not match the page directory")
+    if tuple(page_sum_k_scales.shape) != expected_page_shape + (head_dim // 4,):
+        raise ValueError("DCP summary scales do not match the page directory")
+
+    output = torch.zeros(
+        1,
+        kv_heads,
+        local_length,
+        head_dim,
+        dtype=page_k_scales.dtype,
+        device=page_indices.device,
+    )
+    active_pages = int(next_page[source_slot].max().item())
+    if active_pages <= 0 or local_length <= 0:
+        return output
+    active_pages = min(active_pages, page_capacity)
+    block_d = 64
+    _dequantize_owned_virtual_paged_keys_kernel[
+        (kv_heads * active_pages, triton.cdiv(head_dim, block_d))
+    ](
+        page_indices[source_slot : source_slot + 1],
+        page_counts[source_slot : source_slot + 1],
+        quantized_leaf_k[source_slot : source_slot + 1],
+        page_k_scales[source_slot : source_slot + 1],
+        quantized_page_sum_k[source_slot : source_slot + 1],
+        page_sum_k_scales[source_slot : source_slot + 1],
+        output,
+        sink_len,
+        local_length,
+        dcp_rank,
+        KV_HEADS=kv_heads,
+        ACTIVE_PAGES=active_pages,
+        PAGE_CAPACITY=page_capacity,
+        LEAF_CAPACITY=int(quantized_leaf_k.size(2)),
+        HEAD_DIM=head_dim,
+        DCP_WORLD_SIZE=dcp_world_size,
+        DCP_INTERLEAVE_SIZE=dcp_interleave_size,
+        BLOCK_D=block_d,
+        num_warps=4,
+    )
+    return output
+
+
 def append_quantized_virtual_paged_kv(
     append_k: torch.Tensor,
     append_v: torch.Tensor,

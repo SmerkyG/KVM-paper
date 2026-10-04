@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import math
+from typing import Any
+
 import torch
 import triton
 
@@ -41,6 +43,7 @@ from .paged_routing import (
     _reduce_decode_route_topk_kernel,
     materialized_state_route_gqa,
 )
+from .distributed_topk import distributed_global_topk, localize_global_topk
 
 
 def fused_decode_paged_lod_attention(
@@ -150,12 +153,24 @@ def fused_decode_paged_lod_attention(
     precomputed_route_scores: torch.Tensor | None = None,
     precomputed_coarse_out: torch.Tensor | None = None,
     precomputed_coarse_lse: torch.Tensor | None = None,
+    distributed_route_group: Any | None = None,
+    gqa_union_physical_kv_heads: int | None = None,
+    gqa_union_head_tiled_metadata: bool = False,
+    dcp_global_lens: torch.Tensor | None = None,
+    dcp_rank: int = 0,
+    dcp_world_size: int = 1,
+    dcp_interleave_size: int = 1,
 ) -> torch.Tensor:
     """Fuse coarse, exact-leaf, local, and branch-merge decode attention."""
     if open_count != 8:
         raise ValueError("the LoD release decode path requires top-eight routing")
     batch, query_heads, query_len, head_dim = q.shape
     kv_heads = int(state_k.size(1))
+    value_dim = int(state_v.size(-1))
+    if int(local_v.size(-1)) != value_dim or int(page_v.size(-1)) != value_dim:
+        raise ValueError("decode value caches must share one latent width")
+    if output_buffer is not None and int(output_buffer.size(-1)) != value_dim:
+        raise ValueError("decode output width does not match cached values")
     precomputed_route_values = (
         precomputed_route_scores,
         precomputed_coarse_out,
@@ -765,7 +780,7 @@ def fused_decode_paged_lod_attention(
             )
             and (q.dtype == torch.bfloat16)
             and (1 < kv_group_size <= 16)
-            and (head_dim in (128, 256, 512))
+            and (head_dim in (128, 256, 512, 576))
             and route_gqa_grouped
             and (route_segment_tiles > 1 or gqa_union_page1_arena)
             and (route_mass_fraction is None or gqa_union_mass)
@@ -1259,6 +1274,7 @@ def fused_decode_paged_lod_attention(
                             KV_HEADS=kv_heads,
                             KV_GROUP_SIZE=kv_group_size,
                             HEAD_DIM=head_dim,
+                            VALUE_DIM=value_dim,
                             SCALE=float(scale),
                             GROUP_N=group_size,
                             MAX_GROUPS=max_groups,
@@ -1395,7 +1411,7 @@ def fused_decode_paged_lod_attention(
                         QUERY_HEADS=query_heads,
                         KV_HEADS=kv_heads,
                         KV_GROUP_SIZE=kv_group_size,
-                        HEAD_DIM=head_dim,
+                        VALUE_DIM=value_dim,
                         STATE_CAPACITY=int(state_k.size(2)),
                         ROUTE_COUNT=8,
                         OPEN_COUNT=open_count,
@@ -1416,6 +1432,28 @@ def fused_decode_paged_lod_attention(
                     )
                 timing_end("route_reduce", route_reduce_begin)
                 top_slots = buffers["route_top_slots"]
+        if distributed_route_group is not None:
+            if not execute_state_route:
+                raise ValueError("distributed routing requires an executed state route")
+            local_route_scores = buffers["route_top_scores"]
+            local_route_slots = top_slots
+            global_scores, global_owners, global_slots = distributed_global_topk(
+                local_route_scores,
+                local_route_slots,
+                distributed_route_group,
+            )
+            owned_scores, owned_slots = localize_global_topk(
+                global_scores,
+                global_owners,
+                global_slots,
+                local_rank=int(distributed_route_group.rank_in_group),
+            )
+            # Preserve the fixed buffer addresses consumed by captured leaf
+            # and correction kernels. Non-owner routes remain -1/-inf, which
+            # is the same empty-route representation used for short states.
+            local_route_scores.copy_(owned_scores)
+            local_route_slots.copy_(owned_slots)
+            top_slots = local_route_slots
         if recursive_page_cache is not None:
 
             def cache_tensor(name: str) -> torch.Tensor:
@@ -1718,6 +1756,7 @@ def fused_decode_paged_lod_attention(
                 QUERY_HEADS=query_heads,
                 KV_GROUP_SIZE=kv_group_size,
                 HEAD_DIM=head_dim,
+                VALUE_DIM=value_dim,
                 STATE_CAPACITY=int(state_k.size(2)),
                 ROUTE_COUNT=int(top_slots.size(-1)),
                 SPLITS=split_kv,
@@ -1797,7 +1836,7 @@ def fused_decode_paged_lod_attention(
             and (not flat_int8)
             and (q.dtype == torch.bfloat16)
             and (1 < kv_group_size <= 16)
-            and (head_dim in (128, 256, 512))
+            and (head_dim in (128, 256, 512, 576))
             and (int(top_slots.size(-1)) == 8)
             and (route_top_p is None)
             and (route_residual_mass is None)
@@ -2289,6 +2328,16 @@ def fused_decode_paged_lod_attention(
             if gqa_union_compact_pages:
                 descriptor_page_size = 16
                 coarse_blocks = triton.cdiv(state_len, 64)
+                physical_kv_heads = (
+                    kv_heads
+                    if gqa_union_physical_kv_heads is None
+                    else int(gqa_union_physical_kv_heads)
+                )
+                if kv_heads % physical_kv_heads:
+                    raise ValueError(
+                        "virtual GQA-union heads must tile physical KV heads"
+                    )
+                head_tiles_per_kv = kv_heads // physical_kv_heads
                 _materialize_decode_gqa_union_page_descriptors_kernel[
                     sequence_count,
                     max(union_capacity, coarse_blocks),
@@ -2304,6 +2353,11 @@ def fused_decode_paged_lod_attention(
                     counts,
                     buffers["gqa_union_seen_stamps"],
                     buffers["gqa_union_epochs"],
+                    (
+                        dcp_global_lens
+                        if dcp_global_lens is not None
+                        else local_lens
+                    ),
                     new_k,
                     new_v,
                     gqa_union_page1_k,
@@ -2339,10 +2393,19 @@ def fused_decode_paged_lod_attention(
                         + int(state_k.size(2))
                     ),
                     HEAD_DIM=head_dim,
+                    VALUE_DIM=value_dim,
+                    ARENA_V_STRIDE=gqa_union_page1_v.stride(0),
                     PAGE_SIZE=descriptor_page_size,
                     BLOCK_K=64,
                     INCLUDE_NEW=include_new,
                     USE_STATE_LENS=use_state_lens,
+                    PHYSICAL_KV_HEADS=physical_kv_heads,
+                    HEAD_TILES_PER_KV=head_tiles_per_kv,
+                    MASK_OPENED_IN_ARENA_BIAS=not gqa_union_head_tiled_metadata,
+                    DCP_ROW_MASKED_NEW=dcp_global_lens is not None,
+                    DCP_RANK=dcp_rank,
+                    DCP_WORLD_SIZE=dcp_world_size,
+                    DCP_INTERLEAVE_SIZE=dcp_interleave_size,
                     EXACT_DECODE_THRESHOLD=(
                         exact_decode_threshold if gqa_union_inline_exact else 0
                     ),
@@ -2351,6 +2414,89 @@ def fused_decode_paged_lod_attention(
                 )
                 timing_end("gqa_union_indices", union_begin)
                 compact_begin = timing_begin()
+                if head_dim == 576 and value_dim == 512:
+                    from lod_attention.kernels.kimi_gluon_decode import (
+                        KIMI_GLUON_LOD_SPLITS,
+                        absorbed_mla_lod_decode_gfx942,
+                    )
+
+                    if gqa_union_head_tiled_metadata:
+                        compact_query = q[:, :, 0, :]
+                        compact_out = output[:, :, 0, :]
+                        compact_partial = buffers["kimi_gluon_partial"][
+                            :sequence_count
+                        ].view(batch, query_heads, KIMI_GLUON_LOD_SPLITS, value_dim)
+                        compact_partial_lse = buffers["kimi_gluon_partial_lse"][
+                            :sequence_count
+                        ].view(batch, query_heads, KIMI_GLUON_LOD_SPLITS)
+                    else:
+                        compact_query = q[:, :, 0, :].reshape(
+                            sequence_count, kv_group_size, head_dim
+                        )
+                        compact_out = output[:, :, 0, :].reshape(
+                            sequence_count, kv_group_size, value_dim
+                        )
+                        compact_partial = buffers["kimi_gluon_partial"][
+                            :sequence_count
+                        ]
+                        compact_partial_lse = buffers["kimi_gluon_partial_lse"][
+                            :sequence_count
+                        ]
+                    absorbed_mla_lod_decode_gfx942(
+                        compact_query,
+                        gqa_union_page1_k,
+                        gqa_union_page1_bias,
+                        compact_out,
+                        buffers["gqa_union_token_indices"][:sequence_count],
+                        gqa_union_fixed_indices.reshape(
+                            -1, gqa_union_fixed_indices.size(-1)
+                        ),
+                        cache_indices,
+                        hip_context_lens,
+                        buffers["gqa_union_token_counts"][:sequence_count],
+                        local_lens,
+                        float(scale),
+                        local_limit=local_len,
+                        opened_stamps=(
+                            buffers["gqa_union_seen_stamps"][:sequence_count]
+                            if gqa_union_head_tiled_metadata
+                            else None
+                        ),
+                        sequence_epochs=(
+                            buffers["gqa_union_epochs"][:sequence_count]
+                            if gqa_union_head_tiled_metadata
+                            else None
+                        ),
+                        state_capacity=(
+                            int(state_k.size(2))
+                            if gqa_union_head_tiled_metadata
+                            else 0
+                        ),
+                        sink_len=(
+                            int(sink_k.size(2)) if include_sink else 0
+                        ),
+                        head_tiled_metadata=gqa_union_head_tiled_metadata,
+                        include_new=include_new,
+                        dcp_global_lens=dcp_global_lens,
+                        dcp_rank=dcp_rank,
+                        dcp_world_size=dcp_world_size,
+                        dcp_interleave_size=dcp_interleave_size,
+                        num_splits=KIMI_GLUON_LOD_SPLITS,
+                        partial=compact_partial,
+                        partial_lse=compact_partial_lse,
+                        final_lse=(
+                            buffers["kimi_gluon_final_lse"][:batch]
+                            if "kimi_gluon_final_lse" in buffers
+                            else None
+                        ),
+                    )
+                    timing_end("gqa_union_compact_page_attention", compact_begin)
+                    timing_end("leaf_local", leaf_begin)
+                    if include_new and ragged_local_lens and advance_local_lens:
+                        advance_decode_cache_lengths(cache_indices, local_lens)
+                    if not gqa_union_inline_exact:
+                        apply_exact_flat_bf16_override()
+                    return output
                 from lod_attention.kernels.aiter_page1_attention import (
                     reduce_page1_segments_advance_local,
                 )
@@ -2803,6 +2949,8 @@ def fused_decode_paged_lod_attention(
                 local_v.stride(0),
                 local_v.stride(1),
                 local_v.stride(2),
+                page_k.stride(-2),
+                page_v.stride(-2),
                 top_slots.stride(0),
                 top_slots.stride(1),
                 new_k.stride(0),
@@ -2823,7 +2971,7 @@ def fused_decode_paged_lod_attention(
                 HASH_CAPACITY=int(overflow_page_values.size(2)),
                 HASH_PROBES=hash_probes,
                 HEAD_DIM=head_dim,
-                VALUE_DIM=head_dim,
+                VALUE_DIM=value_dim,
                 PAGE_SIZE=int(page_shape.size(3)),
                 ROUTE_COUNT=int(top_slots.size(-1)),
                 SPLITS=split_kv,
@@ -2905,6 +3053,7 @@ def fused_decode_paged_lod_attention(
                 QUERY_HEADS=query_heads,
                 KV_GROUP_SIZE=kv_group_size,
                 HEAD_DIM=head_dim,
+                VALUE_DIM=value_dim,
                 STATE_CAPACITY=int(state_k.size(2)),
                 ROUTE_COUNT=int(top_slots.size(-1)),
                 SPLITS=final_splits,

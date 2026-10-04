@@ -189,6 +189,51 @@ chronological K/V rather than shadowing a full cache. Prefix-cache hits resume
 retained LoD rows after exact token-prefix verification. Non-attention and
 ineligible local/recurrent layers retain their native vLLM caches.
 
+### Reuse post-load weights
+
+The package also registers the `ipc_cache` model loader. On a cold request, a
+node-local broker uses vLLM's ordinary loader and retains the final TP/PP/EP
+shards after all loader transformations. Later engines with the same model,
+dtype, quantization, attention layout, and parallel topology reconstruct those
+tensors through CUDA/HIP IPC. They therefore skip checkpoint reads and costly
+post-load conversions such as Kimi-K3 MXFP4-to-groupwise-INT4 conversion; the
+serving engine still owns its KV/LoD cache, scheduler, workspaces, and graphs.
+Runtime context capacity, scheduler budgets, and batch limits do not partition
+the retained weights: engines can reuse one entry at different sequence
+lengths as long as the actual model/quantization/parallel tensor layout agrees.
+Attention execution mode does not partition an otherwise identical layout
+either. In particular, Kimi-K3 DCP engines reuse one canonical resident weight
+entry when switching among full attention, two-tier LoD, three-tier BF16, and
+three-tier INT4; only the per-engine KV/LoD cache and workspaces are rebuilt.
+
+The loader starts the broker automatically in an ordinary process environment:
+
+```bash
+VLLM_PLUGINS=lod_attention \
+VLLM_WEIGHT_CACHE_ID=dev \
+vllm serve MODEL \
+  --load-format ipc_cache \
+  --attention-backend CUSTOM
+```
+
+Use `--model-loader-extra-config` to choose `cache_id`, `cache_dir`,
+`backing_load_format`, or to set `auto_start` to false. A missing entry is
+loaded just in time. The default per-GPU retained-weight budget is 60%; an
+explicit broker can use a different limit:
+
+```bash
+vllm-weight-cache --cache-id dev --max-cache-fraction 0.9
+vllm-weight-cache status --cache-id dev
+vllm-weight-cache stop --cache-id dev
+```
+
+The broker must remain alive while mapped engines run. Batch schedulers that
+kill all descendants at job exit (including `cluster-run`) should run the
+broker as its own long-lived GPU job and launch clients on those same GPUs with
+their scheduler's overlap option. This also keeps the broker's retained VRAM
+visible to the scheduler. The broker is single-node and currently requires
+DP=1; TP and PP are supported.
+
 ## Repository layout
 
 - `lod_attention/`: model-independent HF adapter, PyTorch reference, cache,

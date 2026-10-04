@@ -7,6 +7,7 @@ from importlib import metadata
 from pathlib import Path
 import platform
 import subprocess
+import sys
 from typing import Any
 
 
@@ -27,6 +28,7 @@ SOURCE_SUFFIXES = {
     ".hpp",
     ".patch",
     ".py",
+    ".sh",
     ".toml",
 }
 PACKAGE_NAMES = ("aiter", "torch", "transformers", "triton", "vllm")
@@ -90,6 +92,7 @@ def benchmark_identity(root: Path = ROOT) -> dict[str, Any]:
         "schema": 1,
         "source": source_identity(root),
         "runtime": {
+            "executable": str(Path(sys.executable).resolve()),
             "python": platform.python_version(),
             "packages": {name: _package_version(name) for name in PACKAGE_NAMES},
         },

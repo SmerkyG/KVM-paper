@@ -10,6 +10,7 @@ query-by-state score tensor.
 from __future__ import annotations
 
 import math
+import os
 
 import torch
 import triton
@@ -103,8 +104,11 @@ def _merge_attention_branches_with_sink_kernel(
     QUERY_LEN,
     QUERY_HEADS: tl.constexpr,
     KV_GROUP_SIZE: tl.constexpr,
+    SINK_VALUE_PER_QUERY_HEAD: tl.constexpr,
     HEAD_DIM: tl.constexpr,
-    BLOCK_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+    HEAD_BLOCK_DIM: tl.constexpr,
+    VALUE_BLOCK_DIM: tl.constexpr,
     SINK_LEN: tl.constexpr,
     INCLUDE_SECONDARY: tl.constexpr,
     INCLUDE_TERTIARY: tl.constexpr,
@@ -117,54 +121,119 @@ def _merge_attention_branches_with_sink_kernel(
     query = tl.program_id(2).to(tl.int64) * BLOCK_M + tl.arange(0, BLOCK_M)
     query_valid = query < QUERY_LEN
     kv_head = query_head // KV_GROUP_SIZE
-    dim = tl.arange(0, BLOCK_DIM)
-    dim_valid = dim < HEAD_DIM
-
-    query_value = tl.load(
-        q
-        + batch * Q_BATCH_STRIDE
-        + query_head * Q_HEAD_STRIDE
-        + query[:, None] * Q_TOKEN_STRIDE
-        + dim[None, :],
-        mask=query_valid[:, None] & dim_valid[None, :],
-        other=0.0,
-    ).to(tl.float32)
-    if SINK_LEN == 1:
-        key = tl.load(
-            sink_k + batch * SINK_K_BATCH_STRIDE + kv_head * SINK_K_HEAD_STRIDE + dim,
-            mask=dim_valid,
+    value_head = query_head if SINK_VALUE_PER_QUERY_HEAD else kv_head
+    value_dim = tl.arange(0, VALUE_BLOCK_DIM)
+    value_valid = value_dim < VALUE_DIM
+    if HEAD_DIM == HEAD_BLOCK_DIM:
+        key_dim = tl.arange(0, HEAD_BLOCK_DIM)
+        query_value = tl.load(
+            q
+            + batch * Q_BATCH_STRIDE
+            + query_head * Q_HEAD_STRIDE
+            + query[:, None] * Q_TOKEN_STRIDE
+            + key_dim[None, :],
+            mask=query_valid[:, None],
             other=0.0,
         ).to(tl.float32)
-        sink_output = tl.load(
-            sink_v + batch * SINK_V_BATCH_STRIDE + kv_head * SINK_V_HEAD_STRIDE + dim,
-            mask=dim_valid,
-            other=0.0,
-        ).to(tl.float32)
-        sink_lse = tl.sum(query_value * key[None, :], axis=1) * SCALE
     else:
-        sink_maximum = tl.full((BLOCK_M,), -float("inf"), tl.float32)
-        sink_denominator = tl.zeros((BLOCK_M,), tl.float32)
-        sink_accumulator = tl.zeros((BLOCK_M, BLOCK_DIM), tl.float32)
-        for sink_index in tl.static_range(0, SINK_LEN):
+        main_d: tl.constexpr = HEAD_BLOCK_DIM // 2
+        tail_d: tl.constexpr = HEAD_DIM - main_d
+        main_dim = tl.arange(0, main_d)
+        tail_dim = main_d + tl.arange(0, tail_d)
+        query_main = tl.load(
+            q
+            + batch * Q_BATCH_STRIDE
+            + query_head * Q_HEAD_STRIDE
+            + query[:, None] * Q_TOKEN_STRIDE
+            + main_dim[None, :],
+            mask=query_valid[:, None],
+            other=0.0,
+        ).to(tl.float32)
+        query_tail = tl.load(
+            q
+            + batch * Q_BATCH_STRIDE
+            + query_head * Q_HEAD_STRIDE
+            + query[:, None] * Q_TOKEN_STRIDE
+            + tail_dim[None, :],
+            mask=query_valid[:, None],
+            other=0.0,
+        ).to(tl.float32)
+    if SINK_LEN == 1:
+        if HEAD_DIM == HEAD_BLOCK_DIM:
             key = tl.load(
                 sink_k
                 + batch * SINK_K_BATCH_STRIDE
                 + kv_head * SINK_K_HEAD_STRIDE
-                + sink_index * SINK_K_TOKEN_STRIDE
-                + dim,
-                mask=dim_valid,
-                other=0.0,
+                + key_dim
             ).to(tl.float32)
+            sink_lse = tl.sum(query_value * key[None, :], axis=1) * SCALE
+        else:
+            key_main = tl.load(
+                sink_k
+                + batch * SINK_K_BATCH_STRIDE
+                + kv_head * SINK_K_HEAD_STRIDE
+                + main_dim
+            ).to(tl.float32)
+            key_tail = tl.load(
+                sink_k
+                + batch * SINK_K_BATCH_STRIDE
+                + kv_head * SINK_K_HEAD_STRIDE
+                + tail_dim
+            ).to(tl.float32)
+            sink_lse = (
+                tl.sum(query_main * key_main[None, :], axis=1)
+                + tl.sum(query_tail * key_tail[None, :], axis=1)
+            ) * SCALE
+        sink_output = tl.load(
+            sink_v
+            + batch * SINK_V_BATCH_STRIDE
+            + value_head * SINK_V_HEAD_STRIDE
+            + value_dim,
+            mask=value_valid,
+            other=0.0,
+        ).to(tl.float32)
+    else:
+        sink_maximum = tl.full((BLOCK_M,), -float("inf"), tl.float32)
+        sink_denominator = tl.zeros((BLOCK_M,), tl.float32)
+        sink_accumulator = tl.zeros((BLOCK_M, VALUE_BLOCK_DIM), tl.float32)
+        for sink_index in tl.static_range(0, SINK_LEN):
+            if HEAD_DIM == HEAD_BLOCK_DIM:
+                key = tl.load(
+                    sink_k
+                    + batch * SINK_K_BATCH_STRIDE
+                    + kv_head * SINK_K_HEAD_STRIDE
+                    + sink_index * SINK_K_TOKEN_STRIDE
+                    + key_dim
+                ).to(tl.float32)
+                score = tl.sum(query_value * key[None, :], axis=1) * SCALE
+            else:
+                key_main = tl.load(
+                    sink_k
+                    + batch * SINK_K_BATCH_STRIDE
+                    + kv_head * SINK_K_HEAD_STRIDE
+                    + sink_index * SINK_K_TOKEN_STRIDE
+                    + main_dim
+                ).to(tl.float32)
+                key_tail = tl.load(
+                    sink_k
+                    + batch * SINK_K_BATCH_STRIDE
+                    + kv_head * SINK_K_HEAD_STRIDE
+                    + sink_index * SINK_K_TOKEN_STRIDE
+                    + tail_dim
+                ).to(tl.float32)
+                score = (
+                    tl.sum(query_main * key_main[None, :], axis=1)
+                    + tl.sum(query_tail * key_tail[None, :], axis=1)
+                ) * SCALE
             value = tl.load(
                 sink_v
                 + batch * SINK_V_BATCH_STRIDE
-                + kv_head * SINK_V_HEAD_STRIDE
+                + value_head * SINK_V_HEAD_STRIDE
                 + sink_index * SINK_V_TOKEN_STRIDE
-                + dim,
-                mask=dim_valid,
+                + value_dim,
+                mask=value_valid,
                 other=0.0,
             ).to(tl.float32)
-            score = tl.sum(query_value * key[None, :], axis=1) * SCALE
             new_maximum = tl.maximum(sink_maximum, score)
             old_weight = tl.exp(sink_maximum - new_maximum)
             new_weight = tl.exp(score - new_maximum)
@@ -218,8 +287,8 @@ def _merge_attention_branches_with_sink_kernel(
         + batch * PRIMARY_BATCH_STRIDE
         + query_head * PRIMARY_HEAD_STRIDE
         + query[:, None] * PRIMARY_TOKEN_STRIDE
-        + dim[None, :],
-        mask=query_valid[:, None] & dim_valid[None, :],
+        + value_dim[None, :],
+        mask=query_valid[:, None] & value_valid[None, :],
         other=0.0,
     ).to(tl.float32)
     numerator = primary_weight[:, None] * primary_value
@@ -234,8 +303,8 @@ def _merge_attention_branches_with_sink_kernel(
             + batch * SECONDARY_BATCH_STRIDE
             + query_head * SECONDARY_HEAD_STRIDE
             + query[:, None] * SECONDARY_TOKEN_STRIDE
-            + dim[None, :],
-            mask=query_valid[:, None] & dim_valid[None, :],
+            + value_dim[None, :],
+            mask=query_valid[:, None] & value_valid[None, :],
             other=0.0,
         ).to(tl.float32)
         denominator += secondary_weight
@@ -247,8 +316,8 @@ def _merge_attention_branches_with_sink_kernel(
             + batch * TERTIARY_BATCH_STRIDE
             + query_head * TERTIARY_HEAD_STRIDE
             + query[:, None] * TERTIARY_TOKEN_STRIDE
-            + dim[None, :],
-            mask=query_valid[:, None] & dim_valid[None, :],
+            + value_dim[None, :],
+            mask=query_valid[:, None] & value_valid[None, :],
             other=0.0,
         ).to(tl.float32)
         denominator += tertiary_weight
@@ -257,12 +326,12 @@ def _merge_attention_branches_with_sink_kernel(
         batch * OUTPUT_BATCH_STRIDE
         + query_head * OUTPUT_HEAD_STRIDE
         + query[:, None] * OUTPUT_TOKEN_STRIDE
-        + dim[None, :]
+        + value_dim[None, :]
     )
     tl.store(
         output + output_offset,
         numerator / denominator[:, None],
-        mask=query_valid[:, None] & dim_valid[None, :],
+        mask=query_valid[:, None] & value_valid[None, :],
     )
 
 
@@ -1879,7 +1948,10 @@ def prepare_state_clustering_keys(
     else:
         key_norm_pointer = key_norm_sums
     if block_s is None:
-        block_s = min(8, max(1, 1024 // head_dim))
+        # Keep the preparation tile power-of-two for non-standard absorbed
+        # MLA widths such as Kimi's 128+32 and 512+64 channels.
+        candidate = min(8, max(1, 1024 // head_dim))
+        block_s = 1 << (candidate.bit_length() - 1)
     if block_s <= 0 or block_s & (block_s - 1):
         raise ValueError("state preparation tile must be a positive power of two")
     indexed = slot_indices is not None
@@ -1959,9 +2031,60 @@ def _materialized_maxsim_batch_chunk(
     headroom = max(1 << 30, free_bytes // 8)
     workspace_budget = max(bytes_per_batch, free_bytes - headroom)
     candidate = min(batch, max(1, workspace_budget // bytes_per_batch))
-    if candidate >= batch:
-        return batch
-    return 1 << (candidate.bit_length() - 1)
+    selected = (
+        batch
+        if candidate >= batch
+        else 1 << (candidate.bit_length() - 1)
+    )
+    if os.environ.get("LOD_KIMI_PROFILE_STATE_MAXSIM") == "1":
+        print(
+            "KIMI_STATE_MAXSIM_BATCH "
+            f"batch={batch} selected={selected} heads={kv_heads} "
+            f"overflow={overflow_len} state={state_len} "
+            f"bytes_per_batch={bytes_per_batch} free={free_bytes} "
+            f"headroom={headroom} budget={workspace_budget}",
+            flush=True,
+        )
+    return selected
+
+
+def _materialized_score_output(
+    buffers: dict[str, torch.Tensor],
+    name: str,
+    left: torch.Tensor,
+    right: torch.Tensor,
+    *,
+    token_capacity: int,
+    state_capacity: int,
+) -> torch.Tensor:
+    """Return one reusable contiguous output view for a batched score GEMM.
+
+    The active centroid count changes after every prefill catch-up.  Letting
+    ``torch.matmul`` allocate that slightly different, nearly-gigabyte result
+    on every update fragments the small amount of VRAM left beside K3's
+    replicated prefill shadow and can force allocator synchronization.  A
+    flat maximum-capacity allocation can be reshaped contiguously for every
+    active geometry without computing padded centroids or changing scores.
+    """
+
+    batch, heads, tokens = (int(left.size(i)) for i in range(3))
+    states = int(right.size(-1))
+    required = batch * heads * tokens * states
+    capacity = batch * heads * int(token_capacity) * int(state_capacity)
+    if required > capacity:
+        raise ValueError("materialized score output exceeds its cache capacity")
+    workspace = buffers.get(name)
+    if (
+        not isinstance(workspace, torch.Tensor)
+        or workspace.numel() < capacity
+        or workspace.dtype != left.dtype
+        or workspace.device != left.device
+    ):
+        workspace = torch.empty(capacity, dtype=left.dtype, device=left.device)
+        buffers[name] = workspace
+    output = workspace[:required].view(batch, heads, tokens, states)
+    torch.matmul(left, right, out=output)
+    return output
 
 
 def streaming_state_maxsim(
@@ -2052,16 +2175,23 @@ def streaming_state_maxsim(
             active_route = prepared_route[..., :state_len, :]
             active_append = prepared_append[..., :state_len, :]
             score_fields = 2 if coherence and not coherence_single_matmul else 1
-            free_bytes, _ = torch.cuda.mem_get_info(overflow_k.device)
-            score_batch_chunk = _materialized_maxsim_batch_chunk(
-                batch=batch,
-                kv_heads=kv_heads,
-                overflow_len=overflow_len,
-                state_len=state_len,
-                element_size=overflow_k.element_size(),
-                score_fields=score_fields,
-                free_bytes=free_bytes,
-            )
+            reusable_score_output = int(overflow_k.size(-1)) > 256
+            if reusable_score_output:
+                # Absorbed MLA leaves are wide and K3 prefill retains a large
+                # exact shadow. Reserve the score field once while startup has
+                # headroom, then reuse it without allocator interaction.
+                score_batch_chunk = batch
+            else:
+                free_bytes, _ = torch.cuda.mem_get_info(overflow_k.device)
+                score_batch_chunk = _materialized_maxsim_batch_chunk(
+                    batch=batch,
+                    kv_heads=kv_heads,
+                    overflow_len=overflow_len,
+                    state_len=state_len,
+                    element_size=overflow_k.element_size(),
+                    score_fields=score_fields,
+                    free_bytes=free_bytes,
+                )
             if score_batch_chunk < batch:
                 for batch_start in range(0, batch, score_batch_chunk):
                     batch_stop = min(batch, batch_start + score_batch_chunk)
@@ -2111,7 +2241,14 @@ def streaming_state_maxsim(
                     select_scores[active],
                 )
             if coherence and coherence_single_matmul:
-                append_scores_dense = torch.matmul(
+                append_scores_dense = _materialized_score_output(
+                    buffers,
+                    "materialized_append_scores",
+                    overflow_k,
+                    active_append.transpose(-1, -2),
+                    token_capacity=int(route_scores.size(2)),
+                    state_capacity=int(prepared_append.size(2)),
+                ) if reusable_score_output else torch.matmul(
                     overflow_k, active_append.transpose(-1, -2)
                 )
                 _scaled_coherence_maxsim_kernel[
@@ -2150,14 +2287,39 @@ def streaming_state_maxsim(
                     select_scores[active],
                 )
             elif coherence:
-                route_scores_dense = torch.matmul(
-                    overflow_k, active_route.transpose(-1, -2)
-                )
-                append_scores_dense = torch.matmul(
-                    overflow_k, active_append.transpose(-1, -2)
-                )
+                if reusable_score_output:
+                    route_scores_dense = _materialized_score_output(
+                        buffers,
+                        "materialized_route_scores",
+                        overflow_k,
+                        active_route.transpose(-1, -2),
+                        token_capacity=int(route_scores.size(2)),
+                        state_capacity=int(prepared_route.size(2)),
+                    )
+                    append_scores_dense = _materialized_score_output(
+                        buffers,
+                        "materialized_append_scores",
+                        overflow_k,
+                        active_append.transpose(-1, -2),
+                        token_capacity=int(route_scores.size(2)),
+                        state_capacity=int(prepared_append.size(2)),
+                    )
+                else:
+                    route_scores_dense = torch.matmul(
+                        overflow_k, active_route.transpose(-1, -2)
+                    )
+                    append_scores_dense = torch.matmul(
+                        overflow_k, active_append.transpose(-1, -2)
+                    )
             else:
-                route_scores_dense = torch.matmul(
+                route_scores_dense = _materialized_score_output(
+                    buffers,
+                    "materialized_route_scores",
+                    overflow_k,
+                    active_route.transpose(-1, -2),
+                    token_capacity=int(route_scores.size(2)),
+                    state_capacity=int(prepared_route.size(2)),
+                ) if reusable_score_output else torch.matmul(
                     overflow_k, active_route.transpose(-1, -2)
                 )
                 append_scores_dense = route_scores_dense
@@ -2717,15 +2879,24 @@ def merge_attention_branches_with_sink(
     batch, query_heads, query_len, head_dim = q.shape
     if query_heads != int(sink_k.size(1)) * kv_group_size:
         raise ValueError("query heads do not match the side sink's GQA grouping")
-    if tuple(sink_v.shape[:3]) != tuple(sink_k.shape[:3]):
-        raise ValueError("side sink K/V shapes differ")
+    if (
+        int(sink_v.size(0)) != int(sink_k.size(0))
+        or int(sink_v.size(2)) != int(sink_k.size(2))
+    ):
+        raise ValueError("side sink K/V batch or token shapes differ")
     if int(sink_k.size(0)) != batch:
         raise ValueError("side sink and query batch sizes differ")
+    sink_value_per_query_head = int(sink_v.size(1)) == query_heads
+    if not sink_value_per_query_head and int(sink_v.size(1)) != int(sink_k.size(1)):
+        raise ValueError(
+            "side-sink values must have either query-head or key/value-head width"
+        )
     if int(sink_k.size(2)) <= 0:
         raise ValueError("the side sink must contain at least one token")
-    if int(sink_k.size(-1)) != head_dim or int(sink_v.size(-1)) != head_dim:
-        raise ValueError("fused sink reduction requires equal Q/K/V head sizes")
-    expected_output_shape = tuple(q.shape)
+    value_dim = int(sink_v.size(-1))
+    if int(sink_k.size(-1)) != head_dim:
+        raise ValueError("side-sink key dimension differs from the query")
+    expected_output_shape = (*q.shape[:-1], value_dim)
     expected_lse_shape = tuple(q.shape[:-1])
     branches = (
         (primary_out, primary_lse, "primary"),
@@ -2763,7 +2934,11 @@ def merge_attention_branches_with_sink(
     tertiary_lse = primary_lse if tertiary_lse is None else tertiary_lse
     include_secondary = branches[1][0] is not None
     include_tertiary = branches[2][0] is not None
-    output = torch.empty_like(q) if output_buffer is None else output_buffer
+    output = (
+        torch.empty(expected_output_shape, dtype=q.dtype, device=q.device)
+        if output_buffer is None
+        else output_buffer
+    )
     if (
         tuple(output.shape) != expected_output_shape
         or output.dtype != q.dtype
@@ -2817,8 +2992,11 @@ def merge_attention_branches_with_sink(
         QUERY_LEN=query_len,
         QUERY_HEADS=query_heads,
         KV_GROUP_SIZE=kv_group_size,
+        SINK_VALUE_PER_QUERY_HEAD=sink_value_per_query_head,
         HEAD_DIM=head_dim,
-        BLOCK_DIM=triton.next_power_of_2(head_dim),
+        VALUE_DIM=value_dim,
+        HEAD_BLOCK_DIM=triton.next_power_of_2(head_dim),
+        VALUE_BLOCK_DIM=triton.next_power_of_2(value_dim),
         SINK_LEN=int(sink_k.size(2)),
         INCLUDE_SECONDARY=include_secondary,
         INCLUDE_TERTIARY=include_tertiary,

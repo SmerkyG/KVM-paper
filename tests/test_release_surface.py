@@ -8,6 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC_ENV = {
+    "VLLM_LOD_ENABLED",
     "VLLM_LOD_MODE",
     "VLLM_LOD_POOL_SIZE",
     "VLLM_LOD_MAX_CONTEXT",
@@ -46,12 +47,19 @@ def test_no_research_tuning_environment_surface() -> None:
     assert names == PUBLIC_ENV
 
 
-def test_removed_model_and_weight_cache_adapters_stay_removed() -> None:
+def test_removed_model_adapters_stay_removed() -> None:
     plugin = ROOT / "integrations" / "vllm_lod" / "vllm_lod_plugin"
     assert not (plugin / "muse_glimmer.py").exists()
-    assert not (plugin / "weight_cache_daemon.py").exists()
-    assert not (plugin / "weight_cache_loader.py").exists()
-    assert not (plugin / "weight_cache_protocol.py").exists()
+
+
+def test_weight_cache_release_surface_is_complete() -> None:
+    plugin = ROOT / "integrations" / "vllm_lod" / "vllm_lod_plugin"
+    for name in (
+        "weight_cache_daemon.py",
+        "weight_cache_loader.py",
+        "weight_cache_protocol.py",
+    ):
+        assert (plugin / name).is_file()
 
 
 def test_experimental_kernel_families_stay_removed() -> None:
@@ -142,19 +150,34 @@ def test_aiter_route_workspace_is_tight_for_k2_and_safe_for_qwen() -> None:
         / "patches"
         / "aiter-mha-prefill-route8.patch"
     ).read_text()
-    assert "head_size_q == 128 ? 128 : 64" in patch
+    assert "(head_size_q == 128 || head_size_q == 192) ? 128 : 64" in patch
+    assert "release D=128 and Kimi MLA" in patch
     assert "D=256 can dispatch either a 64- or 128-key CK tile" in patch
-    assert "kQKHeaddim == 128 ? index_t{128} : index_t{64}" in patch
+    assert "(kQKHeaddim == 128 || kQKHeaddim == 192)" in patch
     assert "variant_params.route_seqlen_k, route_storage_tile" in patch
     assert "elif receipt in (100, 101)" in patch
     assert 'receipt == 101 and dtype == "bf16"' in patch
     assert "coarse_score + (query_rms - 1.0f) * bias_value" in patch
+    # The route-only kernel shares the query tensor with the concurrent coarse
+    # pass as its ABI-required output argument.  It must never run the normal
+    # output epilogue, or the two streams race and routing becomes nondeterministic.
+    assert patch.count("if(!kargs.route_only)") >= 2
+    assert patch.count(
+        "EpiloguePipeline{}(o_dram_window, o_acc_tile, nullptr);"
+    ) >= 4
 
     source = (
         ROOT / "lod_attention" / "kernels" / "aiter_prefill_attention.py"
     ).read_text()
     assert 'replace("--receipt 100", "--receipt 101")' in source
     assert 'revision = "_d128w8_mulnorm_v1"' in source
+    assert '"_tile128v2_noepilogue" if head_dim == 192' in source
+
+    kimi_source = (
+        ROOT / "lod_attention" / "kernels" / "aiter_mla_prefill_attention.py"
+    ).read_text()
+    assert "fused_route_coarse = True" in kimi_source
+    assert "LOD_KIMI_FUSED_ROUTE_COARSE" not in kimi_source
 
 
 def test_aiter_state_preparation_pads_non_power_of_two_gqa() -> None:
@@ -199,3 +222,8 @@ def test_cross_layer_prefill_supports_every_release_cache_mode() -> None:
         1
     ].split("def _catch_up_decode_rows", 1)[0]
     assert '"overflow_safe_until"' not in cached_builder
+    assert "cross-layer cached construction requires B=1" not in cached_builder
+    assert "row_begin = group_row * row_count" in cached_builder
+    assert "state_k=packed_k[row_begin:row_end]" in cached_builder
+    assert "allow_cross_layer_cached=len(groups) == 1" in pool
+    assert "self._batched_dcp_shadow(slots)" in pool

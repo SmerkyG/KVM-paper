@@ -609,6 +609,7 @@ def _decode_route_coarse_gqa_groups_kernel(
     KV_HEADS: tl.constexpr,
     KV_GROUP_SIZE: tl.constexpr,
     HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
     SCALE: tl.constexpr,
     GROUP_N: tl.constexpr,
     MAX_GROUPS: tl.constexpr,
@@ -680,22 +681,42 @@ def _decode_route_coarse_gqa_groups_kernel(
     query_row = batch * QUERY_HEADS + query_head
     slot = group * GROUP_N + tl.arange(0, GROUP_N)
     valid = slot < active_state_len
-    dim = tl.arange(0, HEAD_DIM)
+    # The generic vector below serves ordinary power-of-two heads and the
+    # small baseline-copy path. Absorbed MLA QK scoring is split into its
+    # natural latent/direct power-of-two pieces below, without padded lanes.
+    dim = tl.arange(0, triton.next_power_of_2(HEAD_DIM))
+    dim_valid = dim < HEAD_DIM
+    value_dim = tl.arange(0, triton.next_power_of_2(VALUE_DIM))
+    value_valid = value_dim < VALUE_DIM
     if PREPARE_BASELINE and group == 0:
         tl.store(
             baseline_context_lens + batch_kv,
             active_local_extent + BASELINE_SINK_LEN + active_state_len,
         )
         if INCLUDE_NEW:
-            current_key = tl.load(new_k + (batch * KV_HEADS + kv_head) * HEAD_DIM + dim)
+            current_key = tl.load(
+                new_k + (batch * KV_HEADS + kv_head) * HEAD_DIM + dim,
+                mask=dim_valid,
+                other=0.0,
+            )
             current_value = tl.load(
-                new_v + (batch * KV_HEADS + kv_head) * HEAD_DIM + dim
+                new_v + (batch * KV_HEADS + kv_head) * VALUE_DIM + value_dim,
+                mask=value_valid,
+                other=0.0,
             )
             local_storage = (
                 cache_batch * KV_HEADS + kv_head
             ) * LOCAL_CAPACITY + active_local_len
-            tl.store(local_k + local_storage * HEAD_DIM + dim, current_key)
-            tl.store(local_v + local_storage * HEAD_DIM + dim, current_value)
+            tl.store(
+                local_k + local_storage * HEAD_DIM + dim,
+                current_key,
+                mask=dim_valid,
+            )
+            tl.store(
+                local_v + local_storage * VALUE_DIM + value_dim,
+                current_value,
+                mask=value_valid,
+            )
     if group * GROUP_N >= active_state_len and group * GROUP_N >= active_local_extent:
         rank = tl.arange(0, CANDIDATES_PER_GROUP)
         candidate_base = (query_row * MAX_GROUPS + group) * CANDIDATES_PER_GROUP
@@ -726,17 +747,14 @@ def _decode_route_coarse_gqa_groups_kernel(
         if not SCORE_ONLY:
             group_row = query_row * MAX_GROUPS + group
             tl.store(
-                group_out + group_row[:, None] * HEAD_DIM + dim[None, :],
+                group_out
+                + group_row[:, None] * VALUE_DIM
+                + value_dim[None, :],
                 0.0,
-                mask=query_valid[:, None],
+                mask=query_valid[:, None] & value_valid[None, :],
             )
             tl.store(group_lse + group_row, -float("inf"), mask=query_valid)
         return
-    queries = tl.load(
-        q + query_row[:, None] * HEAD_DIM + dim[None, :],
-        mask=query_valid[:, None],
-        other=0.0,
-    ).to(tl.bfloat16)
     count = tl.load(
         counts
         + cache_batch * COUNT_BATCH_STRIDE
@@ -747,20 +765,75 @@ def _decode_route_coarse_gqa_groups_kernel(
     ).to(tl.float32)
     valid &= count > 0.0
     count = tl.where(valid, count, 1.0)
-    keys = tl.load(
-        state_k
-        + cache_batch * STATE_BATCH_STRIDE
-        + kv_head * STATE_HEAD_STRIDE
-        + slot[:, None] * STATE_TOKEN_STRIDE
-        + dim[None, :],
-        mask=valid[:, None],
-        other=0.0,
-    )
-    if KEYS_ARE_MEANS:
-        mean_keys = keys
+    if HEAD_DIM == triton.next_power_of_2(HEAD_DIM):
+        queries = tl.load(
+            q + query_row[:, None] * HEAD_DIM + dim[None, :],
+            mask=query_valid[:, None],
+            other=0.0,
+        ).to(tl.bfloat16)
+        keys = tl.load(
+            state_k
+            + cache_batch * STATE_BATCH_STRIDE
+            + kv_head * STATE_HEAD_STRIDE
+            + slot[:, None] * STATE_TOKEN_STRIDE
+            + dim[None, :],
+            mask=valid[:, None],
+            other=0.0,
+        )
+        if KEYS_ARE_MEANS:
+            mean_keys = keys
+        else:
+            mean_keys = (keys.to(tl.float32) / count[:, None]).to(keys.dtype)
+        scores = tl.dot(queries, tl.trans(mean_keys), out_dtype=tl.float32)
     else:
-        mean_keys = (keys.to(tl.float32) / count[:, None]).to(keys.dtype)
-    scores = tl.dot(queries, tl.trans(mean_keys), out_dtype=tl.float32)
+        # Absorbed MLA is exactly a latent block plus a direct-key block:
+        # 512+64 for full K3 and 128+64 for K3-for-All. Keep both MFMA
+        # products unmasked instead of padding to 1024 or looping over 64s.
+        main_d: tl.constexpr = triton.next_power_of_2(HEAD_DIM) // 2
+        tail_d: tl.constexpr = HEAD_DIM - main_d
+        main_dim = tl.arange(0, main_d)
+        tail_dim = main_d + tl.arange(0, tail_d)
+        queries_main = tl.load(
+            q + query_row[:, None] * HEAD_DIM + main_dim[None, :],
+            mask=query_valid[:, None],
+            other=0.0,
+        ).to(tl.bfloat16)
+        queries_tail = tl.load(
+            q + query_row[:, None] * HEAD_DIM + tail_dim[None, :],
+            mask=query_valid[:, None],
+            other=0.0,
+        ).to(tl.bfloat16)
+        keys_main = tl.load(
+            state_k
+            + cache_batch * STATE_BATCH_STRIDE
+            + kv_head * STATE_HEAD_STRIDE
+            + slot[:, None] * STATE_TOKEN_STRIDE
+            + main_dim[None, :],
+            mask=valid[:, None],
+            other=0.0,
+        )
+        keys_tail = tl.load(
+            state_k
+            + cache_batch * STATE_BATCH_STRIDE
+            + kv_head * STATE_HEAD_STRIDE
+            + slot[:, None] * STATE_TOKEN_STRIDE
+            + tail_dim[None, :],
+            mask=valid[:, None],
+            other=0.0,
+        )
+        if not KEYS_ARE_MEANS:
+            keys_main = (keys_main.to(tl.float32) / count[:, None]).to(
+                keys_main.dtype
+            )
+            keys_tail = (keys_tail.to(tl.float32) / count[:, None]).to(
+                keys_tail.dtype
+            )
+        scores = tl.dot(
+            queries_main, tl.trans(keys_main), out_dtype=tl.float32
+        )
+        scores += tl.dot(
+            queries_tail, tl.trans(keys_tail), out_dtype=tl.float32
+        )
     scores *= SCALE
     if USE_LOG_COUNT_BIAS:
         count_bias = tl.load(
@@ -821,8 +894,8 @@ def _decode_route_coarse_gqa_groups_kernel(
             + cache_batch * STATE_V_BATCH_STRIDE
             + kv_head * STATE_V_HEAD_STRIDE
             + slot[:, None] * STATE_V_TOKEN_STRIDE
-            + dim[None, :],
-            mask=valid[:, None],
+            + value_dim[None, :],
+            mask=valid[:, None] & value_valid[None, :],
             other=0.0,
         )
         mean_values = (values.to(tl.float32) / count[:, None]).to(values.dtype)
@@ -847,20 +920,28 @@ def _decode_route_coarse_gqa_groups_kernel(
                 ) * LOCAL_CAPACITY + local_token
                 local_keys = tl.load(
                     local_k + local_storage[:, None] * HEAD_DIM + dim[None, :],
-                    mask=cached_local[:, None],
+                    mask=cached_local[:, None] & dim_valid[None, :],
                     other=0.0,
                 )
                 local_values = tl.load(
-                    local_v + local_storage[:, None] * HEAD_DIM + dim[None, :],
-                    mask=cached_local[:, None],
+                    local_v
+                    + local_storage[:, None] * VALUE_DIM
+                    + value_dim[None, :],
+                    mask=cached_local[:, None] & value_valid[None, :],
                     other=0.0,
                 )
                 if INCLUDE_NEW:
                     current_key = tl.load(
-                        new_k + (batch * KV_HEADS + kv_head) * HEAD_DIM + dim
+                        new_k + (batch * KV_HEADS + kv_head) * HEAD_DIM + dim,
+                        mask=dim_valid,
+                        other=0.0,
                     )
                     current_value = tl.load(
-                        new_v + (batch * KV_HEADS + kv_head) * HEAD_DIM + dim
+                        new_v
+                        + (batch * KV_HEADS + kv_head) * VALUE_DIM
+                        + value_dim,
+                        mask=value_valid,
+                        other=0.0,
                     )
                     local_keys = tl.where(
                         current_local[:, None], current_key[None, :], local_keys
@@ -871,21 +952,68 @@ def _decode_route_coarse_gqa_groups_kernel(
                     tl.store(
                         local_k + local_storage[:, None] * HEAD_DIM + dim[None, :],
                         current_key[None, :],
-                        mask=current_local[:, None],
+                        mask=current_local[:, None] & dim_valid[None, :],
                     )
                     tl.store(
-                        local_v + local_storage[:, None] * HEAD_DIM + dim[None, :],
+                        local_v
+                        + local_storage[:, None] * VALUE_DIM
+                        + value_dim[None, :],
                         current_value[None, :],
-                        mask=current_local[:, None],
+                        mask=current_local[:, None] & value_valid[None, :],
                     )
-                local_scores = (
-                    tl.dot(
+                if HEAD_DIM == triton.next_power_of_2(HEAD_DIM):
+                    local_scores = tl.dot(
                         queries,
                         tl.trans(local_keys),
                         out_dtype=tl.float32,
                     )
-                    * SCALE
-                )
+                else:
+                    local_keys_main = tl.load(
+                        local_k
+                        + local_storage[:, None] * HEAD_DIM
+                        + main_dim[None, :],
+                        mask=cached_local[:, None],
+                        other=0.0,
+                    )
+                    local_keys_tail = tl.load(
+                        local_k
+                        + local_storage[:, None] * HEAD_DIM
+                        + tail_dim[None, :],
+                        mask=cached_local[:, None],
+                        other=0.0,
+                    )
+                    if INCLUDE_NEW:
+                        current_key_main = tl.load(
+                            new_k
+                            + (batch * KV_HEADS + kv_head) * HEAD_DIM
+                            + main_dim
+                        )
+                        current_key_tail = tl.load(
+                            new_k
+                            + (batch * KV_HEADS + kv_head) * HEAD_DIM
+                            + tail_dim
+                        )
+                        local_keys_main = tl.where(
+                            current_local[:, None],
+                            current_key_main[None, :],
+                            local_keys_main,
+                        )
+                        local_keys_tail = tl.where(
+                            current_local[:, None],
+                            current_key_tail[None, :],
+                            local_keys_tail,
+                        )
+                    local_scores = tl.dot(
+                        queries_main,
+                        tl.trans(local_keys_main),
+                        out_dtype=tl.float32,
+                    )
+                    local_scores += tl.dot(
+                        queries_tail,
+                        tl.trans(local_keys_tail),
+                        out_dtype=tl.float32,
+                    )
+                local_scores *= SCALE
                 local_scores = tl.where(
                     query_valid[:, None] & valid_local[None, :],
                     local_scores,
@@ -928,13 +1056,13 @@ def _decode_route_coarse_gqa_groups_kernel(
                 )
         group_row = query_row * MAX_GROUPS + group
         tl.store(
-            group_out + group_row[:, None] * HEAD_DIM + dim[None, :],
+            group_out + group_row[:, None] * VALUE_DIM + value_dim[None, :],
             tl.where(
                 denominator[:, None] > 0.0,
                 weighted_values / denominator[:, None],
                 0.0,
             ),
-            mask=query_valid[:, None],
+            mask=query_valid[:, None] & value_valid[None, :],
         )
         tl.store(
             group_lse + group_row,
@@ -1592,7 +1720,7 @@ def _reduce_decode_route_coarse_kernel(
     QUERY_HEADS: tl.constexpr,
     KV_HEADS: tl.constexpr,
     KV_GROUP_SIZE: tl.constexpr,
-    HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
     STATE_CAPACITY: tl.constexpr,
     ROUTE_COUNT: tl.constexpr,
     OPEN_COUNT: tl.constexpr,
@@ -1661,14 +1789,19 @@ def _reduce_decode_route_coarse_kernel(
     )
     tl.store(top_scores + query_row * ROUTE_COUNT + rank, best_scores)
 
-    dim = tl.arange(0, HEAD_DIM)
+    dim = tl.arange(0, triton.next_power_of_2(VALUE_DIM))
+    dim_valid = dim < VALUE_DIM
     maximum = tl.full((), -float("inf"), tl.float32)
     denominator = tl.zeros((), tl.float32)
-    accumulator = tl.zeros((HEAD_DIM,), tl.float32)
+    accumulator = tl.zeros((triton.next_power_of_2(VALUE_DIM),), tl.float32)
     for group in tl.range(0, active_groups):
         row = query_row * MAX_GROUPS + group
         current_lse = tl.load(group_lse + row)
-        current_out = tl.load(group_out + row * HEAD_DIM + dim)
+        current_out = tl.load(
+            group_out + row * VALUE_DIM + dim,
+            mask=dim_valid,
+            other=0.0,
+        )
         new_maximum = tl.maximum(maximum, current_lse)
         old_weight = tl.exp(maximum - new_maximum)
         current_weight = tl.exp(current_lse - new_maximum)
@@ -1676,7 +1809,11 @@ def _reduce_decode_route_coarse_kernel(
         accumulator = accumulator * old_weight + current_out * current_weight
         maximum = new_maximum
     full_lse = maximum + tl.log(denominator)
-    tl.store(coarse_out + query_row * HEAD_DIM + dim, accumulator / denominator)
+    tl.store(
+        coarse_out + query_row * VALUE_DIM + dim,
+        accumulator / denominator,
+        mask=dim_valid,
+    )
     tl.store(
         coarse_lse + query_row,
         full_lse,

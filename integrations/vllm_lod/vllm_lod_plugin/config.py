@@ -8,10 +8,18 @@ from dataclasses import dataclass, replace
 from lod_attention._config import LODMode, ModelFamily, PREFILL_CHUNK_SIZE
 
 _PUBLIC_ENV = {
+    "VLLM_LOD_ENABLED",
     "VLLM_LOD_MODE",
     "VLLM_LOD_POOL_SIZE",
     "VLLM_LOD_MAX_CONTEXT",
 }
+
+
+def lod_enabled() -> bool:
+    raw = os.getenv("VLLM_LOD_ENABLED", "1")
+    if raw not in ("0", "1"):
+        raise ValueError("VLLM_LOD_ENABLED must be '0' or '1'")
+    return raw == "1"
 _REMOVED_ENV = {
     "LOD_DECODE_TOP8",
     "LOD_QWEN_EXPERIMENT",
@@ -128,7 +136,12 @@ class VLLMLODSettings:
 
     @property
     def decode_gqa_fixed_mask_aiter(self) -> bool:
-        return self._is_qwen38() and self.levels == 2
+        if self.family is None:
+            raise RuntimeError("LoD model family has not been resolved")
+        return (
+            self.family in (ModelFamily.QWEN38, ModelFamily.KIMI_K3)
+            and self.levels == 2
+        )
 
     @property
     def decode_gqa_fixed_mask_segments(self) -> int:
@@ -157,13 +170,18 @@ class VLLMLODSettings:
         )
 
     def for_family(self, family: ModelFamily) -> VLLMLODSettings:
-        if family not in (ModelFamily.QWEN38, ModelFamily.K2):
+        if family not in (
+            ModelFamily.QWEN38,
+            ModelFamily.K2,
+            ModelFamily.KIMI_K3,
+        ):
             raise ValueError(f"unsupported LoD model family: {family}")
         return replace(self, family=family)
 
     @classmethod
     def from_environment(cls) -> VLLMLODSettings:
         _reject_removed_options()
+        lod_enabled()
         raw_capacity = os.getenv("VLLM_LOD_MAX_CONTEXT", "0")
         try:
             capacity = int(raw_capacity)
@@ -181,4 +199,9 @@ class VLLMLODSettings:
         )
 
 
-__all__ = ["LOD_SCHEDULER", "VLLMLODSettings", "validate_production_scheduler"]
+__all__ = [
+    "LOD_SCHEDULER",
+    "VLLMLODSettings",
+    "lod_enabled",
+    "validate_production_scheduler",
+]

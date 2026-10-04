@@ -29,6 +29,9 @@ test = ["pytest>=8.3"]
 [project.entry-points."vllm.general_plugins"]
 lod_attention = "vllm_lod_plugin.plugin:register"
 
+[project.scripts]
+vllm-weight-cache = "vllm_lod_plugin.weight_cache_daemon:main"
+
 [tool.hatch.build.targets.wheel]
 packages = [
   "benchmarks",

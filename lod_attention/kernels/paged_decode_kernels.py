@@ -275,6 +275,8 @@ def _split_decode_paged_lod_attention_kernel(
     LOCAL_V_BATCH_STRIDE,
     LOCAL_V_HEAD_STRIDE,
     LOCAL_V_TOKEN_STRIDE,
+    PAGE_K_TOKEN_STRIDE,
+    PAGE_V_TOKEN_STRIDE,
     TOP_BATCH_STRIDE,
     TOP_HEAD_STRIDE,
     NEW_K_BATCH_STRIDE,
@@ -320,12 +322,40 @@ def _split_decode_paged_lod_attention_kernel(
     kv_head = query_head // KV_GROUP_SIZE
     kv_row = cache_batch * KV_HEADS + kv_head
 
-    dim = tl.arange(0, HEAD_DIM)
+    # Absorbed MLA heads are a power-of-two latent plus a smaller direct-key
+    # block (Kimi K3 is 512+64; K3-for-All is 128+64).  Padding the combined
+    # head to the next power of two makes full K3 look 1024-wide, roughly
+    # doubling every exact-leaf/local QK load and producing a very large
+    # decode specialization.  Keep the two natural blocks separate, as the
+    # source AITER MLA kernels do.
+    split_mla: tl.constexpr = HEAD_DIM != triton.next_power_of_2(HEAD_DIM)
+    if split_mla:
+        main_dim_size: tl.constexpr = triton.next_power_of_2(HEAD_DIM) // 2
+        tail_dim_size: tl.constexpr = HEAD_DIM - main_dim_size
+        dim = tl.arange(0, main_dim_size)
+        dim_valid = tl.full((main_dim_size,), True, tl.int1)
+        tail_dim = main_dim_size + tl.arange(0, tail_dim_size)
+        tail_valid = tl.full((tail_dim_size,), True, tl.int1)
+    else:
+        dim = tl.arange(0, HEAD_DIM)
+        dim_valid = tl.full((HEAD_DIM,), True, tl.int1)
+    value_dim = tl.arange(0, triton.next_power_of_2(VALUE_DIM))
+    value_valid = value_dim < VALUE_DIM
     token_offset = tl.arange(0, BLOCK_N)
-    query = tl.load(q + query_row * HEAD_DIM + dim)
+    query = tl.load(
+        q + query_row * HEAD_DIM + dim,
+        mask=dim_valid,
+        other=0.0,
+    )
+    if split_mla:
+        query_tail = tl.load(
+            q + query_row * HEAD_DIM + tail_dim,
+            mask=tail_valid,
+            other=0.0,
+        )
     maximum = tl.full((), -float("inf"), tl.float32)
     denominator = tl.zeros((), tl.float32)
-    accumulator = tl.zeros((VALUE_DIM,), tl.float32)
+    accumulator = tl.zeros((triton.next_power_of_2(VALUE_DIM),), tl.float32)
 
     # Interleave state tiles across splits so their work stays balanced even
     # when the final state tile is partial.
@@ -358,27 +388,53 @@ def _split_decode_paged_lod_attention_kernel(
             + kv_head * STATE_HEAD_STRIDE
             + slot[:, None] * STATE_TOKEN_STRIDE
             + dim[None, :],
-            mask=valid[:, None],
+            mask=valid[:, None] & dim_valid[None, :],
             other=0.0,
         )
+        if split_mla:
+            keys_tail = tl.load(
+                state_k
+                + cache_batch * STATE_BATCH_STRIDE
+                + kv_head * STATE_HEAD_STRIDE
+                + slot[:, None] * STATE_TOKEN_STRIDE
+                + tail_dim[None, :],
+                mask=valid[:, None] & tail_valid[None, :],
+                other=0.0,
+            )
         values = tl.load(
             state_v
             + cache_batch * STATE_V_BATCH_STRIDE
             + kv_head * STATE_V_HEAD_STRIDE
             + slot[:, None] * STATE_V_TOKEN_STRIDE
-            + dim[None, :],
-            mask=valid[:, None],
+            + value_dim[None, :],
+            mask=valid[:, None] & value_valid[None, :],
             other=0.0,
         )
         mean_keys = (keys.to(tl.float32) / count[:, None]).to(keys.dtype)
+        if split_mla:
+            mean_keys_tail = (
+                keys_tail.to(tl.float32) / count[:, None]
+            ).to(keys_tail.dtype)
         mean_values = (values.to(tl.float32) / count[:, None]).to(values.dtype)
         if USE_DOT:
             scores = tl.dot(query[None, :], tl.trans(mean_keys), out_dtype=tl.float32)
+            if split_mla:
+                scores += tl.dot(
+                    query_tail[None, :],
+                    tl.trans(mean_keys_tail),
+                    out_dtype=tl.float32,
+                )
             scores = tl.reshape(scores, (BLOCK_N,))
         else:
             scores = tl.sum(
                 mean_keys.to(tl.float32) * query[None, :].to(tl.float32), axis=1
             )
+            if split_mla:
+                scores += tl.sum(
+                    mean_keys_tail.to(tl.float32)
+                    * query_tail[None, :].to(tl.float32),
+                    axis=1,
+                )
         scores *= SCALE_LOG2
         scores += tl.math.log2(count)
         maximum, denominator, accumulator = _online_softmax_update(
@@ -467,13 +523,25 @@ def _split_decode_paged_lod_attention_kernel(
                 valid = page_valid
                 storage_token = physical_token
             keys = tl.load(
-                page_k + storage_token[:, None] * HEAD_DIM + dim[None, :],
-                mask=valid[:, None],
+                page_k
+                + storage_token[:, None] * PAGE_K_TOKEN_STRIDE
+                + dim[None, :],
+                mask=valid[:, None] & dim_valid[None, :],
                 other=0.0,
             )
+            if split_mla:
+                keys_tail = tl.load(
+                    page_k
+                    + storage_token[:, None] * PAGE_K_TOKEN_STRIDE
+                    + tail_dim[None, :],
+                    mask=valid[:, None] & tail_valid[None, :],
+                    other=0.0,
+                )
             values = tl.load(
-                page_v + storage_token[:, None] * VALUE_DIM + dim[None, :],
-                mask=valid[:, None],
+                page_v
+                + storage_token[:, None] * PAGE_V_TOKEN_STRIDE
+                + value_dim[None, :],
+                mask=valid[:, None] & value_valid[None, :],
                 other=0.0,
             )
             if INT8_STORAGE:
@@ -484,14 +552,28 @@ def _split_decode_paged_lod_attention_kernel(
                     page_v_scales + storage_token, mask=valid, other=0.0
                 ).to(tl.float32)
                 keys = keys.to(tl.float32) * key_scale[:, None]
+                if split_mla:
+                    keys_tail = keys_tail.to(tl.float32) * key_scale[:, None]
                 values = values.to(tl.float32) * value_scale[:, None]
             if USE_DOT:
                 scores = tl.dot(query[None, :], tl.trans(keys), out_dtype=tl.float32)
+                if split_mla:
+                    scores += tl.dot(
+                        query_tail[None, :],
+                        tl.trans(keys_tail),
+                        out_dtype=tl.float32,
+                    )
                 scores = tl.reshape(scores, (BLOCK_N,))
             else:
                 scores = tl.sum(
                     keys.to(tl.float32) * query[None, :].to(tl.float32), axis=1
                 )
+                if split_mla:
+                    scores += tl.sum(
+                        keys_tail.to(tl.float32)
+                        * query_tail[None, :].to(tl.float32),
+                        axis=1,
+                    )
             scores *= SCALE_LOG2
             maximum, denominator, accumulator = _online_softmax_update(
                 scores,
@@ -515,25 +597,47 @@ def _split_decode_paged_lod_attention_kernel(
                 + kv_head * LOCAL_K_HEAD_STRIDE
                 + token[:, None] * LOCAL_K_TOKEN_STRIDE
                 + dim[None, :],
-                mask=valid[:, None],
+                mask=valid[:, None] & dim_valid[None, :],
                 other=0.0,
             )
+            if split_mla:
+                keys_tail = tl.load(
+                    local_k
+                    + cache_batch * LOCAL_K_BATCH_STRIDE
+                    + kv_head * LOCAL_K_HEAD_STRIDE
+                    + token[:, None] * LOCAL_K_TOKEN_STRIDE
+                    + tail_dim[None, :],
+                    mask=valid[:, None] & tail_valid[None, :],
+                    other=0.0,
+                )
             values = tl.load(
                 local_v
                 + cache_batch * LOCAL_V_BATCH_STRIDE
                 + kv_head * LOCAL_V_HEAD_STRIDE
                 + token[:, None] * LOCAL_V_TOKEN_STRIDE
-                + dim[None, :],
-                mask=valid[:, None],
+                + value_dim[None, :],
+                mask=valid[:, None] & value_valid[None, :],
                 other=0.0,
             )
             if USE_DOT:
                 scores = tl.dot(query[None, :], tl.trans(keys), out_dtype=tl.float32)
+                if split_mla:
+                    scores += tl.dot(
+                        query_tail[None, :],
+                        tl.trans(keys_tail),
+                        out_dtype=tl.float32,
+                    )
                 scores = tl.reshape(scores, (BLOCK_N,))
             else:
                 scores = tl.sum(
                     keys.to(tl.float32) * query[None, :].to(tl.float32), axis=1
                 )
+                if split_mla:
+                    scores += tl.sum(
+                        keys_tail.to(tl.float32)
+                        * query_tail[None, :].to(tl.float32),
+                        axis=1,
+                    )
             scores *= SCALE_LOG2
             maximum, denominator, accumulator = _online_softmax_update(
                 scores,
@@ -549,14 +653,35 @@ def _split_decode_paged_lod_attention_kernel(
     # it once.  That same split persists the KV into the bounded local cache.
     if INCLUDE_NEW and not SEPARATE_LOCAL:
         current_key = tl.load(
-            new_k + batch * NEW_K_BATCH_STRIDE + kv_head * NEW_K_HEAD_STRIDE + dim
+            new_k + batch * NEW_K_BATCH_STRIDE + kv_head * NEW_K_HEAD_STRIDE + dim,
+            mask=dim_valid,
+            other=0.0,
         )
+        if split_mla:
+            current_key_tail = tl.load(
+                new_k
+                + batch * NEW_K_BATCH_STRIDE
+                + kv_head * NEW_K_HEAD_STRIDE
+                + tail_dim,
+                mask=tail_valid,
+                other=0.0,
+            )
         current_value = tl.load(
-            new_v + batch * NEW_V_BATCH_STRIDE + kv_head * NEW_V_HEAD_STRIDE + dim
+            new_v
+            + batch * NEW_V_BATCH_STRIDE
+            + kv_head * NEW_V_HEAD_STRIDE
+            + value_dim,
+            mask=value_valid,
+            other=0.0,
         )
         current_score = SCALE_LOG2 * tl.sum(
             current_key.to(tl.float32) * query.to(tl.float32), axis=0
         )
+        if split_mla:
+            current_score += SCALE_LOG2 * tl.sum(
+                current_key_tail.to(tl.float32) * query_tail.to(tl.float32),
+                axis=0,
+            )
         current_score = tl.where(split == 0, current_score, -float("inf"))
         new_maximum = tl.maximum(maximum, current_score)
         correction = tl.math.exp2(maximum - new_maximum)
@@ -575,21 +700,34 @@ def _split_decode_paged_lod_attention_kernel(
                     + active_local_len * LOCAL_K_TOKEN_STRIDE
                     + dim,
                     current_key,
+                    mask=dim_valid,
                 )
+                if split_mla:
+                    tl.store(
+                        local_k
+                        + cache_batch * LOCAL_K_BATCH_STRIDE
+                        + kv_head * LOCAL_K_HEAD_STRIDE
+                        + active_local_len * LOCAL_K_TOKEN_STRIDE
+                        + tail_dim,
+                        current_key_tail,
+                        mask=tail_valid,
+                    )
                 tl.store(
                     local_v
                     + cache_batch * LOCAL_V_BATCH_STRIDE
                     + kv_head * LOCAL_V_HEAD_STRIDE
                     + active_local_len * LOCAL_V_TOKEN_STRIDE
-                    + dim,
+                    + value_dim,
                     current_value,
+                    mask=value_valid,
                 )
 
     partial_row = query_row * SPLITS + split
     has_mass = denominator > 0.0
     tl.store(
-        partial_out + partial_row * VALUE_DIM + dim,
+        partial_out + partial_row * VALUE_DIM + value_dim,
         tl.where(has_mass, accumulator / denominator, 0.0),
+        mask=value_valid,
     )
     tl.store(
         partial_lse + partial_row,
@@ -604,11 +742,15 @@ def _split_decode_paged_lod_attention_kernel(
         finished = tl.atomic_add(completion + query_row, 1, sem="acq_rel").to(tl.int32)
         if finished == SPLITS - 1:
             full_coarse_lse = tl.load(coarse_lse + query_row)
-            remainder_out = tl.load(coarse_out + query_row * HEAD_DIM + dim).to(
-                tl.float32
-            )
+            remainder_out = tl.load(
+                coarse_out + query_row * VALUE_DIM + value_dim,
+                mask=value_valid,
+                other=0.0,
+            ).to(tl.float32)
             selected_mass = tl.zeros((), tl.float32)
-            selected_value = tl.zeros((HEAD_DIM,), tl.float32)
+            selected_value = tl.zeros(
+                (triton.next_power_of_2(VALUE_DIM),), tl.float32
+            )
             for route in tl.static_range(0, ROUTE_COUNT):
                 slot = tl.load(
                     top_slots
@@ -630,7 +772,9 @@ def _split_decode_paged_lod_attention_kernel(
                         + cache_batch * STATE_V_BATCH_STRIDE
                         + kv_head * STATE_V_HEAD_STRIDE
                         + slot * STATE_V_TOKEN_STRIDE
-                        + dim
+                        + value_dim,
+                        mask=value_valid,
+                        other=0.0,
                     ).to(tl.float32)
                     / count
                 )
@@ -655,12 +799,17 @@ def _split_decode_paged_lod_attention_kernel(
                     - merge_maximum
                 )
                 split_value = tl.load(
-                    partial_out + (query_row * SPLITS + merge_split) * HEAD_DIM + dim
+                    partial_out
+                    + (query_row * SPLITS + merge_split) * VALUE_DIM
+                    + value_dim,
+                    mask=value_valid,
+                    other=0.0,
                 )
                 merge_accumulator += split_weight * split_value
             tl.store(
-                output + query_row * HEAD_DIM + dim,
+                output + query_row * VALUE_DIM + value_dim,
                 merge_accumulator / merge_denominator,
+                mask=value_valid,
             )
             tl.atomic_xchg(completion + query_row, 0, sem="release")
 
@@ -867,6 +1016,108 @@ def materialize_page1_coarse_means(
         counts,
         coarse_k,
         coarse_v,
+        coarse_bias,
+        active_state_len,
+        STATE_CAPACITY=state_capacity,
+        HEAD_DIM=head_dim,
+        BLOCK_N=block_n,
+        num_warps=4,
+    )
+
+
+@triton.jit
+def _materialize_absorbed_mla_coarse_means_kernel(
+    state_k,
+    counts,
+    coarse_k,
+    coarse_bias,
+    active_state_len,
+    STATE_CAPACITY: tl.constexpr,
+    HEAD_DIM: tl.constexpr,
+    BLOCK_N: tl.constexpr,
+):
+    """Materialize Kimi's aliased K/V centroid from one latent record."""
+    kv_row = tl.program_id(0).to(tl.int64)
+    slot = tl.program_id(1).to(tl.int64) * BLOCK_N + tl.arange(0, BLOCK_N)
+    active_slot = slot < active_state_len
+    count = tl.load(
+        counts + kv_row * STATE_CAPACITY + slot,
+        mask=active_slot,
+        other=0.0,
+    ).to(tl.float32)
+    active = active_slot & (count > 0.0)
+    denominator = tl.where(active, count, 1.0)
+    latent_dimension = tl.arange(0, 512)
+    latent_storage = (
+        (kv_row * STATE_CAPACITY + slot[:, None]) * HEAD_DIM
+        + latent_dimension
+    )
+    latent_sum = tl.load(
+        state_k + latent_storage, mask=active[:, None], other=0.0
+    )
+    tl.store(
+        coarse_k + latent_storage,
+        latent_sum.to(tl.float32) / denominator[:, None],
+        mask=active_slot[:, None],
+    )
+    direct_dimension = tl.arange(0, 64)
+    direct_storage = (
+        (kv_row * STATE_CAPACITY + slot[:, None]) * HEAD_DIM
+        + 512
+        + direct_dimension
+    )
+    direct_sum = tl.load(
+        state_k + direct_storage, mask=active[:, None], other=0.0
+    )
+    tl.store(
+        coarse_k + direct_storage,
+        direct_sum.to(tl.float32) / denominator[:, None],
+        mask=active_slot[:, None],
+    )
+    tl.store(
+        coarse_bias + kv_row * STATE_CAPACITY + slot,
+        tl.where(active, tl.log(denominator), -float("inf")),
+        mask=active_slot,
+    )
+
+
+def materialize_absorbed_mla_coarse_means(
+    state_k: torch.Tensor,
+    counts: torch.Tensor,
+    coarse_k: torch.Tensor,
+    coarse_bias: torch.Tensor,
+    *,
+    active_state_len: int | None = None,
+) -> None:
+    """Refresh Kimi centroid records whose first 512 channels are values."""
+    if tuple(coarse_k.shape) != tuple(state_k.shape):
+        raise ValueError("absorbed-MLA coarse records have mismatched shapes")
+    if tuple(counts.shape) != tuple(state_k.shape[:-1]) + (1,):
+        raise ValueError("absorbed-MLA coarse counts have the wrong shape")
+    if tuple(coarse_bias.shape) != tuple(state_k.shape[:-1]):
+        raise ValueError("absorbed-MLA coarse bias has the wrong shape")
+    if coarse_bias.dtype != torch.float16:
+        raise TypeError("absorbed-MLA coarse bias must use FP16 storage")
+    tensors = (state_k, counts, coarse_k, coarse_bias)
+    if not all(tensor.is_cuda and tensor.is_contiguous() for tensor in tensors):
+        raise ValueError("absorbed-MLA coarse refresh requires contiguous CUDA tensors")
+    batch, kv_heads, state_capacity, head_dim = state_k.shape
+    if head_dim != 576:
+        raise ValueError("absorbed-MLA records must contain 512+64 channels")
+    if active_state_len is None:
+        active_state_len = state_capacity
+    active_state_len = int(active_state_len)
+    if not 0 <= active_state_len <= state_capacity:
+        raise ValueError("active state length must fit the coarse arena")
+    if active_state_len == 0:
+        return
+    block_n = 8
+    _materialize_absorbed_mla_coarse_means_kernel[
+        (batch * kv_heads, triton.cdiv(active_state_len, block_n))
+    ](
+        state_k,
+        counts,
+        coarse_k,
         coarse_bias,
         active_state_len,
         STATE_CAPACITY=state_capacity,
@@ -1570,6 +1821,7 @@ def _reduce_routed_split_decode_lod_attention_kernel(
     QUERY_HEADS: tl.constexpr,
     KV_GROUP_SIZE: tl.constexpr,
     HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
     STATE_CAPACITY: tl.constexpr,
     ROUTE_COUNT: tl.constexpr,
     SPLITS: tl.constexpr,
@@ -1592,11 +1844,27 @@ def _reduce_routed_split_decode_lod_attention_kernel(
     cache_batch = tl.load(cache_indices + batch).to(tl.int64)
     query_head = query_row - batch * QUERY_HEADS
     kv_head = query_head // KV_GROUP_SIZE
-    dim = tl.arange(0, HEAD_DIM)
+    split_mla: tl.constexpr = HEAD_DIM != triton.next_power_of_2(HEAD_DIM)
+    if split_mla:
+        main_dim_size: tl.constexpr = triton.next_power_of_2(HEAD_DIM) // 2
+        tail_dim_size: tl.constexpr = HEAD_DIM - main_dim_size
+        dim = tl.arange(0, main_dim_size)
+        dim_valid = tl.full((main_dim_size,), True, tl.int1)
+        tail_dim = main_dim_size + tl.arange(0, tail_dim_size)
+        tail_valid = tl.full((tail_dim_size,), True, tl.int1)
+    else:
+        dim = tl.arange(0, HEAD_DIM)
+        dim_valid = tl.full((HEAD_DIM,), True, tl.int1)
+    value_dim = tl.arange(0, triton.next_power_of_2(VALUE_DIM))
+    value_valid = value_dim < VALUE_DIM
     full_coarse_lse = tl.load(coarse_lse + query_row)
-    remainder_out = tl.load(coarse_out + query_row * HEAD_DIM + dim)
+    remainder_out = tl.load(
+        coarse_out + query_row * VALUE_DIM + value_dim,
+        mask=value_valid,
+        other=0.0,
+    )
     selected_mass = tl.zeros((), tl.float32)
-    selected_value = tl.zeros((HEAD_DIM,), tl.float32)
+    selected_value = tl.zeros((triton.next_power_of_2(VALUE_DIM),), tl.float32)
     if SUBTRACT_ROUTES:
         for route in tl.static_range(0, ROUTE_COUNT):
             slot = tl.load(top_slots + query_row * ROUTE_COUNT + route).to(tl.int64)
@@ -1622,8 +1890,8 @@ def _reduce_routed_split_decode_lod_attention_kernel(
                 + cache_batch * STATE_V_BATCH_STRIDE
                 + kv_head * STATE_V_HEAD_STRIDE
                 + slot * STATE_V_TOKEN_STRIDE
-                + dim,
-                mask=valid_slot,
+                + value_dim,
+                mask=valid_slot & value_valid,
                 other=0.0,
             )
             mean_value = value.to(tl.float32) / safe_count
@@ -1636,8 +1904,8 @@ def _reduce_routed_split_decode_lod_attention_kernel(
     else:
         remainder_lse = full_coarse_lse
 
-    # Fold branches sequentially. This keeps only one HEAD_DIM-wide value live
-    # instead of materializing SPLITS x HEAD_DIM in the final-reduction program.
+    # Fold branches sequentially. This keeps only one VALUE_DIM-wide value live
+    # instead of materializing SPLITS x VALUE_DIM in the final-reduction program.
     maximum = remainder_lse
     denominator = tl.full((), 1.0, tl.float32)
     numerator = remainder_out.to(tl.float32)
@@ -1645,9 +1913,11 @@ def _reduce_routed_split_decode_lod_attention_kernel(
         for local_split in tl.static_range(0, SEPARATE_LOCAL_SPLITS):
             local_row = query_row * SEPARATE_LOCAL_SPLITS + local_split
             local_lse = tl.load(separate_local_lse + local_row)
-            local_value = tl.load(separate_local_out + local_row * HEAD_DIM + dim).to(
-                tl.float32
-            )
+            local_value = tl.load(
+                separate_local_out + local_row * VALUE_DIM + value_dim,
+                mask=value_valid,
+                other=0.0,
+            ).to(tl.float32)
             new_maximum = tl.maximum(maximum, local_lse)
             old_weight = tl.exp(maximum - new_maximum)
             new_weight = tl.exp(local_lse - new_maximum)
@@ -1658,7 +1928,11 @@ def _reduce_routed_split_decode_lod_attention_kernel(
         for split_index in tl.static_range(0, SPLITS):
             branch_lse = tl.load(partial_lse + query_row * SPLITS + split_index)
             branch_value = tl.load(
-                partial_out + (query_row * SPLITS + split_index) * HEAD_DIM + dim
+                partial_out
+                + (query_row * SPLITS + split_index) * VALUE_DIM
+                + value_dim,
+                mask=value_valid,
+                other=0.0,
             ).to(tl.float32)
             new_maximum = tl.maximum(maximum, branch_lse)
             old_weight = tl.exp(maximum - new_maximum)
@@ -1676,8 +1950,10 @@ def _reduce_routed_split_decode_lod_attention_kernel(
             )
             branch_value = tl.load(
                 partial_out
-                + (query_row * SPLITS * ROUTE_SPLITS + branch_index) * HEAD_DIM
-                + dim
+                + (query_row * SPLITS * ROUTE_SPLITS + branch_index) * VALUE_DIM
+                + value_dim,
+                mask=value_valid,
+                other=0.0,
             ).to(tl.float32)
             new_maximum = tl.maximum(maximum, branch_lse)
             old_weight = tl.exp(maximum - new_maximum)
@@ -1686,7 +1962,17 @@ def _reduce_routed_split_decode_lod_attention_kernel(
             numerator = numerator * old_weight + new_weight * branch_value
             maximum = new_maximum
 
-    query = tl.load(q + query_row * HEAD_DIM + dim).to(tl.float32)
+    query = tl.load(
+        q + query_row * HEAD_DIM + dim,
+        mask=dim_valid,
+        other=0.0,
+    ).to(tl.float32)
+    if split_mla:
+        query_tail = tl.load(
+            q + query_row * HEAD_DIM + tail_dim,
+            mask=tail_valid,
+            other=0.0,
+        ).to(tl.float32)
     active_local_len = tl.load(local_lens + cache_batch).to(tl.int32)
     if FUSE_LOCAL_SCAN:
         token_offset = tl.arange(0, LOCAL_BLOCK_N)
@@ -1699,16 +1985,26 @@ def _reduce_routed_split_decode_lod_attention_kernel(
                 + kv_head * LOCAL_K_HEAD_STRIDE
                 + token[:, None] * LOCAL_K_TOKEN_STRIDE
                 + dim[None, :],
-                mask=valid[:, None],
+                mask=valid[:, None] & dim_valid[None, :],
                 other=0.0,
             )
+            if split_mla:
+                keys_tail = tl.load(
+                    local_k
+                    + cache_batch * LOCAL_K_BATCH_STRIDE
+                    + kv_head * LOCAL_K_HEAD_STRIDE
+                    + token[:, None] * LOCAL_K_TOKEN_STRIDE
+                    + tail_dim[None, :],
+                    mask=valid[:, None] & tail_valid[None, :],
+                    other=0.0,
+                )
             values = tl.load(
                 local_v
                 + cache_batch * LOCAL_V_BATCH_STRIDE
                 + kv_head * LOCAL_V_HEAD_STRIDE
                 + token[:, None] * LOCAL_V_TOKEN_STRIDE
-                + dim[None, :],
-                mask=valid[:, None],
+                + value_dim[None, :],
+                mask=valid[:, None] & value_valid[None, :],
                 other=0.0,
             )
             if USE_DOT:
@@ -1717,9 +2013,19 @@ def _reduce_routed_split_decode_lod_attention_kernel(
                     tl.trans(keys),
                     out_dtype=tl.float32,
                 )
+                if split_mla:
+                    scores += tl.dot(
+                        query_tail[None, :].to(keys_tail.dtype),
+                        tl.trans(keys_tail),
+                        out_dtype=tl.float32,
+                    )
                 scores = tl.reshape(scores, (LOCAL_BLOCK_N,))
             else:
                 scores = tl.sum(query[None, :] * keys.to(tl.float32), axis=1)
+                if split_mla:
+                    scores += tl.sum(
+                        query_tail[None, :] * keys_tail.to(tl.float32), axis=1
+                    )
             scores = tl.where(valid, scores * SCALE, -float("inf"))
             block_maximum = tl.max(scores, axis=0)
             new_maximum = tl.maximum(maximum, block_maximum)
@@ -1733,12 +2039,35 @@ def _reduce_routed_split_decode_lod_attention_kernel(
 
         if INCLUDE_NEW:
             current_key = tl.load(
-                new_k + batch * NEW_K_BATCH_STRIDE + kv_head * NEW_K_HEAD_STRIDE + dim
+                new_k + batch * NEW_K_BATCH_STRIDE + kv_head * NEW_K_HEAD_STRIDE + dim,
+                mask=dim_valid,
+                other=0.0,
             )
+            if split_mla:
+                current_key_tail = tl.load(
+                    new_k
+                    + batch * NEW_K_BATCH_STRIDE
+                    + kv_head * NEW_K_HEAD_STRIDE
+                    + tail_dim,
+                    mask=tail_valid,
+                    other=0.0,
+                )
             current_value = tl.load(
-                new_v + batch * NEW_V_BATCH_STRIDE + kv_head * NEW_V_HEAD_STRIDE + dim
+                new_v
+                + batch * NEW_V_BATCH_STRIDE
+                + kv_head * NEW_V_HEAD_STRIDE
+                + value_dim,
+                mask=value_valid,
+                other=0.0,
             )
             current_score = tl.sum(query * current_key.to(tl.float32), axis=0) * SCALE
+            if split_mla:
+                current_score += (
+                    tl.sum(
+                        query_tail * current_key_tail.to(tl.float32), axis=0
+                    )
+                    * SCALE
+                )
             new_maximum = tl.maximum(maximum, current_score)
             old_weight = tl.exp(maximum - new_maximum)
             new_weight = tl.exp(current_score - new_maximum)
@@ -1755,14 +2084,26 @@ def _reduce_routed_split_decode_lod_attention_kernel(
                     + active_local_len * LOCAL_K_TOKEN_STRIDE
                     + dim,
                     current_key,
+                    mask=dim_valid,
                 )
+                if split_mla:
+                    tl.store(
+                        local_k
+                        + cache_batch * LOCAL_K_BATCH_STRIDE
+                        + kv_head * LOCAL_K_HEAD_STRIDE
+                        + active_local_len * LOCAL_K_TOKEN_STRIDE
+                        + tail_dim,
+                        current_key_tail,
+                        mask=tail_valid,
+                    )
                 tl.store(
                     local_v
                     + cache_batch * LOCAL_V_BATCH_STRIDE
                     + kv_head * LOCAL_V_HEAD_STRIDE
                     + active_local_len * LOCAL_V_TOKEN_STRIDE
-                    + dim,
+                    + value_dim,
                     current_value,
+                    mask=value_valid,
                 )
 
     if INCLUDE_SINK:
@@ -1772,16 +2113,32 @@ def _reduce_routed_split_decode_lod_attention_kernel(
                 + cache_batch * SINK_K_BATCH_STRIDE
                 + kv_head * SINK_K_HEAD_STRIDE
                 + sink_index * SINK_K_TOKEN_STRIDE
-                + dim
+                + dim,
+                mask=dim_valid,
+                other=0.0,
             ).to(tl.float32)
+            if split_mla:
+                key_tail = tl.load(
+                    sink_k
+                    + cache_batch * SINK_K_BATCH_STRIDE
+                    + kv_head * SINK_K_HEAD_STRIDE
+                    + sink_index * SINK_K_TOKEN_STRIDE
+                    + tail_dim,
+                    mask=tail_valid,
+                    other=0.0,
+                ).to(tl.float32)
             value = tl.load(
                 sink_v
                 + cache_batch * SINK_V_BATCH_STRIDE
                 + kv_head * SINK_V_HEAD_STRIDE
                 + sink_index * SINK_V_TOKEN_STRIDE
-                + dim
+                + value_dim,
+                mask=value_valid,
+                other=0.0,
             ).to(tl.float32)
             score = tl.sum(query * key, axis=0) * SCALE
+            if split_mla:
+                score += tl.sum(query_tail * key_tail, axis=0) * SCALE
             new_maximum = tl.maximum(maximum, score)
             old_weight = tl.exp(maximum - new_maximum)
             new_weight = tl.exp(score - new_maximum)
@@ -1789,7 +2146,7 @@ def _reduce_routed_split_decode_lod_attention_kernel(
             numerator = numerator * old_weight + value * new_weight
             maximum = new_maximum
     result = numerator / denominator
-    tl.store(out + query_row * HEAD_DIM + dim, result)
+    tl.store(out + query_row * VALUE_DIM + value_dim, result, mask=value_valid)
     if ADVANCE_LOCAL and query_head == 0:
         local_length = tl.load(local_lens + cache_batch)
         tl.store(local_lens + cache_batch, local_length + 1)

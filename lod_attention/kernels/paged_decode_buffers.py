@@ -947,6 +947,7 @@ def _materialize_decode_gqa_union_page_descriptors_kernel(
     counts,
     seen_stamps,
     sequence_epochs,
+    dcp_global_lens,
     new_k,
     new_v,
     arena_k,
@@ -975,10 +976,19 @@ def _materialize_decode_gqa_union_page_descriptors_kernel(
     SINK_LEN: tl.constexpr,
     LEAF_BEGIN: tl.constexpr,
     HEAD_DIM: tl.constexpr,
+    VALUE_DIM: tl.constexpr,
+    ARENA_V_STRIDE: tl.constexpr,
     PAGE_SIZE: tl.constexpr,
     BLOCK_K: tl.constexpr,
     INCLUDE_NEW: tl.constexpr,
     USE_STATE_LENS: tl.constexpr,
+    PHYSICAL_KV_HEADS: tl.constexpr = 0,
+    HEAD_TILES_PER_KV: tl.constexpr = 1,
+    MASK_OPENED_IN_ARENA_BIAS: tl.constexpr = True,
+    DCP_ROW_MASKED_NEW: tl.constexpr = False,
+    DCP_RANK: tl.constexpr = 0,
+    DCP_WORLD_SIZE: tl.constexpr = 1,
+    DCP_INTERLEAVE_SIZE: tl.constexpr = 1,
     EXACT_DECODE_THRESHOLD: tl.constexpr = 0,
 ):
     """Build one compact descriptor per selected persistent leaf page.
@@ -991,13 +1001,27 @@ def _materialize_decode_gqa_union_page_descriptors_kernel(
     sequence = tl.program_id(0).to(tl.int64)
     work = tl.program_id(1).to(tl.int64)
     batch = sequence // KV_HEADS
-    kv_head = sequence - batch * KV_HEADS
+    virtual_kv_head = sequence - batch * KV_HEADS
+    if PHYSICAL_KV_HEADS:
+        kv_head = virtual_kv_head // HEAD_TILES_PER_KV
+    else:
+        kv_head = virtual_kv_head
+    physical_kv_heads: tl.constexpr = (
+        PHYSICAL_KV_HEADS if PHYSICAL_KV_HEADS else KV_HEADS
+    )
     cache_batch = tl.load(cache_indices + batch).to(tl.int64)
-    kv_row = cache_batch * KV_HEADS + kv_head
+    kv_row = cache_batch * physical_kv_heads + kv_head
     active_local = tl.minimum(
         tl.load(local_lens + cache_batch).to(tl.int32), LOCAL_LIMIT
     )
-    local_and_new = active_local + INCLUDE_NEW
+    if DCP_ROW_MASKED_NEW:
+        global_length = tl.load(dcp_global_lens + cache_batch).to(tl.int64)
+        row_includes_new = (
+            (global_length // DCP_INTERLEAVE_SIZE) % DCP_WORLD_SIZE
+        ) == DCP_RANK
+    else:
+        row_includes_new = INCLUDE_NEW
+    local_and_new = active_local + row_includes_new.to(tl.int32)
     if USE_STATE_LENS:
         active_state_len = tl.minimum(
             tl.load(state_lens + cache_batch).to(tl.int32), STATE_LEN
@@ -1093,23 +1117,52 @@ def _materialize_decode_gqa_union_page_descriptors_kernel(
         padded_leaf_count = descriptor_count * PAGE_SIZE
         tl.store(union_token_counts + sequence, padded_leaf_count)
         tl.store(context_lens + sequence, prefix_length + padded_leaf_count)
-        if INCLUDE_NEW:
-            dimension = tl.arange(0, HEAD_DIM)
-            current_key = tl.load(
-                new_k
-                + batch * NEW_K_BATCH_STRIDE
-                + kv_head * NEW_K_HEAD_STRIDE
-                + dimension
-            )
+        if INCLUDE_NEW & row_includes_new:
+            local_row = local_base + active_local
+            if HEAD_DIM == 576:
+                latent_dimension = tl.arange(0, 512)
+                current_latent = tl.load(
+                    new_k
+                    + batch * NEW_K_BATCH_STRIDE
+                    + kv_head * NEW_K_HEAD_STRIDE
+                    + latent_dimension
+                )
+                tl.store(
+                    arena_k + local_row * HEAD_DIM + latent_dimension,
+                    current_latent,
+                )
+                direct_dimension = tl.arange(0, 64)
+                current_direct = tl.load(
+                    new_k
+                    + batch * NEW_K_BATCH_STRIDE
+                    + kv_head * NEW_K_HEAD_STRIDE
+                    + 512
+                    + direct_dimension
+                )
+                tl.store(
+                    arena_k + local_row * HEAD_DIM + 512 + direct_dimension,
+                    current_direct,
+                )
+            else:
+                dimension = tl.arange(0, HEAD_DIM)
+                current_key = tl.load(
+                    new_k
+                    + batch * NEW_K_BATCH_STRIDE
+                    + kv_head * NEW_K_HEAD_STRIDE
+                    + dimension
+                )
+                tl.store(arena_k + local_row * HEAD_DIM + dimension, current_key)
+            value_dimension = tl.arange(0, VALUE_DIM)
             current_value = tl.load(
                 new_v
                 + batch * NEW_V_BATCH_STRIDE
                 + kv_head * NEW_V_HEAD_STRIDE
-                + dimension
+                + value_dimension
             )
-            local_storage = (local_base + active_local) * HEAD_DIM + dimension
-            tl.store(arena_k + local_storage, current_key)
-            tl.store(arena_v + local_storage, current_value)
+            tl.store(
+                arena_v + local_row * ARENA_V_STRIDE + value_dimension,
+                current_value,
+            )
 
     coarse_begin = work * BLOCK_K
     if coarse_begin < active_state_len:
@@ -1133,17 +1186,29 @@ def _materialize_decode_gqa_union_page_descriptors_kernel(
             == epoch
         )
         active = in_state & (count > 0.0) & ~opened & ~use_exact
-        tl.store(
-            arena_bias + coarse_base + slot,
-            tl.where(active, tl.log(count), -float("inf")),
-            mask=in_state,
-        )
+        if MASK_OPENED_IN_ARENA_BIAS:
+            tl.store(
+                arena_bias + coarse_base + slot,
+                tl.where(active, tl.log(count), -float("inf")),
+                mask=in_state,
+            )
+        else:
+            # Head-tiled DCP consumers share one physical centroid arena but
+            # have different opened unions. Keep the shared log-mass intact;
+            # the consumer masks this tile's opened centroids from its stamp
+            # row while evaluating the coarse prefix.
+            tl.store(
+                arena_bias + coarse_base + slot,
+                tl.where(in_state & (count > 0.0), tl.log(count), -float("inf")),
+                mask=in_state,
+            )
 
 
 def new_fused_decode_buffers(
     q: torch.Tensor,
     *,
     splits: int,
+    value_dim: int | None = None,
     exact_kv_heads: int | None = None,
     exact_segments: int = 64,
     state_capacity: int | None = None,
@@ -1159,7 +1224,12 @@ def new_fused_decode_buffers(
     gqa_union_fixed_mask_segments: int = 128,
     gqa_union_hip_segments: int = 32,
 ) -> dict[str, torch.Tensor]:
-    batch, query_heads, _, value_dim = q.shape
+    batch, query_heads, _, head_dim = q.shape
+    if value_dim is None:
+        value_dim = head_dim
+    value_dim = int(value_dim)
+    if value_dim <= 0:
+        raise ValueError("decode value width must be positive")
     if gqa_route_splits is not None and gqa_route_splits not in {4, 8, 16, 32}:
         raise ValueError("GQA cooperative route splits must be 4, 8, 16, or 32")
     buffers = {
@@ -1180,7 +1250,14 @@ def new_fused_decode_buffers(
             dtype=torch.float32,
             device=q.device,
         ),
-        "output": torch.empty_like(q),
+        "output": torch.empty(
+            batch,
+            query_heads,
+            1,
+            value_dim,
+            dtype=q.dtype,
+            device=q.device,
+        ),
     }
     if exact_kv_heads is not None:
         if exact_kv_heads <= 0 or query_heads % exact_kv_heads:
@@ -1479,6 +1556,37 @@ def new_fused_decode_buffers(
                         device=q.device,
                     ),
                 )
+                if head_dim == 576 and value_dim == 512:
+                    from .kimi_gluon_decode import KIMI_GLUON_LOD_SPLITS
+
+                    # Kimi's Gluon consumer emits one normalized latent value
+                    # and LSE per split.  Keep these fixed-address buffers
+                    # separate from AITER's FP32 max/sum segment ABI so CUDA
+                    # graph replay sees no allocations or pointer changes.
+                    kimi_splits = KIMI_GLUON_LOD_SPLITS
+                    buffers.update(
+                        kimi_gluon_partial=torch.empty(
+                            sequences,
+                            gqa_union_group_size,
+                            kimi_splits,
+                            value_dim,
+                            dtype=q.dtype,
+                            device=q.device,
+                        ),
+                        kimi_gluon_partial_lse=torch.empty(
+                            sequences,
+                            gqa_union_group_size,
+                            kimi_splits,
+                            dtype=torch.float32,
+                            device=q.device,
+                        ),
+                        kimi_gluon_final_lse=torch.empty(
+                            batch,
+                            query_heads,
+                            dtype=torch.float32,
+                            device=q.device,
+                        ),
+                    )
                 if gqa_union_fixed_mask:
                     fixed_mask_tiles = triton.cdiv(
                         gqa_union_index_capacity,

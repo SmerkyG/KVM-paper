@@ -93,6 +93,7 @@ class _KernelLODEngine(TritonLODAttentionCore):
         logical_prefill_len: int | None = None,
         prefill_valid_starts: torch.Tensor | None = None,
         finalize_cache_for_decode: bool = True,
+        final_cache_coverage: int | None = None,
     ) -> KernelLODCache:
         """Convert an existing full-attention BF16 K/V prefix into LOD.
 
@@ -126,6 +127,7 @@ class _KernelLODEngine(TritonLODAttentionCore):
             logical_prefill_len=logical_prefill_len,
             prefill_valid_starts=prefill_valid_starts,
             finalize_cache_for_decode=finalize_cache_for_decode,
+            final_cache_coverage=final_cache_coverage,
         )
         page_cache = state.get("page_cache")
         if isinstance(page_cache, dict) and not bool(

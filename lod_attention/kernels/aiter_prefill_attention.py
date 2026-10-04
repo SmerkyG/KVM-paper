@@ -53,6 +53,8 @@ class AiterPrefillCoarse:
     mean_v: torch.Tensor
     counts: torch.Tensor
     has_second_partition: bool
+    ready_stream: torch.cuda.Stream | None = None
+    selected_route_scores: torch.Tensor | None = None
 
 
 @triton.jit(do_not_specialize=["STATE_LEN"])
@@ -118,9 +120,10 @@ def _prepare_aiter_state_kernel(
     )
 
 
-@lru_cache(maxsize=3)
+@lru_cache(maxsize=8)
 def _specialized_route_mha_fwd(
     normalize_route_query: bool,
+    head_dim: int | None = None,
 ) -> Callable[..., tuple[torch.Tensor, ...]]:
     """Build raw-query or eight-route AITER probe specializations."""
     from aiter.jit.core import compile_ops, get_args_of_build
@@ -130,13 +133,40 @@ def _specialized_route_mha_fwd(
         q = args[0] if args else kwargs["q"]
         if not isinstance(q, torch.Tensor):
             raise TypeError("AITER routing requires a query tensor")
-        if not normalize_route_query and int(q.size(-1)) != 256:
-            raise ValueError("raw AITER routing is specialized for Qwen D=256")
+        selected_dim = int(q.size(-1))
+        if head_dim is not None and selected_dim != head_dim:
+            raise ValueError(
+                f"AITER routing was specialized for D={head_dim}, got {selected_dim}"
+            )
+        if head_dim is None:
+            expected_dim = 128 if normalize_route_query else 256
+            if selected_dim != expected_dim:
+                raise ValueError(
+                    f"AITER routing was specialized for D={expected_dim}, "
+                    f"got {selected_dim}"
+                )
         generated = cmdGenFunc_mha_fwd(*args, **kwargs)
         suffix = "_lod_route8" + ("" if normalize_route_query else "_raw")
+        if head_dim is not None:
+            # Keep the Kimi D=192 JIT module revision explicit.  v2 both uses
+            # the native 128-key CK tile and requires the route-only epilogue
+            # suppression in aiter-mha-prefill-route8.patch.  Changing the
+            # module name prevents an older output-writing binary from being
+            # silently reused from AITER's JIT cache.
+            suffix += f"_d{head_dim}" + (
+                "_tile128v2_noepilogue" if head_dim == 192 else "_qr1"
+            )
         revision = "_d128w8_mulnorm_v1" if normalize_route_query else ""
         generated["md_name"] = f"{generated['md_name']}{suffix}{revision}"
-        if normalize_route_query:
+        if head_dim is not None:
+            receipt = 103 if head_dim == 256 else 100
+            generated["blob_gen_cmd"] = [
+                command.replace("--receipt 100", f"--receipt {receipt}").replace(
+                    " --output_dir", f" --optdim {head_dim} --output_dir"
+                )
+                for command in generated["blob_gen_cmd"]
+            ]
+        elif normalize_route_query:
             generated["blob_gen_cmd"] = [
                 command.replace("--receipt 100", "--receipt 101").replace(
                     " --output_dir", " --optdim 128 --output_dir"
@@ -185,14 +215,112 @@ def _specialized_route_mha_fwd(
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]: ...
 
     revision = "_d128w8_mulnorm_v1" if normalize_route_query else ""
+    dimension_suffix = "" if head_dim is None else f"_d{head_dim}"
     specialized_route_mha_fwd.__name__ = (
-        f"lod_route_mha_fwd_8_{int(normalize_route_query)}{revision}"
+        f"lod_route_mha_fwd_8_{int(normalize_route_query)}"
+        f"{dimension_suffix}{revision}"
     )
     return compile_ops(
         "module_mha_fwd",
         fc_name="mha_fwd",
         gen_func=route_build_args,
     )(specialized_route_mha_fwd)
+
+
+@lru_cache(maxsize=8)
+def _specialized_kimi_coarse_mha_fwd(
+    head_dim: int = 192,
+    async_bias: bool = False,
+    fused_route: bool = False,
+) -> Callable[..., tuple[torch.Tensor, ...]]:
+    """Build a non-routing Dqk=192/256, Dv=128 Kimi instance."""
+    if head_dim not in (192, 256):
+        raise ValueError("Kimi coarse AITER supports Dqk=192 or 256")
+    if async_bias and head_dim != 192:
+        raise ValueError("Kimi async-bias AITER is specialized for Dqk=192")
+    if fused_route and not async_bias:
+        raise ValueError("Kimi fused routing requires async-bias AITER")
+    from aiter.jit.core import compile_ops, get_args_of_build
+    from aiter.ops.mha import cmdGenFunc_mha_fwd
+
+    def coarse_build_args(*args: object, **kwargs: object) -> dict[str, object]:
+        generated = cmdGenFunc_mha_fwd(*args, **kwargs)
+        # D192 v3 derives each output row from the original score-tile
+        # distribution.  CK's reduced row tile has a different lane ordering.
+        # v10 makes the exact production organization explicit: coarse
+        # attention emits eight winners per native tile with one packed
+        # score/index reduction per winner, and Triton performs the small exact
+        # global reduction. Keep this module revision stable so every measured
+        # run loads the same audited binary.
+        revision = 10 if fused_route else (3 if head_dim == 192 else 2)
+        mode_suffix = "_asyncbias" if async_bias else ""
+        generated["md_name"] = (
+            f"{generated['md_name']}_lod_kimi_d{head_dim}v128"
+            f"{mode_suffix}_v{revision}"
+        )
+        receipt = 104 if async_bias else 102
+        generated["blob_gen_cmd"] = [
+            command.replace("--receipt 100", f"--receipt {receipt}").replace(
+                " --output_dir", f" --optdim {head_dim} --output_dir"
+            )
+            for command in generated["blob_gen_cmd"]
+        ]
+        # The patched CK pipeline references the route constants even when a
+        # particular specialization only consumes its ordinary attention
+        # output.  Define them explicitly instead of relying on header-local
+        # defaults: this also keeps JIT builds safe when AITER has applied the
+        # release patch to a slightly different CK checkout.
+        base_flags = list(get_args_of_build("module_mha_fwd")["flags_extra_hip"])
+        generated["flags_extra_hip"] = [
+            flag
+            for flag in base_flags
+            if not flag.startswith(
+                (
+                    "-DCK_TILE_FMHA_ROUTE_QUERY_NORMALIZE=",
+                    "-DCK_TILE_FMHA_ROUTE_TOPK=",
+                    "-DCK_TILE_FMHA_ROUTE_GLOBAL_TOPK=",
+                )
+            )
+        ] + [
+            "-DCK_TILE_FMHA_ROUTE_QUERY_NORMALIZE=0",
+            "-DCK_TILE_FMHA_ROUTE_TOPK=8",
+            "-DCK_TILE_FMHA_ROUTE_GLOBAL_TOPK=0",
+        ]
+        return generated
+
+    def specialized_kimi_coarse_mha_fwd(
+        q: torch.Tensor,
+        k: torch.Tensor,
+        v: torch.Tensor,
+        dropout_p: float,
+        softmax_scale: float,
+        is_causal: bool,
+        window_size_left: int,
+        window_size_right: int,
+        sink_size: int,
+        return_softmax_lse: bool,
+        return_dropout_randval: bool,
+        cu_seqlens_q: Optional[torch.Tensor] = None,
+        cu_seqlens_kv: Optional[torch.Tensor] = None,
+        out: Optional[torch.Tensor] = None,
+        bias: Optional[torch.Tensor] = None,
+        alibi_slopes: Optional[torch.Tensor] = None,
+        q_descale: Optional[torch.Tensor] = None,
+        k_descale: Optional[torch.Tensor] = None,
+        v_descale: Optional[torch.Tensor] = None,
+        sink_ptr: Optional[torch.Tensor] = None,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]: ...
+
+    specialized_kimi_coarse_mha_fwd.__name__ = (
+        f"lod_kimi_coarse_mha_fwd_d{head_dim}v128"
+        f"{'_asyncbias' if async_bias else ''}"
+        f"{'_route8' if fused_route else ''}"
+    )
+    return compile_ops(
+        "module_mha_fwd",
+        fc_name="mha_fwd",
+        gen_func=coarse_build_args,
+    )(specialized_kimi_coarse_mha_fwd)
 
 
 @triton.jit(
@@ -203,6 +331,7 @@ def _reduce_route_candidates_kernel(
     candidates,
     slot_lengths,
     output,
+    output_scores,
     head_counts,
     route_offsets,
     QUERY_LEN,
@@ -217,6 +346,8 @@ def _reduce_route_candidates_kernel(
     CANDIDATE_BLOCK: tl.constexpr,
     ROUTE_COUNT: tl.constexpr,
     HIERARCHICAL_TOP8: tl.constexpr,
+    CLOSE_SELECTED_ABOVE_LIMIT: tl.constexpr,
+    EMIT_METADATA: tl.constexpr,
 ):
     """Reduce per-tile winners to the exact global top-k."""
     batch_head = tl.program_id(0).to(tl.int64)
@@ -283,7 +414,7 @@ def _reduce_route_candidates_kernel(
     valid_index = (index_values >= 0) & (index_values < STATE_LEN)
     indices = tl.where(valid_index, index_values, 0.0).to(tl.int64)
     scores = tl.where(valid_index, scores, -float("inf"))
-    if MAX_OPEN_LEAF_TOKENS:
+    if MAX_OPEN_LEAF_TOKENS and not CLOSE_SELECTED_ABOVE_LIMIT:
         batch = batch_head // QUERY_HEADS
         kv_head = (batch_head % QUERY_HEADS) // KV_GROUP_SIZE
         lengths = tl.load(
@@ -295,6 +426,7 @@ def _reduce_route_candidates_kernel(
             other=0,
         )
         scores = tl.where(lengths <= MAX_OPEN_LEAF_TOKENS, scores, -float("inf"))
+    candidate_scores = scores
     route_rank = tl.arange(0, ROUTE_COUNT)
     if HIERARCHICAL_TOP8:
         packed = _pack_route_score_index(scores, indices)
@@ -312,7 +444,7 @@ def _reduce_route_candidates_kernel(
                 ),
                 axis=1,
             )
-            if MAX_OPEN_LEAF_TOKENS:
+            if MAX_OPEN_LEAF_TOKENS and not CLOSE_SELECTED_ABOVE_LIMIT:
                 selected_index = tl.where(
                     tl.max(scores, axis=1) > -float("inf"), selected_index, -1
                 )
@@ -327,6 +459,31 @@ def _reduce_route_candidates_kernel(
                 scores,
             )
 
+    # The release Kimi calculation first ranks the same global top eight as
+    # the uncapped method, then leaves an oversized winner represented only by
+    # its coarse centroid.  Apply that policy before producing expert metadata
+    # so the leaf consumer can reuse these counts/offsets directly.  The old
+    # host-side filter discarded this metadata and repeated the contended
+    # query-to-expert packing pass even though the selected routes were already
+    # known here.
+    if MAX_OPEN_LEAF_TOKENS and CLOSE_SELECTED_ABOVE_LIMIT:
+        batch = batch_head // QUERY_HEADS
+        kv_head = (batch_head % QUERY_HEADS) // KV_GROUP_SIZE
+        valid_selected = (selected_slots >= 0) & (selected_slots < STATE_LEN)
+        selected_lengths = tl.load(
+            slot_lengths
+            + batch * SLOT_BATCH_STRIDE
+            + kv_head * SLOT_HEAD_STRIDE
+            + tl.where(valid_selected, selected_slots, 0),
+            mask=valid_query[:, None] & valid_selected,
+            other=0,
+        )
+        selected_slots = tl.where(
+            valid_selected & (selected_lengths <= MAX_OPEN_LEAF_TOKENS),
+            selected_slots,
+            -1,
+        )
+
     # Expert grouping expects the lowest-scoring boundary route last and the
     # other routes ordered by slot ID.
     output_base = (batch_head * QUERY_LEN + query) * ROUTE_COUNT
@@ -334,7 +491,7 @@ def _reduce_route_candidates_kernel(
         tl.where(route_rank[None, :] == ROUTE_COUNT - 1, selected_slots, -1), axis=1
     )
     remaining_slots = tl.where(
-        route_rank[None, :] < ROUTE_COUNT - 1,
+        (route_rank[None, :] < ROUTE_COUNT - 1) & (selected_slots >= 0),
         selected_slots,
         0x7FFFFFFFFFFFFFFF,
     )
@@ -364,16 +521,34 @@ def _reduce_route_candidates_kernel(
             tl.where(route_rank[None, :] == rank, ordered_slots, 0), axis=1
         )
         valid_slot = valid_query & (selected_slot >= 0) & (selected_slot < STATE_LEN)
-        local_offset = tl.atomic_add(
-            head_counts + batch_head * STATE_LEN + selected_slot,
-            1,
-            mask=valid_slot,
-            sem="relaxed",
+        if EMIT_METADATA:
+            local_offset = tl.atomic_add(
+                head_counts + batch_head * STATE_LEN + selected_slot,
+                1,
+                mask=valid_slot,
+                sem="relaxed",
+            )
+            tl.store(
+                route_offsets + output_base + rank,
+                local_offset,
+                mask=valid_slot,
+            )
+        selected_score = tl.max(
+            tl.where(
+                valid_index
+                & (indices == selected_slot[:, None])
+                & valid_slot[:, None],
+                candidate_scores,
+                -float("inf"),
+            ),
+            axis=1,
         )
+        # CK's fast-exp2 route pipeline reports scores in log2 units, while
+        # exact replacement consumes natural-log logits.
         tl.store(
-            route_offsets + output_base + rank,
-            local_offset,
-            mask=valid_slot,
+            output_scores + output_base + rank,
+            selected_score * 0.6931471805599453,
+            mask=valid_query,
         )
 
 
@@ -382,10 +557,17 @@ def _reduce_route_candidates(
     *,
     slot_lengths: torch.Tensor | None = None,
     max_open_leaf_tokens: int | None = None,
+    close_selected_above_limit: bool = False,
     state_len: int,
     head_dim: int,
+    emit_metadata: bool = True,
     buffers: dict[str, torch.Tensor] | None = None,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+) -> tuple[
+    torch.Tensor,
+    torch.Tensor | None,
+    torch.Tensor | None,
+    torch.Tensor,
+]:
     route_count = 8
     if not candidates.is_cuda or not candidates.is_contiguous():
         raise ValueError("AITER route candidates must be contiguous on the GPU")
@@ -404,24 +586,36 @@ def _reduce_route_candidates(
         dtype=torch.long,
         device=candidates.device,
     )
-    head_counts = _workspace_tensor(
+    if emit_metadata:
+        head_counts = _workspace_tensor(
+            buffers,
+            "route_head_counts",
+            (batch * query_heads * state_len,),
+            dtype=torch.int32,
+            device=candidates.device,
+        )
+        head_counts.zero_()
+        route_offsets = _workspace_tensor(
+            buffers,
+            "route_offsets",
+            tuple(output.shape),
+            dtype=torch.int32,
+            device=candidates.device,
+        )
+    else:
+        head_counts = None
+        route_offsets = None
+    selected_scores = _workspace_tensor(
         buffers,
-        "route_head_counts",
-        (batch * query_heads * state_len,),
-        dtype=torch.int32,
-        device=candidates.device,
-    )
-    head_counts.zero_()
-    route_offsets = _workspace_tensor(
-        buffers,
-        "route_offsets",
+        "selected_route_scores",
         tuple(output.shape),
-        dtype=torch.int32,
+        dtype=torch.float32,
         device=candidates.device,
     )
     candidate_block = triton.next_power_of_2(active_blocks * route_count)
     hierarchical_top8 = (
-        max_open_leaf_tokens is None and active_blocks * route_count > 128
+        (max_open_leaf_tokens is None or close_selected_above_limit)
+        and active_blocks * route_count > 128
     )
     if head_dim <= 128:
         block_m = 16
@@ -435,8 +629,9 @@ def _reduce_route_candidates(
         candidates,
         slot_lengths if slot_lengths is not None else candidates,
         output,
-        head_counts,
-        route_offsets,
+        selected_scores,
+        head_counts if head_counts is not None else output,
+        route_offsets if route_offsets is not None else output,
         query_len,
         active_blocks,
         state_len,
@@ -451,9 +646,171 @@ def _reduce_route_candidates(
         CANDIDATE_BLOCK=candidate_block,
         ROUTE_COUNT=route_count,
         HIERARCHICAL_TOP8=hierarchical_top8,
+        CLOSE_SELECTED_ABOVE_LIMIT=close_selected_above_limit,
+        EMIT_METADATA=emit_metadata,
         num_warps=num_warps,
     )
-    return output, head_counts, route_offsets
+    return (
+        output,
+        head_counts,
+        route_offsets,
+        selected_scores,
+    )
+
+
+@triton.jit(
+    do_not_specialize=[
+        "QUERY_LEN",
+        "ACTIVE_BLOCKS_0",
+        "ACTIVE_BLOCKS_1",
+        "SECOND_INDEX_OFFSET",
+        "STATE_LEN",
+    ],
+    do_not_specialize_on_alignment=[
+        "QUERY_LEN",
+        "ACTIVE_BLOCKS_0",
+        "ACTIVE_BLOCKS_1",
+        "SECOND_INDEX_OFFSET",
+        "STATE_LEN",
+    ],
+)
+def _gather_selected_route_scores_kernel(
+    candidates_0,
+    candidates_1,
+    slots,
+    output,
+    QUERY_LEN,
+    ACTIVE_BLOCKS_0,
+    ACTIVE_BLOCKS_1,
+    SECOND_INDEX_OFFSET,
+    STATE_LEN,
+    BLOCK_M: tl.constexpr,
+    CANDIDATE_BLOCK: tl.constexpr,
+    ROUTE_COUNT: tl.constexpr,
+    HAS_SECOND: tl.constexpr,
+):
+    """Recover selected logits from CK's compact per-key-tile winners."""
+    batch_head = tl.program_id(0).to(tl.int64)
+    query = tl.program_id(1) * BLOCK_M + tl.arange(0, BLOCK_M)
+    candidate = tl.arange(0, CANDIDATE_BLOCK)
+    valid_query = query < QUERY_LEN
+    first_candidates = ACTIVE_BLOCKS_0 * ROUTE_COUNT
+    if HAS_SECOND:
+        from_first = candidate < first_candidates
+        local_candidate = tl.where(from_first, candidate, candidate - first_candidates)
+    else:
+        from_first = tl.full((CANDIDATE_BLOCK,), True, tl.int1)
+        local_candidate = candidate
+    block = local_candidate // ROUTE_COUNT
+    rank = local_candidate - block * ROUTE_COUNT
+    valid_first = from_first & (block < ACTIVE_BLOCKS_0)
+    valid_second = (~from_first) & (block < ACTIVE_BLOCKS_1)
+    base_0 = (
+        (batch_head * ACTIVE_BLOCKS_0 + block) * (2 * ROUTE_COUNT) + rank
+    ) * QUERY_LEN + query[:, None]
+    score_0 = tl.load(
+        candidates_0 + base_0,
+        mask=valid_query[:, None] & valid_first[None, :],
+        other=-float("inf"),
+    ).to(tl.float32)
+    index_0 = tl.load(
+        candidates_0 + base_0 + ROUTE_COUNT * QUERY_LEN,
+        mask=valid_query[:, None] & valid_first[None, :],
+        other=-1.0,
+    ).to(tl.int64)
+    if HAS_SECOND:
+        base_1 = (
+            (batch_head * ACTIVE_BLOCKS_1 + block) * (2 * ROUTE_COUNT) + rank
+        ) * QUERY_LEN + query[:, None]
+        score_1 = tl.load(
+            candidates_1 + base_1,
+            mask=valid_query[:, None] & valid_second[None, :],
+            other=-float("inf"),
+        ).to(tl.float32)
+        index_1 = tl.load(
+            candidates_1 + base_1 + ROUTE_COUNT * QUERY_LEN,
+            mask=valid_query[:, None] & valid_second[None, :],
+            other=-1.0,
+        ).to(tl.int64)
+        scores = tl.where(from_first[None, :], score_0, score_1)
+        indices = tl.where(from_first[None, :], index_0, index_1)
+        indices += tl.where(from_first[None, :], 0, SECOND_INDEX_OFFSET)
+        valid_candidate = valid_first | valid_second
+    else:
+        scores = score_0
+        indices = index_0
+        valid_candidate = valid_first
+    valid_index = (
+        valid_candidate[None, :] & (indices >= 0) & (indices < STATE_LEN)
+    )
+    route_rank = tl.arange(0, ROUTE_COUNT)
+    output_base = (batch_head * QUERY_LEN + query) * ROUTE_COUNT
+    selected_slots = tl.load(
+        slots + output_base[:, None] + route_rank[None, :],
+        mask=valid_query[:, None],
+        other=-1,
+    ).to(tl.int64)
+    for output_rank in tl.static_range(0, ROUTE_COUNT):
+        selected = tl.sum(
+            tl.where(route_rank[None, :] == output_rank, selected_slots, 0), axis=1
+        )
+        matched = valid_index & (indices == selected[:, None])
+        selected_score = tl.max(
+            tl.where(matched, scores, -float("inf")), axis=1
+        )
+        # CK's fast-exp2 pipeline stores candidates in log2 units. The LSE
+        # returned by attention and the merge kernels use natural logarithms.
+        selected_score *= 0.6931471805599453
+        tl.store(
+            output + output_base + output_rank,
+            selected_score,
+            mask=valid_query,
+        )
+
+
+def _gather_selected_route_scores(
+    candidates_0: torch.Tensor,
+    slots: torch.Tensor,
+    *,
+    state_len: int,
+    candidates_1: torch.Tensor | None = None,
+    second_index_offset: int = 0,
+    buffers: dict[str, torch.Tensor] | None = None,
+) -> torch.Tensor:
+    """Return natural-log centroid scores aligned with ordered route slots."""
+    route_count = 8
+    batch, query_heads, blocks_0, _, query_len = candidates_0.shape
+    if tuple(slots.shape) != (batch, query_heads, query_len, route_count):
+        raise ValueError("selected routes do not match AITER candidates")
+    blocks_1 = int(candidates_1.size(2)) if candidates_1 is not None else 0
+    output = _workspace_tensor(
+        buffers,
+        "selected_route_scores",
+        tuple(slots.shape),
+        dtype=torch.float32,
+        device=slots.device,
+    )
+    candidate_block = triton.next_power_of_2((blocks_0 + blocks_1) * route_count)
+    block_m = 16
+    _gather_selected_route_scores_kernel[
+        (batch * query_heads, triton.cdiv(query_len, block_m))
+    ](
+        candidates_0,
+        candidates_1 if candidates_1 is not None else candidates_0,
+        slots,
+        output,
+        query_len,
+        blocks_0,
+        blocks_1,
+        second_index_offset,
+        state_len,
+        BLOCK_M=block_m,
+        CANDIDATE_BLOCK=candidate_block,
+        ROUTE_COUNT=route_count,
+        HAS_SECOND=candidates_1 is not None,
+        num_warps=4,
+    )
+    return output
 
 
 @triton.jit(
@@ -1307,7 +1664,7 @@ def aiter_prefill_route_coarse_attention(
             buffers=buffers,
         )
     else:
-        top_slots, route_head_counts, route_offsets = _reduce_route_candidates(
+        top_slots, route_head_counts, route_offsets, _ = _reduce_route_candidates(
             candidates_0,
             slot_lengths=slot_lengths,
             max_open_leaf_tokens=max_open_leaf_tokens,

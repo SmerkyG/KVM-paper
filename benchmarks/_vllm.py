@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from typing import Any
 
 MODES = ("full", "two-tier", "three-tier-bf16", "three-tier-int4")
-SCHEDULER_CHUNK = 16_384
+# The release measurements use 16K chunks. Extremely long dense controls can
+# lower this benchmark-only value when the native KV cache and one 16K model
+# activation no longer fit simultaneously (for example K3 B=8 at 1.02M).
+SCHEDULER_CHUNK = int(os.environ.get("LOD_BENCHMARK_SCHEDULER_CHUNK", "16384"))
+if SCHEDULER_CHUNK <= 0:
+    raise ValueError("LOD_BENCHMARK_SCHEDULER_CHUNK must be positive")
 LOD_SCHEDULER = "vllm_lod_plugin.scheduler.LODChunkAlignedScheduler"
 
 
@@ -15,7 +21,13 @@ def scheduler_budget(batch_size: int, speculative_tokens: int = 0) -> int:
     """Leave room for decode rows without shrinking the 16K prefill chunk."""
 
     query_tokens = speculative_tokens + 1 if speculative_tokens else 1
-    return SCHEDULER_CHUNK + batch_size * query_tokens
+    prefill_cohort = int(os.environ.get("LOD_BENCHMARK_PREFILL_COHORT", "1"))
+    if prefill_cohort < 1:
+        raise ValueError("LOD_BENCHMARK_PREFILL_COHORT must be positive")
+    return (
+        SCHEDULER_CHUNK * min(batch_size, prefill_cohort)
+        + batch_size * query_tokens
+    )
 
 
 def is_qwen38(checkpoint: str) -> bool:
@@ -23,6 +35,50 @@ def is_qwen38(checkpoint: str) -> bool:
 
     normalized = checkpoint.lower().replace("_", "").replace("-", "")
     return "qwen3.8" in checkpoint.lower() or "qwen38" in normalized
+
+
+def is_kimi_k3(checkpoint: str) -> bool:
+    normalized = checkpoint.lower().replace("_", "").replace("-", "")
+    if "kimik3" in normalized:
+        return True
+
+    # Release benchmarks normally use a node-local copy of the checkpoint so
+    # loading does not repeatedly traverse shared storage.  That temporary
+    # directory has a content hash rather than the model name, so identify K3
+    # from its config as well.  Without this check the nominal dense control
+    # silently falls back from the release Gluon decoder to TRITON_MLA.
+    config_path = Path(checkpoint) / "config.json"
+    if not config_path.is_file():
+        return False
+    try:
+        config = json.loads(config_path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return False
+    model_type = str(config.get("model_type", "")).lower()
+    architectures = {
+        str(name).lower() for name in config.get("architectures", ())
+    }
+    return model_type == "kimi_linear" or any(
+        "kimilinear" in name or "kimik3" in name for name in architectures
+    )
+
+
+def _kimi_linear_architecture_override(checkpoint: str) -> dict[str, list[str]] | None:
+    """Identify the text-only Kimi packaging whose config omits architectures."""
+
+    config_path = Path(checkpoint) / "config.json"
+    if not config_path.is_file():
+        return None
+    try:
+        config = json.loads(config_path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+    if (
+        str(config.get("model_type", "")).lower() == "kimi_linear"
+        and not config.get("architectures")
+    ):
+        return {"architectures": ["KimiLinearForCausalLM"]}
+    return None
 
 
 def configure_environment(mode: str, pool_size: int) -> None:
@@ -35,6 +91,7 @@ def configure_environment(mode: str, pool_size: int) -> None:
     # K2's vLLM model registration also lives in this plugin, so load it for
     # the full-attention control. CUSTOM attention is selected only below.
     os.environ["VLLM_PLUGINS"] = "lod_attention"
+    os.environ["VLLM_LOD_ENABLED"] = "0" if mode == "full" else "1"
     os.environ["VLLM_LOD_MODE"] = "two-tier" if mode == "full" else mode
     os.environ["VLLM_LOD_POOL_SIZE"] = str(pool_size)
     os.environ.pop("VLLM_LOD_MAX_CONTEXT", None)
@@ -69,6 +126,8 @@ def llm_kwargs(
     tensor_parallel_size: int,
     gpu_memory_utilization: float,
     full_attention_backend: str,
+    decode_context_parallel_size: int = 1,
+    dcp_comm_backend: str = "ag_rs",
     speculative_model: str | None = None,
     num_speculative_tokens: int = 7,
     speculative_attention_backend: str = "TRITON_ATTN",
@@ -79,6 +138,15 @@ def llm_kwargs(
         raise ValueError("max_model_len must be at least two")
     if batch_size < 1 or tensor_parallel_size < 1:
         raise ValueError("batch_size and tensor_parallel_size must be positive")
+    if (
+        decode_context_parallel_size < 1
+        or tensor_parallel_size % decode_context_parallel_size
+    ):
+        raise ValueError(
+            "decode_context_parallel_size must be positive and divide TP"
+        )
+    if dcp_comm_backend not in ("ag_rs", "a2a"):
+        raise ValueError("dcp_comm_backend must be 'ag_rs' or 'a2a'")
     if not 0.0 < gpu_memory_utilization <= 1.0:
         raise ValueError("gpu_memory_utilization must be in (0, 1]")
     if speculative_model and not is_qwen38(checkpoint):
@@ -86,6 +154,13 @@ def llm_kwargs(
     if speculative_model and num_speculative_tokens < 1:
         raise ValueError("num_speculative_tokens must be positive")
     configure_environment(mode, batch_size)
+    # Dense K3 comparisons use the faster absorbed-MLA Gluon decoder rather
+    # than AMD's precompiled/full-attention decode path.  The plugin leaves
+    # every non-K3 control unchanged.
+    if mode == "full" and is_kimi_k3(checkpoint):
+        os.environ["VLLM_KIMI_DENSE_GLUON"] = "1"
+    else:
+        os.environ.pop("VLLM_KIMI_DENSE_GLUON", None)
     backend = "CUSTOM" if mode != "full" else full_attention_backend
     active_speculative_tokens = num_speculative_tokens if speculative_model else 0
     kwargs: dict[str, Any] = {
@@ -103,12 +178,35 @@ def llm_kwargs(
         "scheduler_cls": LOD_SCHEDULER,
         "gpu_memory_utilization": gpu_memory_utilization,
         "tensor_parallel_size": tensor_parallel_size,
+        "decode_context_parallel_size": decode_context_parallel_size,
+        "dcp_comm_backend": dcp_comm_backend,
         "disable_custom_all_reduce": True,
         "enable_prefix_caching": False,
         "disable_log_stats": False,
         "attention_config": {"backend": backend},
     }
-    if is_qwen38(checkpoint):
+    if is_kimi_k3(checkpoint):
+        # LoD intercepts the outer MLA call, while construction still needs a
+        # native MLA implementation to materialize W_UK/W_UV.  Full attention
+        # should likewise use vLLM's native MLA auto-selection rather than a
+        # conventional MHA backend forced by the other paper models.
+        kwargs["attention_config"] = (
+            {
+                "backend": "CUSTOM",
+                "backend_per_kind": {"mla_attention": "TRITON_MLA"},
+            }
+            if mode != "full"
+            else {
+                "backend": None,
+                # TritonMLAImpl is the stable vLLM host ABI patched above to
+                # dispatch K3 dense decode to our faster Gluon kernel.
+                "backend_per_kind": {"mla_attention": "TRITON_MLA"},
+            }
+        )
+        architecture_override = _kimi_linear_architecture_override(checkpoint)
+        if architecture_override is not None:
+            kwargs["hf_overrides"] = architecture_override
+    if is_qwen38(checkpoint) or is_kimi_k3(checkpoint):
         kwargs["language_model_only"] = True
     if speculative_model:
         kwargs["speculative_config"] = {

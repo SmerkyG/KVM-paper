@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 import sys
 from types import SimpleNamespace
@@ -11,6 +12,7 @@ from benchmarks._vllm import (
     LOD_SCHEDULER,
     MODES,
     default_gpu_memory_utilization,
+    is_kimi_k3,
     llm_kwargs,
     scheduler_budget,
 )
@@ -22,10 +24,14 @@ from benchmarks.longbench_v2 import (
 from benchmarks.prolong import (
     QUALITY_DOCUMENT_INDICES,
     comma_separated_ints,
+    configure_synchronized_decode_environment,
     document_digest,
+    make_speed_trace_panel,
     select_quality_prompts,
     speculative_counters,
     timed_generate_cohort,
+    validate_release_environment,
+    validate_worker_attention_mode,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -111,6 +117,18 @@ def test_offline_benchmark_uses_only_fixed_release_modes() -> None:
     assert kwargs["scheduler_cls"] == LOD_SCHEDULER
     assert kwargs["language_model_only"] is True
     assert kwargs["enable_prefix_caching"] is False
+    assert os.environ["VLLM_LOD_ENABLED"] == "1"
+
+    llm_kwargs(
+        checkpoint="Qwen/Qwen3.8-27B-FP8",
+        mode="full",
+        max_model_len=65_616,
+        batch_size=8,
+        tensor_parallel_size=4,
+        gpu_memory_utilization=0.9,
+        full_attention_backend="ROCM_AITER_UNIFIED_ATTN",
+    )
+    assert os.environ["VLLM_LOD_ENABLED"] == "0"
 
 
 @pytest.mark.parametrize(
@@ -147,6 +165,25 @@ def test_memory_targets_cover_each_model_side_lod_pool() -> None:
         )
         == 0.65
     )
+
+
+def test_local_kimi_checkpoint_is_identified_from_config(tmp_path: Path) -> None:
+    checkpoint = tmp_path / "content-addressed-checkpoint"
+    checkpoint.mkdir()
+    (checkpoint / "config.json").write_text('{"model_type": "kimi_linear"}')
+
+    assert is_kimi_k3(str(checkpoint))
+    llm_kwargs(
+        checkpoint=str(checkpoint),
+        mode="full",
+        max_model_len=65_536,
+        batch_size=1,
+        tensor_parallel_size=8,
+        gpu_memory_utilization=0.8,
+        full_attention_backend="TRITON_MLA",
+        decode_context_parallel_size=8,
+    )
+    assert os.environ["VLLM_KIMI_DENSE_GLUON"] == "1"
 
 
 def test_qwen_dflash2_configuration_is_explicit_and_model_limited() -> None:
@@ -213,6 +250,63 @@ def test_prolong_collects_speculative_counter_totals() -> None:
     }
 
 
+def test_prolong_rejects_worker_attention_mode_mismatch() -> None:
+    dense = {
+        "lod_runtime": False,
+        "lod_pool_count": 0,
+        "attached_lod_layers": 0,
+        "dense_gluon_decode_installed": False,
+    }
+    lod = {
+        "lod_runtime": True,
+        "lod_pool_count": 61,
+        "attached_lod_layers": 61,
+        "dense_gluon_decode_installed": False,
+        "lod_engine_configurations": [
+            {
+                "mode": "two-tier",
+                "prefill_routes": 8,
+                "decode_routes": 8,
+                "prefill_chunk_len": 16_384,
+                "prefill_state_update_len": 16_384,
+                "decode_state_update_len": 256,
+            }
+        ],
+    }
+    validate_worker_attention_mode([dense], mode="full")
+    validate_worker_attention_mode([lod], mode="two-tier")
+    with pytest.raises(RuntimeError, match="does not match worker attention"):
+        validate_worker_attention_mode([lod], mode="full")
+
+
+def test_prolong_requires_loaded_kimi_binary_after_warmup() -> None:
+    lod = {
+        "lod_runtime": True,
+        "lod_pool_count": 61,
+        "attached_lod_layers": 61,
+        "model_class": "KimiK3ForCausalLM",
+        "loaded_kimi_lod_modules": [],
+        "dense_gluon_decode_installed": False,
+        "lod_engine_configurations": [
+            {
+                "mode": "two-tier",
+                "prefill_routes": 8,
+                "decode_routes": 8,
+                "prefill_chunk_len": 16_384,
+                "prefill_state_update_len": 16_384,
+                "decode_state_update_len": 256,
+            }
+        ],
+    }
+
+    with pytest.raises(RuntimeError, match="loaded AITER JIT module identity"):
+        validate_worker_attention_mode(
+            [lod],
+            mode="two-tier",
+            require_loaded_kimi_lod=True,
+        )
+
+
 def test_prolong_runs_fixed_speed_cohort_in_execution_batches(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -230,6 +324,7 @@ def test_prolong_runs_fixed_speed_cohort_in_execution_batches(
         float,
         tuple[tuple[int, ...], ...],
         dict[str, int],
+        dict[str, object],
     ]:
         del llm, params
         prompt_ids = [prompt["prompt_token_ids"][0] for prompt in prompts]
@@ -245,6 +340,7 @@ def test_prolong_runs_fixed_speed_cohort_in_execution_batches(
                 "vllm:spec_decode_num_draft_tokens": 7 * count,
                 "vllm:spec_decode_num_accepted_tokens": 2 * count,
             },
+            {"wall_elapsed_seconds": 1.0},
         )
 
     monkeypatch.setattr(prolong, "timed_generate", fake_timed_generate)
@@ -255,7 +351,7 @@ def test_prolong_runs_fixed_speed_cohort_in_execution_batches(
         batch_size=2,
     )
 
-    elapsed, prefill, decode, token_ids, counters, batch_counters = result
+    elapsed, prefill, decode, token_ids, counters, batch_counters, batch_timings = result
     assert calls == [[0, 1], [2, 3]]
     assert (elapsed, prefill, decode) == (2.0, 4.0, 6.0)
     assert token_ids == ((0,), (1,), (2,), (3,))
@@ -265,6 +361,53 @@ def test_prolong_runs_fixed_speed_cohort_in_execution_batches(
         "vllm:spec_decode_num_accepted_tokens": 8,
     }
     assert len(batch_counters) == 2
+    assert len(batch_timings) == 2
+
+
+def test_prolong_trace_panel_uses_shared_nested_request_prefixes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import benchmarks.prolong as prolong
+
+    complete = [
+        {"prompt_token_ids": list(range(24))},
+        {"prompt_token_ids": list(range(100, 124))},
+    ]
+    metadata = [
+        {
+            "request_index": index,
+            "source_stream_indices": [index],
+            "token_sha256": f"panel-{index}",
+            "unique_16_token_block_ratio": 1.0,
+        }
+        for index in range(2)
+    ]
+
+    def fake_prompts(
+        tokenizer: object,
+        *,
+        length: int,
+        batch_size: int,
+        validation_lengths: tuple[int, ...] | None = None,
+    ) -> tuple[list[dict[str, list[int]]], list[dict[str, object]]]:
+        del tokenizer
+        assert (length, batch_size, validation_lengths) == (24, 2, (8, 16))
+        return complete, metadata
+
+    monkeypatch.setattr(prolong, "make_speed_prompts", fake_prompts)
+    panel = make_speed_trace_panel(
+        object(), lengths=[8, 16], batch_size=2, decode_tokens=8
+    )
+
+    short_prompts, short_records, short_traces = panel[8]
+    long_prompts, long_records, long_traces = panel[16]
+    for short, long in zip(short_prompts, long_prompts, strict=True):
+        assert long["prompt_token_ids"][:8] == short["prompt_token_ids"]
+    assert short_traces[0] == list(range(8, 16))
+    assert long_traces[0] == list(range(16, 24))
+    assert [record["panel_token_sha256"] for record in short_records] == [
+        record["panel_token_sha256"] for record in long_records
+    ]
 
 
 def test_prolong_speed_cohort_reports_pooled_and_equal_weight_acceptance(
@@ -299,6 +442,7 @@ def test_prolong_speed_cohort_reports_pooled_and_equal_weight_acceptance(
         float,
         tuple[tuple[int, ...], ...],
         dict[str, int],
+        dict[str, object],
     ]:
         del llm, params
         prompt_id = batch[0]["prompt_token_ids"][0]
@@ -313,11 +457,13 @@ def test_prolong_speed_cohort_reports_pooled_and_equal_weight_acceptance(
                 "vllm:spec_decode_num_draft_tokens": 7 * drafts,
                 "vllm:spec_decode_num_accepted_tokens": accepted,
             },
+            {"wall_elapsed_seconds": 5.0},
         )
 
     monkeypatch.setattr(prolong, "timed_generate", fake_timed_generate)
+    fake_llm = SimpleNamespace(collective_rpc=lambda _function: None)
     result = prolong.evaluate_speed(
-        object(),
+        fake_llm,
         object(),
         lengths=[100],
         batch_size=1,
@@ -329,8 +475,7 @@ def test_prolong_speed_cohort_reports_pooled_and_equal_weight_acceptance(
 
     assert result["prefill_seconds"] == 2.0
     assert result["decode_ms_per_batch_step"] == 1_000.0
-    assert "total_timings_seconds" not in result
-    assert "cohort_total_timings_seconds" not in result
+    assert result["cohort_wall_timings_seconds"] == [10.0]
     assert result["speculative_target_cycle_ms"] == 1_600.0
     assert result["speculative_mean_acceptance_length"] == 2.4
     assert result["speculative_equal_weight_request_mean_acceptance_length"] == 2.5
@@ -376,3 +521,30 @@ def test_prolong_quality_rejects_samples_outside_frozen_cohort() -> None:
             samples=9,
             sample_offset=8,
         )
+
+
+def test_synchronized_decode_configures_initial_admission_barrier(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("LOD_BENCHMARK_SYNCHRONIZED_DECODE", raising=False)
+    monkeypatch.delenv("LOD_BENCHMARK_ADMISSION_COHORT", raising=False)
+
+    configure_synchronized_decode_environment(enabled=True, batch_size=8)
+
+    assert os.environ["LOD_BENCHMARK_SYNCHRONIZED_DECODE"] == "1"
+    assert os.environ["LOD_BENCHMARK_ADMISSION_COHORT"] == "8"
+
+    configure_synchronized_decode_environment(enabled=False, batch_size=8)
+    assert "LOD_BENCHMARK_SYNCHRONIZED_DECODE" not in os.environ
+    assert "LOD_BENCHMARK_ADMISSION_COHORT" not in os.environ
+
+
+def test_release_speed_rejects_every_hidden_kimi_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LOD_KIMI_CROSS_LAYER_PREFILL_GROUP", "12")
+
+    with pytest.raises(ValueError, match="non-release Kimi benchmark environment"):
+        validate_release_environment(allow_experimental=False)
+
+    validate_release_environment(allow_experimental=True)

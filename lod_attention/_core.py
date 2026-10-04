@@ -2308,20 +2308,27 @@ class TritonLODAttentionCore(nn.Module):
             )
 
         with torch.no_grad():
+            if (
+                os.environ.get("LOD_KIMI_PROFILE_PREFILL") == "1"
+                and int(q.size(-1)) == 576
+                and not getattr(self, "_lod_reported_kimi_route_config", False)
+            ):
+                self._lod_reported_kimi_route_config = True
+                print(
+                    "KIMI_ROUTE_CONFIG "
+                    f"aiter={int(self.prefill_aiter_route_coarse)} "
+                    f"query_len={query_len} state_len={state_len} "
+                    f"local_backend={self.prefill_local_attention_backend} "
+                    f"expanded={int(isinstance(getattr(self, '_lod_kimi_expanded_prefill_chunk', None), torch.Tensor))}",
+                    flush=True,
+                )
             if query_len > 1 and self.prefill_aiter_route_coarse:
                 if protected_len != 0:
                     raise RuntimeError(
                         "AITER route/coarse prefill requires the separate sink cache"
                     )
-                if route_count != 8 or int(q.size(-1)) > 256:
-                    raise RuntimeError(
-                        "AITER route/coarse prefill requires top-eight equal-width "
-                        "heads no wider than 256"
-                    )
-                if int(state_v.size(-1)) != int(q.size(-1)):
-                    raise RuntimeError(
-                        "AITER route/coarse prefill requires equal K/V head widths"
-                    )
+                if route_count != 8:
+                    raise RuntimeError("AITER route/coarse prefill requires top eight")
                 if not self.split_prefill_local_attention:
                     raise RuntimeError(
                         "AITER route/coarse prefill requires split local attention"
@@ -2331,33 +2338,98 @@ class TritonLODAttentionCore(nn.Module):
                         "AITER route/coarse prefill does not support MLA key "
                         "normalization"
                     )
-                from .kernels.aiter_prefill_attention import (
-                    aiter_prefill_route_coarse_attention,
+                key_dim = int(q.size(-1))
+                value_dim = int(state_v.size(-1))
+                asymmetric_mla = (
+                    key_dim > value_dim
+                    and key_dim - value_dim == 64
+                    and int(state_k.size(1)) == 1
                 )
+                if not asymmetric_mla and (key_dim > 256 or value_dim != key_dim):
+                    raise RuntimeError(
+                        "AITER route/coarse prefill supports equal K/V heads up to "
+                        "256 or absorbed MLA K/V=(L+64, L); got "
+                        f"K/V=({key_dim}, {value_dim})"
+                    )
+                expanded_kimi_q = getattr(
+                    self, "_lod_kimi_expanded_prefill_chunk", None
+                )
+                kimi_w_uk_t = getattr(self, "_lod_kimi_w_uk_t", None)
+                kimi_w_uv = getattr(self, "_lod_kimi_w_uv", None)
+                expanded_kimi = bool(
+                    asymmetric_mla
+                    and isinstance(expanded_kimi_q, torch.Tensor)
+                    and isinstance(kimi_w_uk_t, torch.Tensor)
+                    and isinstance(kimi_w_uv, torch.Tensor)
+                )
+                if expanded_kimi:
+                    from .kernels.aiter_mla_prefill_attention import (
+                        aiter_kimi_expanded_prefill_route_coarse_attention as route_coarse,
+                    )
+                elif asymmetric_mla:
+                    from .kernels.aiter_mla_prefill_attention import (
+                        aiter_mla_prefill_route_coarse_attention as route_coarse,
+                    )
+                else:
+                    from .kernels.aiter_prefill_attention import (
+                        aiter_prefill_route_coarse_attention as route_coarse,
+                    )
 
                 (
                     routed,
                     coarse,
                     route_head_counts,
                     route_offsets,
-                ) = aiter_prefill_route_coarse_attention(
-                    q.contiguous(),
+                ) = route_coarse(
+                    (
+                        expanded_kimi_q.contiguous()
+                        if expanded_kimi
+                        else q.contiguous()
+                    ),
                     state_k.detach().contiguous(),
                     state_v.detach().contiguous(),
                     counts.detach().contiguous(),
+                    *(
+                        (kimi_w_uk_t, kimi_w_uv)
+                        if expanded_kimi
+                        else ()
+                    ),
                     state_len=state_len,
-                    kv_group_size=self.num_key_value_groups,
                     scale=self.scaling,
                     normalize_route_query=self.routing_normalization == "query",
-                    # Rank the same top eight as the uncapped calculation.
-                    # Oversized winners are closed immediately after routing.
-                    max_open_leaf_tokens=None,
-                    slot_lengths=None,
                     buffers=getattr(self, "_lod_prefill_attention_buffers", None),
+                    **(
+                        {
+                            "slot_lengths": (
+                                page_cache.get("slot_lengths")
+                                if page_cache is not None
+                                else None
+                            ),
+                            "max_open_leaf_tokens": self.max_open_centroid_leaves,
+                        }
+                        if expanded_kimi
+                        else {}
+                        if asymmetric_mla
+                        else {
+                            "kv_group_size": self.num_key_value_groups,
+                            # Rank the same top eight as the uncapped calculation.
+                            # Oversized winners are closed immediately after routing.
+                            "max_open_leaf_tokens": None,
+                            "slot_lengths": None,
+                        }
+                    )
+                    | (
+                        {}
+                        if expanded_kimi
+                        else {"kv_group_size": self.num_key_value_groups}
+                    ),
                 )
                 self._lod_prefill_aiter_coarse = coarse
                 self._lod_prefill_route_head_counts = route_head_counts
                 self._lod_prefill_route_offsets = route_offsets
+                self._lod_prefill_selected_route_cap_applied = bool(
+                    expanded_kimi and self.max_open_centroid_leaves is not None
+                )
                 return routed
 
             logits = self._state_routing_logits(
@@ -2656,6 +2728,14 @@ class TritonLODAttentionCore(nn.Module):
             # per-token latent normalization once when the virtual backing
             # store is created rather than on every leaf lookup.
             virtual_k = self._mla_normalize_key(virtual_k, state_centroid=False)
+            shared_latent_record = bool(
+                getattr(self, "mla_state_key_normalization", "none") == "none"
+                and int(virtual_v.size(-1)) < int(virtual_k.size(-1))
+                and virtual_k.data_ptr() == virtual_v.data_ptr()
+                and virtual_k.untyped_storage().data_ptr()
+                == virtual_v.untyped_storage().data_ptr()
+                and virtual_k.stride() == virtual_v.stride()
+            )
             if flat_int8_mma:
                 flat_leaf_k = torch.empty(
                     batch,
@@ -2694,11 +2774,15 @@ class TritonLODAttentionCore(nn.Module):
                 flat_leaf_k = virtual_k.new_empty(
                     batch, kv_heads, sequence_capacity, head_dim
                 )
-                flat_leaf_v = virtual_v.new_empty(
-                    batch,
-                    kv_heads,
-                    sequence_capacity,
-                    int(virtual_v.size(-1)),
+                flat_leaf_v = (
+                    flat_leaf_k[..., : int(virtual_v.size(-1))]
+                    if shared_latent_record
+                    else virtual_v.new_empty(
+                        batch,
+                        kv_heads,
+                        sequence_capacity,
+                        int(virtual_v.size(-1)),
+                    )
                 )
                 flat_leaf_k[..., : virtual_k.size(2), :].copy_(virtual_k)
                 flat_leaf_v[..., : virtual_v.size(2), :].copy_(virtual_v)
@@ -3463,6 +3547,29 @@ class TritonLODAttentionCore(nn.Module):
             raise TypeError("paged LOD cache is incomplete")
         if self.leaf_layout != "expert":
             raise RuntimeError("the LoD release supports only expert leaf layout")
+        leaf_kv_group_size = self.num_key_value_groups
+        expanded_kimi_q = getattr(self, "_lod_kimi_expanded_prefill_chunk", None)
+        kimi_w_uk_t = getattr(self, "_lod_kimi_w_uk_t", None)
+        kimi_w_uv = getattr(self, "_lod_kimi_w_uv", None)
+        expanded_kimi_leaves = bool(
+            int(q.size(2)) > 1
+            and int(q.size(-1)) == 576
+            and os.environ.get("LOD_KIMI_DISABLE_AITER_PREFILL") != "1"
+            and isinstance(expanded_kimi_q, torch.Tensor)
+            and isinstance(kimi_w_uk_t, torch.Tensor)
+            and isinstance(kimi_w_uv, torch.Tensor)
+            and not bool(cache.get("quantization_finalized", False))
+        )
+        quantized_leaf_k = cache.get("quantized_leaf_k")
+        leaf_capacity = (
+            int(quantized_leaf_k.size(2))
+            if bool(cache.get("quantization_finalized", False))
+            and isinstance(quantized_leaf_k, torch.Tensor)
+            else int(page_k.size(2))
+        )
+        leaf_count = int(cache.get("leaf_count", leaf_capacity))
+        if not 0 < leaf_count <= leaf_capacity:
+            raise RuntimeError("Kimi leaf archive has an invalid live length")
         leaf_kwargs = {
             "block_m": self.leaf_block_m,
             "block_n": self.leaf_block_n,
@@ -3483,6 +3590,11 @@ class TritonLODAttentionCore(nn.Module):
         route_offsets = getattr(self, "_lod_prefill_route_offsets", None)
         if route_offsets is not None:
             del self._lod_prefill_route_offsets
+        # AITER's route reducer records counts per *query* head, even when the
+        # persistent MLA cache has one shared KV head.  After Kimi leaves are
+        # projected, those query heads are precisely the expert rows consumed
+        # below, so the metadata remains valid and avoids recounting every
+        # routed query/slot pair.
         if bool(cache.get("quantization_finalized", False)):
             leaf_kwargs.update(
                 quantized_leaf_k=cache.get("quantized_leaf_k"),
@@ -3499,6 +3611,184 @@ class TritonLODAttentionCore(nn.Module):
                 quant_group_size=self.leaf_quant_group_size,
                 quant_token_group_size=self.leaf_quant_token_group_size,
             )
+        if expanded_kimi_leaves:
+            from .kernels.aiter_mla_prefill_attention import (
+                expand_kimi_leaf_kv,
+                project_kimi_head_values,
+            )
+
+            query_heads = int(expanded_kimi_q.size(1))
+            compact_projection = bool(
+                getattr(self, "_lod_kimi_compact_leaf_prefill", False)
+            )
+            routed_projection = bool(
+                os.environ.get("LOD_KIMI_ROUTED_LEAF_PROJECTION") == "1"
+            )
+            if compact_projection:
+                del self._lod_kimi_compact_leaf_prefill
+                if reduce_routes:
+                    raise RuntimeError(
+                        "compact Kimi prefill requires fused per-route refinement"
+                    )
+                # Exact absorbed-MLA attention consumes the one compact
+                # [latent, direct-key] archive directly. Keep the temporary
+                # D512 route values bounded, then project only those selected
+                # values through each head's W_UV.
+                # K3 has twelve local query heads at TP8.  Keep each shard a
+                # divisor of the local head count so the final shard retains
+                # the same GQA grouping as the others (rather than an 8+4
+                # split with a stale group size of eight).
+                group_heads = max(
+                    divisor
+                    for divisor in (1, 2, 3, 4, 6, 8, 12)
+                    if divisor <= query_heads and query_heads % divisor == 0
+                )
+            elif routed_projection:
+                # Keep the archive latent and let each selected expert tile
+                # project only the leaves it consumes. A stride-zero expanded
+                # head view supplies per-head experts without duplicating K/V.
+                group_heads = query_heads
+            else:
+                # At short context, projecting leaves to D192/V128 is faster.
+                # Bound its temporary without changing routes or arithmetic.
+                target_token_heads = 4 * 1024 * 1024
+                max_group_heads = max(1, target_token_heads // leaf_count)
+                group_heads = max(
+                    divisor
+                    for divisor in (1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 96)
+                    if divisor <= query_heads
+                    and query_heads % divisor == 0
+                    and divisor <= max_group_heads
+                )
+            route_count = int(top_slots.size(-1))
+            route_shape = (
+                (int(q.size(0)), query_heads, int(q.size(2)), 128)
+                if compact_projection
+                else (
+                    int(q.size(0)),
+                    query_heads,
+                    int(q.size(2)),
+                    route_count,
+                    128,
+                )
+            )
+            route_lse_shape = route_shape[:-1]
+            route_output = q.new_empty(route_shape)
+            route_lse_output = torch.empty(
+                route_lse_shape, dtype=torch.float32, device=q.device
+            )
+            for head_begin in range(0, query_heads, group_heads):
+                head_end = head_begin + group_heads
+                if compact_projection:
+                    group_q = q[:, head_begin:head_end].contiguous()
+                    group_k = page_k[..., :leaf_count, :]
+                    group_v = page_v[..., :leaf_count, :]
+                    group_kv_size = group_heads
+                    group_leaf_kwargs = dict(leaf_kwargs)
+                    group_leaf_kwargs.update(
+                        block_m=int(
+                            os.environ.get("LOD_KIMI_COMPACT_LEAF_BLOCK_M", 16)
+                        ),
+                        block_n=int(
+                            os.environ.get("LOD_KIMI_COMPACT_LEAF_BLOCK_N", 32)
+                        ),
+                        num_warps=int(
+                            os.environ.get("LOD_KIMI_COMPACT_LEAF_WARPS", 1)
+                        ),
+                    )
+                elif routed_projection:
+                    group_q = expanded_kimi_q[:, head_begin:head_end].contiguous()
+                    group_k = page_k[..., :leaf_count, :].expand(
+                        -1, head_end - head_begin, -1, -1
+                    )
+                    group_v = page_v[..., :leaf_count, :].expand(
+                        -1, head_end - head_begin, -1, -1
+                    )
+                    group_kv_size = 1
+                    group_leaf_kwargs = dict(leaf_kwargs)
+                    group_leaf_kwargs.update(
+                        kimi_w_uk_t=kimi_w_uk_t[head_begin:head_end],
+                        kimi_w_uv=kimi_w_uv[head_begin:head_end],
+                    )
+                else:
+                    group_k, group_v = expand_kimi_leaf_kv(
+                        page_k[..., :leaf_count, :],
+                        kimi_w_uk_t[head_begin:head_end],
+                        kimi_w_uv[head_begin:head_end],
+                        buffers=getattr(
+                            self, "_lod_prefill_attention_buffers", None
+                        ),
+                    )
+                    group_q = expanded_kimi_q[:, head_begin:head_end].contiguous()
+                    group_kv_size = 1
+                    group_leaf_kwargs = dict(leaf_kwargs)
+                    # K3's projected D192/V128 leaves are already organized
+                    # as 16-token pages.  A 32-query, one-wave tile fills the
+                    # MI325X more effectively than the generic 16x32/two-wave
+                    # geometry and avoids reading a second page for the common
+                    # one-page centroid.  This changes only tiling; routes,
+                    # logits, and the LSE replacement formula are unchanged.
+                    group_leaf_kwargs.update(
+                        block_m=32,
+                        block_n=16,
+                        num_warps=1,
+                    )
+                group_route_head_counts = None
+                group_route_offsets = None
+                if (
+                    route_head_counts is not None
+                    and route_offsets is not None
+                    and not compact_projection
+                ):
+                    # The AITER top-eight reducer has already counted every
+                    # routed query/head/centroid pair and assigned its local
+                    # expert offset.  Kimi projects leaves in head groups, so
+                    # pass the corresponding contiguous metadata slice to the
+                    # expert packer instead of repeating the same contended
+                    # atomic count over Q * H * 8 routes here.
+                    batch = int(top_slots.size(0))
+                    group_route_head_counts = (
+                        route_head_counts.view(batch, query_heads, active_slots)[
+                            :, head_begin:head_end
+                        ]
+                        .contiguous()
+                        .view(-1)
+                    )
+                    group_route_offsets = route_offsets[
+                        :, head_begin:head_end
+                    ].contiguous()
+                group_output, group_lse = paged_leaf_attention(
+                    group_q,
+                    group_k,
+                    group_v,
+                    slot_pages,
+                    overflow_page_keys,
+                    overflow_page_values,
+                    overflow_used,
+                    slot_lengths,
+                    top_slots[:, head_begin:head_end].contiguous(),
+                    page_indices=page_indices,
+                    kv_group_size=group_kv_size,
+                    active_slots=active_slots,
+                    route_head_counts=group_route_head_counts,
+                    route_offsets=group_route_offsets,
+                    # W_UV is linear, so combine the eight refined routes in
+                    # latent space and project their single normalized value.
+                    # The final merge still removes all eight corresponding
+                    # centroid summaries using ``top_slots``.
+                    reduce_routes=(True if compact_projection else reduce_routes),
+                    scale=self.scaling,
+                    **group_leaf_kwargs,
+                )
+                if compact_projection:
+                    group_output = project_kimi_head_values(
+                        group_output,
+                        kimi_w_uv[head_begin:head_end],
+                    )
+                route_output[:, head_begin:head_end].copy_(group_output)
+                route_lse_output[:, head_begin:head_end].copy_(group_lse)
+            return route_output, route_lse_output
+
         return paged_leaf_attention(
             q,
             page_k,
@@ -3510,7 +3800,7 @@ class TritonLODAttentionCore(nn.Module):
             slot_lengths,
             top_slots,
             page_indices=page_indices,
-            kv_group_size=self.num_key_value_groups,
+            kv_group_size=leaf_kv_group_size,
             active_slots=active_slots,
             route_head_counts=route_head_counts,
             route_offsets=route_offsets,
@@ -3536,8 +3826,8 @@ class TritonLODAttentionCore(nn.Module):
         """Evaluate the release coarse field, excluding refined centroids."""
         del state_capacity
         query_len = int(q.size(2))
-        if int(q.size(-1)) > 512 or int(state_v.size(-1)) > 256:
-            raise RuntimeError("the LoD release supports Dq<=512 and Dv<=256")
+        if int(q.size(-1)) > 1024 or int(state_v.size(-1)) > 512:
+            raise RuntimeError("the LoD release supports Dq<=1024 and Dv<=512")
 
         fused_prefill = getattr(self, "_lod_prefill_fused_coarse", None)
         if fused_prefill is not None:
@@ -3655,7 +3945,98 @@ class TritonLODAttentionCore(nn.Module):
         context_len: int | None = None,
     ) -> torch.Tensor:
         del owners, exact_k, exact_v
-        q = q.contiguous()
+        debug_kimi_sync = bool(
+            os.environ.get("LOD_KIMI_DEBUG_SYNC") == "1"
+            and int(q.size(-1)) == 576
+            and int(q.size(2)) > 1
+            and (context_len or 0)
+            >= int(os.environ.get("LOD_KIMI_DEBUG_SYNC_CONTEXT", "0"))
+        )
+
+        def debug_sync(stage: str) -> None:
+            if not debug_kimi_sync:
+                return
+            try:
+                torch.cuda.synchronize(q.device)
+            except Exception:
+                print(f"KIMI_DEBUG_SYNC_FAILED stage={stage}", flush=True)
+                raise
+            print(f"KIMI_DEBUG_SYNC_OK stage={stage}", flush=True)
+
+        profile_kimi_remote = (
+            os.environ.get("LOD_KIMI_PROFILE_PREFILL") == "1"
+            and int(q.size(-1)) == 576
+            and int(q.size(2)) > 1
+        )
+        remote_begin = (
+            torch.cuda.Event(enable_timing=True) if profile_kimi_remote else None
+        )
+        route_end = (
+            torch.cuda.Event(enable_timing=True) if profile_kimi_remote else None
+        )
+        leaf_end = (
+            torch.cuda.Event(enable_timing=True) if profile_kimi_remote else None
+        )
+        merge_end = (
+            torch.cuda.Event(enable_timing=True) if profile_kimi_remote else None
+        )
+        if remote_begin is not None:
+            remote_begin.record()
+        leaf_profile_events: dict[
+            str, list[tuple[torch.cuda.Event, torch.cuda.Event]]
+        ] | None = None
+        if profile_kimi_remote:
+            leaf_profile_events = {}
+            self._lod_leaf_timing_events = leaf_profile_events
+        query_len = int(q.size(2))
+        expanded_kimi_q = getattr(self, "_lod_kimi_expanded_prefill_chunk", None)
+        kimi_w_uk_t = getattr(self, "_lod_kimi_w_uk_t", None)
+        kimi_leaf_count = (
+            int(page_cache.get("leaf_count", 0))
+            if page_cache is not None
+            else 0
+        )
+        compact_kimi_prefill = bool(
+            query_len > 1
+            and int(q.size(-1)) == 576
+            and kimi_leaf_count > int(
+                os.environ.get("LOD_KIMI_COMPACT_PREFILL_THRESHOLD", 1 << 60)
+            )
+            and isinstance(expanded_kimi_q, torch.Tensor)
+            and isinstance(kimi_w_uk_t, torch.Tensor)
+        )
+        if compact_kimi_prefill:
+            from .kernels.aiter_mla_prefill_attention import (
+                absorb_kimi_prefill_query,
+            )
+
+            prefill_buffers = getattr(self, "_lod_prefill_attention_buffers", None)
+            if prefill_buffers is not None:
+                # The optional compact-consumer experiment permanently
+                # replaces projected-leaf attention after its configured
+                # threshold. Do not retain both workspace families.
+                released_expanded = False
+                for name in (
+                    "kimi_leaf_expanded_k_token_major",
+                    "kimi_leaf_expanded_k_nope_token_major",
+                    "kimi_leaf_expanded_v_token_major",
+                ):
+                    released_expanded |= prefill_buffers.pop(name, None) is not None
+                if released_expanded:
+                    # RCCL allocates outside PyTorch's caching allocator.  A
+                    # mere reference drop leaves these large blocks reserved
+                    # and can give the next collective only a few dozen MiB.
+                    # This executes once at the permanent transition, not once
+                    # per layer or chunk.
+                    torch.cuda.empty_cache()
+            q = absorb_kimi_prefill_query(
+                expanded_kimi_q,
+                kimi_w_uk_t,
+                buffers=prefill_buffers,
+            )
+            self._lod_kimi_compact_leaf_prefill = True
+        else:
+            q = q.contiguous()
         # The persistent MLA key buffers intentionally hold raw compressed
         # latents in the experimental modes.  Normalize exact token keys at
         # consumption time; values are already the model-normalized latent.
@@ -3664,8 +4045,17 @@ class TritonLODAttentionCore(nn.Module):
             new_k = self._mla_normalize_key(new_k, state_centroid=False)
         if sink_k is not None:
             sink_k = self._mla_normalize_key(sink_k, state_centroid=False)
+        kimi_w_uv = getattr(self, "_lod_kimi_w_uv", None)
+        expected_output_shape = (
+            *q.shape[:-1],
+            (
+                int(kimi_w_uv.size(-1))
+                if isinstance(kimi_w_uv, torch.Tensor)
+                else int(local_v.size(-1))
+            ),
+        )
         if output_buffer is not None and (
-            tuple(output_buffer.shape) != tuple(q.shape)
+            tuple(output_buffer.shape) != expected_output_shape
             or output_buffer.dtype != q.dtype
             or output_buffer.device != q.device
             or int(output_buffer.stride(-1)) != 1
@@ -3673,7 +4063,6 @@ class TritonLODAttentionCore(nn.Module):
             raise ValueError("LOD output buffer has incompatible geometry")
         if sink_k is None or sink_v is None:
             raise RuntimeError("the LoD release requires its separate sink cache")
-        query_len = int(q.size(2))
         configured_topk = (
             self.prefill_two_level_topk
             if query_len > 1 and self.prefill_two_level_topk is not None
@@ -3719,7 +4108,33 @@ class TritonLODAttentionCore(nn.Module):
                 state_len=state_len,
                 page_cache=page_cache,
             )
-            if self.max_open_centroid_leaves is not None:
+            if query_len > 1 and int(q.size(-1)) == 576:
+                # K3's local and coarse MLA kernels are both large resident
+                # launches. Starting leaf work before either retires both
+                # oversubscribes gfx942 and can violate temporary-workspace
+                # lifetimes in the full model. Express the two device-side
+                # dependencies before projection/refinement; unlike a host
+                # profiler barrier this does not stall unrelated streams.
+                foreground = torch.cuda.current_stream(q.device)
+                local_stream = getattr(
+                    self, "_lod_prefill_local_stream_pending", None
+                )
+                if local_stream is not None:
+                    foreground.wait_stream(local_stream)
+                coarse = getattr(self, "_lod_prefill_aiter_coarse", None)
+                if coarse is not None and coarse.ready_stream is not None:
+                    foreground.wait_stream(coarse.ready_stream)
+            if route_end is not None:
+                route_end.record()
+            selected_route_cap_applied = bool(
+                getattr(self, "_lod_prefill_selected_route_cap_applied", False)
+            )
+            if hasattr(self, "_lod_prefill_selected_route_cap_applied"):
+                del self._lod_prefill_selected_route_cap_applied
+            if (
+                self.max_open_centroid_leaves is not None
+                and not selected_route_cap_applied
+            ):
                 if page_cache is None or not isinstance(
                     page_cache.get("slot_lengths"), torch.Tensor
                 ):
@@ -3760,6 +4175,7 @@ class TritonLODAttentionCore(nn.Module):
                     top_slots,
                     torch.full_like(top_slots, -1),
                 )
+            debug_sync("route-coarse-local")
         if (
             self.fused_decode_attention
             and int(state_v.size(-1)) == int(q.size(-1))
@@ -4189,6 +4605,11 @@ class TritonLODAttentionCore(nn.Module):
                 active_slots=state_len,
                 reduce_routes=aiter_coarse is None,
             )
+        debug_sync("leaf-refinement")
+        if profile_kimi_remote and hasattr(self, "_lod_leaf_timing_events"):
+            del self._lod_leaf_timing_events
+        if leaf_end is not None:
+            leaf_end.record()
         if aiter_coarse is None:
             has_exact = top_slots.ge(0).any(dim=-1)
             exact_output = torch.where(
@@ -4211,14 +4632,43 @@ class TritonLODAttentionCore(nn.Module):
                 del self._lod_prefill_local_stream_pending
                 torch.cuda.current_stream(q.device).wait_stream(local_stream)
             local_output, local_lse = local_branch
-            from .kernels.aiter_prefill_attention import (
-                merge_aiter_prefill_refinement,
+            if aiter_coarse.ready_stream is not None:
+                torch.cuda.current_stream(q.device).wait_stream(
+                    aiter_coarse.ready_stream
+                )
+            projected_sink_v = sink_v
+            asymmetric_mla_merge = int(q.size(-1)) != int(
+                aiter_coarse.output_0.size(-1)
             )
+            if asymmetric_mla_merge:
+                from .kernels.aiter_mla_prefill_attention import (
+                    merge_aiter_mla_prefill_refinement as merge_refinement,
+                )
+                if (
+                    int(q.size(-1)) == 576
+                    and isinstance(kimi_w_uv, torch.Tensor)
+                    and int(aiter_coarse.mean_v.size(-1)) == 128
+                ):
+                    from .kernels.aiter_mla_prefill_attention import (
+                        project_kimi_head_values,
+                        project_kimi_shared_values,
+                    )
+                    if int(exact_output.size(-1)) == 512:
+                        exact_output = project_kimi_head_values(
+                            exact_output, kimi_w_uv
+                        )
+                    elif int(exact_output.size(-1)) != 128:
+                        raise ValueError("Kimi refined values have invalid width")
+                    projected_sink_v = project_kimi_shared_values(sink_v, kimi_w_uv)
+            else:
+                from .kernels.aiter_prefill_attention import (
+                    merge_aiter_prefill_refinement as merge_refinement,
+                )
 
-            return merge_aiter_prefill_refinement(
+            merged = merge_refinement(
                 q,
                 sink_k,
-                sink_v,
+                projected_sink_v,
                 aiter_coarse,
                 top_slots,
                 exact_output,
@@ -4229,6 +4679,44 @@ class TritonLODAttentionCore(nn.Module):
                 scale=self.scaling,
                 output_buffer=output_buffer,
             )
+            debug_sync("final-merge")
+            if merge_end is not None and remote_begin is not None:
+                merge_end.record()
+                torch.cuda.synchronize(q.device)
+                print(
+                    "KIMI_REMOTE_PHASES "
+                    f"route={remote_begin.elapsed_time(route_end):.3f}ms "
+                    f"leaf={route_end.elapsed_time(leaf_end):.3f}ms "
+                    f"merge={leaf_end.elapsed_time(merge_end):.3f}ms",
+                    flush=True,
+                )
+                if leaf_profile_events:
+                    print(
+                        "KIMI_LEAF_PHASES "
+                        + " ".join(
+                            f"{name}="
+                            f"{sum(begin.elapsed_time(end) for begin, end in pairs):.3f}ms"
+                            for name, pairs in leaf_profile_events.items()
+                        ),
+                        flush=True,
+                    )
+            # K3's recurrent/MoE prefill kernels and RCCL allocate large
+            # workspaces outside PyTorch's caching allocator.  At very long
+            # context the completed route/refinement temporaries can leave
+            # nearly all otherwise-free VRAM reserved by PyTorch, causing the
+            # following KDA or collective launch to fail even though those
+            # blocks are no longer live.  Return cached blocks only under
+            # genuine memory pressure, and only for multi-token Kimi prefill;
+            # decode therefore never pays for a memory query or cache flush.
+            if (
+                int(q.size(-1)) == 576
+                and int(q.size(2)) > 1
+                and (context_len or 0) >= 256 * 1024
+            ):
+                free_bytes, _ = torch.cuda.mem_get_info(q.device)
+                if free_bytes < 4 * 1024**3:
+                    torch.cuda.empty_cache()
+            return merged
         if overlapped_coarse is None:
             coarse_output, coarse_lse = self._coarse_attention(
                 q,
@@ -4247,13 +4735,52 @@ class TritonLODAttentionCore(nn.Module):
                 raise AssertionError("coarse/leaf overlap stream state is incomplete")
             foreground_stream.wait_stream(coarse_stream)
             coarse_output, coarse_lse = overlapped_coarse
+        project_kimi_after_merge = (
+            int(q.size(-1)) == 576 and isinstance(kimi_w_uv, torch.Tensor)
+        )
         if local_branch is not None:
             local_stream = getattr(self, "_lod_prefill_local_stream_pending", None)
             if local_stream is not None:
                 del self._lod_prefill_local_stream_pending
                 torch.cuda.current_stream(q.device).wait_stream(local_stream)
             local_output, local_lse = local_branch
-            return merge_attention_branches_with_sink(
+            # Kimi's optimized local MLA kernel applies W_UV while accumulating
+            # values and therefore returns D128 output.  The generic remote
+            # fallback above still accumulates latent D512 values.  Projection
+            # is linear, so project the remote and sink branches before their
+            # LSE reduction when local attention is already projected.  This
+            # both keeps the branch widths consistent and avoids projecting the
+            # much larger merged query tensor a second time.
+            if project_kimi_after_merge and int(local_output.size(-1)) == 128:
+                from .kernels.aiter_mla_prefill_attention import (
+                    project_kimi_head_values,
+                    project_kimi_shared_values,
+                )
+
+                if int(coarse_output.size(-1)) == 512:
+                    coarse_output = project_kimi_head_values(
+                        coarse_output, kimi_w_uv
+                    )
+                if exact_output is not None and int(exact_output.size(-1)) == 512:
+                    exact_output = project_kimi_head_values(
+                        exact_output, kimi_w_uv
+                    )
+                projected_sink_v = project_kimi_shared_values(sink_v, kimi_w_uv)
+                return merge_attention_branches_with_sink(
+                    q,
+                    sink_k,
+                    projected_sink_v,
+                    coarse_output,
+                    coarse_lse,
+                    exact_output,
+                    exact_lse,
+                    local_output,
+                    local_lse,
+                    kv_group_size=self.num_key_value_groups,
+                    scale=self.scaling,
+                    output_buffer=output_buffer,
+                )
+            merged = merge_attention_branches_with_sink(
                 q,
                 sink_k,
                 sink_v,
@@ -4265,9 +4792,19 @@ class TritonLODAttentionCore(nn.Module):
                 local_lse,
                 kv_group_size=self.num_key_value_groups,
                 scale=self.scaling,
-                output_buffer=output_buffer,
+                output_buffer=None if project_kimi_after_merge else output_buffer,
             )
-        return merge_attention_branches_with_sink(
+            if project_kimi_after_merge:
+                from .kernels.aiter_mla_prefill_attention import (
+                    project_kimi_head_values,
+                )
+
+                merged = project_kimi_head_values(merged, kimi_w_uv)
+                if output_buffer is not None:
+                    output_buffer.copy_(merged)
+                    return output_buffer
+            return merged
+        merged = merge_attention_branches_with_sink(
             q,
             sink_k,
             sink_v,
@@ -4277,8 +4814,18 @@ class TritonLODAttentionCore(nn.Module):
             exact_lse,
             kv_group_size=self.num_key_value_groups,
             scale=self.scaling,
-            output_buffer=output_buffer,
+            output_buffer=None if project_kimi_after_merge else output_buffer,
         )
+        if project_kimi_after_merge:
+            from .kernels.aiter_mla_prefill_attention import (
+                project_kimi_head_values,
+            )
+
+            merged = project_kimi_head_values(merged, kimi_w_uv)
+            if output_buffer is not None:
+                output_buffer.copy_(merged)
+                return output_buffer
+        return merged
 
     def _exact_attention(
         self,
@@ -4303,8 +4850,6 @@ class TritonLODAttentionCore(nn.Module):
                 return_lse=False,
             )
             return output
-        if output_buffer is not None:
-            raise ValueError("direct exact-attention output requires AITER")
         k = self._mla_normalize_key(k, state_centroid=False)
         if valid_starts is not None:
             query_len = int(q.size(2))
@@ -4330,14 +4875,36 @@ class TritonLODAttentionCore(nn.Module):
             query_valid = query_position.view(1, 1, query_len, 1) >= (
                 valid_starts.view(-1, 1, 1, 1)
             )
-            return torch.where(query_valid, output, torch.zeros_like(output))
-        return F.scaled_dot_product_attention(
+            output = torch.where(query_valid, output, torch.zeros_like(output))
+            kimi_w_uv = getattr(self, "_lod_kimi_w_uv", None)
+            if isinstance(kimi_w_uv, torch.Tensor) and int(output.size(-1)) == 512:
+                from .kernels.aiter_mla_prefill_attention import (
+                    project_kimi_head_values,
+                )
+
+                output = project_kimi_head_values(output, kimi_w_uv)
+            if output_buffer is not None:
+                output_buffer.copy_(output)
+                return output_buffer
+            return output
+        output = F.scaled_dot_product_attention(
             q,
             self._repeat_kv(k),
             self._repeat_kv(v),
             is_causal=causal,
             scale=self.scaling,
         )
+        kimi_w_uv = getattr(self, "_lod_kimi_w_uv", None)
+        if isinstance(kimi_w_uv, torch.Tensor) and int(output.size(-1)) == 512:
+            from .kernels.aiter_mla_prefill_attention import (
+                project_kimi_head_values,
+            )
+
+            output = project_kimi_head_values(output, kimi_w_uv)
+        if output_buffer is not None:
+            output_buffer.copy_(output)
+            return output_buffer
+        return output
 
     def _prefill_local_attention(
         self,
@@ -4349,13 +4916,46 @@ class TritonLODAttentionCore(nn.Module):
         output_buffer: torch.Tensor | None = None,
         return_lse: bool = True,
     ) -> tuple[torch.Tensor, torch.Tensor]:
+        kimi_w_uv = getattr(self, "_lod_kimi_w_uv", None)
+        expected_value_dim = (
+            int(kimi_w_uv.size(-1))
+            if isinstance(kimi_w_uv, torch.Tensor)
+            else int(v.size(-1))
+        )
         if output_buffer is not None and tuple(output_buffer.shape) != (
             int(q.size(0)),
             int(q.size(1)),
             int(k.size(2)) - query_offset,
-            int(v.size(-1)),
+            expected_value_dim,
         ):
             raise ValueError("local-attention output buffer has the wrong shape")
+        if (
+            self.prefill_local_attention_backend == "aiter"
+            and int(q.size(-1)) == 576
+            and int(k.size(-1)) == 576
+            and int(v.size(-1)) == 512
+            and int(k.size(1)) == 1
+        ):
+            from .kernels.aiter_mla_prefill_attention import (
+                aiter_kimi_local_prefill_attention,
+            )
+
+            return aiter_kimi_local_prefill_attention(
+                q,
+                k,
+                query_offset=query_offset,
+                scale=self.scaling,
+                expanded_q=getattr(
+                    self,
+                    "_lod_kimi_expanded_prefill_chunk",
+                    getattr(self, "_lod_kimi_expanded_prefill_query", None),
+                ),
+                w_uk_t=getattr(self, "_lod_kimi_w_uk_t", None),
+                w_uv=kimi_w_uv,
+                output_buffer=output_buffer,
+                return_lse=return_lse,
+                buffers=getattr(self, "_lod_prefill_attention_buffers", None),
+            )
         k = self._mla_normalize_key(k, state_centroid=False)
         if int(q.size(-1)) >= 512:
             # The practical AITER path rejects 512-wide Q/K (and wider), while
@@ -4545,6 +5145,7 @@ class TritonLODAttentionCore(nn.Module):
         logical_prefill_len: int | None = None,
         prefill_valid_starts: torch.Tensor | None = None,
         finalize_cache_for_decode: bool = True,
+        final_cache_coverage: int | None = None,
     ) -> dict[str, object]:
         """Construct LOD state from an existing post-RoPE BF16 K/V prefix.
 
@@ -4561,6 +5162,7 @@ class TritonLODAttentionCore(nn.Module):
             prefill_valid_starts=prefill_valid_starts,
             build_cache_only=True,
             finalize_cache_for_decode=finalize_cache_for_decode,
+            final_cache_coverage=final_cache_coverage,
         )
         state = getattr(self, "_lod_state", None)
         if not isinstance(state, dict):
@@ -4578,6 +5180,7 @@ class TritonLODAttentionCore(nn.Module):
         build_cache_only: bool,
         output_buffer: torch.Tensor | None = None,
         finalize_cache_for_decode: bool = True,
+        final_cache_coverage: int | None = None,
     ) -> torch.Tensor | None:
         if k.ndim != 4 or v.ndim != 4 or k.shape[:3] != v.shape[:3]:
             raise ValueError("prefill K/V must be matching rank-four tensors")
@@ -4589,12 +5192,35 @@ class TritonLODAttentionCore(nn.Module):
             or int(q.size(-1)) != int(k.size(-1))
         ):
             raise ValueError("prefill query geometry does not match cached K/V")
+        kimi_expanded_query = getattr(self, "_lod_kimi_expanded_prefill_query", None)
+        if kimi_expanded_query is not None:
+            if (
+                not isinstance(kimi_expanded_query, torch.Tensor)
+                or kimi_expanded_query.ndim != 4
+                or tuple(kimi_expanded_query.shape[:3])
+                != (batch_size, int(q.size(1)) if q is not None else 0, attention_len)
+                or int(kimi_expanded_query.size(-1)) != 192
+            ):
+                raise ValueError("Kimi expanded prefill query has incompatible geometry")
         if not build_cache_only and q is None:
             raise ValueError("attention prefill requires query states")
+        kimi_w_uv = getattr(self, "_lod_kimi_w_uv", None)
+        expected_output_shape = (
+            (
+                *q.shape[:-1],
+                (
+                    int(kimi_w_uv.size(-1))
+                    if isinstance(kimi_w_uv, torch.Tensor)
+                    else int(v.size(-1))
+                ),
+            )
+            if q is not None
+            else ()
+        )
         if output_buffer is not None and (
             build_cache_only
             or q is None
-            or tuple(output_buffer.shape) != tuple(q.shape)
+            or tuple(output_buffer.shape) != expected_output_shape
             or output_buffer.dtype != q.dtype
             or output_buffer.device != q.device
             or int(output_buffer.stride(-1)) != 1
@@ -4950,7 +5576,16 @@ class TritonLODAttentionCore(nn.Module):
                 device=k.device,
             )
             initial_counts.masked_fill_(initial_valid[:, None, :, None], 1.0)
-        state_capacity = self._state_capacity(prefill_len, initial_state_len)
+        # A DCP runtime can keep an in-flight replicated prefill cache only
+        # until the prompt is complete, then convert it into its much smaller
+        # rank-local persistent allocation.  The first scheduler chunk must
+        # nevertheless reserve enough temporary space for every later prompt
+        # chunk.  Ordinary callers leave this private override unset.
+        cache_capacity_len = max(
+            prefill_len,
+            int(getattr(self, "_lod_prefill_cache_capacity", 0)),
+        )
+        state_capacity = self._state_capacity(cache_capacity_len, initial_state_len)
         if getattr(self, "_lod_collect_stats", False):
             self._lod_ever_selected_slots = torch.zeros(
                 batch_size,
@@ -5011,7 +5646,7 @@ class TritonLODAttentionCore(nn.Module):
         state_coverage = initial_len
         page_cache = None
         if self.leaf_attention_backend == "paged":
-            sequence_capacity = _round_up(prefill_len, self.chunk_len) + max(
+            sequence_capacity = _round_up(cache_capacity_len, self.chunk_len) + max(
                 self.chunk_len, self.decode_cache_headroom
             )
             page_cache = self._new_page_cache(
@@ -5121,42 +5756,59 @@ class TritonLODAttentionCore(nn.Module):
             if not build_cache_only:
                 if q is None:
                     raise AssertionError("attention prefill query is missing")
+                if kimi_expanded_query is not None:
+                    self._lod_kimi_expanded_prefill_chunk = kimi_expanded_query[
+                        ..., query_begin:query_end, :
+                    ]
                 if self.split_prefill_local_attention:
+                    local_query_offset = query_begin - bswa_begin
                     local_args = (
                         q[..., bswa_begin:query_end, :],
                         k[..., bswa_begin:query_end, :],
                         v[..., bswa_begin:query_end, :],
                     )
-                    local_branch = self._prefill_local_attention(
-                        *local_args,
-                        query_offset=query_begin - bswa_begin,
-                    )
+                    local_stream = getattr(self, "_lod_prefill_local_stream", None)
+                    if local_stream is None:
+                        local_stream = torch.cuda.Stream(device=q.device)
+                        self._lod_prefill_local_stream = local_stream
+                    foreground_stream = torch.cuda.current_stream(q.device)
+                    local_stream.wait_stream(foreground_stream)
+                    with torch.cuda.stream(local_stream):
+                        local_branch = self._prefill_local_attention(
+                            *local_args,
+                            query_offset=local_query_offset,
+                        )
+                    self._lod_prefill_local_stream_pending = local_stream
                 else:
                     local_branch = None
-                chunk_output = self._two_level_attention(
-                    q[..., query_begin:query_end, :],
-                    k[..., bswa_begin:query_end, :],
-                    v[..., bswa_begin:query_end, :],
-                    state_k,
-                    state_v,
-                    counts,
-                    owners,
-                    archive_k,
-                    archive_v,
-                    key_norm_sums=key_norm_sums,
-                    state_len=state_len,
-                    state_capacity=state_capacity,
-                    page_cache=page_cache,
-                    local_branch=local_branch,
-                    sink_k=sink_k,
-                    sink_v=sink_v,
-                    context_len=query_end,
-                    output_buffer=(
-                        output_buffer[..., query_begin:query_end, :]
-                        if output_buffer is not None
-                        else None
-                    ),
-                )
+                try:
+                    chunk_output = self._two_level_attention(
+                        q[..., query_begin:query_end, :],
+                        k[..., bswa_begin:query_end, :],
+                        v[..., bswa_begin:query_end, :],
+                        state_k,
+                        state_v,
+                        counts,
+                        owners,
+                        archive_k,
+                        archive_v,
+                        key_norm_sums=key_norm_sums,
+                        state_len=state_len,
+                        state_capacity=state_capacity,
+                        page_cache=page_cache,
+                        local_branch=local_branch,
+                        sink_k=sink_k,
+                        sink_v=sink_v,
+                        context_len=query_end,
+                        output_buffer=(
+                            output_buffer[..., query_begin:query_end, :]
+                            if output_buffer is not None
+                            else None
+                        ),
+                    )
+                finally:
+                    if hasattr(self, "_lod_kimi_expanded_prefill_chunk"):
+                        del self._lod_kimi_expanded_prefill_chunk
                 if output_buffer is None:
                     outputs.append(chunk_output)
 
@@ -5243,7 +5895,20 @@ class TritonLODAttentionCore(nn.Module):
         # Prepare the state boundary required by the first decode token after
         # all prefill outputs have been computed.  Otherwise prompts ending on
         # a chunk boundary pay a full 256-token state update on token one.
-        if finalize_cache_for_decode:
+        if final_cache_coverage is not None:
+            if not build_cache_only or not finalize_cache_for_decode:
+                raise ValueError(
+                    "an explicit final cache boundary is valid only for finalized "
+                    "cache-only construction"
+                )
+            if not initial_len <= final_cache_coverage <= prefill_len:
+                raise ValueError(
+                    "final cache coverage lies outside the constructed prefix: "
+                    f"initial={initial_len}, final={final_cache_coverage}, "
+                    f"prefix={prefill_len}"
+                )
+            decode_coverage = final_cache_coverage
+        elif finalize_cache_for_decode:
             decode_coverage = max(initial_len, self._bswa_begin(prefill_len + 1))
         else:
             # Scheduler chunks are not semantic LOD query blocks. Preserve the
@@ -5408,6 +6073,12 @@ class TritonLODAttentionCore(nn.Module):
         finalize_cache_for_decode: bool = True,
     ) -> torch.Tensor:
         """Append a causal multi-token turn without replaying decode kernels."""
+        profile_kimi_prefill = os.environ.get("LOD_KIMI_PROFILE_PREFILL") == "1"
+        profile_events: list[tuple[str, torch.cuda.Event, torch.cuda.Event]] = []
+        profile_cursor = None
+        if profile_kimi_prefill:
+            profile_cursor = torch.cuda.Event(enable_timing=True)
+            profile_cursor.record()
         if not hasattr(self, "_lod_state"):
             raise RuntimeError("cached LOD prefill did not receive a prior state")
         if int(q.size(2)) <= 1:
@@ -5440,6 +6111,18 @@ class TritonLODAttentionCore(nn.Module):
         previous_total_len = int(cache["total_len"])
         turn_len = int(q.size(2))
         total_len = previous_total_len + turn_len
+        kimi_expanded_query = getattr(self, "_lod_kimi_expanded_prefill_query", None)
+        if kimi_expanded_query is not None:
+            if (
+                not isinstance(kimi_expanded_query, torch.Tensor)
+                or kimi_expanded_query.ndim != 4
+                or tuple(kimi_expanded_query.shape[:3])
+                != (int(q.size(0)), int(q.size(1)), turn_len)
+                or int(kimi_expanded_query.size(-1)) != 192
+            ):
+                raise ValueError(
+                    "cached Kimi expanded prefill query has incompatible geometry"
+                )
         recent_k = cache["recent_k"]
         recent_v = cache["recent_v"]
         if not isinstance(recent_k, torch.Tensor) or not isinstance(
@@ -5636,6 +6319,11 @@ class TritonLODAttentionCore(nn.Module):
                     block_begin + update_end - desired_coverage
                 ),
             )
+            if profile_cursor is not None:
+                finished = torch.cuda.Event(enable_timing=True)
+                finished.record()
+                profile_events.append(("early_update", profile_cursor, finished))
+                profile_cursor = finished
             local_begin = state_coverage - initial_coverage
             local_end = previous_total_len + query_end - initial_coverage
             local_k = working_k[..., local_begin:local_end, :]
@@ -5652,14 +6340,31 @@ class TritonLODAttentionCore(nn.Module):
                     ),
                     dim=2,
                 )
-            local_branch = self._prefill_local_attention(
-                local_query,
-                local_k,
-                local_v,
-                query_offset=query_prefix_len,
-            )
-            outputs.append(
-                self._two_level_attention(
+            if kimi_expanded_query is not None:
+                self._lod_kimi_expanded_prefill_chunk = kimi_expanded_query[
+                    ..., query_begin:query_end, :
+                ]
+            local_stream = getattr(self, "_lod_prefill_local_stream", None)
+            if local_stream is None:
+                local_stream = torch.cuda.Stream(device=q.device)
+                self._lod_prefill_local_stream = local_stream
+            foreground_stream = torch.cuda.current_stream(q.device)
+            local_stream.wait_stream(foreground_stream)
+            with torch.cuda.stream(local_stream):
+                local_branch = self._prefill_local_attention(
+                    local_query,
+                    local_k,
+                    local_v,
+                    query_offset=query_prefix_len,
+                )
+            self._lod_prefill_local_stream_pending = local_stream
+            if profile_cursor is not None:
+                finished = torch.cuda.Event(enable_timing=True)
+                finished.record()
+                profile_events.append(("local_attention", profile_cursor, finished))
+                profile_cursor = finished
+            try:
+                chunk_output = self._two_level_attention(
                     q[..., query_begin:query_end, :],
                     local_k,
                     local_v,
@@ -5683,7 +6388,15 @@ class TritonLODAttentionCore(nn.Module):
                         else None
                     ),
                 )
-            )
+            finally:
+                if hasattr(self, "_lod_kimi_expanded_prefill_chunk"):
+                    del self._lod_kimi_expanded_prefill_chunk
+            outputs.append(chunk_output)
+            if profile_cursor is not None:
+                finished = torch.cuda.Event(enable_timing=True)
+                finished.record()
+                profile_events.append(("remote_lod", profile_cursor, finished))
+                profile_cursor = finished
             query_begin = query_end
 
         if bool(getattr(self, "_lod_stage_cached_prefill_update", False)):
@@ -5696,6 +6409,16 @@ class TritonLODAttentionCore(nn.Module):
             if state_coverage != initial_coverage:
                 raise AssertionError(
                     "cross-layer cached prefill performed an early state update"
+                )
+            if profile_events:
+                torch.cuda.synchronize(q.device)
+                print(
+                    "KIMI_PREFILL_PHASES "
+                    + " ".join(
+                        f"{name}={begin.elapsed_time(end):.3f}ms"
+                        for name, begin, end in profile_events
+                    ),
+                    flush=True,
                 )
             if output_buffer is not None:
                 return output_buffer

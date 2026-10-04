@@ -15,27 +15,32 @@ Scores are percentages and higher is better. The metric is each task's
 both models under full attention and two-tier LoD. Every task contains exactly
 500 logged examples and no evaluator-fatal errors.
 
+The Qwen three-tier evaluation is complete for all 13 tasks in both BF16 and
+INT4 modes.
+
 ### Qwen3.8-27B-FP8
 
-| Task | Full attention | Two-tier LoD |
-|---|---:|---:|
-| NIAH single 1 | 100.00 | 100.00 |
-| NIAH single 2 | 100.00 | 99.60 |
-| NIAH single 3 | 100.00 | 99.80 |
-| NIAH multikey 1 | 100.00 | 99.00 |
-| NIAH multikey 2 | 100.00 | 96.20 |
-| NIAH multikey 3 | 100.00 | 92.60 |
-| NIAH multiquery | 100.00 | 99.90 |
-| NIAH multivalue | 100.00 | 99.15 |
-| Common-words extraction | 99.98 | 99.90 |
-| Frequent-words extraction | 99.40 | 98.87 |
-| HotpotQA | 72.00 | 67.20 |
-| SQuAD QA | 78.85 | 74.88 |
-| Variable tracking | 100.00 | 99.96 |
-| **Mean over all 13 tasks** | **96.17** | **94.39** |
+| Task | Full attention | Two-tier LoD | Three-tier BF16 | Three-tier INT4 |
+|---|---:|---:|---:|---:|
+| NIAH single 1 | 100.00 | 100.00 | 100.00 | 100.00 |
+| NIAH single 2 | 100.00 | 99.60 | 99.20 | 98.80 |
+| NIAH single 3 | 100.00 | 99.80 | 99.40 | 99.60 |
+| NIAH multikey 1 | 100.00 | 99.00 | 99.60 | 99.00 |
+| NIAH multikey 2 | 100.00 | 96.20 | 86.00 | 84.00 |
+| NIAH multikey 3 | 100.00 | 92.60 | 78.80 | 81.60 |
+| NIAH multiquery | 100.00 | 99.90 | 99.45 | 99.60 |
+| NIAH multivalue | 100.00 | 99.15 | 96.90 | 94.65 |
+| Common-words extraction | 99.98 | 99.90 | 99.98 | 99.98 |
+| Frequent-words extraction | 99.40 | 98.87 | 98.20 | 98.00 |
+| HotpotQA | 72.00 | 67.20 | 65.40 | 63.60 |
+| SQuAD QA | 78.85 | 74.88 | 72.55 | 72.18 |
+| Variable tracking | 100.00 | 99.96 | 99.76 | 99.96 |
+| **Mean over all 13 tasks** | **96.17** | **94.39** | **91.94** | **91.61** |
 
 Two-tier LoD is 1.78 percentage points below full attention on the unweighted
-13-task mean.
+13-task mean. Three-tier BF16 is 4.23 percentage points below full attention
+and 2.45 points below two-tier LoD. Three-tier INT4 is 4.56 points below full
+attention and 2.78 points below two-tier LoD.
 
 ### K2-Horizon-32B-FP8
 
