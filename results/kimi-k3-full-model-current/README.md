@@ -45,6 +45,27 @@ optimization target, not proof that reclamation explains the remaining gap.
 Reproduce the preceding score-only configuration with length 65536 and the
 same allocator/cache protocol; the counters are recorded automatically.
 
+The following bounded-headroom experiment
+(`oct4-lod-prefill-retention4g-b8-64k.json`, 20994) changes only the runtime
+retention reserve from 8 GiB to **4 GiB**, using the development-only
+`LOD_KIMI_PREFILL_MIN_FREE_GIB=4`. Completion fences and source release are
+unchanged; reclamation still runs below the reserve. Across warmup plus
+measurement, seven ranks retain blocks at all sixteen checks and one rank
+reclaims once. The run completes without RCCL errors, preemptions or cache
+hits; the recorded prompts, continuations, scheduler/cache reservations and
+timing protocol match 20993.
+
+Measured prefill is **68.440 s**, versus **71.499 s** with the 8 GiB guard
+and **70.564 s** for matched dense attention: a 4.3% LoD latency reduction
+and **1.031x** dense / LoD. This is the first corrected 64K/B8 full-model
+check in this cohort to beat dense, but it needs repetition and a matched
+32K check. The default remains 8 GiB pending those checks. This two-token
+trace measures prefill, not amortized decode or new model quality.
+
+The allocator policy tests pass seven cases, including exact reserve
+boundaries and invalid reserve settings; the K3/shared-merge CPU suite
+passes 230 tests with 39 GPU skips.
+
 | Batch | Context | Full prefill | Corrected LoD prefill | Full / LoD |
 |---:|---:|---:|---:|---:|
 | 8 | 32K | — | 35.111 s | — |

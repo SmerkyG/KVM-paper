@@ -28,6 +28,7 @@ def test_prefill_allocator_audit_does_not_change_retention_policy(monkeypatch):
              "minimum_free_bytes_at_check": None}
     monkeypatch.setattr(runtime, "_PREFILL_ALLOCATOR_AUDIT", audit)
     monkeypatch.setenv("LOD_KIMI_REUSE_PREFILL_ALLOCATOR", "1")
+    monkeypatch.delenv("LOD_KIMI_PREFILL_MIN_FREE_GIB", raising=False)
     memory = iter(((9 * 1024**3, 256 * 1024**3), (3 * 1024**3, 256 * 1024**3)))
     monkeypatch.setattr(torch.cuda, "mem_get_info", lambda _device: next(memory))
     reclaimed = []
@@ -42,6 +43,35 @@ def test_prefill_allocator_audit_does_not_change_retention_policy(monkeypatch):
     assert audit["calls"] == 3 and audit["reclaimed"] == 2
     assert audit["minimum_free_bytes_at_check"] == 3 * 1024**3
     assert len(reclaimed) == 2
+
+
+@pytest.mark.parametrize("reserve_gib", (4, 8))
+def test_prefill_allocator_keeps_bounded_headroom(monkeypatch, reserve_gib):
+    from vllm_lod_plugin import prefill_allocator
+
+    audit = {"calls": 0, "retained": 0, "reclaimed": 0,
+             "minimum_free_bytes_at_check": None}
+    monkeypatch.setattr(prefill_allocator, "_PREFILL_ALLOCATOR_AUDIT", audit)
+    monkeypatch.setenv("LOD_KIMI_REUSE_PREFILL_ALLOCATOR", "1")
+    monkeypatch.setenv("LOD_KIMI_PREFILL_MIN_FREE_GIB", str(reserve_gib))
+    memory = iter((reserve_gib * 1024**3, reserve_gib * 1024**3 - 1))
+    monkeypatch.setattr(torch.cuda, "mem_get_info", lambda _device: (next(memory), 256 * 1024**3))
+    reclaimed = []
+    monkeypatch.setattr(torch.cuda, "empty_cache", lambda: reclaimed.append(True))
+    prefill_allocator._reclaim_prefill_allocator(torch.device("cuda"))
+    prefill_allocator._reclaim_prefill_allocator(torch.device("cuda"))
+    assert audit["retained"] == audit["reclaimed"] == 1
+    assert len(reclaimed) == 1
+
+
+@pytest.mark.parametrize("reserve", ("0", "-1", "65", "not-a-number"))
+def test_prefill_allocator_rejects_invalid_headroom(monkeypatch, reserve):
+    from vllm_lod_plugin import prefill_allocator
+
+    monkeypatch.setenv("LOD_KIMI_REUSE_PREFILL_ALLOCATOR", "1")
+    monkeypatch.setenv("LOD_KIMI_PREFILL_MIN_FREE_GIB", reserve)
+    with pytest.raises(ValueError):
+        prefill_allocator._reclaim_prefill_allocator(torch.device("cuda"))
 
 
 def test_fixed_state_update_graph_refreshes_sources_and_owns_membership(monkeypatch) -> None:
