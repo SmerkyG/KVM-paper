@@ -859,8 +859,8 @@ def release_worker_allocator_cache(worker: Any, retain: bool = False) -> dict[st
     this policy must be matched across dense and LoD, and is recorded below.
     """
 
-    del worker
     import torch
+    from vllm_lod_plugin.prefill_allocator import _PREFILL_ALLOCATOR_AUDIT
 
     torch.cuda.synchronize()
     free_bytes, _ = torch.cuda.mem_get_info()
@@ -874,6 +874,7 @@ def release_worker_allocator_cache(worker: Any, retain: bool = False) -> dict[st
         "free_bytes_after": torch.cuda.mem_get_info()[0],
         "allocated_bytes": torch.cuda.memory_allocated(),
         "reserved_bytes": torch.cuda.memory_reserved(),
+        "prefill_allocator_audit": dict(_PREFILL_ALLOCATOR_AUDIT),
     }
 
 
@@ -1088,6 +1089,7 @@ def audit_worker_attention_mode(worker: Any) -> dict[str, Any]:
                           if getattr(pool.engine, "_lod_kimi_coarse_graphs", None) is not None), None)
     final_cache_graphs = getattr(runtime, "_kimi_final_cache_graphs", None)
     state_update_graphs = getattr(runtime, "_kimi_state_update_graphs", None)
+    from vllm_lod_plugin.prefill_allocator import _PREFILL_ALLOCATOR_AUDIT
     return {
         "lod_runtime": runtime is not None,
         "lod_pool_count": len(pools),
@@ -1133,6 +1135,7 @@ def audit_worker_attention_mode(worker: Any) -> dict[str, Any]:
             "replay_count": state_update_graphs.replay_count,
             "fallback_count": state_update_graphs.fallback_count,
         },
+        "prefill_allocator_audit": dict(_PREFILL_ALLOCATOR_AUDIT),
     }
 
 

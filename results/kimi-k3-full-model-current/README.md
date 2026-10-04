@@ -26,6 +26,25 @@ than per sequence.
 
 ## Latest corrected full-model prefill check (October 4)
 
+### Allocator-retention audit
+
+The host-only audit in `oct4-lod-prefill-allocator-audit-b8-64k.json`
+(20993) records **eight allocator reclamations per worker during warmup,
+and eight more during the measured eight-request prefill**. None of these
+runtime calls retained blocks. The minimum physical free memory at the
+checks was 4.45--6.60 GiB, below the existing 8 GiB guard. In contrast, the
+separate post-warmup check retained blocks on all ranks. Therefore the
+post-warmup metadata alone did not establish retention throughout prefill.
+
+This check changes no allocator policy and adds no GPU events or allocations;
+the counters reuse the existing memory-pressure query. It takes **71.499 s**
+at 64K/B8, versus the matched dense **70.564 s** (0.987x). Prompt and
+continuation metadata match the earlier score-only LoD control directly;
+there are no preemptions or prefix-cache hits. This identifies a possible
+optimization target, not proof that reclamation explains the remaining gap.
+Reproduce the preceding score-only configuration with length 65536 and the
+same allocator/cache protocol; the counters are recorded automatically.
+
 | Batch | Context | Full prefill | Corrected LoD prefill | Full / LoD |
 |---:|---:|---:|---:|---:|
 | 8 | 32K | — | 35.111 s | — |

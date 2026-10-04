@@ -21,6 +21,29 @@ from vllm_lod_plugin.models.kimi_k3 import (
 from vllm_lod_plugin.pool import VLLMLayerLODPool
 
 
+def test_prefill_allocator_audit_does_not_change_retention_policy(monkeypatch):
+    from vllm_lod_plugin import prefill_allocator as runtime
+
+    audit = {"calls": 0, "retained": 0, "reclaimed": 0,
+             "minimum_free_bytes_at_check": None}
+    monkeypatch.setattr(runtime, "_PREFILL_ALLOCATOR_AUDIT", audit)
+    monkeypatch.setenv("LOD_KIMI_REUSE_PREFILL_ALLOCATOR", "1")
+    memory = iter(((9 * 1024**3, 256 * 1024**3), (3 * 1024**3, 256 * 1024**3)))
+    monkeypatch.setattr(torch.cuda, "mem_get_info", lambda _device: next(memory))
+    reclaimed = []
+    monkeypatch.setattr(torch.cuda, "empty_cache", lambda: reclaimed.append(True))
+    runtime._reclaim_prefill_allocator(torch.device("cuda"))
+    runtime._reclaim_prefill_allocator(torch.device("cuda"))
+    assert audit == {"calls": 2, "retained": 1, "reclaimed": 1,
+                     "minimum_free_bytes_at_check": 3 * 1024**3}
+    assert len(reclaimed) == 1
+    monkeypatch.setenv("LOD_KIMI_REUSE_PREFILL_ALLOCATOR", "0")
+    runtime._reclaim_prefill_allocator(torch.device("cuda"))
+    assert audit["calls"] == 3 and audit["reclaimed"] == 2
+    assert audit["minimum_free_bytes_at_check"] == 3 * 1024**3
+    assert len(reclaimed) == 2
+
+
 def test_fixed_state_update_graph_refreshes_sources_and_owns_membership(monkeypatch) -> None:
     if not torch.cuda.is_available():
         pytest.skip("GPU fixed-shape state update")

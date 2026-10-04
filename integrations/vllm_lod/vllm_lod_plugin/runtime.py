@@ -27,6 +27,7 @@ from .config import (
     validate_production_scheduler,
 )
 from .pool import VLLMLayerLODPool
+from .prefill_allocator import _reclaim_prefill_allocator
 
 logger = logging.getLogger(__name__)
 
@@ -58,20 +59,6 @@ def _should_reclaim_prefill(*, total_len: int, prompt_capacity: int) -> bool:
             and total_len % _PREFILL_RECLAIM_INTERVAL == 0
         )
     )
-
-
-def _reclaim_prefill_allocator(device: torch.device) -> None:
-    """Experimental reuse of idle allocations when external work has room.
-
-    This never retains staging tensors or skips their completion fences. It
-    only avoids returning reusable, already-idle PyTorch blocks to HIP on
-    every request/chunk. Memory-pressure reclamation remains available.
-    """
-    if os.environ.get("LOD_KIMI_REUSE_PREFILL_ALLOCATOR") == "1":
-        free_bytes, _ = torch.cuda.mem_get_info(device)
-        if free_bytes >= 8 * 1024**3:
-            return
-    torch.cuda.empty_cache()
 
 
 def _cross_layer_prefill_group_end(
