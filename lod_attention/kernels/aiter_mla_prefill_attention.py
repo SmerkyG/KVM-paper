@@ -80,6 +80,14 @@ def _cached_flat_weight(
     shape: tuple[int, ...],
 ) -> torch.Tensor:
     """Cache a fixed inference-weight layout in its layer-local workspace."""
+    if buffers is not None and os.environ.get("LOD_KIMI_CACHE_PROJECTION_WEIGHTS") == "1":
+        # Serving shares scratch across layers. A single name only caches the
+        # most recently executed layer, so every following chunk rebuilds all
+        # layouts. Retain small immutable layouts per source instead; source
+        # references below prevent allocator-address recycling. Keep stage
+        # names distinct so local-stream creation is not read by coarse work
+        # before that stream has completed.
+        name = f"{name}_{source.data_ptr()}"
     source_name = f"{name}_source"
     cached = None if buffers is None else buffers.get(name)
     cached_source = None if buffers is None else buffers.get(source_name)
@@ -309,7 +317,9 @@ def expand_kimi_leaf_kv(
     )
     torch.mm(
         latent,
-        w_uk_t.permute(2, 0, 1).reshape(512, heads * 128),
+        (_cached_flat_weight(buffers, "kimi_leaf_flat_uk", w_uk_t, (2, 0, 1), (512, heads * 128))
+         if os.environ.get("LOD_KIMI_CACHE_PROJECTION_WEIGHTS") == "1"
+         else w_uk_t.permute(2, 0, 1).reshape(512, heads * 128)),
         out=expanded_k_nope_token_major.reshape(batch * tokens, heads * 128),
     )
     expanded_v_token_major = _workspace_tensor(
@@ -321,7 +331,9 @@ def expand_kimi_leaf_kv(
     )
     torch.mm(
         latent,
-        w_uv.permute(1, 0, 2).reshape(512, heads * 128),
+        (_cached_flat_weight(buffers, "kimi_leaf_flat_uv", w_uv, (1, 0, 2), (512, heads * 128))
+         if os.environ.get("LOD_KIMI_CACHE_PROJECTION_WEIGHTS") == "1"
+         else w_uv.permute(1, 0, 2).reshape(512, heads * 128)),
         out=expanded_v_token_major.reshape(batch * tokens, heads * 128),
     )
     # The D128 prefix of a D192 head is not flattenable across multiple heads:
@@ -1366,8 +1378,10 @@ def aiter_kimi_local_prefill_attention(
             device=q.device,
         )
         latent = k[:, 0, :, :512].reshape(batch * key_len, 512)
-        flat_key_weight = w_uk_t.permute(2, 0, 1).reshape(
-            512, query_heads * 128
+        flat_key_weight = (
+            _cached_flat_weight(buffers, "kimi_local_flat_uk", w_uk_t, (2, 0, 1), (512, query_heads * 128))
+            if os.environ.get("LOD_KIMI_CACHE_PROJECTION_WEIGHTS") == "1"
+            else w_uk_t.permute(2, 0, 1).reshape(512, query_heads * 128)
         )
         torch.mm(
             latent,
@@ -1385,8 +1399,10 @@ def aiter_kimi_local_prefill_attention(
             dtype=q.dtype,
             device=q.device,
         )
-        flat_value_weight = w_uv.permute(1, 0, 2).reshape(
-            512, query_heads * 128
+        flat_value_weight = (
+            _cached_flat_weight(buffers, "kimi_local_flat_uv", w_uv, (1, 0, 2), (512, query_heads * 128))
+            if os.environ.get("LOD_KIMI_CACHE_PROJECTION_WEIGHTS") == "1"
+            else w_uv.permute(1, 0, 2).reshape(512, query_heads * 128)
         )
         torch.mm(
             latent,

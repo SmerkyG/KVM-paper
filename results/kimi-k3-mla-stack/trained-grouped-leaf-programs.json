@@ -1,0 +1,87 @@
+{
+  "scope": "serial warmed leaf kernels on real trained prefill; not model wall time",
+  "input": "results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt",
+  "query_shape": [
+    1,
+    12,
+    16384,
+    192
+  ],
+  "active_slots": 2048,
+  "leaf_count": 16127,
+  "open_routes_per_query_mean": 8.0,
+  "opened_leaves_per_query_mean": 408.5442199707031,
+  "opened_centroid_length_mean": 51.06803512573242,
+  "tiles": {
+    "32x16x1": {
+      "median_ms": 1.3958510160446167,
+      "samples_ms": [
+        1.6833640336990356,
+        1.396170973777771,
+        1.390650987625122,
+        1.3958510160446167,
+        1.3523319959640503
+      ],
+      "program_groups": {
+        "1": {
+          "median_ms": 1.2924540042877197,
+          "samples_ms": [
+            1.4900089502334595,
+            1.2808539867401123,
+            1.2763340473175049,
+            1.2924540042877197,
+            1.2936530113220215
+          ],
+          "consumed_outputs_bitwise_match": true
+        },
+        "2": {
+          "median_ms": 1.2693339586257935,
+          "samples_ms": [
+            1.5468870401382446,
+            1.3596919775009155,
+            1.2279750108718872,
+            1.2526140213012695,
+            1.2693339586257935
+          ],
+          "consumed_outputs_bitwise_match": true
+        },
+        "4": {
+          "median_ms": 1.292814016342163,
+          "samples_ms": [
+            1.4819289445877075,
+            1.571328043937683,
+            1.292814016342163,
+            1.2763739824295044,
+            1.2558540105819702
+          ],
+          "consumed_outputs_bitwise_match": true
+        },
+        "8": {
+          "median_ms": 1.3958109617233276,
+          "samples_ms": [
+            1.639045000076294,
+            1.4318900108337402,
+            1.3958109617233276,
+            1.3647719621658325,
+            1.3340129852294922
+          ],
+          "consumed_outputs_bitwise_match": true
+        }
+      },
+      "output_relative_l2": 0.0,
+      "output_max_abs": 0.0,
+      "lse_max_abs": 0.0,
+      "output_finite": true
+    }
+  },
+  "projection": {
+    "median_ms": 0.250914990901947,
+    "samples_ms": [
+      0.31159400939941406,
+      0.27343401312828064,
+      0.250914990901947,
+      0.2469549924135208,
+      0.24471500515937805
+    ]
+  }
+}

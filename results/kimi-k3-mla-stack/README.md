@@ -852,3 +852,99 @@ benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_owner_tune \
   --kv-cache-memory-bytes 4294967296 \
   --output results/kimi-k3-mla-stack/dcp8-prefill-overlap-projection-controls.json
 ```
+
+### Fixed tile-packing and immutable-weight layouts (not promoted)
+
+Two additional ordinary / candidate / ordinary fixture controls keep the same
+model, logical requests, top eight and global cadence:
+
+| Candidate | Context | Ordinary before (s) | Candidate (s) | Ordinary after (s) |
+|:--|--:|--:|--:|--:|
+| Fixed tile-query ranges | 32K | 3.480 | 3.520 | 3.487 |
+| Fixed tile-query ranges | 64K | 8.494 | 8.418 | 8.499 |
+| Retain immutable weight layouts per layer | 32K | 3.465 | 3.453 | 3.485 |
+| Retain immutable weight layouts per layer | 64K | 8.478 | 8.415 | 8.480 |
+
+Sources: `dcp8-prefill-dense-tile-pack-controls.json` (20881) and
+`dcp8-prefill-cached-weights-controls.json` (20883). All worker audits pass
+and fixture IDs match. None provides a meaningful crossover improvement;
+the first also regresses at 32K. No full-model test or default change is
+justified by these results.
+
+`LOD_KIMI_DENSE_TILE_PACK=1` reserves a fixed Q-row range per centroid-score
+tile and uses one atomic reservation per tile/query block, rather than one
+atomic per route followed by global prefix/block-list construction. Empty
+rescoring workgroups exit immediately. It changes organization, not the exact
+top-eight result. The trained stage control
+`trained-dense-tile-pack.json` (20880) takes 2.753 / 2.649 / 2.714 ms; fresh
+queries/keys produce bitwise-identical routes, selected scores and coarse
+outputs. Eight direct GPU tests (20879) cover multiple rows/heads, incomplete
+tiles, fewer than eight tiles and queries spanning several packing blocks.
+The 20880 after-control followed changed-input correctness checks without
+restoring its original Q/K. Treat its stage timing as exploratory, not a
+matched-control speedup; the complete fixture controls above are valid.
+
+`LOD_KIMI_CACHE_PROJECTION_WEIGHTS=1` retains small immutable flattened
+projection weights per source/layer, instead of replacing the last layer's
+layout in the runtime-wide scratch dictionary. Source references prevent
+address recycling. Local, coarse and leaf names remain separate to avoid
+introducing an unordered cross-stream dependency. Graphs with mutable weight
+inputs disable this immutable cache. Two CPU/GPU cache tests pass (20882).
+
+Reproduce the fixture controls with the preceding owner-tuner command,
+replacing the middle variant with `reuse_dense_tile_pack` or
+`reuse_cached_weights` and choosing a separate output. The standalone stage
+test is:
+
+```bash
+benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_route_pack \
+  --input results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt \
+  --output results/kimi-k3-mla-stack/trained-dense-tile-pack.json
+```
+
+### Whole-attention graphs and further tile checks (not promoted)
+
+The fixed projected attention body, including the independent exact-local
+stream, route/coarse work, leaf attention and separate-sink merge, captures
+successfully. Fresh Q/K, W_UK/W_UV and leaf records match ordinary execution
+bitwise. Both paths refresh the same stable input storage, and those copies
+are included in timing. The local/sink geometry cyclically reuses captured
+trained records; this is not a new natural-text sequence or model-quality run.
+
+The corrected same-input ordinary / graph / ordinary test (20892,
+`trained-whole-attention-graph-controls.json`) takes **6.607 / 6.675 /
+6.623 ms**. Thus graph capture alone does not speed up this GPU workload.
+The earlier 20885 record (`trained-whole-attention-graph.json`) validates
+fresh-input correctness, but its after-control used altered input data and
+must not be used as a matched timing comparison. The corrected script restores
+all original sources before its final control.
+
+```bash
+benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_attention_graph \
+  --input results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt \
+  --output results/kimi-k3-mla-stack/trained-whole-attention-graph-controls.json
+```
+
+Changing the query tile used for exact centroid-tile rescoring is also slower:
+
+| Query tile | Ordinary 64 before (ms) | Candidate (ms) | Ordinary 64 after (ms) |
+|--:|--:|--:|--:|
+| 16 | 2.818 | 3.591 | 2.768 |
+| 32 | 2.748 | 2.839 | 2.717 |
+| 128 | 2.824 | 3.074 | 2.767 |
+
+Sources: `trained-refine16-controls.json` (20891),
+`trained-refine32-controls.json` (20889), and
+`trained-refine128-controls.json` (20890). All fresh-input results match
+bitwise and the before/after controls use restored identical inputs. The
+ordinary 64-query tile remains unchanged. Reproduce with the preceding
+route-packing stage command and `--candidate refine16`, `refine32` or
+`refine128`.
+
+A sequential grouped-leaf-workgroup prototype measured 1.292 / 1.269 /
+1.293 / 1.396 ms for 1 / 2 / 4 / 8 query tiles per workgroup
+(`trained-grouped-leaf-programs.json`, 20888). Six GPU correctness checks
+passed (20887). It provided no meaningful gain and its extra generic kernel
+wrapper was removed rather than retained in the serving path. Only 0.993%
+of the captured opened routes are singletons, so skipping their redundant
+refinement cannot address the main bottleneck in this workload.

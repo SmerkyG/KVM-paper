@@ -8,6 +8,7 @@ organization, not a change to the LoD selection rule or leaf cap.
 from __future__ import annotations
 
 import math
+import os
 
 import torch
 import triton
@@ -42,6 +43,33 @@ def _select_centroid_tiles(
 
 
 @triton.jit
+def _pack_dense_tile_queries(
+    selected, packed_rows, query_counts, Q, TILES,
+    BLOCK_Q: tl.constexpr,
+):
+    """Reserve once per tile/query block, not once per selected query route.
+
+    A tile occurs at most once in each query's top eight. Fixed Q-row storage
+    per expert avoids cumulative-start/block-list construction. Only the
+    populated prefix is consumed by the rescoring kernel.
+    """
+    head = tl.program_id(0)
+    tile = tl.program_id(1)
+    query = tl.program_id(2) * BLOCK_Q + tl.arange(0, BLOCK_Q)
+    route = tl.arange(0, 8)
+    chosen = tl.load(selected + (head * Q + query[:, None]) * 8 + route[None, :],
+                     mask=query[:, None] < Q, other=-1)
+    rank = tl.max(tl.where(chosen == tile, route[None, :], -1), axis=1)
+    valid = (query < Q) & (rank >= 0)
+    local = tl.cumsum(valid.to(tl.int32)) - 1
+    count = tl.sum(valid.to(tl.int32))
+    expert = head * TILES + tile
+    begin = tl.atomic_add(query_counts + expert, count, sem="relaxed")
+    tl.store(packed_rows + expert * Q + begin + local,
+             (head * Q + query) * 8 + rank, mask=valid)
+
+
+@triton.jit
 def _rescore_centroid_tiles(
     q, k, log_counts, packed_rows, block_experts, block_starts,
     query_counts, query_starts, active_programs, output,
@@ -50,15 +78,25 @@ def _rescore_centroid_tiles(
     K_HEAD_STRIDE: tl.constexpr, K_TOKEN_STRIDE: tl.constexpr,
     COUNT_BATCH_STRIDE: tl.constexpr,
     BLOCK_M: tl.constexpr, SCALE_LOG2: tl.constexpr,
+    DENSE_EXPERT_LAYOUT: tl.constexpr = False,
 ):
-    program = tl.program_id(0)
-    valid_program = program < tl.load(active_programs)
+    if DENSE_EXPERT_LAYOUT:
+        expert = tl.program_id(0).to(tl.int64)
+        query_block = tl.program_id(1)
+        valid_program = query_block * BLOCK_M < tl.load(query_counts + expert)
+    else:
+        program = tl.program_id(0)
+        valid_program = program < tl.load(active_programs)
     if valid_program:
-        expert = tl.load(block_experts + program).to(tl.int64)
-        query_block = program - tl.load(block_starts + expert)
+        if not DENSE_EXPERT_LAYOUT:
+            expert = tl.load(block_experts + program).to(tl.int64)
+            query_block = program - tl.load(block_starts + expert)
         local_row = query_block * BLOCK_M + tl.arange(0, BLOCK_M)
         valid_query = local_row < tl.load(query_counts + expert)
-        packed_begin = tl.load(query_starts + expert)
+        if DENSE_EXPERT_LAYOUT:
+            packed_begin = expert * Q
+        else:
+            packed_begin = tl.load(query_starts + expert)
         route_row = tl.load(packed_rows + packed_begin + local_row, mask=valid_query, other=0).to(tl.int64)
         query_row = route_row // 8
         head_row = expert // TILES
@@ -103,6 +141,9 @@ def refine_kimi_centroid_tiles(
     block_m: int = 64,
 ) -> torch.Tensor:
     """Return ordinary eight-per-tile candidates for the exact global reducer."""
+    block_m = int(os.environ.get("LOD_KIMI_REFINE_BLOCK_M", block_m))
+    if block_m not in (16, 32, 64, 128):
+        raise ValueError("Kimi refinement query tile must be 16, 32, 64 or 128")
     if q.ndim != 4 or q.size(-1) != 192 or not q.is_contiguous():
         raise ValueError("tile refinement requires contiguous BHQ192 queries")
     batch, heads, queries, _ = q.shape
@@ -121,12 +162,30 @@ def refine_kimi_centroid_tiles(
         candidates, selected, queries, tiles,
         BLOCK_TILES=max(8, triton.next_power_of_2(tiles)), BLOCK_M=32, num_warps=4,
     )
-    # Reuse the existing asynchronous expert packer: the experts here are
-    # contiguous key tiles, not semantic centroids or their leaf lists.
-    packed, counts, starts, block_experts, block_starts, max_blocks = _pack_expert_routes(
-        selected, active_slots=tiles, kv_heads=heads, kv_group_size=1,
-        expert_count=batch * heads * tiles, block_m=block_m, buffers=buffers,
-    )
+    dense = os.environ.get("LOD_KIMI_DENSE_TILE_PACK") == "1"
+    if dense:
+        packed = _workspace_tensor(
+            buffers, "tile_refine_dense_rows", (batch * heads * tiles * queries,),
+            dtype=torch.int32, device=q.device,
+        )
+        counts = _workspace_tensor(
+            buffers, "tile_refine_dense_counts", (batch * heads * tiles,),
+            dtype=torch.int32, device=q.device,
+        )
+        counts.zero_()
+        _pack_dense_tile_queries[(batch * heads, tiles, triton.cdiv(queries, 256))](
+            selected, packed, counts, queries, tiles, BLOCK_Q=256, num_warps=4,
+        )
+        # Unused arguments in the fixed expert-major dispatch.
+        starts = block_experts = block_starts = counts
+        rescore_grid = (batch * heads * tiles, triton.cdiv(queries, block_m))
+    else:
+        # Here experts are contiguous key tiles, not semantic leaf lists.
+        packed, counts, starts, block_experts, block_starts, max_blocks = _pack_expert_routes(
+            selected, active_slots=tiles, kv_heads=heads, kv_group_size=1,
+            expert_count=batch * heads * tiles, block_m=block_m, buffers=buffers,
+        )
+        rescore_grid = (max_blocks,)
     output = _workspace_tensor(
         buffers, "tile_refine_candidates", (batch, heads, 8, 16, queries),
         dtype=torch.float32, device=q.device,
@@ -134,7 +193,7 @@ def refine_kimi_centroid_tiles(
     if tiles < 8:
         output.fill_(-float("inf"))
         output[:, :, :, 8:].fill_(-1)
-    _rescore_centroid_tiles[(max_blocks,)](
+    _rescore_centroid_tiles[rescore_grid](
         q, expanded_k, log_counts, packed, block_experts, block_starts[:-1],
         counts, starts[:-1], block_starts[-1:], output,
         queries, tiles, state_len,
@@ -142,5 +201,6 @@ def refine_kimi_centroid_tiles(
         K_HEAD_STRIDE=expanded_k.stride(2), K_TOKEN_STRIDE=expanded_k.stride(1),
         COUNT_BATCH_STRIDE=log_counts.stride(0),
         BLOCK_M=block_m, SCALE_LOG2=scale / math.log(2), num_warps=4,
+        DENSE_EXPERT_LAYOUT=dense,
     )
     return output

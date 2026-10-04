@@ -21,6 +21,41 @@ from vllm_lod_plugin.models.kimi_k3 import (
 from vllm_lod_plugin.pool import VLLMLayerLODPool
 
 
+def test_shared_weight_cache_retains_distinct_layer_layouts(monkeypatch) -> None:
+    from lod_attention.kernels.aiter_mla_prefill_attention import _cached_flat_weight
+
+    monkeypatch.setenv("LOD_KIMI_CACHE_PROJECTION_WEIGHTS", "1")
+    first = torch.randn(3, 128, 512)
+    second = torch.randn_like(first)
+    buffers = {}
+    first_flat = _cached_flat_weight(buffers, "coarse", first, (2, 0, 1), (512, 384))
+    second_flat = _cached_flat_weight(buffers, "coarse", second, (2, 0, 1), (512, 384))
+    repeated = _cached_flat_weight(buffers, "coarse", first, (2, 0, 1), (512, 384))
+    assert repeated.data_ptr() == first_flat.data_ptr()
+    torch.testing.assert_close(first_flat, first.permute(2, 0, 1).reshape(512, 384))
+    torch.testing.assert_close(second_flat, second.permute(2, 0, 1).reshape(512, 384))
+    # Do not create a cross-stream dependency between independently prepared
+    # local/leaf and coarse layouts by aliasing their output allocation.
+    local_flat = _cached_flat_weight(buffers, "local", first, (2, 0, 1), (512, 384))
+    assert local_flat.data_ptr() != first_flat.data_ptr()
+    assert sum(value is first for value in buffers.values()) == 2
+
+
+def test_cached_leaf_projection_refreshes_each_layer(monkeypatch) -> None:
+    if not torch.cuda.is_available():
+        pytest.skip("GPU leaf projection")
+    monkeypatch.setenv("LOD_KIMI_CACHE_PROJECTION_WEIGHTS", "1")
+    source = torch.randn(2, 1, 31, 576, device="cuda").bfloat16()
+    weights = [(torch.randn(3, 128, 512, device="cuda").bfloat16(),
+                torch.randn(3, 512, 128, device="cuda").bfloat16()) for _ in range(2)]
+    buffers = {}
+    for uk, uv in (*weights, weights[0]):
+        output = expand_kimi_leaf_kv(source, uk, uv, buffers=buffers)
+        reference = expand_kimi_leaf_kv(source, uk, uv)
+        for actual, expected in zip(output, reference, strict=True):
+            torch.testing.assert_close(actual, expected, atol=0, rtol=0)
+
+
 def _dcp_schedule_fixture(rank: int = 0) -> VLLMLayerLODPool:
     pool = VLLMLayerLODPool.__new__(VLLMLayerLODPool)
     pool.dcp_world_size = 8
@@ -1147,14 +1182,17 @@ def test_final_cache_graph_refreshes_data_and_owns_private_update_scratch() -> N
 
 
 @pytest.mark.parametrize("states", [177, 1039])
-def test_tile_max_refinement_recovers_exact_global_top_eight(states) -> None:
+@pytest.mark.parametrize("queries", [37, 513])
+@pytest.mark.parametrize("dense_pack", [False, True])
+def test_tile_max_refinement_recovers_exact_global_top_eight(states, queries, dense_pack, monkeypatch) -> None:
     if not torch.cuda.is_available():
         return
+    monkeypatch.setenv("LOD_KIMI_DENSE_TILE_PACK", "1" if dense_pack else "0")
     from lod_attention.kernels.kimi_route_tile_refine import refine_kimi_centroid_tiles
     from lod_attention.kernels.aiter_prefill_attention import _reduce_route_candidates
 
     torch.manual_seed(79)
-    batch, heads, queries = 2, 3, 37
+    batch, heads = 2, 3
     q = torch.randn(batch, heads, queries, 192, device="cuda").bfloat16()
     k = torch.randn(batch, states, heads, 192, device="cuda").bfloat16()
     logs = torch.randint(1, 50, (batch, states), device="cuda").float().log().bfloat16()

@@ -1,0 +1,46 @@
+{
+  "scope": "whole fixed attention GPU stage, not model latency",
+  "source": "results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt",
+  "query_shape": [
+    1,
+    12,
+    16384,
+    192
+  ],
+  "state_len": 2048,
+  "leaf_count": 16127,
+  "local_geometry": "256 + Q cyclically reused trained records",
+  "input_copies_included": true,
+  "fresh_inputs_and_weights": "bitwise matched",
+  "same_input_timing_controls": true,
+  "eager_before": {
+    "median_ms": 6.607069969177246,
+    "samples_ms": [
+      6.944907188415527,
+      6.533193111419678,
+      6.698669910430908,
+      6.607069969177246,
+      6.5343918800354
+    ]
+  },
+  "graph": {
+    "median_ms": 6.675350189208984,
+    "samples_ms": [
+      6.696030139923096,
+      6.292874813079834,
+      6.864987850189209,
+      6.675350189208984,
+      6.315794944763184
+    ]
+  },
+  "eager_after": {
+    "median_ms": 6.623150825500488,
+    "samples_ms": [
+      6.522633075714111,
+      6.701430797576904,
+      6.623150825500488,
+      6.574151992797852,
+      6.694990158081055
+    ]
+  }
+}

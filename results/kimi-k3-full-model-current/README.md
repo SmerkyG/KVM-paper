@@ -49,6 +49,18 @@ The corrected path has **not crossed over on the full model at 64K**. The
 protocol. Reproduce LoD with the command below, using `--lengths 32768,65536`,
 `--kv-cache-memory-bytes 3221225472` and `--retain-warmup-allocator`.
 
+The subsequent independent-projection-overlap check
+(`oct4-lod-overlap-projection-b8-64k.json`, 20877) takes **71.924 s** at
+64K/B8. It changes only the scheduling of leaf K/V projection relative to
+local/coarse completion; expert packing and refinement retain their waits.
+Timing protocol and all eight prompt/continuation metadata records match the
+dense control above. All workers retain allocator blocks and the binary/path
+audit passes. Against 72.008 s without overlap, this is a negligible difference,
+not a demonstrated full-model speedup; dense / this candidate is **0.981x**.
+The fixture's roughly 2% gain did not transfer. The candidate remains opt-in
+(`LOD_KIMI_OVERLAP_LEAF_PROJECTION=1`), and its two-token trace is not a
+quality or update-amortized decode result.
+
 ## Historical October 4 matched prefill check (before sink correction)
 
 These fresh controls use the same eight real ProLong prompts, TP8/DCP8/EP8,

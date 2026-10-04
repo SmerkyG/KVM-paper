@@ -2403,6 +2403,10 @@ class TritonLODAttentionCore(nn.Module):
                     state_len=state_len,
                     scale=self.scaling,
                     normalize_route_query=self.routing_normalization == "query",
+                    **({"cache_immutable_weights": False}
+                       if expanded_kimi and graph_cache is None
+                       and getattr(self, "_lod_kimi_mutable_projection_weights", False)
+                       else {}),
                     buffers=getattr(self, "_lod_prefill_attention_buffers", None),
                     **(
                         {
