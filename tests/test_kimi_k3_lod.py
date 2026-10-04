@@ -274,6 +274,54 @@ def test_projected_kimi_leaves_support_aggregated_and_empty_routes(monkeypatch, 
 
 
 @pytest.mark.parametrize("paged_directory", [False, True])
+def test_scalar_leaf_directory_lookup_matches_partial_and_closed_routes(paged_directory) -> None:
+    if not torch.cuda.is_available():
+        pytest.skip("requires GPU leaf kernels")
+    from lod_attention._engines import KernelTwoLevelLODAttention
+    from lod_attention.kernels.paged_prefill import paged_leaf_attention
+
+    torch.manual_seed(79)
+    batch, heads, tokens, slots, queries = 2, 2, 73, 4, 19
+    engine = KernelTwoLevelLODAttention(
+        query_heads=heads, key_value_heads=1, scale=192**-0.5,
+    )
+    engine.head_dim = 576
+    configure_engine(engine, family=ModelFamily.KIMI_K3, mode=LODMode.TWO_TIER,
+                     request_capacity=512, has_query_norm=True, has_key_norm=False)
+    engine.leaf_paged_directory = paged_directory
+    source = torch.randn(batch, 1, tokens, 576, device="cuda").bfloat16()
+    owners = (torch.arange(tokens, device="cuda") % slots).view(1, 1, -1)
+    owners = owners.expand(batch, 1, tokens).contiguous()
+    cache = engine._new_page_cache(
+        source, source[..., :512], owners, state_capacity=slots,
+        sequence_capacity=512, virtual_k=source, virtual_v=source[..., :512],
+    )
+    w_uk = (torch.randn(heads, 128, 512, device="cuda") / math.sqrt(512)).bfloat16()
+    w_uv = (torch.randn(heads, 512, 128, device="cuda") / math.sqrt(512)).bfloat16()
+    keys, values = expand_kimi_leaf_kv(source, w_uk, w_uv)
+    query = torch.randn(batch, heads, queries, 192, device="cuda").bfloat16()
+    routes = torch.arange(queries * 8, device="cuda", dtype=torch.int32)
+    routes = routes.remainder(slots).view(1, 1, queries, 8)
+    routes = routes.expand(batch, heads, queries, 8).contiguous()
+    routes[..., 3:] = -1
+    routes[:, 1, -1] = -1
+    arguments = dict(page_indices=cache["page_indices"], kv_group_size=1,
+                     active_slots=slots, scale=engine.scaling,
+                     hash_probes=engine._page_lookup_probes(cache),
+                     block_m=32, block_n=16, num_warps=1, reduce_routes=False)
+    inputs = (query, keys, values, cache["slot_pages"], cache["overflow_page_keys"],
+              cache["overflow_page_values"], cache["overflow_used"],
+              cache["slot_lengths"], routes)
+    expected = paged_leaf_attention(*inputs, **arguments)
+    actual = paged_leaf_attention(*inputs, scalar_page_lookup=True, **arguments)
+    # Per-route scratch for a closed route is intentionally unwritten; the
+    # final merge masks it. Compare every actually consumed route, not garbage.
+    mask = routes.ge(0)
+    for left, right in zip(actual, expected, strict=True):
+        torch.testing.assert_close(left[mask], right[mask], atol=0, rtol=0)
+
+
+@pytest.mark.parametrize("paged_directory", [False, True])
 def test_sparse_leaf_projection_matches_only_selected_head_centroid_pairs(paged_directory) -> None:
     if not torch.cuda.is_available():
         return
@@ -629,6 +677,71 @@ def test_graph_warmup_rows_do_not_enter_smaller_decode_pool() -> None:
     assert torch.count_nonzero(result) == 0
 
 
+def test_breakable_prefill_writes_static_output_from_fresh_inputs() -> None:
+    tokens, heads, nope, latent_dim, direct, value_dim = 5, 2, 128, 512, 64, 128
+
+    class Pool:
+        direct_prefill_plan = ((0, 0, tokens, 0),)
+        decode_enabled = False
+        gain = 1.0
+
+        def direct_prefill(self, carrier, key, value, output, **kwargs):
+            # Model the eager cache/attention portion: both the new query and
+            # the live host cache plan must be observed on every replay.
+            query = kwargs["mla_query"]
+            output.copy_(query[..., :value_dim] * self.gain)
+            return output
+
+    pool = Pool()
+    layer = SimpleNamespace(
+        _vllm_lod_pool=pool,
+        W_UK_T=torch.randn(heads, nope, latent_dim),
+        W_UV=torch.randn(heads, latent_dim, value_dim),
+        qk_nope_head_dim=nope, num_heads=heads, v_head_dim=value_dim,
+    )
+    query = torch.randn(tokens, heads, nope + direct)
+    latent = torch.randn(tokens, latent_dim)
+    direct_key = torch.randn(tokens, 1, direct)
+    output = torch.empty(tokens, heads * value_dim)
+    address = output.data_ptr()
+    kimi_k3._run_lod_mla_with_output(layer, query, latent, direct_key, output, None)
+    torch.testing.assert_close(output, query[..., :value_dim].flatten(1))
+    query.add_(2)
+    pool.gain = 3.0
+    kimi_k3._run_lod_mla_with_output(layer, query, latent, direct_key, output, None)
+    assert output.data_ptr() == address
+    torch.testing.assert_close(output, (query[..., :value_dim] * 3).flatten(1))
+    with pytest.raises(ValueError, match="output buffer"):
+        kimi_k3._run_lod_mla(
+            layer, query, latent, direct_key, output.shape, None,
+            output_buffer=torch.empty(tokens + 1, heads * value_dim),
+        )
+
+
+@pytest.mark.parametrize("graph_prefill", [False, True])
+def test_decode_capture_sizes_only_keep_large_prefill_shapes_when_requested(
+    monkeypatch, graph_prefill,
+) -> None:
+    from vllm_lod_plugin.config import _ensure_exact_lod_decode_capture_sizes
+
+    monkeypatch.setenv("VLLM_LOD_POOL_SIZE", "8")
+    monkeypatch.setenv("LOD_KIMI_GRAPH_PREFILL", "1" if graph_prefill else "0")
+    monkeypatch.setenv("VLLM_USE_BREAKABLE_CUDAGRAPH", "1")
+    config = SimpleNamespace(
+        attention_config=SimpleNamespace(backend=SimpleNamespace(name="CUSTOM")),
+        compilation_config=SimpleNamespace(
+            cudagraph_capture_sizes=[1, 2, 4, 8, 16_384, 16_392],
+            max_cudagraph_capture_size=16_392,
+        ),
+        scheduler_config=SimpleNamespace(max_num_seqs=8),
+        num_speculative_tokens=0,
+    )
+    _ensure_exact_lod_decode_capture_sizes(config)
+    expected = list(range(1, 9)) + ([16_384, 16_392] if graph_prefill else [])
+    assert config.compilation_config.cudagraph_capture_sizes == expected
+    assert config.compilation_config.max_cudagraph_capture_size == max(expected)
+
+
 def test_single_owner_decode_dispatches_full_heads_in_mla_tiles() -> None:
     tokens, heads, nope, latent_dim, direct = 1, 96, 128, 512, 64
     observed = {}
@@ -667,6 +780,34 @@ def test_single_owner_decode_dispatches_full_heads_in_mla_tiles() -> None:
         "value_is_latent_view": True,
     }
     assert torch.all(output == 2)
+
+
+def test_update_graph_reconstructs_real_archive_membership() -> None:
+    from benchmarks.kimi_k3_update_graph import reconstruct_centroids
+    from benchmarks._kimi_k3_update_graph import _prefix_alias
+
+    leaves = torch.arange(8 * 6, dtype=torch.float32).reshape(1, 1, 8, 6)
+    page_indices = torch.full((1, 1, 2, 16), -1, dtype=torch.int32)
+    page_indices[0, 0, 0, :3] = torch.tensor([1, 3, 5])
+    page_indices[0, 0, 1, :5] = torch.tensor([0, 2, 4, 6, 7])
+    directories = torch.full((1, 1, 2, 64), -1, dtype=torch.int32)
+    directories[0, 0, :, 0] = torch.tensor([0, 1])
+    payload = {
+        "hash_probes": -1, "active_slots": 2,
+        "cache": {"leaf_k": leaves, "slot_lengths": torch.tensor([[[3, 5]]]),
+                  "slot_pages": torch.tensor([[[[0], [1]]]]),
+                  "page_indices": page_indices, "overflow_page_values": directories},
+    }
+    sums, lengths, archive = reconstruct_centroids(payload)
+    torch.testing.assert_close(sums, torch.stack([
+        leaves[0, 0, [1, 3, 5]].sum(0), leaves[0, 0, [0, 2, 4, 6, 7]].sum(0),
+    ]))
+    torch.testing.assert_close(lengths, torch.tensor([[3.], [5.]]))
+    assert _prefix_alias(leaves, leaves[..., :4])
+    assert not _prefix_alias(leaves, leaves[..., :4].clone())
+    page_indices[0, 0, 1, 0] = 1
+    with pytest.raises(ValueError, match="duplicated"):
+        reconstruct_centroids(payload)
 
 
 def test_latent_centroid_is_exact_expanded_kv_centroid() -> None:
@@ -754,6 +895,255 @@ def test_count_channel_equals_centroid_mass_bias() -> None:
         "qhd,khd->hqk", augmented_query, augmented_key
     ) * scale
     torch.testing.assert_close(actual, expected, atol=2e-5, rtol=2e-5)
+
+
+def test_projected_sink_merge_uses_real_query_and_each_heads_key() -> None:
+    if not torch.cuda.is_available():
+        pytest.skip("requires GPU MLA merge kernels")
+    from lod_attention.kernels.aiter_mla_prefill_attention import (
+        expand_kimi_sink_kv, merge_aiter_mla_prefill_refinement,
+    )
+
+    torch.manual_seed(89)
+    batch, heads, queries, states = 2, 3, 19, 12
+    query = torch.randn(batch, heads, queries, 192, device="cuda").bfloat16()
+    sink = torch.randn(batch, 1, 1, 576, device="cuda").bfloat16()
+    uk = (torch.randn(heads, 128, 512, device="cuda") / math.sqrt(512)).bfloat16()
+    uv = (torch.randn(heads, 512, 128, device="cuda") / math.sqrt(512)).bfloat16()
+    projected_key, projected_value = expand_kimi_sink_kv(sink, uk, uv, buffers={})
+    # Verify the actual inference projection, including all 64 direct channels.
+    expected_k = torch.einsum("bsl,hpl->bhsp", sink[:, 0, :, :512].float(), uk.float())
+    torch.testing.assert_close(projected_key[..., :128].float(), expected_k,
+                               atol=0.025, rtol=0.025)
+    torch.testing.assert_close(projected_key[..., 128:], sink[..., 512:].expand(-1, heads, -1, -1))
+    mean_v = torch.randn(batch, heads, states, 128, device="cuda").bfloat16()
+    baseline = mean_v.float().mean(2).unsqueeze(1).expand(-1, queries, -1, -1).contiguous().bfloat16()
+    slots = torch.arange(8, device="cuda", dtype=torch.int32).view(1, 1, 1, 8)
+    slots = slots.expand(batch, heads, queries, 8).contiguous()
+    route_out = torch.randn(batch, heads, queries, 8, 128, device="cuda").bfloat16()
+    route_lse = torch.randn(batch, heads, queries, 8, device="cuda") * 0.1
+    local_out = torch.randn(batch, heads, queries, 128, device="cuda").bfloat16()
+    local_lse = torch.full((batch, heads, queries), 0.2, device="cuda")
+    coarse = SimpleNamespace(
+        mean_k=torch.zeros(batch, 1, states, 576, device="cuda", dtype=torch.bfloat16),
+        mean_v=mean_v, counts=torch.ones(batch, 1, states, 1, device="cuda"),
+        output_0=baseline, lse_0=torch.full((batch, heads, queries), math.log(states), device="cuda"),
+        has_second_partition=False,
+        selected_route_scores=torch.zeros_like(route_lse),
+    )
+    scale = 192**-0.5
+    output, lse = merge_aiter_mla_prefill_refinement(
+        query, projected_key, projected_value, coarse, slots, route_out, route_lse,
+        local_out, local_lse, kv_group_size=heads, scale=scale, return_lse=True,
+    )
+    sink_score = (query.float() * projected_key.float()).sum(-1) * scale
+    weights = route_lse.exp()
+    numerator = mean_v[:, :, 8:].float().sum(2).unsqueeze(2).expand(-1, -1, queries, -1)
+    numerator = numerator + (weights[..., None] * route_out.float()).sum(3)
+    numerator += local_lse.exp()[..., None] * local_out.float()
+    numerator += sink_score.exp()[..., None] * projected_value.float()
+    denominator = 4 + weights.sum(3) + local_lse.exp() + sink_score.exp()
+    torch.testing.assert_close(output.float(), numerator / denominator[..., None],
+                               atol=0.004, rtol=0.01)
+    torch.testing.assert_close(lse, denominator.log(), atol=0.00001, rtol=0.00001)
+
+
+@pytest.mark.parametrize("overlap_projection", [False, True])
+def test_projected_prefill_never_copies_or_scores_the_query_carrier(monkeypatch, overlap_projection) -> None:
+    from lod_attention._engines import KernelTwoLevelLODAttention
+    import lod_attention.kernels.aiter_mla_prefill_attention as mla
+
+    engine = KernelTwoLevelLODAttention(query_heads=12, key_value_heads=1, scale=0.1)
+    engine.head_dim = 576
+    configure_engine(engine, family=ModelFamily.KIMI_K3, mode=LODMode.TWO_TIER,
+                     request_capacity=32768, has_query_norm=True, has_key_norm=False)
+    real_query = torch.ones(1, 12, 3, 192)
+    carrier = torch.full((1, 1, 3, 576), float("nan")).expand(1, 12, 3, 576)
+    engine._lod_kimi_expanded_prefill_chunk = real_query
+    engine._lod_kimi_w_uk_t = torch.zeros(12, 128, 512)
+    engine._lod_kimi_w_uv = torch.zeros(12, 512, 128)
+    keys = torch.zeros(1, 1, 256, 576)
+    counts = torch.ones(1, 1, 256, 1)
+    sink = torch.ones(1, 1, 1, 576)
+    projected_sink = torch.ones(1, 12, 1, 192)
+    projected_value = torch.ones(1, 12, 1, 128)
+    top = torch.zeros(1, 12, 3, 8, dtype=torch.int32)
+    stages = []
+    monkeypatch.setenv("LOD_KIMI_OVERLAP_LEAF_PROJECTION", "1" if overlap_projection else "0")
+    cache = {"page_indices": torch.zeros(1, 1, 1, 16), "leaf_count": 256, "leaf_k": keys}
+
+    def route(query, *_args, **_kwargs):
+        assert query.data_ptr() == carrier.data_ptr() and query.stride(1) == 0
+        engine._lod_prefill_selected_route_cap_applied = True
+        engine._lod_prefill_aiter_coarse = SimpleNamespace(
+            ready_stream=object(), output_0=torch.zeros(1, 3, 12, 128),
+            mean_v=torch.zeros(1, 12, 256, 128),
+        )
+        return top
+
+    def merge(query, key, value, *_args, **_kwargs):
+        assert query is real_query and key is projected_sink and value is projected_value
+        return torch.ones(1, 12, 3, 128)
+
+    def project(key, *_args, **_kwargs):
+        assert key.data_ptr() == keys.data_ptr()
+        stages.append("project")
+        return torch.zeros(1, 12, 256, 192), torch.zeros(1, 12, 256, 128)
+
+    def leaves(*_args, **_kwargs):
+        stages.append("leaves")
+        if overlap_projection:
+            prepared = engine._lod_kimi_preprojected_leaves
+            assert prepared[:2] == (id(cache), 256)
+            del engine._lod_kimi_preprojected_leaves
+        return torch.zeros(1, 12, 3, 8, 128), torch.zeros(1, 12, 3, 8)
+
+    monkeypatch.setattr(engine, "_route_top_slots", route)
+    monkeypatch.setattr(engine, "_paged_leaf_attention", leaves)
+    monkeypatch.setattr(torch.cuda, "current_stream", lambda *_args: SimpleNamespace(wait_stream=lambda *_: stages.append("wait")))
+    monkeypatch.setattr(mla, "expand_kimi_leaf_kv", project)
+    monkeypatch.setattr(mla, "expand_kimi_sink_kv", lambda *_args, **_kwargs: (projected_sink, projected_value))
+    monkeypatch.setattr(mla, "merge_aiter_mla_prefill_refinement", merge)
+    result = engine._two_level_attention(
+        carrier, keys, keys[..., :512], keys, keys[..., :512], counts,
+        None, keys, keys[..., :512], state_len=256, state_capacity=256,
+        page_cache=cache,
+        local_branch=(torch.zeros(1, 12, 3, 128), torch.zeros(1, 12, 3)),
+        sink_k=sink, sink_v=sink[..., :512],
+    )
+    assert result.shape == (1, 12, 3, 128) and torch.isfinite(result).all()
+    if overlap_projection:
+        assert stages[:3] == ["project", "wait", "leaves"]
+
+
+def test_coarse_graph_falls_back_for_nonfixed_inputs(monkeypatch) -> None:
+    import lod_attention.kernels.kimi_prefill_graph as graphs
+
+    with pytest.raises(ValueError, match="positive"):
+        graphs.KimiPrefillCoarseGraphs(max_shapes=0)
+    sentinel = object()
+    calls = []
+
+    def ordinary(*args, **kwargs):
+        calls.append((args, kwargs))
+        return sentinel
+
+    monkeypatch.setattr(graphs, "aiter_kimi_expanded_prefill_route_coarse_attention", ordinary)
+    manager = graphs.KimiPrefillCoarseGraphs(max_shapes=1)
+    q, k = torch.zeros(1, 1, 3, 192), torch.zeros(1, 1, 8, 576)
+    counts = torch.ones(1, 1, 8, 1)
+    uk, uv = torch.zeros(1, 128, 512), torch.zeros(1, 512, 128)
+    assert manager.run(q, k, k[..., :512], counts, uk, uv, state_len=8,
+                       scale=0.1, normalize_route_query=False) is sentinel
+    assert manager.entries == {} and manager.replay_count == 0 and manager.fallback_count == 1
+    assert calls[0][0][0] is q and calls[0][1]["state_len"] == 8
+
+
+def test_coarse_graph_replays_new_layer_weights_and_bounds_shape_count() -> None:
+    if not torch.cuda.is_available():
+        pytest.skip("requires GPU K3 coarse graph capture")
+    from lod_attention.kernels.kimi_prefill_graph import KimiPrefillCoarseGraphs
+    from lod_attention.kernels.aiter_mla_prefill_attention import (
+        aiter_kimi_expanded_prefill_route_coarse_attention as ordinary,
+    )
+
+    torch.manual_seed(91)
+    q = torch.randn(1, 12, 16384, 192, device="cuda").bfloat16()
+    k = torch.randn(1, 1, 32, 576, device="cuda").bfloat16()
+    counts = torch.ones(1, 1, 32, 1, device="cuda")
+    lengths = torch.full((1, 1, 32), 2, device="cuda", dtype=torch.int32)
+    uk = (torch.randn(12, 128, 512, device="cuda") / math.sqrt(512)).bfloat16()
+    uv = (torch.randn(12, 512, 128, device="cuda") / math.sqrt(512)).bfloat16()
+    manager = KimiPrefillCoarseGraphs(max_shapes=1)
+
+    def run(states, use_graph):
+        result = (manager.run if use_graph else ordinary)(
+            q, k, k[..., :512], counts, uk, uv, state_len=states, scale=192**-0.5,
+            normalize_route_query=False, slot_lengths=lengths,
+            max_open_leaf_tokens=1024, buffers={},
+        )
+        slots, coarse, _, _ = result
+        if coarse.ready_stream is not None:
+            torch.cuda.current_stream().wait_stream(coarse.ready_stream)
+        return tuple(t.clone() for t in (slots, coarse.output_0, coarse.lse_0))
+
+    with torch.inference_mode():
+        for states in (16, 16, 32):
+            # Shared graph inputs must not reuse layer zero's flattened weights.
+            uk.mul_(0.75)
+            uv.mul_(-0.5)
+            q.mul_(-1)
+            actual, expected = run(states, True), run(states, False)
+            for a, e in zip(actual, expected, strict=True):
+                torch.testing.assert_close(a, e, atol=0, rtol=0)
+    assert len(manager.entries) == 1
+    assert manager.replay_count == 2 and manager.fallback_count == 1
+
+
+def test_coarse_state_preparation_respects_latent_value_and_batch_strides() -> None:
+    if not torch.cuda.is_available():
+        pytest.skip("requires GPU K3 state preparation")
+    from lod_attention.kernels.aiter_mla_prefill_attention import _prepare_expanded_mla_state_kernel
+
+    torch.manual_seed(93)
+    key = torch.randn(2, 1, 64, 576, device="cuda").bfloat16()[..., ::2, :]
+    value = key[..., :512]  # Alias: token stride is 1152, not the value width.
+    counts = torch.randint(1, 12, (2, 1, 64, 1), device="cuda").float()[..., ::2, :]
+    active, dispatch = 17, 128
+    mean_k = torch.empty(2, 1, dispatch, 576, device="cuda", dtype=key.dtype)
+    mean_v = torch.empty(2, 1, dispatch, 512, device="cuda", dtype=key.dtype)
+    padded_counts = torch.empty(2, 1, dispatch, 1, device="cuda")
+    logs = torch.empty(2, dispatch, device="cuda", dtype=key.dtype)
+    _prepare_expanded_mla_state_kernel[(2 * dispatch,)](
+        key, value, counts, mean_k, mean_v, padded_counts, logs, active, dispatch,
+        KEY_BATCH_STRIDE=key.stride(0), KEY_TOKEN_STRIDE=key.stride(2),
+        VALUE_BATCH_STRIDE=value.stride(0), VALUE_TOKEN_STRIDE=value.stride(2),
+        COUNT_BATCH_STRIDE=counts.stride(0), COUNT_TOKEN_STRIDE=counts.stride(2),
+        LATENT_DIM=512, DIRECT_DIM=64, LATENT_BLOCK=512, DIRECT_BLOCK=64, num_warps=8,
+    )
+    expected = (key[..., :active, :].float() / counts[..., :active, :]).bfloat16()
+    torch.testing.assert_close(mean_k[..., :active, :], expected, atol=0, rtol=0)
+    torch.testing.assert_close(mean_v[..., :active, :], expected[..., :512], atol=0, rtol=0)
+    torch.testing.assert_close(padded_counts[..., :active, :], counts[..., :active, :], atol=0, rtol=0)
+    assert mean_k[..., active:, :].eq(0).all() and mean_v[..., active:, :].eq(0).all()
+    assert logs[..., active:].isneginf().all()
+
+
+def test_final_cache_graph_refreshes_data_and_owns_private_update_scratch() -> None:
+    if not torch.cuda.is_available():
+        pytest.skip("requires GPU K3 cache graph capture")
+    from benchmarks.kimi_k3_cache_graph import check_cache
+    from lod_attention._engines import KernelTwoLevelLODAttention
+    from lod_attention.kernels.kimi_prefill_graph import KimiFinalCacheGraphs
+
+    engine = KernelTwoLevelLODAttention(query_heads=12, key_value_heads=1, scale=192**-0.5)
+    engine.head_dim = 576
+    configure_engine(engine, family=ModelFamily.KIMI_K3, mode=LODMode.TWO_TIER,
+                     request_capacity=32768, has_query_norm=True, has_key_norm=False)
+    engine.state_growth_factor /= math.sqrt(8)
+    engine.state_min_len = math.ceil(engine.state_min_len / 8)
+    for name in ("chunk_len", "local_len", "prefill_chunk_len", "prefill_local_len",
+                 "prefill_state_update_len", "decode_state_update_len"):
+        setattr(engine, name, math.ceil(getattr(engine, name) / 8))
+    torch.manual_seed(97)
+    key = torch.randn(2, 1, 4096, 576, device="cuda").bfloat16()
+    manager = KimiFinalCacheGraphs(max_shapes=1)
+    # These caller-owned dictionaries must be restored, not captured and then
+    # invalidated by runtime._release_cross_layer_state_workspaces().
+    caller_scratch = {}
+    engine._lod_state_maxsim_buffers = caller_scratch
+    with torch.inference_mode():
+        for length, coverage in ((4096, 4064), (4096, 4064), (2048, 2016)):
+            key.mul_(-0.75)
+            source = key[..., :length, :]
+            cache = manager.run(engine, source, source[..., :512], final_cache_coverage=coverage)
+            check_cache(cache, source)
+            if hasattr(engine, "_lod_state_maxsim_buffers") and length == 4096:
+                assert engine._lod_state_maxsim_buffers is caller_scratch
+                caller_scratch.clear()
+                del engine._lod_state_maxsim_buffers
+    assert len(manager.entries) == 1
+    assert manager.replay_count == 2 and manager.fallback_count == 1
 
 
 @pytest.mark.parametrize("states", [177, 1039])

@@ -434,6 +434,7 @@ def _paged_leaf_attention_kernel(
     QUANT_TOKEN_GROUP_SIZE: tl.constexpr,
     QUANTIZED_SUMMARIES: tl.constexpr,
     KIMI_LATENT_PROJECTION: tl.constexpr,
+    SCALAR_PAGE_LOOKUP: tl.constexpr,
     INDEXED: tl.constexpr,
     PROGRAMS_POINTER: tl.constexpr,
     SEARCH_BLOCKS: tl.constexpr,
@@ -536,13 +537,18 @@ def _paged_leaf_attention_kernel(
     for key_begin in tl.range(0, split_count, BLOCK_N, num_stages=1):
         logical_key = split_begin + key_begin + token_offset
         valid_key = (key_begin + token_offset) < split_count
-        page_aligned_quant = (
-            QUANT_BITS
+        page_aligned_lookup = (
+            (QUANT_BITS or SCALAR_PAGE_LOOKUP)
             and BLOCK_N == PAGE_SIZE
             and QUANT_TOKEN_GROUP_SIZE == PAGE_SIZE
             and SPLIT_N == 1
         )
-        if page_aligned_quant:
+        # BF16 has no quantization token group, but its page-sized key loop
+        # is equally aligned. Resolve that metadata once, then gather the
+        # sixteen indexed K/V rows as before.
+        if SCALAR_PAGE_LOOKUP and not QUANT_BITS:
+            page_aligned_lookup = BLOCK_N == PAGE_SIZE and SPLIT_N == 1
+        if page_aligned_lookup:
             # Residual INT4 always visits one complete virtual page at a time.
             # Resolve its directory entry and page metadata once, rather than
             # issuing the same loads independently for all sixteen leaf lanes.
@@ -2014,6 +2020,7 @@ def paged_leaf_attention(
     waves_per_eu: int = 1,
     reduce_num_warps: int = 1,
     reduce_routes: bool = True,
+    scalar_page_lookup: bool = False,
     buffers: dict[str, torch.Tensor] | None = None,
     timing_events: dict[str, list[tuple[torch.cuda.Event, torch.cuda.Event]]]
     | None = None,
@@ -2252,6 +2259,7 @@ def paged_leaf_attention(
         QUANT_TOKEN_GROUP_SIZE=quant_token_group_size if residual_quantized else 1,
         QUANTIZED_SUMMARIES=quantized_summaries,
         KIMI_LATENT_PROJECTION=kimi_latent_projection,
+        SCALAR_PAGE_LOOKUP=scalar_page_lookup,
         INDEXED=True,
         PROGRAMS_POINTER=True,
         SEARCH_BLOCKS=False,

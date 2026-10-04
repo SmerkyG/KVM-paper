@@ -22,7 +22,10 @@ from lod_attention._config import (
 )
 
 from .backend import LODAttentionImpl
-from .config import VLLMLODSettings, validate_production_scheduler
+from .config import (
+    VLLMLODSettings, _ensure_exact_lod_decode_capture_sizes,
+    validate_production_scheduler,
+)
 from .pool import VLLMLayerLODPool
 
 logger = logging.getLogger(__name__)
@@ -77,38 +80,6 @@ def _cross_layer_prefill_group_end(
     """Return the next fixed-size layer boundary."""
 
     return min(built_layers + group_size, total_layers)
-
-
-def _ensure_exact_lod_decode_capture_sizes(vllm_config: Any) -> None:
-    """Prevent graph padding from aliasing another request's LOD cache row."""
-    attention = getattr(vllm_config, "attention_config", None)
-    backend = getattr(attention, "backend", None)
-    if getattr(backend, "name", None) != "CUSTOM":
-        return
-    compilation = vllm_config.compilation_config
-    capture_sizes = compilation.cudagraph_capture_sizes
-    if not capture_sizes:
-        return
-    pool_size = VLLMLODSettings.from_environment().pool_size
-    scheduler = getattr(vllm_config, "scheduler_config", None)
-    max_requests = int(getattr(scheduler, "max_num_seqs", pool_size))
-    original_max = int(
-        compilation.max_cudagraph_capture_size or max(map(int, capture_sizes))
-    )
-    exact_rows = min(pool_size, max_requests)
-    ordinary_limit = min(exact_rows, original_max)
-    if ordinary_limit <= 0:
-        return
-    exact_sizes = set(range(1, ordinary_limit + 1))
-    speculative_steps = int(vllm_config.num_speculative_tokens or 0) + 1
-    if speculative_steps > 1:
-        exact_sizes.update(
-            rows * speculative_steps
-            for rows in range(1, exact_rows + 1)
-            if rows * speculative_steps <= original_max
-        )
-    compilation.cudagraph_capture_sizes = sorted(exact_sizes)
-    compilation.max_cudagraph_capture_size = max(exact_sizes)
 
 
 def _input_batch_max_query_len(input_batch: Any) -> int:
@@ -385,6 +356,19 @@ class VLLMLODRuntime:
                     "LOD production does not support mixed attention geometries"
                 )
             self.settings = resolved
+            if self.family is ModelFamily.KIMI_K3 and os.environ.get("LOD_KIMI_GRAPH_COARSE") == "1":
+                from lod_attention.kernels.kimi_prefill_graph import KimiPrefillCoarseGraphs
+
+                # Pool engines already share serial prefill scratch storage.
+                # Share the graph arena too, rather than retaining 24 copies
+                # of Q*H*top-eight routing intermediates.
+                coarse_graphs = KimiPrefillCoarseGraphs()
+                for pool in self.pools.values():
+                    pool.engine._lod_kimi_coarse_graphs = coarse_graphs
+            if self.family is ModelFamily.KIMI_K3 and os.environ.get("LOD_KIMI_GRAPH_FINAL_CACHE") == "1":
+                from lod_attention.kernels.kimi_prefill_graph import KimiFinalCacheGraphs
+
+                self._kimi_final_cache_graphs = KimiFinalCacheGraphs()
             self._cross_layer_prefill_stream = torch.cuda.Stream(
                 device=self.model_state.device
             )
@@ -2915,14 +2899,17 @@ class VLLMLODRuntime:
                 global_coverage = reference._dcp_global_decode_coverage(
                     global_length
                 )
-                converted = engine.build_cache_from_bf16(
-                    packed_k,
-                    packed_v,
-                    finalize_cache_for_decode=True,
-                    final_cache_coverage=reference._dcp_local_length(
-                        global_coverage
-                    ),
-                )
+                coverage = reference._dcp_local_length(global_coverage)
+                cache_graphs = getattr(self, "_kimi_final_cache_graphs", None)
+                if cache_graphs is not None:
+                    converted = cache_graphs.run(
+                        engine, packed_k, packed_v, final_cache_coverage=coverage,
+                    )
+                else:
+                    converted = engine.build_cache_from_bf16(
+                        packed_k, packed_v, finalize_cache_for_decode=True,
+                        final_cache_coverage=coverage,
+                    )
         finally:
             if old_capacity is not None:
                 engine._lod_prefill_cache_capacity = old_capacity

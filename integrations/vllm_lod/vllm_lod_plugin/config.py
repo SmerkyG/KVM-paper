@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, replace
+from typing import Any
 
 from lod_attention._config import LODMode, ModelFamily, PREFILL_CHUNK_SIZE
 
@@ -25,6 +26,45 @@ _REMOVED_ENV = {
     "LOD_QWEN_EXPERIMENT",
 }
 LOD_SCHEDULER = "vllm_lod_plugin.scheduler.LODChunkAlignedScheduler"
+
+
+def _ensure_exact_lod_decode_capture_sizes(vllm_config: Any) -> None:
+    """Prevent graph padding from aliasing another request's LoD cache row."""
+    attention = getattr(vllm_config, "attention_config", None)
+    backend = getattr(attention, "backend", None)
+    if getattr(backend, "name", None) != "CUSTOM":
+        return
+    compilation = vllm_config.compilation_config
+    capture_sizes = compilation.cudagraph_capture_sizes
+    if not capture_sizes:
+        return
+    pool_size = VLLMLODSettings.from_environment().pool_size
+    scheduler = getattr(vllm_config, "scheduler_config", None)
+    max_requests = int(getattr(scheduler, "max_num_seqs", pool_size))
+    original_max = int(
+        compilation.max_cudagraph_capture_size or max(map(int, capture_sizes))
+    )
+    exact_rows = min(pool_size, max_requests)
+    ordinary_limit = min(exact_rows, original_max)
+    if ordinary_limit <= 0:
+        return
+    exact_sizes = set(range(1, ordinary_limit + 1))
+    if (
+        os.environ.get("LOD_KIMI_GRAPH_PREFILL") == "1"
+        and os.environ.get("VLLM_USE_BREAKABLE_CUDAGRAPH") == "1"
+    ):
+        # These are explicit piecewise-prefill shapes, not padded decode rows.
+        exact_sizes.update(int(size) for size in capture_sizes
+                           if int(size) > exact_rows)
+    speculative_steps = int(vllm_config.num_speculative_tokens or 0) + 1
+    if speculative_steps > 1:
+        exact_sizes.update(
+            rows * speculative_steps
+            for rows in range(1, exact_rows + 1)
+            if rows * speculative_steps <= original_max
+        )
+    compilation.cudagraph_capture_sizes = sorted(exact_sizes)
+    compilation.max_cudagraph_capture_size = max(exact_sizes)
 
 
 def _positive_integer(name: str, default: int) -> int:

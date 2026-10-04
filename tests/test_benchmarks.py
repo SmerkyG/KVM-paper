@@ -252,6 +252,24 @@ def test_qwen_dflash2_configuration_is_explicit_and_model_limited() -> None:
         )
 
 
+@pytest.mark.parametrize("mode", ["full", "two-tier"])
+def test_kimi_graph_prefill_requests_only_fixed_large_shapes(monkeypatch, mode) -> None:
+    monkeypatch.setenv("LOD_KIMI_GRAPH_PREFILL", "1")
+    monkeypatch.delenv("VLLM_USE_BREAKABLE_CUDAGRAPH", raising=False)
+    kwargs = llm_kwargs(
+        checkpoint="tests/fixtures/kimi-k3-mla-stack", mode=mode,
+        max_model_len=65_546, batch_size=8, tensor_parallel_size=8,
+        decode_context_parallel_size=8, gpu_memory_utilization=0.8,
+        full_attention_backend="TRITON_MLA",
+    )
+    assert kwargs["compilation_config"] == {
+        "cudagraph_mode": "FULL_AND_PIECEWISE",
+        "cudagraph_capture_sizes": list(range(1, 9)) + [16_384],
+        "max_cudagraph_capture_size": 16_384,
+    }
+    assert os.environ["VLLM_USE_BREAKABLE_CUDAGRAPH"] == "1"
+
+
 def test_benchmark_cli_and_docs_are_public() -> None:
     assert comma_separated_ints("8192,16384") == [8_192, 16_384]
     with pytest.raises(argparse.ArgumentTypeError):

@@ -9,12 +9,47 @@ reported as a full-model speedup. The rejected tile-max-only **v10** route
 binary is not valid top-eight evidence; this rejection does not automatically
 invalidate other revisions whose audited flags differ.
 
+**October 4 correctness update:** the deferred-query optimization had a sink
+bug: it fed a broadcast shape carrier to the final sink score instead of the
+real query. The pre-fix October 4 LoD timings below are retained as development
+records, **not results for the corrected attention calculation**. Forced trace
+checks do not test this. The corrected path projects the tiny sink K/V and
+scores it with the real D192 query, retaining all direct-key dimensions and
+FP32 score accumulation. It also avoids the unnecessary 216 MiB carrier copy
+per 16K/12-head chunk. Dense attention is unaffected. Corrected full-model
+timings are in `oct4-lod-correct-sink-scalar-directory-b8.json`.
+
 These are the full-model measurements previously collected for dense full
 attention and two-tier BF16 LoD attention. Prefill is total wall time for the
 entire request batch. Decode is latency per batched generation step, rather
 than per sequence.
 
-## October 4 matched full-model prefill check
+## Latest corrected full-model prefill check (October 4)
+
+| Batch | Context | Full prefill | Corrected LoD prefill | Full / LoD |
+|---:|---:|---:|---:|---:|
+| 8 | 32K | — | 35.111 s | — |
+| 8 | 64K | 70.538 s | 72.008 s | 0.980x |
+
+Corrected LoD: `oct4-lod-correct-sink-scalar-directory-b8.json` (20858).
+The unchanged dense 64K baseline is `oct4-full-warm-prefill-b8-64k.json`
+(20828). Both use the same eight actual ProLong prompts and forced natural
+continuation, TP8/DCP8/EP8, 16K scheduler chunks, 3 GiB native cache/rank,
+resident weights, one exact-shape warmup and one measured generation, and
+retain warm allocator blocks under the same 8 GiB pressure guard. Prompt
+metadata and timing protocols were compared directly and match. All eight
+LoD workers pass the v13/exact-refinement/top-eight audit and retain allocator
+blocks; no requests are preempted or served from prefix cache. Final cache
+construction is included before first token. The two-token trace is **not**
+an amortized decode or quality result.
+
+The corrected path has **not crossed over on the full model at 64K**. The
+32K dense cell is intentionally blank: the older 33.635 s baseline used a
+2 GiB reservation and released the warmup allocator, rather than this exact
+protocol. Reproduce LoD with the command below, using `--lengths 32768,65536`,
+`--kv-cache-memory-bytes 3221225472` and `--retain-warmup-allocator`.
+
+## Historical October 4 matched prefill check (before sink correction)
 
 These fresh controls use the same eight real ProLong prompts, TP8/DCP8/EP8,
 16K scheduler chunks, a 2 GiB native-cache reservation per rank, the resident
@@ -112,6 +147,10 @@ LoD additionally has host-side per-request cache plans, changing active-state
 lengths, and cache-construction completion/reclamation waits. Scratch reuse
 alone does not make that entire path graph-replayable.
 
+The subsequent opt-in graph prototype below enables piecewise prefill capture;
+the statement above describes the preceding default-path controls, not that
+prototype.
+
 A separate diagnostic captured real trained inputs from the first MLA layer
 on a 16K-query chunk with 16,127 archived leaves and 2,048 centroids. All eight
 routes are open here: approximately 408.54 underlying leaves/query and 51.07
@@ -139,6 +178,60 @@ not supported`. It produced the capture before failing, but **no valid full-mode
 profiler result**. Do not interpret or report that failed diagnostic as a
 canonical speed measurement. The matched 20828/20833 measurements above were
 completed separately, without any profiler or capture hooks.
+
+An event-only full-model diagnostic (20851,
+`oct4-trained-prefill-stage-diagnostic.json`) subsequently ran without the
+crashing GPU profiler. It synchronizes per attention layer and prints phase
+events, so its wall-time fields are deliberately **not canonical timings**.
+Those intervals also include competing local attention and stream/collective
+waits; they cannot be summed or treated as exclusive kernel costs. It predates
+the carrier/sink fix above. This limitation prevents using its unusually long
+"route" intervals as an attribution of the entire model slowdown.
+
+### Fixed-shape prefill graph trial (not promoted)
+
+The opt-in `LOD_KIMI_GRAPH_PREFILL=1 VLLM_USE_BREAKABLE_CUDAGRAPH=1`
+prototype uses vLLM's breakable graphs to capture model work between attention
+calls. LoD writes each eager attention result into the caller's static graph
+output. Cache plans and construction are re-evaluated on every replay; they
+are **not** captured. This retains global per-request 16K prefill / 256 decode
+cadences, the 16K scheduler chunk, exact first chunk, top eight, direct-key
+channels, and centroid replacement accounting.
+
+| Prefill graph trial | 32K dense (s) | 32K LoD (s) | 64K dense (s) | 64K LoD (s) |
+|:--|--:|--:|--:|--:|
+| Capture 16,384 and 16,392 token shapes | 33.454 | 37.199 | 70.358 | 74.159 |
+| Capture only 16,384 token shape | — | — | — | 74.231 |
+
+Sources: `oct4-full-fixed-prefill-graph-b8.json` (20846),
+`oct4-lod-fixed-prefill-graph-b8.json` (20843), and
+`oct4-lod-single-prefill-graph-b8-64k.json` (20848). The first row is a
+matched graph-enabled pair: eight actual ProLong prompts, TP8/DCP8/EP8,
+3 GiB native cache/rank, resident daemon, identical forced continuation,
+one exact-shape warmup, one measurement, and final construction completion
+included. Jobs ran sequentially with no timed process overlap. Worker audits
+verify `FULL_AND_PIECEWISE`, the exact v13/refinement route binary, 24 LoD MLA
+layers, and **94 graph segments / 93 eager attention breaks** per captured
+large prefill descriptor. All eight output hashes repeat within each mode;
+the forced trace is not a quality check or amortized decode measurement.
+
+Capturing only one shape did not recover speed. Its dense cell is deliberately
+blank: the dense control captured two shapes, so it is not relabeled as a
+one-shape run. The earlier default-path pair remains 70.538 / 72.259 s at 64K.
+
+Both LoD graph trials report less free memory than the default-path control.
+For the two-shape 64K run, rank-zero free memory before allocator handling is
+6.84 GB, versus 10.13 GB without prefill capture. The graph trial consequently
+reclaims blocks under the unchanged 8 GiB headroom guard; the default control
+retains them. The one-shape trial still reclaims on seven of eight ranks.
+These are observed memory/allocator differences, **not** a proved attribution
+of the entire wall-time regression. Graph capture remains experimental.
+
+To reproduce the current one-shape variant, use the warm-serving command above
+at 65536 with 3221225472 native bytes, adding the two graph variables before
+starting Python. The preceding two-shape trials used the prototype before
+removing its additional `16K + batch_size` descriptor. Their explicit sizes
+are retained in each JSON's worker audit.
 
 ## Matched results
 

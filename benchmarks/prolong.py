@@ -1071,6 +1071,22 @@ def audit_worker_attention_mode(worker: Any) -> dict[str, Any]:
         aiter_route_source_sha256 = digest.hexdigest()
     except (ImportError, OSError):
         pass
+    graph_manager = getattr(runner, "cudagraph_manager", None)
+    breakable_runner = getattr(graph_manager, "breakable_cg_runner", None)
+    breakable_entries = []
+    for descriptor, entry in getattr(breakable_runner, "entries", {}).items():
+        capture = getattr(entry, "capture", None)
+        breakable_entries.append({
+            "descriptor": str(descriptor),
+            "num_tokens": int(getattr(descriptor, "num_tokens", 0)),
+            "captured": capture is not None,
+            "graph_segments": int(getattr(capture, "num_graphs", 0)),
+            "eager_attention_breaks": int(getattr(capture, "num_eager_breaks", 0)),
+        })
+    coarse_graphs = next((getattr(pool.engine, "_lod_kimi_coarse_graphs", None)
+                          for pool in pools.values()
+                          if getattr(pool.engine, "_lod_kimi_coarse_graphs", None) is not None), None)
+    final_cache_graphs = getattr(runtime, "_kimi_final_cache_graphs", None)
     return {
         "lod_runtime": runtime is not None,
         "lod_pool_count": len(pools),
@@ -1093,6 +1109,24 @@ def audit_worker_attention_mode(worker: Any) -> dict[str, Any]:
         "device_arch": getattr(properties, "gcnArchName", None),
         "device_total_memory_bytes": int(properties.total_memory),
         "torch_hip_version": torch.version.hip,
+        "cudagraph_mode": str(getattr(graph_manager, "cudagraph_mode", None)),
+        "breakable_cudagraph_entries": breakable_entries,
+        "kimi_coarse_graphs": None if coarse_graphs is None else {
+            "captured_shapes": len(coarse_graphs.entries),
+            "replay_count": getattr(coarse_graphs, "replay_count", None),
+            "fallback_count": getattr(coarse_graphs, "fallback_count", None),
+            "query_lengths": sorted({int(entry.inputs[0].size(2))
+                                     for entry in coarse_graphs.entries.values()}),
+            "state_lengths": sorted({int(entry.inputs[1].size(2))
+                                     for entry in coarse_graphs.entries.values()}),
+        },
+        "kimi_final_cache_graphs": None if final_cache_graphs is None else {
+            "captured_shapes": len(final_cache_graphs.entries),
+            "replay_count": final_cache_graphs.replay_count,
+            "fallback_count": final_cache_graphs.fallback_count,
+            "local_prefix_lengths": sorted({int(entry.key.size(2))
+                                            for entry in final_cache_graphs.entries.values()}),
+        },
     }
 
 

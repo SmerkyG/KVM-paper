@@ -1,0 +1,41 @@
+{
+  "scope": "serial fixed-geometry state-update GPU stage; not model latency",
+  "source": "results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt",
+  "layers": 4,
+  "state_len": 2048,
+  "state_capacity": 4096,
+  "overflow_len": 16384,
+  "key_dim": 576,
+  "value_dim": 512,
+  "eager": {
+    "median_ms": 1.6622569561004639,
+    "samples_ms": [
+      1.717136025428772,
+      1.8522939682006836,
+      1.6622569561004639,
+      1.6314170360565186,
+      1.634937047958374
+    ]
+  },
+  "graph_including_input_output_copies": {
+    "median_ms": 1.7134970426559448,
+    "samples_ms": [
+      1.7432559728622437,
+      1.7354170083999634,
+      1.705696940422058,
+      1.698976993560791,
+      1.7134970426559448
+    ]
+  },
+  "eager_over_graph": 0.9700961920097287,
+  "eager_repeat": {
+    "state_equal": false,
+    "counts_equal": false,
+    "owner_mismatches": 88
+  },
+  "owner_mismatches": 62,
+  "counts_mismatches": 19,
+  "old_state_max_error": 4.0,
+  "new_state_max_error": 14.33203125,
+  "fresh_input_correctness": "pending"
+}

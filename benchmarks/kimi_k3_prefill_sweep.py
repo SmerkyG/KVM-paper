@@ -112,6 +112,7 @@ def main() -> None:
             "kv_cache_memory_bytes": args.kv_cache_memory_bytes,
             "worker_attention_audit_status": "pending",
             "measurement_status": "in_progress",
+            "graph_prefill_requested": os.environ.get("LOD_KIMI_GRAPH_PREFILL") == "1",
         }
         args.output.parent.mkdir(parents=True, exist_ok=True)
         for length in args.lengths:
@@ -182,7 +183,10 @@ def main() -> None:
                     module for module in audit["loaded_kimi_lod_modules"]
                     if "_asyncbias_" in module["module"]
                 ]
-                if not fused or any(module["route_build_flags"] != expected for module in fused):
+                if not fused or any(module["route_build_flags"] != (
+                    expected | {"CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY":
+                                "1" if module["module"].endswith("_v13") else "0"}
+                ) for module in fused):
                     raise RuntimeError("measured Kimi worker did not load correct top-eight route/coarse")
         result["worker_attention_audit_status"] = "passed"
         if args.profile_length is not None:

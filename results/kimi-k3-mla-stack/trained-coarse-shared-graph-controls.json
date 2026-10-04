@@ -1,0 +1,46 @@
+{
+  "scope": "serial trained-geometry coarse/route GPU stage, not model latency",
+  "source": "results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt",
+  "query_shape": [
+    1,
+    12,
+    16384,
+    192
+  ],
+  "state_len": 2048,
+  "state_sums": "reconstructed from captured memberships",
+  "copies_included": true,
+  "fresh_input_checks": "passed",
+  "shared_serving_manager": true,
+  "fresh_projection_weight_checks": "passed",
+  "eager_before": {
+    "median_ms": 2.7875208854675293,
+    "samples_ms": [
+      3.1619958877563477,
+      2.774121046066284,
+      2.8007609844207764,
+      2.7875208854675293,
+      2.7481610774993896
+    ]
+  },
+  "graph": {
+    "median_ms": 2.380167007446289,
+    "samples_ms": [
+      2.4801249504089355,
+      2.3594870567321777,
+      2.4471659660339355,
+      2.315006971359253,
+      2.380167007446289
+    ]
+  },
+  "eager_after": {
+    "median_ms": 2.738161087036133,
+    "samples_ms": [
+      2.7864010334014893,
+      2.6950418949127197,
+      2.738161087036133,
+      2.7508010864257812,
+      2.7060420513153076
+    ]
+  }
+}

@@ -2362,10 +2362,14 @@ class TritonLODAttentionCore(nn.Module):
                     and isinstance(kimi_w_uk_t, torch.Tensor)
                     and isinstance(kimi_w_uv, torch.Tensor)
                 )
+                graph_cache = None
                 if expanded_kimi:
                     from .kernels.aiter_mla_prefill_attention import (
                         aiter_kimi_expanded_prefill_route_coarse_attention as route_coarse,
                     )
+                    graph_cache = getattr(self, "_lod_kimi_coarse_graphs", None)
+                    if graph_cache is not None:
+                        route_coarse = graph_cache.run
                 elif asymmetric_mla:
                     from .kernels.aiter_mla_prefill_attention import (
                         aiter_mla_prefill_route_coarse_attention as route_coarse,
@@ -2382,12 +2386,14 @@ class TritonLODAttentionCore(nn.Module):
                     route_offsets,
                 ) = route_coarse(
                     (
-                        expanded_kimi_q.contiguous()
+                        (expanded_kimi_q if graph_cache is not None
+                         else expanded_kimi_q.contiguous())
                         if expanded_kimi
                         else q.contiguous()
                     ),
                     state_k.detach().contiguous(),
-                    state_v.detach().contiguous(),
+                    (state_v.detach() if expanded_kimi
+                     else state_v.detach().contiguous()),
                     counts.detach().contiguous(),
                     *(
                         (kimi_w_uk_t, kimi_w_uv)
@@ -3560,6 +3566,9 @@ class TritonLODAttentionCore(nn.Module):
             and isinstance(kimi_w_uv, torch.Tensor)
             and not bool(cache.get("quantization_finalized", False))
         )
+        preprojected = getattr(self, "_lod_kimi_preprojected_leaves", None)
+        if preprojected is not None:
+            del self._lod_kimi_preprojected_leaves
         quantized_leaf_k = cache.get("quantized_leaf_k")
         leaf_capacity = (
             int(quantized_leaf_k.size(2))
@@ -3794,14 +3803,20 @@ class TritonLODAttentionCore(nn.Module):
                             buffers=getattr(self, "_lod_prefill_attention_buffers", None),
                         )
                     else:
-                        group_k, group_v = expand_kimi_leaf_kv(
-                            page_k[..., :leaf_count, :],
-                            kimi_w_uk_t[head_begin:head_end],
-                            kimi_w_uv[head_begin:head_end],
-                            buffers=getattr(
-                                self, "_lod_prefill_attention_buffers", None
-                            ),
-                        )
+                        if preprojected is not None:
+                            cache_id, prepared_count, group_k, group_v = preprojected
+                            if (cache_id != id(cache) or prepared_count != leaf_count
+                                    or head_begin != 0 or head_end != query_heads):
+                                raise RuntimeError("preprojected Kimi leaves have stale geometry")
+                        else:
+                            group_k, group_v = expand_kimi_leaf_kv(
+                                page_k[..., :leaf_count, :],
+                                kimi_w_uk_t[head_begin:head_end],
+                                kimi_w_uv[head_begin:head_end],
+                                buffers=getattr(
+                                    self, "_lod_prefill_attention_buffers", None
+                                ),
+                            )
                     group_q = expanded_kimi_q[:, head_begin:head_end].contiguous()
                     group_kv_size = 1
                     group_leaf_kwargs = dict(leaf_kwargs)
@@ -3815,6 +3830,7 @@ class TritonLODAttentionCore(nn.Module):
                         block_m=int(os.environ.get("LOD_KIMI_LEAF_BLOCK_M", 32)),
                         block_n=16,
                         num_warps=int(os.environ.get("LOD_KIMI_LEAF_WARPS", 1)),
+                        scalar_page_lookup=True,
                     )
                 group_route_head_counts = None
                 group_route_offsets = None
@@ -4124,7 +4140,14 @@ class TritonLODAttentionCore(nn.Module):
                 buffers=prefill_buffers,
             )
             self._lod_kimi_compact_leaf_prefill = True
-        else:
+        elif not (
+            query_len > 1 and int(q.size(-1)) == 576
+            and isinstance(expanded_kimi_q, torch.Tensor)
+            and self.prefill_aiter_route_coarse
+        ):
+            # Projected K3 prefill passes only a broadcast shape carrier here.
+            # It must never be copied or read as an absorbed query. Coarse and
+            # leaves consume expanded_kimi_q; the merge projects the tiny sink.
             q = q.contiguous()
         # The persistent MLA key buffers intentionally hold raw compressed
         # latents in the experimental modes.  Normalize exact token keys at
@@ -4198,11 +4221,38 @@ class TritonLODAttentionCore(nn.Module):
                 page_cache=page_cache,
             )
             if query_len > 1 and int(q.size(-1)) == 576:
+                if (
+                    os.environ.get("LOD_KIMI_OVERLAP_LEAF_PROJECTION") == "1"
+                    and self.prefill_aiter_route_coarse
+                    and isinstance(expanded_kimi_q, torch.Tensor)
+                    and isinstance(kimi_w_uk_t, torch.Tensor)
+                    and isinstance(kimi_w_uv, torch.Tensor)
+                    and page_cache is not None and 0 < kimi_leaf_count
+                    and kimi_leaf_count * int(expanded_kimi_q.size(1)) <= 4 * 1024 * 1024
+                    and not compact_kimi_prefill
+                    and not bool(page_cache.get("quantization_finalized", False))
+                    and all(os.environ.get(name) != "1" for name in (
+                        "LOD_KIMI_ROUTED_LEAF_PROJECTION", "LOD_KIMI_SPARSE_LEAF_PROJECTION",
+                        "LOD_KIMI_INCREMENTAL_LEAF_PROJECTION"))
+                ):
+                    from .kernels.aiter_mla_prefill_attention import expand_kimi_leaf_kv
+
+                    # Projection does not depend on routes. Its workspace is
+                    # distinct from local/coarse attention, so schedule these
+                    # GEMMs before waiting for routes. Expert packing and leaf
+                    # attention still wait for both native attention branches.
+                    projected = expand_kimi_leaf_kv(
+                        page_cache["leaf_k"][..., :kimi_leaf_count, :],
+                        kimi_w_uk_t, kimi_w_uv,
+                        buffers=getattr(self, "_lod_prefill_attention_buffers", None),
+                    )
+                    self._lod_kimi_preprojected_leaves = (id(page_cache), kimi_leaf_count, *projected)
                 # K3's local and coarse MLA kernels are both large resident
                 # launches. Starting leaf work before either retires both
                 # oversubscribes gfx942 and can violate temporary-workspace
                 # lifetimes in the full model. Express the two device-side
-                # dependencies before projection/refinement; unlike a host
+                # dependencies before expert packing/refinement (and normally
+                # before projection); unlike a host
                 # profiler barrier this does not stall unrelated streams.
                 foreground = torch.cuda.current_stream(q.device)
                 local_stream = getattr(
@@ -4726,6 +4776,7 @@ class TritonLODAttentionCore(nn.Module):
                     aiter_coarse.ready_stream
                 )
             projected_sink_v = sink_v
+            merge_q, merge_sink_k = q, sink_k
             asymmetric_mla_merge = int(q.size(-1)) != int(
                 aiter_coarse.output_0.size(-1)
             )
@@ -4741,6 +4792,7 @@ class TritonLODAttentionCore(nn.Module):
                     from .kernels.aiter_mla_prefill_attention import (
                         project_kimi_head_values,
                         project_kimi_shared_values,
+                        expand_kimi_sink_kv,
                     )
                     if int(exact_output.size(-1)) == 512:
                         exact_output = project_kimi_head_values(
@@ -4748,15 +4800,22 @@ class TritonLODAttentionCore(nn.Module):
                         )
                     elif int(exact_output.size(-1)) != 128:
                         raise ValueError("Kimi refined values have invalid width")
-                    projected_sink_v = project_kimi_shared_values(sink_v, kimi_w_uv)
+                    if isinstance(expanded_kimi_q, torch.Tensor):
+                        merge_q = expanded_kimi_q
+                        merge_sink_k, projected_sink_v = expand_kimi_sink_kv(
+                            sink_k, kimi_w_uk_t, kimi_w_uv,
+                            buffers=getattr(self, "_lod_prefill_attention_buffers", None),
+                        )
+                    else:
+                        projected_sink_v = project_kimi_shared_values(sink_v, kimi_w_uv)
             else:
                 from .kernels.aiter_prefill_attention import (
                     merge_aiter_prefill_refinement as merge_refinement,
                 )
 
             merged = merge_refinement(
-                q,
-                sink_k,
+                merge_q,
+                merge_sink_k,
                 projected_sink_v,
                 aiter_coarse,
                 top_slots,

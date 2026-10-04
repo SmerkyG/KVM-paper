@@ -14,7 +14,7 @@ def main():
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--lengths", nargs="+", type=int, default=[32768, 65536])
     parser.add_argument("--variants", nargs="+",
-                        choices=("default", "tile64", "tile128", "routed", "fused", "sparse", "incremental", "tile_refine", "direct", "refine_direct", "final_reclaim", "final_fence", "final_only", "reuse_allocator", "reuse_group1", "reuse_group8", "reuse_group12", "reuse_native_local", "reuse_distributed8"),
+                        choices=("default", "tile64", "tile128", "routed", "fused", "sparse", "incremental", "tile_refine", "direct", "refine_direct", "final_reclaim", "final_fence", "final_only", "reuse_allocator", "reuse_group1", "reuse_group8", "reuse_group12", "reuse_native_local", "reuse_distributed8", "reuse_overlap_projection"),
                         default=["default", "tile64", "tile128", "routed"])
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--batch-size", type=int, default=1)
@@ -63,6 +63,10 @@ def main():
     def change_variant(worker, variant):
         from vllm_lod_plugin import runtime
 
+        overlap_projection = variant == "reuse_overlap_projection"
+        os.environ["LOD_KIMI_OVERLAP_LEAF_PROJECTION"] = "1" if overlap_projection else "0"
+        if overlap_projection:
+            variant = "reuse_allocator"
         distributed = variant == "reuse_distributed8"
         runtime._DISTRIBUTED_PREFILL_BUILD = distributed
         if distributed:

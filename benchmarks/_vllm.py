@@ -206,6 +206,20 @@ def llm_kwargs(
         architecture_override = _kimi_linear_architecture_override(checkpoint)
         if architecture_override is not None:
             kwargs["hf_overrides"] = architecture_override
+        if os.environ.get("LOD_KIMI_GRAPH_PREFILL") == "1":
+            os.environ["VLLM_USE_BREAKABLE_CUDAGRAPH"] = "1"
+            # Capture only the exact fixed prefill shape. Mixed steps exceeding
+            # 16K remain eager; their scheduler budget and cadence are unchanged.
+            # A second almost-identical 16K+decode-reserve descriptor retains
+            # additional graph/communication memory beside resident K3 weights.
+            sizes = sorted(set(range(1, batch_size + 1)) | {
+                min(SCHEDULER_CHUNK, max_model_len),
+            })
+            kwargs["compilation_config"] = {
+                "cudagraph_mode": "FULL_AND_PIECEWISE",
+                "cudagraph_capture_sizes": sizes,
+                "max_cudagraph_capture_size": max(sizes),
+            }
     if is_qwen38(checkpoint) or is_kimi_k3(checkpoint):
         kwargs["language_model_only"] = True
     if speculative_model:

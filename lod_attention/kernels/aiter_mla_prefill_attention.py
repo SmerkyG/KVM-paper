@@ -347,6 +347,46 @@ def expand_kimi_leaf_kv(
     )
 
 
+def expand_kimi_sink_kv(
+    key: torch.Tensor,
+    w_uk_t: torch.Tensor,
+    w_uv: torch.Tensor,
+    *,
+    buffers: dict[str, torch.Tensor] | None = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Project only the separate sink, never the shape-only query carrier.
+
+    The real D192 query scores this per-head key directly. Dedicated tiny
+    workspaces avoid overwriting expanded leaf prefixes or materializing a
+    Q*H*576 absorbed-query buffer just to score one protected token.
+    """
+    if key.ndim != 4 or key.size(1) != 1 or key.size(-1) != 576:
+        raise ValueError("Kimi sink projection expects [B,1,S,576]")
+    batch, tokens = int(key.size(0)), int(key.size(2))
+    heads = int(w_uk_t.size(0))
+    if tuple(w_uk_t.shape) != (heads, 128, 512) or tuple(w_uv.shape) != (heads, 512, 128):
+        raise ValueError("Kimi sink projection has incompatible weights")
+    latent = key[:, 0, :, :512].reshape(batch * tokens, 512)
+    nope = _workspace_tensor(buffers, "kimi_sink_projected_nope",
+                             (batch, tokens, heads, 128), dtype=key.dtype, device=key.device)
+    expanded = _workspace_tensor(buffers, "kimi_sink_projected_k",
+                                 (batch, tokens, heads, 192), dtype=key.dtype, device=key.device)
+    value = _workspace_tensor(buffers, "kimi_sink_projected_v",
+                              (batch, tokens, heads, 128), dtype=key.dtype, device=key.device)
+    key_weight = _cached_flat_weight(buffers, "kimi_flat_w_uk_t", w_uk_t,
+                                    (2, 0, 1), (512, heads * 128))
+    value_weight = _cached_flat_weight(buffers, "kimi_flat_w_uv", w_uv,
+                                      (1, 0, 2), (512, heads * 128))
+    torch.mm(latent, key_weight, out=nope.view(batch * tokens, heads * 128))
+    torch.mm(latent, value_weight, out=value.view(batch * tokens, heads * 128))
+    _pack_kimi_expanded_keys_kernel[(batch * tokens * heads,)](
+        nope, key, expanded, tokens, heads=heads,
+        source_batch_stride=int(key.stride(0)), source_token_stride=int(key.stride(2)),
+        projected_row_stride=128, BLOCK_D=256, num_warps=4,
+    )
+    return expanded.permute(0, 2, 1, 3), value.permute(0, 2, 1, 3)
+
+
 @triton.jit(do_not_specialize=["STATE_LEN"])
 def _prepare_mla_state_kernel(
     state_k,
@@ -406,7 +446,12 @@ def _prepare_expanded_mla_state_kernel(
     log_counts,
     STATE_LEN,
     DISPATCH_STATE_LEN,
-    STATE_CAPACITY: tl.constexpr,
+    KEY_BATCH_STRIDE: tl.constexpr,
+    KEY_TOKEN_STRIDE: tl.constexpr,
+    VALUE_BATCH_STRIDE: tl.constexpr,
+    VALUE_TOKEN_STRIDE: tl.constexpr,
+    COUNT_BATCH_STRIDE: tl.constexpr,
+    COUNT_TOKEN_STRIDE: tl.constexpr,
     LATENT_DIM: tl.constexpr,
     DIRECT_DIM: tl.constexpr,
     LATENT_BLOCK: tl.constexpr,
@@ -417,20 +462,22 @@ def _prepare_expanded_mla_state_kernel(
     batch = row // DISPATCH_STATE_LEN
     slot = row - batch * DISPATCH_STATE_LEN
     valid_slot = slot < STATE_LEN
-    source_row = batch * STATE_CAPACITY + slot
+    key_offset = batch * KEY_BATCH_STRIDE + slot * KEY_TOKEN_STRIDE
+    value_offset = batch * VALUE_BATCH_STRIDE + slot * VALUE_TOKEN_STRIDE
+    count_offset = batch * COUNT_BATCH_STRIDE + slot * COUNT_TOKEN_STRIDE
     count = tl.maximum(
-        tl.load(counts + source_row, mask=valid_slot, other=1.0), 1.0
+        tl.load(counts + count_offset, mask=valid_slot, other=1.0), 1.0
     ).to(tl.float32)
 
     latent = tl.arange(0, LATENT_BLOCK)
     valid_latent = latent < LATENT_DIM
     key_latent = tl.load(
-        state_k + source_row * (LATENT_DIM + DIRECT_DIM) + latent,
+        state_k + key_offset + latent,
         mask=valid_slot & valid_latent,
         other=0.0,
     )
     value = tl.load(
-        state_v + source_row * LATENT_DIM + latent,
+        state_v + value_offset + latent,
         mask=valid_slot & valid_latent,
         other=0.0,
     )
@@ -450,7 +497,7 @@ def _prepare_expanded_mla_state_kernel(
     valid_direct = direct < DIRECT_DIM
     key_direct = tl.load(
         state_k
-        + source_row * (LATENT_DIM + DIRECT_DIM)
+        + key_offset
         + LATENT_DIM
         + direct,
         mask=valid_slot & valid_direct,
@@ -820,6 +867,7 @@ def aiter_kimi_expanded_prefill_route_coarse_attention(
     slot_lengths: torch.Tensor | None = None,
     max_open_leaf_tokens: int | None = None,
     buffers: dict[str, torch.Tensor] | None = None,
+    cache_immutable_weights: bool = True,
 ) -> tuple[torch.Tensor, AiterPrefillCoarse, torch.Tensor, torch.Tensor]:
     """Run Kimi route/coarse attention with count-augmented absorbed Q/K.
 
@@ -846,6 +894,8 @@ def aiter_kimi_expanded_prefill_route_coarse_attention(
         raise ValueError("expanded Kimi state values must be [B,1,S,512]")
     if tuple(counts.shape[:3]) != tuple(state_v.shape[:3]):
         raise ValueError("expanded Kimi state/count geometry differs")
+    if any(tensor.stride(-1) != 1 for tensor in (state_k, state_v, counts)):
+        raise ValueError("expanded Kimi state channels must have unit stride")
     if tuple(w_uk_t.shape) != (query_heads, 128, 512):
         raise ValueError(
             "expanded Kimi W_UK_T must be [query_heads,128,512], got "
@@ -930,7 +980,12 @@ def aiter_kimi_expanded_prefill_route_coarse_attention(
         log_counts,
         state_len,
         dispatch_state_len,
-        STATE_CAPACITY=int(state_k.size(2)),
+        KEY_BATCH_STRIDE=state_k.stride(0),
+        KEY_TOKEN_STRIDE=state_k.stride(2),
+        VALUE_BATCH_STRIDE=state_v.stride(0),
+        VALUE_TOKEN_STRIDE=state_v.stride(2),
+        COUNT_BATCH_STRIDE=counts.stride(0),
+        COUNT_TOKEN_STRIDE=counts.stride(2),
         LATENT_DIM=512,
         DIRECT_DIM=64,
         LATENT_BLOCK=512,
@@ -963,7 +1018,7 @@ def aiter_kimi_expanded_prefill_route_coarse_attention(
         device=q_expanded.device,
     )
     flat_weight = _cached_flat_weight(
-        buffers,
+        buffers if cache_immutable_weights else None,
         "kimi_flat_w_uk_t",
         w_uk_t,
         (2, 0, 1),
@@ -992,7 +1047,7 @@ def aiter_kimi_expanded_prefill_route_coarse_attention(
         device=state_v.device,
     )
     flat_value_weight = _cached_flat_weight(
-        buffers,
+        buffers if cache_immutable_weights else None,
         "kimi_flat_w_uv",
         w_uv,
         (1, 0, 2),
@@ -1115,7 +1170,8 @@ def aiter_kimi_expanded_prefill_route_coarse_attention(
         coarse_stream, route_stream = _kimi_prefill_attention_streams(device_index)
         foreground_stream = torch.cuda.current_stream(q_expanded.device)
         coarse_stream.wait_stream(foreground_stream)
-        route_stream.wait_stream(foreground_stream)
+        if not fused_route_coarse:
+            route_stream.wait_stream(foreground_stream)
 
         with torch.cuda.stream(coarse_stream):
             if split_at:
@@ -1208,7 +1264,8 @@ def aiter_kimi_expanded_prefill_route_coarse_attention(
             )
         # The caller waits on this one stream before opening leaves. Make that
         # dependency cover both independently scheduled attention branches.
-        route_stream.wait_stream(coarse_stream)
+        if route_stream is not coarse_stream:
+            route_stream.wait_stream(coarse_stream)
     if reduce_end is not None and prepare_begin is not None:
         reduce_end.record(route_stream)
         reduce_end.synchronize()
@@ -1664,6 +1721,7 @@ def _merge_mla_route_refinement_kernel(
     BLOCK_M: tl.constexpr,
     ROUTE_COUNT: tl.constexpr,
     PROJECTED_VALUES: tl.constexpr,
+    SINK_KEY_GROUP_SIZE: tl.constexpr,
     AGGREGATED_ROUTES: tl.constexpr,
     RETURN_LSE: tl.constexpr,
 ):
@@ -1673,6 +1731,7 @@ def _merge_mla_route_refinement_kernel(
     batch = batch_head // QUERY_HEADS
     query_head = batch_head - batch * QUERY_HEADS
     kv_head = query_head // KV_GROUP_SIZE
+    sink_key_head = query_head // SINK_KEY_GROUP_SIZE
     valid_query = query < QUERY_LEN
     latent_dim = tl.arange(0, LATENT_DIM)
     direct_dim = tl.arange(0, DIRECT_DIM)
@@ -1767,20 +1826,20 @@ def _merge_mla_route_refinement_kernel(
         sink_key_latent = tl.load(
             sink_k
             + batch * SINK_K_BATCH_STRIDE
-            + kv_head * SINK_K_HEAD_STRIDE
+            + sink_key_head * SINK_K_HEAD_STRIDE
             + sink_index * SINK_K_TOKEN_STRIDE
             + latent_dim
         )
         sink_key_direct = tl.load(
             sink_k
             + batch * SINK_K_BATCH_STRIDE
-            + kv_head * SINK_K_HEAD_STRIDE
+            + sink_key_head * SINK_K_HEAD_STRIDE
             + sink_index * SINK_K_TOKEN_STRIDE
             + LATENT_DIM
             + direct_dim
         )
-        sink_score = tl.sum(query_latent * sink_key_latent[None, :], axis=1)
-        sink_score += tl.sum(query_direct * sink_key_direct[None, :], axis=1)
+        sink_score = tl.sum(query_latent.to(tl.float32) * sink_key_latent[None, :].to(tl.float32), axis=1)
+        sink_score += tl.sum(query_direct.to(tl.float32) * sink_key_direct[None, :].to(tl.float32), axis=1)
         maximum = tl.maximum(maximum, sink_score * SCALE)
 
     coarse_weight = tl.exp(residual_coarse_lse - maximum)
@@ -1835,14 +1894,14 @@ def _merge_mla_route_refinement_kernel(
         sink_key_latent = tl.load(
             sink_k
             + batch * SINK_K_BATCH_STRIDE
-            + kv_head * SINK_K_HEAD_STRIDE
+            + sink_key_head * SINK_K_HEAD_STRIDE
             + sink_index * SINK_K_TOKEN_STRIDE
             + latent_dim
         )
         sink_key_direct = tl.load(
             sink_k
             + batch * SINK_K_BATCH_STRIDE
-            + kv_head * SINK_K_HEAD_STRIDE
+            + sink_key_head * SINK_K_HEAD_STRIDE
             + sink_index * SINK_K_TOKEN_STRIDE
             + LATENT_DIM
             + direct_dim
@@ -1854,8 +1913,8 @@ def _merge_mla_route_refinement_kernel(
             + sink_index * SINK_V_TOKEN_STRIDE
             + value_dim
         )
-        sink_score = tl.sum(query_latent * sink_key_latent[None, :], axis=1)
-        sink_score += tl.sum(query_direct * sink_key_direct[None, :], axis=1)
+        sink_score = tl.sum(query_latent.to(tl.float32) * sink_key_latent[None, :].to(tl.float32), axis=1)
+        sink_score += tl.sum(query_direct.to(tl.float32) * sink_key_direct[None, :].to(tl.float32), axis=1)
         weight = tl.exp(sink_score * SCALE - maximum)
         denominator += weight
         numerator += weight[:, None] * sink_value[None, :]
@@ -1916,6 +1975,11 @@ def merge_aiter_mla_prefill_refinement(
         raise ValueError("AITER MLA refinement centroid values have wrong geometry")
     if query_heads != kv_heads * kv_group_size or route_count != 8:
         raise ValueError("AITER MLA refinement has incompatible GQA/routes")
+    sink_heads = int(sink_k.size(1))
+    if (sink_k.ndim != 4 or sink_k.size(0) != batch or sink_k.size(-1) != key_dim
+            or sink_heads not in (kv_heads, query_heads)
+            or tuple(sink_v.shape) != (batch, expected_value_heads, sink_k.size(2), value_dim)):
+        raise ValueError("AITER MLA refinement sink geometry is incompatible")
     if tuple(local_out.shape) != (*expected_prefix, value_dim):
         raise ValueError("AITER MLA refinement local output has wrong geometry")
     if tuple(local_lse.shape) != expected_prefix:
@@ -2005,6 +2069,7 @@ def merge_aiter_mla_prefill_refinement(
         BLOCK_M=block_m,
         ROUTE_COUNT=route_count,
         PROJECTED_VALUES=projected_values,
+        SINK_KEY_GROUP_SIZE=query_heads // sink_heads,
         AGGREGATED_ROUTES=aggregated_routes,
         RETURN_LSE=return_lse,
         num_warps=8,

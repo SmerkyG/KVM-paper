@@ -1,0 +1,73 @@
+{
+  "scope": "complete final rank-local cache construction; not model latency",
+  "input": "results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt",
+  "global_length": 65536,
+  "dcp_world_size": 8,
+  "layers": 4,
+  "input_shape": [
+    4,
+    1,
+    8192,
+    576
+  ],
+  "input_copy_included": true,
+  "global_prefill_update_len": 16384,
+  "global_decode_update_len": 256,
+  "eager_before": {
+    "median_ms": 3.9334640502929688,
+    "samples_ms": [
+      4.376777172088623,
+      3.879384994506836,
+      4.4300971031188965,
+      3.9334640502929688,
+      3.8621859550476074
+    ]
+  },
+  "graph": {
+    "median_ms": 2.226008892059326,
+    "samples_ms": [
+      2.2274489402770996,
+      2.2236480712890625,
+      2.223768949508667,
+      2.2282888889312744,
+      2.226008892059326
+    ]
+  },
+  "eager_after": {
+    "median_ms": 3.6615090370178223,
+    "samples_ms": [
+      4.106741905212402,
+      3.6615090370178223,
+      4.0871429443359375,
+      3.6013898849487305,
+      3.5206310749053955
+    ]
+  },
+  "eager_check": {
+    "fresh_records_membership_counts": "passed",
+    "state_sum_relative_l2": [
+      0.0022402212489396334,
+      0.0022402212489396334,
+      0.0022402212489396334,
+      0.0022402212489396334
+    ]
+  },
+  "graph_check": {
+    "fresh_records_membership_counts": "passed",
+    "state_sum_relative_l2": [
+      0.0022402212489396334,
+      0.0022402212489396334,
+      0.0022402212489396334,
+      0.0022402212489396334
+    ]
+  },
+  "fresh_input_check": {
+    "fresh_records_membership_counts": "passed",
+    "state_sum_relative_l2": [
+      0.0022664282005280256,
+      0.0022664282005280256,
+      0.0022664282005280256,
+      0.0022664282005280256
+    ]
+  }
+}

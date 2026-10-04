@@ -282,12 +282,22 @@ def _run_lod_mla(
     direct_key: torch.Tensor,
     output_shape: torch.Size | tuple[int, ...] | None,
     q_dcp_replicated: torch.Tensor | None,
+    *,
+    output_buffer: torch.Tensor | None = None,
 ) -> torch.Tensor:
     pool = getattr(layer, "_vllm_lod_pool", None)
     if pool is None:
         raise RuntimeError("Kimi LoD MLA forward has no attached cache pool")
     if getattr(layer, "W_UK_T", None) is None:
         raise RuntimeError("Kimi W_UK must be materialized before LoD attention")
+    if output_shape is None:
+        output_shape = (query.size(0), layer.num_heads * layer.v_head_dim)
+    if output_buffer is not None and (
+        tuple(output_buffer.shape) != tuple(output_shape)
+        or output_buffer.dtype != query.dtype
+        or output_buffer.device != query.device
+    ):
+        raise ValueError("Kimi MLA output buffer has incompatible geometry")
 
     dcp_decode = bool(
         q_dcp_replicated is not None
@@ -326,9 +336,8 @@ def _run_lod_mla(
             get_dcp_group(),
             is_lse_base_on_e=True,
         )
-        if output_shape is None:
-            output_shape = (query.size(0), layer.num_heads * layer.v_head_dim)
-        output = torch.empty(output_shape, dtype=query.dtype, device=query.device)
+        output = (output_buffer if output_buffer is not None else
+                  torch.empty(output_shape, dtype=query.dtype, device=query.device))
         layer._v_up_proj(attention_output, output)
         return output
 
@@ -345,6 +354,9 @@ def _run_lod_mla(
                    else local_dcp_prefill)
         projected = prefill(layer, pool, query, record)
         shape = output_shape or (query.size(0), layer.num_heads * layer.v_head_dim)
+        if output_buffer is not None:
+            output_buffer.copy_(projected.reshape(shape))
+            return output_buffer
         return projected.reshape(shape)
     projected_prefill = bool(
         direct_plan
@@ -406,9 +418,8 @@ def _run_lod_mla(
         # native chronological cache to fall back to here.
         attention_output.zero_()
 
-    if output_shape is None:
-        output_shape = (query.size(0), layer.num_heads * layer.v_head_dim)
-    output = torch.empty(output_shape, dtype=query.dtype, device=query.device)
+    output = (output_buffer if output_buffer is not None else
+              torch.empty(output_shape, dtype=query.dtype, device=query.device))
     if projected_prefill:
         output.view(query.size(0), layer.num_heads, layer.v_head_dim).copy_(
             attention_output
@@ -416,6 +427,19 @@ def _run_lod_mla(
     else:
         layer._v_up_proj(attention_output, output)
     return output
+
+
+def _run_lod_mla_with_output(
+    layer: Any,
+    query: torch.Tensor,
+    latent: torch.Tensor,
+    direct_key: torch.Tensor,
+    output: torch.Tensor,
+    q_dcp_replicated: torch.Tensor | None,
+) -> None:
+    """Write a stable output across vLLM's eager attention graph breaks."""
+    _run_lod_mla(layer, query, latent, direct_key, output.shape,
+                 q_dcp_replicated, output_buffer=output)
 
 
 def register_kimi_k3_lod() -> None:
@@ -434,6 +458,16 @@ def register_kimi_k3_lod() -> None:
     original_init = MLAAttention.__init__
     original_forward = MLAAttention.forward
     original_prefill_selector = mla_module.get_mla_prefill_backend
+    breakable_forward = None
+    if os.environ.get("VLLM_USE_BREAKABLE_CUDAGRAPH") == "1":
+        from vllm.compilation.breakable_cudagraph import eager_break_during_capture
+
+        # LoD intercepts MLAAttention.forward before the native unified MLA
+        # custom op, so native attention's existing eager-break decorator is
+        # bypassed. Supply the same boundary with an in-place graph-pool output.
+        # Host cache plans, construction, and synchronization then stay outside
+        # captured model sections and are re-evaluated on every replay.
+        breakable_forward = eager_break_during_capture(_run_lod_mla_with_output)
 
     class _UnusedKimiPrefillBackend:
         """Construction placeholder; LoD bypasses native MLA prefill."""
@@ -504,6 +538,11 @@ def register_kimi_k3_lod() -> None:
                 output_shape=output_shape,
                 q_dcp_replicated=q_dcp_replicated,
             )
+        if breakable_forward is not None:
+            shape = output_shape or (q.size(0), self.num_heads * self.v_head_dim)
+            output = torch.empty(shape, dtype=q.dtype, device=q.device)
+            breakable_forward(self, q, kv_c_normed, k_pe, output, q_dcp_replicated)
+            return output
         return _run_lod_mla(
             self,
             q,

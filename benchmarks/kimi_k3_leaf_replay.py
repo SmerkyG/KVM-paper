@@ -42,6 +42,8 @@ def main():
                                  "64x64x2", "128x64x4", "128x128x4"])
     parser.add_argument("--graph", action="store_true",
                         help="also test graph capture of this fixed-input leaf stage")
+    parser.add_argument("--scalar-page-lookup", action="store_true",
+                        help="compare one directory lookup per aligned page with the baseline")
     args = parser.parse_args()
     payload = torch.load(args.input, map_location="cpu", weights_only=True)
     if payload["scope"] != "real trained Kimi K3 late-prefill leaf inputs":
@@ -90,9 +92,11 @@ def main():
                     scale=payload["scale"], hash_probes=payload["hash_probes"],
                     block_m=block_m, block_n=block_n, num_warps=warps,
                     reduce_routes=payload["reduce_routes"], buffers=buffers,
+                    scalar_page_lookup=scalar_lookup,
                 )
 
             try:
+                scalar_lookup = False
                 point = timed(attend)
                 if args.graph:
                     graph = torch.cuda.CUDAGraph()
@@ -109,6 +113,22 @@ def main():
                     if tile != "32x16x1":
                         raise ValueError("the first tile must be the current 32x16x1 baseline")
                     baseline = out.clone(), lse.clone()
+                if args.scalar_page_lookup:
+                    reference = out.clone(), lse.clone()
+                    scalar_lookup = True
+                    point["scalar_page_lookup"] = timed(attend)
+                    scalar_out, scalar_lse = attend()
+                    torch.testing.assert_close(scalar_out, reference[0], atol=0, rtol=0,
+                                               equal_nan=True)
+                    torch.testing.assert_close(scalar_lse, reference[1], atol=0, rtol=0,
+                                               equal_nan=True)
+                    point["scalar_page_lookup"]["bitwise_output_match"] = True
+                    scalar_lookup = False
+                    point["scalar_baseline_after"] = timed(attend)
+                    point["scalar_control_over_candidate"] = (
+                        (point["median_ms"] + point["scalar_baseline_after"]["median_ms"])
+                        / 2 / point["scalar_page_lookup"]["median_ms"]
+                    )
                 mask = slots.ge(0)
                 if payload["reduce_routes"]:
                     mask = mask.any(-1)
