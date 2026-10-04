@@ -1,0 +1,227 @@
+{
+  "measurement_status": "aborted_preflight_before_candidate",
+  "reason": "DCP shadows retain centroid-state views; a shared graph scratch result cannot be retained safely. Only unaudited baseline points were reached. The prototype was removed.",
+  "scope": "24-MLA fixture, no MoE; fresh requests with final construction included",
+  "batch_size": 8,
+  "tensor_parallel_size": 8,
+  "decode_context_parallel_size": 8,
+  "rotating_prefills": false,
+  "rotating_cohort": 8,
+  "kv_cache_memory_bytes": 4294967296,
+  "measurements": {
+    "reuse_combined_subtile_score": {
+      "32768": {
+        "wall_seconds": 3.2794232349842787,
+        "prefill_seconds": 3.2763215377926826,
+        "generated_token_ids": [
+          [
+            200
+          ],
+          [
+            38
+          ],
+          [
+            68
+          ],
+          [
+            159
+          ],
+          [
+            181
+          ],
+          [
+            49
+          ],
+          [
+            109
+          ],
+          [
+            104
+          ]
+        ],
+        "worker_memory": [
+          {
+            "allocated_bytes": 11634873856,
+            "reserved_bytes": 16877879296,
+            "peak_allocated_bytes": 15143028224,
+            "peak_reserved_bytes": 16877879296,
+            "construction_group_size": 4,
+            "state_update_graphs": null,
+            "device_free_bytes": 249445744640
+          },
+          {
+            "allocated_bytes": 11634873856,
+            "reserved_bytes": 16877879296,
+            "peak_allocated_bytes": 15143026688,
+            "peak_reserved_bytes": 16877879296,
+            "construction_group_size": 4,
+            "state_update_graphs": null,
+            "device_free_bytes": 250150387712
+          },
+          {
+            "allocated_bytes": 11634873856,
+            "reserved_bytes": 16877879296,
+            "peak_allocated_bytes": 15143026688,
+            "peak_reserved_bytes": 16877879296,
+            "construction_group_size": 4,
+            "state_update_graphs": null,
+            "device_free_bytes": 249445744640
+          },
+          {
+            "allocated_bytes": 11634873856,
+            "reserved_bytes": 16877879296,
+            "peak_allocated_bytes": 15143026688,
+            "peak_reserved_bytes": 16877879296,
+            "construction_group_size": 4,
+            "state_update_graphs": null,
+            "device_free_bytes": 249445744640
+          },
+          {
+            "allocated_bytes": 11634873856,
+            "reserved_bytes": 16877879296,
+            "peak_allocated_bytes": 15143026688,
+            "peak_reserved_bytes": 16877879296,
+            "construction_group_size": 4,
+            "state_update_graphs": null,
+            "device_free_bytes": 249510756352
+          },
+          {
+            "allocated_bytes": 11634644480,
+            "reserved_bytes": 16877879296,
+            "peak_allocated_bytes": 15143026688,
+            "peak_reserved_bytes": 16877879296,
+            "construction_group_size": 4,
+            "state_update_graphs": null,
+            "device_free_bytes": 249546407936
+          },
+          {
+            "allocated_bytes": 11634873856,
+            "reserved_bytes": 16877879296,
+            "peak_allocated_bytes": 15143026688,
+            "peak_reserved_bytes": 16877879296,
+            "construction_group_size": 4,
+            "state_update_graphs": null,
+            "device_free_bytes": 249647071232
+          },
+          {
+            "allocated_bytes": 11634873856,
+            "reserved_bytes": 16877879296,
+            "peak_allocated_bytes": 15143026688,
+            "peak_reserved_bytes": 16877879296,
+            "construction_group_size": 4,
+            "state_update_graphs": null,
+            "device_free_bytes": 249500270592
+          }
+        ]
+      },
+      "65536": {
+        "wall_seconds": 7.782592952251434,
+        "prefill_seconds": 7.77846516110003,
+        "generated_token_ids": [
+          [
+            246
+          ],
+          [
+            191
+          ],
+          [
+            24
+          ],
+          [
+            193
+          ],
+          [
+            65
+          ],
+          [
+            35
+          ],
+          [
+            248
+          ],
+          [
+            45
+          ]
+        ],
+        "worker_memory": [
+          {
+            "allocated_bytes": 12030046208,
+            "reserved_bytes": 20178796544,
+            "peak_allocated_bytes": 16721176576,
+            "peak_reserved_bytes": 20178796544,
+            "construction_group_size": 4,
+            "state_update_graphs": null,
+            "device_free_bytes": 246098690048
+          },
+          {
+            "allocated_bytes": 12030636032,
+            "reserved_bytes": 20178796544,
+            "peak_allocated_bytes": 16721175040,
+            "peak_reserved_bytes": 20178796544,
+            "construction_group_size": 4,
+            "state_update_graphs": null,
+            "device_free_bytes": 246803333120
+          },
+          {
+            "allocated_bytes": 12030159872,
+            "reserved_bytes": 20178796544,
+            "peak_allocated_bytes": 16720667648,
+            "peak_reserved_bytes": 20178796544,
+            "construction_group_size": 4,
+            "state_update_graphs": null,
+            "device_free_bytes": 246098690048
+          },
+          {
+            "allocated_bytes": 12030159872,
+            "reserved_bytes": 20178796544,
+            "peak_allocated_bytes": 16720667648,
+            "peak_reserved_bytes": 20178796544,
+            "construction_group_size": 4,
+            "state_update_graphs": null,
+            "device_free_bytes": 246098690048
+          },
+          {
+            "allocated_bytes": 12030341120,
+            "reserved_bytes": 20178796544,
+            "peak_allocated_bytes": 16720421376,
+            "peak_reserved_bytes": 20178796544,
+            "construction_group_size": 4,
+            "state_update_graphs": null,
+            "device_free_bytes": 246163701760
+          },
+          {
+            "allocated_bytes": 12030159872,
+            "reserved_bytes": 20178796544,
+            "peak_allocated_bytes": 16720667648,
+            "peak_reserved_bytes": 20178796544,
+            "construction_group_size": 4,
+            "state_update_graphs": null,
+            "device_free_bytes": 246199353344
+          },
+          {
+            "allocated_bytes": 12030636032,
+            "reserved_bytes": 20178796544,
+            "peak_allocated_bytes": 16720126464,
+            "peak_reserved_bytes": 20178796544,
+            "construction_group_size": 4,
+            "state_update_graphs": null,
+            "device_free_bytes": 246300016640
+          },
+          {
+            "allocated_bytes": 12030046208,
+            "reserved_bytes": 20178796544,
+            "peak_allocated_bytes": 16721175040,
+            "peak_reserved_bytes": 20178796544,
+            "construction_group_size": 4,
+            "state_update_graphs": null,
+            "device_free_bytes": 246153216000
+          }
+        ]
+      }
+    }
+  },
+  "shared_latent_geometry": [
+    1,
+    1
+  ]
+}
