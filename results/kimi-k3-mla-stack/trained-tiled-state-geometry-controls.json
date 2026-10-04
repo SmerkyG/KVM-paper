@@ -1,0 +1,119 @@
+{
+  "scope": "trained-record state-assignment GPU stage, not model latency",
+  "source": "results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt",
+  "overflow_shape": [
+    4,
+    1,
+    16384,
+    576
+  ],
+  "centroid_shape": [
+    4,
+    1,
+    2048,
+    576
+  ],
+  "includes_all_576_channels": true,
+  "ordinary_before": {
+    "median_ms": 0.3999139964580536,
+    "samples_ms": [
+      0.40327298641204834,
+      0.3999139964580536,
+      0.40527400374412537,
+      0.38167399168014526,
+      0.38547399640083313
+    ]
+  },
+  "tiles": {
+    "64x128x8x1": {
+      "median_ms": 0.46215400099754333,
+      "samples_ms": [
+        0.4291139841079712,
+        0.4311540126800537,
+        0.46215400099754333,
+        0.486393004655838,
+        0.5566319823265076
+      ],
+      "identical_owner_fraction": 1.0,
+      "dense_score_tie_fraction": 1.0,
+      "max_score_absolute_difference": 0.0
+    },
+    "64x128x4x1": {
+      "median_ms": 0.7647489905357361,
+      "samples_ms": [
+        0.7262300252914429,
+        0.7658290266990662,
+        0.7733889818191528,
+        0.7647489905357361,
+        0.7440289855003357
+      ],
+      "identical_owner_fraction": 1.0,
+      "dense_score_tie_fraction": 1.0,
+      "max_score_absolute_difference": 0.0
+    },
+    "64x128x4x2": {
+      "median_ms": 1.0098259449005127,
+      "samples_ms": [
+        1.0063060522079468,
+        1.0098259449005127,
+        0.978905975818634,
+        1.086303949356079,
+        1.042984962463379
+      ],
+      "identical_owner_fraction": 1.0,
+      "dense_score_tie_fraction": 1.0,
+      "max_score_absolute_difference": 0.0
+    },
+    "128x64x4x2": {
+      "median_ms": 1.015584945678711,
+      "samples_ms": [
+        0.96738600730896,
+        1.015584945678711,
+        1.0376249551773071,
+        1.0219850540161133,
+        1.0040650367736816
+      ],
+      "identical_owner_fraction": 1.0,
+      "dense_score_tie_fraction": 1.0,
+      "max_score_absolute_difference": 0.0
+    },
+    "128x128x8x2": {
+      "median_ms": 0.7561889886856079,
+      "samples_ms": [
+        0.6843900084495544,
+        0.7168700098991394,
+        0.7561889886856079,
+        0.7826290130615234,
+        0.7795079946517944
+      ],
+      "identical_owner_fraction": 1.0,
+      "dense_score_tie_fraction": 1.0,
+      "max_score_absolute_difference": 0.0
+    },
+    "64x64x4x2": {
+      "median_ms": 1.4792979955673218,
+      "samples_ms": [
+        1.653216004371643,
+        1.5620169639587402,
+        1.4438589811325073,
+        1.4792979955673218,
+        1.450058937072754
+      ],
+      "identical_owner_fraction": 1.0,
+      "dense_score_tie_fraction": 1.0,
+      "max_score_absolute_difference": 0.0
+    }
+  },
+  "ordinary_after": {
+    "median_ms": 0.41771399974823,
+    "samples_ms": [
+      0.41771399974823,
+      0.42717400193214417,
+      0.3720349967479706,
+      0.37239500880241394,
+      0.5320320129394531
+    ]
+  },
+  "dense_score_workspace_bytes": 268435456,
+  "tiled_score_workspace_bytes": 6291456
+}

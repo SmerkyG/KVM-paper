@@ -233,6 +233,7 @@ def _specialized_kimi_coarse_mha_fwd(
     async_bias: bool = False,
     fused_route: bool = False,
     tile_max_probe: bool = False,
+    query_tile: int = 128,
 ) -> Callable[..., tuple[torch.Tensor, ...]]:
     """Build a non-routing Dqk=192/256, Dv=128 Kimi instance."""
     if head_dim not in (192, 256):
@@ -243,6 +244,8 @@ def _specialized_kimi_coarse_mha_fwd(
         raise ValueError("Kimi fused routing requires async-bias AITER")
     if tile_max_probe and not fused_route:
         raise ValueError("tile-max timing probe requires fused Kimi routing")
+    if query_tile not in (64, 128) or (query_tile != 128 and not async_bias):
+        raise ValueError("alternative Kimi query tile requires async biased coarse attention")
     from aiter.jit.core import compile_ops, get_args_of_build
     from aiter.ops.mha import cmdGenFunc_mha_fwd
 
@@ -260,7 +263,7 @@ def _specialized_kimi_coarse_mha_fwd(
         mode_suffix = "_asyncbias" if async_bias else ""
         generated["md_name"] = (
             f"{generated['md_name']}_lod_kimi_d{head_dim}v128"
-            f"{mode_suffix}_v{revision}"
+            f"{mode_suffix}{'_q64_probe2' if query_tile == 64 else ''}_v{revision}"
         )
         receipt = 104 if async_bias else 102
         generated["blob_gen_cmd"] = [
@@ -269,6 +272,17 @@ def _specialized_kimi_coarse_mha_fwd(
             )
             for command in generated["blob_gen_cmd"]
         ]
+        if query_tile == 64:
+            import shlex
+            from pathlib import Path
+
+            wrapper = Path(__file__).resolve().parents[2] / "benchmarks" / "_kimi_coarse_codegen.py"
+            commands = []
+            for command in generated["blob_gen_cmd"]:
+                generator, remainder = command.split(" -d fwd", 1)
+                commands.append(f"{shlex.quote(str(wrapper))} --base-generator "
+                                f"{shlex.quote(generator)} --query-tile 64 -d fwd{remainder}")
+            generated["blob_gen_cmd"] = commands
         # The patched CK pipeline references the route constants even when a
         # particular specialization only consumes its ordinary attention
         # output.  Define them explicitly instead of relying on header-local
@@ -322,6 +336,7 @@ def _specialized_kimi_coarse_mha_fwd(
         f"{'_asyncbias' if async_bias else ''}"
         f"{'_route8' if fused_route else ''}"
         f"{'_tilemax_probe' if tile_max_probe else ''}"
+        f"{'_q64_probe' if query_tile == 64 else ''}"
     )
     return compile_ops(
         "module_mha_fwd",

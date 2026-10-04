@@ -1097,6 +1097,7 @@ def aiter_kimi_expanded_prefill_route_coarse_attention(
             async_bias=True,
             fused_route=fused_route_coarse,
             tile_max_probe=os.environ.get("LOD_KIMI_TILE_REFINE") == "1",
+            query_tile=int(os.environ.get("LOD_KIMI_COARSE_QUERY_TILE", "128")),
         )
         route_mha_fwd = _specialized_route_mha_fwd(False, route_dim)
 
@@ -1254,12 +1255,26 @@ def aiter_kimi_expanded_prefill_route_coarse_attention(
                 buffers=buffers,
             )
         else:
+            candidate_reducer = _reduce_route_candidates
+            if os.environ.get("LOD_KIMI_KWAY_REDUCE") == "1":
+                from .kimi_route_candidate_merge import merge_sorted_kimi_candidates
+
+                # Eight selected tile lists are already sorted. The ordinary
+                # global reducer remains the fallback for any other layout.
+                if candidates_0.size(2) == 8:
+                    def candidate_reducer(data, **kwargs):
+                        return merge_sorted_kimi_candidates(
+                            data, state_len=kwargs["state_len"],
+                            slot_lengths=kwargs["slot_lengths"],
+                            max_open_leaf_tokens=kwargs["max_open_leaf_tokens"],
+                            buffers=kwargs["buffers"],
+                        )
             (
                 top_slots,
                 route_head_counts,
                 route_offsets,
                 selected_route_scores,
-            ) = _reduce_route_candidates(
+            ) = candidate_reducer(
                 candidates_0,
                 slot_lengths=slot_lengths,
                 max_open_leaf_tokens=max_open_leaf_tokens,

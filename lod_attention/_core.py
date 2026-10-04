@@ -1990,8 +1990,10 @@ class TritonLODAttentionCore(nn.Module):
                         maxsim_buffers is not None
                         and merge_select_k.is_cuda
                         and merge_select_k.dtype == torch.bfloat16
-                        and int(merge_select_k.size(-1)) == 128
-                        and int(merge_select_k.size(0)) >= 8
+                        and ((int(merge_select_k.size(-1)) == 128
+                              and int(merge_select_k.size(0)) >= 8)
+                             or (int(merge_select_k.size(-1)) == 576
+                                 and os.environ.get("LOD_KIMI_TILED_STATE_MAXSIM") == "1"))
                         and int(merge_select_k.size(2)) >= 128
                         and int(append_select_k.size(2)) >= 128
                         and not self.state_clustering_radial_bias

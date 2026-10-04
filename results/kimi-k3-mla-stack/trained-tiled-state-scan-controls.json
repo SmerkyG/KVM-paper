@@ -1,0 +1,52 @@
+{
+  "scope": "trained-record state-assignment GPU stage, not model latency",
+  "source": "results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt",
+  "overflow_shape": [
+    4,
+    1,
+    16384,
+    576
+  ],
+  "centroid_shape": [
+    4,
+    1,
+    2048,
+    576
+  ],
+  "includes_all_576_channels": true,
+  "ordinary_before": {
+    "median_ms": 0.422793984413147,
+    "samples_ms": [
+      0.42815399169921875,
+      0.4238339960575104,
+      0.37527498602867126,
+      0.37419500946998596,
+      0.422793984413147
+    ]
+  },
+  "tiled": {
+    "median_ms": 0.47995299100875854,
+    "samples_ms": [
+      0.4370720088481903,
+      0.4327529966831207,
+      0.47995299100875854,
+      0.49447301030158997,
+      0.5596709847450256
+    ]
+  },
+  "ordinary_after": {
+    "median_ms": 0.4521139860153198,
+    "samples_ms": [
+      0.4723140001296997,
+      0.467072993516922,
+      0.4521139860153198,
+      0.4437139928340912,
+      0.43027299642562866
+    ]
+  },
+  "identical_owner_fraction": 1.0,
+  "dense_score_tie_fraction": 1.0,
+  "max_score_absolute_difference": 0.0,
+  "dense_score_workspace_bytes": 268435456,
+  "tiled_score_workspace_bytes": 3145728
+}

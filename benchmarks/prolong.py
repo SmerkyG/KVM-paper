@@ -1087,6 +1087,7 @@ def audit_worker_attention_mode(worker: Any) -> dict[str, Any]:
                           for pool in pools.values()
                           if getattr(pool.engine, "_lod_kimi_coarse_graphs", None) is not None), None)
     final_cache_graphs = getattr(runtime, "_kimi_final_cache_graphs", None)
+    state_update_graphs = getattr(runtime, "_kimi_state_update_graphs", None)
     return {
         "lod_runtime": runtime is not None,
         "lod_pool_count": len(pools),
@@ -1126,6 +1127,11 @@ def audit_worker_attention_mode(worker: Any) -> dict[str, Any]:
             "fallback_count": final_cache_graphs.fallback_count,
             "local_prefix_lengths": sorted({int(entry.key.size(2))
                                             for entry in final_cache_graphs.entries.values()}),
+        },
+        "kimi_state_update_graphs": None if state_update_graphs is None else {
+            "captured_shapes": len(state_update_graphs.entries),
+            "replay_count": state_update_graphs.replay_count,
+            "fallback_count": state_update_graphs.fallback_count,
         },
     }
 

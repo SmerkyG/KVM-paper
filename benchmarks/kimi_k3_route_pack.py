@@ -24,7 +24,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--candidate", choices=("dense-pack", "refine16", "refine32", "refine128"),
+    parser.add_argument("--candidate", choices=("dense-pack", "chunk-pack", "chunk512", "chunk1024", "refine16", "refine32", "refine128", "merge-lists", "coarse64"),
                         default="dense-pack")
     args = parser.parse_args()
     os.environ["LOD_KIMI_TILE_REFINE"] = "1"
@@ -53,11 +53,20 @@ def main():
               "state_len": sums.size(0), "state_sums": "reconstructed from captured memberships"}
     with torch.inference_mode():
         os.environ["LOD_KIMI_DENSE_TILE_PACK"] = "0"
+        os.environ["LOD_KIMI_CHUNK_TILE_PACK"] = "0"
+        os.environ["LOD_KIMI_TILE_PACK_QUERY_BLOCK"] = "256"
         os.environ["LOD_KIMI_REFINE_BLOCK_M"] = "64"
+        os.environ["LOD_KIMI_KWAY_REDUCE"] = "0"
+        os.environ["LOD_KIMI_COARSE_QUERY_TILE"] = "128"
         result["ordinary_before"] = timed(run)
         reference = tuple(t.clone() for t in run())
         os.environ["LOD_KIMI_DENSE_TILE_PACK"] = "1" if args.candidate == "dense-pack" else "0"
-        if args.candidate != "dense-pack":
+        os.environ["LOD_KIMI_CHUNK_TILE_PACK"] = "1" if args.candidate.startswith("chunk") else "0"
+        if args.candidate in ("chunk512", "chunk1024"):
+            os.environ["LOD_KIMI_TILE_PACK_QUERY_BLOCK"] = args.candidate.removeprefix("chunk")
+        os.environ["LOD_KIMI_KWAY_REDUCE"] = "1" if args.candidate == "merge-lists" else "0"
+        os.environ["LOD_KIMI_COARSE_QUERY_TILE"] = "64" if args.candidate == "coarse64" else "128"
+        if args.candidate.startswith("refine"):
             os.environ["LOD_KIMI_REFINE_BLOCK_M"] = args.candidate.removeprefix("refine")
         result[args.candidate.replace("-", "_")] = timed(run)
         for actual, expected in zip(run(), reference, strict=True):
@@ -67,7 +76,11 @@ def main():
         keys.mul_(1.25)
         candidate_fresh = tuple(t.clone() for t in run())
         os.environ["LOD_KIMI_DENSE_TILE_PACK"] = "0"
+        os.environ["LOD_KIMI_CHUNK_TILE_PACK"] = "0"
+        os.environ["LOD_KIMI_TILE_PACK_QUERY_BLOCK"] = "256"
         os.environ["LOD_KIMI_REFINE_BLOCK_M"] = "64"
+        os.environ["LOD_KIMI_KWAY_REDUCE"] = "0"
+        os.environ["LOD_KIMI_COARSE_QUERY_TILE"] = "128"
         for actual, expected in zip(run(), candidate_fresh, strict=True):
             torch.testing.assert_close(actual, expected, atol=0, rtol=0)
         q.copy_(original_q)

@@ -645,7 +645,7 @@ def _paged_leaf_attention_kernel(
             value_shift = (value_offset & 1) * 4
             key_code = ((packed_keys >> key_shift[:, None]) & 15) - 8
             value_code = ((packed_values >> value_shift[None, :]) & 15) - 8
-            if page_aligned_quant:
+            if page_aligned_lookup:
                 page_valid_scalar = tl.sum(valid_key.to(tl.int32), axis=0) > 0
                 page_row = kv_row * PAGE_CAPACITY + tl.sum(
                     tl.where(token_offset == 0, page_id, 0), axis=0

@@ -369,6 +369,10 @@ class VLLMLODRuntime:
                 from lod_attention.kernels.kimi_prefill_graph import KimiFinalCacheGraphs
 
                 self._kimi_final_cache_graphs = KimiFinalCacheGraphs()
+            if self.family is ModelFamily.KIMI_K3 and os.environ.get("LOD_KIMI_GRAPH_STATE_UPDATE") == "1":
+                from lod_attention.kernels.kimi_prefill_graph import KimiStateUpdateGraphs
+
+                self._kimi_state_update_graphs = KimiStateUpdateGraphs()
             self._cross_layer_prefill_stream = torch.cuda.Stream(
                 device=self.model_state.device
             )
@@ -1388,6 +1392,12 @@ class VLLMLODRuntime:
             if isinstance(buffers, dict):
                 setattr(self, f"_cross_layer_shared{name}", buffers)
 
+    def _run_prefill_state_update(self, engine: Any, *inputs, **options):
+        graphs = getattr(self, "_kimi_state_update_graphs", None)
+        if graphs is not None:
+            return graphs.run(engine, *inputs, **options)
+        return engine._update_state(*inputs, **options)
+
     def _release_cross_layer_state_workspaces(self) -> None:
         """Drop construction-only scratch after the final prefill update."""
 
@@ -1911,7 +1921,8 @@ class VLLMLODRuntime:
                 state_len,
                 owners,
                 old_slot_remap,
-            ) = engine._update_state(
+            ) = self._run_prefill_state_update(
+                engine,
                 state_k,
                 state_v,
                 counts,
@@ -2429,7 +2440,8 @@ class VLLMLODRuntime:
                 group_state_len,
                 owners,
                 old_slot_remap,
-            ) = engine._update_state(
+            ) = self._run_prefill_state_update(
+                engine,
                 packed_k,
                 packed_v,
                 packed_counts,

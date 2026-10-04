@@ -14,7 +14,7 @@ def main():
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--lengths", nargs="+", type=int, default=[32768, 65536])
     parser.add_argument("--variants", nargs="+",
-                        choices=("default", "tile64", "tile128", "routed", "fused", "sparse", "incremental", "tile_refine", "direct", "refine_direct", "final_reclaim", "final_fence", "final_only", "reuse_allocator", "reuse_group1", "reuse_group8", "reuse_group12", "reuse_native_local", "reuse_distributed8", "reuse_overlap_projection", "reuse_dense_tile_pack", "reuse_cached_weights"),
+                        choices=("default", "tile64", "tile128", "routed", "fused", "sparse", "incremental", "tile_refine", "direct", "refine_direct", "final_reclaim", "final_fence", "final_only", "reuse_allocator", "reuse_group1", "reuse_group8", "reuse_group12", "reuse_native_local", "reuse_distributed8", "reuse_overlap_projection", "reuse_dense_tile_pack", "reuse_cached_weights", "reuse_kway", "reuse_tiled_state", "reuse_update_graph", "reuse_chunk_pack", "reuse_chunk512", "reuse_chunk1024"),
                         default=["default", "tile64", "tile128", "routed"])
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--batch-size", type=int, default=1)
@@ -63,13 +63,34 @@ def main():
     def change_variant(worker, variant):
         from vllm_lod_plugin import runtime
 
+        runner = worker.model_runner
+        active_runtime = getattr(runner, "_vllm_lod_runtime", None)
+        if active_runtime is None:
+            active_runtime = getattr(getattr(runner, "model_state", None),
+                                     "_vllm_lod_runtime", None)
+        update_graph = variant == "reuse_update_graph"
+        if update_graph:
+            from lod_attention.kernels.kimi_prefill_graph import KimiStateUpdateGraphs
+
+            active_runtime._kimi_state_update_graphs = KimiStateUpdateGraphs()
+        else:
+            active_runtime._kimi_state_update_graphs = None
         overlap_projection = variant == "reuse_overlap_projection"
         dense_tile_pack = variant == "reuse_dense_tile_pack"
         cached_weights = variant == "reuse_cached_weights"
+        kway = variant == "reuse_kway"
+        tiled_state = variant == "reuse_tiled_state"
+        chunk_pack = variant in ("reuse_chunk_pack", "reuse_chunk512", "reuse_chunk1024")
+        os.environ["LOD_KIMI_CHUNK_TILE_PACK"] = "1" if chunk_pack else "0"
+        os.environ["LOD_KIMI_TILE_PACK_QUERY_BLOCK"] = (
+            variant.removeprefix("reuse_chunk") if variant in ("reuse_chunk512", "reuse_chunk1024")
+            else "256")
+        os.environ["LOD_KIMI_TILED_STATE_MAXSIM"] = "1" if tiled_state else "0"
+        os.environ["LOD_KIMI_KWAY_REDUCE"] = "1" if kway else "0"
         os.environ["LOD_KIMI_CACHE_PROJECTION_WEIGHTS"] = "1" if cached_weights else "0"
         os.environ["LOD_KIMI_DENSE_TILE_PACK"] = "1" if dense_tile_pack else "0"
         os.environ["LOD_KIMI_OVERLAP_LEAF_PROJECTION"] = "1" if overlap_projection else "0"
-        if overlap_projection or dense_tile_pack or cached_weights:
+        if overlap_projection or dense_tile_pack or cached_weights or kway or tiled_state or update_graph or chunk_pack:
             variant = "reuse_allocator"
         distributed = variant == "reuse_distributed8"
         runtime._DISTRIBUTED_PREFILL_BUILD = distributed
@@ -113,12 +134,18 @@ def main():
         if runtime is None:
             runtime = getattr(getattr(runner, "model_state", None),
                               "_vllm_lod_runtime", None)
+        update_graphs = getattr(runtime, "_kimi_state_update_graphs", None)
         return {"allocated_bytes": torch.cuda.memory_allocated(),
                 "reserved_bytes": torch.cuda.memory_reserved(),
                 "peak_allocated_bytes": torch.cuda.max_memory_allocated(),
                 "peak_reserved_bytes": torch.cuda.max_memory_reserved(),
                 "construction_group_size": (
                     runtime.cross_layer_prefill_group_size if runtime else None),
+                "state_update_graphs": None if update_graphs is None else {
+                    "captured_shapes": len(update_graphs.entries),
+                    "replay_count": update_graphs.replay_count,
+                    "fallback_count": update_graphs.fallback_count,
+                },
                 "device_free_bytes": torch.cuda.mem_get_info()[0]}
 
     def reset_memory_point(worker):

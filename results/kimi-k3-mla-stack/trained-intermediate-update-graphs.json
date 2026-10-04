@@ -1,0 +1,104 @@
+{
+  "scope": "trained-record fixed-shape intermediate update; not model latency",
+  "source": "results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt",
+  "layers": 4,
+  "state_capacity": 4352,
+  "global_update_len": 16384,
+  "graph_replay_count": 18,
+  "measurements": {
+    "16384": {
+      "input_state_len": 255,
+      "output_state_len": 2048,
+      "overflow_len": 15872,
+      "ordinary_before": {
+        "median_ms": 1.5313780307769775,
+        "samples_ms": [
+          1.5313780307769775,
+          1.5495389699935913,
+          1.5437380075454712,
+          1.5210189819335938,
+          1.5124590396881104
+        ]
+      },
+      "graph_including_copies": {
+        "median_ms": 1.5698989629745483,
+        "samples_ms": [
+          1.5824190378189087,
+          1.5698989629745483,
+          1.5443379878997803,
+          1.6223779916763306,
+          1.5310590267181396
+        ]
+      },
+      "ordinary_after": {
+        "median_ms": 1.4706989526748657,
+        "samples_ms": [
+          1.4706989526748657,
+          1.4906200170516968,
+          1.4699000120162964,
+          1.4717400074005127,
+          1.4674999713897705
+        ]
+      },
+      "ordinary_check": {
+        "membership_counts_exact": true,
+        "relative_l2_key_sum_error": 0.0016721661668270826
+      },
+      "graph_check": {
+        "membership_counts_exact": true,
+        "relative_l2_key_sum_error": 0.0016824275953695178
+      },
+      "fresh_input_check": {
+        "membership_counts_exact": true,
+        "relative_l2_key_sum_error": 0.00164231623057276
+      }
+    },
+    "32768": {
+      "input_state_len": 2048,
+      "output_state_len": 2896,
+      "overflow_len": 16384,
+      "ordinary_before": {
+        "median_ms": 1.6334969997406006,
+        "samples_ms": [
+          1.6246180534362793,
+          1.635498046875,
+          1.634856939315796,
+          1.6334969997406006,
+          1.630537986755371
+        ]
+      },
+      "graph_including_copies": {
+        "median_ms": 1.723776936531067,
+        "samples_ms": [
+          1.7207759618759155,
+          1.7255359888076782,
+          1.723776936531067,
+          1.709736943244934,
+          1.7240560054779053
+        ]
+      },
+      "ordinary_after": {
+        "median_ms": 1.6493370532989502,
+        "samples_ms": [
+          1.6630170345306396,
+          1.6437369585037231,
+          1.6500170230865479,
+          1.6493370532989502,
+          1.64369797706604
+        ]
+      },
+      "ordinary_check": {
+        "membership_counts_exact": true,
+        "relative_l2_key_sum_error": 0.0016366124618798494
+      },
+      "graph_check": {
+        "membership_counts_exact": true,
+        "relative_l2_key_sum_error": 0.0016367619391530752
+      },
+      "fresh_input_check": {
+        "membership_counts_exact": true,
+        "relative_l2_key_sum_error": 0.0011457575019448996
+      }
+    }
+  }
+}

@@ -1419,6 +1419,7 @@ def _tiled_dot_maxsim_kernel(
     HEAD_DIM: tl.constexpr,
     BLOCK_M: tl.constexpr,
     BLOCK_N: tl.constexpr,
+    K_STAGES: tl.constexpr = 1,
 ):
     """Emit each leaf's exact BF16 maximum for one centroid tile."""
     batch_head = tl.program_id(0).to(tl.int64)
@@ -1430,26 +1431,44 @@ def _tiled_dot_maxsim_kernel(
     centroid = tile * BLOCK_N + centroid_offset
     leaf_valid = leaf < leaf_len
     centroid_valid = centroid < centroid_len
-    dim = tl.arange(0, HEAD_DIM)
-    leaf_key = tl.load(
-        leaves
-        + batch * LEAF_BATCH_STRIDE
-        + head * LEAF_HEAD_STRIDE
-        + leaf[:, None] * LEAF_TOKEN_STRIDE
-        + dim[None, :],
-        mask=leaf_valid[:, None],
-        other=0.0,
-    )
-    centroid_key = tl.load(
-        centroids
-        + batch * CENTROID_BATCH_STRIDE
-        + head * CENTROID_HEAD_STRIDE
-        + centroid[:, None] * CENTROID_TOKEN_STRIDE
-        + dim[None, :],
-        mask=centroid_valid[:, None],
-        other=0.0,
-    )
-    similarity = tl.dot(leaf_key, tl.trans(centroid_key), out_dtype=tl.float32)
+    if HEAD_DIM == 576:
+        # MLA's 512 latent + 64 direct channels are exactly nine 64-wide
+        # MFMA steps. Never pad the feature axis to 1024 or omit its tail.
+        dim = tl.arange(0, 64)
+        similarity = tl.zeros((BLOCK_M, BLOCK_N), tl.float32)
+        for begin in tl.range(0, 576, 64, num_stages=K_STAGES):
+            leaf_key = tl.load(
+                leaves + batch * LEAF_BATCH_STRIDE + head * LEAF_HEAD_STRIDE
+                + leaf[:, None] * LEAF_TOKEN_STRIDE + begin + dim[None, :],
+                mask=leaf_valid[:, None], other=0.0,
+            )
+            centroid_key = tl.load(
+                centroids + batch * CENTROID_BATCH_STRIDE + head * CENTROID_HEAD_STRIDE
+                + centroid[:, None] * CENTROID_TOKEN_STRIDE + begin + dim[None, :],
+                mask=centroid_valid[:, None], other=0.0,
+            )
+            similarity = tl.dot(leaf_key, tl.trans(centroid_key), similarity)
+    else:
+        dim = tl.arange(0, HEAD_DIM)
+        leaf_key = tl.load(
+            leaves
+            + batch * LEAF_BATCH_STRIDE
+            + head * LEAF_HEAD_STRIDE
+            + leaf[:, None] * LEAF_TOKEN_STRIDE
+            + dim[None, :],
+            mask=leaf_valid[:, None],
+            other=0.0,
+        )
+        centroid_key = tl.load(
+            centroids
+            + batch * CENTROID_BATCH_STRIDE
+            + head * CENTROID_HEAD_STRIDE
+            + centroid[:, None] * CENTROID_TOKEN_STRIDE
+            + dim[None, :],
+            mask=centroid_valid[:, None],
+            other=0.0,
+        )
+        similarity = tl.dot(leaf_key, tl.trans(centroid_key), out_dtype=tl.float32)
     # Match the BF16 result type of the former torch.matmul implementation.
     similarity = similarity.to(tl.bfloat16).to(tl.float32)
     similarity = tl.where(
@@ -1606,6 +1625,12 @@ def tiled_dot_maxsim(
     leaves: torch.Tensor,
     centroids: torch.Tensor,
     buffers: dict[str, torch.Tensor],
+    *,
+    prefix: str = "appended",
+    block_m: int | None = None,
+    block_n: int = 128,
+    num_warps: int = 8,
+    k_stages: int = 1,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Find each leaf's best centroid without materializing all similarities."""
     if not leaves.is_cuda or not centroids.is_cuda:
@@ -1620,10 +1645,12 @@ def tiled_dot_maxsim(
     centroid_len = int(centroids.size(2))
     if not leaf_len or not centroid_len:
         raise ValueError("tiled dot max-similarity requires nonempty inputs")
-    if head_dim != 128 or leaves.stride(-1) != 1 or centroids.stride(-1) != 1:
-        raise ValueError("tiled dot max-similarity requires contiguous D128 keys")
-    scores = buffers["appended_scores"]
-    indices = buffers["appended_indices"]
+    if head_dim not in (128, 576) or leaves.stride(-1) != 1 or centroids.stride(-1) != 1:
+        raise ValueError("tiled dot max-similarity requires contiguous D128 or D576 keys")
+    if prefix not in ("appended", "route"):
+        raise ValueError("tiled dot max-similarity output must be appended or route")
+    scores = buffers[f"{prefix}_scores"]
+    indices = buffers[f"{prefix}_indices"]
     if (
         tuple(scores.shape[:2]) != (batch, heads)
         or int(scores.size(2)) < leaf_len
@@ -1631,12 +1658,14 @@ def tiled_dot_maxsim(
     ):
         raise ValueError("tiled dot max-similarity output buffers are too small")
 
-    block_m = 128
-    block_n = 128
+    block_m = block_m or (64 if head_dim == 576 else 128)
+    if (block_m not in (32, 64, 128) or block_n not in (64, 128)
+            or num_warps not in (4, 8) or k_stages not in (1, 2)):
+        raise ValueError("unsupported tiled state scan geometry")
     active_tiles = triton.cdiv(centroid_len, block_n)
     tile_shape = (batch, heads, int(scores.size(2)), active_tiles)
-    tile_scores = buffers.get("appended_tile_scores")
-    tile_indices = buffers.get("appended_tile_indices")
+    tile_scores = buffers.get(f"{prefix}_tile_scores")
+    tile_indices = buffers.get(f"{prefix}_tile_indices")
     if (
         not isinstance(tile_scores, torch.Tensor)
         or tuple(tile_scores.shape[:3]) != tile_shape[:3]
@@ -1648,8 +1677,8 @@ def tiled_dot_maxsim(
     ):
         tile_scores = torch.empty(tile_shape, dtype=leaves.dtype, device=leaves.device)
         tile_indices = torch.empty(tile_shape, dtype=torch.uint8, device=leaves.device)
-        buffers["appended_tile_scores"] = tile_scores
-        buffers["appended_tile_indices"] = tile_indices
+        buffers[f"{prefix}_tile_scores"] = tile_scores
+        buffers[f"{prefix}_tile_indices"] = tile_indices
 
     _tiled_dot_maxsim_kernel[
         (batch * heads, triton.cdiv(leaf_len, block_m), active_tiles)
@@ -1673,7 +1702,8 @@ def tiled_dot_maxsim(
         HEAD_DIM=head_dim,
         BLOCK_M=block_m,
         BLOCK_N=block_n,
-        **_launch_kwargs(8),
+        K_STAGES=k_stages,
+        **_launch_kwargs(num_warps),
     )
     reduce_block_m = 64
     _reduce_tiled_dot_maxsim_kernel[
@@ -2312,6 +2342,13 @@ def streaming_state_maxsim(
                         overflow_k, active_append.transpose(-1, -2)
                     )
             else:
+                if (geometry == "spherical" and int(overflow_k.size(-1)) == 576
+                        and sink_len == 0 and not mask_invalid_state
+                        and os.environ.get("LOD_KIMI_TILED_STATE_MAXSIM") == "1"):
+                    route_score, route_index = tiled_dot_maxsim(
+                        overflow_k, active_route, buffers, prefix="route",
+                    )
+                    return route_score, route_index, route_score
                 route_scores_dense = _materialized_score_output(
                     buffers,
                     "materialized_route_scores",
@@ -2775,6 +2812,10 @@ def merge_state_in_place(
     # Keep each atomic tile at 1024 lanes, matching the proven KVM update
     # shape. A 256-wide head therefore uses four tokens per program.
     token_block = 1 if max(head_dim, value_dim) > 256 else 4
+    if head_dim == 576 and value_dim == 512:
+        token_block = int(os.environ.get("LOD_KIMI_MERGE_TOKEN_BLOCK", "1"))
+        if token_block not in (1, 2, 4, 8, 16):
+            raise ValueError("Kimi merge token block must be 1, 2, 4, 8 or 16")
     _accumulate_state_deltas_kernel[(rows, triton.cdiv(tokens, token_block))](
         merge_k,
         merge_v,
@@ -2811,6 +2852,10 @@ def merge_state_in_place(
     # The KVM apply kernel uses an 8x128 tile. Preserve the same 1024-lane
     # footprint for a 256-wide state rather than doubling register use.
     state_block = 1 if max(head_dim, value_dim) > 256 else 4
+    if head_dim == 576 and value_dim == 512:
+        state_block = int(os.environ.get("LOD_KIMI_MERGE_STATE_BLOCK", "1"))
+        if state_block not in (1, 2, 4, 8):
+            raise ValueError("Kimi merge state block must be 1, 2, 4 or 8")
     _apply_state_deltas_kernel[(rows, triton.cdiv(active_slots, state_block))](
         state_k,
         state_v,

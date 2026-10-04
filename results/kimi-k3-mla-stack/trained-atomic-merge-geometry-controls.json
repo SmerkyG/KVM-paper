@@ -1,0 +1,95 @@
+{
+  "scope": "trained-ownership atomic merge GPU stage, not model latency",
+  "source": "results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt",
+  "source_shape": [
+    4,
+    1,
+    16127,
+    576
+  ],
+  "state_len": 2048,
+  "largest_centroid": 138.0,
+  "ordinary_before": {
+    "median_ms": 0.4049539864063263,
+    "samples_ms": [
+      0.425152987241745,
+      0.4049539864063263,
+      0.40535399317741394,
+      0.40447500348091125,
+      0.39915499091148376
+    ]
+  },
+  "tiles": {
+    "1x1": {
+      "median_ms": 0.3897149860858917,
+      "samples_ms": [
+        0.3897149860858917,
+        0.43375399708747864,
+        0.30391600728034973,
+        0.4303939938545227,
+        0.3003160059452057
+      ],
+      "relative_l2_vs_fp32_sums_rounded_bf16": 0.0,
+      "counts_and_membership_exact": true
+    },
+    "2x2": {
+      "median_ms": 0.30815601348876953,
+      "samples_ms": [
+        0.31851598620414734,
+        0.3055959939956665,
+        0.35811498761177063,
+        0.30815601348876953,
+        0.30387601256370544
+      ],
+      "relative_l2_vs_fp32_sums_rounded_bf16": 0.0,
+      "counts_and_membership_exact": true
+    },
+    "4x4": {
+      "median_ms": 0.4051949977874756,
+      "samples_ms": [
+        0.4205549955368042,
+        0.40399500727653503,
+        0.4051949977874756,
+        0.40659400820732117,
+        0.39947500824928284
+      ],
+      "relative_l2_vs_fp32_sums_rounded_bf16": 0.0,
+      "counts_and_membership_exact": true
+    },
+    "8x4": {
+      "median_ms": 0.31019601225852966,
+      "samples_ms": [
+        0.31371599435806274,
+        0.3130359947681427,
+        0.31019601225852966,
+        0.3065960109233856,
+        0.30287599563598633
+      ],
+      "relative_l2_vs_fp32_sums_rounded_bf16": 0.0,
+      "counts_and_membership_exact": true
+    },
+    "16x4": {
+      "median_ms": 0.4077950119972229,
+      "samples_ms": [
+        0.42199498414993286,
+        0.4078750014305115,
+        0.4077950119972229,
+        0.403874009847641,
+        0.40207499265670776
+      ],
+      "relative_l2_vs_fp32_sums_rounded_bf16": 0.0,
+      "counts_and_membership_exact": true
+    }
+  },
+  "ordinary_after": {
+    "median_ms": 0.3015559911727905,
+    "samples_ms": [
+      0.3003160059452057,
+      0.4211539924144745,
+      0.3002760112285614,
+      0.3019559979438782,
+      0.3015559911727905
+    ]
+  },
+  "initial_cache_restores_included": true
+}

@@ -21,6 +21,64 @@ from vllm_lod_plugin.models.kimi_k3 import (
 from vllm_lod_plugin.pool import VLLMLayerLODPool
 
 
+def test_fixed_state_update_graph_refreshes_sources_and_owns_membership() -> None:
+    if not torch.cuda.is_available():
+        pytest.skip("GPU fixed-shape state update")
+    from lod_attention._engines import KernelTwoLevelLODAttention
+    from lod_attention.kernels.kimi_prefill_graph import KimiStateUpdateGraphs
+
+    engine = KernelTwoLevelLODAttention(query_heads=12, key_value_heads=1, scale=1)
+    engine.head_dim = 576
+    configure_engine(engine, family=ModelFamily.KIMI_K3, mode=LODMode.TWO_TIER,
+                     request_capacity=16384, has_query_norm=True, has_key_norm=False)
+    engine.state_growth_factor = 2
+    engine.state_min_len = 4
+    capacity, initial_len, overflow_len = 32, 8, 129
+    options = dict(state_len=initial_len, ctx_len=192, available_context=192,
+                   state_capacity=capacity, scheduled_state_len=initial_len,
+                   clustering_query_scale=None, retain_prepared_geometry=False)
+    manager = KimiStateUpdateGraphs(max_shapes=1)
+    initial = torch.zeros(2, 1, capacity, 576, dtype=torch.bfloat16, device="cuda")
+    initial[..., :initial_len, :].normal_()
+    keys = initial.clone()
+    initial_counts = torch.zeros(2, 1, capacity, 1, device="cuda")
+    initial_counts[..., :initial_len, :].fill_(1)
+    counts = initial_counts.clone()
+    overflow = torch.randn(2, 1, overflow_len, 576, device="cuda").bfloat16()
+
+    def check():
+        expected_counts = initial_counts.clone()
+        expected_counts.scatter_add_(2, result[4][..., None], torch.ones_like(result[4][..., None]).float())
+        torch.testing.assert_close(counts, expected_counts, atol=0, rtol=0)
+        expected_keys = initial.float().clone()
+        expected_keys.scatter_add_(2, result[4][..., None].expand_as(overflow), overflow.float())
+        torch.testing.assert_close(keys, expected_keys.bfloat16(), atol=0.04, rtol=0.02)
+
+    result = manager.run(engine, keys, keys[..., :512], counts, None,
+                         overflow, overflow[..., :512], **options)
+    check()
+    old_owners = result[4].clone()
+    old_storage = result[4]
+    keys.copy_(initial)
+    counts.copy_(initial_counts)
+    overflow.mul_(-1.25)
+    result = manager.run(engine, keys, keys[..., :512], counts, None,
+                         overflow, overflow[..., :512], **options)
+    check()
+    torch.testing.assert_close(old_storage, old_owners, atol=0, rtol=0)
+    assert len(manager.entries) == 1 and manager.replay_count == 2
+    assert manager.fallback_count == 0
+    assert not hasattr(engine, "_lod_state_update_buffers")
+    assert not hasattr(engine, "_lod_state_maxsim_buffers")
+    # Changing the host boundary cannot silently replay the old append count.
+    keys.copy_(initial)
+    counts.copy_(initial_counts)
+    result = manager.run(engine, keys, keys[..., :512], counts, None,
+                         overflow, overflow[..., :512], **(options | {"ctx_len": 191}))
+    check()
+    assert manager.fallback_count == 1 and manager.replay_count == 2
+
+
 def test_shared_weight_cache_retains_distinct_layer_layouts(monkeypatch) -> None:
     from lod_attention.kernels.aiter_mla_prefill_attention import _cached_flat_weight
 
@@ -1183,11 +1241,14 @@ def test_final_cache_graph_refreshes_data_and_owns_private_update_scratch() -> N
 
 @pytest.mark.parametrize("states", [177, 1039])
 @pytest.mark.parametrize("queries", [37, 513])
-@pytest.mark.parametrize("dense_pack", [False, True])
-def test_tile_max_refinement_recovers_exact_global_top_eight(states, queries, dense_pack, monkeypatch) -> None:
+@pytest.mark.parametrize("pack", ["ordinary", "dense", "chunk256", "chunk512", "chunk1024"])
+def test_tile_max_refinement_recovers_exact_global_top_eight(states, queries, pack, monkeypatch) -> None:
     if not torch.cuda.is_available():
         return
-    monkeypatch.setenv("LOD_KIMI_DENSE_TILE_PACK", "1" if dense_pack else "0")
+    monkeypatch.setenv("LOD_KIMI_DENSE_TILE_PACK", "1" if pack == "dense" else "0")
+    monkeypatch.setenv("LOD_KIMI_CHUNK_TILE_PACK", "1" if pack.startswith("chunk") else "0")
+    monkeypatch.setenv("LOD_KIMI_TILE_PACK_QUERY_BLOCK", pack.removeprefix("chunk")
+                      if pack.startswith("chunk") else "256")
     from lod_attention.kernels.kimi_route_tile_refine import refine_kimi_centroid_tiles
     from lod_attention.kernels.aiter_prefill_attention import _reduce_route_candidates
 
@@ -1275,3 +1336,55 @@ def test_dcp_int4_page_dequantization_restores_owned_records() -> None:
         expected[..., 0::2] = 1.0
         expected[..., 1::2] = 2.0
         torch.testing.assert_close(actual, expected)
+
+
+@pytest.mark.parametrize("cap", [None, 17])
+@pytest.mark.parametrize("queries", [37, 513])
+def test_kimi_sorted_candidate_merge_preserves_routes_ties_and_closing(cap, queries) -> None:
+    if not torch.cuda.is_available():
+        pytest.skip("requires GPU candidate reducer")
+    from lod_attention.kernels.aiter_prefill_attention import _reduce_route_candidates
+    from lod_attention.kernels.kimi_route_candidate_merge import merge_sorted_kimi_candidates
+
+    torch.manual_seed(731)
+    batch, heads, states = 2, 3, 1024
+    # Deliberately tie scores across and within the already sorted lists.
+    scores = torch.randint(-8, 11, (batch, heads, 8, 8, queries), device="cuda").float()
+    scores = scores.sort(dim=3, descending=True, stable=True).values
+    indices = (torch.arange(8, device="cuda")[None, None, :, None, None] * 128
+               + torch.arange(8, device="cuda")[None, None, None, :, None])
+    candidates = torch.cat((scores, indices.expand_as(scores).float()), dim=3).contiguous()
+    candidates[:, :, 7, 4:8] = -float("inf")
+    candidates[:, :, 7, 12:16] = -1
+    lengths = torch.randint(1, 50, (batch, 1, states), device="cuda").int()
+    kwargs = dict(state_len=states, slot_lengths=lengths if cap is not None else None,
+                  max_open_leaf_tokens=cap)
+    expected = _reduce_route_candidates(candidates, head_dim=192, emit_metadata=False,
+                                         close_selected_above_limit=cap is not None, **kwargs)
+    actual = merge_sorted_kimi_candidates(candidates, **kwargs)
+    assert actual[1:3] == (None, None)
+    torch.testing.assert_close(actual[0], expected[0], atol=0, rtol=0)
+    torch.testing.assert_close(actual[3], expected[3], atol=0, rtol=0)
+
+
+@pytest.mark.parametrize("states", [53, 1039])
+@pytest.mark.parametrize("direct_only", [False, True])
+def test_kimi_tiled_state_assignment_uses_all_channels_and_partial_tiles(states, direct_only) -> None:
+    if not torch.cuda.is_available():
+        pytest.skip("requires GPU state assignment")
+    from lod_attention.kernels.lod_kernels import new_state_maxsim_buffers, tiled_dot_maxsim
+
+    torch.manual_seed(57)
+    leaves = torch.randn(2, 2, 137, 576, device="cuda").bfloat16()
+    centroids = torch.randn(2, 2, states, 576, device="cuda").bfloat16()
+    if direct_only:
+        leaves[..., :512] = 0
+        centroids[..., :512] = 0
+    centroids[..., 1, :] = centroids[..., 0, :]
+    buffers = new_state_maxsim_buffers(leaves, 137)
+    actual = tiled_dot_maxsim(leaves, centroids, buffers, prefix="route")
+    dense = leaves @ centroids.transpose(-1, -2)
+    expected = dense.max(-1)
+    torch.testing.assert_close(actual[0], expected.values, atol=0, rtol=0)
+    # Explicit BF16 rounding and smallest-index tie behavior must match BLAS.
+    torch.testing.assert_close(actual[1], expected.indices, atol=0, rtol=0)

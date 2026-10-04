@@ -948,3 +948,191 @@ passed (20887). It provided no meaningful gain and its extra generic kernel
 wrapper was removed rather than retained in the serving path. Only 0.993%
 of the captured opened routes are singletons, so skipping their redundant
 refinement cannot address the main bottleneck in this workload.
+
+### Exact candidate merge, state scanning and coarse geometry (not promoted)
+
+Further trained-record ordinary / candidate / ordinary controls do not
+justify changing the default kernels:
+
+| GPU stage candidate | Ordinary before (ms) | Candidate (ms) | Ordinary after (ms) |
+|:--|--:|--:|--:|
+| Merge eight already-sorted candidate lists | 2.763 | 2.840 | 2.715 |
+| D576 tiled exact state-assignment scan | 0.423 | 0.480 | 0.452 |
+| Source-derived AITER coarse query tile 64 (instead of 128) | 2.745 | 2.765 | 2.730 |
+
+Sources: `trained-kway-candidate-merge-controls.json` (20894),
+`trained-tiled-state-scan-controls.json` (20896), and
+`trained-coarse-query64-controls.json` (20902). Candidate merge and coarse
+outputs match bitwise, including changed inputs. The tiled scan preserves
+all 512+64 channels and returns identical BF16 scores and ownership indices
+on these inputs. Four direct tests cover candidate ties/caps/ragged rows;
+four more cover D576 scan dimensions, direct-channel-only inputs and ties.
+The tiled scan reduces temporary score storage from 268,435,456 to
+3,145,728 bytes, but is slower. This does not imply that ordinary BLAS pads
+the 576 channels to 1024; it does not.
+
+Additional tiled-scan geometries (`trained-tiled-state-geometry-controls.json`,
+20897) are also slower. Increasing the token/state workgroup sizes for the
+atomic merge (`trained-atomic-merge-geometry-controls.json`, 20900) does not
+beat its final ordinary control; all counts/memberships and rounded FP32
+reference sums pass. No fixture/full-model run or default change is warranted
+by any of these stage results.
+
+The query-64 build uses an isolated benchmark generator and a distinct
+module name. It does not modify installed AITER sources or its standard
+binary cache. The first attempt (20898) was rejected by AITER's default
+geometry-compatibility filter and supplies no timing evidence.
+
+```bash
+benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_route_pack \
+  --input results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt \
+  --candidate merge-lists \
+  --output results/kimi-k3-mla-stack/trained-kway-candidate-merge-controls.json
+
+benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_state_scan \
+  --input results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt \
+  --output results/kimi-k3-mla-stack/trained-tiled-state-scan-controls.json
+
+benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_merge_geometry \
+  --input results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt \
+  --output results/kimi-k3-mla-stack/trained-atomic-merge-geometry-controls.json
+```
+
+Use `--candidate coarse64` and a separate output for the coarse query tile.
+The captured trained tensors are deliberately not committed. None of these
+serial stage measurements is an end-to-end or model-quality result.
+
+The regression suite caught an INT4 compilation regression in the earlier
+scalar-page-lookup change: the dequantization branch still referenced the old
+predicate name. The branch now uses the renamed predicate consistently.
+The supported residual-INT4 path uses 16-key blocks; 32-key blocks are
+explicitly rejected, not treated as a supported test geometry. After the
+fix and the intermediate-graph test below, GPU job 20906 passes all **67**
+K3/hash-safety tests (`LOD_RUN_GPU_TESTS=1`).
+
+### Intermediate fixed-shape state-update replay (not promoted)
+
+`LOD_KIMI_GRAPH_STATE_UPDATE=1` graphs the intermediate replicated-DCP
+append/merge calculation, not just final rank-local cache construction.
+A runtime-wide bounded four-shape manager owns private stable inputs and
+workspaces; the host still chooses the same **global per-request** 16K
+prefill boundary and scheduled centroid count. Input/state copies, output
+copies and independently owned membership are included on every replay.
+Pages are installed by the ordinary caller, not retained in mutable graph
+scratch. Unsupported shapes/policies use the unchanged ordinary update.
+
+Fresh-source GPU checks validate exact membership counts and centroid sums
+against independently accumulated FP32 records. They also check that another
+replay cannot overwrite a previous caller's membership, and that changing
+the host boundary cannot replay an old scheduled append count. The manager
+does not mutate the original engine's workspaces. GPU job 20906 passes 67
+K3/hash tests; the wider CPU suite passes 108 tests with 22 GPU skips.
+
+The trained-record stage controls (`trained-intermediate-update-graphs.json`,
+20907) use the real 255-to-2048 initial and 2048-to-2896 subsequent centroid
+geometries. They cyclically reuse captured records, not a new natural-text
+sequence or model-quality test:
+
+| Global context | Ordinary before (ms) | Graph including copies (ms) | Ordinary after (ms) |
+|--:|--:|--:|--:|
+| 16K | 1.531 | 1.570 | 1.471 |
+| 32K | 1.633 | 1.724 | 1.649 |
+
+The complete fixture controls (`dcp8-intermediate-update-graph-controls.json`,
+20908) also do not improve:
+
+| Context | Ordinary before (s) | Intermediate graphs (s) | Ordinary after (s) |
+|--:|--:|--:|--:|
+| 32K | 3.477 | 3.510 | 3.481 |
+| 64K | 8.487 | 8.533 | 8.497 |
+
+All eight worker audits pass, generated fixture token IDs match, and each
+worker reports four captured shapes, 384 replays and zero fallbacks by 64K.
+Graphs therefore really execute; this is not a silent eager fallback.
+They retain roughly 3 GiB of extra allocated scratch per rank at the 64K
+measurement. This negative result does not justify a full-model graph run
+or enabling the option by default.
+
+```bash
+benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_intermediate_graph \
+  --input results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt \
+  --output results/kimi-k3-mla-stack/trained-intermediate-update-graphs.json
+
+benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_owner_tune \
+  --checkpoint tests/fixtures/kimi-k3-mla-stack --lengths 32768 65536 \
+  --variants reuse_allocator reuse_update_graph reuse_allocator \
+  --batch-size 8 --tensor-parallel-size 8 --decode-context-parallel-size 8 \
+  --kv-cache-memory-bytes 4294967296 \
+  --output results/kimi-k3-mla-stack/dcp8-intermediate-update-graph-controls.json
+```
+
+### Atomics-free centroid-tile query packing
+
+The next routing diagnostic separates the exact refinement pass into:
+tile selection **0.025 ms**, query packing **0.524 ms**, tile rescoring/top-eight
+**0.700 ms**, and final candidate merge **0.068 ms**
+(`trained-route-refinement-phases.json`, 20910). These are instrumented
+serial GPU-stage diagnostics, not full-model wall time. The separate broad
+phase diagnostic 20909 agrees that refinement/reduction occupies about
+1.2 ms versus roughly 1.3 ms for coarse attention. Instrumented benchmark
+latency is not substituted into an end-to-end table.
+
+`LOD_KIMI_CHUNK_TILE_PACK=1` gives each centroid tile and fixed query fragment
+its own scratch range. Queries are compacted locally without any atomics;
+one device prefix/list pass dispatches only populated fragment workgroups.
+No query, key channel, top-eight candidate or leaf is dropped. The optional
+`LOD_KIMI_TILE_PACK_QUERY_BLOCK` controls packing layout only, **not** the
+16K prefill chunk or the global update cadence. Larger layouts fall back to
+ordinary packing when the fragment-prefix bound is exceeded.
+
+| Packing fragment | Ordinary before (ms) | Candidate (ms) | Ordinary after (ms) |
+|--:|--:|--:|--:|
+| 256 queries | 2.840 | 2.480 | 2.721 |
+| 512 queries | 2.839 | 2.416 | 2.740 |
+| 1024 queries | 2.812 | 2.382 | 2.753 |
+
+Sources: `trained-chunk-tile-pack-controls.json` (20911),
+`trained-chunk512-controls.json` (20913), and
+`trained-chunk1024-controls.json` (20915). Changed Q/K inputs produce
+bitwise-identical routes, selected scores, coarse outputs and LSEs. GPU job
+20917 passes **79** K3/hash-safety tests, including partial query fragments,
+partial centroid tiles, multiple rows/heads and all three packing sizes.
+The wider CPU suite passes 120 tests with 22 GPU skips.
+
+Complete fixture controls also improve, more modestly:
+
+| Fragment | Context | Ordinary before (s) | Candidate (s) | Ordinary after (s) |
+|--:|--:|--:|--:|--:|
+| 256 | 32K | 3.472 | 3.418 | 3.478 |
+| 256 | 64K | 8.476 | 8.325 | 8.493 |
+| 1024 | 64K | 8.461 | 8.280 | 8.480 |
+
+Sources: `dcp8-chunk-tile-pack-controls.json` (20914) and
+`dcp8-chunk1024-controls.json` (20918). Both have passing eight-worker audits
+and identical fixture token IDs. The 1024-query variant is about **2.2%**
+faster than its adjacent ordinary controls at 64K. This does not yet establish
+a full-model crossover; the full-model natural-ProLong check is separate.
+
+An additional exact repeated-maximum top-eight prototype is slower than
+the existing tile sorter (`trained-chunk512-max8-controls.json`, 20916:
+2.821 / 2.525 / 2.762 ms, versus 2.416 ms for ordinary sorting with the same
+512-query layout). Its additional kernel branch was removed. The JSON is
+retained as a negative experiment, not a supported reproduction option.
+
+```bash
+benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_refine_profile \
+  --input results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt \
+  --output results/kimi-k3-mla-stack/trained-route-refinement-phases.json
+
+benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_route_pack \
+  --input results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt \
+  --candidate chunk1024 \
+  --output results/kimi-k3-mla-stack/trained-chunk1024-controls.json
+
+benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_owner_tune \
+  --checkpoint tests/fixtures/kimi-k3-mla-stack --lengths 65536 \
+  --variants reuse_allocator reuse_chunk1024 reuse_allocator \
+  --batch-size 8 --tensor-parallel-size 8 --decode-context-parallel-size 8 \
+  --kv-cache-memory-bytes 4294967296 \
+  --output results/kimi-k3-mla-stack/dcp8-chunk1024-controls.json
+```

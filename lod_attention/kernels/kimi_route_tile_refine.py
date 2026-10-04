@@ -79,6 +79,8 @@ def _rescore_centroid_tiles(
     COUNT_BATCH_STRIDE: tl.constexpr,
     BLOCK_M: tl.constexpr, SCALE_LOG2: tl.constexpr,
     DENSE_EXPERT_LAYOUT: tl.constexpr = False,
+    FRAGMENT_CHUNKS: tl.constexpr = 0,
+    PACK_Q: tl.constexpr = 256,
 ):
     if DENSE_EXPERT_LAYOUT:
         expert = tl.program_id(0).to(tl.int64)
@@ -89,13 +91,18 @@ def _rescore_centroid_tiles(
         valid_program = program < tl.load(active_programs)
     if valid_program:
         if not DENSE_EXPERT_LAYOUT:
-            expert = tl.load(block_experts + program).to(tl.int64)
-            query_block = program - tl.load(block_starts + expert)
+            fragment = tl.load(block_experts + program).to(tl.int64)
+            expert = fragment // FRAGMENT_CHUNKS if FRAGMENT_CHUNKS else fragment
+            query_block = program - tl.load(block_starts + fragment)
         local_row = query_block * BLOCK_M + tl.arange(0, BLOCK_M)
-        valid_query = local_row < tl.load(query_counts + expert)
-        if DENSE_EXPERT_LAYOUT:
+        if FRAGMENT_CHUNKS:
+            valid_query = local_row < tl.load(query_counts + fragment)
+            packed_begin = fragment * PACK_Q
+        elif DENSE_EXPERT_LAYOUT:
+            valid_query = local_row < tl.load(query_counts + expert)
             packed_begin = expert * Q
         else:
+            valid_query = local_row < tl.load(query_counts + expert)
             packed_begin = tl.load(query_starts + expert)
         route_row = tl.load(packed_rows + packed_begin + local_row, mask=valid_query, other=0).to(tl.int64)
         query_row = route_row // 8
@@ -163,7 +170,22 @@ def refine_kimi_centroid_tiles(
         BLOCK_TILES=max(8, triton.next_power_of_2(tiles)), BLOCK_M=32, num_warps=4,
     )
     dense = os.environ.get("LOD_KIMI_DENSE_TILE_PACK") == "1"
-    if dense:
+    fragment_chunks = 0
+    pack_q = int(os.environ.get("LOD_KIMI_TILE_PACK_QUERY_BLOCK", "256"))
+    if pack_q not in (256, 512, 1024):
+        raise ValueError("Kimi tile-packing query block must be 256, 512 or 1024")
+    chunked = (os.environ.get("LOD_KIMI_CHUNK_TILE_PACK") == "1"
+               and batch * heads * tiles * triton.cdiv(queries, pack_q) <= 32768)
+    if chunked:
+        from .kimi_route_chunk_pack import pack_chunked_kimi_tile_queries
+
+        packed, counts, block_starts, block_experts, max_blocks, fragment_chunks = (
+            pack_chunked_kimi_tile_queries(selected, tiles=tiles, block_m=block_m,
+                                           buffers=buffers, pack_q=pack_q))
+        starts = block_starts
+        rescore_grid = (max_blocks,)
+        dense = False
+    elif dense:
         packed = _workspace_tensor(
             buffers, "tile_refine_dense_rows", (batch * heads * tiles * queries,),
             dtype=torch.int32, device=q.device,
@@ -202,5 +224,7 @@ def refine_kimi_centroid_tiles(
         COUNT_BATCH_STRIDE=log_counts.stride(0),
         BLOCK_M=block_m, SCALE_LOG2=scale / math.log(2), num_warps=4,
         DENSE_EXPERT_LAYOUT=dense,
+        FRAGMENT_CHUNKS=fragment_chunks,
+        PACK_Q=pack_q,
     )
     return output

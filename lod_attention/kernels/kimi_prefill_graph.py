@@ -8,6 +8,7 @@ never evicts/re-captures in a warm run; other shapes use ordinary attention.
 
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass, replace
 
 import torch
@@ -197,3 +198,117 @@ class KimiFinalCacheGraphs:
                 if name in saved:
                     setattr(engine, name, saved[name])
         return _BuildEntry(static, graph, cache, workspaces)
+
+
+@dataclass
+class _UpdateEntry:
+    inputs: tuple[torch.Tensor, ...]
+    graph: torch.cuda.CUDAGraph
+    outputs: tuple
+    engine: object
+
+
+class KimiStateUpdateGraphs:
+    """Replay fixed-shape intermediate updates without changing cache policy.
+
+    A private engine keeps captured workspaces separate from ordinary updates.
+    Source/state copies and the independent returned ownership table are paid
+    on every replay. Graphs are shared across serial layer groups, not layers.
+    The host still chooses the global sequence boundary and scheduled size.
+    """
+
+    def __init__(self, max_shapes: int = 4):
+        if max_shapes < 1:
+            raise ValueError("state-update graph limit must be positive")
+        self.max_shapes = max_shapes
+        self.entries = {}
+        self.replay_count = 0
+        self.fallback_count = 0
+
+    def run(self, engine, state_k, state_v, counts, norms, overflow_k, overflow_v,
+            **options):
+        inputs = (state_k, counts, overflow_k)
+        def prefix_alias(key, value):
+            return (key.data_ptr() == value.data_ptr() and key.dtype == value.dtype
+                    and key.shape[:-1] == value.shape[:-1]
+                    and key.stride()[:-1] == value.stride()[:-1])
+
+        supported = (
+            norms is None and options.get("clustering_query_scale") is None
+            and options.get("retain_prepared_geometry") is False
+            and all(t.is_cuda for t in inputs)
+            and state_k.size(-1) == overflow_k.size(-1) == 576
+            and state_v.size(-1) == overflow_v.size(-1) == 512
+            and prefix_alias(state_k, state_v)
+            and prefix_alias(overflow_k, overflow_v)
+            and engine._streaming_state_geometry() == "spherical"
+            and engine.state_clustering_centroid_rescale == "none"
+            and engine.state_premerge_factor == 1 and not engine.state_merge_before_append
+            and not engine.overflow_bipartite_merge and not engine.state_union_bipartite
+            and not engine.state_precompact_direct_append and not engine.state_append_subblock_size
+            and engine.state_split_max_leaves is None and engine.separate_sink_cache
+            and not getattr(engine, "_lod_padding_state_reserve", 0)
+            and not engine.state_clustering_radial_bias
+        )
+        signature = None
+        if supported:
+            signature = (
+                tuple((tuple(t.shape), t.dtype, t.device) for t in inputs),
+                tuple(sorted(options.items())), float(engine.state_growth_factor),
+                int(engine.state_min_len), int(engine.state_size_offset),
+                int(engine.sink_len), int(engine.chunk_len), int(engine.prefill_state_update_len),
+                engine.state_clustering_normalization,
+                bool(engine.reuse_state_update_similarity), bool(engine.fused_state_maxsim),
+                bool(engine.fused_state_update), bool(engine.auto_fused_state_update),
+            )
+        if not supported or (signature not in self.entries and len(self.entries) >= self.max_shapes):
+            self.fallback_count += 1
+            return engine._update_state(
+                state_k, state_v, counts, norms, overflow_k, overflow_v, **options)
+        entry = self.entries.get(signature)
+        if entry is None:
+            entry = self._capture(engine, inputs, options)
+            self.entries[signature] = entry
+        for destination, source in zip(entry.inputs, inputs, strict=True):
+            destination.copy_(source)
+        entry.graph.replay()
+        state_k.copy_(entry.outputs[0])
+        counts.copy_(entry.outputs[2])
+        self.replay_count += 1
+        # A later layer group reuses the graph's ownership buffer. Its current
+        # caller must own a copy before page-list construction can retain it.
+        return state_k, state_v, counts, entry.outputs[3], entry.outputs[4].clone(), None
+
+    @staticmethod
+    def _capture(engine, inputs, options):
+        private = copy.copy(engine)
+        for name in ("_lod_state", "_lod_state_update_buffers", "_lod_state_maxsim_buffers"):
+            if hasattr(private, name):
+                delattr(private, name)
+        static = tuple(t.contiguous().clone() for t in inputs)
+
+        def restore():
+            for destination, source in zip(static, inputs, strict=True):
+                destination.copy_(source)
+
+        def update():
+            key, counts, overflow = static
+            return private._update_state(
+                key, key[..., :512], counts, None, overflow, overflow[..., :512], **options)
+
+        foreground = torch.cuda.current_stream(inputs[0].device)
+        stream = torch.cuda.Stream(device=inputs[0].device)
+        stream.wait_stream(foreground)
+        with torch.cuda.stream(stream), torch.inference_mode():
+            for _ in range(2):
+                restore()
+                update()
+            restore()
+        stream.synchronize()
+        graph = torch.cuda.CUDAGraph()
+        with torch.cuda.graph(graph, stream=stream), torch.inference_mode():
+            outputs = update()
+        if outputs[5] is not None:
+            raise AssertionError("Kimi fixed-shape update unexpectedly remapped state")
+        foreground.wait_stream(stream)
+        return _UpdateEntry(static, graph, outputs, private)
