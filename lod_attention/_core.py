@@ -3241,7 +3241,19 @@ class TritonLODAttentionCore(nn.Module):
         leaf_count = leaf_offset + append_len
         leaf_capacity = int(cache["leaf_capacity"])
         if leaf_count > leaf_capacity:
-            leaf_capacity = max(leaf_count, leaf_capacity * 2)
+            growth_chunk = int(cache.get("leaf_growth_chunk", 0))
+            if growth_chunk:
+                # Temporary DCP prefill archives can grow in bounded slabs
+                # instead of reserving the full prompt before its first chunk.
+                # Decode pools remain fixed-address and do not set this hint.
+                if growth_chunk < 1:
+                    raise ValueError("leaf_growth_chunk must be positive")
+                limit = int(cache["leaf_capacity_limit"])
+                if leaf_count > limit:
+                    raise ValueError("prefill leaves exceed their prompt capacity")
+                leaf_capacity = min(_round_up(leaf_count, growth_chunk), limit)
+            else:
+                leaf_capacity = max(leaf_count, leaf_capacity * 2)
             required_slots = max(
                 int(slot_lengths.size(2)), int(owners.max().item()) + 1
             )
@@ -3274,8 +3286,19 @@ class TritonLODAttentionCore(nn.Module):
                     ):
                         raise RuntimeError("virtual page backing K/V are missing")
                     missing = leaf_capacity - int(leaf_k.size(2))
+                    shared_latent_record = bool(
+                        int(leaf_v.size(-1)) < int(leaf_k.size(-1))
+                        and leaf_k.data_ptr() == leaf_v.data_ptr()
+                        and leaf_k.untyped_storage().data_ptr()
+                        == leaf_v.untyped_storage().data_ptr()
+                        and leaf_k.stride() == leaf_v.stride()
+                    )
                     cache["leaf_k"] = F.pad(leaf_k, (0, 0, 0, missing))
-                    cache["leaf_v"] = F.pad(leaf_v, (0, 0, 0, missing))
+                    cache["leaf_v"] = (
+                        cache["leaf_k"][..., : int(leaf_v.size(-1))]
+                        if shared_latent_record
+                        else F.pad(leaf_v, (0, 0, 0, missing))
+                    )
             cache["leaf_capacity"] = leaf_capacity
             slot_lengths = cache["slot_lengths"]
             if not isinstance(slot_lengths, torch.Tensor):

@@ -27,6 +27,43 @@ than per sequence.
 
 ## Latest corrected full-model prefill check (October 4)
 
+### 512K / 1020K B1 extension and decode audit
+
+The requested long B1 extension uses **1,025 generated tokens**, giving
+**1,024 timed decode steps** after the prefill-produced first token. The
+timing window therefore spans four 256-global-token update periods; it does
+not quote the single decode step from the prefill-only sweep as throughput.
+Both modes use the same real ProLong prompt/continuation token hashes, one
+exact-shape warmup and one measured pass, TP8/DCP8/EP8, and 16K scheduler
+chunks. Prefill includes final cache completion before first token. Decode
+is measured from first-token to last-token request timestamps, with the
+whole-generation wall clock recorded separately for a consistency check.
+No profiler or per-layer timing events are inserted into the measurement.
+Historical decode rows below are not automatically promoted to this panel.
+
+Two 512K attempts failed during warmup at the second 16K scheduler chunk:
+21010 used the current final-only reclamation policy, and 21011 reclaimed
+after every 16K chunk. Both reserved 1 GiB/rank for the native descriptor.
+RCCL reported zero physical free memory; neither attempt produced a valid
+timing. Allocator reclamation alone did not solve the failure.
+
+The replicated prefill shadow initially reserves the entire prompt archive:
+a metadata-only allocation audit finds 14.366 GiB/rank at 512K and 28.982
+GiB/rank at 1020K across 24 MLA layers, even while only the first 16K tokens
+have been processed. These numbers exclude weights, persistent rank-local
+decode pools, state-update scratch and model activations. An opt-in fit test
+uses `LOD_KIMI_PREFILL_SHADOW_GROW_CHUNK=65536` to allocate this temporary
+archive in 64K slabs as needed, bounded by the prompt capacity. This changes
+neither state/centroid schedules nor the set of visible keys. Archive growth
+preserves shared latent K/V storage instead of allocating a separate V copy;
+fixed-address decode pools are unchanged. The default remains full reservation.
+
+The GPU insertion test compares growing and preallocated archives and checks
+identical leaf data, page lists and lengths, and latent K/V storage aliasing:
+four tests pass (21013). The K3 plus benchmark CPU suites pass 266 tests with
+35 GPU skips. The full-model growing-archive 512K fit/timing check is 21014;
+results will be entered only after its warmup and measured pass complete.
+
 ### B1 / B8 scaling sweep
 
 The current sweep measures **prefill only**, at 16K, 32K, 64K, 128K and

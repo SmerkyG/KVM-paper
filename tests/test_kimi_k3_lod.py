@@ -21,6 +21,103 @@ from vllm_lod_plugin.models.kimi_k3 import (
 from vllm_lod_plugin.pool import VLLMLayerLODPool
 
 
+def test_growing_dcp_shadow_capacity_changes_storage_only(monkeypatch) -> None:
+    from vllm_lod_plugin.pool import _dcp_prefill_archive_capacity
+
+    kwargs = dict(total_len=16_384, prompt_capacity=524_288,
+                  chunk_len=256, headroom=256)
+    monkeypatch.delenv("LOD_KIMI_PREFILL_SHADOW_GROW_CHUNK", raising=False)
+    assert _dcp_prefill_archive_capacity(**kwargs) == (524_544, 524_544, 0)
+    monkeypatch.setenv("LOD_KIMI_PREFILL_SHADOW_GROW_CHUNK", "65536")
+    assert _dcp_prefill_archive_capacity(**kwargs) == (65_536, 524_544, 65_536)
+    kwargs["total_len"] = 524_288
+    assert _dcp_prefill_archive_capacity(**kwargs) == (524_288, 524_544, 65_536)
+    monkeypatch.setenv("LOD_KIMI_PREFILL_SHADOW_GROW_CHUNK", "-1")
+    with pytest.raises(ValueError, match="must be nonnegative"):
+        _dcp_prefill_archive_capacity(**kwargs)
+
+
+@pytest.mark.parametrize("shared_latent", (False, True))
+def test_growing_virtual_archive_preserves_records_and_latent_alias(
+    monkeypatch, shared_latent
+) -> None:
+    import lod_attention._core as core
+    from lod_attention._engines import KernelTwoLevelLODAttention
+
+    # CPU test of real allocation/copy logic; page listing is tested on GPU.
+    monkeypatch.setattr(core, "append_virtual_paged_kv", lambda *args, **kwargs: None)
+    engine = KernelTwoLevelLODAttention(query_heads=1, key_value_heads=1, scale=1)
+    engine.virtual_page_storage = True
+    key = torch.arange(16, dtype=torch.float32).view(1, 1, 2, 8)
+    value = key[..., :4] if shared_latent else key[..., :4].clone() + 1
+    cache = engine._new_page_cache(
+        key, value, torch.zeros(1, 1, 2, dtype=torch.long),
+        state_capacity=2, sequence_capacity=2, virtual_k=key, virtual_v=value,
+    )
+    cache["leaf_growth_chunk"] = 4
+    cache["leaf_capacity_limit"] = 7
+    new_key = torch.arange(24, dtype=torch.float32).view(1, 1, 3, 8) + 30
+    new_value = new_key[..., :4] if shared_latent else new_key[..., :4].clone() + 1
+    engine._append_page_cache(cache, new_key, new_value,
+                              torch.zeros(1, 1, 3, dtype=torch.long))
+    assert cache["leaf_capacity"] == 7  # slab rounding must respect the limit
+    torch.testing.assert_close(cache["leaf_k"][..., :5, :],
+                               torch.cat((key, new_key), dim=2))
+    torch.testing.assert_close(cache["leaf_v"][..., :5, :],
+                               torch.cat((value, new_value), dim=2))
+    shares = (cache["leaf_k"].untyped_storage().data_ptr()
+              == cache["leaf_v"].untyped_storage().data_ptr())
+    assert shares is shared_latent
+    engine._append_page_cache(cache, key, value,
+                              torch.zeros(1, 1, 2, dtype=torch.long))
+    assert cache["leaf_count"] == 7
+    with pytest.raises(ValueError, match="exceed their prompt capacity"):
+        engine._append_page_cache(cache, key[..., :1, :], value[..., :1, :],
+                                  torch.zeros(1, 1, 1, dtype=torch.long))
+    assert cache["leaf_count"] == 7
+
+
+def test_growing_latent_page_lists_match_preallocated_gpu_archive() -> None:
+    if not torch.cuda.is_available():
+        pytest.skip("GPU page-list allocation and insertion")
+    from lod_attention._config import LODConfig
+    from lod_attention._engines import KernelTwoLevelLODAttention
+
+    engine = KernelTwoLevelLODAttention(
+        LODConfig(leaf_paged_directory=True),
+        query_heads=1, key_value_heads=1, scale=1,
+    )
+    engine.virtual_page_storage = True
+    torch.manual_seed(23)
+    key = torch.randn(1, 1, 158, 576, dtype=torch.bfloat16, device="cuda")
+    value = key[..., :512]
+    owners = torch.arange(158, device="cuda").view(1, 1, -1) % 3
+    caches = []
+    for capacity in (64, 256):
+        cache = engine._new_page_cache(
+            key[..., :37, :], value[..., :37, :], owners[..., :37],
+            state_capacity=3, sequence_capacity=capacity,
+            virtual_k=key[..., :37, :], virtual_v=value[..., :37, :],
+        )
+        if capacity == 64:
+            cache["leaf_growth_chunk"] = 64
+            cache["leaf_capacity_limit"] = 256
+        engine._append_page_cache(cache, key[..., 37:, :], value[..., 37:, :],
+                                  owners[..., 37:])
+        caches.append(cache)
+    torch.cuda.synchronize()
+    for cache in caches:
+        torch.testing.assert_close(cache["leaf_k"][..., :158, :], key)
+        torch.testing.assert_close(cache["leaf_v"][..., :158, :], value)
+        assert (cache["leaf_k"].untyped_storage().data_ptr()
+                == cache["leaf_v"].untyped_storage().data_ptr())
+    for name in ("slot_lengths", "next_page", "leaf_lens"):
+        torch.testing.assert_close(caches[0][name], caches[1][name])
+    pages = int(caches[0]["next_page"].item())
+    torch.testing.assert_close(caches[0]["page_indices"][..., :pages, :],
+                               caches[1]["page_indices"][..., :pages, :])
+
+
 def test_prefill_allocator_audit_does_not_change_retention_policy(monkeypatch):
     from vllm_lod_plugin import prefill_allocator as runtime
 

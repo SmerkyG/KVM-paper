@@ -49,6 +49,20 @@ def _power_of_two(value: int) -> int:
     return 1 << max(1, (value - 1).bit_length())
 
 
+def _dcp_prefill_archive_capacity(
+    *, total_len: int, prompt_capacity: int, chunk_len: int, headroom: int
+) -> tuple[int, int, int]:
+    """Optional growing shadow storage; neither the schedule nor routing changes."""
+    limit = _round_up(prompt_capacity, chunk_len) + max(chunk_len, headroom)
+    growth_chunk = int(os.environ.get("LOD_KIMI_PREFILL_SHADOW_GROW_CHUNK", "0"))
+    if growth_chunk < 0:
+        raise ValueError("LOD_KIMI_PREFILL_SHADOW_GROW_CHUNK must be nonnegative")
+    if not growth_chunk:
+        return limit, limit, 0
+    growth_chunk = _round_up(growth_chunk, chunk_len)
+    return min(_round_up(total_len, growth_chunk), limit), limit, growth_chunk
+
+
 class VLLMLayerLODPool:
     """One layer's stable request rows and graph-captured decode scratch."""
 
@@ -2235,10 +2249,11 @@ class VLLMLayerLODPool:
         )
         if initial_state_len + int(owners.size(2)) != archived_len:
             raise AssertionError("DCP owner archive has the wrong length")
-        sequence_capacity = _round_up(
-            prompt_capacity, int(self.engine.chunk_len)
-        ) + max(
-            int(self.engine.chunk_len), int(self.engine.decode_cache_headroom)
+        sequence_capacity, capacity_limit, growth_chunk = _dcp_prefill_archive_capacity(
+            total_len=total_len,
+            prompt_capacity=prompt_capacity,
+            chunk_len=int(self.engine.chunk_len),
+            headroom=int(self.engine.decode_cache_headroom),
         )
         page_cache = self.engine._new_page_cache(
             archive_k[..., :initial_state_len, :],
@@ -2249,6 +2264,9 @@ class VLLMLayerLODPool:
             virtual_k=archive_k,
             virtual_v=archive_v,
         )
+        if growth_chunk:
+            page_cache["leaf_growth_chunk"] = growth_chunk
+            page_cache["leaf_capacity_limit"] = capacity_limit
         self.engine._append_page_cache(
             page_cache,
             archive_k[..., initial_state_len:archived_len, :],
