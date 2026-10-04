@@ -1,0 +1,65 @@
+{
+  "scope": "trained coarse/route GPU stage, not model latency",
+  "source": "results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt",
+  "state_len": 2048,
+  "query_shape": [
+    1,
+    12,
+    16384,
+    192
+  ],
+  "all_controls_chunk1024": true,
+  "score_only": true,
+  "reuse_coarse_max": true,
+  "subtile_n": 64,
+  "query_tile": 64,
+  "ordinary_before": {
+    "median_ms": 2.299448013305664,
+    "samples_ms": [
+      2.5219650268554688,
+      2.4106459617614746,
+      2.289047956466675,
+      2.265048027038574,
+      2.299448013305664
+    ]
+  },
+  "subtile64": {
+    "median_ms": 1.8982930183410645,
+    "samples_ms": [
+      1.9904509782791138,
+      1.8982930183410645,
+      1.8574140071868896,
+      1.872894048690796,
+      1.9959720373153687
+    ]
+  },
+  "original_comparison": {
+    "changed_query_heads": 0,
+    "details": [],
+    "coarse_output_lse": {
+      "relative_l2": 0.0,
+      "maximum_absolute_error": 0.0,
+      "lse_maximum_absolute_error": 0.0
+    }
+  },
+  "changed_input_comparison": {
+    "changed_query_heads": 0,
+    "details": [],
+    "coarse_output_lse": {
+      "relative_l2": 0.0,
+      "maximum_absolute_error": 0.0,
+      "lse_maximum_absolute_error": 0.0
+    }
+  },
+  "ordinary_after": {
+    "median_ms": 2.3114070892333984,
+    "samples_ms": [
+      2.458085060119629,
+      2.3114070892333984,
+      2.2919280529022217,
+      2.315006971359253,
+      2.225248098373413
+    ]
+  },
+  "fresh_routes_scores_coarse_lse": "see explicit comparison diagnostics"
+}

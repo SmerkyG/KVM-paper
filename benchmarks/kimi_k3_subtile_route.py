@@ -13,6 +13,7 @@ import argparse
 import contextlib
 import json
 import os
+import shlex
 import shutil
 import tempfile
 from functools import lru_cache
@@ -172,7 +173,7 @@ def isolated_subtile_sources(score_only=False, reuse_max=False, tile_n=64):
             core.CK_3RDPARTY_DIR = original_root
 
 
-def subtile_factory(sources, score_only=False, reuse_max=False, tile_n=64):
+def subtile_factory(sources, score_only=False, reuse_max=False, tile_n=64, query_tile=128):
     # Reuse the existing typed schema/generator, changing only private sources,
     # an explicit macro and a distinct module name. Ordinary builds remain safe.
     from aiter.jit.core import compile_ops, get_args_of_build
@@ -186,6 +187,16 @@ def subtile_factory(sources, score_only=False, reuse_max=False, tile_n=64):
         generated['blob_gen_cmd'] = [command.replace('--receipt 100', '--receipt 104').replace(
             ' --output_dir', ' --optdim 192 --output_dir')
             for command in generated['blob_gen_cmd']]
+        if query_tile != 128:
+            generated['md_name'] = generated['md_name'].replace('_v13', f'_q{query_tile}_v13')
+            wrapper = Path(__file__).with_name('_kimi_coarse_codegen.py')
+            commands = []
+            for command in generated['blob_gen_cmd']:
+                generator, remainder = command.split(' -d fwd', 1)
+                commands.append(f'{shlex.quote(str(wrapper))} --base-generator '
+                                f'{shlex.quote(generator)} --query-tile {query_tile} '
+                                f'--key-step 32 -d fwd{remainder}')
+            generated['blob_gen_cmd'] = commands
         generated['srcs'] = sources
         flags = get_args_of_build('module_mha_fwd')['flags_extra_hip']
         generated['flags_extra_hip'] = [flag for flag in flags
@@ -252,6 +263,9 @@ def main():
                         help='check one query/head subgroup score vector before timing')
     parser.add_argument('--report-near-ties', action='store_true',
                         help='diagnose changed routes; require top-eight score deficit <=1e-5')
+    parser.add_argument('--query-tile', type=int, choices=(64, 128), default=128)
+    parser.add_argument('--allow-coarse-roundoff', action='store_true',
+                        help='record changed coarse/LSE arithmetic; require relative L2 <=0.001')
     args = parser.parse_args()
     if args.reuse_coarse_max and not args.score_only:
         parser.error('--reuse-coarse-max requires --score-only')
@@ -280,18 +294,32 @@ def main():
     result = {'scope': 'trained coarse/route GPU stage, not model latency',
               'source': str(args.input), 'state_len': sums.size(0), 'query_shape': list(q.shape),
               'all_controls_chunk1024': True, 'score_only': args.score_only,
-              'reuse_coarse_max': args.reuse_coarse_max, 'subtile_n': args.subtile_n}
+              'reuse_coarse_max': args.reuse_coarse_max, 'subtile_n': args.subtile_n,
+              'query_tile': args.query_tile}
 
     def compare(actual, reference, name):
+        if args.allow_coarse_roundoff:
+            difference = actual[1].float() - reference[1].float()
+            relative = (difference.square().sum()
+                        / reference[1].float().square().sum().clamp_min(1e-20)).sqrt().item()
+            if relative > 0.001 or not actual[1].isfinite().all():
+                raise AssertionError('coarse query geometry exceeds roundoff tolerance')
+            torch.testing.assert_close(actual[2], reference[2], atol=1e-4, rtol=0)
+            coarse = {'relative_l2': relative, 'maximum_absolute_error': difference.abs().max().item(),
+                      'lse_maximum_absolute_error': (actual[2] - reference[2]).abs().max().item()}
+        else:
+            torch.testing.assert_close(actual[1], reference[1], atol=0, rtol=0)
+            torch.testing.assert_close(actual[2], reference[2], atol=0, rtol=0)
+            coarse = 'bitwise equal'
         if not args.report_near_ties:
-            for observed, expected in zip(actual, reference, strict=True):
-                torch.testing.assert_close(observed, expected, atol=0, rtol=0)
+            torch.testing.assert_close(actual[0], reference[0], atol=0, rtol=0)
+            torch.testing.assert_close(actual[3], reference[3], atol=0, rtol=0)
+            if args.allow_coarse_roundoff:
+                result[name] = {'changed_query_heads': 0, 'coarse_output_lse': coarse}
             return
         # This diagnostic does not relax coarse attention. For changed route
         # sets only, recompute every centroid score for that query/head in
         # FP32 and check both selected sets against its true eighth score.
-        torch.testing.assert_close(actual[1], reference[1], atol=0, rtol=0)
-        torch.testing.assert_close(actual[2], reference[2], atol=0, rtol=0)
         changed = (actual[0] != reference[0]).any(-1).nonzero()
         details = []
         expanded = buffers['kimi_expanded_coarse_k'].view(q.size(0), -1, q.size(1), 192)
@@ -312,14 +340,15 @@ def main():
         torch.testing.assert_close(actual[3][equal_slots], reference[3][equal_slots],
                                    atol=1e-5, rtol=0)
         result[name] = {'changed_query_heads': len(details), 'details': details,
-                        'coarse_output_lse': 'bitwise equal'}
+                        'coarse_output_lse': coarse}
 
     with torch.inference_mode():
         result['ordinary_before'] = timed(run)
         expected = tuple(t.clone() for t in run())
         original_q, original_keys = q.clone(), keys.clone()
         with isolated_subtile_sources(args.score_only, args.reuse_coarse_max, args.subtile_n) as sources:
-            candidate = subtile_factory(sources, args.score_only, args.reuse_coarse_max, args.subtile_n)
+            candidate = subtile_factory(sources, args.score_only, args.reuse_coarse_max,
+                                        args.subtile_n, args.query_tile)
             diagnostic_done = False
             try:
                 attention._specialized_kimi_coarse_mha_fwd = lambda *_a, **_k: candidate
@@ -357,7 +386,7 @@ def main():
         keys.copy_(original_keys)
         result['ordinary_after'] = timed(run)
     result['fresh_routes_scores_coarse_lse'] = (
-        'see explicit near-tie diagnostics; coarse bitwise equal' if args.report_near_ties
+        'see explicit comparison diagnostics' if args.report_near_ties or args.allow_coarse_roundoff
         else 'matched exactly')
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2) + '\n')

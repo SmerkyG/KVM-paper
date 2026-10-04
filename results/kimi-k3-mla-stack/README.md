@@ -1461,3 +1461,19 @@ this is not promoted or rerun on the giant model.
 Its prototype and flag were removed after validation; the exact experiment
 is preserved in local commit `b13aaf8` and the JSON above. No user data or
 benchmark result was deleted.
+
+The score-only/shared-maximum emitter with a 64-query tile (20979,
+`trained-subtile64-query64-controls.json`) takes **2.299 / 1.898 / 2.311 ms**
+against the ordinary 128-key candidate-packet control. Original and changed
+Q/K have identical routes, coarse output and LSE in this capture. This is a
+bundled emitter/query-geometry comparison, not yet evidence that query tile
+64 alone beats the score-only/shared-maximum query-128 implementation.
+It is standalone only and has not changed the serving defaults.
+
+```bash
+benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_subtile_route \
+  --input results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt \
+  --score-only --reuse-coarse-max --query-tile 64 \
+  --report-near-ties --allow-coarse-roundoff \
+  --output results/kimi-k3-mla-stack/trained-subtile64-query64-controls.json
+```
