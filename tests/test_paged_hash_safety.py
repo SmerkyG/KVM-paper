@@ -183,3 +183,45 @@ def test_bounded_page_hash_miss_never_forms_an_out_of_bounds_address() -> None:
     torch.cuda.synchronize()
     assert torch.isfinite(output).all()
     assert torch.isfinite(lse).all()
+
+
+@pytest.mark.parametrize("block_n", [16, 32, 64, 128])
+@pytest.mark.parametrize("hash_probes", [0, -1, 1])
+def test_grouped_page_lookup_matches_per_token_lookup(block_n, hash_probes) -> None:
+    """Grouped BF16 lookup retains partial pages, GQA and safe hash misses."""
+    from lod_attention.kernels.paged_cache import append_virtual_paged_kv
+    from lod_attention.kernels.paged_prefill import paged_leaf_attention
+
+    torch.manual_seed(194)
+    dimension, leaves = 32, 61
+    cache = _page_cache(leaf_capacity=leaves, dimension=dimension)
+    if hash_probes == 0:
+        cache['slot_pages'] = torch.full((1, 1, 1, 4), -1, dtype=torch.int32, device='cuda')
+    if hash_probes == -1:
+        cache['overflow_page_keys'] = torch.full((1, 1, 4), -1, dtype=torch.int32, device='cuda')
+        cache['overflow_page_values'] = torch.full_like(cache['overflow_page_keys'], -1)
+    key = torch.randn((1, 1, leaves, dimension), device='cuda').bfloat16()
+    value = torch.randn_like(key)
+    owners = torch.zeros((1, 1, leaves), dtype=torch.int32, device='cuda')
+    append_virtual_paged_kv(
+        key, value, 0, owners, cache['page_indices'], cache['slot_pages'],
+        cache['overflow_page_keys'], cache['overflow_page_values'], cache['overflow_used'],
+        cache['overflow_flag'], cache['slot_lengths'], cache['next_page'],
+        cache['page_sum_k'], cache['page_sum_v'], cache['page_counts'],
+        hash_probes=hash_probes)
+    query = torch.randn((1, 2, 37, dimension), device='cuda').bfloat16()
+    routes = torch.full((1, 2, 37, 4), -1, dtype=torch.int64, device='cuda')
+    routes[..., 0] = 0
+
+    def run(grouped):
+        return paged_leaf_attention(
+            query, key, value, cache['slot_pages'], cache['overflow_page_keys'],
+            cache['overflow_page_values'], cache['overflow_used'], cache['slot_lengths'],
+            routes, page_indices=cache['page_indices'], kv_group_size=2, active_slots=1,
+            scale=dimension**-0.5, hash_probes=hash_probes, block_m=16, block_n=block_n,
+            scalar_page_lookup=grouped)
+
+    reference = run(False)
+    grouped = run(True)
+    for actual, expected in zip(grouped, reference, strict=True):
+        torch.testing.assert_close(actual, expected, atol=0, rtol=0, equal_nan=True)

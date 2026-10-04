@@ -14,7 +14,7 @@ def main():
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--lengths", nargs="+", type=int, default=[32768, 65536])
     parser.add_argument("--variants", nargs="+",
-                        choices=("default", "tile64", "tile128", "routed", "fused", "sparse", "incremental", "tile_refine", "direct", "refine_direct", "final_reclaim", "final_fence", "final_only", "reuse_allocator", "reuse_group1", "reuse_group8", "reuse_group12", "reuse_native_local", "reuse_distributed8", "reuse_overlap_projection", "reuse_dense_tile_pack", "reuse_cached_weights", "reuse_kway", "reuse_tiled_state", "reuse_update_graph", "reuse_chunk_pack", "reuse_chunk512", "reuse_chunk1024", "reuse_coarsek64", "reuse_sorted_leaves", "reuse_leaf64", "reuse_combined", "reuse_combined_subtile", "reuse_combined_subtile_score", "reuse_combined_subtile_max"),
+                        choices=("default", "tile64", "tile128", "routed", "fused", "sparse", "incremental", "tile_refine", "direct", "refine_direct", "final_reclaim", "final_fence", "final_only", "reuse_allocator", "reuse_group1", "reuse_group8", "reuse_group12", "reuse_native_local", "reuse_distributed8", "reuse_overlap_projection", "reuse_dense_tile_pack", "reuse_cached_weights", "reuse_kway", "reuse_tiled_state", "reuse_update_graph", "reuse_chunk_pack", "reuse_chunk512", "reuse_chunk1024", "reuse_coarsek64", "reuse_sorted_leaves", "reuse_leaf64", "reuse_combined", "reuse_combined_subtile", "reuse_combined_subtile_score", "reuse_combined_subtile_max", "reuse_combined_joint_kv"),
                         default=["default", "tile64", "tile128", "routed"])
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--batch-size", type=int, default=1)
@@ -80,8 +80,9 @@ def main():
         cached_weights = variant == "reuse_cached_weights"
         kway = variant == "reuse_kway"
         tiled_state = variant == "reuse_tiled_state"
+        joint_kv = variant == "reuse_combined_joint_kv"
         reuse_max = variant == "reuse_combined_subtile_max"
-        score_only = reuse_max or variant == "reuse_combined_subtile_score"
+        score_only = joint_kv or reuse_max or variant == "reuse_combined_subtile_score"
         subtile = score_only or variant == "reuse_combined_subtile"
         combined = subtile or variant == "reuse_combined"
         os.environ["LOD_KIMI_SUBTILE64"] = ("reuse" if reuse_max else
@@ -126,7 +127,7 @@ def main():
         os.environ["LOD_KIMI_LEAF_BLOCK_M"] = str(block_m)
         os.environ["LOD_KIMI_LEAF_WARPS"] = str(warps)
         os.environ["LOD_KIMI_ROUTED_LEAF_PROJECTION"] = "1" if routed else "0"
-        os.environ["LOD_KIMI_FUSED_LEAF_KV"] = "1" if variant == "fused" else "0"
+        os.environ["LOD_KIMI_FUSED_LEAF_KV"] = "1" if joint_kv or variant == "fused" else "0"
         os.environ["LOD_KIMI_SPARSE_LEAF_PROJECTION"] = "1" if variant == "sparse" else "0"
         os.environ["LOD_KIMI_INCREMENTAL_LEAF_PROJECTION"] = "1" if variant == "incremental" else "0"
         refined = variant in ("tile_refine", "refine_direct", "final_reclaim", "final_fence", "final_only", "reuse_allocator")

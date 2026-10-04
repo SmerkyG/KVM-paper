@@ -1403,3 +1403,48 @@ benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_owner_tune \
   --kv-cache-memory-bytes 4294967296 \
   --output results/kimi-k3-mla-stack/dcp8-combined-subtile-prefill-controls.json
 ```
+
+### Follow-up controls: narrower groups, joint projections and page lookup
+
+The standalone 32-key subgroup build (20968,
+`trained-subtile32-reuse-max-controls.json`) takes **2.391 / 1.993 /
+2.367 ms**, comparable to the simpler 64-key shared-maximum result above.
+Original routes match exactly. On changed Q/K, one query/head changes its
+selected IDs; both sets have zero deficit against the FP32 eighth-best score,
+and coarse output/LSE remain bitwise equal. This explicit tie diagnostic is
+not a claim of bitwise routing equality. The initial 32-key prototype missed
+two of four subgroup writes; it failed before any fixture/model test. The
+corrected source uses a distinct `subtile32_reusemax_probe2` module.
+There is no 32-key serving path or default promotion.
+
+Rechecking the **existing** fused leaf K/V projection (20970,
+`trained-existing-joint-projection-controls.json`) gives **0.253 / 0.221 /
+0.242 ms**, with bitwise K/V equality on original and refreshed inputs/weights.
+The refreshed-weight diagnostic clears the immutable serving weight cache.
+A temporary uncached equivalent prototype (20969,
+`trained-joint-projection-controls.json`) also matches bitwise at 0.225 ms;
+its duplicate implementation was removed in favor of the existing function.
+The complete combined score-only/fused-KV/score-only fixture (20971,
+`dcp8-combined-joint-kv-controls.json`) is neutral: **3.265 / 3.282 /
+3.299 s** at 32K and **7.772 / 7.776 / 7.797 s** at 64K. All eight worker
+audits pass. No giant-model rerun or production default change follows.
+
+An experimental grouped-directory lookup resolves each 16-token page once
+even inside larger BF16 key tiles (20974,
+`trained-leaf-group-page-lookups.json`). With 64-query/one-warp tiles, 16-key
+tiles take **1.212 ms**, 32-key tiles **1.254 ms**, and 64-key tiles **1.803 ms**.
+Larger tiles remain slower, so this does not justify changing the current
+16-key geometry. Grouped/per-token outputs and LSE match bitwise at each
+geometry. Thirteen GPU tests (20975) pass, covering inline, fixed-directory
+and bounded-hash lookup, missing/partial pages, GQA and partial query tiles.
+
+```bash
+benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_subtile_route \
+  --input results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt \
+  --score-only --reuse-coarse-max --subtile-n 32 --report-near-ties \
+  --output results/kimi-k3-mla-stack/trained-subtile32-reuse-max-controls.json
+
+benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_joint_projection \
+  --input results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt \
+  --output results/kimi-k3-mla-stack/trained-existing-joint-projection-controls.json
+```

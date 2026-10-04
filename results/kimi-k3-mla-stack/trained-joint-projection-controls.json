@@ -1,0 +1,62 @@
+{
+  "scope": "trained projection stage only, not model latency",
+  "source": "results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt",
+  "key_shape": [
+    1,
+    1,
+    16127,
+    576
+  ],
+  "query_heads": 12,
+  "weight_concatenation_included": true,
+  "ordinary_before": {
+    "median_ms": 0.2509559988975525,
+    "samples_ms": [
+      0.3213549852371216,
+      0.27143600583076477,
+      0.2509559988975525,
+      0.24743600189685822,
+      0.24623699486255646
+    ]
+  },
+  "joint": {
+    "median_ms": 0.22479599714279175,
+    "samples_ms": [
+      0.242235004901886,
+      0.23319600522518158,
+      0.22415700554847717,
+      0.22479599714279175,
+      0.21847699582576752
+    ]
+  },
+  "original_errors": [
+    {
+      "relative_l2": 0.0,
+      "maximum_absolute_error": 0.0
+    },
+    {
+      "relative_l2": 0.0,
+      "maximum_absolute_error": 0.0
+    }
+  ],
+  "changed_input_and_weight_errors": [
+    {
+      "relative_l2": 0.0,
+      "maximum_absolute_error": 0.0
+    },
+    {
+      "relative_l2": 0.0,
+      "maximum_absolute_error": 0.0
+    }
+  ],
+  "ordinary_after": {
+    "median_ms": 0.2379159927368164,
+    "samples_ms": [
+      0.24171599745750427,
+      0.2392760068178177,
+      0.23703700304031372,
+      0.23615700006484985,
+      0.2379159927368164
+    ]
+  }
+}

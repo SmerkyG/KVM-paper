@@ -579,6 +579,34 @@ def _paged_leaf_attention_kernel(
             page_id_scalar = tl.where(valid_page, page_id_scalar, 0)
             valid_key &= valid_page
             page_id = page_id_scalar + tl.zeros((BLOCK_N,), tl.int64)
+        elif (SCALAR_PAGE_LOOKUP and not QUANT_BITS and SPLIT_N == 1
+              and BLOCK_N > PAGE_SIZE and BLOCK_N % PAGE_SIZE == 0):
+            # Larger BF16 key tiles still start at a page boundary. Resolve
+            # one ID per page and broadcast it across that page's leaf lanes,
+            # rather than repeating the same directory walk sixteen times.
+            page_lane = tl.arange(0, BLOCK_N // PAGE_SIZE)
+            page_ordinal_group = key_begin // PAGE_SIZE + page_lane
+            valid_page_group = key_begin + page_lane * PAGE_SIZE < split_count
+            if HASH_PROBES == 0:
+                page_id_group = tl.load(
+                    page_table + page_ordinal_group, mask=valid_page_group, other=0
+                ).to(tl.int64)
+            else:
+                page_id_group = _lookup_page_id(
+                    slot_pages, overflow_page_keys, overflow_page_values, overflow_used,
+                    directory_kv_row, slot, page_ordinal_group, valid_page_group,
+                    STATE_CAPACITY, INLINE_PAGES_PER_SLOT, PAGE_CAPACITY,
+                    HASH_CAPACITY, HASH_PROBES,
+                ).to(tl.int64)
+            valid_page_group &= (page_id_group >= 0) & (page_id_group < PAGE_CAPACITY)
+            page_id_group = tl.where(valid_page_group, page_id_group, 0)
+            page_id = tl.broadcast_to(
+                page_id_group[:, None], (BLOCK_N // PAGE_SIZE, PAGE_SIZE)
+            ).reshape((BLOCK_N,))
+            valid_key &= tl.broadcast_to(
+                valid_page_group[:, None], (BLOCK_N // PAGE_SIZE, PAGE_SIZE)
+            ).reshape((BLOCK_N,))
+            within_page = (token_offset % PAGE_SIZE).to(tl.int64)
         else:
             page_ordinal = logical_key // PAGE_SIZE
             within_page = logical_key % PAGE_SIZE

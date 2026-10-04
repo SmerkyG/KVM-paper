@@ -1,0 +1,64 @@
+{
+  "scope": "trained coarse/route GPU stage, not model latency",
+  "source": "results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt",
+  "state_len": 2048,
+  "query_shape": [
+    1,
+    12,
+    16384,
+    192
+  ],
+  "all_controls_chunk1024": true,
+  "score_only": true,
+  "reuse_coarse_max": true,
+  "subtile_n": 32,
+  "ordinary_before": {
+    "median_ms": 2.3910861015319824,
+    "samples_ms": [
+      2.767841100692749,
+      2.3700459003448486,
+      2.3910861015319824,
+      2.371285915374756,
+      2.4049251079559326
+    ]
+  },
+  "subtile32": {
+    "median_ms": 1.9928109645843506,
+    "samples_ms": [
+      2.1816890239715576,
+      2.053291082382202,
+      1.9928109645843506,
+      1.9858109951019287,
+      1.9625320434570312
+    ]
+  },
+  "original_comparison": {
+    "changed_query_heads": 0,
+    "details": [],
+    "coarse_output_lse": "bitwise equal"
+  },
+  "changed_input_comparison": {
+    "changed_query_heads": 1,
+    "details": [
+      {
+        "batch": 0,
+        "head": 10,
+        "query": 6528,
+        "candidate_deficit": 0.0,
+        "control_deficit": 0.0
+      }
+    ],
+    "coarse_output_lse": "bitwise equal"
+  },
+  "ordinary_after": {
+    "median_ms": 2.367166042327881,
+    "samples_ms": [
+      2.5551230907440186,
+      2.3547658920288086,
+      2.367166042327881,
+      2.3819658756256104,
+      2.2118079662323
+    ]
+  },
+  "fresh_routes_scores_coarse_lse": "see explicit near-tie diagnostics; coarse bitwise equal"
+}
