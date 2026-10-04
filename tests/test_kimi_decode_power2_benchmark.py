@@ -1,10 +1,11 @@
 """The K3 panel must include all four decode updates, not infer them."""
 
 from copy import deepcopy
+import json
 
 import pytest
 
-from benchmarks.kimi_k3_decode_power2 import command, validate_result
+from benchmarks.kimi_k3_decode_power2 import command, load_result, validate_result
 
 
 def result(mode="two-tier", batch=8):
@@ -61,3 +62,18 @@ def test_four_update_panel_command_preserves_1025_timed_steps():
     assert args[args.index("--kv-cache-memory-bytes") + 1] == str(3 << 30)
     assert "--synchronized-decode" in args
     assert "--fixed-decode-trace" in args
+
+
+def test_completed_partial_points_are_preserved(tmp_path):
+    data = result(batch=1)
+    data["argv"] = command("two-tier", 1, (16384,), 1)
+    for name in ("decode_tokens", "tensor_parallel_size", "decode_context_parallel_size",
+                 "batch_size", "mode", "dummy_attention"):
+        data.pop(name)
+    data["status"] = "in-progress"
+    partial = tmp_path / "run.partial.json"
+    partial.write_text(json.dumps(data))
+    loaded = load_result(tmp_path / "run.json")
+    assert loaded["_source_file"] == "run.partial.json"
+    assert loaded["decode_tokens"] == 1026
+    assert loaded["measurements"] == data["measurements"]

@@ -53,9 +53,36 @@ def output_path(mode: str, batch: int, lengths: tuple[int, ...]) -> Path:
     return RESULTS / f"oct4-{label}-b{batch}-decode-{suffix}-four-updates.json"
 
 
-def validate_result(data: dict) -> None:
+def load_result(path: Path) -> dict | None:
+    """Retain validated completed points even if a later warmup failed."""
+    if not path.exists():
+        path = path.with_suffix(".partial.json")
+        if not path.exists():
+            return None
+    data = json.loads(path.read_text())
+    if "decode_tokens" not in data:
+        argv = data["argv"]
+        for key in ("decode_tokens", "tensor_parallel_size", "decode_context_parallel_size", "batch_size"):
+            data[key] = int(argv[argv.index("--" + key.replace("_", "-")) + 1])
+        data["mode"] = argv[argv.index("--mode") + 1]
+        data["dummy_attention"] = "--dummy-attention" in argv
+    data["_source_file"] = path.name
+    validate_result(data)
+    return data
+
+
+def sources_for(mode: str, batch: int, lengths: tuple[int, ...]):
+    path = output_path(mode, batch, lengths)
+    for source in (path, path.with_name(path.stem + "-remaining.json")):
+        data = load_result(source)
+        if data is not None:
+            yield data
+
+
+def validate_result(data: dict, *, outputs: int = 1_026) -> None:
     """Validate real work and counters, without source-fingerprint guards."""
-    assert data["decode_tokens"] == 1_026
+    assert data["decode_tokens"] == outputs
+    assert data["mode"] == "full" or outputs == 1_026
     assert data["tensor_parallel_size"] == data["decode_context_parallel_size"] == 8
     assert not data["dummy_attention"]
     workers = data["worker_attention_audit"]
@@ -67,12 +94,12 @@ def validate_result(data: dict) -> None:
     batch = data["batch_size"]
     for context, measured in data["measurements"].items():
         assert len(measured["prompts"]) == batch
-        assert all(p["trace_tokens"] == 1_026 for p in measured["prompts"])
+        assert all(p["trace_tokens"] == outputs for p in measured["prompts"])
         assert measured["greedy_output_identical"]
         mean_window = sum(measured["decode_timings_seconds"]) / len(
             measured["decode_timings_seconds"]
         )
-        assert abs(measured["decode_ms_per_batch_step"] - mean_window / 1_025 * 1_000) < 1e-8
+        assert abs(measured["decode_ms_per_batch_step"] - mean_window / (outputs - 1) * 1_000) < 1e-8
         for repetition in measured["measured_batch_timings"]:
             for timing in repetition:
                 assert not any(timing["request_num_preemptions"])
@@ -90,7 +117,7 @@ def validate_result(data: dict) -> None:
                     ), f"expected four updates per row: B{batch}, context={context}"
 
 
-def command(mode: str, batch: int, lengths: tuple[int, ...], cache_gib: int) -> list[str]:
+def command(mode: str, batch: int, lengths: tuple[int, ...], cache_gib: int, *, output: Path | None = None) -> list[str]:
     return [
         str(ROOT / "benchmarks/run_kimi_k3_v10_direct.sh"), "-m", "benchmarks.prolong",
         "--checkpoint", "/tmp/dan-agent-kimi-k3-f831ab66814297da540d832a5235f8e904f29d06",
@@ -102,7 +129,7 @@ def command(mode: str, batch: int, lengths: tuple[int, ...], cache_gib: int) -> 
         "--gpu-memory-utilization", "0.8", "--kv-cache-memory-bytes", str(cache_gib * GIB),
         "--kimi-gfx942-int4-moe", "--weight-cache", "--weight-cache-id", "kimi-k3-shared-int4-v6",
         "--allow-experimental-environment", "--retain-warmup-allocator",
-        "--output", str(output_path(mode, batch, lengths)),
+        "--output", str(output or output_path(mode, batch, lengths)),
     ]
 
 
@@ -110,14 +137,17 @@ def render() -> None:
     sources = {}
     rows = {}
     for mode, batch, lengths, _ in PLANS:
-        path = output_path(mode, batch, lengths)
-        if not path.exists():
-            continue
-        data = json.loads(path.read_text())
-        validate_result(data)
-        sources[str(path.name)] = data
+        for data in sources_for(mode, batch, lengths):
+            sources[data["_source_file"]] = data
+            for context, measured in data["measurements"].items():
+                rows[(batch, int(context), mode)] = (data, measured)
+    long_dense_path = RESULTS / "oct4-full-b1-512k1020k-decode1025.json"
+    if long_dense_path.exists():
+        data = json.loads(long_dense_path.read_text())
+        validate_result(data, outputs=1_025)
+        sources[long_dense_path.name] = data
         for context, measured in data["measurements"].items():
-            rows[(batch, int(context), mode)] = (data, measured)
+            rows[(1, int(context), "full")] = (data, measured)
     lines = [
         "# Kimi K3 four-update decode panel", "",
         "Full model, TP8/DCP8/EP8, real ProLong traces, seed 0, one full-shape warmup",
@@ -127,7 +157,7 @@ def render() -> None:
         "| Context | B1 dense | B1 LoD | Dense / LoD | B8 dense | B8 LoD | Dense / LoD |",
         "|--:|--:|--:|--:|--:|--:|--:|",
     ]
-    for context in (16_384, 32_768, 65_536, 131_072, 262_144, 524_288):
+    for context in (16_384, 32_768, 65_536, 131_072, 262_144, 524_288, 1_044_480):
         cells = [f"{context // 1024}K"]
         for batch in (1, 8):
             pair = [rows.get((batch, context, mode)) for mode in ("full", "two-tier")]
@@ -138,14 +168,18 @@ def render() -> None:
                 lod_data, lod = pair[1]
                 assert full["prompts"] == lod["prompts"], (batch, context, "prompts")
                 assert full["output_token_sha256"] == lod["output_token_sha256"]
-                assert full_data["timing_protocol"] == lod_data["timing_protocol"]
+                if "timing_protocol" in full_data and "timing_protocol" in lod_data:
+                    assert full_data["timing_protocol"] == lod_data["timing_protocol"]
                 cells.append(f"{full['decode_ms_per_batch_step'] / lod['decode_ms_per_batch_step']:.3f}x")
             else:
                 cells.append("—")
         lines.append("| " + " | ".join(cells) + " |")
     lines += ["", "A dash is not an estimate. B8 LoD at 256K+ and B1 LoD at 512K",
-              "previously failed warmup on VRAM. B1 dense 512K/1020K controls with",
-              "1,024 timed steps remain documented separately in README.md.", "", "## Sources", ""]
+              "previously failed warmup on VRAM. B1 dense 512K/1020K values reuse",
+              "the already validated 1,024-step controls from README.md; dense has",
+              "no LoD catch-ups to amortize. They are not paired with a LoD result.",
+              "A partial source contributes only its completed, individually validated",
+              "points; a later warmup failure does not create another timing point.", "", "## Sources", ""]
     lines.extend(f"- [{name}]({name})" for name in sources)
     (RESULTS / "DECODE_POWER2.md").write_text("\n".join(lines) + "\n")
 
@@ -159,9 +193,17 @@ def main() -> None:
         return
     for mode, batch, lengths, cache_gib in PLANS:
         path = output_path(mode, batch, lengths)
-        if path.exists():
-            validate_result(json.loads(path.read_text()))
+        completed = {int(n) for data in sources_for(mode, batch, lengths)
+                     for n in data["measurements"]}
+        missing = tuple(n for n in lengths if n not in completed)
+        if not missing:
             continue
+        if completed:
+            # The present partial B1 run completed through 128K and failed
+            # at 256K. Its missing endpoint has the same max-prefix cohort.
+            if max(missing) != max(lengths):
+                raise RuntimeError("resumption would change the shared maximum-prefix cohort")
+            path = path.with_name(path.stem + "-remaining.json")
         env = os.environ.copy()
         for name in LOD_ENV:
             env.pop(name, None)
@@ -175,11 +217,18 @@ def main() -> None:
             env.update(LOD_ENV)
         if max(lengths) >= 524_288:
             env["HSA_NO_SCRATCH_RECLAIM"] = "0"
-        print(f"K3 decode panel: {mode}, B{batch}, lengths={lengths}", flush=True)
-        subprocess.run(command(mode, batch, lengths, cache_gib), cwd=ROOT, env=env, check=True)
-        validate_result(json.loads(path.read_text()))
+        print(f"K3 decode panel: {mode}, B{batch}, lengths={missing}", flush=True)
+        argv = command(mode, batch, missing, cache_gib, output=path)
+        process = subprocess.run(argv, cwd=ROOT, env=env, check=False)
+        if process.returncode:
+            path.with_suffix(".failure.json").write_text(json.dumps({
+                "returncode": process.returncode, "argv": argv,
+                "status": "failed; no timing inferred for unfinished points",
+            }, indent=2) + "\n")
+        else:
+            validate_result(json.loads(path.read_text()))
         render()
-    print("K3 decode panel complete", flush=True)
+    print("K3 decode panel jobs finished; missing timings stay blank", flush=True)
 
 
 if __name__ == "__main__":
