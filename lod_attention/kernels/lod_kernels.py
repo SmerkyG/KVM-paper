@@ -980,6 +980,7 @@ def _accumulate_state_deltas_kernel(
     VALUE_BLOCK_DIM: tl.constexpr,
     HAS_KEY_NORMS: tl.constexpr,
     INDIRECT_SOURCE: tl.constexpr,
+    SHARED_VALUE_PREFIX: tl.constexpr = False,
 ):
     row = tl.program_id(0).to(tl.int64)
     token_block = tl.program_id(1).to(tl.int64)
@@ -1009,14 +1010,15 @@ def _accumulate_state_deltas_kernel(
         mask=valid[:, None] & (key_dim[None, :] < HEAD_DIM),
         other=0.0,
     ).to(tl.float32)
-    v = tl.load(
-        merge_v
-        + row * MERGE_V_ROW_STRIDE
-        + source_token[:, None] * VALUE_DIM
-        + value_dim[None, :],
-        mask=valid[:, None] & (value_dim[None, :] < VALUE_DIM),
-        other=0.0,
-    ).to(tl.float32)
+    if not SHARED_VALUE_PREFIX:
+        v = tl.load(
+            merge_v
+            + row * MERGE_V_ROW_STRIDE
+            + source_token[:, None] * VALUE_DIM
+            + value_dim[None, :],
+            mask=valid[:, None] & (value_dim[None, :] < VALUE_DIM),
+            other=0.0,
+        ).to(tl.float32)
     merge_count = tl.load(
         merge_counts + row * MERGE_COUNT_ROW_STRIDE + source_token,
         mask=valid,
@@ -1058,15 +1060,16 @@ def _accumulate_state_deltas_kernel(
         sem="relaxed",
         mask=valid[:, None] & (key_dim[None, :] < HEAD_DIM),
     )
-    tl.atomic_add(
-        delta_v
-        + row * DELTA_V_ROW_STRIDE
-        + destination[:, None] * VALUE_DIM
-        + value_dim[None, :],
-        v,
-        sem="relaxed",
-        mask=valid[:, None] & (value_dim[None, :] < VALUE_DIM),
-    )
+    if not SHARED_VALUE_PREFIX:
+        tl.atomic_add(
+            delta_v
+            + row * DELTA_V_ROW_STRIDE
+            + destination[:, None] * VALUE_DIM
+            + value_dim[None, :],
+            v,
+            sem="relaxed",
+            mask=valid[:, None] & (value_dim[None, :] < VALUE_DIM),
+        )
 
 
 @triton.jit
@@ -1093,6 +1096,7 @@ def _apply_state_deltas_kernel(
     VALUE_DIM: tl.constexpr,
     HEAD_BLOCK_DIM: tl.constexpr,
     VALUE_BLOCK_DIM: tl.constexpr,
+    SHARED_VALUE_PREFIX: tl.constexpr = False,
 ):
     row = tl.program_id(0).to(tl.int64)
     state_block = tl.program_id(1).to(tl.int64)
@@ -1113,14 +1117,15 @@ def _apply_state_deltas_kernel(
         mask=update[:, None] & (key_dim[None, :] < HEAD_DIM),
         other=0.0,
     ).to(tl.float32)
-    old_v = tl.load(
-        state_v
-        + row * STATE_V_ROW_STRIDE
-        + slot[:, None] * STATE_V_SLOT_STRIDE
-        + value_dim[None, :],
-        mask=update[:, None] & (value_dim[None, :] < VALUE_DIM),
-        other=0.0,
-    ).to(tl.float32)
+    if not SHARED_VALUE_PREFIX:
+        old_v = tl.load(
+            state_v
+            + row * STATE_V_ROW_STRIDE
+            + slot[:, None] * STATE_V_SLOT_STRIDE
+            + value_dim[None, :],
+            mask=update[:, None] & (value_dim[None, :] < VALUE_DIM),
+            other=0.0,
+        ).to(tl.float32)
     add_k = tl.load(
         delta_k
         + row * DELTA_K_ROW_STRIDE
@@ -1129,14 +1134,15 @@ def _apply_state_deltas_kernel(
         mask=update[:, None] & (key_dim[None, :] < HEAD_DIM),
         other=0.0,
     )
-    add_v = tl.load(
-        delta_v
-        + row * DELTA_V_ROW_STRIDE
-        + slot[:, None] * VALUE_DIM
-        + value_dim[None, :],
-        mask=update[:, None] & (value_dim[None, :] < VALUE_DIM),
-        other=0.0,
-    )
+    if not SHARED_VALUE_PREFIX:
+        add_v = tl.load(
+            delta_v
+            + row * DELTA_V_ROW_STRIDE
+            + slot[:, None] * VALUE_DIM
+            + value_dim[None, :],
+            mask=update[:, None] & (value_dim[None, :] < VALUE_DIM),
+            other=0.0,
+        )
     # As in the regular KVM kernels, accumulate in FP32 and perform one BF16
     # state write per slot rather than one rounding per source token.
     tl.store(
@@ -1147,14 +1153,15 @@ def _apply_state_deltas_kernel(
         old_k + add_k,
         mask=update[:, None] & (key_dim[None, :] < HEAD_DIM),
     )
-    tl.store(
-        state_v
-        + row * STATE_V_ROW_STRIDE
-        + slot[:, None] * STATE_V_SLOT_STRIDE
-        + value_dim[None, :],
-        old_v + add_v,
-        mask=update[:, None] & (value_dim[None, :] < VALUE_DIM),
-    )
+    if not SHARED_VALUE_PREFIX:
+        tl.store(
+            state_v
+            + row * STATE_V_ROW_STRIDE
+            + slot[:, None] * STATE_V_SLOT_STRIDE
+            + value_dim[None, :],
+            old_v + add_v,
+            mask=update[:, None] & (value_dim[None, :] < VALUE_DIM),
+        )
     old_count = tl.load(
         counts + row * COUNT_ROW_STRIDE + slot * COUNT_SLOT_STRIDE,
         mask=update,
@@ -1179,14 +1186,15 @@ def _apply_state_deltas_kernel(
         0.0,
         mask=update[:, None] & (key_dim[None, :] < HEAD_DIM),
     )
-    tl.store(
-        delta_v
-        + row * DELTA_V_ROW_STRIDE
-        + slot[:, None] * VALUE_DIM
-        + value_dim[None, :],
-        0.0,
-        mask=update[:, None] & (value_dim[None, :] < VALUE_DIM),
-    )
+    if not SHARED_VALUE_PREFIX:
+        tl.store(
+            delta_v
+            + row * DELTA_V_ROW_STRIDE
+            + slot[:, None] * VALUE_DIM
+            + value_dim[None, :],
+            0.0,
+            mask=update[:, None] & (value_dim[None, :] < VALUE_DIM),
+        )
     tl.store(delta_counts + row * DELTA_SLOT_STRIDE + slot, 0.0, mask=update)
     tl.store(touched + row * DELTA_SLOT_STRIDE + slot, 0, mask=update)
 
@@ -2744,6 +2752,7 @@ def merge_state_in_place(
     key_norm_sums: torch.Tensor | None = None,
     merge_key_norm_sums: torch.Tensor | None = None,
     indirect_source: bool = False,
+    shared_value_prefix: bool = False,
 ) -> None:
     if not all(
         tensor.is_cuda for tensor in (state_k, state_v, counts, merge_k, merge_v)
@@ -2754,12 +2763,21 @@ def merge_state_in_place(
         raise ValueError("LOD merge destinations have the wrong batch/head shape")
     tokens = int(destinations.size(2))
     value_dim = int(merge_v.size(-1))
+    if shared_value_prefix:
+        def prefix_alias(key, value):
+            return (key.data_ptr() == value.data_ptr() and key.dtype == value.dtype
+                    and key.shape[:-1] == value.shape[:-1]
+                    and key.stride()[:-1] == value.stride()[:-1]
+                    and key.stride(-1) == value.stride(-1) == 1
+                    and value.size(-1) <= key.size(-1))
+        if not prefix_alias(state_k, state_v) or not prefix_alias(merge_k, merge_v):
+            raise ValueError("shared value update requires actual K-prefix aliases")
     if (
         state_k.stride(3) != 1
         or state_v.stride(3) != 1
         or counts.stride(3) != 1
         or not merge_k.is_contiguous()
-        or not merge_v.is_contiguous()
+        or (not shared_value_prefix and not merge_v.is_contiguous())
     ):
         raise ValueError("LOD Triton state update received unsupported strides")
     if tuple(merge_indices.shape) != (batch, kv_heads, tokens):
@@ -2847,6 +2865,7 @@ def merge_state_in_place(
         VALUE_BLOCK_DIM=triton.next_power_of_2(value_dim),
         HAS_KEY_NORMS=has_key_norms,
         INDIRECT_SOURCE=indirect_source,
+        SHARED_VALUE_PREFIX=shared_value_prefix,
         **_launch_kwargs(8),
     )
     # The KVM apply kernel uses an 8x128 tile. Preserve the same 1024-lane
@@ -2879,6 +2898,7 @@ def merge_state_in_place(
         VALUE_DIM=value_dim,
         HEAD_BLOCK_DIM=triton.next_power_of_2(head_dim),
         VALUE_BLOCK_DIM=triton.next_power_of_2(value_dim),
+        SHARED_VALUE_PREFIX=shared_value_prefix,
         **_launch_kwargs(2),
     )
 

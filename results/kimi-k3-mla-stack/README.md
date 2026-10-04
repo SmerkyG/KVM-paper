@@ -1499,3 +1499,75 @@ it takes 0.961 ms, versus 1.189 ms for two warps and 1.219 ms for
 128-query/two-warp tiles. Larger query tiles remain slower. Fixed-input leaf
 graph capture gives only a small gain on the ordinary leaf path (1.301 to
 1.271 ms for query-64); this is not a serving or full-model graph claim.
+
+### Shared-latent K3 cache merge (experimental)
+
+K3's state V is an actual alias of K's first 512 channels. The ordinary merge
+also makes a contiguous V copy, accumulates separate K/V FP32 deltas and
+applies both to the same storage. `LOD_KIMI_SHARED_LATENT_MERGE=1` checks both
+source and destination prefix aliases and accumulates/applies K only. The
+64 direct-key channels remain present; counts, ownership, append ranking,
+top-eight selection and global **16K prefill / 256 decode** cadence are not
+changed. Other K/V geometries retain the ordinary path. This is opt-in.
+
+Six dedicated GPU tests (20983) cover exact FP32 scatter references, direct
+and indirect sources, partial blocks, heavy contention, workspace reuse,
+changed-input graph replay and rejection of nonaliased values. The wider
+suite with the experiment enabled passes **275 GPU tests** (20985); the
+selected CPU suite passes **274 tests, 52 GPU skips**. Captured update/final
+cache signatures include the alias and merge tile settings, so toggling them
+cannot silently reuse a previously captured variant.
+
+The first strict complete-update comparison failed on different ownership
+sets. A separate instrumented diagnostic (20990,
+`trained-shared-latent-append-ties.json`) establishes that this already occurs
+in the **ordinary** selector: nine calls have identical score hashes but
+nine distinct append-index hashes. Each layer selects 77 out of 207 exactly
+tied BF16 scores at the boundary. There is no timing claim from that
+instrumented run. The following serial stage controls therefore use stable
+chronological ties **only for diagnosis**, not as a serving-policy change.
+Both variants have equal owners/counts and zero BF16 state difference in
+the original-input controls. Changed-input graph replay preserves exact
+ownership/counts and passes the independent FP32 centroid-sum check.
+
+| Global context | Ordinary before (ms) | Shared latent (ms) | Ordinary after (ms) |
+|--:|--:|--:|--:|
+| 16K | 1.574 | 1.483 | 1.546 |
+| 32K | 1.711 | 1.619 | 1.731 |
+
+Source: `trained-shared-latent-stable-update-controls.json` (20984). Replaying
+the fixed-address shared-latent update graph takes 1.483/1.627 ms: graph
+replay itself provides no additional gain here.
+
+Larger atomic/apply tiles improve the candidate slightly (20986–20988):
+
+| Merge tokens / apply slots per workgroup | 16K update (ms) | 32K update (ms) |
+|--:|--:|--:|
+| 2 / 4 | 1.456 | 1.598 |
+| 4 / 4 | 1.472 | 1.575 |
+| 8 / 4 | 1.461 | 1.578 |
+
+These are complete GPU-stage times with the diagnostic tie handling, not
+model latency. JSON files retain before/after controls for each geometry.
+They do not establish full-model crossover; the serving fixture check uses
+the unchanged ordinary append selector.
+
+The complete fixture before/candidate/after controls (20989,
+`dcp8-shared-latent-prefill-controls.json`) are again neutral:
+
+| Context | Ordinary before (s) | Shared latent 4/4 (s) | Ordinary after (s) |
+|--:|--:|--:|--:|
+| 32K | 3.263 | 3.271 | 3.278 |
+| 64K | 7.746 | 7.737 | 7.763 |
+
+All eight request IDs match. The shared-latent optimization is not a
+demonstrated serving crossover win and is not promoted to the default.
+The graph-signature fallback test passes (20991), and all six alias/graph
+tests also pass with the larger 4/4 merge tiles (20992).
+
+```bash
+benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_latent_merge \
+  --input results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt \
+  --stable-ties --merge-token-block 4 --merge-state-block 4 \
+  --output results/kimi-k3-mla-stack/trained-shared-latent-4x4-controls.json
+```

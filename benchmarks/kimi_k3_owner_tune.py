@@ -14,13 +14,15 @@ def main():
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--lengths", nargs="+", type=int, default=[32768, 65536])
     parser.add_argument("--variants", nargs="+",
-                        choices=("default", "tile64", "tile128", "routed", "fused", "sparse", "incremental", "tile_refine", "direct", "refine_direct", "final_reclaim", "final_fence", "final_only", "reuse_allocator", "reuse_group1", "reuse_group8", "reuse_group12", "reuse_native_local", "reuse_distributed8", "reuse_overlap_projection", "reuse_dense_tile_pack", "reuse_cached_weights", "reuse_kway", "reuse_tiled_state", "reuse_update_graph", "reuse_chunk_pack", "reuse_chunk512", "reuse_chunk1024", "reuse_coarsek64", "reuse_sorted_leaves", "reuse_leaf64", "reuse_combined", "reuse_combined_subtile", "reuse_combined_subtile_score", "reuse_combined_subtile_max", "reuse_combined_subtile_q64", "reuse_combined_joint_kv"),
+                        choices=("default", "tile64", "tile128", "routed", "fused", "sparse", "incremental", "tile_refine", "direct", "refine_direct", "final_reclaim", "final_fence", "final_only", "reuse_allocator", "reuse_group1", "reuse_group8", "reuse_group12", "reuse_native_local", "reuse_distributed8", "reuse_overlap_projection", "reuse_dense_tile_pack", "reuse_cached_weights", "reuse_kway", "reuse_tiled_state", "reuse_update_graph", "reuse_chunk_pack", "reuse_chunk512", "reuse_chunk1024", "reuse_coarsek64", "reuse_sorted_leaves", "reuse_leaf64", "reuse_combined", "reuse_combined_subtile", "reuse_combined_subtile_score", "reuse_combined_subtile_max", "reuse_combined_subtile_q64", "reuse_combined_shared_latent", "reuse_combined_joint_kv"),
                         default=["default", "tile64", "tile128", "routed"])
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--tensor-parallel-size", type=int, default=1)
     parser.add_argument("--decode-context-parallel-size", type=int, default=1)
     parser.add_argument("--kv-cache-memory-bytes", type=int, default=3_221_225_472)
+    parser.add_argument("--merge-token-block", type=int, choices=(1, 2, 4, 8, 16), default=1)
+    parser.add_argument("--merge-state-block", type=int, choices=(1, 2, 4, 8), default=1)
     parser.add_argument("--profile-length", type=int,
                         help="separate diagnostic pass after canonical timings")
     args = parser.parse_args()
@@ -60,7 +62,7 @@ def main():
         "reuse_allocator": (32, 1, False),
     }
 
-    def change_variant(worker, variant):
+    def change_variant(worker, variant, merge_token_block, merge_state_block):
         from vllm_lod_plugin import runtime
 
         runner = worker.model_runner
@@ -82,7 +84,11 @@ def main():
         tiled_state = variant == "reuse_tiled_state"
         joint_kv = variant == "reuse_combined_joint_kv"
         query64 = variant == "reuse_combined_subtile_q64"
-        reuse_max = query64 or variant == "reuse_combined_subtile_max"
+        shared_latent = variant == "reuse_combined_shared_latent"
+        os.environ["LOD_KIMI_SHARED_LATENT_MERGE"] = "1" if shared_latent else "0"
+        os.environ["LOD_KIMI_MERGE_TOKEN_BLOCK"] = str(merge_token_block) if shared_latent else "1"
+        os.environ["LOD_KIMI_MERGE_STATE_BLOCK"] = str(merge_state_block) if shared_latent else "1"
+        reuse_max = query64 or shared_latent or variant == "reuse_combined_subtile_max"
         os.environ["LOD_KIMI_COARSE_QUERY_TILE"] = "64" if query64 else "128"
         score_only = joint_kv or reuse_max or variant == "reuse_combined_subtile_score"
         subtile = score_only or variant == "reuse_combined_subtile"
@@ -176,10 +182,12 @@ def main():
               "rotating_prefills": os.environ.get("LOD_BENCHMARK_ROTATE_PREFILLS") == "1",
               "rotating_cohort": int(os.environ.get("LOD_BENCHMARK_ROTATING_COHORT", args.batch_size)),
               "kv_cache_memory_bytes": args.kv_cache_memory_bytes, "measurements": {}}
+    result["shared_latent_geometry"] = [args.merge_token_block, args.merge_state_block]
     args.output.parent.mkdir(parents=True, exist_ok=True)
     try:
         for variant in args.variants:
-            llm.collective_rpc(change_variant, args=(variant,))
+            llm.collective_rpc(change_variant, args=(variant, args.merge_token_block,
+                                                   args.merge_state_block))
             run_name = variant
             occurrence = 1
             while run_name in result["measurements"]:

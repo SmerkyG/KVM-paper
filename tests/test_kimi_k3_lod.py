@@ -21,11 +21,13 @@ from vllm_lod_plugin.models.kimi_k3 import (
 from vllm_lod_plugin.pool import VLLMLayerLODPool
 
 
-def test_fixed_state_update_graph_refreshes_sources_and_owns_membership() -> None:
+def test_fixed_state_update_graph_refreshes_sources_and_owns_membership(monkeypatch) -> None:
     if not torch.cuda.is_available():
         pytest.skip("GPU fixed-shape state update")
     from lod_attention._engines import KernelTwoLevelLODAttention
     from lod_attention.kernels.kimi_prefill_graph import KimiStateUpdateGraphs
+
+    monkeypatch.setenv("LOD_KIMI_SHARED_LATENT_MERGE", "0")
 
     engine = KernelTwoLevelLODAttention(query_heads=12, key_value_heads=1, scale=1)
     engine.head_dim = 576
@@ -77,6 +79,16 @@ def test_fixed_state_update_graph_refreshes_sources_and_owns_membership() -> Non
                          overflow, overflow[..., :512], **(options | {"ctx_len": 191}))
     check()
     assert manager.fallback_count == 1 and manager.replay_count == 2
+    # A graph also freezes the alias/merge geometry. A changed experimental
+    # setting must not silently replay the old variant under the original
+    # boundary. With a full bounded cache this uses ordinary construction.
+    monkeypatch.setenv("LOD_KIMI_SHARED_LATENT_MERGE", "1")
+    keys.copy_(initial)
+    counts.copy_(initial_counts)
+    result = manager.run(engine, keys, keys[..., :512], counts, None,
+                         overflow, overflow[..., :512], **options)
+    check()
+    assert manager.fallback_count == 2 and manager.replay_count == 2
 
 
 def test_shared_weight_cache_retains_distinct_layer_layouts(monkeypatch) -> None:

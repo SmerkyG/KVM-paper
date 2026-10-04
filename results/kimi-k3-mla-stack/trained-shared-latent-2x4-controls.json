@@ -1,0 +1,129 @@
+{
+  "scope": "Controlled shared-latent update on captured, trained K3 records.\n\nThis times the complete state-update GPU stage, not model wall time. Cyclic\nreuse of the trained records fills the fixed 16K update geometry. No routing\npolicy, append budget, channel or cadence changes between the controls.\n",
+  "source": "results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt",
+  "layers": 4,
+  "global_update_len": 16384,
+  "stable_tie_diagnostic": true,
+  "merge_token_block": 2,
+  "merge_state_block": 4,
+  "measurements": {
+    "16384": {
+      "input_state_len": 255,
+      "output_state_len": 2048,
+      "ordinary_before": {
+        "median_ms": 1.58713698387146,
+        "samples_ms": [
+          1.5960149765014648,
+          1.6043360233306885,
+          1.5862170457839966,
+          1.58713698387146,
+          1.5694169998168945
+        ]
+      },
+      "shared_latent": {
+        "median_ms": 1.4557379484176636,
+        "samples_ms": [
+          1.4456980228424072,
+          1.4968169927597046,
+          1.4557379484176636,
+          1.4686180353164673,
+          1.4482580423355103
+        ]
+      },
+      "ordinary_after": {
+        "median_ms": 1.5522969961166382,
+        "samples_ms": [
+          1.566336989402771,
+          1.5719369649887085,
+          1.5387369394302368,
+          1.5396970510482788,
+          1.5522969961166382
+        ]
+      },
+      "shared_latent_graph": {
+        "median_ms": 1.4571789503097534,
+        "samples_ms": [
+          1.458698034286499,
+          1.478417992591858,
+          1.4571789503097534,
+          1.449059009552002,
+          1.4382179975509644
+        ]
+      },
+      "state_relative_l2_error": 0.0,
+      "owners_counts_exact": true,
+      "ordinary_check": {
+        "membership_counts_exact": true,
+        "relative_l2_key_sum_error": 0.0017023896798491478
+      },
+      "candidate_check": {
+        "membership_counts_exact": true,
+        "relative_l2_key_sum_error": 0.0017023896798491478
+      },
+      "fresh_graph_check": {
+        "membership_counts_exact": true,
+        "relative_l2_key_sum_error": 0.0016478707548230886
+      },
+      "ordinary_repeat_owner_mismatches": 0
+    },
+    "32768": {
+      "input_state_len": 2048,
+      "output_state_len": 2896,
+      "ordinary_before": {
+        "median_ms": 1.7247339487075806,
+        "samples_ms": [
+          1.7247339487075806,
+          1.7237739562988281,
+          1.7268940210342407,
+          1.7256540060043335,
+          1.7220549583435059
+        ]
+      },
+      "shared_latent": {
+        "median_ms": 1.5979360342025757,
+        "samples_ms": [
+          1.6019359827041626,
+          1.5888960361480713,
+          1.6013360023498535,
+          1.5858960151672363,
+          1.5979360342025757
+        ]
+      },
+      "ordinary_after": {
+        "median_ms": 1.7292139530181885,
+        "samples_ms": [
+          1.7446939945220947,
+          1.7212940454483032,
+          1.7387739419937134,
+          1.7292139530181885,
+          1.726654052734375
+        ]
+      },
+      "shared_latent_graph": {
+        "median_ms": 1.6020970344543457,
+        "samples_ms": [
+          1.6020970344543457,
+          1.6001360416412354,
+          1.6102559566497803,
+          1.609455943107605,
+          1.5894960165023804
+        ]
+      },
+      "state_relative_l2_error": 0.0,
+      "owners_counts_exact": true,
+      "ordinary_check": {
+        "membership_counts_exact": true,
+        "relative_l2_key_sum_error": 0.0016318272100761533
+      },
+      "candidate_check": {
+        "membership_counts_exact": true,
+        "relative_l2_key_sum_error": 0.0016318272100761533
+      },
+      "fresh_graph_check": {
+        "membership_counts_exact": true,
+        "relative_l2_key_sum_error": 0.0011662968900054693
+      },
+      "ordinary_repeat_owner_mismatches": 0
+    }
+  }
+}

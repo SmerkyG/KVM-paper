@@ -2084,12 +2084,24 @@ class TritonLODAttentionCore(nn.Module):
         if use_fused_state_update and state_k.is_cuda:
             if buffers is None:
                 raise AssertionError("LOD state-update buffers are missing")
+            shared_latent = (
+                os.environ.get("LOD_KIMI_SHARED_LATENT_MERGE") == "1"
+                and state_k.size(-1) == merge_k.size(-1) == 576
+                and state_v.size(-1) == merge_v.size(-1) == 512
+                and state_k.data_ptr() == state_v.data_ptr()
+                and merge_k.data_ptr() == merge_v.data_ptr()
+                and state_k.stride()[:-1] == state_v.stride()[:-1]
+                and merge_k.stride()[:-1] == merge_v.stride()[:-1]
+            )
+            merge_key_source = merge_k.contiguous()
+            merge_value_source = (merge_key_source[..., :512] if shared_latent
+                                  else merge_v.contiguous())
             merge_state_in_place(
                 state_k,
                 state_v,
                 counts,
-                merge_k.contiguous(),
-                merge_v.contiguous(),
+                merge_key_source,
+                merge_value_source,
                 merge_counts.contiguous(),
                 merge_idx.contiguous(),
                 destination.contiguous(),
@@ -2099,6 +2111,7 @@ class TritonLODAttentionCore(nn.Module):
                 key_norm_sums=key_norm_sums,
                 merge_key_norm_sums=merge_key_norm_sums,
                 indirect_source=indirect_merge_source,
+                shared_value_prefix=shared_latent,
             )
         else:
             if assignment_t is None:

@@ -1,0 +1,15 @@
+{
+  "scope": "instrumented append-selection diagnostic, not latency or model quality",
+  "job": "20990-kimi-k3-shared-latent-append-tie-diagnostic",
+  "source": "results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt",
+  "geometry": "four replicated layers, 255 initial centroids, 16K global update",
+  "score_sha256_all_calls": "596a3675a109a4e5d9cf9f2c746d3e56958b674020b9a0897842efa0d8a3fc7b",
+  "ordinary_calls": 9,
+  "ordinary_distinct_append_index_hashes": 9,
+  "shared_latent_calls": 8,
+  "shared_latent_distinct_append_index_hashes": 8,
+  "boundary_ties_per_layer": 207,
+  "selected_boundary_ties_per_layer": 77,
+  "strict_counts_comparison_failed": true,
+  "interpretation": "BF16 score ties make ordinary torch.topk choose different equal-score appends even with identical inputs. The shared-latent kernel runs after this selection. Stable chronological tie-breaking is used only in the separately labeled controlled GPU-stage diagnostic, not in serving. No timing is reported from this instrumented run."
+}

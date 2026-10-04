@@ -9,11 +9,19 @@ never evicts/re-captures in a warm run; other shapes use ordinary attention.
 from __future__ import annotations
 
 import copy
+import os
 from dataclasses import dataclass, replace
 
 import torch
 
 from .aiter_mla_prefill_attention import aiter_kimi_expanded_prefill_route_coarse_attention
+
+
+def _merge_geometry_signature():
+    """A captured merge freezes these compile-time experimental choices."""
+    return (os.environ.get("LOD_KIMI_SHARED_LATENT_MERGE", "0") == "1",
+            int(os.environ.get("LOD_KIMI_MERGE_TOKEN_BLOCK", "1")),
+            int(os.environ.get("LOD_KIMI_MERGE_STATE_BLOCK", "1")))
 
 
 @dataclass
@@ -127,6 +135,7 @@ class KimiFinalCacheGraphs:
     def run(self, engine, key, value, *, final_cache_coverage):
         signature = (
             tuple(key.shape), key.dtype, key.device, int(final_cache_coverage),
+            _merge_geometry_signature(),
             float(engine.state_growth_factor), int(engine.state_min_len),
             engine._streaming_state_geometry(), int(engine.sink_len), int(engine.state_size_offset),
             tuple(int(getattr(engine, name)) for name in (
@@ -254,6 +263,7 @@ class KimiStateUpdateGraphs:
         if supported:
             signature = (
                 tuple((tuple(t.shape), t.dtype, t.device) for t in inputs),
+                _merge_geometry_signature(),
                 tuple(sorted(options.items())), float(engine.state_growth_factor),
                 int(engine.state_min_len), int(engine.state_size_offset),
                 int(engine.sink_len), int(engine.chunk_len), int(engine.prefill_state_update_len),
