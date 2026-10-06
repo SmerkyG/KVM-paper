@@ -1,0 +1,5661 @@
+{
+  "checkpoint": "/tmp/dan-agent-kimi-k3-f831ab66814297da540d832a5235f8e904f29d06",
+  "mode": "full",
+  "capacity_only": false,
+  "diagnostic_only": false,
+  "route_scatter_validation": false,
+  "weight_cache_id": "kimi-k3-node2-full-int4-v1",
+  "real_token_cache": "results/kimi-k3-full-model-current/prolong-kimi-k3-speed-token-cache.pt",
+  "reference_baselines": [
+    "results/kimi-k3-full-model-current/oct4-full-prefill-scale-b1-1g-16k256k.json",
+    "results/kimi-k3-full-model-current/oct4-full-b1-512k1020k-decode1025.json"
+  ],
+  "request_owner_prefill": false,
+  "owner_local_mla": false,
+  "owner_tp_mla": false,
+  "owner_local_projection_audits": null,
+  "scheduler_row_chunk": 16384,
+  "scheduler_total_budget": 16385,
+  "batch_size": 1,
+  "decode_tokens": 1,
+  "reference_decode_trace": false,
+  "decode_execution": "native",
+  "tensor_parallel_size": 8,
+  "decode_context_parallel_size": 8,
+  "repeats": 1,
+  "rotating_prefills": false,
+  "rotating_cohort": 1,
+  "distributed_prefill_construction": false,
+  "cross_layer_prefill_group": null,
+  "independent_local_dcp_prefill": false,
+  "replicated_summary_dcp_prefill": false,
+  "global_centroid_sharded_leaf_prefill": false,
+  "transient_reconstructed_prefill_workspace": false,
+  "sharded_workspace_layout": null,
+  "environment": {
+    "LOD_KIMI_SORT_LEAF_ROUTES": "1",
+    "LOD_KIMI_DIRECT_LEAF_RESULT": "1",
+    "LOD_KIMI_LEAF_BLOCK_M": "64",
+    "LOD_KIMI_LEAF_WARPS": "1",
+    "LOD_KIMI_SUBTILE64": "score",
+    "LOD_KIMI_REUSE_PREFILL_ALLOCATOR": "1",
+    "LOD_KIMI_TILE_REFINE": "1",
+    "LOD_KIMI_PREFILL_MIN_FREE_GIB": "4",
+    "LOD_KIMI_TILE_PACK_QUERY_BLOCK": "1024",
+    "LOD_BENCHMARK_SYNC_PREFILL_CACHE": "1",
+    "CLUSTER_RUN_NODE": "dev-shared-research-2.dev-training.svc.cluster.local",
+    "HSA_NO_SCRATCH_RECLAIM": "1",
+    "LOD_KIMI_CHUNK_TILE_PACK": "1",
+    "LOD_KIMI_PREFILL_RECLAIM_INTERVAL": "0"
+  },
+  "measurements": {
+    "32768": {
+      "warmup_elapsed_seconds": 4.359814929775894,
+      "before_warmup_allocator_policy": [
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 31776047104,
+          "free_bytes_after": 31776047104,
+          "allocated_bytes": 2655914496,
+          "reserved_bytes": 2843738112,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 33889976320,
+          "free_bytes_after": 33889976320,
+          "allocated_bytes": 2655914496,
+          "reserved_bytes": 2843738112,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 31776047104,
+          "free_bytes_after": 31776047104,
+          "allocated_bytes": 2655914496,
+          "reserved_bytes": 2843738112,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 31776047104,
+          "free_bytes_after": 31776047104,
+          "allocated_bytes": 2655914496,
+          "reserved_bytes": 2843738112,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 32380026880,
+          "free_bytes_after": 32380026880,
+          "allocated_bytes": 2655914496,
+          "reserved_bytes": 2843738112,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 32078036992,
+          "free_bytes_after": 32078036992,
+          "allocated_bytes": 2655914496,
+          "reserved_bytes": 2843738112,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 32380026880,
+          "free_bytes_after": 32380026880,
+          "allocated_bytes": 2655914496,
+          "reserved_bytes": 2843738112,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 32369541120,
+          "free_bytes_after": 32369541120,
+          "allocated_bytes": 2655914496,
+          "reserved_bytes": 2843738112,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        }
+      ],
+      "warmup_allocator_policy": [
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19153289216,
+          "free_bytes_after": 19153289216,
+          "allocated_bytes": 2655990272,
+          "reserved_bytes": 14774435840,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 21267218432,
+          "free_bytes_after": 21267218432,
+          "allocated_bytes": 2655990272,
+          "reserved_bytes": 14774435840,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19824377856,
+          "free_bytes_after": 19824377856,
+          "allocated_bytes": 2655990272,
+          "reserved_bytes": 14774435840,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19153289216,
+          "free_bytes_after": 19153289216,
+          "allocated_bytes": 2655990272,
+          "reserved_bytes": 14774435840,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19757268992,
+          "free_bytes_after": 19757268992,
+          "allocated_bytes": 2655990272,
+          "reserved_bytes": 14774435840,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 20126367744,
+          "free_bytes_after": 20126367744,
+          "allocated_bytes": 2655990272,
+          "reserved_bytes": 14774435840,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19757268992,
+          "free_bytes_after": 19757268992,
+          "allocated_bytes": 2655990272,
+          "reserved_bytes": 14774435840,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19746783232,
+          "free_bytes_after": 19746783232,
+          "allocated_bytes": 2655990272,
+          "reserved_bytes": 14774435840,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        }
+      ],
+      "elapsed_seconds": 4.187856677919626,
+      "prefill_seconds": 4.185830914415419,
+      "elapsed_samples_seconds": [
+        4.187856677919626
+      ],
+      "prefill_samples_seconds": [
+        4.185830914415419
+      ],
+      "decode_ms_per_batch_step": null,
+      "decode_samples_seconds_per_batch_step": [],
+      "aggregate_prompt_tokens_per_second": 7828.314298877092,
+      "generated_token_ids": [
+        [
+          17226
+        ]
+      ],
+      "owner_decode_update_deltas": [],
+      "owner_decode_graph_replay_deltas": [],
+      "prompt_token_sha256": [
+        "643959862a12e3b465e477914a90f315b360b13a6b10de22997ddbf7a019d06f"
+      ],
+      "warmup_worker_memory": [
+        {
+          "rank": 0,
+          "peak_torch_allocated_bytes": 11578259968,
+          "peak_torch_reserved_bytes": 14774435840,
+          "current_torch_allocated_bytes": 2655990272,
+          "device_free_bytes_after_generation": 19153289216,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 1,
+          "peak_torch_allocated_bytes": 11578258432,
+          "peak_torch_reserved_bytes": 14774435840,
+          "current_torch_allocated_bytes": 2655990272,
+          "device_free_bytes_after_generation": 21267218432,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 2,
+          "peak_torch_allocated_bytes": 11578258432,
+          "peak_torch_reserved_bytes": 14774435840,
+          "current_torch_allocated_bytes": 2655990272,
+          "device_free_bytes_after_generation": 19824377856,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 3,
+          "peak_torch_allocated_bytes": 11578258432,
+          "peak_torch_reserved_bytes": 14774435840,
+          "current_torch_allocated_bytes": 2655990272,
+          "device_free_bytes_after_generation": 19153289216,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 4,
+          "peak_torch_allocated_bytes": 11578258432,
+          "peak_torch_reserved_bytes": 14774435840,
+          "current_torch_allocated_bytes": 2655990272,
+          "device_free_bytes_after_generation": 19757268992,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 5,
+          "peak_torch_allocated_bytes": 11578258432,
+          "peak_torch_reserved_bytes": 14774435840,
+          "current_torch_allocated_bytes": 2655990272,
+          "device_free_bytes_after_generation": 20126367744,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 6,
+          "peak_torch_allocated_bytes": 11578258432,
+          "peak_torch_reserved_bytes": 14774435840,
+          "current_torch_allocated_bytes": 2655990272,
+          "device_free_bytes_after_generation": 19757268992,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 7,
+          "peak_torch_allocated_bytes": 11578258432,
+          "peak_torch_reserved_bytes": 14774435840,
+          "current_torch_allocated_bytes": 2655990272,
+          "device_free_bytes_after_generation": 19746783232,
+          "device_total_bytes": 274861129728
+        }
+      ],
+      "worker_memory": [
+        {
+          "rank": 0,
+          "peak_torch_allocated_bytes": 11578259968,
+          "peak_torch_reserved_bytes": 14774435840,
+          "current_torch_allocated_bytes": 2655990272,
+          "device_free_bytes_after_generation": 19153289216,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 1,
+          "peak_torch_allocated_bytes": 11578258432,
+          "peak_torch_reserved_bytes": 14774435840,
+          "current_torch_allocated_bytes": 2655990272,
+          "device_free_bytes_after_generation": 21267218432,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 2,
+          "peak_torch_allocated_bytes": 11578258432,
+          "peak_torch_reserved_bytes": 14774435840,
+          "current_torch_allocated_bytes": 2655990272,
+          "device_free_bytes_after_generation": 19824377856,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 3,
+          "peak_torch_allocated_bytes": 11578258432,
+          "peak_torch_reserved_bytes": 14774435840,
+          "current_torch_allocated_bytes": 2655990272,
+          "device_free_bytes_after_generation": 18482200576,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 4,
+          "peak_torch_allocated_bytes": 11578258432,
+          "peak_torch_reserved_bytes": 14774435840,
+          "current_torch_allocated_bytes": 2655990272,
+          "device_free_bytes_after_generation": 19757268992,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 5,
+          "peak_torch_allocated_bytes": 11578258432,
+          "peak_torch_reserved_bytes": 14774435840,
+          "current_torch_allocated_bytes": 2655990272,
+          "device_free_bytes_after_generation": 20126367744,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 6,
+          "peak_torch_allocated_bytes": 11578258432,
+          "peak_torch_reserved_bytes": 14774435840,
+          "current_torch_allocated_bytes": 2655990272,
+          "device_free_bytes_after_generation": 19757268992,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 7,
+          "peak_torch_allocated_bytes": 11578258432,
+          "peak_torch_reserved_bytes": 14774435840,
+          "current_torch_allocated_bytes": 2655990272,
+          "device_free_bytes_after_generation": 19086180352,
+          "device_total_bytes": 274861129728
+        }
+      ],
+      "measurement_status": "complete",
+      "worker_attention_audit": [
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        }
+      ],
+      "worker_attention_audit_status": "passed"
+    },
+    "131072": {
+      "warmup_elapsed_seconds": 19.298034695908427,
+      "before_warmup_allocator_policy": [
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19153289216,
+          "free_bytes_after": 19153289216,
+          "allocated_bytes": 2655990272,
+          "reserved_bytes": 14774435840,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 21267218432,
+          "free_bytes_after": 21267218432,
+          "allocated_bytes": 2655990272,
+          "reserved_bytes": 14774435840,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19824377856,
+          "free_bytes_after": 19824377856,
+          "allocated_bytes": 2655990272,
+          "reserved_bytes": 14774435840,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 18482200576,
+          "free_bytes_after": 18482200576,
+          "allocated_bytes": 2655990272,
+          "reserved_bytes": 14774435840,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19757268992,
+          "free_bytes_after": 19757268992,
+          "allocated_bytes": 2655990272,
+          "reserved_bytes": 14774435840,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 20126367744,
+          "free_bytes_after": 20126367744,
+          "allocated_bytes": 2655990272,
+          "reserved_bytes": 14774435840,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19757268992,
+          "free_bytes_after": 19757268992,
+          "allocated_bytes": 2655990272,
+          "reserved_bytes": 14774435840,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19086180352,
+          "free_bytes_after": 19086180352,
+          "allocated_bytes": 2655990272,
+          "reserved_bytes": 14774435840,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        }
+      ],
+      "warmup_allocator_policy": [
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19149094912,
+          "free_bytes_after": 19149094912,
+          "allocated_bytes": 2656432640,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 21263024128,
+          "free_bytes_after": 21263024128,
+          "allocated_bytes": 2656432640,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19820183552,
+          "free_bytes_after": 19820183552,
+          "allocated_bytes": 2656432640,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 18478006272,
+          "free_bytes_after": 18478006272,
+          "allocated_bytes": 2656432640,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19753074688,
+          "free_bytes_after": 19753074688,
+          "allocated_bytes": 2656432640,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 20122173440,
+          "free_bytes_after": 20122173440,
+          "allocated_bytes": 2656432640,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19753074688,
+          "free_bytes_after": 19753074688,
+          "allocated_bytes": 2656432640,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19081986048,
+          "free_bytes_after": 19081986048,
+          "allocated_bytes": 2656432640,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        }
+      ],
+      "elapsed_seconds": 19.30427535995841,
+      "prefill_seconds": 19.29963426385075,
+      "elapsed_samples_seconds": [
+        19.30427535995841
+      ],
+      "prefill_samples_seconds": [
+        19.29963426385075
+      ],
+      "decode_ms_per_batch_step": null,
+      "decode_samples_seconds_per_batch_step": [],
+      "aggregate_prompt_tokens_per_second": 6791.424034677429,
+      "generated_token_ids": [
+        [
+          3103
+        ]
+      ],
+      "owner_decode_update_deltas": [],
+      "owner_decode_graph_replay_deltas": [],
+      "prompt_token_sha256": [
+        "6b0b90d41b25dc3e2005b03208277854d351bc39f00de6c204e4b0c10e69e32e"
+      ],
+      "warmup_worker_memory": [
+        {
+          "rank": 0,
+          "peak_torch_allocated_bytes": 11578702336,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2656432640,
+          "device_free_bytes_after_generation": 19149094912,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 1,
+          "peak_torch_allocated_bytes": 11578700800,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2656432640,
+          "device_free_bytes_after_generation": 21263024128,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 2,
+          "peak_torch_allocated_bytes": 11578700800,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2656432640,
+          "device_free_bytes_after_generation": 19820183552,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 3,
+          "peak_torch_allocated_bytes": 11578700800,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2656432640,
+          "device_free_bytes_after_generation": 18478006272,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 4,
+          "peak_torch_allocated_bytes": 11578700800,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2656432640,
+          "device_free_bytes_after_generation": 19753074688,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 5,
+          "peak_torch_allocated_bytes": 11578700800,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2656432640,
+          "device_free_bytes_after_generation": 20122173440,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 6,
+          "peak_torch_allocated_bytes": 11578700800,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2656432640,
+          "device_free_bytes_after_generation": 19753074688,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 7,
+          "peak_torch_allocated_bytes": 11578700800,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2656432640,
+          "device_free_bytes_after_generation": 19081986048,
+          "device_total_bytes": 274861129728
+        }
+      ],
+      "worker_memory": [
+        {
+          "rank": 0,
+          "peak_torch_allocated_bytes": 11578702336,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2656432640,
+          "device_free_bytes_after_generation": 19149094912,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 1,
+          "peak_torch_allocated_bytes": 11578700800,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2656432640,
+          "device_free_bytes_after_generation": 21263024128,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 2,
+          "peak_torch_allocated_bytes": 11578700800,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2656432640,
+          "device_free_bytes_after_generation": 19820183552,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 3,
+          "peak_torch_allocated_bytes": 11578700800,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2656432640,
+          "device_free_bytes_after_generation": 18478006272,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 4,
+          "peak_torch_allocated_bytes": 11578700800,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2656432640,
+          "device_free_bytes_after_generation": 19753074688,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 5,
+          "peak_torch_allocated_bytes": 11578700800,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2656432640,
+          "device_free_bytes_after_generation": 20122173440,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 6,
+          "peak_torch_allocated_bytes": 11578700800,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2656432640,
+          "device_free_bytes_after_generation": 19753074688,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 7,
+          "peak_torch_allocated_bytes": 11578700800,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2656432640,
+          "device_free_bytes_after_generation": 19081986048,
+          "device_total_bytes": 274861129728
+        }
+      ],
+      "measurement_status": "complete",
+      "worker_attention_audit": [
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        }
+      ],
+      "worker_attention_audit_status": "passed"
+    },
+    "262144": {
+      "warmup_elapsed_seconds": 45.50455274991691,
+      "before_warmup_allocator_policy": [
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19149094912,
+          "free_bytes_after": 19149094912,
+          "allocated_bytes": 2656432640,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 21263024128,
+          "free_bytes_after": 21263024128,
+          "allocated_bytes": 2656432640,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19820183552,
+          "free_bytes_after": 19820183552,
+          "allocated_bytes": 2656432640,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 18478006272,
+          "free_bytes_after": 18478006272,
+          "allocated_bytes": 2656432640,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19753074688,
+          "free_bytes_after": 19753074688,
+          "allocated_bytes": 2656432640,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 20122173440,
+          "free_bytes_after": 20122173440,
+          "allocated_bytes": 2656432640,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19753074688,
+          "free_bytes_after": 19753074688,
+          "allocated_bytes": 2656432640,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19081986048,
+          "free_bytes_after": 19081986048,
+          "allocated_bytes": 2656432640,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        }
+      ],
+      "warmup_allocator_policy": [
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19149094912,
+          "free_bytes_after": 19149094912,
+          "allocated_bytes": 2657022464,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 21263024128,
+          "free_bytes_after": 21263024128,
+          "allocated_bytes": 2657022464,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19820183552,
+          "free_bytes_after": 19820183552,
+          "allocated_bytes": 2657022464,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 18478006272,
+          "free_bytes_after": 18478006272,
+          "allocated_bytes": 2657022464,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19753074688,
+          "free_bytes_after": 19753074688,
+          "allocated_bytes": 2657022464,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 20122173440,
+          "free_bytes_after": 20122173440,
+          "allocated_bytes": 2657022464,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19753074688,
+          "free_bytes_after": 19753074688,
+          "allocated_bytes": 2657022464,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19081986048,
+          "free_bytes_after": 19081986048,
+          "allocated_bytes": 2657022464,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        }
+      ],
+      "elapsed_seconds": 45.502721624448895,
+      "prefill_seconds": 45.49654378183186,
+      "elapsed_samples_seconds": [
+        45.502721624448895
+      ],
+      "prefill_samples_seconds": [
+        45.49654378183186
+      ],
+      "decode_ms_per_batch_step": null,
+      "decode_samples_seconds_per_batch_step": [],
+      "aggregate_prompt_tokens_per_second": 5761.844267930567,
+      "generated_token_ids": [
+        [
+          14091
+        ]
+      ],
+      "owner_decode_update_deltas": [],
+      "owner_decode_graph_replay_deltas": [],
+      "prompt_token_sha256": [
+        "983ba934f1bdf0952fbd12219438ba800a50fef9c14e15349c00cb2199943b5e"
+      ],
+      "warmup_worker_memory": [
+        {
+          "rank": 0,
+          "peak_torch_allocated_bytes": 11579292160,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2657022464,
+          "device_free_bytes_after_generation": 19149094912,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 1,
+          "peak_torch_allocated_bytes": 11579290624,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2657022464,
+          "device_free_bytes_after_generation": 21263024128,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 2,
+          "peak_torch_allocated_bytes": 11579290624,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2657022464,
+          "device_free_bytes_after_generation": 19820183552,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 3,
+          "peak_torch_allocated_bytes": 11579290624,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2657022464,
+          "device_free_bytes_after_generation": 18478006272,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 4,
+          "peak_torch_allocated_bytes": 11579290624,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2657022464,
+          "device_free_bytes_after_generation": 19753074688,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 5,
+          "peak_torch_allocated_bytes": 11579290624,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2657022464,
+          "device_free_bytes_after_generation": 20122173440,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 6,
+          "peak_torch_allocated_bytes": 11579290624,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2657022464,
+          "device_free_bytes_after_generation": 19753074688,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 7,
+          "peak_torch_allocated_bytes": 11579290624,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2657022464,
+          "device_free_bytes_after_generation": 19081986048,
+          "device_total_bytes": 274861129728
+        }
+      ],
+      "worker_memory": [
+        {
+          "rank": 0,
+          "peak_torch_allocated_bytes": 11579292160,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2657022464,
+          "device_free_bytes_after_generation": 19149094912,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 1,
+          "peak_torch_allocated_bytes": 11579290624,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2657022464,
+          "device_free_bytes_after_generation": 21263024128,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 2,
+          "peak_torch_allocated_bytes": 11579290624,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2657022464,
+          "device_free_bytes_after_generation": 19820183552,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 3,
+          "peak_torch_allocated_bytes": 11579290624,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2657022464,
+          "device_free_bytes_after_generation": 18478006272,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 4,
+          "peak_torch_allocated_bytes": 11579290624,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2657022464,
+          "device_free_bytes_after_generation": 19753074688,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 5,
+          "peak_torch_allocated_bytes": 11579290624,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2657022464,
+          "device_free_bytes_after_generation": 20122173440,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 6,
+          "peak_torch_allocated_bytes": 11579290624,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2657022464,
+          "device_free_bytes_after_generation": 19753074688,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 7,
+          "peak_torch_allocated_bytes": 11579290624,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2657022464,
+          "device_free_bytes_after_generation": 19081986048,
+          "device_total_bytes": 274861129728
+        }
+      ],
+      "measurement_status": "complete",
+      "worker_attention_audit": [
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        }
+      ],
+      "worker_attention_audit_status": "passed"
+    },
+    "524288": {
+      "warmup_elapsed_seconds": 118.59997238125652,
+      "before_warmup_allocator_policy": [
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19149094912,
+          "free_bytes_after": 19149094912,
+          "allocated_bytes": 2657022464,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 21263024128,
+          "free_bytes_after": 21263024128,
+          "allocated_bytes": 2657022464,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19820183552,
+          "free_bytes_after": 19820183552,
+          "allocated_bytes": 2657022464,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 18478006272,
+          "free_bytes_after": 18478006272,
+          "allocated_bytes": 2657022464,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19753074688,
+          "free_bytes_after": 19753074688,
+          "allocated_bytes": 2657022464,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 20122173440,
+          "free_bytes_after": 20122173440,
+          "allocated_bytes": 2657022464,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19753074688,
+          "free_bytes_after": 19753074688,
+          "allocated_bytes": 2657022464,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19081986048,
+          "free_bytes_after": 19081986048,
+          "allocated_bytes": 2657022464,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        }
+      ],
+      "warmup_allocator_policy": [
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19149094912,
+          "free_bytes_after": 19149094912,
+          "allocated_bytes": 2658202112,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 21263024128,
+          "free_bytes_after": 21263024128,
+          "allocated_bytes": 2658202112,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19820183552,
+          "free_bytes_after": 19820183552,
+          "allocated_bytes": 2658202112,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 18478006272,
+          "free_bytes_after": 18478006272,
+          "allocated_bytes": 2658202112,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19753074688,
+          "free_bytes_after": 19753074688,
+          "allocated_bytes": 2658202112,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 20122173440,
+          "free_bytes_after": 20122173440,
+          "allocated_bytes": 2658202112,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19753074688,
+          "free_bytes_after": 19753074688,
+          "allocated_bytes": 2658202112,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 19081986048,
+          "free_bytes_after": 19081986048,
+          "allocated_bytes": 2658202112,
+          "reserved_bytes": 14776532992,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        }
+      ],
+      "elapsed_seconds": 118.59805681742728,
+      "prefill_seconds": 118.58602297399193,
+      "elapsed_samples_seconds": [
+        118.59805681742728
+      ],
+      "prefill_samples_seconds": [
+        118.58602297399193
+      ],
+      "decode_ms_per_batch_step": null,
+      "decode_samples_seconds_per_batch_step": [],
+      "aggregate_prompt_tokens_per_second": 4421.161843963567,
+      "generated_token_ids": [
+        [
+          308
+        ]
+      ],
+      "owner_decode_update_deltas": [],
+      "owner_decode_graph_replay_deltas": [],
+      "prompt_token_sha256": [
+        "4312e2120861896344fd516cb5f0f94fb885130c879d3f648ed74c5465aabfda"
+      ],
+      "warmup_worker_memory": [
+        {
+          "rank": 0,
+          "peak_torch_allocated_bytes": 11581487104,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2658202112,
+          "device_free_bytes_after_generation": 19149094912,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 1,
+          "peak_torch_allocated_bytes": 11581485568,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2658202112,
+          "device_free_bytes_after_generation": 21263024128,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 2,
+          "peak_torch_allocated_bytes": 11581485568,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2658202112,
+          "device_free_bytes_after_generation": 19820183552,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 3,
+          "peak_torch_allocated_bytes": 11581485568,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2658202112,
+          "device_free_bytes_after_generation": 18478006272,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 4,
+          "peak_torch_allocated_bytes": 11581485568,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2658202112,
+          "device_free_bytes_after_generation": 19753074688,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 5,
+          "peak_torch_allocated_bytes": 11581485568,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2658202112,
+          "device_free_bytes_after_generation": 20122173440,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 6,
+          "peak_torch_allocated_bytes": 11581485568,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2658202112,
+          "device_free_bytes_after_generation": 19753074688,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 7,
+          "peak_torch_allocated_bytes": 11581485568,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2658202112,
+          "device_free_bytes_after_generation": 19081986048,
+          "device_total_bytes": 274861129728
+        }
+      ],
+      "worker_memory": [
+        {
+          "rank": 0,
+          "peak_torch_allocated_bytes": 11581487104,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2658202112,
+          "device_free_bytes_after_generation": 19149094912,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 1,
+          "peak_torch_allocated_bytes": 11581485568,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2658202112,
+          "device_free_bytes_after_generation": 21263024128,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 2,
+          "peak_torch_allocated_bytes": 11581485568,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2658202112,
+          "device_free_bytes_after_generation": 19820183552,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 3,
+          "peak_torch_allocated_bytes": 11581485568,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2658202112,
+          "device_free_bytes_after_generation": 18478006272,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 4,
+          "peak_torch_allocated_bytes": 11581485568,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2658202112,
+          "device_free_bytes_after_generation": 19753074688,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 5,
+          "peak_torch_allocated_bytes": 11581485568,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2658202112,
+          "device_free_bytes_after_generation": 20122173440,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 6,
+          "peak_torch_allocated_bytes": 11581485568,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2658202112,
+          "device_free_bytes_after_generation": 19753074688,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 7,
+          "peak_torch_allocated_bytes": 11581485568,
+          "peak_torch_reserved_bytes": 14776532992,
+          "current_torch_allocated_bytes": 2658202112,
+          "device_free_bytes_after_generation": 19081986048,
+          "device_total_bytes": 274861129728
+        }
+      ],
+      "measurement_status": "complete",
+      "worker_attention_audit": [
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": false,
+          "lod_pool_count": 0,
+          "lod_engine_configurations": [],
+          "lod_cross_layer_prefill_group_size": null,
+          "attached_lod_layers": 0,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [],
+          "dense_gluon_decode_installed": true,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        }
+      ],
+      "worker_attention_audit_status": "passed"
+    }
+  },
+  "gpu_memory_utilization": 0.8,
+  "kv_cache_memory_bytes": 2147483648,
+  "worker_attention_audit_status": "passed",
+  "measurement_status": "complete",
+  "graph_prefill_requested": false,
+  "current_phase": {
+    "length": 524288,
+    "phase": "point_complete",
+    "timestamp_unix": 1791292304.3863578
+  },
+  "phase_history": [
+    {
+      "length": 32768,
+      "phase": "warmup",
+      "timestamp_unix": 1791291928.777486
+    },
+    {
+      "length": 32768,
+      "phase": "warmup_complete",
+      "timestamp_unix": 1791291933.14757,
+      "warmup_elapsed_seconds": 4.359814929775894
+    },
+    {
+      "length": 32768,
+      "phase": "measurement",
+      "timestamp_unix": 1791291933.1501024,
+      "repeat_index": 0,
+      "repeats": 1
+    },
+    {
+      "length": 32768,
+      "phase": "auditing",
+      "timestamp_unix": 1791291937.3403687,
+      "prefill_seconds": 4.185830914415419,
+      "elapsed_seconds": 4.187856677919626
+    },
+    {
+      "length": 32768,
+      "phase": "point_complete",
+      "timestamp_unix": 1791291937.3729217
+    },
+    {
+      "length": 131072,
+      "phase": "warmup",
+      "timestamp_unix": 1791291937.3795266
+    },
+    {
+      "length": 131072,
+      "phase": "warmup_complete",
+      "timestamp_unix": 1791291956.6858063,
+      "warmup_elapsed_seconds": 19.298034695908427
+    },
+    {
+      "length": 131072,
+      "phase": "measurement",
+      "timestamp_unix": 1791291956.689222,
+      "repeat_index": 0,
+      "repeats": 1
+    },
+    {
+      "length": 131072,
+      "phase": "auditing",
+      "timestamp_unix": 1791291975.9965422,
+      "prefill_seconds": 19.29963426385075,
+      "elapsed_seconds": 19.30427535995841
+    },
+    {
+      "length": 131072,
+      "phase": "point_complete",
+      "timestamp_unix": 1791291976.0277543
+    },
+    {
+      "length": 262144,
+      "phase": "warmup",
+      "timestamp_unix": 1791291976.0356033
+    },
+    {
+      "length": 262144,
+      "phase": "warmup_complete",
+      "timestamp_unix": 1791292021.5498044,
+      "warmup_elapsed_seconds": 45.50455274991691
+    },
+    {
+      "length": 262144,
+      "phase": "measurement",
+      "timestamp_unix": 1791292021.5532658,
+      "repeat_index": 0,
+      "repeats": 1
+    },
+    {
+      "length": 262144,
+      "phase": "auditing",
+      "timestamp_unix": 1791292067.0586197,
+      "prefill_seconds": 45.49654378183186,
+      "elapsed_seconds": 45.502721624448895
+    },
+    {
+      "length": 262144,
+      "phase": "point_complete",
+      "timestamp_unix": 1791292067.1079147
+    },
+    {
+      "length": 524288,
+      "phase": "warmup",
+      "timestamp_unix": 1791292067.1173294
+    },
+    {
+      "length": 524288,
+      "phase": "warmup_complete",
+      "timestamp_unix": 1791292185.727816,
+      "warmup_elapsed_seconds": 118.59997238125652
+    },
+    {
+      "length": 524288,
+      "phase": "measurement",
+      "timestamp_unix": 1791292185.7322078,
+      "repeat_index": 0,
+      "repeats": 1
+    },
+    {
+      "length": 524288,
+      "phase": "auditing",
+      "timestamp_unix": 1791292304.3336966,
+      "prefill_seconds": 118.58602297399193,
+      "elapsed_seconds": 118.59805681742728
+    },
+    {
+      "length": 524288,
+      "phase": "point_complete",
+      "timestamp_unix": 1791292304.3863578
+    }
+  ],
+  "warmup_prefill_batch_audits": {
+    "32768": [
+      {
+        "rank": 0,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 32768,
+        "row_count_histogram": {
+          "1": 2
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 1,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 32768,
+        "row_count_histogram": {
+          "1": 2
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 2,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 32768,
+        "row_count_histogram": {
+          "1": 2
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 3,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 32768,
+        "row_count_histogram": {
+          "1": 2
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 4,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 32768,
+        "row_count_histogram": {
+          "1": 2
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 5,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 32768,
+        "row_count_histogram": {
+          "1": 2
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 6,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 32768,
+        "row_count_histogram": {
+          "1": 2
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 7,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 32768,
+        "row_count_histogram": {
+          "1": 2
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      }
+    ],
+    "131072": [
+      {
+        "rank": 0,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 131072,
+        "row_count_histogram": {
+          "1": 8
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 1,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 131072,
+        "row_count_histogram": {
+          "1": 8
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 2,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 131072,
+        "row_count_histogram": {
+          "1": 8
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 3,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 131072,
+        "row_count_histogram": {
+          "1": 8
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 4,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 131072,
+        "row_count_histogram": {
+          "1": 8
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 5,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 131072,
+        "row_count_histogram": {
+          "1": 8
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 6,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 131072,
+        "row_count_histogram": {
+          "1": 8
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 7,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 131072,
+        "row_count_histogram": {
+          "1": 8
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      }
+    ],
+    "262144": [
+      {
+        "rank": 0,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 262144,
+        "row_count_histogram": {
+          "1": 16
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 1,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 262144,
+        "row_count_histogram": {
+          "1": 16
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 2,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 262144,
+        "row_count_histogram": {
+          "1": 16
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 3,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 262144,
+        "row_count_histogram": {
+          "1": 16
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 4,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 262144,
+        "row_count_histogram": {
+          "1": 16
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 5,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 262144,
+        "row_count_histogram": {
+          "1": 16
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 6,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 262144,
+        "row_count_histogram": {
+          "1": 16
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 7,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 262144,
+        "row_count_histogram": {
+          "1": 16
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      }
+    ],
+    "524288": [
+      {
+        "rank": 0,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 524288,
+        "row_count_histogram": {
+          "1": 32
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 1,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 524288,
+        "row_count_histogram": {
+          "1": 32
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 2,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 524288,
+        "row_count_histogram": {
+          "1": 32
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 3,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 524288,
+        "row_count_histogram": {
+          "1": 32
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 4,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 524288,
+        "row_count_histogram": {
+          "1": 32
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 5,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 524288,
+        "row_count_histogram": {
+          "1": 32
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 6,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 524288,
+        "row_count_histogram": {
+          "1": 32
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 7,
+        "chunks": [
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ],
+          [
+            16384
+          ]
+        ],
+        "prefill_tokens": 524288,
+        "row_count_histogram": {
+          "1": 32
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      }
+    ]
+  },
+  "worker_attention_audit": [
+    {
+      "lod_runtime": false,
+      "lod_pool_count": 0,
+      "lod_engine_configurations": [],
+      "lod_cross_layer_prefill_group_size": null,
+      "attached_lod_layers": 0,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 184,
+      "model_class": "KimiK3ForConditionalGeneration",
+      "loaded_kimi_lod_modules": [],
+      "dense_gluon_decode_installed": true,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 0,
+        "retained": 0,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": null
+      }
+    },
+    {
+      "lod_runtime": false,
+      "lod_pool_count": 0,
+      "lod_engine_configurations": [],
+      "lod_cross_layer_prefill_group_size": null,
+      "attached_lod_layers": 0,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 184,
+      "model_class": "KimiK3ForConditionalGeneration",
+      "loaded_kimi_lod_modules": [],
+      "dense_gluon_decode_installed": true,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 0,
+        "retained": 0,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": null
+      }
+    },
+    {
+      "lod_runtime": false,
+      "lod_pool_count": 0,
+      "lod_engine_configurations": [],
+      "lod_cross_layer_prefill_group_size": null,
+      "attached_lod_layers": 0,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 184,
+      "model_class": "KimiK3ForConditionalGeneration",
+      "loaded_kimi_lod_modules": [],
+      "dense_gluon_decode_installed": true,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 0,
+        "retained": 0,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": null
+      }
+    },
+    {
+      "lod_runtime": false,
+      "lod_pool_count": 0,
+      "lod_engine_configurations": [],
+      "lod_cross_layer_prefill_group_size": null,
+      "attached_lod_layers": 0,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 184,
+      "model_class": "KimiK3ForConditionalGeneration",
+      "loaded_kimi_lod_modules": [],
+      "dense_gluon_decode_installed": true,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 0,
+        "retained": 0,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": null
+      }
+    },
+    {
+      "lod_runtime": false,
+      "lod_pool_count": 0,
+      "lod_engine_configurations": [],
+      "lod_cross_layer_prefill_group_size": null,
+      "attached_lod_layers": 0,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 184,
+      "model_class": "KimiK3ForConditionalGeneration",
+      "loaded_kimi_lod_modules": [],
+      "dense_gluon_decode_installed": true,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 0,
+        "retained": 0,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": null
+      }
+    },
+    {
+      "lod_runtime": false,
+      "lod_pool_count": 0,
+      "lod_engine_configurations": [],
+      "lod_cross_layer_prefill_group_size": null,
+      "attached_lod_layers": 0,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 184,
+      "model_class": "KimiK3ForConditionalGeneration",
+      "loaded_kimi_lod_modules": [],
+      "dense_gluon_decode_installed": true,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 0,
+        "retained": 0,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": null
+      }
+    },
+    {
+      "lod_runtime": false,
+      "lod_pool_count": 0,
+      "lod_engine_configurations": [],
+      "lod_cross_layer_prefill_group_size": null,
+      "attached_lod_layers": 0,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 184,
+      "model_class": "KimiK3ForConditionalGeneration",
+      "loaded_kimi_lod_modules": [],
+      "dense_gluon_decode_installed": true,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 0,
+        "retained": 0,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": null
+      }
+    },
+    {
+      "lod_runtime": false,
+      "lod_pool_count": 0,
+      "lod_engine_configurations": [],
+      "lod_cross_layer_prefill_group_size": null,
+      "attached_lod_layers": 0,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 184,
+      "model_class": "KimiK3ForConditionalGeneration",
+      "loaded_kimi_lod_modules": [],
+      "dense_gluon_decode_installed": true,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 0,
+        "retained": 0,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": null
+      }
+    }
+  ]
+}

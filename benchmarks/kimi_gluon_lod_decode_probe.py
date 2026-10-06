@@ -15,7 +15,7 @@ import math
 
 import torch
 
-from kimi_gluon_mla_decode import absorbed_mla_lod_decode_gfx942
+from lod_attention.kernels.kimi_gluon_decode import absorbed_mla_lod_decode_gfx942
 
 
 def _time_ms(fn, warmup: int, iterations: int) -> float:

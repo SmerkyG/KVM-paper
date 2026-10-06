@@ -1,0 +1,846 @@
+{
+  "scope": "isolated router only; graph replay, not serving latency",
+  "rows": [
+    {
+      "batch": 1,
+      "active_slots": 512,
+      "group_n": 64,
+      "warps": 1,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 103.2273530960083,
+      "samples_us": [
+        103.28521728515625,
+        103.23796272277832,
+        103.18996906280518,
+        103.2273530960083,
+        103.14959287643433
+      ],
+      "max_score_error": 1.9073486328125e-06,
+      "reference_rank_differences": 0,
+      "index_sha256": "b5cceceb15af061a8b74fc71d2e4ca50a3799db1043953b4035fe68d640ff7bd",
+      "score_sha256": "c25f4ff3f0e1d0c3636d3b7ad0a615438bbd5b598c1641f7d4ad0f542c91ac08",
+      "resources": {
+        "vgpr_count": 512,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 603,
+        "sgpr_spill_count": 130,
+        "private_segment_fixed_size": 1592
+      },
+      "bitwise_matches_original": true
+    },
+    {
+      "batch": 1,
+      "active_slots": 512,
+      "group_n": 64,
+      "warps": 2,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 22.414197027683258,
+      "samples_us": [
+        22.43519127368927,
+        22.414319217205048,
+        22.409693896770477,
+        22.414197027683258,
+        22.411197423934937
+      ],
+      "max_score_error": 1.9073486328125e-06,
+      "reference_rank_differences": 0,
+      "index_sha256": "b5cceceb15af061a8b74fc71d2e4ca50a3799db1043953b4035fe68d640ff7bd",
+      "score_sha256": "c25f4ff3f0e1d0c3636d3b7ad0a615438bbd5b598c1641f7d4ad0f542c91ac08",
+      "resources": {
+        "vgpr_count": 483,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 176,
+        "private_segment_fixed_size": 0
+      },
+      "bitwise_matches_original": true
+    },
+    {
+      "batch": 1,
+      "active_slots": 512,
+      "group_n": 64,
+      "warps": 4,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 12.176459282636642,
+      "samples_us": [
+        12.186584621667862,
+        12.178584188222885,
+        12.171709537506104,
+        12.176459282636642,
+        12.168581038713455
+      ],
+      "max_score_error": 1.9073486328125e-06,
+      "reference_rank_differences": 0,
+      "index_sha256": "b5cceceb15af061a8b74fc71d2e4ca50a3799db1043953b4035fe68d640ff7bd",
+      "score_sha256": "c25f4ff3f0e1d0c3636d3b7ad0a615438bbd5b598c1641f7d4ad0f542c91ac08",
+      "resources": {
+        "vgpr_count": 252,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 3,
+        "private_segment_fixed_size": 0
+      },
+      "bitwise_matches_original": true
+    },
+    {
+      "batch": 1,
+      "active_slots": 512,
+      "group_n": 64,
+      "warps": 8,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 18.756869435310364,
+      "samples_us": [
+        18.762122094631195,
+        18.760746717453003,
+        18.756869435310364,
+        18.754619359970093,
+        18.755872547626495
+      ],
+      "max_score_error": 1.9073486328125e-06,
+      "reference_rank_differences": 0,
+      "index_sha256": "b5cceceb15af061a8b74fc71d2e4ca50a3799db1043953b4035fe68d640ff7bd",
+      "score_sha256": "c25f4ff3f0e1d0c3636d3b7ad0a615438bbd5b598c1641f7d4ad0f542c91ac08",
+      "resources": {
+        "vgpr_count": 244,
+        "sgpr_count": 81,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      },
+      "bitwise_matches_original": true
+    },
+    {
+      "batch": 1,
+      "active_slots": 512,
+      "group_n": 32,
+      "warps": 4,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 9.035003185272217,
+      "samples_us": [
+        9.035003185272217,
+        9.038253128528595,
+        9.029128402471542,
+        9.03625339269638,
+        9.028372168540955
+      ],
+      "max_score_error": 1.9073486328125e-06,
+      "reference_rank_differences": 0,
+      "index_sha256": "629ef24ef9835d109eb54617c047529251bf13398b1c7ae9685ecb5fcb047f97",
+      "score_sha256": "0174f269c79af511cdbe5a1ce6e344c8e9c0bee1a83a27b5d0ce5c635cef00fa",
+      "resources": {
+        "vgpr_count": 184,
+        "sgpr_count": 87,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 1,
+      "active_slots": 512,
+      "group_n": 128,
+      "warps": 4,
+      "stages": 2,
+      "error": "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+    },
+    {
+      "batch": 1,
+      "active_slots": 512,
+      "group_n": 64,
+      "warps": 4,
+      "stages": 1,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 12.143459171056747,
+      "samples_us": [
+        12.159209698438644,
+        12.143459171056747,
+        12.139459699392319,
+        12.144334614276886,
+        12.129459530115128
+      ],
+      "max_score_error": 1.9073486328125e-06,
+      "reference_rank_differences": 0,
+      "index_sha256": "b5cceceb15af061a8b74fc71d2e4ca50a3799db1043953b4035fe68d640ff7bd",
+      "score_sha256": "c25f4ff3f0e1d0c3636d3b7ad0a615438bbd5b598c1641f7d4ad0f542c91ac08",
+      "resources": {
+        "vgpr_count": 252,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 3,
+        "private_segment_fixed_size": 0
+      },
+      "bitwise_matches_original": true
+    },
+    {
+      "batch": 8,
+      "active_slots": 512,
+      "group_n": 64,
+      "warps": 1,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 125.28079748153687,
+      "samples_us": [
+        125.30242204666138,
+        125.24092197418213,
+        125.32492876052856,
+        125.2784252166748,
+        125.28079748153687
+      ],
+      "max_score_error": 2.384185791015625e-06,
+      "reference_rank_differences": 0,
+      "index_sha256": "25b204a5726cf66bda8145a3924ce09e6e236ade616bfae24e442fb7ee4678c0",
+      "score_sha256": "88cbbf27cf748d0a9158b01dcbdbc7322b9e78b57fe14908489051ce81fdd63b",
+      "resources": {
+        "vgpr_count": 512,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 603,
+        "sgpr_spill_count": 130,
+        "private_segment_fixed_size": 1592
+      },
+      "bitwise_matches_original": true
+    },
+    {
+      "batch": 8,
+      "active_slots": 512,
+      "group_n": 64,
+      "warps": 2,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 44.34289634227753,
+      "samples_us": [
+        44.34164762496948,
+        44.33702230453491,
+        44.34314668178558,
+        44.34289634227753,
+        44.350895285606384
+      ],
+      "max_score_error": 2.384185791015625e-06,
+      "reference_rank_differences": 0,
+      "index_sha256": "25b204a5726cf66bda8145a3924ce09e6e236ade616bfae24e442fb7ee4678c0",
+      "score_sha256": "88cbbf27cf748d0a9158b01dcbdbc7322b9e78b57fe14908489051ce81fdd63b",
+      "resources": {
+        "vgpr_count": 483,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 176,
+        "private_segment_fixed_size": 0
+      },
+      "bitwise_matches_original": true
+    },
+    {
+      "batch": 8,
+      "active_slots": 512,
+      "group_n": 64,
+      "warps": 4,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 23.937174677848816,
+      "samples_us": [
+        24.074922502040863,
+        23.938550055027008,
+        23.933425545692444,
+        23.937174677848816,
+        23.935550451278687
+      ],
+      "max_score_error": 2.384185791015625e-06,
+      "reference_rank_differences": 0,
+      "index_sha256": "25b204a5726cf66bda8145a3924ce09e6e236ade616bfae24e442fb7ee4678c0",
+      "score_sha256": "88cbbf27cf748d0a9158b01dcbdbc7322b9e78b57fe14908489051ce81fdd63b",
+      "resources": {
+        "vgpr_count": 252,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 3,
+        "private_segment_fixed_size": 0
+      },
+      "bitwise_matches_original": true
+    },
+    {
+      "batch": 8,
+      "active_slots": 512,
+      "group_n": 64,
+      "warps": 8,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 37.65023648738861,
+      "samples_us": [
+        38.126856088638306,
+        37.63948678970337,
+        37.644487619400024,
+        37.65023648738861,
+        37.65798807144165
+      ],
+      "max_score_error": 2.384185791015625e-06,
+      "reference_rank_differences": 0,
+      "index_sha256": "25b204a5726cf66bda8145a3924ce09e6e236ade616bfae24e442fb7ee4678c0",
+      "score_sha256": "88cbbf27cf748d0a9158b01dcbdbc7322b9e78b57fe14908489051ce81fdd63b",
+      "resources": {
+        "vgpr_count": 244,
+        "sgpr_count": 81,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      },
+      "bitwise_matches_original": true
+    },
+    {
+      "batch": 8,
+      "active_slots": 512,
+      "group_n": 32,
+      "warps": 4,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 25.713273882865906,
+      "samples_us": [
+        26.492014527320862,
+        25.70914626121521,
+        25.715649127960205,
+        25.713273882865906,
+        25.70815086364746
+      ],
+      "max_score_error": 2.384185791015625e-06,
+      "reference_rank_differences": 0,
+      "index_sha256": "2ef83f76c872eb45d73c5a35193b9df6f10c77319b0a0f32c7838d24ce7f851b",
+      "score_sha256": "9fc1af83ff39fe46afb17047c3c2e37bd553d8ce51bff872e4ca13f4fca64087",
+      "resources": {
+        "vgpr_count": 184,
+        "sgpr_count": 87,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 8,
+      "active_slots": 512,
+      "group_n": 128,
+      "warps": 4,
+      "stages": 2,
+      "error": "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+    },
+    {
+      "batch": 8,
+      "active_slots": 512,
+      "group_n": 64,
+      "warps": 4,
+      "stages": 1,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 23.917046189308167,
+      "samples_us": [
+        23.940174281597137,
+        23.917046189308167,
+        23.93054962158203,
+        23.913174867630005,
+        23.912550508975983
+      ],
+      "max_score_error": 2.384185791015625e-06,
+      "reference_rank_differences": 0,
+      "index_sha256": "25b204a5726cf66bda8145a3924ce09e6e236ade616bfae24e442fb7ee4678c0",
+      "score_sha256": "88cbbf27cf748d0a9158b01dcbdbc7322b9e78b57fe14908489051ce81fdd63b",
+      "resources": {
+        "vgpr_count": 252,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 3,
+        "private_segment_fixed_size": 0
+      },
+      "bitwise_matches_original": true
+    },
+    {
+      "batch": 1,
+      "active_slots": 4096,
+      "group_n": 64,
+      "warps": 1,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 125.42405128479004,
+      "samples_us": [
+        125.393545627594,
+        125.38055181503296,
+        125.42405128479004,
+        135.55938005447388,
+        134.69711542129517
+      ],
+      "max_score_error": 1.9073486328125e-06,
+      "reference_rank_differences": 0,
+      "index_sha256": "9ec8e0e92fd74199aa7fdf91481781449eb744459223028aa4538e068864c521",
+      "score_sha256": "3f7261362d715e8999bead34e4431b98dd70e08c14ed180e99b003d9ae9120ad",
+      "resources": {
+        "vgpr_count": 512,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 603,
+        "sgpr_spill_count": 130,
+        "private_segment_fixed_size": 1592
+      },
+      "bitwise_matches_original": true
+    },
+    {
+      "batch": 1,
+      "active_slots": 4096,
+      "group_n": 64,
+      "warps": 2,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 44.585394859313965,
+      "samples_us": [
+        44.58814263343811,
+        44.585394859313965,
+        44.579017162323,
+        44.58714723587036,
+        44.580891728401184
+      ],
+      "max_score_error": 1.9073486328125e-06,
+      "reference_rank_differences": 0,
+      "index_sha256": "9ec8e0e92fd74199aa7fdf91481781449eb744459223028aa4538e068864c521",
+      "score_sha256": "3f7261362d715e8999bead34e4431b98dd70e08c14ed180e99b003d9ae9120ad",
+      "resources": {
+        "vgpr_count": 483,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 176,
+        "private_segment_fixed_size": 0
+      },
+      "bitwise_matches_original": true
+    },
+    {
+      "batch": 1,
+      "active_slots": 4096,
+      "group_n": 64,
+      "warps": 4,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 24.096672236919403,
+      "samples_us": [
+        24.096672236919403,
+        23.947300016880035,
+        38.53735029697418,
+        24.00854378938675,
+        26.49613916873932
+      ],
+      "max_score_error": 1.9073486328125e-06,
+      "reference_rank_differences": 0,
+      "index_sha256": "9ec8e0e92fd74199aa7fdf91481781449eb744459223028aa4538e068864c521",
+      "score_sha256": "3f7261362d715e8999bead34e4431b98dd70e08c14ed180e99b003d9ae9120ad",
+      "resources": {
+        "vgpr_count": 252,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 3,
+        "private_segment_fixed_size": 0
+      },
+      "bitwise_matches_original": true
+    },
+    {
+      "batch": 1,
+      "active_slots": 4096,
+      "group_n": 64,
+      "warps": 8,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 37.73873746395111,
+      "samples_us": [
+        38.2483571767807,
+        37.73548603057861,
+        37.7272367477417,
+        37.74611055850983,
+        37.73873746395111
+      ],
+      "max_score_error": 1.9073486328125e-06,
+      "reference_rank_differences": 0,
+      "index_sha256": "9ec8e0e92fd74199aa7fdf91481781449eb744459223028aa4538e068864c521",
+      "score_sha256": "3f7261362d715e8999bead34e4431b98dd70e08c14ed180e99b003d9ae9120ad",
+      "resources": {
+        "vgpr_count": 244,
+        "sgpr_count": 81,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      },
+      "bitwise_matches_original": true
+    },
+    {
+      "batch": 1,
+      "active_slots": 4096,
+      "group_n": 32,
+      "warps": 4,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 25.792399048805237,
+      "samples_us": [
+        26.86026096343994,
+        25.79289972782135,
+        25.79152286052704,
+        25.792399048805237,
+        25.782400369644165
+      ],
+      "max_score_error": 1.9073486328125e-06,
+      "reference_rank_differences": 0,
+      "index_sha256": "755f59f195343d4c87d88812376d416479d04d4ade30fd8e3ef0e88aad3a49c6",
+      "score_sha256": "526cf39699d5274a47b38129d515fbed332f4b82bdf1fa34c44ac3454fdfa2f9",
+      "resources": {
+        "vgpr_count": 184,
+        "sgpr_count": 87,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 1,
+      "active_slots": 4096,
+      "group_n": 128,
+      "warps": 4,
+      "stages": 2,
+      "error": "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+    },
+    {
+      "batch": 1,
+      "active_slots": 4096,
+      "group_n": 64,
+      "warps": 4,
+      "stages": 1,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 24.03092235326767,
+      "samples_us": [
+        24.068300426006317,
+        24.031421542167664,
+        24.03092235326767,
+        24.01992231607437,
+        24.029424786567688
+      ],
+      "max_score_error": 1.9073486328125e-06,
+      "reference_rank_differences": 0,
+      "index_sha256": "9ec8e0e92fd74199aa7fdf91481781449eb744459223028aa4538e068864c521",
+      "score_sha256": "3f7261362d715e8999bead34e4431b98dd70e08c14ed180e99b003d9ae9120ad",
+      "resources": {
+        "vgpr_count": 252,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 3,
+        "private_segment_fixed_size": 0
+      },
+      "bitwise_matches_original": true
+    },
+    {
+      "batch": 8,
+      "active_slots": 4096,
+      "group_n": 64,
+      "warps": 1,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 699.0462779998779,
+      "samples_us": [
+        699.0462779998779,
+        699.0505695343018,
+        699.227237701416,
+        699.0128993988037,
+        698.8582611083984
+      ],
+      "max_score_error": 3.337860107421875e-06,
+      "reference_rank_differences": 2,
+      "index_sha256": "a1b08ece8d2d6384a88c3baca7c1baeda749ff98db63c8201487b3b1499a0333",
+      "score_sha256": "f3028563c1a2800b393d2868534c55082bc38e9426dbdda5ff5b4b737f0579c5",
+      "resources": {
+        "vgpr_count": 512,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 603,
+        "sgpr_spill_count": 130,
+        "private_segment_fixed_size": 1592
+      },
+      "bitwise_matches_original": true
+    },
+    {
+      "batch": 8,
+      "active_slots": 4096,
+      "group_n": 64,
+      "warps": 2,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 248.6497402191162,
+      "samples_us": [
+        248.6497402191162,
+        248.61323833465576,
+        248.7478733062744,
+        248.74999523162842,
+        248.5949993133545
+      ],
+      "max_score_error": 3.337860107421875e-06,
+      "reference_rank_differences": 2,
+      "index_sha256": "a1b08ece8d2d6384a88c3baca7c1baeda749ff98db63c8201487b3b1499a0333",
+      "score_sha256": "f3028563c1a2800b393d2868534c55082bc38e9426dbdda5ff5b4b737f0579c5",
+      "resources": {
+        "vgpr_count": 483,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 176,
+        "private_segment_fixed_size": 0
+      },
+      "bitwise_matches_original": true
+    },
+    {
+      "batch": 8,
+      "active_slots": 4096,
+      "group_n": 64,
+      "warps": 4,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 129.53999042510986,
+      "samples_us": [
+        132.09145069122314,
+        129.53848838806152,
+        129.55025434494019,
+        129.53999042510986,
+        129.52874898910522
+      ],
+      "max_score_error": 3.337860107421875e-06,
+      "reference_rank_differences": 2,
+      "index_sha256": "a1b08ece8d2d6384a88c3baca7c1baeda749ff98db63c8201487b3b1499a0333",
+      "score_sha256": "f3028563c1a2800b393d2868534c55082bc38e9426dbdda5ff5b4b737f0579c5",
+      "resources": {
+        "vgpr_count": 252,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 3,
+        "private_segment_fixed_size": 0
+      },
+      "bitwise_matches_original": true
+    },
+    {
+      "batch": 8,
+      "active_slots": 4096,
+      "group_n": 64,
+      "warps": 8,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 207.9350471496582,
+      "samples_us": [
+        213.45996856689453,
+        207.944917678833,
+        207.7674388885498,
+        207.81912803649902,
+        207.9350471496582
+      ],
+      "max_score_error": 3.337860107421875e-06,
+      "reference_rank_differences": 2,
+      "index_sha256": "a1b08ece8d2d6384a88c3baca7c1baeda749ff98db63c8201487b3b1499a0333",
+      "score_sha256": "f3028563c1a2800b393d2868534c55082bc38e9426dbdda5ff5b4b737f0579c5",
+      "resources": {
+        "vgpr_count": 244,
+        "sgpr_count": 81,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      },
+      "bitwise_matches_original": true
+    },
+    {
+      "batch": 8,
+      "active_slots": 4096,
+      "group_n": 32,
+      "warps": 4,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 173.61315488815308,
+      "samples_us": [
+        176.87422037124634,
+        173.65401983261108,
+        173.61315488815308,
+        173.59365224838257,
+        173.537278175354
+      ],
+      "max_score_error": 3.337860107421875e-06,
+      "reference_rank_differences": 0,
+      "index_sha256": "198f3da0bfa6db20fbb4417da4fc1addae6295c4d54b30083d2bc797dc1117fa",
+      "score_sha256": "c6526445c60ac6c7dda4f822876c3c1b30fcfccf6a642df9ca40c0660e020481",
+      "resources": {
+        "vgpr_count": 184,
+        "sgpr_count": 87,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 8,
+      "active_slots": 4096,
+      "group_n": 128,
+      "warps": 4,
+      "stages": 2,
+      "error": "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+    },
+    {
+      "batch": 8,
+      "active_slots": 4096,
+      "group_n": 64,
+      "warps": 4,
+      "stages": 1,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 129.40287590026855,
+      "samples_us": [
+        132.0123314857483,
+        129.3681263923645,
+        129.40287590026855,
+        129.4177532196045,
+        129.35787439346313
+      ],
+      "max_score_error": 3.337860107421875e-06,
+      "reference_rank_differences": 2,
+      "index_sha256": "a1b08ece8d2d6384a88c3baca7c1baeda749ff98db63c8201487b3b1499a0333",
+      "score_sha256": "f3028563c1a2800b393d2868534c55082bc38e9426dbdda5ff5b4b737f0579c5",
+      "resources": {
+        "vgpr_count": 252,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 3,
+        "private_segment_fixed_size": 0
+      },
+      "bitwise_matches_original": true
+    },
+    {
+      "batch": 8,
+      "active_slots": 511,
+      "group_n": 64,
+      "warps": 1,
+      "stages": 2,
+      "keys_are_means": true,
+      "ties": false,
+      "graph_kernel_us": 11.259471625089645,
+      "samples_us": [
+        11.635840684175491,
+        11.258096992969513,
+        11.26297190785408,
+        11.259471625089645,
+        11.256472021341324
+      ],
+      "max_score_error": 2.384185791015625e-06,
+      "reference_rank_differences": 0,
+      "index_sha256": "60b4720d8c21cd4b804290ad39149bbc6b6ce75430e5a11c1a929f278bc66095",
+      "score_sha256": "5eab82f5e1d3f94f1d31a2940bc8194e86b2c7ab5ec3c2dfbf8e1045e6e6d3b1",
+      "resources": {
+        "vgpr_count": 425,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 56,
+        "private_segment_fixed_size": 0
+      },
+      "bitwise_matches_original": true
+    },
+    {
+      "batch": 8,
+      "active_slots": 511,
+      "group_n": 64,
+      "warps": 4,
+      "stages": 2,
+      "keys_are_means": true,
+      "ties": false,
+      "graph_kernel_us": 12.753328680992126,
+      "samples_us": [
+        12.765952944755554,
+        12.752577662467957,
+        12.753328680992126,
+        12.756200134754181,
+        12.746703624725342
+      ],
+      "max_score_error": 2.384185791015625e-06,
+      "reference_rank_differences": 0,
+      "index_sha256": "60b4720d8c21cd4b804290ad39149bbc6b6ce75430e5a11c1a929f278bc66095",
+      "score_sha256": "5eab82f5e1d3f94f1d31a2940bc8194e86b2c7ab5ec3c2dfbf8e1045e6e6d3b1",
+      "resources": {
+        "vgpr_count": 128,
+        "sgpr_count": 98,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      },
+      "bitwise_matches_original": true
+    },
+    {
+      "batch": 8,
+      "active_slots": 511,
+      "group_n": 64,
+      "warps": 1,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": true,
+      "graph_kernel_us": 124.15482997894287,
+      "samples_us": [
+        124.18807744979858,
+        124.1618275642395,
+        124.13020133972168,
+        124.15482997894287,
+        124.12632703781128
+      ],
+      "max_score_error": 4.76837158203125e-07,
+      "reference_rank_differences": 0,
+      "index_sha256": "066f53eb627bb56b73a69957b2c5404e7f7b3f2af6f4cb395f45f67b334d0b97",
+      "score_sha256": "a2e83347f64ac2a0b8f96cf6901e41feae2c9907f583273b4f8f49de5e90b53b",
+      "resources": {
+        "vgpr_count": 512,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 603,
+        "sgpr_spill_count": 130,
+        "private_segment_fixed_size": 1592
+      },
+      "bitwise_matches_original": true
+    },
+    {
+      "batch": 8,
+      "active_slots": 511,
+      "group_n": 64,
+      "warps": 4,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": true,
+      "graph_kernel_us": 23.9071786403656,
+      "samples_us": [
+        23.927177488803864,
+        23.911553621292114,
+        23.905427753925323,
+        23.9071786403656,
+        23.903924226760864
+      ],
+      "max_score_error": 4.76837158203125e-07,
+      "reference_rank_differences": 0,
+      "index_sha256": "066f53eb627bb56b73a69957b2c5404e7f7b3f2af6f4cb395f45f67b334d0b97",
+      "score_sha256": "a2e83347f64ac2a0b8f96cf6901e41feae2c9907f583273b4f8f49de5e90b53b",
+      "resources": {
+        "vgpr_count": 252,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 3,
+        "private_segment_fixed_size": 0
+      },
+      "bitwise_matches_original": true
+    }
+  ],
+  "status": "complete"
+}

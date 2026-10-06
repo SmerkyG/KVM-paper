@@ -1,0 +1,39 @@
+{
+  "scope": "trained first 24 layers, native TP8 KDA and EP8 INT4 MoE, owner-only MLA Q/K/V/O",
+  "run": "21204-kimi-mla-owner-b8-layout-fixed",
+  "source": "eight KIMI_MLA_OWNER_POINT worker records per measured variant in the cluster log",
+  "node": "dev-shared-research-4",
+  "layer_count": 24,
+  "chunk_size": 2048,
+  "embeddings_included": true,
+  "moe_included": true,
+  "pipeline_overlap": false,
+  "cuda_graph_capture": false,
+  "timing": "one exact-shape warmup, one synchronized wall pass, maximum across eight workers",
+  "layout_relative_l2": {
+    "B1": [0.0041734445840120316, 0.004157235845923424],
+    "B8": [0.00434860261157155, 0.004371199756860733]
+  },
+  "points": {
+    "32768/B1": {
+      "full_tp8_seconds": 1.344898646697402,
+      "owner_mla_seconds": 2.1007860582321882,
+      "speedup": 0.6401882959129758
+    },
+    "32768/B8": {
+      "full_tp8_seconds": 8.010649112984538,
+      "owner_mla_seconds": 7.913299271836877,
+      "speedup": 1.0123020547818942
+    },
+    "65536/B1": {
+      "full_tp8_seconds": 2.8451878894120455,
+      "owner_mla_seconds": 4.992676995694637,
+      "speedup": 0.5698722132165874
+    },
+    "65536/B8": {
+      "full_tp8_seconds": 17.091256516054273,
+      "owner_mla_seconds": null,
+      "status": "owner warmup stalled under 97-99% VRAM; cancelled without accepted owner timing"
+    }
+  }
+}

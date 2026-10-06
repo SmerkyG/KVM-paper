@@ -1,0 +1,58 @@
+{
+  "scope": "route bookkeeping only; excludes collective and serving",
+  "rows": [
+    {
+      "batch": 1,
+      "implementation": "original",
+      "graph_kernel_us": 24.570687115192413,
+      "samples_us": [
+        26.241537928581238,
+        24.571937322616577,
+        24.56318438053131,
+        24.57006275653839,
+        24.570687115192413
+      ],
+      "exact_match": true
+    },
+    {
+      "batch": 1,
+      "implementation": "fixed_rank_major",
+      "graph_kernel_us": 5.260306224226952,
+      "samples_us": [
+        5.266184359788895,
+        5.2564311772584915,
+        5.260306224226952,
+        5.257059261202812,
+        5.261184275150299
+      ],
+      "exact_match": true
+    },
+    {
+      "batch": 8,
+      "implementation": "original",
+      "graph_kernel_us": 29.221373796463013,
+      "samples_us": [
+        29.43899929523468,
+        29.192128777503967,
+        29.23487424850464,
+        29.221373796463013,
+        29.211628437042236
+      ],
+      "exact_match": true
+    },
+    {
+      "batch": 8,
+      "implementation": "fixed_rank_major",
+      "graph_kernel_us": 5.576553195714951,
+      "samples_us": [
+        5.580181255936623,
+        5.571427941322327,
+        5.577553063631058,
+        5.574678257107735,
+        5.576553195714951
+      ],
+      "exact_match": true
+    }
+  ],
+  "status": "complete"
+}

@@ -18,6 +18,22 @@ import traceback
 from pathlib import Path
 
 
+def configure_owner_scratch(worker, head_group_limit):
+    """Opt-in scratch bound; preserve all heads and all eight selected regions."""
+    state = getattr(worker.model_runner, "model_state", None)
+    runtime = getattr(state, "_vllm_lod_runtime", None)
+    pools = getattr(runtime, "pools", {})
+    if not pools:
+        raise RuntimeError("request-owner scratch probe has no LoD pools")
+    for pool in pools.values():
+        heads = int(pool.query_heads)
+        if head_group_limit < 1 or heads % head_group_limit:
+            raise ValueError("scratch head group must divide the query heads")
+        pool.engine._lod_kimi_prefill_head_group_limit = head_group_limit
+        pool.engine._lod_kimi_reduce_prefill_routes = True
+    return {"layers": len(pools), "head_group_limit": head_group_limit, "reduced_fine_routes": True}
+
+
 def owner(args, rank, gpu, barrier, results):
     # Resolve visibility before importing anything that can initialize HIP.
     os.environ["ROCR_VISIBLE_DEVICES"] = str(gpu)
@@ -27,6 +43,7 @@ def owner(args, rank, gpu, barrier, results):
     os.environ["LOD_BENCHMARK_SYNC_PREFILL_CACHE"] = "1"
     os.environ["VLLM_ALLOW_INSECURE_SERIALIZATION"] = "1"
     from benchmarks._vllm import close_llm, llm_kwargs
+    from benchmarks.kimi_k3_prefill_sweep import peak_memory, reset_peak_memory
     from vllm import LLM, SamplingParams
 
     llm = None
@@ -41,13 +58,20 @@ def owner(args, rank, gpu, barrier, results):
         kwargs.update(load_format="dummy", skip_tokenizer_init=True,
                       kv_cache_memory_bytes=args.kv_cache_memory_bytes)
         llm = LLM(**kwargs)
+        if args.fine_scratch_heads:
+            llm.collective_rpc(configure_owner_scratch, args=(args.fine_scratch_heads,))
         params = SamplingParams(temperature=0.0, max_tokens=1, seed=1234,
                                 ignore_eos=True, detokenize=False)
         for length in args.lengths:
             prompt = [{"prompt_token_ids": [
                 3 + ((position + rank) % 997) for position in range(length)
             ]}]
+            if args.report_memory:
+                llm.collective_rpc(reset_peak_memory)
             llm.generate(prompt, params, use_tqdm=False)
+            warmup_memory = llm.collective_rpc(peak_memory) if args.report_memory else None
+            if args.report_memory:
+                llm.collective_rpc(reset_peak_memory)
             barrier.wait(timeout=600)  # All exact-shape warmups completed.
             barrier.wait(timeout=600)  # Parent starts the cohort clock first.
             start = time.perf_counter()
@@ -55,14 +79,18 @@ def owner(args, rank, gpu, barrier, results):
             end = time.perf_counter()
             if output.metrics is None:
                 raise RuntimeError("owner has no request timing metrics")
-            results.put({
+            point = {
                 "kind": "point", "rank": rank, "gpu": gpu, "length": length,
                 "started": start, "finished": end,
                 "request_prefill_seconds": (
                     output.metrics.first_token_ts - output.metrics.scheduled_ts
                 ),
                 "generated_token_ids": output.outputs[0].token_ids,
-            })
+            }
+            if args.report_memory:
+                point["warmup_worker_memory"] = warmup_memory
+                point["worker_memory"] = llm.collective_rpc(peak_memory)
+            results.put(point)
             barrier.wait(timeout=600)  # No next-shape warmup overlaps timing.
         from benchmarks.prolong import audit_worker_attention_mode
         results.put({"kind": "audit", "rank": rank,
@@ -87,9 +115,15 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--tile-refine", action="store_true")
     parser.add_argument("--direct-leaf-result", action="store_true")
+    parser.add_argument("--report-memory", action="store_true",
+                        help="worker memory counters outside the cohort clock")
+    parser.add_argument("--fine-scratch-heads", type=int, default=0,
+                        help="experimental head-group scratch bound and early LSE route reduction")
     args = parser.parse_args()
-    if args.mode == "full" and (args.tile_refine or args.direct_leaf_result):
+    if args.mode == "full" and (args.tile_refine or args.direct_leaf_result or args.fine_scratch_heads):
         parser.error("LoD kernel variants cannot be used for a dense control")
+    if args.fine_scratch_heads < 0:
+        parser.error("fine scratch heads cannot be negative")
     os.environ["LOD_KIMI_TILE_REFINE"] = "1" if args.tile_refine else "0"
     os.environ["LOD_KIMI_DIRECT_LEAF_RESULT"] = "1" if args.direct_leaf_result else "0"
     if min(args.owners, args.kv_cache_memory_bytes, *args.lengths) < 1:
@@ -118,6 +152,8 @@ def main():
         "kv_cache_memory_bytes_per_owner": args.kv_cache_memory_bytes,
         "exact_centroid_tile_refinement": args.tile_refine,
         "copy_free_leaf_result": args.direct_leaf_result,
+        "fine_scratch_head_limit": args.fine_scratch_heads or None,
+        "early_fine_route_lse_reduction": bool(args.fine_scratch_heads),
         "measurements": {}, "worker_attention_audit_status": "pending",
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -141,6 +177,13 @@ def main():
                 "aggregate_prompt_tokens_per_second": args.owners * length / seconds,
                 "owner_points": sorted(points, key=lambda point: point["rank"]),
             }
+            if args.report_memory:
+                memories = [memory for point in points for memory in
+                            point["warmup_worker_memory"] + point["worker_memory"]]
+                measurement.update(
+                    peak_allocated_gib=max(memory["peak_torch_allocated_bytes"] for memory in memories) / 2**30,
+                    peak_reserved_gib=max(memory["peak_torch_reserved_bytes"] for memory in memories) / 2**30,
+                )
             result["measurements"][str(length)] = measurement
             print("KIMI_OWNER_POINT " + json.dumps({
                 "length": length, **measurement,

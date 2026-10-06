@@ -41,7 +41,7 @@ def _sort_count_chunks(routes, fragment_counts, offsets, ITEMS, STATES, CHUNKS,
 
 
 @triton.jit
-def _prefix_fragments(fragment_counts, head_counts, STATES, CHUNKS,
+def _prefix_fragments(fragment_counts, fragment_offsets, head_counts, STATES, CHUNKS,
                        BLOCK_S: tl.constexpr, BLOCK_C: tl.constexpr):
     head = tl.program_id(0)
     slot = tl.program_id(1) * BLOCK_S + tl.arange(0, BLOCK_S)
@@ -49,7 +49,11 @@ def _prefix_fragments(fragment_counts, head_counts, STATES, CHUNKS,
     ptr = fragment_counts + (head * STATES + slot[:, None]) * CHUNKS + chunk[None, :]
     values = tl.load(ptr, mask=(slot[:, None] < STATES) & (chunk[None, :] < CHUNKS), other=0)
     prefix = tl.cumsum(values, axis=1)
-    tl.store(ptr, prefix - values, mask=(slot[:, None] < STATES) & (chunk[None, :] < CHUNKS))
+    output = fragment_offsets + (head * STATES + slot[:, None]) * CHUNKS + chunk[None, :]
+    # Keep raw counts immutable: both the reduction and scan use them, while
+    # the ordinal pass consumes the separate prefix output. This avoids an
+    # in-place read/write alias in the count reduction.
+    tl.store(output, prefix - values, mask=(slot[:, None] < STATES) & (chunk[None, :] < CHUNKS))
     tl.store(head_counts + head * STATES + slot, tl.sum(values, axis=1), mask=slot < STATES)
 
 
@@ -84,14 +88,17 @@ def count_sorted_kimi_routes(top_slots, *, active_slots, buffers=None, chunk_ite
     fragments = _workspace_tensor(buffers, "sorted_leaf_fragments",
                                   (batch * heads * active_slots, chunks),
                                   dtype=torch.int32, device=top_slots.device)
+    fragment_offsets = _workspace_tensor(buffers, "sorted_leaf_fragment_offsets",
+                                         tuple(fragments.shape),
+                                         dtype=torch.int32, device=top_slots.device)
     fragments.zero_()
     _sort_count_chunks[(batch * heads, chunks)](
         top_slots, fragments, offsets, items, active_slots, chunks,
         BLOCK=chunk_items, SHIFT=chunk_items.bit_length() - 1, num_warps=4)
     _prefix_fragments[(batch * heads, triton.cdiv(active_slots, 16))](
-        fragments, counts, active_slots, chunks, BLOCK_S=16,
+        fragments, fragment_offsets, counts, active_slots, chunks, BLOCK_S=16,
         BLOCK_C=triton.next_power_of_2(chunks), num_warps=4)
     _finish_ordinals[(batch * heads, triton.cdiv(items, 256))](
-        top_slots, fragments, offsets, items, active_slots, chunks,
+        top_slots, fragment_offsets, offsets, items, active_slots, chunks,
         CHUNK_ITEMS=chunk_items, BLOCK=256, num_warps=4)
     return counts, offsets

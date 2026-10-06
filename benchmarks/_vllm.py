@@ -15,6 +15,58 @@ SCHEDULER_CHUNK = int(os.environ.get("LOD_BENCHMARK_SCHEDULER_CHUNK", "16384"))
 if SCHEDULER_CHUNK <= 0:
     raise ValueError("LOD_BENCHMARK_SCHEDULER_CHUNK must be positive")
 LOD_SCHEDULER = "vllm_lod_plugin.scheduler.LODChunkAlignedScheduler"
+_automatic_kimi_owner_environment: dict[str, str] = {}
+
+
+def configure_kimi_layout(
+    *, checkpoint: str, mode: str, batch_size: int,
+    tensor_parallel_size: int, decode_context_parallel_size: int,
+    max_model_len: int,
+) -> bool:
+    """Default the tested K3 B8/TP8/DCP8 cohort to one request per GPU.
+
+    This is a fixed eight-request execution layout, not variable-batch
+    serving. Other geometries retain ordinary DCP. Explicit owner flags win;
+    ``LOD_KIMI_REQUEST_OWNER_PREFILL=0`` selects the ordinary-DCP control.
+    Clear only defaults this helper itself installed when constructing a
+    different engine in the same process (in particular a dense control).
+    """
+    eligible = (mode == "two-tier" and batch_size == 8
+                and tensor_parallel_size == decode_context_parallel_size == 8
+                and is_kimi_k3(checkpoint))
+    if not eligible or os.getenv("LOD_KIMI_REQUEST_OWNER_PREFILL") == "0":
+        for name, value in _automatic_kimi_owner_environment.items():
+            if os.environ.get(name) == value:
+                os.environ.pop(name)
+        _automatic_kimi_owner_environment.clear()
+        return False
+    defaults = {
+        "LOD_KIMI_REQUEST_OWNER_PREFILL": "1",
+        "LOD_KIMI_REQUEST_OWNER_DECODE": "1",
+        "LOD_KIMI_OWNER_QUERY_CHUNK": "2048",
+        "LOD_BENCHMARK_PREFILL_COHORT": "8",
+        "LOD_KIMI_OWNER_MOE_CHUNK": "16392",
+        "LOD_KIMI_OWNER_REUSE_TRANSPORT": "1",
+        "LOD_KIMI_OWNER_SHARD_RESIDUAL": "0",
+        "LOD_KIMI_OWNER_POOL_BACKED_PREFILL": "1",
+        "LOD_KIMI_OWNER_PREFILL_HEAD_GROUP": "6" if max_model_len > 131072 else "12",
+        "LOD_KIMI_OWNER_PRESSURE_CHECK": "1",
+    }
+    # Explicit experimental prefill-only owner layouts remain opt-in. Do not
+    # add captured decode behind the local-Q/K/V/O or six-head-owner probes.
+    if (os.getenv("LOD_KIMI_REQUEST_OWNER_PREFILL") == "1"
+            and not _automatic_kimi_owner_environment):
+        return False
+    for name, value in defaults.items():
+        previous = _automatic_kimi_owner_environment.get(name)
+        if name not in os.environ or (previous is not None and os.environ[name] == previous):
+            os.environ[name] = value
+            _automatic_kimi_owner_environment[name] = value
+        else:
+            # A caller changed this setting after the first engine: it is now
+            # an explicit override, not a default we own or may clean up.
+            _automatic_kimi_owner_environment.pop(name, None)
+    return True
 
 
 def scheduler_budget(batch_size: int, speculative_tokens: int = 0) -> int:
@@ -153,6 +205,11 @@ def llm_kwargs(
         raise ValueError("DFlash2 is supported only with Qwen3.8")
     if speculative_model and num_speculative_tokens < 1:
         raise ValueError("num_speculative_tokens must be positive")
+    configure_kimi_layout(
+        checkpoint=checkpoint, mode=mode, max_model_len=max_model_len,
+        batch_size=batch_size, tensor_parallel_size=tensor_parallel_size,
+        decode_context_parallel_size=decode_context_parallel_size,
+    )
     configure_environment(mode, batch_size)
     # Dense K3 comparisons use the faster absorbed-MLA Gluon decoder rather
     # than AMD's precompiled/full-attention decode path.  The plugin leaves
@@ -206,6 +263,30 @@ def llm_kwargs(
         architecture_override = _kimi_linear_architecture_override(checkpoint)
         if architecture_override is not None:
             kwargs["hf_overrides"] = architecture_override
+        if os.getenv("LOD_KIMI_REQUEST_OWNER_PREFILL") == "1":
+            if not 1 <= batch_size <= 8 or tensor_parallel_size != 8 or decode_context_parallel_size != 8:
+                raise ValueError("request-owner probe requires B1–B8 TP8/DCP8")
+            owner_chunk = int(os.getenv("LOD_KIMI_OWNER_QUERY_CHUNK", "2048"))
+            if owner_chunk not in (2048, 4096, 8192, 16384):
+                raise ValueError("owner query chunk must be 2K, 4K, 8K, or 16K")
+            # The default retains the previous 16K aggregate budget. Larger
+            # owner blocks explicitly opt into larger scheduler cohorts.
+            kwargs["long_prefill_token_threshold"] = owner_chunk
+            if "LOD_KIMI_OWNER_QUERY_CHUNK" in os.environ:
+                owner_cohort = int(os.getenv("LOD_BENCHMARK_PREFILL_COHORT", "1"))
+                kwargs["max_num_batched_tokens"] = max(
+                    SCHEDULER_CHUNK, owner_chunk * min(batch_size, owner_cohort),
+                ) + batch_size
+            kwargs["enforce_eager"] = True
+            if os.getenv("LOD_KIMI_REQUEST_OWNER_DECODE") == "1":
+                if batch_size != 8:
+                    raise ValueError("captured request-owner decode still requires B8")
+                kwargs["enforce_eager"] = False
+                kwargs["compilation_config"] = {
+                    "cudagraph_mode": "FULL_DECODE_ONLY",
+                    "cudagraph_capture_sizes": [8],
+                    "max_cudagraph_capture_size": 8,
+                }
         if os.environ.get("LOD_KIMI_GRAPH_PREFILL") == "1":
             os.environ["VLLM_USE_BREAKABLE_CUDAGRAPH"] = "1"
             # Capture only the exact fixed prefill shape. Mixed steps exceeding

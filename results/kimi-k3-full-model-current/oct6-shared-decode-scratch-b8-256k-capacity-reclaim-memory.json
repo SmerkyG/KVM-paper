@@ -1,0 +1,1490 @@
+{
+  "measurement_status": "failed_capacity_probe",
+  "last_observed_completed_prefix": 131072,
+  "runtime_policy": {
+    "HSA_NO_SCRATCH_RECLAIM": 0
+  },
+  "failure": "HSA_STATUS_ERROR_OUT_OF_RESOURCES; runtime reported 0 MB free; no batched decode reached",
+  "scope": "Rank-0 untimed chunk snapshots; exclude daemon weights and driver scratch. Asynchronous error does not identify initiating operation.",
+  "snapshots": [
+    {
+      "rank": 0,
+      "chunk_index": 0,
+      "input_lengths": [
+        16384
+      ],
+      "allocation_groups_bytes": {
+        "persistent_semantic_cache": 8064082032,
+        "replicated_prefill_shadows": 0,
+        "decode_scratch": 408521536,
+        "shared_prefill_scratch": 0,
+        "queued_construction_sources": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 191461312,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "torch_allocated_bytes": 10065864192,
+      "torch_reserved_bytes": 10903093248,
+      "torch_peak_allocated_bytes_so_far": 10065864192,
+      "device_free_bytes": 20812136448,
+      "device_total_bytes": 274861129728,
+      "shadow_rows_by_layer": {
+        "language_model.model.layers.3.self_attn.attn": [],
+        "language_model.model.layers.7.self_attn.attn": [],
+        "language_model.model.layers.11.self_attn.attn": [],
+        "language_model.model.layers.15.self_attn.attn": [],
+        "language_model.model.layers.19.self_attn.attn": [],
+        "language_model.model.layers.23.self_attn.attn": [],
+        "language_model.model.layers.27.self_attn.attn": [],
+        "language_model.model.layers.31.self_attn.attn": [],
+        "language_model.model.layers.35.self_attn.attn": [],
+        "language_model.model.layers.39.self_attn.attn": [],
+        "language_model.model.layers.43.self_attn.attn": [],
+        "language_model.model.layers.47.self_attn.attn": [],
+        "language_model.model.layers.51.self_attn.attn": [],
+        "language_model.model.layers.55.self_attn.attn": [],
+        "language_model.model.layers.59.self_attn.attn": [],
+        "language_model.model.layers.63.self_attn.attn": [],
+        "language_model.model.layers.67.self_attn.attn": [],
+        "language_model.model.layers.71.self_attn.attn": [],
+        "language_model.model.layers.75.self_attn.attn": [],
+        "language_model.model.layers.79.self_attn.attn": [],
+        "language_model.model.layers.83.self_attn.attn": [],
+        "language_model.model.layers.87.self_attn.attn": [],
+        "language_model.model.layers.91.self_attn.attn": [],
+        "language_model.model.layers.92.self_attn.attn": []
+      },
+      "shadow_global_lengths_by_layer": {
+        "language_model.model.layers.3.self_attn.attn": {},
+        "language_model.model.layers.7.self_attn.attn": {},
+        "language_model.model.layers.11.self_attn.attn": {},
+        "language_model.model.layers.15.self_attn.attn": {},
+        "language_model.model.layers.19.self_attn.attn": {},
+        "language_model.model.layers.23.self_attn.attn": {},
+        "language_model.model.layers.27.self_attn.attn": {},
+        "language_model.model.layers.31.self_attn.attn": {},
+        "language_model.model.layers.35.self_attn.attn": {},
+        "language_model.model.layers.39.self_attn.attn": {},
+        "language_model.model.layers.43.self_attn.attn": {},
+        "language_model.model.layers.47.self_attn.attn": {},
+        "language_model.model.layers.51.self_attn.attn": {},
+        "language_model.model.layers.55.self_attn.attn": {},
+        "language_model.model.layers.59.self_attn.attn": {},
+        "language_model.model.layers.63.self_attn.attn": {},
+        "language_model.model.layers.67.self_attn.attn": {},
+        "language_model.model.layers.71.self_attn.attn": {},
+        "language_model.model.layers.75.self_attn.attn": {},
+        "language_model.model.layers.79.self_attn.attn": {},
+        "language_model.model.layers.83.self_attn.attn": {},
+        "language_model.model.layers.87.self_attn.attn": {},
+        "language_model.model.layers.91.self_attn.attn": {},
+        "language_model.model.layers.92.self_attn.attn": {}
+      },
+      "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+    },
+    {
+      "rank": 0,
+      "chunk_index": 1,
+      "input_lengths": [
+        16384
+      ],
+      "allocation_groups_bytes": {
+        "persistent_semantic_cache": 8064082032,
+        "replicated_prefill_shadows": 2216635872,
+        "decode_scratch": 408521536,
+        "shared_prefill_scratch": 226492416,
+        "queued_construction_sources": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 191461312,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "torch_allocated_bytes": 13888413184,
+      "torch_reserved_bytes": 26868711424,
+      "torch_peak_allocated_bytes_so_far": 22810980864,
+      "device_free_bytes": 4762632192,
+      "device_total_bytes": 274861129728,
+      "shadow_rows_by_layer": {
+        "language_model.model.layers.3.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.7.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.11.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.15.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.19.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.23.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.27.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.31.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.35.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.39.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.43.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.47.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.51.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.55.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.59.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.63.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.67.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.71.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.75.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.79.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.83.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.87.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.91.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.92.self_attn.attn": [
+          0
+        ]
+      },
+      "shadow_global_lengths_by_layer": {
+        "language_model.model.layers.3.self_attn.attn": {
+          "0": 16384
+        },
+        "language_model.model.layers.7.self_attn.attn": {
+          "0": 16384
+        },
+        "language_model.model.layers.11.self_attn.attn": {
+          "0": 16384
+        },
+        "language_model.model.layers.15.self_attn.attn": {
+          "0": 16384
+        },
+        "language_model.model.layers.19.self_attn.attn": {
+          "0": 16384
+        },
+        "language_model.model.layers.23.self_attn.attn": {
+          "0": 16384
+        },
+        "language_model.model.layers.27.self_attn.attn": {
+          "0": 16384
+        },
+        "language_model.model.layers.31.self_attn.attn": {
+          "0": 16384
+        },
+        "language_model.model.layers.35.self_attn.attn": {
+          "0": 16384
+        },
+        "language_model.model.layers.39.self_attn.attn": {
+          "0": 16384
+        },
+        "language_model.model.layers.43.self_attn.attn": {
+          "0": 16384
+        },
+        "language_model.model.layers.47.self_attn.attn": {
+          "0": 16384
+        },
+        "language_model.model.layers.51.self_attn.attn": {
+          "0": 16384
+        },
+        "language_model.model.layers.55.self_attn.attn": {
+          "0": 16384
+        },
+        "language_model.model.layers.59.self_attn.attn": {
+          "0": 16384
+        },
+        "language_model.model.layers.63.self_attn.attn": {
+          "0": 16384
+        },
+        "language_model.model.layers.67.self_attn.attn": {
+          "0": 16384
+        },
+        "language_model.model.layers.71.self_attn.attn": {
+          "0": 16384
+        },
+        "language_model.model.layers.75.self_attn.attn": {
+          "0": 16384
+        },
+        "language_model.model.layers.79.self_attn.attn": {
+          "0": 16384
+        },
+        "language_model.model.layers.83.self_attn.attn": {
+          "0": 16384
+        },
+        "language_model.model.layers.87.self_attn.attn": {
+          "0": 16384
+        },
+        "language_model.model.layers.91.self_attn.attn": {
+          "0": 16384
+        },
+        "language_model.model.layers.92.self_attn.attn": {
+          "0": 16384
+        }
+      },
+      "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+    },
+    {
+      "rank": 0,
+      "chunk_index": 2,
+      "input_lengths": [
+        16384
+      ],
+      "allocation_groups_bytes": {
+        "persistent_semantic_cache": 8064082032,
+        "replicated_prefill_shadows": 2216635872,
+        "decode_scratch": 408521536,
+        "shared_prefill_scratch": 1025629308,
+        "queued_construction_sources": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 191461312,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "torch_allocated_bytes": 16522957824,
+      "torch_reserved_bytes": 30047993856,
+      "torch_peak_allocated_bytes_so_far": 25445527040,
+      "device_free_bytes": 4322230272,
+      "device_total_bytes": 274861129728,
+      "shadow_rows_by_layer": {
+        "language_model.model.layers.3.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.7.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.11.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.15.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.19.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.23.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.27.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.31.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.35.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.39.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.43.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.47.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.51.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.55.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.59.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.63.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.67.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.71.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.75.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.79.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.83.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.87.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.91.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.92.self_attn.attn": [
+          0
+        ]
+      },
+      "shadow_global_lengths_by_layer": {
+        "language_model.model.layers.3.self_attn.attn": {
+          "0": 32768
+        },
+        "language_model.model.layers.7.self_attn.attn": {
+          "0": 32768
+        },
+        "language_model.model.layers.11.self_attn.attn": {
+          "0": 32768
+        },
+        "language_model.model.layers.15.self_attn.attn": {
+          "0": 32768
+        },
+        "language_model.model.layers.19.self_attn.attn": {
+          "0": 32768
+        },
+        "language_model.model.layers.23.self_attn.attn": {
+          "0": 32768
+        },
+        "language_model.model.layers.27.self_attn.attn": {
+          "0": 32768
+        },
+        "language_model.model.layers.31.self_attn.attn": {
+          "0": 32768
+        },
+        "language_model.model.layers.35.self_attn.attn": {
+          "0": 32768
+        },
+        "language_model.model.layers.39.self_attn.attn": {
+          "0": 32768
+        },
+        "language_model.model.layers.43.self_attn.attn": {
+          "0": 32768
+        },
+        "language_model.model.layers.47.self_attn.attn": {
+          "0": 32768
+        },
+        "language_model.model.layers.51.self_attn.attn": {
+          "0": 32768
+        },
+        "language_model.model.layers.55.self_attn.attn": {
+          "0": 32768
+        },
+        "language_model.model.layers.59.self_attn.attn": {
+          "0": 32768
+        },
+        "language_model.model.layers.63.self_attn.attn": {
+          "0": 32768
+        },
+        "language_model.model.layers.67.self_attn.attn": {
+          "0": 32768
+        },
+        "language_model.model.layers.71.self_attn.attn": {
+          "0": 32768
+        },
+        "language_model.model.layers.75.self_attn.attn": {
+          "0": 32768
+        },
+        "language_model.model.layers.79.self_attn.attn": {
+          "0": 32768
+        },
+        "language_model.model.layers.83.self_attn.attn": {
+          "0": 32768
+        },
+        "language_model.model.layers.87.self_attn.attn": {
+          "0": 32768
+        },
+        "language_model.model.layers.91.self_attn.attn": {
+          "0": 32768
+        },
+        "language_model.model.layers.92.self_attn.attn": {
+          "0": 32768
+        }
+      },
+      "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+    },
+    {
+      "rank": 0,
+      "chunk_index": 3,
+      "input_lengths": [
+        16384
+      ],
+      "allocation_groups_bytes": {
+        "persistent_semantic_cache": 8064082032,
+        "replicated_prefill_shadows": 2216635872,
+        "decode_scratch": 408521536,
+        "shared_prefill_scratch": 1179666044,
+        "queued_construction_sources": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 191461312,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "torch_allocated_bytes": 16677257216,
+      "torch_reserved_bytes": 30123491328,
+      "torch_peak_allocated_bytes_so_far": 25658677248,
+      "device_free_bytes": 4232052736,
+      "device_total_bytes": 274861129728,
+      "shadow_rows_by_layer": {
+        "language_model.model.layers.3.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.7.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.11.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.15.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.19.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.23.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.27.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.31.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.35.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.39.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.43.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.47.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.51.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.55.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.59.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.63.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.67.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.71.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.75.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.79.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.83.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.87.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.91.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.92.self_attn.attn": [
+          0
+        ]
+      },
+      "shadow_global_lengths_by_layer": {
+        "language_model.model.layers.3.self_attn.attn": {
+          "0": 49152
+        },
+        "language_model.model.layers.7.self_attn.attn": {
+          "0": 49152
+        },
+        "language_model.model.layers.11.self_attn.attn": {
+          "0": 49152
+        },
+        "language_model.model.layers.15.self_attn.attn": {
+          "0": 49152
+        },
+        "language_model.model.layers.19.self_attn.attn": {
+          "0": 49152
+        },
+        "language_model.model.layers.23.self_attn.attn": {
+          "0": 49152
+        },
+        "language_model.model.layers.27.self_attn.attn": {
+          "0": 49152
+        },
+        "language_model.model.layers.31.self_attn.attn": {
+          "0": 49152
+        },
+        "language_model.model.layers.35.self_attn.attn": {
+          "0": 49152
+        },
+        "language_model.model.layers.39.self_attn.attn": {
+          "0": 49152
+        },
+        "language_model.model.layers.43.self_attn.attn": {
+          "0": 49152
+        },
+        "language_model.model.layers.47.self_attn.attn": {
+          "0": 49152
+        },
+        "language_model.model.layers.51.self_attn.attn": {
+          "0": 49152
+        },
+        "language_model.model.layers.55.self_attn.attn": {
+          "0": 49152
+        },
+        "language_model.model.layers.59.self_attn.attn": {
+          "0": 49152
+        },
+        "language_model.model.layers.63.self_attn.attn": {
+          "0": 49152
+        },
+        "language_model.model.layers.67.self_attn.attn": {
+          "0": 49152
+        },
+        "language_model.model.layers.71.self_attn.attn": {
+          "0": 49152
+        },
+        "language_model.model.layers.75.self_attn.attn": {
+          "0": 49152
+        },
+        "language_model.model.layers.79.self_attn.attn": {
+          "0": 49152
+        },
+        "language_model.model.layers.83.self_attn.attn": {
+          "0": 49152
+        },
+        "language_model.model.layers.87.self_attn.attn": {
+          "0": 49152
+        },
+        "language_model.model.layers.91.self_attn.attn": {
+          "0": 49152
+        },
+        "language_model.model.layers.92.self_attn.attn": {
+          "0": 49152
+        }
+      },
+      "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+    },
+    {
+      "rank": 0,
+      "chunk_index": 4,
+      "input_lengths": [
+        16384
+      ],
+      "allocation_groups_bytes": {
+        "persistent_semantic_cache": 8064082032,
+        "replicated_prefill_shadows": 2216635872,
+        "decode_scratch": 408521536,
+        "shared_prefill_scratch": 1325941260,
+        "queued_construction_sources": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 191461312,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "torch_allocated_bytes": 16823160832,
+      "torch_reserved_bytes": 28120711168,
+      "torch_peak_allocated_bytes_so_far": 25803565056,
+      "device_free_bytes": 6213861376,
+      "device_total_bytes": 274861129728,
+      "shadow_rows_by_layer": {
+        "language_model.model.layers.3.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.7.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.11.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.15.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.19.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.23.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.27.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.31.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.35.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.39.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.43.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.47.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.51.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.55.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.59.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.63.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.67.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.71.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.75.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.79.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.83.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.87.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.91.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.92.self_attn.attn": [
+          0
+        ]
+      },
+      "shadow_global_lengths_by_layer": {
+        "language_model.model.layers.3.self_attn.attn": {
+          "0": 65536
+        },
+        "language_model.model.layers.7.self_attn.attn": {
+          "0": 65536
+        },
+        "language_model.model.layers.11.self_attn.attn": {
+          "0": 65536
+        },
+        "language_model.model.layers.15.self_attn.attn": {
+          "0": 65536
+        },
+        "language_model.model.layers.19.self_attn.attn": {
+          "0": 65536
+        },
+        "language_model.model.layers.23.self_attn.attn": {
+          "0": 65536
+        },
+        "language_model.model.layers.27.self_attn.attn": {
+          "0": 65536
+        },
+        "language_model.model.layers.31.self_attn.attn": {
+          "0": 65536
+        },
+        "language_model.model.layers.35.self_attn.attn": {
+          "0": 65536
+        },
+        "language_model.model.layers.39.self_attn.attn": {
+          "0": 65536
+        },
+        "language_model.model.layers.43.self_attn.attn": {
+          "0": 65536
+        },
+        "language_model.model.layers.47.self_attn.attn": {
+          "0": 65536
+        },
+        "language_model.model.layers.51.self_attn.attn": {
+          "0": 65536
+        },
+        "language_model.model.layers.55.self_attn.attn": {
+          "0": 65536
+        },
+        "language_model.model.layers.59.self_attn.attn": {
+          "0": 65536
+        },
+        "language_model.model.layers.63.self_attn.attn": {
+          "0": 65536
+        },
+        "language_model.model.layers.67.self_attn.attn": {
+          "0": 65536
+        },
+        "language_model.model.layers.71.self_attn.attn": {
+          "0": 65536
+        },
+        "language_model.model.layers.75.self_attn.attn": {
+          "0": 65536
+        },
+        "language_model.model.layers.79.self_attn.attn": {
+          "0": 65536
+        },
+        "language_model.model.layers.83.self_attn.attn": {
+          "0": 65536
+        },
+        "language_model.model.layers.87.self_attn.attn": {
+          "0": 65536
+        },
+        "language_model.model.layers.91.self_attn.attn": {
+          "0": 65536
+        },
+        "language_model.model.layers.92.self_attn.attn": {
+          "0": 65536
+        }
+      },
+      "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+    },
+    {
+      "rank": 0,
+      "chunk_index": 5,
+      "input_lengths": [
+        16384
+      ],
+      "allocation_groups_bytes": {
+        "persistent_semantic_cache": 8064082032,
+        "replicated_prefill_shadows": 4390923744,
+        "decode_scratch": 408521536,
+        "shared_prefill_scratch": 1468312700,
+        "queued_construction_sources": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 191461312,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "torch_allocated_bytes": 21102988800,
+      "torch_reserved_bytes": 34336669696,
+      "torch_peak_allocated_bytes_so_far": 30025852416,
+      "device_free_bytes": 54525952,
+      "device_total_bytes": 274861129728,
+      "shadow_rows_by_layer": {
+        "language_model.model.layers.3.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.7.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.11.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.15.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.19.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.23.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.27.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.31.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.35.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.39.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.43.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.47.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.51.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.55.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.59.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.63.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.67.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.71.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.75.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.79.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.83.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.87.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.91.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.92.self_attn.attn": [
+          0
+        ]
+      },
+      "shadow_global_lengths_by_layer": {
+        "language_model.model.layers.3.self_attn.attn": {
+          "0": 81920
+        },
+        "language_model.model.layers.7.self_attn.attn": {
+          "0": 81920
+        },
+        "language_model.model.layers.11.self_attn.attn": {
+          "0": 81920
+        },
+        "language_model.model.layers.15.self_attn.attn": {
+          "0": 81920
+        },
+        "language_model.model.layers.19.self_attn.attn": {
+          "0": 81920
+        },
+        "language_model.model.layers.23.self_attn.attn": {
+          "0": 81920
+        },
+        "language_model.model.layers.27.self_attn.attn": {
+          "0": 81920
+        },
+        "language_model.model.layers.31.self_attn.attn": {
+          "0": 81920
+        },
+        "language_model.model.layers.35.self_attn.attn": {
+          "0": 81920
+        },
+        "language_model.model.layers.39.self_attn.attn": {
+          "0": 81920
+        },
+        "language_model.model.layers.43.self_attn.attn": {
+          "0": 81920
+        },
+        "language_model.model.layers.47.self_attn.attn": {
+          "0": 81920
+        },
+        "language_model.model.layers.51.self_attn.attn": {
+          "0": 81920
+        },
+        "language_model.model.layers.55.self_attn.attn": {
+          "0": 81920
+        },
+        "language_model.model.layers.59.self_attn.attn": {
+          "0": 81920
+        },
+        "language_model.model.layers.63.self_attn.attn": {
+          "0": 81920
+        },
+        "language_model.model.layers.67.self_attn.attn": {
+          "0": 81920
+        },
+        "language_model.model.layers.71.self_attn.attn": {
+          "0": 81920
+        },
+        "language_model.model.layers.75.self_attn.attn": {
+          "0": 81920
+        },
+        "language_model.model.layers.79.self_attn.attn": {
+          "0": 81920
+        },
+        "language_model.model.layers.83.self_attn.attn": {
+          "0": 81920
+        },
+        "language_model.model.layers.87.self_attn.attn": {
+          "0": 81920
+        },
+        "language_model.model.layers.91.self_attn.attn": {
+          "0": 81920
+        },
+        "language_model.model.layers.92.self_attn.attn": {
+          "0": 81920
+        }
+      },
+      "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+    },
+    {
+      "rank": 0,
+      "chunk_index": 6,
+      "input_lengths": [
+        16384
+      ],
+      "allocation_groups_bytes": {
+        "persistent_semantic_cache": 8064082032,
+        "replicated_prefill_shadows": 4390923744,
+        "decode_scratch": 408521536,
+        "shared_prefill_scratch": 1610250124,
+        "queued_construction_sources": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 191461312,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "torch_allocated_bytes": 21246428160,
+      "torch_reserved_bytes": 33160167424,
+      "torch_peak_allocated_bytes_so_far": 30226855936,
+      "device_free_bytes": 1145044992,
+      "device_total_bytes": 274861129728,
+      "shadow_rows_by_layer": {
+        "language_model.model.layers.3.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.7.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.11.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.15.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.19.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.23.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.27.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.31.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.35.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.39.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.43.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.47.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.51.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.55.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.59.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.63.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.67.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.71.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.75.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.79.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.83.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.87.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.91.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.92.self_attn.attn": [
+          0
+        ]
+      },
+      "shadow_global_lengths_by_layer": {
+        "language_model.model.layers.3.self_attn.attn": {
+          "0": 98304
+        },
+        "language_model.model.layers.7.self_attn.attn": {
+          "0": 98304
+        },
+        "language_model.model.layers.11.self_attn.attn": {
+          "0": 98304
+        },
+        "language_model.model.layers.15.self_attn.attn": {
+          "0": 98304
+        },
+        "language_model.model.layers.19.self_attn.attn": {
+          "0": 98304
+        },
+        "language_model.model.layers.23.self_attn.attn": {
+          "0": 98304
+        },
+        "language_model.model.layers.27.self_attn.attn": {
+          "0": 98304
+        },
+        "language_model.model.layers.31.self_attn.attn": {
+          "0": 98304
+        },
+        "language_model.model.layers.35.self_attn.attn": {
+          "0": 98304
+        },
+        "language_model.model.layers.39.self_attn.attn": {
+          "0": 98304
+        },
+        "language_model.model.layers.43.self_attn.attn": {
+          "0": 98304
+        },
+        "language_model.model.layers.47.self_attn.attn": {
+          "0": 98304
+        },
+        "language_model.model.layers.51.self_attn.attn": {
+          "0": 98304
+        },
+        "language_model.model.layers.55.self_attn.attn": {
+          "0": 98304
+        },
+        "language_model.model.layers.59.self_attn.attn": {
+          "0": 98304
+        },
+        "language_model.model.layers.63.self_attn.attn": {
+          "0": 98304
+        },
+        "language_model.model.layers.67.self_attn.attn": {
+          "0": 98304
+        },
+        "language_model.model.layers.71.self_attn.attn": {
+          "0": 98304
+        },
+        "language_model.model.layers.75.self_attn.attn": {
+          "0": 98304
+        },
+        "language_model.model.layers.79.self_attn.attn": {
+          "0": 98304
+        },
+        "language_model.model.layers.83.self_attn.attn": {
+          "0": 98304
+        },
+        "language_model.model.layers.87.self_attn.attn": {
+          "0": 98304
+        },
+        "language_model.model.layers.91.self_attn.attn": {
+          "0": 98304
+        },
+        "language_model.model.layers.92.self_attn.attn": {
+          "0": 98304
+        }
+      },
+      "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+    },
+    {
+      "rank": 0,
+      "chunk_index": 7,
+      "input_lengths": [
+        16384
+      ],
+      "allocation_groups_bytes": {
+        "persistent_semantic_cache": 8064082032,
+        "replicated_prefill_shadows": 4390923744,
+        "decode_scratch": 408521536,
+        "shared_prefill_scratch": 1751885052,
+        "queued_construction_sources": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 191461312,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "torch_allocated_bytes": 21387473408,
+      "torch_reserved_bytes": 34200354816,
+      "torch_peak_allocated_bytes_so_far": 30368164352,
+      "device_free_bytes": 111149056,
+      "device_total_bytes": 274861129728,
+      "shadow_rows_by_layer": {
+        "language_model.model.layers.3.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.7.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.11.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.15.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.19.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.23.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.27.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.31.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.35.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.39.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.43.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.47.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.51.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.55.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.59.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.63.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.67.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.71.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.75.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.79.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.83.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.87.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.91.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.92.self_attn.attn": [
+          0
+        ]
+      },
+      "shadow_global_lengths_by_layer": {
+        "language_model.model.layers.3.self_attn.attn": {
+          "0": 114688
+        },
+        "language_model.model.layers.7.self_attn.attn": {
+          "0": 114688
+        },
+        "language_model.model.layers.11.self_attn.attn": {
+          "0": 114688
+        },
+        "language_model.model.layers.15.self_attn.attn": {
+          "0": 114688
+        },
+        "language_model.model.layers.19.self_attn.attn": {
+          "0": 114688
+        },
+        "language_model.model.layers.23.self_attn.attn": {
+          "0": 114688
+        },
+        "language_model.model.layers.27.self_attn.attn": {
+          "0": 114688
+        },
+        "language_model.model.layers.31.self_attn.attn": {
+          "0": 114688
+        },
+        "language_model.model.layers.35.self_attn.attn": {
+          "0": 114688
+        },
+        "language_model.model.layers.39.self_attn.attn": {
+          "0": 114688
+        },
+        "language_model.model.layers.43.self_attn.attn": {
+          "0": 114688
+        },
+        "language_model.model.layers.47.self_attn.attn": {
+          "0": 114688
+        },
+        "language_model.model.layers.51.self_attn.attn": {
+          "0": 114688
+        },
+        "language_model.model.layers.55.self_attn.attn": {
+          "0": 114688
+        },
+        "language_model.model.layers.59.self_attn.attn": {
+          "0": 114688
+        },
+        "language_model.model.layers.63.self_attn.attn": {
+          "0": 114688
+        },
+        "language_model.model.layers.67.self_attn.attn": {
+          "0": 114688
+        },
+        "language_model.model.layers.71.self_attn.attn": {
+          "0": 114688
+        },
+        "language_model.model.layers.75.self_attn.attn": {
+          "0": 114688
+        },
+        "language_model.model.layers.79.self_attn.attn": {
+          "0": 114688
+        },
+        "language_model.model.layers.83.self_attn.attn": {
+          "0": 114688
+        },
+        "language_model.model.layers.87.self_attn.attn": {
+          "0": 114688
+        },
+        "language_model.model.layers.91.self_attn.attn": {
+          "0": 114688
+        },
+        "language_model.model.layers.92.self_attn.attn": {
+          "0": 114688
+        }
+      },
+      "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+    },
+    {
+      "rank": 0,
+      "chunk_index": 8,
+      "input_lengths": [
+        16384
+      ],
+      "allocation_groups_bytes": {
+        "persistent_semantic_cache": 8064082032,
+        "replicated_prefill_shadows": 4390923744,
+        "decode_scratch": 408521536,
+        "shared_prefill_scratch": 1890056796,
+        "queued_construction_sources": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 191461312,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "torch_allocated_bytes": 21524361216,
+      "torch_reserved_bytes": 32939966464,
+      "torch_peak_allocated_bytes_so_far": 30505687040,
+      "device_free_bytes": 1344274432,
+      "device_total_bytes": 274861129728,
+      "shadow_rows_by_layer": {
+        "language_model.model.layers.3.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.7.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.11.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.15.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.19.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.23.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.27.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.31.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.35.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.39.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.43.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.47.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.51.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.55.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.59.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.63.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.67.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.71.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.75.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.79.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.83.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.87.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.91.self_attn.attn": [
+          0
+        ],
+        "language_model.model.layers.92.self_attn.attn": [
+          0
+        ]
+      },
+      "shadow_global_lengths_by_layer": {
+        "language_model.model.layers.3.self_attn.attn": {
+          "0": 131072
+        },
+        "language_model.model.layers.7.self_attn.attn": {
+          "0": 131072
+        },
+        "language_model.model.layers.11.self_attn.attn": {
+          "0": 131072
+        },
+        "language_model.model.layers.15.self_attn.attn": {
+          "0": 131072
+        },
+        "language_model.model.layers.19.self_attn.attn": {
+          "0": 131072
+        },
+        "language_model.model.layers.23.self_attn.attn": {
+          "0": 131072
+        },
+        "language_model.model.layers.27.self_attn.attn": {
+          "0": 131072
+        },
+        "language_model.model.layers.31.self_attn.attn": {
+          "0": 131072
+        },
+        "language_model.model.layers.35.self_attn.attn": {
+          "0": 131072
+        },
+        "language_model.model.layers.39.self_attn.attn": {
+          "0": 131072
+        },
+        "language_model.model.layers.43.self_attn.attn": {
+          "0": 131072
+        },
+        "language_model.model.layers.47.self_attn.attn": {
+          "0": 131072
+        },
+        "language_model.model.layers.51.self_attn.attn": {
+          "0": 131072
+        },
+        "language_model.model.layers.55.self_attn.attn": {
+          "0": 131072
+        },
+        "language_model.model.layers.59.self_attn.attn": {
+          "0": 131072
+        },
+        "language_model.model.layers.63.self_attn.attn": {
+          "0": 131072
+        },
+        "language_model.model.layers.67.self_attn.attn": {
+          "0": 131072
+        },
+        "language_model.model.layers.71.self_attn.attn": {
+          "0": 131072
+        },
+        "language_model.model.layers.75.self_attn.attn": {
+          "0": 131072
+        },
+        "language_model.model.layers.79.self_attn.attn": {
+          "0": 131072
+        },
+        "language_model.model.layers.83.self_attn.attn": {
+          "0": 131072
+        },
+        "language_model.model.layers.87.self_attn.attn": {
+          "0": 131072
+        },
+        "language_model.model.layers.91.self_attn.attn": {
+          "0": 131072
+        },
+        "language_model.model.layers.92.self_attn.attn": {
+          "0": 131072
+        }
+      },
+      "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+    }
+  ]
+}

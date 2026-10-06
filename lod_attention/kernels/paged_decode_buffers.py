@@ -7,6 +7,7 @@ import triton
 import triton.language as tl
 
 from ._paged_common import _lookup_page_id
+from ._decode_scratch import empty_decode_tensor
 
 
 @triton.jit
@@ -1223,7 +1224,14 @@ def new_fused_decode_buffers(
     gqa_union_fixed_mask_tile_size: int = 64,
     gqa_union_fixed_mask_segments: int = 128,
     gqa_union_hip_segments: int = 32,
+    shared_scratch: dict | None = None,
 ) -> dict[str, torch.Tensor]:
+    # The serving runtime reserves these before graph capture. Only explicitly
+    # named intermediates reuse storage across its sequential attention layers.
+    def empty(name, *shape, dtype, device):
+        return empty_decode_tensor(name, *shape, dtype=dtype, device=device,
+                                   shared_scratch=shared_scratch)
+
     batch, query_heads, _, head_dim = q.shape
     if value_dim is None:
         value_dim = head_dim
@@ -1235,7 +1243,7 @@ def new_fused_decode_buffers(
     buffers = {
         "cache_indices": torch.arange(batch, dtype=torch.long, device=q.device),
         "local_lens": torch.empty(batch, dtype=torch.int32, device=q.device),
-        "partial_out": torch.empty(
+        "partial_out": empty("partial_out",
             batch,
             query_heads,
             splits,
@@ -1243,7 +1251,7 @@ def new_fused_decode_buffers(
             dtype=torch.float32,
             device=q.device,
         ),
-        "partial_lse": torch.empty(
+        "partial_lse": empty("partial_lse",
             batch,
             query_heads,
             splits,
@@ -1327,14 +1335,14 @@ def new_fused_decode_buffers(
                 dtype=torch.float32,
                 device=q.device,
             ),
-            route_local_out=torch.empty(
+            route_local_out=empty("route_local_out",
                 batch,
                 query_heads,
                 value_dim,
                 dtype=torch.float32,
                 device=q.device,
             ),
-            route_local_lse=torch.empty(
+            route_local_lse=empty("route_local_lse",
                 batch,
                 query_heads,
                 dtype=torch.float32,
@@ -1346,7 +1354,7 @@ def new_fused_decode_buffers(
             raise ValueError("route segment tiles must be 1, 2, 3, or 4")
         max_groups = triton.cdiv(state_capacity, route_group_size * route_segment_tiles)
         buffers.update(
-            route_candidate_scores=torch.empty(
+            route_candidate_scores=empty("route_candidate_scores",
                 batch,
                 query_heads,
                 max_groups,
@@ -1354,7 +1362,7 @@ def new_fused_decode_buffers(
                 dtype=torch.float32,
                 device=q.device,
             ),
-            route_candidate_indices=torch.empty(
+            route_candidate_indices=empty("route_candidate_indices",
                 batch,
                 query_heads,
                 max_groups,
@@ -1362,7 +1370,7 @@ def new_fused_decode_buffers(
                 dtype=torch.long,
                 device=q.device,
             ),
-            route_group_out=torch.empty(
+            route_group_out=empty("route_group_out",
                 batch,
                 query_heads,
                 max_groups,
@@ -1370,14 +1378,14 @@ def new_fused_decode_buffers(
                 dtype=torch.float32,
                 device=q.device,
             ),
-            route_group_lse=torch.empty(
+            route_group_lse=empty("route_group_lse",
                 batch,
                 query_heads,
                 max_groups,
                 dtype=torch.float32,
                 device=q.device,
             ),
-            route_top_slots=torch.empty(
+            route_top_slots=empty("route_top_slots",
                 batch,
                 query_heads,
                 1,
@@ -1385,7 +1393,7 @@ def new_fused_decode_buffers(
                 dtype=torch.long,
                 device=q.device,
             ),
-            route_top_scores=torch.empty(
+            route_top_scores=empty("route_top_scores",
                 batch,
                 query_heads,
                 1,
@@ -1393,27 +1401,30 @@ def new_fused_decode_buffers(
                 dtype=torch.float32,
                 device=q.device,
             ),
-            coarse_out=torch.empty(
+            distributed_route_packed=empty("distributed_route_packed",
+                batch, query_heads, 1, 8, 2, dtype=torch.float32, device=q.device,
+            ),
+            coarse_out=empty("coarse_out",
                 batch,
                 query_heads,
                 value_dim,
                 dtype=torch.float32,
                 device=q.device,
             ),
-            coarse_lse=torch.empty(
+            coarse_lse=empty("coarse_lse",
                 batch,
                 query_heads,
                 dtype=torch.float32,
                 device=q.device,
             ),
-            route_local_out=torch.empty(
+            route_local_out=empty("route_local_out",
                 batch,
                 query_heads,
                 value_dim,
                 dtype=torch.float32,
                 device=q.device,
             ),
-            route_local_lse=torch.empty(
+            route_local_lse=empty("route_local_lse",
                 batch,
                 query_heads,
                 dtype=torch.float32,
@@ -1461,19 +1472,19 @@ def new_fused_decode_buffers(
                 gqa_union_token_counts=torch.zeros(
                     sequences, dtype=torch.int32, device=q.device
                 ),
-                gqa_union_slots=torch.empty(
+                gqa_union_slots=empty("gqa_union_slots",
                     sequences,
                     union_slot_capacity,
                     dtype=torch.int32,
                     device=q.device,
                 ),
-                gqa_union_destinations=torch.empty(
+                gqa_union_destinations=empty("gqa_union_destinations",
                     sequences,
                     union_slot_capacity,
                     dtype=torch.int32,
                     device=q.device,
                 ),
-                gqa_union_token_indices=torch.empty(
+                gqa_union_token_indices=empty("gqa_union_token_indices",
                     sequences,
                     gqa_union_index_capacity,
                     dtype=torch.int32,
@@ -1520,20 +1531,20 @@ def new_fused_decode_buffers(
                     gqa_union_hip_cu_q=torch.arange(
                         sequences + 1, dtype=torch.int32, device=q.device
                     ),
-                    gqa_union_hip_out=torch.empty(
+                    gqa_union_hip_out=empty("gqa_union_hip_out",
                         sequences,
                         gqa_union_group_size,
                         value_dim,
                         dtype=torch.float32,
                         device=q.device,
                     ),
-                    gqa_union_hip_lse=torch.empty(
+                    gqa_union_hip_lse=empty("gqa_union_hip_lse",
                         sequences,
                         gqa_union_group_size,
                         dtype=torch.float32,
                         device=q.device,
                     ),
-                    gqa_union_hip_segment_out=torch.empty(
+                    gqa_union_hip_segment_out=empty("gqa_union_hip_segment_out",
                         sequences,
                         gqa_union_group_size,
                         unified_segments,
@@ -1541,14 +1552,14 @@ def new_fused_decode_buffers(
                         dtype=torch.float32,
                         device=q.device,
                     ),
-                    gqa_union_hip_exp_sums=torch.empty(
+                    gqa_union_hip_exp_sums=empty("gqa_union_hip_exp_sums",
                         sequences,
                         gqa_union_group_size,
                         unified_segments,
                         dtype=torch.float32,
                         device=q.device,
                     ),
-                    gqa_union_hip_max_logits=torch.empty(
+                    gqa_union_hip_max_logits=empty("gqa_union_hip_max_logits",
                         sequences,
                         gqa_union_group_size,
                         unified_segments,
@@ -1565,7 +1576,7 @@ def new_fused_decode_buffers(
                     # graph replay sees no allocations or pointer changes.
                     kimi_splits = KIMI_GLUON_LOD_SPLITS
                     buffers.update(
-                        kimi_gluon_partial=torch.empty(
+                        kimi_gluon_partial=empty("kimi_gluon_partial",
                             sequences,
                             gqa_union_group_size,
                             kimi_splits,
@@ -1573,7 +1584,7 @@ def new_fused_decode_buffers(
                             dtype=q.dtype,
                             device=q.device,
                         ),
-                        kimi_gluon_partial_lse=torch.empty(
+                        kimi_gluon_partial_lse=empty("kimi_gluon_partial_lse",
                             sequences,
                             gqa_union_group_size,
                             kimi_splits,

@@ -6,6 +6,7 @@ import argparse
 from collections.abc import Callable
 from collections import defaultdict
 import hashlib
+import json
 import math
 import os
 import platform
@@ -138,6 +139,10 @@ def parse_args() -> argparse.Namespace:
             "run an additional instrumented pass after each measured speed "
             "point; profiler durations are diagnostics, never benchmark times"
         ),
+    )
+    parser.add_argument(
+        "--report-memory", action="store_true",
+        help="read worker peak allocation/reservation outside timed generation",
     )
     parser.add_argument(
         "--seed",
@@ -584,10 +589,12 @@ def evaluate_quality(
     samples: int,
     sample_offset: int,
     batch_size: int,
+    progress_callback: Any | None = None,
+    prompt_panel: tuple[list[dict], list[dict]] | None = None,
 ) -> dict[str, Any]:
     from vllm import SamplingParams
 
-    prompts, metadata = select_quality_prompts(
+    prompts, metadata = prompt_panel if prompt_panel is not None else select_quality_prompts(
         tokenizer,
         length=length,
         samples=samples,
@@ -601,35 +608,42 @@ def evaluate_quality(
         detokenize=False,
     )
     started = time.perf_counter()
-    outputs = []
-    for begin in range(0, len(prompts), batch_size):
-        outputs.extend(
-            llm.generate(prompts[begin : begin + batch_size], params, use_tqdm=True)
-        )
-    elapsed = time.perf_counter() - started
-
     total_nll = 0.0
     total_tokens = 0
     records = []
-    for prompt, prompt_metadata, output in zip(
-        prompts,
-        metadata,
-        outputs,
-        strict=True,
-    ):
+    bands: dict[int, list[float | int]] = {}
+
+    def band_records(values: dict[int, list[float | int]]) -> list[dict[str, Any]]:
+        return [dict(query_position_start=start,
+                     query_position_end_exclusive=min(start + SCHEDULER_CHUNK, length - 1),
+                     prediction_tokens=int(count), loss=nll / count,
+                     perplexity=math.exp(nll / count))
+                for start, (nll, count) in sorted(values.items())]
+
+    def score(prompt: dict, prompt_metadata: dict, output: Any) -> None:
+        nonlocal total_nll, total_tokens
         token_ids = prompt["prompt_token_ids"]
         prompt_logprobs = output.prompt_logprobs
         if prompt_logprobs is None or len(prompt_logprobs) != len(token_ids):
             raise RuntimeError("vLLM returned incomplete prompt log probabilities")
         nll = 0.0
-        for token_id, candidates in zip(
+        sample_bands: dict[int, list[float | int]] = {}
+        for query_position, (token_id, candidates) in enumerate(zip(
             token_ids[1:],
             prompt_logprobs[1:],
             strict=True,
-        ):
+        )):
             if candidates is None or token_id not in candidates:
                 raise RuntimeError("target token missing from prompt_logprobs")
-            nll -= float(candidates[token_id].logprob)
+            token_nll = -float(candidates[token_id].logprob)
+            nll += token_nll
+            # The probability at token i+1 comes from attention query i.
+            # This avoids attributing the exact query at 16K-1 to LoD's
+            # approximate second prefill block.
+            band_start = query_position // SCHEDULER_CHUNK * SCHEDULER_CHUNK
+            sample_band = sample_bands.setdefault(band_start, [0.0, 0])
+            sample_band[0] += token_nll
+            sample_band[1] += 1
         predicted_tokens = len(token_ids) - 1
         total_nll += nll
         total_tokens += predicted_tokens
@@ -638,8 +652,31 @@ def evaluate_quality(
                 **prompt_metadata,
                 "loss": nll / predicted_tokens,
                 "perplexity": math.exp(nll / predicted_tokens),
+                "position_bands": band_records(sample_bands),
             }
         )
+        for start, (band_nll, count) in sample_bands.items():
+            band = bands.setdefault(start, [0.0, 0])
+            band[0] += band_nll
+            band[1] += count
+
+    for begin in range(0, len(prompts), batch_size):
+        batch = prompts[begin : begin + batch_size]
+        outputs = llm.generate(batch, params, use_tqdm=True)
+        for prompt, prompt_metadata, output in zip(
+            batch, metadata[begin : begin + batch_size], outputs, strict=True,
+        ):
+            score(prompt, prompt_metadata, output)
+        if progress_callback is not None:
+            progress_callback(dict(loss=total_nll / total_tokens,
+                perplexity=math.exp(total_nll / total_tokens),
+                prediction_tokens=total_tokens, samples=list(records),
+                position_bands=band_records(bands),
+                elapsed_seconds=time.perf_counter() - started))
+        # Prompt-logprob objects can be large. Do not retain finished batches.
+        del outputs
+
+    elapsed = time.perf_counter() - started
     loss = total_nll / total_tokens
     return {
         "loss": loss,
@@ -647,6 +684,7 @@ def evaluate_quality(
         "prediction_tokens": total_tokens,
         "elapsed_seconds": elapsed,
         "samples": records,
+        "position_bands": band_records(bands),
     }
 
 
@@ -1092,9 +1130,11 @@ def audit_worker_attention_mode(worker: Any) -> dict[str, Any]:
     final_cache_graphs = getattr(runtime, "_kimi_final_cache_graphs", None)
     state_update_graphs = getattr(runtime, "_kimi_state_update_graphs", None)
     from vllm_lod_plugin.prefill_allocator import _PREFILL_ALLOCATOR_AUDIT
+    from benchmarks._kimi_prefill_memory import shared_decode_scratch_summary
     return {
         "lod_runtime": runtime is not None,
         "lod_pool_count": len(pools),
+        "shared_decode_scratch": shared_decode_scratch_summary(pools),
         "lod_engine_configurations": unique_engine_configurations,
         "lod_cross_layer_prefill_group_size": (
             int(runtime.cross_layer_prefill_group_size)
@@ -1241,6 +1281,7 @@ def evaluate_speed(
     fixed_decode_trace: bool = False,
     retain_warmup_allocator: bool = False,
     diagnostic_prefill_profile: bool = False,
+    report_memory: bool = False,
     progress_callback: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     from vllm import SamplingParams
@@ -1281,12 +1322,34 @@ def evaluate_speed(
                 batch_size=samples,
             )
             params = SamplingParams(**param_kwargs)
-        *_, reference, _, _, warmup_batch_timings = timed_generate_cohort(
-            llm,
-            prompts,
-            params,
-            batch_size=batch_size,
-        )
+        if report_memory:
+            from benchmarks.kimi_k3_prefill_sweep import reset_peak_memory, peak_memory
+
+            llm.collective_rpc(reset_peak_memory)
+        audit_prefill_memory = os.environ.get("LOD_BENCHMARK_PREFILL_MEMORY_AUDIT") == "1"
+        if audit_prefill_memory:
+            from benchmarks._prefill_batch_audit import arm_prefill_batch_audit, finish_prefill_batch_audit
+            llm.collective_rpc(arm_prefill_batch_audit)
+        try:
+            *_, reference, _, _, warmup_batch_timings = timed_generate_cohort(
+                llm,
+                prompts,
+                params,
+                batch_size=batch_size,
+            )
+        except BaseException:
+            if audit_prefill_memory:
+                try:
+                    llm.collective_rpc(finish_prefill_batch_audit)
+                except Exception:
+                    # A dead worker cannot return its final snapshot. The
+                    # per-chunk warmup log remains; preserve the original error.
+                    pass
+            raise
+        else:
+            if audit_prefill_memory:
+                warmup_prefill_audits = llm.collective_rpc(finish_prefill_batch_audit)
+        warmup_memory = llm.collective_rpc(peak_memory) if report_memory else None
         allocator_after_warmup = (
             llm.collective_rpc(release_worker_allocator_cache, args=(True,))
             if retain_warmup_allocator
@@ -1302,10 +1365,13 @@ def evaluate_speed(
         output_token_sha256: list[list[str]] = []
         first_mismatch_positions: list[list[int | None]] = []
         measured_decode_update_counters = []
+        measured_memories = []
         for _ in range(repeats):
             # Existing host counters, sampled outside the generation timer.
             # In particular, this adds no events inside captured decode graphs.
             updates_before = llm.collective_rpc(read_decode_update_counters)
+            if report_memory:
+                llm.collective_rpc(reset_peak_memory)
             (
                 _cohort_elapsed,
                 cohort_prefill,
@@ -1323,6 +1389,8 @@ def evaluate_speed(
             measured_decode_update_counters.append(decode_update_deltas(
                 updates_before, llm.collective_rpc(read_decode_update_counters)
             ))
+            if report_memory:
+                measured_memories.append(llm.collective_rpc(peak_memory))
             first_mismatch_positions.append(
                 [
                     next(
@@ -1417,6 +1485,11 @@ def evaluate_speed(
             "prompts": prompt_metadata,
             "allocator_after_warmup": allocator_after_warmup,
         }
+        if report_memory:
+            measurement["warmup_worker_memory"] = warmup_memory
+            measurement["measured_worker_memory"] = measured_memories
+        if audit_prefill_memory:
+            measurement["warmup_prefill_batch_audits"] = warmup_prefill_audits
         if speculative_measurements:
             measurement.update(
                 speculative_target_cycle_ms=statistics.median(
@@ -1579,6 +1652,13 @@ def main() -> None:
         args.checkpoint,
         trust_remote_code=True,
     )
+    # Validate the frozen corpus before constructing a potentially enormous
+    # model. Tokenizer-specific short documents must fail before GPU startup,
+    # not after IPC mapping, profiling, and graph capture.
+    quality_prompt_panel = select_quality_prompts(
+        tokenizer, length=args.length, samples=args.samples,
+        sample_offset=args.sample_offset,
+    ) if args.measure == "quality" else None
     from vllm import LLM
 
     llm = LLM(**kwargs)
@@ -1596,6 +1676,22 @@ def main() -> None:
             dummy_attention=args.dummy_attention,
         )
         if args.measure == "quality":
+            def save_quality_progress(measurements: dict[str, Any]) -> None:
+                write_json(args.output.with_suffix(".partial.json"), {
+                    "status": "incomplete-quality-completed-documents",
+                    "benchmark": "prolong", "measure": "quality", "mode": args.mode,
+                    "checkpoint": args.checkpoint, "dataset": DATASET,
+                    "dataset_revision": DATASET_REVISION, "argv": sys.argv,
+                    "hostname": platform.node(), "benchmark_environment": benchmark_environment(),
+                    "worker_attention_audit_before": worker_attention_audit_before,
+                    "measurements": measurements,
+                })
+                print("PROLONG_QUALITY_PROGRESS " + json.dumps({
+                    "mode": args.mode, "completed_documents": len(measurements["samples"]),
+                    "total_documents": args.samples, "loss": measurements["loss"],
+                    "perplexity": measurements["perplexity"],
+                }), flush=True)
+
             measurements = evaluate_quality(
                 llm,
                 tokenizer,
@@ -1603,6 +1699,8 @@ def main() -> None:
                 samples=args.samples,
                 sample_offset=args.sample_offset,
                 batch_size=args.batch_size,
+                progress_callback=save_quality_progress,
+                prompt_panel=quality_prompt_panel,
             )
         else:
             def save_speed_progress(measurements: dict[str, Any]) -> None:
@@ -1640,6 +1738,7 @@ def main() -> None:
                 fixed_decode_trace=args.fixed_decode_trace,
                 retain_warmup_allocator=args.retain_warmup_allocator,
                 diagnostic_prefill_profile=args.diagnostic_prefill_profile,
+                report_memory=args.report_memory,
                 progress_callback=save_speed_progress,
             )
         worker_attention_audit = llm.collective_rpc(audit_worker_attention_mode)

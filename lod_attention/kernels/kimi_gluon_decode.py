@@ -3,8 +3,8 @@
 The kernels consume Kimi's cached ``[latent_512, direct_key_64]`` rows without
 expanding per-head keys or values.  The compact-LoD entry point additionally
 understands the release two-tier page-descriptor representation and per-row
-log-mass bias.  Stage one uses CDNA3 MFMA and ordinary buffer loads; the small
-stage-two reduction reuses AITER's public Triton reducer.
+log-mass bias. Stage one uses CDNA3 MFMA and ordinary buffer loads; head-tiled
+LoD uses the parallel FP32 split-output reducer below.
 """
 
 from __future__ import annotations
@@ -18,9 +18,26 @@ from triton.experimental.gluon import language as gl
 
 # LoD's effective sequence is bounded by the centroid schedule plus eight
 # opened regions, and is far shorter than dense history.  On MI325X, 64 splits
-# is consistently faster than the dense kernel's 128-split optimum over the
-# 3K--11K rows observed in long-context two-tier decode.
+# is the fixed backing capacity. Live head-tiled launches use 32 splits at
+# physical B1 or 16 at B4+, selected below without allocating new buffers.
 KIMI_GLUON_LOD_SPLITS = 64
+
+
+def kimi_lod_decode_splits(batch: int, *, head_tiled_metadata: bool) -> int:
+    """Keep short compact sequences from being oversplit at live B4+.
+
+    With all 96 heads, 16 splits give 384/768 workgroups at B4/B8, already
+    enough to occupy gfx942. Keeping 64 there wastes partial K tiles and
+    quadruples intermediate outputs. This is geometry only, not a work cap.
+    Physical B1 benefits from 32 even at 24K compact rows. Keep 64 for the
+    not-yet-tuned B2/B3 and legacy per-GQA layouts.
+    """
+    if head_tiled_metadata:
+        if batch >= 4:
+            return 16
+        if batch == 1:
+            return 32
+    return KIMI_GLUON_LOD_SPLITS
 
 
 @triton.jit
@@ -51,48 +68,39 @@ def _reduce_head_tiled_mla_splits_kernel(
     DCP_RANK: tl.constexpr,
     DCP_WORLD_SIZE: tl.constexpr,
     DCP_INTERLEAVE_SIZE: tl.constexpr,
+    BLOCK_S: tl.constexpr,
+    BLOCK_D: tl.constexpr,
 ):
     batch = tl.program_id(0)
     head = tl.program_id(1)
+    value_tile = tl.program_id(2)
     metadata_row = batch * HEAD_TILES + head // 16
     sequence_length = tl.load(sequence_lengths + metadata_row).to(tl.int32)
     # Stage one assigns ceil(length/splits) rows to every split and leaves the
     # empty suffix untouched. Re-derive the number of initialized splits.
-    split_length = tl.cdiv(sequence_length, NUM_SPLITS)
+    split_length = tl.maximum(1, tl.cdiv(sequence_length, NUM_SPLITS))
     active_splits = tl.cdiv(sequence_length, split_length)
-    dimension = tl.arange(0, HEAD_DIM)
-    accumulator = tl.zeros((HEAD_DIM,), tl.float32)
-    maximum = -float("inf")
-    denominator = 0.0
-    for split in tl.static_range(0, NUM_SPLITS):
-        active = split < active_splits
-        split_lse = tl.load(
-            partial_lse
-            + batch * LSE_BATCH_STRIDE
-            + head * LSE_HEAD_STRIDE
-            + split * LSE_SPLIT_STRIDE,
-            mask=active,
-            other=-float("inf"),
-        ).to(tl.float32)
-        next_maximum = tl.maximum(maximum, split_lse)
-        old_scale = tl.where(
-            maximum == -float("inf"), 0.0, tl.exp(maximum - next_maximum)
-        )
-        split_scale = tl.where(
-            split_lse == -float("inf"), 0.0, tl.exp(split_lse - next_maximum)
-        )
-        split_value = tl.load(
-            partial
-            + batch * PARTIAL_BATCH_STRIDE
-            + head * PARTIAL_HEAD_STRIDE
-            + split * PARTIAL_SPLIT_STRIDE
-            + dimension,
-            mask=active,
-            other=0.0,
-        ).to(tl.float32)
-        accumulator = accumulator * old_scale + split_value * split_scale
-        denominator = denominator * old_scale + split_scale
-        maximum = next_maximum
+    splits = tl.arange(0, BLOCK_S)
+    dimension = value_tile * BLOCK_D + tl.arange(0, BLOCK_D)
+    split_lse = tl.load(
+        partial_lse + batch * LSE_BATCH_STRIDE + head * LSE_HEAD_STRIDE
+        + splits * LSE_SPLIT_STRIDE,
+        mask=(splits < NUM_SPLITS) & (splits < active_splits),
+        other=-float("inf"),
+    ).to(tl.float32)
+    maximum = tl.max(split_lse, axis=0)
+    # Empty split outputs are deliberately unwritten by stage one. Never
+    # load their values, including active splits whose attention is all masked.
+    valid = (splits < NUM_SPLITS) & (splits < active_splits) & (split_lse != -float("inf"))
+    safe_maximum = tl.where(maximum == -float("inf"), 0.0, maximum)
+    weights = tl.exp(split_lse - safe_maximum)
+    denominator = tl.sum(weights, axis=0)
+    split_value = tl.load(
+        partial + batch * PARTIAL_BATCH_STRIDE + head * PARTIAL_HEAD_STRIDE
+        + splits[:, None] * PARTIAL_SPLIT_STRIDE + dimension[None, :],
+        mask=valid[:, None] & (dimension[None, :] < HEAD_DIM), other=0.0,
+    ).to(tl.float32)
+    accumulator = tl.sum(split_value * weights[:, None], axis=0)
     output_value = tl.where(denominator > 0.0, accumulator / denominator, 0.0)
     tl.store(
         output
@@ -100,8 +108,9 @@ def _reduce_head_tiled_mla_splits_kernel(
         + head * OUTPUT_HEAD_STRIDE
         + dimension,
         output_value,
+        mask=dimension < HEAD_DIM,
     )
-    if HAS_FINAL_LSE:
+    if HAS_FINAL_LSE & (value_tile == 0):
         tl.store(
             final_lse
             + batch * FINAL_LSE_BATCH_STRIDE
@@ -111,7 +120,7 @@ def _reduce_head_tiled_mla_splits_kernel(
     # This reducer is the last rank-local attention kernel.  One head can
     # therefore advance ownership metadata without another launch; all route,
     # descriptor, and attention programs have already consumed the old length.
-    if ADVANCE_DCP_LENGTHS & (head == 0):
+    if ADVANCE_DCP_LENGTHS & (head == 0) & (value_tile == 0):
         cache_row = tl.load(cache_indices + batch).to(tl.int64)
         global_length = tl.load(dcp_global_lens + cache_row).to(tl.int64)
         owner = (
@@ -455,8 +464,12 @@ def _absorbed_mla_stage1_gfx942(
         qk = gl.where(valid_scores[None, :], qk, float("-inf"))
 
         next_max = gl.maximum(gl.max(qk, 1), e_max)
-        rescale = gl.exp2((e_max - next_max) * LOG2E)
-        probs = gl.exp2((qk - next_max[:, None]) * LOG2E)
+        # A split/tile can contain only replaced coarse entries or padding.
+        # Preserve its zero mass rather than evaluating -inf - -inf. This
+        # guard does not hide NaN inputs/addressing errors: only -inf changes.
+        safe_max = gl.where(next_max == -float("inf"), 0.0, next_max)
+        rescale = gl.exp2((e_max - safe_max) * LOG2E)
+        probs = gl.exp2((qk - safe_max[:, None]) * LOG2E)
         e_sum = e_sum * rescale + gl.sum(probs, 1)
         e_max = next_max
         acc *= rescale[:, None]
@@ -478,7 +491,7 @@ def _absorbed_mla_stage1_gfx942(
         + out_dim[None, :]
     ).to(gl.int32)
     gl.amd.cdna3.buffer_store(
-        (acc / e_sum[:, None]).to(dtype),
+        (acc / gl.where(e_sum == 0, 1.0, e_sum)[:, None]).to(dtype),
         Partial,
         out_offsets,
         mask=(out_heads < NHEAD)[:, None],
@@ -790,7 +803,7 @@ def absorbed_mla_lod_decode_gfx942(
         num_warps=4,
     )
     if head_tiled_metadata:
-        _reduce_head_tiled_mla_splits_kernel[(batch, nhead)](
+        _reduce_head_tiled_mla_splits_kernel[(batch, nhead, 2)](
             partial,
             partial_lse,
             out,
@@ -817,7 +830,9 @@ def absorbed_mla_lod_decode_gfx942(
             DCP_RANK=dcp_rank,
             DCP_WORLD_SIZE=dcp_world_size,
             DCP_INTERLEAVE_SIZE=dcp_interleave_size,
-            num_warps=8,
+            BLOCK_S=triton.next_power_of_2(num_splits),
+            BLOCK_D=256,
+            num_warps=4,
         )
     else:
         _mla_softmax_reducev_kernel[(batch, nhead, 1)](

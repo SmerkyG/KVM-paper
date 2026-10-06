@@ -1,0 +1,327 @@
+{
+  "argv": [
+    "/home/dan/subusers/agent/KVM-paper-release/benchmarks/kimi_k3_quality.py",
+    "--checkpoint",
+    "/tmp/dan-agent-kimi-k3-f831ab66814297da540d832a5235f8e904f29d06",
+    "--mode",
+    "full",
+    "--tasks",
+    "niah-s3,longbench-v2",
+    "--niah-lengths",
+    "32768,65536",
+    "--niah-samples",
+    "8",
+    "--longbench-limit",
+    "8",
+    "--preflight-only",
+    "--output",
+    "results/kimi-k3-full-model-current/oct5-chat-quality-preflight.json"
+  ],
+  "assistant_prefix": "open XTML response + ordinary prefix tokens",
+  "batch_size": 2,
+  "benchmark": "kimi-k3-chat-quality",
+  "benchmark_identity": {
+    "runtime": {
+      "executable": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/bin/python3.12",
+      "packages": {
+        "aiter": null,
+        "torch": "2.12.0+rocm10.0.0",
+        "transformers": "5.17.0",
+        "triton": "3.8.0+gitc0a142ff",
+        "vllm": "0.30.1rc1.dev143+g29468dde8.rocm100"
+      },
+      "python": "3.12.14"
+    },
+    "schema": 1,
+    "source": {
+      "git_commit": "9a5e1e58f45a889d0a574bedc22350e5423397a3",
+      "source_file_count": 128,
+      "source_sha256": "fb4c832d397425a9687d334046ed3bcf2b4c562752917eb7bd4f09f6cec0fd00"
+    }
+  },
+  "checkpoint": "/tmp/dan-agent-kimi-k3-f831ab66814297da540d832a5235f8e904f29d06",
+  "engine_kwargs": {
+    "attention_config": {
+      "backend": null,
+      "backend_per_kind": {
+        "mla_attention": "TRITON_MLA"
+      }
+    },
+    "dcp_comm_backend": "ag_rs",
+    "decode_context_parallel_size": 8,
+    "disable_custom_all_reduce": false,
+    "disable_log_stats": false,
+    "dtype": "bfloat16",
+    "enable_expert_parallel": true,
+    "enable_prefix_caching": false,
+    "gpu_memory_utilization": 0.8,
+    "kv_cache_dtype": "bfloat16",
+    "kv_cache_memory_bytes": 2147483648,
+    "language_model_only": true,
+    "load_format": "ipc_cache",
+    "long_prefill_token_threshold": 16384,
+    "max_model_len": 131224,
+    "max_num_batched_tokens": 16386,
+    "max_num_seqs": 2,
+    "model": "/tmp/dan-agent-kimi-k3-f831ab66814297da540d832a5235f8e904f29d06",
+    "model_impl": "vllm",
+    "model_loader_extra_config": {
+      "auto_start": true,
+      "backing_load_format": "auto",
+      "broker_timeout": 1800.0,
+      "cache_dir": null,
+      "cache_id": "kimi-k3-shared-int4-v6"
+    },
+    "quantization_config": {
+      "moe": {
+        "weight": "int4_per_group_32"
+      }
+    },
+    "safetensors_load_strategy": "prefetch",
+    "scheduler_cls": "vllm_lod_plugin.scheduler.LODChunkAlignedScheduler",
+    "seed": 0,
+    "tensor_parallel_size": 8,
+    "trust_remote_code": true
+  },
+  "environment": {
+    "AITER_CONFIG_FMOE": "/home/dan/subusers/agent/KVM-paper-release/results/kimi-k3-full-model-current/kimik3_i4_tuned_fmoe_b2x16k_merged.csv",
+    "AITER_ROCM_ARCH": "gfx942;gfx950",
+    "LOD_BENCHMARK_SYNC_PREFILL_CACHE": "1",
+    "LOD_KIMI_CHUNK_TILE_PACK": "1",
+    "LOD_KIMI_DIRECT_LEAF_RESULT": "1",
+    "LOD_KIMI_LEAF_BLOCK_M": "64",
+    "LOD_KIMI_LEAF_WARPS": "1",
+    "LOD_KIMI_PREFILL_MIN_FREE_GIB": "4",
+    "LOD_KIMI_PREFILL_RECLAIM_INTERVAL": "0",
+    "LOD_KIMI_REUSE_PREFILL_ALLOCATOR": "1",
+    "LOD_KIMI_SORT_LEAF_ROUTES": "1",
+    "LOD_KIMI_SUBTILE64": "score",
+    "LOD_KIMI_TILE_PACK_QUERY_BLOCK": "1024",
+    "LOD_KIMI_TILE_REFINE": "1",
+    "VLLM_ALLOW_INSECURE_SERIALIZATION": "1",
+    "VLLM_KIMI_DENSE_GLUON": "1",
+    "VLLM_LOD_ENABLED": "0",
+    "VLLM_LOD_MODE": "two-tier",
+    "VLLM_LOD_POOL_SIZE": "2",
+    "VLLM_PLUGINS": "lod_attention",
+    "VLLM_ROCM_USE_AITER": "1",
+    "VLLM_ROCM_USE_AITER_MOE": "1",
+    "VLLM_USE_TRITON_AWQ": "1"
+  },
+  "hostname": "dev-shared-research-4-845758c86-vptgr",
+  "lm_eval_version": "0.4.13",
+  "longbench_dataset": "THUDM/LongBench-v2",
+  "longbench_revision": "2b48e494f2c7a2f0af81aae178e05c7e1dde0fe9",
+  "max_input_tokens": 131072,
+  "mode": "full",
+  "prompt_manifest": {
+    "longbench-v2": [
+      {
+        "_id": "66f245cc821e116aacb28698",
+        "answer": "C",
+        "difficulty": "easy",
+        "domain": "Multi-Document QA",
+        "input_tokens": 10090,
+        "length": "short",
+        "original_input_tokens": 10069,
+        "sent_input_tokens": 10069,
+        "sub_domain": "Multi-news",
+        "token_sha256": "d6a177f9df9f6186dac63dd2586e0d2b7dbd301be4bf60643d77b0adfd539cb5",
+        "truncated": false
+      },
+      {
+        "_id": "66f958b3bb02136c067c5219",
+        "answer": "C",
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "input_tokens": 23260,
+        "length": "short",
+        "original_input_tokens": 23239,
+        "sent_input_tokens": 23239,
+        "sub_domain": "Governmental",
+        "token_sha256": "1fe76c0963a48ab49c8902cbd87308cf857f0b1adb6b3c2b10a888c7c5adb95f",
+        "truncated": false
+      },
+      {
+        "_id": "66ec18a7821e116aacb1a72e",
+        "answer": "C",
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "input_tokens": 41775,
+        "length": "short",
+        "original_input_tokens": 41754,
+        "sent_input_tokens": 41754,
+        "sub_domain": "Academic",
+        "token_sha256": "dad5260e600bb5f8c71422b4dbe7ed6825292ea1229e007116439a41fe445e08",
+        "truncated": false
+      },
+      {
+        "_id": "66ed364d821e116aacb1f47e",
+        "answer": "D",
+        "difficulty": "easy",
+        "domain": "Multi-Document QA",
+        "input_tokens": 79627,
+        "length": "medium",
+        "original_input_tokens": 79606,
+        "sent_input_tokens": 79606,
+        "sub_domain": "Academic",
+        "token_sha256": "95e4808b8efb08c8fbc408b9709655fc303490e6a16ca5c93868c51f6ad0635e",
+        "truncated": false
+      },
+      {
+        "_id": "67189156bb02136c067d3b8d",
+        "answer": "B",
+        "difficulty": "hard",
+        "domain": "Long-dialogue History Understanding",
+        "input_tokens": 116432,
+        "length": "medium",
+        "original_input_tokens": 116411,
+        "sent_input_tokens": 116411,
+        "sub_domain": "Dialogue history QA",
+        "token_sha256": "12d9112495d24128a0c0ff23d5112f43f59e4f83e67a49e8cccd946fe73755df",
+        "truncated": false
+      },
+      {
+        "_id": "66fb6527bb02136c067c7b4f",
+        "answer": "B",
+        "difficulty": "easy",
+        "domain": "Multi-Document QA",
+        "input_tokens": 131092,
+        "length": "long",
+        "original_input_tokens": 189091,
+        "sent_input_tokens": 131071,
+        "sub_domain": "Legal",
+        "token_sha256": "da0e96bf0a8cce8739bff15aaaf4641690e3539aa84889a2987b1765f0601a6e",
+        "truncated": true
+      },
+      {
+        "_id": "67239fd9bb02136c067d6ff7",
+        "answer": "A",
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "input_tokens": 131094,
+        "length": "medium",
+        "original_input_tokens": 135135,
+        "sent_input_tokens": 131073,
+        "sub_domain": "Event ordering",
+        "token_sha256": "f4788d9d754636dc186beaf2acc061c139e5728f0cb50762ac2d67b27e9a5b2e",
+        "truncated": true
+      },
+      {
+        "_id": "66f2d224821e116aacb2bb8a",
+        "answer": "C",
+        "difficulty": "easy",
+        "domain": "Long In-context Learning",
+        "input_tokens": 131096,
+        "length": "medium",
+        "original_input_tokens": 155434,
+        "sent_input_tokens": 131075,
+        "sub_domain": "User guide QA",
+        "token_sha256": "e49dc795209c9b05adbb0464a3cba8f316696ae9c87655a81747d6849f364068",
+        "truncated": true
+      }
+    ],
+    "niah-s3:32768": [
+      {
+        "index": 0,
+        "input_tokens": 32201,
+        "target": "0ad40415-04c1-4982-99ea-d9264745dd9e",
+        "token_sha256": "4257acbd8f3f6c4ef205bf60cfdc69ad28a4bbfb787928454a79048980f4d2a1"
+      },
+      {
+        "index": 1,
+        "input_tokens": 32202,
+        "target": "f24dfdd8-5091-4bdc-8ef0-66d44279b14d",
+        "token_sha256": "71a21610b0a6ad0850b73056b7cfeac5912b4484e90696987d7de652ab8cfc17"
+      },
+      {
+        "index": 2,
+        "input_tokens": 32205,
+        "target": "b65d1226-7e96-4cf3-a7c5-cb879b8b71a1",
+        "token_sha256": "5457723b8542c67dff28bf6e341f062f39a62dcad984102a62d9a1091334a5bf"
+      },
+      {
+        "index": 3,
+        "input_tokens": 32201,
+        "target": "35354579-2da4-4da1-89b5-b368df14c612",
+        "token_sha256": "c29ac5f77e021a38f1d65d13f5b0ad739cae5308acef6d9351b54ca448d56557"
+      },
+      {
+        "index": 4,
+        "input_tokens": 32196,
+        "target": "555a4085-4578-4ab3-a6a9-74652371ea2c",
+        "token_sha256": "21f99b77c59643db99a177f9b6bc0a1fde34f9a5110d9e48a13f2922239f92c6"
+      },
+      {
+        "index": 5,
+        "input_tokens": 32206,
+        "target": "9edb95f2-c787-4dfb-9697-f17c17fd3736",
+        "token_sha256": "3f29122a04acb33567eb5b306d90eb69065e3f42646b42945616d79496046013"
+      },
+      {
+        "index": 6,
+        "input_tokens": 32201,
+        "target": "955d0e77-fb5e-4866-a640-211e29f2c3c7",
+        "token_sha256": "16da06a9672c97e1459bf00869878e35251674ec9f708414b7a31347ee3572eb"
+      },
+      {
+        "index": 7,
+        "input_tokens": 32202,
+        "target": "4b1cb8bd-2130-460c-8c69-778ffd42f697",
+        "token_sha256": "66ba5c6204276216b621523ae8e7234cbf05d8b4c018460747aaa99d03c40979"
+      }
+    ],
+    "niah-s3:65536": [
+      {
+        "index": 0,
+        "input_tokens": 64861,
+        "target": "eb561699-7f22-4d12-87b6-e08e6ac1ca75",
+        "token_sha256": "2911efff075a3357d1b2a53117c7cb5c8bee604c90780c70280669563fb4e884"
+      },
+      {
+        "index": 1,
+        "input_tokens": 64866,
+        "target": "5bf80676-1f12-40e9-9201-1caa5a3da367",
+        "token_sha256": "9747539a08d241173835d96ef40d3626db2f63ca2853ba6efbda654d4bc43b52"
+      },
+      {
+        "index": 2,
+        "input_tokens": 64863,
+        "target": "f96d4403-d48c-43f3-828d-042b2d8b5b41",
+        "token_sha256": "b0de02b316b2e0b29278333e254c6d7bd8715dfc2395df62677ec23f62bc4b8e"
+      },
+      {
+        "index": 3,
+        "input_tokens": 64866,
+        "target": "353e0c86-24ae-4a79-a4b8-298798ba0f0e",
+        "token_sha256": "928ebb5dbc36ee9676cc9100d10ff11e60b32b542f84b3cdc3f47a84baf5008a"
+      },
+      {
+        "index": 4,
+        "input_tokens": 64864,
+        "target": "e6a1a40b-f031-44b9-bb6b-0095ac7b7ab2",
+        "token_sha256": "4a435ed73c1d68cc3b8cd92a3d7219c65bc039ef7e5bdc74017e46392109256e"
+      },
+      {
+        "index": 5,
+        "input_tokens": 64861,
+        "target": "eecb325b-064f-468d-b080-e0035e7f503c",
+        "token_sha256": "17f427519aaace75c9ee3e0a1ed82e0ea758def94ac6dfc45d54ad3ec5af0600"
+      },
+      {
+        "index": 6,
+        "input_tokens": 64867,
+        "target": "7a089ca8-1cc5-48a0-b43c-7e9d2fdeb035",
+        "token_sha256": "758e0545770d0708f958704c54f9bf557ca5e3e95f83db3fabd7f5ea8f1ab7f3"
+      },
+      {
+        "index": 7,
+        "input_tokens": 64862,
+        "target": "5cbbc080-3547-4c5e-b76d-ce6e0726d44a",
+        "token_sha256": "3ffb79f374913af5c9c3d9a9852d1094e444a996f49164b27c03b45fe38afca0"
+      }
+    ]
+  },
+  "results": {},
+  "thinking": false
+}

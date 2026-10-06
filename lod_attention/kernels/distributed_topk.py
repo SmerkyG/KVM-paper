@@ -39,6 +39,15 @@ class AllGatherGroup(Protocol):
 if triton is not None:
 
     @triton.jit
+    def _pack_route_candidates_kernel(Scores, Slots, Packed, SIZE: tl.constexpr,
+                                      BLOCK: tl.constexpr):
+        offset = tl.program_id(0) * BLOCK + tl.arange(0, BLOCK)
+        score = tl.load(Scores + offset, offset < SIZE, other=-float("inf"))
+        slot = tl.load(Slots + offset, offset < SIZE, other=-1).to(tl.float32)
+        tl.store(Packed + offset * 2, score, offset < SIZE)
+        tl.store(Packed + offset * 2 + 1, slot, offset < SIZE)
+
+    @triton.jit
     def _reduce_gathered_rank_topk_kernel(
         gathered_ptr,
         output_scores_ptr,
@@ -50,11 +59,19 @@ if triton is not None:
         LOCAL_K: tl.constexpr,
         OUTPUT_K: tl.constexpr,
         BLOCK: tl.constexpr,
+        RANK_MAJOR: tl.constexpr = False,
+        ROWS: tl.constexpr = 1,
+        LOCAL_RANK: tl.constexpr = -1,
     ):
         row = tl.program_id(0)
         offsets = tl.arange(0, BLOCK)
         valid_candidate = offsets < CANDIDATES
-        base = row * gathered_stride_row + offsets * 2
+        if RANK_MAJOR:
+            # dim-0 all-gather preserves the collective's rank-major output.
+            # Read it directly instead of moving/flattening its rank axis.
+            base = ((offsets // LOCAL_K) * ROWS + row) * LOCAL_K * 2 + (offsets % LOCAL_K) * 2
+        else:
+            base = row * gathered_stride_row + offsets * 2
         scores = tl.load(
             gathered_ptr + base,
             mask=valid_candidate,
@@ -79,21 +96,24 @@ if triton is not None:
                 tl.where(tied, offsets, sentinel), axis=0
             )
             has_winner = best_candidate < sentinel
+            owner = best_candidate // LOCAL_K
+            owned = has_winner
+            if LOCAL_RANK >= 0:
+                owned &= owner == LOCAL_RANK
             best_slot = tl.sum(
                 tl.where(offsets == best_candidate, slots, 0), axis=0
             )
             output_offset = row * output_stride_row + output_index
             tl.store(
                 output_scores_ptr + output_offset,
-                tl.where(has_winner, best_score, -float("inf")),
+                tl.where(owned, best_score, -float("inf")),
             )
-            tl.store(
-                output_owners_ptr + output_offset,
-                tl.where(has_winner, best_candidate // LOCAL_K, -1),
-            )
+            if LOCAL_RANK < 0:
+                tl.store(output_owners_ptr + output_offset,
+                         tl.where(has_winner, owner, -1))
             tl.store(
                 output_slots_ptr + output_offset,
-                tl.where(has_winner, best_slot, -1),
+                tl.where(owned, best_slot, -1),
             )
             selected = has_winner & (offsets == best_candidate)
             scores = tl.where(selected, -float("inf"), scores)
@@ -233,8 +253,62 @@ def localize_global_topk(
     return local_scores, local_slots
 
 
+def distributed_global_topk_into(
+    local_scores: torch.Tensor,
+    local_slots: torch.Tensor,
+    group: AllGatherGroup,
+    *,
+    packed: torch.Tensor,
+) -> None:
+    """Exact global selection and ownership masking into fixed route buffers.
+
+    Two GPU kernels plus the same all-gather: pack score/index once, then
+    select the global winners and write only this rank's owned entries.
+    A dim-0 collective avoids the rank-axis layout copy. No approximation,
+    dynamic work list or change to rank-major tie breaking is introduced.
+    """
+    if local_scores.shape != local_slots.shape or local_scores.ndim < 1:
+        raise ValueError("local route scores and slots must have equal shapes")
+    if local_slots.dtype not in (torch.int32, torch.int64) or local_scores.dtype != torch.float32:
+        raise TypeError("fixed routes require fp32 scores and integer slots")
+    if packed.shape != (*local_scores.shape, 2) or packed.dtype != torch.float32:
+        raise ValueError("packed route workspace must end in score/index pairs")
+    if not (local_scores.device == local_slots.device == packed.device):
+        raise ValueError("route buffers must share a device")
+    if not all(tensor.is_contiguous() for tensor in (local_scores, local_slots, packed)):
+        raise ValueError("fixed route buffers must be contiguous")
+    k = int(local_scores.size(-1))
+    world, rank = int(group.world_size), int(group.rank_in_group)
+    if not 0 < k * world <= 128 or not 0 <= rank < world:
+        raise ValueError("unsupported distributed route geometry")
+    rows = local_scores.numel() // k
+    if local_scores.device.type != "cuda" or triton is None:
+        packed.copy_(pack_local_topk(local_scores, local_slots))
+    else:
+        _pack_route_candidates_kernel[(triton.cdiv(local_scores.numel(), 256),)](
+            local_scores, local_slots, packed, SIZE=local_scores.numel(), BLOCK=256,
+            num_warps=4)
+    gathered = group.all_gather(packed.view(rows, k, 2), dim=0)
+    if gathered.shape != (world * rows, k, 2) or not gathered.is_contiguous():
+        raise RuntimeError("DCP route all-gather must return contiguous rank-major records")
+    if local_scores.device.type != "cuda" or triton is None:
+        row_major = gathered.view(world, rows, k, 2).permute(1, 0, 2, 3).reshape(rows, world*k, 2)
+        scores, owners, slots = reduce_gathered_rank_topk(row_major, local_k=k)
+        scores, slots = localize_global_topk(scores, owners, slots, local_rank=rank)
+        local_scores.copy_(scores.view_as(local_scores))
+        local_slots.copy_(slots.view_as(local_slots))
+    else:
+        block = triton.next_power_of_2(world * k)
+        _reduce_gathered_rank_topk_kernel[(rows,)](
+            gathered, local_scores, local_slots, local_slots, k * 2, k,
+            CANDIDATES=world*k, LOCAL_K=k, OUTPUT_K=k, BLOCK=block,
+            RANK_MAJOR=True, ROWS=rows, LOCAL_RANK=rank,
+            num_warps=1 if block <= 64 else 2, waves_per_eu=1)
+
+
 __all__ = [
     "distributed_global_topk",
+    "distributed_global_topk_into",
     "localize_global_topk",
     "pack_local_topk",
     "reduce_gathered_rank_topk",

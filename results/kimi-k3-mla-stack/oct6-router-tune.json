@@ -1,0 +1,623 @@
+{
+  "scope": "isolated router only; graph replay, not serving latency",
+  "rows": [
+    {
+      "batch": 1,
+      "active_slots": 512,
+      "group_n": 64,
+      "warps": 1,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 103.08009386062622,
+      "samples_us": [
+        103.15471887588501,
+        103.06272506713867,
+        103.08009386062622,
+        103.08685302734375,
+        103.05734872817993
+      ],
+      "max_score_error": 1.9073486328125e-06,
+      "exact_indices": true,
+      "resources": {
+        "vgpr_count": 512,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 603,
+        "sgpr_spill_count": 130,
+        "private_segment_fixed_size": 1592
+      }
+    },
+    {
+      "batch": 1,
+      "active_slots": 512,
+      "group_n": 64,
+      "warps": 2,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 22.403696179389954,
+      "samples_us": [
+        22.435946762561798,
+        22.405821084976196,
+        22.403696179389954,
+        22.40094393491745,
+        22.40319699048996
+      ],
+      "max_score_error": 1.9073486328125e-06,
+      "exact_indices": true,
+      "resources": {
+        "vgpr_count": 483,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 176,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 1,
+      "active_slots": 512,
+      "group_n": 64,
+      "warps": 4,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 12.170084565877914,
+      "samples_us": [
+        12.205331027507782,
+        12.170084565877914,
+        12.166709452867508,
+        12.170584499835968,
+        12.169087678194046
+      ],
+      "max_score_error": 1.9073486328125e-06,
+      "exact_indices": true,
+      "resources": {
+        "vgpr_count": 252,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 3,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 1,
+      "active_slots": 512,
+      "group_n": 64,
+      "warps": 8,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 18.757246434688568,
+      "samples_us": [
+        19.143866002559662,
+        18.755243718624115,
+        18.755368888378143,
+        18.757246434688568,
+        18.766747415065765
+      ],
+      "max_score_error": 1.9073486328125e-06,
+      "exact_indices": true,
+      "resources": {
+        "vgpr_count": 244,
+        "sgpr_count": 81,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 1,
+      "active_slots": 512,
+      "group_n": 32,
+      "warps": 4,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 9.026128053665161,
+      "samples_us": [
+        9.42087173461914,
+        9.01537835597992,
+        9.018877893686295,
+        9.028878062963486,
+        9.026128053665161
+      ],
+      "max_score_error": 1.9073486328125e-06,
+      "exact_indices": true,
+      "resources": {
+        "vgpr_count": 184,
+        "sgpr_count": 87,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 1,
+      "active_slots": 512,
+      "group_n": 128,
+      "warps": 4,
+      "stages": 2,
+      "error": "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+    },
+    {
+      "batch": 1,
+      "active_slots": 512,
+      "group_n": 64,
+      "warps": 4,
+      "stages": 1,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 12.136459350585938,
+      "samples_us": [
+        12.172334641218185,
+        12.139084190130234,
+        12.134459614753723,
+        12.136459350585938,
+        12.136084586381912
+      ],
+      "max_score_error": 1.9073486328125e-06,
+      "exact_indices": true,
+      "resources": {
+        "vgpr_count": 252,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 3,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 8,
+      "active_slots": 512,
+      "group_n": 64,
+      "warps": 1,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 125.46980381011963,
+      "samples_us": [
+        125.46980381011963,
+        125.45779943466187,
+        125.37766695022583,
+        125.47341585159302,
+        125.5629301071167
+      ],
+      "max_score_error": 2.384185791015625e-06,
+      "exact_indices": true,
+      "resources": {
+        "vgpr_count": 512,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 603,
+        "sgpr_spill_count": 130,
+        "private_segment_fixed_size": 1592
+      }
+    },
+    {
+      "batch": 8,
+      "active_slots": 512,
+      "group_n": 64,
+      "warps": 2,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 44.33014690876007,
+      "samples_us": [
+        44.33364272117615,
+        44.32864785194397,
+        44.33014690876007,
+        44.32564675807953,
+        44.333893060684204
+      ],
+      "max_score_error": 2.384185791015625e-06,
+      "exact_indices": true,
+      "resources": {
+        "vgpr_count": 483,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 176,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 8,
+      "active_slots": 512,
+      "group_n": 64,
+      "warps": 4,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 23.906424641609192,
+      "samples_us": [
+        23.973925411701202,
+        23.9074245095253,
+        23.906424641609192,
+        23.904800415039062,
+        23.901550471782684
+      ],
+      "max_score_error": 2.384185791015625e-06,
+      "exact_indices": true,
+      "resources": {
+        "vgpr_count": 252,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 3,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 8,
+      "active_slots": 512,
+      "group_n": 64,
+      "warps": 8,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 37.607863545417786,
+      "samples_us": [
+        38.02710473537445,
+        37.607863545417786,
+        37.61011362075806,
+        37.606486678123474,
+        37.59899139404297
+      ],
+      "max_score_error": 2.384185791015625e-06,
+      "exact_indices": true,
+      "resources": {
+        "vgpr_count": 244,
+        "sgpr_count": 81,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 8,
+      "active_slots": 512,
+      "group_n": 32,
+      "warps": 4,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 25.95002055168152,
+      "samples_us": [
+        26.373642683029175,
+        25.944900512695312,
+        25.95002055168152,
+        25.953271985054016,
+        25.94064772129059
+      ],
+      "max_score_error": 2.384185791015625e-06,
+      "exact_indices": true,
+      "resources": {
+        "vgpr_count": 184,
+        "sgpr_count": 87,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 8,
+      "active_slots": 512,
+      "group_n": 128,
+      "warps": 4,
+      "stages": 2,
+      "error": "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+    },
+    {
+      "batch": 8,
+      "active_slots": 512,
+      "group_n": 64,
+      "warps": 4,
+      "stages": 1,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 23.990924656391144,
+      "samples_us": [
+        24.002546072006226,
+        23.993422091007233,
+        23.990924656391144,
+        23.987549543380737,
+        23.988546431064606
+      ],
+      "max_score_error": 2.384185791015625e-06,
+      "exact_indices": true,
+      "resources": {
+        "vgpr_count": 252,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 3,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 1,
+      "active_slots": 4096,
+      "group_n": 64,
+      "warps": 1,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 125.57516098022461,
+      "samples_us": [
+        125.5745530128479,
+        126.27577781677246,
+        125.59317350387573,
+        125.55503845214844,
+        125.57516098022461
+      ],
+      "max_score_error": 1.9073486328125e-06,
+      "exact_indices": true,
+      "resources": {
+        "vgpr_count": 512,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 603,
+        "sgpr_spill_count": 130,
+        "private_segment_fixed_size": 1592
+      }
+    },
+    {
+      "batch": 1,
+      "active_slots": 4096,
+      "group_n": 64,
+      "warps": 2,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 44.50664222240448,
+      "samples_us": [
+        44.87626254558563,
+        44.499272108078,
+        44.50389742851257,
+        44.50664222240448,
+        44.50914263725281
+      ],
+      "max_score_error": 1.9073486328125e-06,
+      "exact_indices": true,
+      "resources": {
+        "vgpr_count": 483,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 176,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 1,
+      "active_slots": 4096,
+      "group_n": 64,
+      "warps": 4,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 23.952175676822662,
+      "samples_us": [
+        24.480794370174408,
+        23.955175280570984,
+        23.951925337314606,
+        23.94929677248001,
+        23.952175676822662
+      ],
+      "max_score_error": 1.9073486328125e-06,
+      "exact_indices": true,
+      "resources": {
+        "vgpr_count": 252,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 3,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 1,
+      "active_slots": 4096,
+      "group_n": 64,
+      "warps": 8,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 37.797486782073975,
+      "samples_us": [
+        38.71247470378876,
+        37.790608406066895,
+        37.78773844242096,
+        37.79773414134979,
+        37.797486782073975
+      ],
+      "max_score_error": 1.9073486328125e-06,
+      "exact_indices": true,
+      "resources": {
+        "vgpr_count": 244,
+        "sgpr_count": 81,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 1,
+      "active_slots": 4096,
+      "group_n": 32,
+      "warps": 4,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 26.035022735595703,
+      "samples_us": [
+        27.44375169277191,
+        26.04389488697052,
+        26.035022735595703,
+        26.034647226333618,
+        26.03439688682556
+      ],
+      "max_score_error": 1.9073486328125e-06,
+      "exact_indices": true,
+      "resources": {
+        "vgpr_count": 184,
+        "sgpr_count": 87,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 1,
+      "active_slots": 4096,
+      "group_n": 128,
+      "warps": 4,
+      "stages": 2,
+      "error": "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+    },
+    {
+      "batch": 1,
+      "active_slots": 4096,
+      "group_n": 64,
+      "warps": 4,
+      "stages": 1,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 23.97567480802536,
+      "samples_us": [
+        24.405793845653534,
+        23.971174657344818,
+        23.97567480802536,
+        23.985549807548523,
+        23.970171809196472
+      ],
+      "max_score_error": 1.9073486328125e-06,
+      "exact_indices": true,
+      "resources": {
+        "vgpr_count": 252,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 3,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 8,
+      "active_slots": 4096,
+      "group_n": 64,
+      "warps": 1,
+      "stages": 2,
+      "error": "top-8 selection differs from FP32 reference: 2"
+    },
+    {
+      "batch": 8,
+      "active_slots": 4096,
+      "group_n": 64,
+      "warps": 2,
+      "stages": 2,
+      "error": "top-8 selection differs from FP32 reference: 2"
+    },
+    {
+      "batch": 8,
+      "active_slots": 4096,
+      "group_n": 64,
+      "warps": 4,
+      "stages": 2,
+      "error": "top-8 selection differs from FP32 reference: 2"
+    },
+    {
+      "batch": 8,
+      "active_slots": 4096,
+      "group_n": 64,
+      "warps": 8,
+      "stages": 2,
+      "error": "top-8 selection differs from FP32 reference: 2"
+    },
+    {
+      "batch": 8,
+      "active_slots": 4096,
+      "group_n": 32,
+      "warps": 4,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": false,
+      "graph_kernel_us": 173.6777663230896,
+      "samples_us": [
+        176.7030954360962,
+        173.68139028549194,
+        173.6530065536499,
+        173.65776300430298,
+        173.6777663230896
+      ],
+      "max_score_error": 3.337860107421875e-06,
+      "exact_indices": true,
+      "resources": {
+        "vgpr_count": 184,
+        "sgpr_count": 87,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 8,
+      "active_slots": 4096,
+      "group_n": 128,
+      "warps": 4,
+      "stages": 2,
+      "error": "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+    },
+    {
+      "batch": 8,
+      "active_slots": 4096,
+      "group_n": 64,
+      "warps": 4,
+      "stages": 1,
+      "error": "top-8 selection differs from FP32 reference: 2"
+    },
+    {
+      "batch": 8,
+      "active_slots": 511,
+      "group_n": 64,
+      "warps": 4,
+      "stages": 2,
+      "keys_are_means": true,
+      "ties": false,
+      "graph_kernel_us": 12.762327492237091,
+      "samples_us": [
+        12.791575491428375,
+        12.766200304031372,
+        12.76082843542099,
+        12.762327492237091,
+        12.758325040340424
+      ],
+      "max_score_error": 2.384185791015625e-06,
+      "exact_indices": true,
+      "resources": {
+        "vgpr_count": 128,
+        "sgpr_count": 98,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 8,
+      "active_slots": 511,
+      "group_n": 64,
+      "warps": 4,
+      "stages": 2,
+      "keys_are_means": false,
+      "ties": true,
+      "graph_kernel_us": 23.919299244880676,
+      "samples_us": [
+        24.252672493457794,
+        23.914052546024323,
+        23.914049565792084,
+        23.92142564058304,
+        23.919299244880676
+      ],
+      "max_score_error": 4.76837158203125e-07,
+      "exact_indices": true,
+      "resources": {
+        "vgpr_count": 252,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 3,
+        "private_segment_fixed_size": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,328 @@
+{
+  "scope": "Two real K3 MLA+MoE layers; compare TP Q/K/V/O with one attention owner.\n\nPrefill only. No embedding, LM head, sampling, scheduler, or pipeline overlap\nis timed. Native AttnRes and EP/TP MoE are retained. Both variants use the\nsame single-owner LoD math/cache and identical weights and hidden inputs.\nThis small random-weight geometry fixture is not a trained-model quality or\nfull-K3 latency benchmark. Weight assembly is outside the prefill interval.\nExpert choices are frozen from the control prefill: ordinary BF16 W_O\nroundoff otherwise flips near-tied random MoE routes. Router GEMMs and native\nexpert kernels still execute; this is not natural-routing quality evidence.\n",
+  "chunk_size": 16384,
+  "layers": 2,
+  "owner_rank": 0,
+  "pipeline_overlap": false,
+  "cuda_graph_capture": false,
+  "moe_backend": "native vLLM Triton BF16 SITU, identical in both variants",
+  "moe_routes": "recorded control-prefill logits reused in both variants; router GEMMs still timed",
+  "quality_evidence": false,
+  "timing": "max of eight synchronized wall intervals; one measured pass after exact-shape warmup",
+  "geometry": {
+    "hidden": 7168,
+    "heads": 96,
+    "latent": 512,
+    "direct": 64,
+    "experts": 32,
+    "active_experts": 4,
+    "expert_latent": 4096,
+    "expert_intermediate": 2048
+  },
+  "points": {
+    "32768": {
+      "tp_seconds": 0.19959232956171036,
+      "owner_seconds": 0.21584700606763363,
+      "speedup": 0.924693528059268,
+      "max_relative_l2": 0.010043504647910595
+    },
+    "65536": {
+      "tp_seconds": 0.48232297599315643,
+      "owner_seconds": 0.5185605958104134,
+      "speedup": 0.9301188325722585,
+      "max_relative_l2": 0.010030101053416729
+    }
+  },
+  "workers": [
+    {
+      "rank": 0,
+      "world_size": 8,
+      "layers": 2,
+      "moe_types": [
+        "KimiMoE",
+        "KimiMoE"
+      ],
+      "expert_parallel_size": 8,
+      "peak_allocated_bytes": 18822835200,
+      "points": {
+        "32768": {
+          "tp_qkvo_seconds": 0.19959232956171036,
+          "owner_qkvo_seconds": 0.21584700606763363,
+          "relative_l2": 0.010043504647910595,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.621698260307312,
+          "cache_audit": {
+            "tp_qkvo": [
+              {
+                "total_len": 32768,
+                "coverage": 32512,
+                "state_len": 2896,
+                "leaf_count": 32511
+              },
+              {
+                "total_len": 32768,
+                "coverage": 32512,
+                "state_len": 2896,
+                "leaf_count": 32511
+              }
+            ],
+            "owner_qkvo": [
+              {
+                "total_len": 32768,
+                "coverage": 32512,
+                "state_len": 2896,
+                "leaf_count": 32511
+              },
+              {
+                "total_len": 32768,
+                "coverage": 32512,
+                "state_len": 2896,
+                "leaf_count": 32511
+              }
+            ]
+          }
+        },
+        "65536": {
+          "tp_qkvo_seconds": 0.48232297599315643,
+          "owner_qkvo_seconds": 0.5185605958104134,
+          "relative_l2": 0.010030101053416729,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.6209648847579956,
+          "cache_audit": {
+            "tp_qkvo": [
+              {
+                "total_len": 65536,
+                "coverage": 65280,
+                "state_len": 4096,
+                "leaf_count": 65279
+              },
+              {
+                "total_len": 65536,
+                "coverage": 65280,
+                "state_len": 4096,
+                "leaf_count": 65279
+              }
+            ],
+            "owner_qkvo": [
+              {
+                "total_len": 65536,
+                "coverage": 65280,
+                "state_len": 4096,
+                "leaf_count": 65279
+              },
+              {
+                "total_len": 65536,
+                "coverage": 65280,
+                "state_len": 4096,
+                "leaf_count": 65279
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "rank": 1,
+      "world_size": 8,
+      "layers": 2,
+      "moe_types": [
+        "KimiMoE",
+        "KimiMoE"
+      ],
+      "expert_parallel_size": 8,
+      "peak_allocated_bytes": 11546098176,
+      "points": {
+        "32768": {
+          "tp_qkvo_seconds": 0.19947448000311852,
+          "owner_qkvo_seconds": 0.2157016173005104,
+          "relative_l2": 0.010043504647910595,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.621698260307312,
+          "cache_audit": null
+        },
+        "65536": {
+          "tp_qkvo_seconds": 0.4821330886334181,
+          "owner_qkvo_seconds": 0.5184185579419136,
+          "relative_l2": 0.010030101053416729,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.6209648847579956,
+          "cache_audit": null
+        }
+      }
+    },
+    {
+      "rank": 2,
+      "world_size": 8,
+      "layers": 2,
+      "moe_types": [
+        "KimiMoE",
+        "KimiMoE"
+      ],
+      "expert_parallel_size": 8,
+      "peak_allocated_bytes": 11546098176,
+      "points": {
+        "32768": {
+          "tp_qkvo_seconds": 0.19946769997477531,
+          "owner_qkvo_seconds": 0.21575265564024448,
+          "relative_l2": 0.010043504647910595,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.621698260307312,
+          "cache_audit": null
+        },
+        "65536": {
+          "tp_qkvo_seconds": 0.4822664652019739,
+          "owner_qkvo_seconds": 0.5183939877897501,
+          "relative_l2": 0.010030101053416729,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.6209648847579956,
+          "cache_audit": null
+        }
+      }
+    },
+    {
+      "rank": 3,
+      "world_size": 8,
+      "layers": 2,
+      "moe_types": [
+        "KimiMoE",
+        "KimiMoE"
+      ],
+      "expert_parallel_size": 8,
+      "peak_allocated_bytes": 11546098176,
+      "points": {
+        "32768": {
+          "tp_qkvo_seconds": 0.19951711036264896,
+          "owner_qkvo_seconds": 0.21580649726092815,
+          "relative_l2": 0.010043504647910595,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.621698260307312,
+          "cache_audit": null
+        },
+        "65536": {
+          "tp_qkvo_seconds": 0.4822990857064724,
+          "owner_qkvo_seconds": 0.5182474013417959,
+          "relative_l2": 0.010030101053416729,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.6209648847579956,
+          "cache_audit": null
+        }
+      }
+    },
+    {
+      "rank": 4,
+      "world_size": 8,
+      "layers": 2,
+      "moe_types": [
+        "KimiMoE",
+        "KimiMoE"
+      ],
+      "expert_parallel_size": 8,
+      "peak_allocated_bytes": 11546098176,
+      "points": {
+        "32768": {
+          "tp_qkvo_seconds": 0.19954250939190388,
+          "owner_qkvo_seconds": 0.21569874696433544,
+          "relative_l2": 0.010043504647910595,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.621698260307312,
+          "cache_audit": null
+        },
+        "65536": {
+          "tp_qkvo_seconds": 0.4821473564952612,
+          "owner_qkvo_seconds": 0.5184336584061384,
+          "relative_l2": 0.010030101053416729,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.6209648847579956,
+          "cache_audit": null
+        }
+      }
+    },
+    {
+      "rank": 5,
+      "world_size": 8,
+      "layers": 2,
+      "moe_types": [
+        "KimiMoE",
+        "KimiMoE"
+      ],
+      "expert_parallel_size": 8,
+      "peak_allocated_bytes": 11546098176,
+      "points": {
+        "32768": {
+          "tp_qkvo_seconds": 0.1994975283741951,
+          "owner_qkvo_seconds": 0.21581623516976833,
+          "relative_l2": 0.010043504647910595,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.621698260307312,
+          "cache_audit": null
+        },
+        "65536": {
+          "tp_qkvo_seconds": 0.48206196911633015,
+          "owner_qkvo_seconds": 0.5183732081204653,
+          "relative_l2": 0.010030101053416729,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.6209648847579956,
+          "cache_audit": null
+        }
+      }
+    },
+    {
+      "rank": 6,
+      "world_size": 8,
+      "layers": 2,
+      "moe_types": [
+        "KimiMoE",
+        "KimiMoE"
+      ],
+      "expert_parallel_size": 8,
+      "peak_allocated_bytes": 11546098176,
+      "points": {
+        "32768": {
+          "tp_qkvo_seconds": 0.19952185824513435,
+          "owner_qkvo_seconds": 0.21579981595277786,
+          "relative_l2": 0.010043504647910595,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.621698260307312,
+          "cache_audit": null
+        },
+        "65536": {
+          "tp_qkvo_seconds": 0.4821553975343704,
+          "owner_qkvo_seconds": 0.5183814875781536,
+          "relative_l2": 0.010030101053416729,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.6209648847579956,
+          "cache_audit": null
+        }
+      }
+    },
+    {
+      "rank": 7,
+      "world_size": 8,
+      "layers": 2,
+      "moe_types": [
+        "KimiMoE",
+        "KimiMoE"
+      ],
+      "expert_parallel_size": 8,
+      "peak_allocated_bytes": 11546098176,
+      "points": {
+        "32768": {
+          "tp_qkvo_seconds": 0.199528019875288,
+          "owner_qkvo_seconds": 0.21581674739718437,
+          "relative_l2": 0.010043504647910595,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.621698260307312,
+          "cache_audit": null
+        },
+        "65536": {
+          "tp_qkvo_seconds": 0.48228140734136105,
+          "owner_qkvo_seconds": 0.5183948986232281,
+          "relative_l2": 0.010030101053416729,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.6209648847579956,
+          "cache_audit": null
+        }
+      }
+    }
+  ]
+}

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import torch
+import pytest
 
 from lod_attention.kernels.distributed_topk import (
     distributed_global_topk,
+    distributed_global_topk_into,
     localize_global_topk,
     pack_local_topk,
     reduce_gathered_rank_topk,
@@ -105,3 +107,68 @@ def test_distributed_entry_point_uses_one_packed_collective() -> None:
     assert selected_scores.tolist() == [[[63.0, 62.0, 61.0, 60.0, 59.0, 58.0, 57.0, 56.0]]]
     assert owners.tolist() == [[[7, 7, 7, 7, 7, 7, 7, 7]]]
     assert selected_slots.tolist() == [[[7, 6, 5, 4, 3, 2, 1, 0]]]
+
+
+class _RankMajorGroup:
+    def __init__(self, packed, rank):
+        self.packed = packed
+        self.world_size = packed.size(0)
+        self.rank_in_group = rank
+
+    def all_gather(self, value, dim=0):
+        assert dim == 0
+        assert value.shape == self.packed.shape[1:]
+        return self.packed.flatten(0, 1)
+
+
+@pytest.mark.parametrize("device", ["cpu", "cuda"])
+@pytest.mark.parametrize("world,k", [(1, 8), (2, 4), (8, 8), (16, 8)])
+def test_rank_major_inplace_routes_match_original_ownership(device, world, k):
+    if device == "cuda" and not torch.cuda.is_available():
+        pytest.skip("GPU distributed routing")
+    torch.manual_seed(81)
+    shape = (2, 5, 1, k)
+    scores = torch.randint(-5, 5, (world, *shape), device=device).float()
+    slots = torch.arange(k, device=device).expand(world, *shape).clone().long()
+    scores[..., -1] = -torch.inf
+    slots[..., -1] = -1
+    gathered = torch.stack((scores, slots.float()), -1)
+    row_major = torch.cat(list(gathered.unbind(0)), dim=-2)
+    expected_scores, owners, expected_slots = reduce_gathered_rank_topk(row_major, local_k=k)
+    for rank in range(world):
+        local_scores, local_slots = scores[rank].clone(), slots[rank].clone()
+        pointers = (local_scores.data_ptr(), local_slots.data_ptr())
+        packed = torch.empty((*shape, 2), device=device)
+        group = _RankMajorGroup(gathered.view(world, -1, k, 2), rank)
+        distributed_global_topk_into(local_scores, local_slots, group, packed=packed)
+        expected = localize_global_topk(expected_scores, owners, expected_slots, local_rank=rank)
+        assert torch.equal(local_scores, expected[0])
+        assert torch.equal(local_slots, expected[1])
+        assert pointers == (local_scores.data_ptr(), local_slots.data_ptr())
+        assert torch.equal(packed, gathered[rank])
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="GPU routing graph")
+def test_rank_major_route_graph_replays_use_live_records():
+    torch.manual_seed(91)
+    scores = torch.randn(8, 2, 3, 1, 8, device="cuda")
+    slots = torch.arange(8, device="cuda").expand_as(scores).long()
+    gathered = torch.stack((scores, slots.float()), -1)
+    local_scores, local_slots = scores[3].clone(), slots[3].clone()
+    packed = torch.empty_like(gathered[3])
+    group = _RankMajorGroup(gathered.view(8, -1, 8, 2), 3)
+    def run():
+        distributed_global_topk_into(local_scores, local_slots, group, packed=packed)
+    run()
+    graph = torch.cuda.CUDAGraph()
+    with torch.cuda.graph(graph):
+        run()
+    for boost_rank in (3, 7, 0):
+        scores[boost_rank].add_(10)
+        gathered[..., 0].copy_(scores)
+        graph.replay()
+        row_major = torch.cat(list(gathered.unbind(0)), dim=-2)
+        selected_scores, owners, selected_slots = reduce_gathered_rank_topk(row_major, local_k=8)
+        expected = localize_global_topk(selected_scores, owners, selected_slots, local_rank=3)
+        assert torch.equal(local_scores, expected[0])
+        assert torch.equal(local_slots, expected[1])

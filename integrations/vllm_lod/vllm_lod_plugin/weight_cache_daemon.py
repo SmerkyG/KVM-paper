@@ -161,7 +161,8 @@ class WeightCacheServer:
             )
             metadata: dict[str, Any] = {}
             for leaf, value in vars(module).items():
-                if leaf in registered or leaf in _MODULE_INTERNAL_ATTRS:
+                if (leaf in registered or leaf in _MODULE_INTERNAL_ATTRS
+                        or leaf.startswith("_vllm_lod_")):
                     continue
                 if isinstance(value, torch.Tensor):
                     self._add_tensor(prefix + leaf, value, "attribute")

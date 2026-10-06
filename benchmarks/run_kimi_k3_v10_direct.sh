@@ -18,6 +18,31 @@ if [[ ! -x "${python}" ]]; then
   exit 2
 fi
 
+# The unpacked image lives on Ceph. Never let JIT compilation default to its
+# HOME/site-packages: compilation produces thousands of small files and is
+# dramatically slower there. Preserve explicit caller overrides.
+export TRITON_CACHE_DIR="${TRITON_CACHE_DIR:-/tmp/dan-agent/.triton/cache}"
+export TORCHINDUCTOR_CACHE_DIR="${TORCHINDUCTOR_CACHE_DIR:-/tmp/dan-agent/torchinductor_cache}"
+export TORCH_EXTENSIONS_DIR="${TORCH_EXTENSIONS_DIR:-/tmp/dan-agent/torch_extensions}"
+export VLLM_CACHE_ROOT="${VLLM_CACHE_ROOT:-/tmp/dan-agent/vllm_cache}"
+export AITER_JIT_DIR="${AITER_JIT_DIR:-/tmp/dan-agent/aiter-jit-k3}"
+export FLYDSL_RUNTIME_CACHE_DIR="${FLYDSL_RUNTIME_CACHE_DIR:-${AITER_JIT_DIR}/flydsl_cache}"
+export FLYDSL_AUTOTUNE_CACHE_DIR="${FLYDSL_AUTOTUNE_CACHE_DIR:-/tmp/dan-agent/flydsl_autotune}"
+mkdir -p "${TRITON_CACHE_DIR}" "${TORCHINDUCTOR_CACHE_DIR}" \
+  "${TORCH_EXTENSIONS_DIR}" "${VLLM_CACHE_ROOT}" "${AITER_JIT_DIR}" \
+  "${FLYDSL_RUNTIME_CACHE_DIR}" "${FLYDSL_AUTOTUNE_CACHE_DIR}"
+
+# AITER's override directory must also contain the image's precompiled
+# modules. Seed once per node/image under a lock (daemon and clients can start
+# together), then keep all newly built modules in this same local directory.
+(
+  flock 9
+  if [[ ! -f "${AITER_JIT_DIR}/.kimi-v10-image-seeded" ]]; then
+    rsync -a --ignore-existing "${site_packages}/aiter/jit/" "${AITER_JIT_DIR}/"
+    touch "${AITER_JIT_DIR}/.kimi-v10-image-seeded"
+  fi
+) 9>"${AITER_JIT_DIR}/.kimi-v10-seed.lock"
+
 cd "${repo_root}"
 exec /usr/bin/env \
   HOME="${image_root}/root" \

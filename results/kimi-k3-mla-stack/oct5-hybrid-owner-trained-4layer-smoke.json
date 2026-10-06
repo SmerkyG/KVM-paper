@@ -1,0 +1,400 @@
+{
+  "scope": "Hybrid K3 prefill: native TP8 KDA/EP8 MoE, request-owner MLA Q/K/V/O.\n\nThe unchanged full checkpoint is attached to the existing weight daemon;\nonly the first N layers execute in the direct worker probe. This retains\ntrained, production-sized native INT4 experts and both AttnRes operations.\nNo shared checkpoint parameters are modified. Embeddings, LM head, sampling,\nand scheduling are outside the timed interval; all attention interfaces,\nKDA, MoE, residuals, and LoD updates are inside. This is a layout/speed probe,\nnot an end-to-end serving latency or language-quality measurement.\n",
+  "points": {
+    "32768/B1": {
+      "full_tp8_seconds": 0.1983310617506504,
+      "owner_mla_seconds": 0.32535937428474426,
+      "speedup": 0.6095753724221185
+    }
+  },
+  "workers": [
+    {
+      "rank": 0,
+      "layer_kinds": [
+        "kda",
+        "kda",
+        "kda",
+        "mla"
+      ],
+      "ffn_types": [
+        "KimiMLP",
+        "KimiMoE",
+        "KimiMoE",
+        "KimiMoE"
+      ],
+      "kda_local_heads": 12,
+      "ep_size": 8,
+      "layout_relative_l2": [
+        0.0041734445840120316,
+        0.004157235845923424
+      ],
+      "points": {
+        "32768/B1": {
+          "full_tp8": {
+            "seconds": 0.19830277189612389,
+            "peak_allocated_bytes": 6762813440,
+            "output_rms": 0.05224081873893738,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 32768,
+                  "centroid_updates": 0
+                }
+              }
+            }
+          },
+          "owner_mla": {
+            "seconds": 0.32526310347020626,
+            "peak_allocated_bytes": 6847620096,
+            "output_rms": 0.05216109752655029,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "rank": 1,
+      "layer_kinds": [
+        "kda",
+        "kda",
+        "kda",
+        "mla"
+      ],
+      "ffn_types": [
+        "KimiMLP",
+        "KimiMoE",
+        "KimiMoE",
+        "KimiMoE"
+      ],
+      "kda_local_heads": 12,
+      "ep_size": 8,
+      "layout_relative_l2": [
+        0.0041734445840120316,
+        0.004157235845923424
+      ],
+      "points": {
+        "32768/B1": {
+          "full_tp8": {
+            "seconds": 0.19831455126404762,
+            "peak_allocated_bytes": 4674605568,
+            "output_rms": 0.05224081873893738,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 32768,
+                  "centroid_updates": 0
+                }
+              }
+            }
+          },
+          "owner_mla": {
+            "seconds": 0.32530660554766655,
+            "peak_allocated_bytes": 4674720256,
+            "output_rms": 0.05216109752655029,
+            "cache_audit": {
+              "3": {}
+            }
+          }
+        }
+      }
+    },
+    {
+      "rank": 2,
+      "layer_kinds": [
+        "kda",
+        "kda",
+        "kda",
+        "mla"
+      ],
+      "ffn_types": [
+        "KimiMLP",
+        "KimiMoE",
+        "KimiMoE",
+        "KimiMoE"
+      ],
+      "kda_local_heads": 12,
+      "ep_size": 8,
+      "layout_relative_l2": [
+        0.0041734445840120316,
+        0.004157235845923424
+      ],
+      "points": {
+        "32768/B1": {
+          "full_tp8": {
+            "seconds": 0.19825528375804424,
+            "peak_allocated_bytes": 4674605568,
+            "output_rms": 0.05224081873893738,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 32768,
+                  "centroid_updates": 0
+                }
+              }
+            }
+          },
+          "owner_mla": {
+            "seconds": 0.325305113568902,
+            "peak_allocated_bytes": 4674720256,
+            "output_rms": 0.05216109752655029,
+            "cache_audit": {
+              "3": {}
+            }
+          }
+        }
+      }
+    },
+    {
+      "rank": 3,
+      "layer_kinds": [
+        "kda",
+        "kda",
+        "kda",
+        "mla"
+      ],
+      "ffn_types": [
+        "KimiMLP",
+        "KimiMoE",
+        "KimiMoE",
+        "KimiMoE"
+      ],
+      "kda_local_heads": 12,
+      "ep_size": 8,
+      "layout_relative_l2": [
+        0.0041734445840120316,
+        0.004157235845923424
+      ],
+      "points": {
+        "32768/B1": {
+          "full_tp8": {
+            "seconds": 0.19829808361828327,
+            "peak_allocated_bytes": 4674605568,
+            "output_rms": 0.05224081873893738,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 32768,
+                  "centroid_updates": 0
+                }
+              }
+            }
+          },
+          "owner_mla": {
+            "seconds": 0.32534785382449627,
+            "peak_allocated_bytes": 4674720256,
+            "output_rms": 0.05216109752655029,
+            "cache_audit": {
+              "3": {}
+            }
+          }
+        }
+      }
+    },
+    {
+      "rank": 4,
+      "layer_kinds": [
+        "kda",
+        "kda",
+        "kda",
+        "mla"
+      ],
+      "ffn_types": [
+        "KimiMLP",
+        "KimiMoE",
+        "KimiMoE",
+        "KimiMoE"
+      ],
+      "kda_local_heads": 12,
+      "ep_size": 8,
+      "layout_relative_l2": [
+        0.0041734445840120316,
+        0.004157235845923424
+      ],
+      "points": {
+        "32768/B1": {
+          "full_tp8": {
+            "seconds": 0.19831791333854198,
+            "peak_allocated_bytes": 4674605568,
+            "output_rms": 0.05224081873893738,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 32768,
+                  "centroid_updates": 0
+                }
+              }
+            }
+          },
+          "owner_mla": {
+            "seconds": 0.32530042342841625,
+            "peak_allocated_bytes": 4674720256,
+            "output_rms": 0.05216109752655029,
+            "cache_audit": {
+              "3": {}
+            }
+          }
+        }
+      }
+    },
+    {
+      "rank": 5,
+      "layer_kinds": [
+        "kda",
+        "kda",
+        "kda",
+        "mla"
+      ],
+      "ffn_types": [
+        "KimiMLP",
+        "KimiMoE",
+        "KimiMoE",
+        "KimiMoE"
+      ],
+      "kda_local_heads": 12,
+      "ep_size": 8,
+      "layout_relative_l2": [
+        0.0041734445840120316,
+        0.004157235845923424
+      ],
+      "points": {
+        "32768/B1": {
+          "full_tp8": {
+            "seconds": 0.1983310617506504,
+            "peak_allocated_bytes": 4674605568,
+            "output_rms": 0.05224081873893738,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 32768,
+                  "centroid_updates": 0
+                }
+              }
+            }
+          },
+          "owner_mla": {
+            "seconds": 0.325318293645978,
+            "peak_allocated_bytes": 4674720256,
+            "output_rms": 0.05216109752655029,
+            "cache_audit": {
+              "3": {}
+            }
+          }
+        }
+      }
+    },
+    {
+      "rank": 6,
+      "layer_kinds": [
+        "kda",
+        "kda",
+        "kda",
+        "mla"
+      ],
+      "ffn_types": [
+        "KimiMLP",
+        "KimiMoE",
+        "KimiMoE",
+        "KimiMoE"
+      ],
+      "kda_local_heads": 12,
+      "ep_size": 8,
+      "layout_relative_l2": [
+        0.0041734445840120316,
+        0.004157235845923424
+      ],
+      "points": {
+        "32768/B1": {
+          "full_tp8": {
+            "seconds": 0.19827546551823616,
+            "peak_allocated_bytes": 4674605568,
+            "output_rms": 0.05224081873893738,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 32768,
+                  "centroid_updates": 0
+                }
+              }
+            }
+          },
+          "owner_mla": {
+            "seconds": 0.3252743650227785,
+            "peak_allocated_bytes": 4674720256,
+            "output_rms": 0.05216109752655029,
+            "cache_audit": {
+              "3": {}
+            }
+          }
+        }
+      }
+    },
+    {
+      "rank": 7,
+      "layer_kinds": [
+        "kda",
+        "kda",
+        "kda",
+        "mla"
+      ],
+      "ffn_types": [
+        "KimiMLP",
+        "KimiMoE",
+        "KimiMoE",
+        "KimiMoE"
+      ],
+      "kda_local_heads": 12,
+      "ep_size": 8,
+      "layout_relative_l2": [
+        0.0041734445840120316,
+        0.004157235845923424
+      ],
+      "points": {
+        "32768/B1": {
+          "full_tp8": {
+            "seconds": 0.19829580187797546,
+            "peak_allocated_bytes": 4674605568,
+            "output_rms": 0.05224081873893738,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 32768,
+                  "centroid_updates": 0
+                }
+              }
+            }
+          },
+          "owner_mla": {
+            "seconds": 0.32535937428474426,
+            "peak_allocated_bytes": 4674720256,
+            "output_rms": 0.05216109752655029,
+            "cache_audit": {
+              "3": {}
+            }
+          }
+        }
+      }
+    }
+  ],
+  "trained_weights": true,
+  "layer_count": 4,
+  "chunk_size": 2048,
+  "native_kda_tp": 8,
+  "native_moe_ep": 8,
+  "moe_included": true,
+  "cuda_graph_capture": false,
+  "pipeline_overlap": false,
+  "input_token_sha256": [
+    "643959862a12e3b465e477914a90f315b360b13a6b10de22997ddbf7a019d06f"
+  ],
+  "timing": "one exact-shape warmup and one synchronized wall pass; max across all eight workers",
+  "weight_assembly_timed": false,
+  "additional_weight_storage": "prototype retains TP shards and owner copies"
+}

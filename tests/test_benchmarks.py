@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 from pathlib import Path
 import sys
@@ -217,6 +218,98 @@ def test_local_kimi_checkpoint_is_identified_from_config(tmp_path: Path) -> None
         decode_context_parallel_size=8,
     )
     assert os.environ["VLLM_KIMI_DENSE_GLUON"] == "1"
+
+
+@pytest.fixture
+def clean_kimi_layout(monkeypatch):
+    import benchmarks._vllm as setup
+
+    monkeypatch.setattr(setup, "_automatic_kimi_owner_environment", {})
+    for name in (
+        "LOD_KIMI_REQUEST_OWNER_PREFILL", "LOD_KIMI_REQUEST_OWNER_DECODE",
+        "LOD_KIMI_OWNER_QUERY_CHUNK", "LOD_BENCHMARK_PREFILL_COHORT",
+        "LOD_KIMI_OWNER_MOE_CHUNK", "LOD_KIMI_OWNER_REUSE_TRANSPORT",
+        "LOD_KIMI_OWNER_SHARD_RESIDUAL", "LOD_KIMI_OWNER_POOL_BACKED_PREFILL",
+        "LOD_KIMI_OWNER_PREFILL_HEAD_GROUP", "LOD_KIMI_OWNER_PRESSURE_CHECK",
+    ):
+        monkeypatch.delenv(name, raising=False)
+        # Track mutations made by the helper so these don't leak into tests.
+        monkeypatch.setenv(name, "")
+        monkeypatch.delenv(name)
+
+
+def kimi_kwargs(**overrides):
+    values = dict(checkpoint="moonshotai/Kimi-K3", mode="two-tier",
+        max_model_len=66578, batch_size=8, tensor_parallel_size=8,
+        decode_context_parallel_size=8, gpu_memory_utilization=.8,
+        full_attention_backend="TRITON_MLA")
+    return llm_kwargs(**(values | overrides))
+
+
+def test_kimi_b8_defaults_to_captured_request_owners(clean_kimi_layout):
+    kwargs = kimi_kwargs()
+    assert os.environ["LOD_KIMI_REQUEST_OWNER_PREFILL"] == "1"
+    assert os.environ["LOD_KIMI_REQUEST_OWNER_DECODE"] == "1"
+    assert os.environ["LOD_KIMI_OWNER_POOL_BACKED_PREFILL"] == "1"
+    assert os.environ["LOD_KIMI_OWNER_REUSE_TRANSPORT"] == "1"
+    assert kwargs["long_prefill_token_threshold"] == 2048
+    assert kwargs["max_num_batched_tokens"] == 16392
+    assert kwargs["enforce_eager"] is False
+    assert kwargs["compilation_config"] == dict(cudagraph_mode="FULL_DECODE_ONLY",
+        cudagraph_capture_sizes=[8], max_cudagraph_capture_size=8)
+
+
+@pytest.mark.parametrize("overrides", [dict(batch_size=1), dict(batch_size=2),
+    dict(tensor_parallel_size=4, decode_context_parallel_size=4),
+    dict(mode="full"), dict(mode="three-tier-bf16"),
+    dict(checkpoint="Qwen/Qwen3.8-27B-FP8")])
+def test_kimi_layout_is_scoped_to_the_tested_geometry(clean_kimi_layout, overrides):
+    kimi_kwargs(**overrides)
+    assert os.getenv("LOD_KIMI_REQUEST_OWNER_PREFILL") != "1"
+
+
+def test_kimi_layout_allows_an_explicit_dcp_control(clean_kimi_layout, monkeypatch):
+    monkeypatch.setenv("LOD_KIMI_REQUEST_OWNER_PREFILL", "0")
+    kwargs = kimi_kwargs()
+    assert os.environ["LOD_KIMI_REQUEST_OWNER_PREFILL"] == "0"
+    assert kwargs["long_prefill_token_threshold"] == 16384
+    assert "compilation_config" not in kwargs
+
+
+def test_kimi_defaults_do_not_leak_into_dense_or_b1(clean_kimi_layout):
+    kimi_kwargs()
+    assert os.environ["LOD_KIMI_REQUEST_OWNER_DECODE"] == "1"
+    kwargs = kimi_kwargs(mode="full")
+    assert os.getenv("LOD_KIMI_REQUEST_OWNER_DECODE") is None
+    assert kwargs["long_prefill_token_threshold"] == 16384
+    kimi_kwargs()
+    kwargs = kimi_kwargs(batch_size=1)
+    assert os.getenv("LOD_KIMI_REQUEST_OWNER_PREFILL") is None
+    assert kwargs["max_num_batched_tokens"] == 16385
+
+
+def test_kimi_long_owner_default_uses_memory_safe_prefill(clean_kimi_layout):
+    kimi_kwargs(max_model_len=132114)
+    assert os.environ["LOD_KIMI_OWNER_PREFILL_HEAD_GROUP"] == "6"
+    assert os.environ["LOD_KIMI_OWNER_PRESSURE_CHECK"] == "1"
+
+
+def test_kimi_explicit_override_after_auto_layout_is_not_overwritten(clean_kimi_layout, monkeypatch):
+    kimi_kwargs()
+    monkeypatch.setenv("LOD_KIMI_OWNER_QUERY_CHUNK", "4096")
+    kwargs = kimi_kwargs()
+    assert kwargs["long_prefill_token_threshold"] == 4096
+    assert kwargs["max_num_batched_tokens"] == 32776
+    kimi_kwargs(mode="full")
+    assert os.environ["LOD_KIMI_OWNER_QUERY_CHUNK"] == "4096"
+    assert os.getenv("LOD_KIMI_REQUEST_OWNER_PREFILL") is None
+
+
+def test_kimi_explicit_prefill_experiments_do_not_enable_decode(clean_kimi_layout, monkeypatch):
+    monkeypatch.setenv("LOD_KIMI_REQUEST_OWNER_PREFILL", "1")
+    kwargs = kimi_kwargs()
+    assert os.getenv("LOD_KIMI_REQUEST_OWNER_DECODE") is None
+    assert kwargs["enforce_eager"] is True
 
 
 def test_qwen_dflash2_configuration_is_explicit_and_model_limited() -> None:
@@ -575,6 +668,45 @@ def test_prolong_speed_preserves_progress_before_later_shape_failure(
     assert progress[0]["4"]["prefill_seconds"] == 2.0
 
 
+@pytest.mark.parametrize("report_memory", [False, True])
+@pytest.mark.parametrize("audit_memory", [False, True])
+def test_prolong_optional_memory_audit_never_wraps_measured_generation(
+    monkeypatch, report_memory, audit_memory,
+):
+    import benchmarks.prolong as prolong
+
+    monkeypatch.setenv("LOD_BENCHMARK_PREFILL_MEMORY_AUDIT", "1" if audit_memory else "0")
+    monkeypatch.setitem(sys.modules, "vllm", SimpleNamespace(SamplingParams=lambda **kwargs: object()))
+    monkeypatch.setattr(prolong, "make_speed_prompts", lambda *_args, **_kwargs:
+                        ([{"prompt_token_ids": [4]}], [{"tokens": 4}]))
+    state = {"auditing": False}
+    calls = []
+
+    def rpc(function, *args, **kwargs):
+        if function.__name__ == "arm_prefill_batch_audit":
+            state["auditing"] = True
+        elif function.__name__ == "finish_prefill_batch_audit":
+            state["auditing"] = False
+            return [{"memory_snapshots": [{"bytes": 12}]}]
+        elif function.__name__ == "peak_memory":
+            return [{"peak_bytes": 34}]
+
+    def generate(*args, **kwargs):
+        calls.append(state["auditing"])
+        return 3.0, 2.0, 1.0, ((7, 9),), {}, [{}], [{}]
+
+    monkeypatch.setattr(prolong, "timed_generate_cohort", generate)
+    point = prolong.evaluate_speed(SimpleNamespace(collective_rpc=rpc), object(),
+        lengths=[4], batch_size=1, samples=1, decode_tokens=2, repeats=1,
+        seed=0, report_memory=report_memory)["4"]
+    assert calls == [audit_memory, False]
+    assert ("warmup_prefill_batch_audits" in point) == audit_memory
+    assert ("warmup_worker_memory" in point) == report_memory
+    assert ("measured_worker_memory" in point) == report_memory
+    if report_memory:
+        assert point["measured_worker_memory"] == [[{"peak_bytes": 34}]]
+
+
 def test_prolong_quality_uses_frozen_raw_documents(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -617,6 +749,71 @@ def test_prolong_quality_rejects_samples_outside_frozen_cohort() -> None:
         )
 
 
+def test_prolong_quality_reports_query_position_bands_and_incremental_progress(monkeypatch):
+    import benchmarks.prolong as prolong
+
+    monkeypatch.setitem(sys.modules, "vllm", SimpleNamespace(SamplingParams=lambda **kwargs: kwargs))
+    monkeypatch.setattr(prolong, "SCHEDULER_CHUNK", 4)
+    monkeypatch.setattr(prolong, "select_quality_prompts", lambda *args, **kwargs: (
+        [{"prompt_token_ids": list(range(10))}] * 2,
+        [{"dataset_index": 14}, {"dataset_index": 19}]))
+    calls = []
+    def generate(prompts, params, *, use_tqdm):
+        assert params["max_tokens"] == params["prompt_logprobs"] == 1
+        scale = len(calls) + 1
+        calls.append(1)
+        return [SimpleNamespace(prompt_logprobs=[None] + [
+            {i:SimpleNamespace(logprob=-float(i * scale))} for i in range(1,10)])]
+    progress = []
+    result = prolong.evaluate_quality(SimpleNamespace(generate=generate), object(),
+        length=10, samples=2, sample_offset=8, batch_size=1, progress_callback=progress.append)
+    assert result["loss"] == 7.5 and result["prediction_tokens"] == 18
+    assert [len(p["samples"]) for p in progress] == [1,2]
+    assert progress[-1]["samples"] == result["samples"]
+    assert [(p["query_position_start"],p["query_position_end_exclusive"],p["prediction_tokens"],p["loss"])
+            for p in result["position_bands"]] == [(0,4,8,3.75),(4,8,8,9.75),(8,9,2,13.5)]
+
+
+def test_prolong_quality_main_preflights_corpus_and_writes_progress_and_final_result(monkeypatch, tmp_path):
+    import benchmarks.prolong as prolong
+
+    monkeypatch.setattr(sys, "argv", ["prolong", "--measure", "quality", "--checkpoint", "fake-model",
+        "--mode", "full", "--length", "10", "--samples", "1", "--batch-size", "1",
+        "--output", str(tmp_path / "quality.json")])
+    monkeypatch.setattr(prolong, "validate_release_environment", lambda **kwargs:None)
+    monkeypatch.setattr(prolong, "benchmark_identity", lambda:{})
+    monkeypatch.setattr(prolong, "validate_worker_attention_mode", lambda *args, **kwargs:None)
+    monkeypatch.setattr(prolong, "llm_kwargs", lambda **kwargs:dict(
+        attention_config={}, max_model_len=27, max_num_seqs=1,
+        enable_prefix_caching=False, max_num_batched_tokens=16385, scheduler_cls="fake"))
+    monkeypatch.setitem(sys.modules, "transformers", SimpleNamespace(AutoTokenizer=SimpleNamespace(
+        from_pretrained=lambda *args, **kwargs:object())))
+    actions = []
+    def select(*args, **kwargs):
+        actions.append("preflight")
+        return [{"prompt_token_ids":list(range(10))}], [{"dataset_index":14}]
+    monkeypatch.setattr(prolong, "select_quality_prompts", select)
+    class LLM:
+        def __init__(self, **kwargs):
+            assert actions == ["preflight"]
+            actions.append("model-startup")
+        def collective_rpc(self, *args, **kwargs):
+            return []
+        def generate(self, prompts, params, *, use_tqdm):
+            return [SimpleNamespace(prompt_logprobs=[None] + [
+                {i:SimpleNamespace(logprob=-0.5)} for i in range(1,10)])]
+    monkeypatch.setitem(sys.modules, "vllm", SimpleNamespace(LLM=LLM,
+        SamplingParams=lambda **kwargs:kwargs))
+    monkeypatch.setattr(prolong, "close_llm", lambda llm:None)
+    prolong.main()
+    partial = json.loads((tmp_path / "quality.partial.json").read_text())
+    final = json.loads((tmp_path / "quality.json").read_text())
+    assert partial["status"] == "incomplete-quality-completed-documents"
+    assert final["measure"] == "quality" and final["measurements"]["loss"] == 0.5
+    assert partial["measurements"]["samples"] == final["measurements"]["samples"]
+    assert actions == ["preflight","model-startup"]
+
+
 def test_synchronized_decode_configures_initial_admission_barrier(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -642,3 +839,64 @@ def test_release_speed_rejects_every_hidden_kimi_override(
         validate_release_environment(allow_experimental=False)
 
     validate_release_environment(allow_experimental=True)
+
+
+def test_kimi_capacity_probe_never_reports_a_serving_timing(monkeypatch, tmp_path):
+    import json
+    from benchmarks import kimi_k3_prefill_sweep as module
+
+    calls = []
+    class Model:
+        def generate(self, prompts, params, **kwargs):
+            calls.append(prompts)
+            return [SimpleNamespace(outputs=[SimpleNamespace(token_ids=[5])])]
+        def collective_rpc(self, fn, **kwargs):
+            return [{"rank": 0}]
+    monkeypatch.setitem(sys.modules, "vllm", SimpleNamespace(
+        LLM=lambda **kwargs: Model(), SamplingParams=lambda **kwargs: kwargs))
+    monkeypatch.setattr(module, "close_llm", lambda model: None)
+    monkeypatch.delenv("LOD_KIMI_REQUEST_OWNER_PREFILL", raising=False)
+    output = tmp_path / "capacity.json"
+    monkeypatch.setattr(sys, "argv", ["capacity", "--checkpoint", "test-model",
+        "--mode", "full", "--lengths", "32", "--batch-size", "1",
+        "--tensor-parallel-size", "1", "--decode-context-parallel-size", "1",
+        "--capacity-only", "--output", str(output)])
+    module.main()
+    result = json.loads(output.read_text())
+    assert len(calls) == 1
+    assert result["capacity_only"] and result["measurement_status"] == "complete"
+    point = result["measurements"]["32"]
+    assert point["prefill_completed"] and point["generated_token_ids"] == [[5]]
+    assert "prefill_seconds" not in point and "elapsed_seconds" not in point
+
+
+def test_kimi_completed_point_is_audited_before_a_later_failure(monkeypatch, tmp_path):
+    import json
+    from benchmarks import kimi_k3_prefill_sweep as module
+
+    class Model:
+        def generate(self, prompts, params, **kwargs):
+            if len(prompts[0]["prompt_token_ids"]) == 64:
+                raise RuntimeError("larger shape failed")
+            return [SimpleNamespace(outputs=[SimpleNamespace(token_ids=[5])],
+                num_cached_tokens=0,
+                metrics=SimpleNamespace(scheduled_ts=1., first_token_ts=2.,
+                                        last_token_ts=2., num_preemptions=0))]
+        def collective_rpc(self, fn, **kwargs):
+            return [{"rank": 0}]
+    monkeypatch.setitem(sys.modules, "vllm", SimpleNamespace(
+        LLM=lambda **kwargs: Model(), SamplingParams=lambda **kwargs: SimpleNamespace(**kwargs)))
+    monkeypatch.setattr(module, "close_llm", lambda model: None)
+    monkeypatch.delenv("LOD_KIMI_REQUEST_OWNER_PREFILL", raising=False)
+    output = tmp_path / "partial.json"
+    monkeypatch.setattr(sys, "argv", ["sweep", "--checkpoint", "test-model",
+        "--mode", "full", "--lengths", "32", "64", "--batch-size", "1",
+        "--tensor-parallel-size", "1", "--decode-context-parallel-size", "1",
+        "--output", str(output)])
+    with pytest.raises(RuntimeError, match="larger shape failed"):
+        module.main()
+    result = json.loads(output.read_text())
+    assert result["measurement_status"] == "failed"
+    assert list(result["measurements"]) == ["32"]
+    assert result["measurements"]["32"]["worker_attention_audit_status"] == "passed"
+    assert result["measurements"]["32"]["measurement_status"] == "complete"

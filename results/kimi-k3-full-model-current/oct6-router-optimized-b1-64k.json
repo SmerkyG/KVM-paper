@@ -1,0 +1,4666 @@
+{
+  "checkpoint": "/tmp/dan-agent-kimi-k3-f831ab66814297da540d832a5235f8e904f29d06",
+  "max_model_len": 263186,
+  "mode": "two-tier",
+  "capacity_only": false,
+  "diagnostic_only": false,
+  "route_scatter_validation": false,
+  "weight_cache_id": "kimi-k3-node2-full-int4-v1",
+  "real_token_cache": "results/kimi-k3-full-model-current/prolong-kimi-k3-speed-token-cache.pt",
+  "reference_baselines": [
+    "results/kimi-k3-full-model-current/oct6-lod-b1-decode-power2-correct-dcp-four-updates.partial.json"
+  ],
+  "request_owner_prefill": false,
+  "owner_local_mla": false,
+  "owner_tp_mla": false,
+  "head_owner_mla": false,
+  "attention_owners": null,
+  "attention_heads_per_owner": null,
+  "owner_local_projection_audits": null,
+  "scheduler_row_chunk": 16384,
+  "scheduler_total_budget": 16385,
+  "batch_size": 1,
+  "decode_tokens": 1026,
+  "reference_decode_trace": true,
+  "reference_trace_extensions": {},
+  "decode_execution": "native",
+  "tensor_parallel_size": 8,
+  "decode_context_parallel_size": 8,
+  "repeats": 1,
+  "rotating_prefills": false,
+  "rotating_cohort": 1,
+  "distributed_prefill_construction": false,
+  "cross_layer_prefill_group": null,
+  "independent_local_dcp_prefill": false,
+  "replicated_summary_dcp_prefill": false,
+  "global_centroid_sharded_leaf_prefill": false,
+  "transient_reconstructed_prefill_workspace": false,
+  "sharded_workspace_layout": null,
+  "environment": {
+    "LOD_KIMI_SORT_LEAF_ROUTES": "1",
+    "LOD_KIMI_DIRECT_LEAF_RESULT": "1",
+    "LOD_KIMI_LEAF_BLOCK_M": "64",
+    "LOD_KIMI_LEAF_WARPS": "1",
+    "LOD_KIMI_SUBTILE64": "score",
+    "LOD_KIMI_REUSE_PREFILL_ALLOCATOR": "1",
+    "LOD_KIMI_TILE_REFINE": "1",
+    "LOD_KIMI_PREFILL_MIN_FREE_GIB": "4",
+    "LOD_KIMI_TILE_PACK_QUERY_BLOCK": "1024",
+    "LOD_BENCHMARK_SYNC_PREFILL_CACHE": "1",
+    "CLUSTER_RUN_NODE": "dev-shared-research-2.dev-training.svc.cluster.local",
+    "HSA_NO_SCRATCH_RECLAIM": "1",
+    "LOD_KIMI_CHUNK_TILE_PACK": "1",
+    "LOD_KIMI_PREFILL_RECLAIM_INTERVAL": "0",
+    "LOD_BENCHMARK_SYNCHRONIZED_DECODE": "1",
+    "LOD_BENCHMARK_ADMISSION_COHORT": "1"
+  },
+  "measurements": {
+    "65536": {
+      "warmup_elapsed_seconds": 36.51740573346615,
+      "before_warmup_allocator_policy": [
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 31289507840,
+          "free_bytes_after": 31289507840,
+          "allocated_bytes": 2554326528,
+          "reserved_bytes": 3376414720,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 33403437056,
+          "free_bytes_after": 33403437056,
+          "allocated_bytes": 2554326528,
+          "reserved_bytes": 3376414720,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 31289507840,
+          "free_bytes_after": 31289507840,
+          "allocated_bytes": 2554326528,
+          "reserved_bytes": 3376414720,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 31289507840,
+          "free_bytes_after": 31289507840,
+          "allocated_bytes": 2554326528,
+          "reserved_bytes": 3376414720,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 31893487616,
+          "free_bytes_after": 31893487616,
+          "allocated_bytes": 2554326528,
+          "reserved_bytes": 3376414720,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 31591497728,
+          "free_bytes_after": 31591497728,
+          "allocated_bytes": 2554326528,
+          "reserved_bytes": 3376414720,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 31893487616,
+          "free_bytes_after": 31893487616,
+          "allocated_bytes": 2554326528,
+          "reserved_bytes": 3376414720,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 31893487616,
+          "free_bytes_after": 31893487616,
+          "allocated_bytes": 2554326528,
+          "reserved_bytes": 3376414720,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        }
+      ],
+      "warmup_allocator_policy": [
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 11704205312,
+          "free_bytes_after": 11704205312,
+          "allocated_bytes": 6193784832,
+          "reserved_bytes": 22038970368,
+          "prefill_allocator_audit": {
+            "calls": 1,
+            "retained": 1,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": 11716788224
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 13147045888,
+          "free_bytes_after": 13147045888,
+          "allocated_bytes": 6193677312,
+          "reserved_bytes": 22038970368,
+          "prefill_allocator_audit": {
+            "calls": 1,
+            "retained": 1,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": 13159628800
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 11022630912,
+          "free_bytes_after": 11022630912,
+          "allocated_bytes": 6193677312,
+          "reserved_bytes": 22038970368,
+          "prefill_allocator_audit": {
+            "calls": 1,
+            "retained": 1,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": 11035213824
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 11033116672,
+          "free_bytes_after": 11033116672,
+          "allocated_bytes": 6193784832,
+          "reserved_bytes": 22038970368,
+          "prefill_allocator_audit": {
+            "calls": 1,
+            "retained": 1,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": 11045699584
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 11637096448,
+          "free_bytes_after": 11637096448,
+          "allocated_bytes": 6193784832,
+          "reserved_bytes": 22038970368,
+          "prefill_allocator_audit": {
+            "calls": 1,
+            "retained": 1,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": 11649679360
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 11335106560,
+          "free_bytes_after": 11335106560,
+          "allocated_bytes": 6193677312,
+          "reserved_bytes": 22038970368,
+          "prefill_allocator_audit": {
+            "calls": 1,
+            "retained": 1,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": 11347689472
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 11637096448,
+          "free_bytes_after": 11637096448,
+          "allocated_bytes": 6193784832,
+          "reserved_bytes": 22038970368,
+          "prefill_allocator_audit": {
+            "calls": 1,
+            "retained": 1,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": 11649679360
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 11637096448,
+          "free_bytes_after": 11637096448,
+          "allocated_bytes": 6194117632,
+          "reserved_bytes": 22038970368,
+          "prefill_allocator_audit": {
+            "calls": 1,
+            "retained": 1,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": 11649679360
+          }
+        }
+      ],
+      "elapsed_seconds": 32.10178238991648,
+      "prefill_seconds": 8.520107197575271,
+      "elapsed_samples_seconds": [
+        32.10178238991648
+      ],
+      "prefill_samples_seconds": [
+        8.520107197575271
+      ],
+      "decode_ms_per_batch_step": 23.004229856518712,
+      "decode_samples_seconds_per_batch_step": [
+        0.02300422985651871
+      ],
+      "aggregate_prompt_tokens_per_second": 7691.922000541358,
+      "generated_token_ids": [
+        [
+          5237,
+          144438,
+          10579,
+          276,
+          49610,
+          318,
+          61235,
+          32320,
+          1481,
+          18264,
+          11,
+          418,
+          220,
+          1341,
+          8479,
+          11,
+          158653,
+          35755,
+          979,
+          308,
+          9446,
+          316,
+          4387,
+          418,
+          276,
+          34080,
+          5053,
+          319,
+          623,
+          152963,
+          9180,
+          13,
+          3350,
+          1688,
+          667,
+          7372,
+          308,
+          3637,
+          6465,
+          4324,
+          1129,
+          1646,
+          3287,
+          13,
+          3397,
+          2215,
+          1129,
+          1646,
+          13,
+          42603,
+          743,
+          382,
+          4675,
+          87938,
+          8496,
+          76690,
+          96942,
+          20996,
+          382,
+          13,
+          6075,
+          636,
+          3679,
+          11,
+          644,
+          44582,
+          979,
+          519,
+          6186,
+          32753,
+          2951,
+          12241,
+          316,
+          276,
+          38176,
+          316,
+          10039,
+          483,
+          16989,
+          11,
+          112285,
+          295,
+          673,
+          276,
+          2889,
+          61084,
+          16974,
+          13,
+          2118,
+          49288,
+          1494,
+          42392,
+          308,
+          8181,
+          13856,
+          318,
+          1397,
+          11,
+          21657,
+          12288,
+          11,
+          121046,
+          306,
+          276,
+          51031,
+          1481,
+          1008,
+          51031,
+          11,
+          644,
+          20967,
+          50274,
+          419,
+          308,
+          12241,
+          11,
+          1155,
+          84053,
+          1479,
+          17804,
+          308,
+          6156,
+          13,
+          2118,
+          45776,
+          581,
+          1494,
+          2409,
+          8912,
+          1646,
+          261,
+          32353,
+          9982,
+          395,
+          473,
+          11955,
+          1481,
+          7960,
+          644,
+          3095,
+          7372,
+          2098,
+          2455,
+          308,
+          5107,
+          13,
+          2118,
+          1688,
+          667,
+          10381,
+          799,
+          473,
+          644,
+          7372,
+          308,
+          21908,
+          13,
+          994,
+          3303,
+          11,
+          644,
+          1688,
+          1579,
+          34630,
+          308,
+          11818,
+          933,
+          1573,
+          2687,
+          3456,
+          1646,
+          13,
+          125563,
+          11,
+          644,
+          1688,
+          308,
+          2086,
+          261,
+          2189,
+          308,
+          28598,
+          1481,
+          49,
+          451,
+          830,
+          43691,
+          1494,
+          54389,
+          308,
+          1494,
+          26315,
+          11,
+          4244,
+          1494,
+          4120,
+          559,
+          3307,
+          559,
+          644,
+          2242,
+          11,
+          316,
+          43691,
+          7625,
+          1494,
+          17440,
+          1222,
+          14766,
+          279,
+          62,
+          308,
+          2819,
+          261,
+          41227,
+          2951,
+          12241,
+          316,
+          276,
+          31851,
+          21184,
+          1481,
+          3069,
+          644,
+          129632,
+          1576,
+          261,
+          8055,
+          630,
+          876,
+          11,
+          644,
+          21336,
+          473,
+          644,
+          1688,
+          1495,
+          11546,
+          308,
+          30110,
+          308,
+          36494,
+          12241,
+          13,
+          2641,
+          2932,
+          276,
+          7968,
+          308,
+          5335,
+          11,
+          644,
+          2242,
+          667,
+          7419,
+          276,
+          83003,
+          3602,
+          13,
+          4415,
+          1159,
+          23023,
+          11,
+          11348,
+          12012,
+          4248,
+          11,
+          2242,
+          125683,
+          3103,
+          528,
+          1815,
+          1342,
+          2932,
+          276,
+          16566,
+          318,
+          261,
+          21219,
+          316,
+          2314,
+          27397,
+          11425,
+          22140,
+          13,
+          2118,
+          3684,
+          20593,
+          2397,
+          4147,
+          131878,
+          316,
+          4147,
+          461,
+          69899,
+          11,
+          25411,
+          7740,
+          276,
+          38645,
+          1179,
+          673,
+          1494,
+          2409,
+          5272,
+          11,
+          559,
+          1494,
+          2851,
+          71113,
+          155066,
+          1194,
+          316,
+          72919,
+          295,
+          933,
+          11,
+          275,
+          46498,
+          308,
+          114674,
+          1481,
+          2732,
+          743,
+          55499,
+          1481,
+          101072,
+          95944,
+          933,
+          1459,
+          1646,
+          276,
+          111862,
+          355,
+          1222,
+          14766,
+          21364,
+          84,
+          85519,
+          9218,
+          276,
+          7923,
+          1364,
+          1688,
+          41227,
+          295,
+          8655,
+          658,
+          3103,
+          316,
+          59415,
+          276,
+          4205,
+          4004,
+          2136,
+          318,
+          276,
+          30529,
+          13,
+          1892,
+          644,
+          2242,
+          7654,
+          1397,
+          158791,
+          2321,
+          1534,
+          395,
+          30788,
+          658,
+          1106,
+          17859,
+          1048,
+          37530,
+          30,
+          35528,
+          7960,
+          644,
+          2746,
+          28598,
+          11,
+          644,
+          2746,
+          13,
+          1892,
+          667,
+          395,
+          1494,
+          2409,
+          39645,
+          11,
+          1780,
+          395,
+          276,
+          13272,
+          1155,
+          644,
+          1688,
+          9142,
+          472,
+          32824,
+          1732,
+          11,
+          316,
+          276,
+          4972,
+          10181,
+          9952,
+          1155,
+          743,
+          1494,
+          11624,
+          1481,
+          31528,
+          2506,
+          23271,
+          1743,
+          743,
+          308,
+          128960,
+          1494,
+          15128,
+          5058,
+          7453,
+          559,
+          644,
+          6025,
+          933,
+          261,
+          88750,
+          395,
+          1833,
+          1614,
+          341,
+          381,
+          3114,
+          19136,
+          381,
+          32,
+          381,
+          53912,
+          735,
+          55537,
+          1576,
+          276,
+          111862,
+          355,
+          4205,
+          2139,
+          563,
+          1579,
+          559,
+          126387,
+          743,
+          24569,
+          13,
+          130179,
+          77,
+          10716,
+          107557,
+          658,
+          276,
+          25827,
+          644,
+          9142,
+          472,
+          5075,
+          318,
+          276,
+          35313,
+          21513,
+          13,
+          2118,
+          1688,
+          667,
+          18025,
+          418,
+          7370,
+          623,
+          799,
+          11,
+          996,
+          1688,
+          10479,
+          623,
+          276,
+          2506,
+          7718,
+          11,
+          22347,
+          395,
+          261,
+          8454,
+          308,
+          152329,
+          1494,
+          1993,
+          57769,
+          2418,
+          109490,
+          13,
+          105754,
+          276,
+          10461,
+          1590,
+          11817,
+          473,
+          13249,
+          6244,
+          1222,
+          14766,
+          279,
+          62,
+          26744,
+          870,
+          3684,
+          2234,
+          11,
+          276,
+          118858,
+          8655,
+          2746,
+          667,
+          4918,
+          8518,
+          1481,
+          12214,
+          306,
+          276,
+          3206,
+          11,
+          483,
+          799,
+          16418,
+          261,
+          300,
+          2480,
+          2679,
+          13,
+          2118,
+          1688,
+          667,
+          21336,
+          276,
+          140806,
+          99057,
+          276,
+          139969,
+          3442,
+          1587,
+          6407,
+          306,
+          39000,
+          19434,
+          13,
+          4415,
+          116320,
+          17505,
+          1590,
+          3464,
+          4558,
+          1494,
+          1867,
+          11457,
+          26744,
+          1481,
+          3663,
+          276,
+          2737,
+          1169,
+          11,
+          130179,
+          77,
+          10039,
+          3287,
+          473,
+          23873,
+          10461,
+          109490,
+          11348,
+          1494,
+          48417,
+          956,
+          10700,
+          25468,
+          276,
+          49149,
+          318,
+          276,
+          16974,
+          261,
+          37092,
+          21044,
+          13,
+          3350,
+          1688,
+          3949,
+          2441,
+          3173,
+          12034,
+          37805,
+          276,
+          9612,
+          308,
+          8458,
+          28465,
+          40979,
+          11,
+          11348,
+          104800,
+          276,
+          6186,
+          19101,
+          276,
+          258,
+          6978,
+          601,
+          32131,
+          4562,
+          11,
+          11348,
+          40802,
+          276,
+          18159,
+          33719,
+          316,
+          20047,
+          7902,
+          318,
+          276,
+          19645,
+          7662,
+          13,
+          1892,
+          1222,
+          14766,
+          279,
+          62,
+          2242,
+          3628,
+          519,
+          261,
+          4004,
+          287,
+          528,
+          5730,
+          10883,
+          5080,
+          17024,
+          318,
+          12034,
+          11,
+          1632,
+          2455,
+          1070,
+          743,
+          4233,
+          30,
+          23923,
+          6465,
+          130179,
+          77,
+          2242,
+          3637,
+          3684,
+          1609,
+          21282,
+          109490,
+          1048,
+          14363,
+          308,
+          1328,
+          276,
+          118858,
+          623,
+          1494,
+          5850,
+          306,
+          566,
+          528,
+          1178,
+          1356,
+          8501,
+          1481,
+          34,
+          990,
+          77,
+          11,
+          3095,
+          291,
+          8613,
+          1494,
+          1169,
+          11,
+          2683,
+          276,
+          145139,
+          1782,
+          3854,
+          82,
+          318,
+          3509,
+          11,
+          3949,
+          4747,
+          12522,
+          308,
+          16028,
+          1101,
+          13,
+          39327,
+          2313,
+          336,
+          844,
+          5060,
+          11348,
+          575,
+          45844,
+          11378,
+          1688,
+          1178,
+          1328,
+          395,
+          276,
+          23077,
+          11,
+          1155,
+          3964,
+          276,
+          2978,
+          318,
+          261,
+          25295,
+          70356,
+          619,
+          262,
+          13,
+          994,
+          566,
+          1993,
+          11,
+          276,
+          12875,
+          743,
+          261,
+          7907,
+          88,
+          11,
+          9947,
+          112098,
+          1222,
+          14766,
+          21364,
+          84,
+          62,
+          10513,
+          5999,
+          2941,
+          11,
+          1364,
+          30384,
+          799,
+          318,
+          130179,
+          77,
+          1048,
+          5964,
+          472,
+          1726,
+          55163,
+          2406,
+          580,
+          43370,
+          6598,
+          316,
+          12517,
+          1494,
+          1222,
+          14766,
+          279,
+          62,
+          38645,
+          971,
+          58315,
+          14215,
+          473,
+          130179,
+          77,
+          51994,
+          644,
+          743,
+          11116,
+          1609,
+          306,
+          276,
+          13529,
+          318,
+          1494,
+          138768,
+          13,
+          2118,
+          11,
+          4041,
+          472,
+          32403,
+          151201,
+          4797,
+          316,
+          276,
+          6714,
+          18498,
+          11,
+          261,
+          49745,
+          5981,
+          12012,
+          10513,
+          4538,
+          352,
+          1309,
+          64,
+          11,
+          1688,
+          136549,
+          933,
+          472,
+          276,
+          2777,
+          4120,
+          318,
+          276,
+          30529,
+          2069,
+          3997,
+          2418,
+          1481,
+          10048,
+          276,
+          126349,
+          324,
+          2757,
+          316,
+          112386,
+          142950,
+          318,
+          276,
+          53912,
+          10779,
+          933,
+          6768,
+          3550,
+          306,
+          5606,
+          13,
+          646,
+          53912,
+          46213,
+          519,
+          20680,
+          1048,
+          258,
+          4576,
+          306,
+          111862,
+          355,
+          10447,
+          11,
+          36932,
+          316,
+          275,
+          14678,
+          472,
+          38197,
+          4998,
+          1915,
+          295,
+          21184,
+          13,
+          7999,
+          19224,
+          127944,
+          308,
+          261,
+          53032,
+          13,
+          15149,
+          15595,
+          644,
+          7646,
+          1517,
+          148023,
+          82,
+          13,
+          547,
+          2800,
+          4106,
+          11990,
+          658,
+          1682,
+          300,
+          50705,
+          316,
+          285,
+          10815,
+          1350,
+          276,
+          15595,
+          318,
+          1682,
+          17033,
+          2009,
+          276,
+          115279,
+          1688,
+          126953,
+          13,
+          15149,
+          25182,
+          743,
+          971,
+          9292,
+          472,
+          38197,
+          11,
+          483,
+          11954,
+          6408,
+          1481,
+          1008,
+          53912,
+          74539,
+          1576,
+          276,
+          21219,
+          623,
+          276,
+          5323,
+          318,
+          276,
+          4205,
+          2139,
+          563,
+          13,
+          15571,
+          318,
+          109490,
+          1048,
+          4795,
+          53102,
+          17967,
+          308,
+          5455,
+          3103,
+          528,
+          644,
+          1590,
+          28569,
+          714,
+          36034,
+          1481,
+          1,
+          8786,
+          398,
+          23513,
+          11,
+          1159,
+          30,
+          4559,
+          1008,
+          53912,
+          95947,
+          1494,
+          3391,
+          13,
+          414,
+          40,
+          2746,
+          3442,
+          142871,
+          41890,
+          10461,
+          59702,
+          25488,
+          16506,
+          3442,
+          46542,
+          483,
+          970,
+          4691,
+          747,
+          11,
+          1780,
+          30,
+          4559,
+          1008,
+          53912,
+          1609,
+          95947,
+          1494,
+          3391,
+          2753,
+          316,
+          23720,
+          2686,
+          11,
+          14177,
+          276,
+          123729,
+          25827,
+          13,
+          7605,
+          1780,
+          109490,
+          111862,
+          355,
+          18128,
+          11,
+          45777,
+          276,
+          8078,
+          97153,
+          21389,
+          13,
+          646,
+          83612,
+          12271
+        ]
+      ],
+      "measured_batch_timings": [
+        {
+          "wall_elapsed_seconds": 32.10178238991648,
+          "metric_window_seconds": 32.09944280050695,
+          "prefill_window_seconds": 8.520107197575271,
+          "decode_window_seconds": 23.57933560293168,
+          "unattributed_wall_seconds": 0.002339589409530163,
+          "first_token_spread_seconds": 0.0,
+          "last_token_spread_seconds": 0.0,
+          "all_requests_live_overlap_seconds": 23.57933560293168,
+          "request_num_preemptions": [
+            0
+          ],
+          "request_num_cached_tokens": [
+            0
+          ],
+          "request_prefill_seconds": [
+            8.520107197575271
+          ],
+          "request_decode_seconds": [
+            23.57933560293168
+          ]
+        }
+      ],
+      "owner_decode_update_deltas": [],
+      "measured_decode_update_counters": [
+        [
+          {
+            "language_model.model.layers.3.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.7.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.11.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.15.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.19.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.23.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.27.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.31.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.35.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.39.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.43.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.47.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.51.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.55.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.59.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.63.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.67.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.71.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.75.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.79.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.83.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.87.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.91.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.92.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            }
+          },
+          {
+            "language_model.model.layers.3.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.7.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.11.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.15.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.19.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.23.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.27.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.31.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.35.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.39.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.43.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.47.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.51.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.55.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.59.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.63.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.67.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.71.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.75.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.79.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.83.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.87.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.91.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.92.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            }
+          },
+          {
+            "language_model.model.layers.3.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.7.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.11.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.15.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.19.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.23.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.27.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.31.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.35.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.39.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.43.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.47.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.51.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.55.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.59.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.63.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.67.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.71.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.75.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.79.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.83.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.87.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.91.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.92.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            }
+          },
+          {
+            "language_model.model.layers.3.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.7.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.11.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.15.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.19.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.23.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.27.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.31.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.35.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.39.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.43.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.47.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.51.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.55.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.59.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.63.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.67.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.71.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.75.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.79.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.83.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.87.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.91.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.92.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            }
+          },
+          {
+            "language_model.model.layers.3.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.7.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.11.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.15.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.19.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.23.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.27.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.31.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.35.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.39.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.43.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.47.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.51.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.55.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.59.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.63.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.67.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.71.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.75.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.79.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.83.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.87.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.91.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.92.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            }
+          },
+          {
+            "language_model.model.layers.3.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.7.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.11.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.15.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.19.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.23.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.27.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.31.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.35.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.39.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.43.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.47.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.51.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.55.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.59.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.63.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.67.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.71.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.75.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.79.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.83.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.87.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.91.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.92.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            }
+          },
+          {
+            "language_model.model.layers.3.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.7.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.11.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.15.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.19.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.23.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.27.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.31.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.35.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.39.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.43.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.47.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.51.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.55.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.59.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.63.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.67.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.71.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.75.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.79.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.83.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.87.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.91.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.92.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            }
+          },
+          {
+            "language_model.model.layers.3.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.7.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.11.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.15.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.19.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.23.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.27.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.31.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.35.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.39.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.43.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.47.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.51.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.55.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.59.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.63.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.67.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.71.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.75.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.79.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.83.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.87.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.91.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            },
+            "language_model.model.layers.92.self_attn.attn": {
+              "catch_up_batches": 4,
+              "catch_up_rows": 4
+            }
+          }
+        ]
+      ],
+      "owner_decode_graph_replay_deltas": [],
+      "prompt_token_sha256": [
+        "74838f20e7afc5e84c8763c5f3cd109a72d417937c06c7a0ed515e0375ea51fd"
+      ],
+      "measurement_status": "complete",
+      "worker_attention_audit": [
+        {
+          "lod_runtime": true,
+          "lod_pool_count": 24,
+          "shared_decode_scratch": {
+            "participating_layers": 24,
+            "registries": 1,
+            "unique_tensor_count": 44,
+            "storage_bytes": 23932664,
+            "scope": "shared transient tensors only; per-layer outputs/state excluded"
+          },
+          "lod_engine_configurations": [
+            {
+              "family": "kimi-k3",
+              "mode": "two-tier",
+              "levels": 2,
+              "kv_bits": 0,
+              "prefill_routes": 8,
+              "decode_routes": 8,
+              "prefill_chunk_len": 16384,
+              "prefill_state_update_len": 16384,
+              "decode_state_update_len": 256,
+              "local_len": 512,
+              "leaf_page_size": 16,
+              "leaf_block_m": 64,
+              "leaf_block_n": 16,
+              "leaf_num_warps": 1,
+              "prefill_fused_route_coarse": true,
+              "decode_fused_state_route": true,
+              "max_open_centroid_leaves": 1024,
+              "leaf_seal_capacity": null
+            }
+          ],
+          "lod_cross_layer_prefill_group_size": 4,
+          "attached_lod_layers": 24,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [
+            {
+              "module": "mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+              "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+              "size_bytes": 911024,
+              "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+              "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1398784,
+              "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+              "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1378368,
+              "sha256": "e6173c49eb6e1767b7376777a04b76cd1b83652210e9076fdbfac6ef1be8737c",
+              "build_manifest_sha256": "b0959783866081492c84db7eb91d425d593fae6c10f006fe73e24df793edb78c",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            }
+          ],
+          "dense_gluon_decode_installed": false,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 2,
+            "retained": 2,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": 11551113216
+          },
+          "rank": 0,
+          "compact_selected_projection_enabled": false,
+          "compact_projection_calls": {
+            "language_model.model.layers.3.self_attn.attn": 0,
+            "language_model.model.layers.7.self_attn.attn": 0,
+            "language_model.model.layers.11.self_attn.attn": 0,
+            "language_model.model.layers.15.self_attn.attn": 0,
+            "language_model.model.layers.19.self_attn.attn": 0,
+            "language_model.model.layers.23.self_attn.attn": 0,
+            "language_model.model.layers.27.self_attn.attn": 0,
+            "language_model.model.layers.31.self_attn.attn": 0,
+            "language_model.model.layers.35.self_attn.attn": 0,
+            "language_model.model.layers.39.self_attn.attn": 0,
+            "language_model.model.layers.43.self_attn.attn": 0,
+            "language_model.model.layers.47.self_attn.attn": 0,
+            "language_model.model.layers.51.self_attn.attn": 0,
+            "language_model.model.layers.55.self_attn.attn": 0,
+            "language_model.model.layers.59.self_attn.attn": 0,
+            "language_model.model.layers.63.self_attn.attn": 0,
+            "language_model.model.layers.67.self_attn.attn": 0,
+            "language_model.model.layers.71.self_attn.attn": 0,
+            "language_model.model.layers.75.self_attn.attn": 0,
+            "language_model.model.layers.79.self_attn.attn": 0,
+            "language_model.model.layers.83.self_attn.attn": 0,
+            "language_model.model.layers.87.self_attn.attn": 0,
+            "language_model.model.layers.91.self_attn.attn": 0,
+            "language_model.model.layers.92.self_attn.attn": 0
+          }
+        },
+        {
+          "lod_runtime": true,
+          "lod_pool_count": 24,
+          "shared_decode_scratch": {
+            "participating_layers": 24,
+            "registries": 1,
+            "unique_tensor_count": 44,
+            "storage_bytes": 23932664,
+            "scope": "shared transient tensors only; per-layer outputs/state excluded"
+          },
+          "lod_engine_configurations": [
+            {
+              "family": "kimi-k3",
+              "mode": "two-tier",
+              "levels": 2,
+              "kv_bits": 0,
+              "prefill_routes": 8,
+              "decode_routes": 8,
+              "prefill_chunk_len": 16384,
+              "prefill_state_update_len": 16384,
+              "decode_state_update_len": 256,
+              "local_len": 512,
+              "leaf_page_size": 16,
+              "leaf_block_m": 64,
+              "leaf_block_n": 16,
+              "leaf_num_warps": 1,
+              "prefill_fused_route_coarse": true,
+              "decode_fused_state_route": true,
+              "max_open_centroid_leaves": 1024,
+              "leaf_seal_capacity": null
+            }
+          ],
+          "lod_cross_layer_prefill_group_size": 4,
+          "attached_lod_layers": 24,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [
+            {
+              "module": "mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+              "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+              "size_bytes": 911024,
+              "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+              "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1398784,
+              "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+              "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1378368,
+              "sha256": "e6173c49eb6e1767b7376777a04b76cd1b83652210e9076fdbfac6ef1be8737c",
+              "build_manifest_sha256": "b0959783866081492c84db7eb91d425d593fae6c10f006fe73e24df793edb78c",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            }
+          ],
+          "dense_gluon_decode_installed": false,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 2,
+            "retained": 2,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": 12993953792
+          },
+          "rank": 1,
+          "compact_selected_projection_enabled": false,
+          "compact_projection_calls": {
+            "language_model.model.layers.3.self_attn.attn": 0,
+            "language_model.model.layers.7.self_attn.attn": 0,
+            "language_model.model.layers.11.self_attn.attn": 0,
+            "language_model.model.layers.15.self_attn.attn": 0,
+            "language_model.model.layers.19.self_attn.attn": 0,
+            "language_model.model.layers.23.self_attn.attn": 0,
+            "language_model.model.layers.27.self_attn.attn": 0,
+            "language_model.model.layers.31.self_attn.attn": 0,
+            "language_model.model.layers.35.self_attn.attn": 0,
+            "language_model.model.layers.39.self_attn.attn": 0,
+            "language_model.model.layers.43.self_attn.attn": 0,
+            "language_model.model.layers.47.self_attn.attn": 0,
+            "language_model.model.layers.51.self_attn.attn": 0,
+            "language_model.model.layers.55.self_attn.attn": 0,
+            "language_model.model.layers.59.self_attn.attn": 0,
+            "language_model.model.layers.63.self_attn.attn": 0,
+            "language_model.model.layers.67.self_attn.attn": 0,
+            "language_model.model.layers.71.self_attn.attn": 0,
+            "language_model.model.layers.75.self_attn.attn": 0,
+            "language_model.model.layers.79.self_attn.attn": 0,
+            "language_model.model.layers.83.self_attn.attn": 0,
+            "language_model.model.layers.87.self_attn.attn": 0,
+            "language_model.model.layers.91.self_attn.attn": 0,
+            "language_model.model.layers.92.self_attn.attn": 0
+          }
+        },
+        {
+          "lod_runtime": true,
+          "lod_pool_count": 24,
+          "shared_decode_scratch": {
+            "participating_layers": 24,
+            "registries": 1,
+            "unique_tensor_count": 44,
+            "storage_bytes": 23932664,
+            "scope": "shared transient tensors only; per-layer outputs/state excluded"
+          },
+          "lod_engine_configurations": [
+            {
+              "family": "kimi-k3",
+              "mode": "two-tier",
+              "levels": 2,
+              "kv_bits": 0,
+              "prefill_routes": 8,
+              "decode_routes": 8,
+              "prefill_chunk_len": 16384,
+              "prefill_state_update_len": 16384,
+              "decode_state_update_len": 256,
+              "local_len": 512,
+              "leaf_page_size": 16,
+              "leaf_block_m": 64,
+              "leaf_block_n": 16,
+              "leaf_num_warps": 1,
+              "prefill_fused_route_coarse": true,
+              "decode_fused_state_route": true,
+              "max_open_centroid_leaves": 1024,
+              "leaf_seal_capacity": null
+            }
+          ],
+          "lod_cross_layer_prefill_group_size": 4,
+          "attached_lod_layers": 24,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [
+            {
+              "module": "mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+              "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+              "size_bytes": 911024,
+              "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+              "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1398784,
+              "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+              "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1378368,
+              "sha256": "e6173c49eb6e1767b7376777a04b76cd1b83652210e9076fdbfac6ef1be8737c",
+              "build_manifest_sha256": "b0959783866081492c84db7eb91d425d593fae6c10f006fe73e24df793edb78c",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            }
+          ],
+          "dense_gluon_decode_installed": false,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 2,
+            "retained": 2,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": 10869538816
+          },
+          "rank": 2,
+          "compact_selected_projection_enabled": false,
+          "compact_projection_calls": {
+            "language_model.model.layers.3.self_attn.attn": 0,
+            "language_model.model.layers.7.self_attn.attn": 0,
+            "language_model.model.layers.11.self_attn.attn": 0,
+            "language_model.model.layers.15.self_attn.attn": 0,
+            "language_model.model.layers.19.self_attn.attn": 0,
+            "language_model.model.layers.23.self_attn.attn": 0,
+            "language_model.model.layers.27.self_attn.attn": 0,
+            "language_model.model.layers.31.self_attn.attn": 0,
+            "language_model.model.layers.35.self_attn.attn": 0,
+            "language_model.model.layers.39.self_attn.attn": 0,
+            "language_model.model.layers.43.self_attn.attn": 0,
+            "language_model.model.layers.47.self_attn.attn": 0,
+            "language_model.model.layers.51.self_attn.attn": 0,
+            "language_model.model.layers.55.self_attn.attn": 0,
+            "language_model.model.layers.59.self_attn.attn": 0,
+            "language_model.model.layers.63.self_attn.attn": 0,
+            "language_model.model.layers.67.self_attn.attn": 0,
+            "language_model.model.layers.71.self_attn.attn": 0,
+            "language_model.model.layers.75.self_attn.attn": 0,
+            "language_model.model.layers.79.self_attn.attn": 0,
+            "language_model.model.layers.83.self_attn.attn": 0,
+            "language_model.model.layers.87.self_attn.attn": 0,
+            "language_model.model.layers.91.self_attn.attn": 0,
+            "language_model.model.layers.92.self_attn.attn": 0
+          }
+        },
+        {
+          "lod_runtime": true,
+          "lod_pool_count": 24,
+          "shared_decode_scratch": {
+            "participating_layers": 24,
+            "registries": 1,
+            "unique_tensor_count": 44,
+            "storage_bytes": 23932664,
+            "scope": "shared transient tensors only; per-layer outputs/state excluded"
+          },
+          "lod_engine_configurations": [
+            {
+              "family": "kimi-k3",
+              "mode": "two-tier",
+              "levels": 2,
+              "kv_bits": 0,
+              "prefill_routes": 8,
+              "decode_routes": 8,
+              "prefill_chunk_len": 16384,
+              "prefill_state_update_len": 16384,
+              "decode_state_update_len": 256,
+              "local_len": 512,
+              "leaf_page_size": 16,
+              "leaf_block_m": 64,
+              "leaf_block_n": 16,
+              "leaf_num_warps": 1,
+              "prefill_fused_route_coarse": true,
+              "decode_fused_state_route": true,
+              "max_open_centroid_leaves": 1024,
+              "leaf_seal_capacity": null
+            }
+          ],
+          "lod_cross_layer_prefill_group_size": 4,
+          "attached_lod_layers": 24,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [
+            {
+              "module": "mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+              "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+              "size_bytes": 911024,
+              "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+              "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1398784,
+              "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+              "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1378368,
+              "sha256": "e6173c49eb6e1767b7376777a04b76cd1b83652210e9076fdbfac6ef1be8737c",
+              "build_manifest_sha256": "b0959783866081492c84db7eb91d425d593fae6c10f006fe73e24df793edb78c",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            }
+          ],
+          "dense_gluon_decode_installed": false,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 2,
+            "retained": 2,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": 10880024576
+          },
+          "rank": 3,
+          "compact_selected_projection_enabled": false,
+          "compact_projection_calls": {
+            "language_model.model.layers.3.self_attn.attn": 0,
+            "language_model.model.layers.7.self_attn.attn": 0,
+            "language_model.model.layers.11.self_attn.attn": 0,
+            "language_model.model.layers.15.self_attn.attn": 0,
+            "language_model.model.layers.19.self_attn.attn": 0,
+            "language_model.model.layers.23.self_attn.attn": 0,
+            "language_model.model.layers.27.self_attn.attn": 0,
+            "language_model.model.layers.31.self_attn.attn": 0,
+            "language_model.model.layers.35.self_attn.attn": 0,
+            "language_model.model.layers.39.self_attn.attn": 0,
+            "language_model.model.layers.43.self_attn.attn": 0,
+            "language_model.model.layers.47.self_attn.attn": 0,
+            "language_model.model.layers.51.self_attn.attn": 0,
+            "language_model.model.layers.55.self_attn.attn": 0,
+            "language_model.model.layers.59.self_attn.attn": 0,
+            "language_model.model.layers.63.self_attn.attn": 0,
+            "language_model.model.layers.67.self_attn.attn": 0,
+            "language_model.model.layers.71.self_attn.attn": 0,
+            "language_model.model.layers.75.self_attn.attn": 0,
+            "language_model.model.layers.79.self_attn.attn": 0,
+            "language_model.model.layers.83.self_attn.attn": 0,
+            "language_model.model.layers.87.self_attn.attn": 0,
+            "language_model.model.layers.91.self_attn.attn": 0,
+            "language_model.model.layers.92.self_attn.attn": 0
+          }
+        },
+        {
+          "lod_runtime": true,
+          "lod_pool_count": 24,
+          "shared_decode_scratch": {
+            "participating_layers": 24,
+            "registries": 1,
+            "unique_tensor_count": 44,
+            "storage_bytes": 23932664,
+            "scope": "shared transient tensors only; per-layer outputs/state excluded"
+          },
+          "lod_engine_configurations": [
+            {
+              "family": "kimi-k3",
+              "mode": "two-tier",
+              "levels": 2,
+              "kv_bits": 0,
+              "prefill_routes": 8,
+              "decode_routes": 8,
+              "prefill_chunk_len": 16384,
+              "prefill_state_update_len": 16384,
+              "decode_state_update_len": 256,
+              "local_len": 512,
+              "leaf_page_size": 16,
+              "leaf_block_m": 64,
+              "leaf_block_n": 16,
+              "leaf_num_warps": 1,
+              "prefill_fused_route_coarse": true,
+              "decode_fused_state_route": true,
+              "max_open_centroid_leaves": 1024,
+              "leaf_seal_capacity": null
+            }
+          ],
+          "lod_cross_layer_prefill_group_size": 4,
+          "attached_lod_layers": 24,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [
+            {
+              "module": "mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+              "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+              "size_bytes": 911024,
+              "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+              "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1398784,
+              "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+              "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1378368,
+              "sha256": "e6173c49eb6e1767b7376777a04b76cd1b83652210e9076fdbfac6ef1be8737c",
+              "build_manifest_sha256": "b0959783866081492c84db7eb91d425d593fae6c10f006fe73e24df793edb78c",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            }
+          ],
+          "dense_gluon_decode_installed": false,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 2,
+            "retained": 2,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": 11484004352
+          },
+          "rank": 4,
+          "compact_selected_projection_enabled": false,
+          "compact_projection_calls": {
+            "language_model.model.layers.3.self_attn.attn": 0,
+            "language_model.model.layers.7.self_attn.attn": 0,
+            "language_model.model.layers.11.self_attn.attn": 0,
+            "language_model.model.layers.15.self_attn.attn": 0,
+            "language_model.model.layers.19.self_attn.attn": 0,
+            "language_model.model.layers.23.self_attn.attn": 0,
+            "language_model.model.layers.27.self_attn.attn": 0,
+            "language_model.model.layers.31.self_attn.attn": 0,
+            "language_model.model.layers.35.self_attn.attn": 0,
+            "language_model.model.layers.39.self_attn.attn": 0,
+            "language_model.model.layers.43.self_attn.attn": 0,
+            "language_model.model.layers.47.self_attn.attn": 0,
+            "language_model.model.layers.51.self_attn.attn": 0,
+            "language_model.model.layers.55.self_attn.attn": 0,
+            "language_model.model.layers.59.self_attn.attn": 0,
+            "language_model.model.layers.63.self_attn.attn": 0,
+            "language_model.model.layers.67.self_attn.attn": 0,
+            "language_model.model.layers.71.self_attn.attn": 0,
+            "language_model.model.layers.75.self_attn.attn": 0,
+            "language_model.model.layers.79.self_attn.attn": 0,
+            "language_model.model.layers.83.self_attn.attn": 0,
+            "language_model.model.layers.87.self_attn.attn": 0,
+            "language_model.model.layers.91.self_attn.attn": 0,
+            "language_model.model.layers.92.self_attn.attn": 0
+          }
+        },
+        {
+          "lod_runtime": true,
+          "lod_pool_count": 24,
+          "shared_decode_scratch": {
+            "participating_layers": 24,
+            "registries": 1,
+            "unique_tensor_count": 44,
+            "storage_bytes": 23932664,
+            "scope": "shared transient tensors only; per-layer outputs/state excluded"
+          },
+          "lod_engine_configurations": [
+            {
+              "family": "kimi-k3",
+              "mode": "two-tier",
+              "levels": 2,
+              "kv_bits": 0,
+              "prefill_routes": 8,
+              "decode_routes": 8,
+              "prefill_chunk_len": 16384,
+              "prefill_state_update_len": 16384,
+              "decode_state_update_len": 256,
+              "local_len": 512,
+              "leaf_page_size": 16,
+              "leaf_block_m": 64,
+              "leaf_block_n": 16,
+              "leaf_num_warps": 1,
+              "prefill_fused_route_coarse": true,
+              "decode_fused_state_route": true,
+              "max_open_centroid_leaves": 1024,
+              "leaf_seal_capacity": null
+            }
+          ],
+          "lod_cross_layer_prefill_group_size": 4,
+          "attached_lod_layers": 24,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [
+            {
+              "module": "mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+              "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+              "size_bytes": 911024,
+              "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+              "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1398784,
+              "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+              "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1378368,
+              "sha256": "e6173c49eb6e1767b7376777a04b76cd1b83652210e9076fdbfac6ef1be8737c",
+              "build_manifest_sha256": "b0959783866081492c84db7eb91d425d593fae6c10f006fe73e24df793edb78c",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            }
+          ],
+          "dense_gluon_decode_installed": false,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 2,
+            "retained": 2,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": 11182014464
+          },
+          "rank": 5,
+          "compact_selected_projection_enabled": false,
+          "compact_projection_calls": {
+            "language_model.model.layers.3.self_attn.attn": 0,
+            "language_model.model.layers.7.self_attn.attn": 0,
+            "language_model.model.layers.11.self_attn.attn": 0,
+            "language_model.model.layers.15.self_attn.attn": 0,
+            "language_model.model.layers.19.self_attn.attn": 0,
+            "language_model.model.layers.23.self_attn.attn": 0,
+            "language_model.model.layers.27.self_attn.attn": 0,
+            "language_model.model.layers.31.self_attn.attn": 0,
+            "language_model.model.layers.35.self_attn.attn": 0,
+            "language_model.model.layers.39.self_attn.attn": 0,
+            "language_model.model.layers.43.self_attn.attn": 0,
+            "language_model.model.layers.47.self_attn.attn": 0,
+            "language_model.model.layers.51.self_attn.attn": 0,
+            "language_model.model.layers.55.self_attn.attn": 0,
+            "language_model.model.layers.59.self_attn.attn": 0,
+            "language_model.model.layers.63.self_attn.attn": 0,
+            "language_model.model.layers.67.self_attn.attn": 0,
+            "language_model.model.layers.71.self_attn.attn": 0,
+            "language_model.model.layers.75.self_attn.attn": 0,
+            "language_model.model.layers.79.self_attn.attn": 0,
+            "language_model.model.layers.83.self_attn.attn": 0,
+            "language_model.model.layers.87.self_attn.attn": 0,
+            "language_model.model.layers.91.self_attn.attn": 0,
+            "language_model.model.layers.92.self_attn.attn": 0
+          }
+        },
+        {
+          "lod_runtime": true,
+          "lod_pool_count": 24,
+          "shared_decode_scratch": {
+            "participating_layers": 24,
+            "registries": 1,
+            "unique_tensor_count": 44,
+            "storage_bytes": 23932664,
+            "scope": "shared transient tensors only; per-layer outputs/state excluded"
+          },
+          "lod_engine_configurations": [
+            {
+              "family": "kimi-k3",
+              "mode": "two-tier",
+              "levels": 2,
+              "kv_bits": 0,
+              "prefill_routes": 8,
+              "decode_routes": 8,
+              "prefill_chunk_len": 16384,
+              "prefill_state_update_len": 16384,
+              "decode_state_update_len": 256,
+              "local_len": 512,
+              "leaf_page_size": 16,
+              "leaf_block_m": 64,
+              "leaf_block_n": 16,
+              "leaf_num_warps": 1,
+              "prefill_fused_route_coarse": true,
+              "decode_fused_state_route": true,
+              "max_open_centroid_leaves": 1024,
+              "leaf_seal_capacity": null
+            }
+          ],
+          "lod_cross_layer_prefill_group_size": 4,
+          "attached_lod_layers": 24,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [
+            {
+              "module": "mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+              "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+              "size_bytes": 911024,
+              "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+              "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1398784,
+              "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+              "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1378368,
+              "sha256": "e6173c49eb6e1767b7376777a04b76cd1b83652210e9076fdbfac6ef1be8737c",
+              "build_manifest_sha256": "b0959783866081492c84db7eb91d425d593fae6c10f006fe73e24df793edb78c",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            }
+          ],
+          "dense_gluon_decode_installed": false,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 2,
+            "retained": 2,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": 11484004352
+          },
+          "rank": 6,
+          "compact_selected_projection_enabled": false,
+          "compact_projection_calls": {
+            "language_model.model.layers.3.self_attn.attn": 0,
+            "language_model.model.layers.7.self_attn.attn": 0,
+            "language_model.model.layers.11.self_attn.attn": 0,
+            "language_model.model.layers.15.self_attn.attn": 0,
+            "language_model.model.layers.19.self_attn.attn": 0,
+            "language_model.model.layers.23.self_attn.attn": 0,
+            "language_model.model.layers.27.self_attn.attn": 0,
+            "language_model.model.layers.31.self_attn.attn": 0,
+            "language_model.model.layers.35.self_attn.attn": 0,
+            "language_model.model.layers.39.self_attn.attn": 0,
+            "language_model.model.layers.43.self_attn.attn": 0,
+            "language_model.model.layers.47.self_attn.attn": 0,
+            "language_model.model.layers.51.self_attn.attn": 0,
+            "language_model.model.layers.55.self_attn.attn": 0,
+            "language_model.model.layers.59.self_attn.attn": 0,
+            "language_model.model.layers.63.self_attn.attn": 0,
+            "language_model.model.layers.67.self_attn.attn": 0,
+            "language_model.model.layers.71.self_attn.attn": 0,
+            "language_model.model.layers.75.self_attn.attn": 0,
+            "language_model.model.layers.79.self_attn.attn": 0,
+            "language_model.model.layers.83.self_attn.attn": 0,
+            "language_model.model.layers.87.self_attn.attn": 0,
+            "language_model.model.layers.91.self_attn.attn": 0,
+            "language_model.model.layers.92.self_attn.attn": 0
+          }
+        },
+        {
+          "lod_runtime": true,
+          "lod_pool_count": 24,
+          "shared_decode_scratch": {
+            "participating_layers": 24,
+            "registries": 1,
+            "unique_tensor_count": 44,
+            "storage_bytes": 23932664,
+            "scope": "shared transient tensors only; per-layer outputs/state excluded"
+          },
+          "lod_engine_configurations": [
+            {
+              "family": "kimi-k3",
+              "mode": "two-tier",
+              "levels": 2,
+              "kv_bits": 0,
+              "prefill_routes": 8,
+              "decode_routes": 8,
+              "prefill_chunk_len": 16384,
+              "prefill_state_update_len": 16384,
+              "decode_state_update_len": 256,
+              "local_len": 512,
+              "leaf_page_size": 16,
+              "leaf_block_m": 64,
+              "leaf_block_n": 16,
+              "leaf_num_warps": 1,
+              "prefill_fused_route_coarse": true,
+              "decode_fused_state_route": true,
+              "max_open_centroid_leaves": 1024,
+              "leaf_seal_capacity": null
+            }
+          ],
+          "lod_cross_layer_prefill_group_size": 4,
+          "attached_lod_layers": 24,
+          "attention_layer_count": 24,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 184,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [
+            {
+              "module": "mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+              "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+              "size_bytes": 911024,
+              "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+              "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1398784,
+              "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+              "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1378368,
+              "sha256": "e6173c49eb6e1767b7376777a04b76cd1b83652210e9076fdbfac6ef1be8737c",
+              "build_manifest_sha256": "b0959783866081492c84db7eb91d425d593fae6c10f006fe73e24df793edb78c",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            }
+          ],
+          "dense_gluon_decode_installed": false,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 2,
+            "retained": 2,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": 11484004352
+          },
+          "rank": 7,
+          "compact_selected_projection_enabled": false,
+          "compact_projection_calls": {
+            "language_model.model.layers.3.self_attn.attn": 0,
+            "language_model.model.layers.7.self_attn.attn": 0,
+            "language_model.model.layers.11.self_attn.attn": 0,
+            "language_model.model.layers.15.self_attn.attn": 0,
+            "language_model.model.layers.19.self_attn.attn": 0,
+            "language_model.model.layers.23.self_attn.attn": 0,
+            "language_model.model.layers.27.self_attn.attn": 0,
+            "language_model.model.layers.31.self_attn.attn": 0,
+            "language_model.model.layers.35.self_attn.attn": 0,
+            "language_model.model.layers.39.self_attn.attn": 0,
+            "language_model.model.layers.43.self_attn.attn": 0,
+            "language_model.model.layers.47.self_attn.attn": 0,
+            "language_model.model.layers.51.self_attn.attn": 0,
+            "language_model.model.layers.55.self_attn.attn": 0,
+            "language_model.model.layers.59.self_attn.attn": 0,
+            "language_model.model.layers.63.self_attn.attn": 0,
+            "language_model.model.layers.67.self_attn.attn": 0,
+            "language_model.model.layers.71.self_attn.attn": 0,
+            "language_model.model.layers.75.self_attn.attn": 0,
+            "language_model.model.layers.79.self_attn.attn": 0,
+            "language_model.model.layers.83.self_attn.attn": 0,
+            "language_model.model.layers.87.self_attn.attn": 0,
+            "language_model.model.layers.91.self_attn.attn": 0,
+            "language_model.model.layers.92.self_attn.attn": 0
+          }
+        }
+      ],
+      "worker_attention_audit_status": "passed"
+    }
+  },
+  "gpu_memory_utilization": 0.8,
+  "kv_cache_memory_bytes": 1073741824,
+  "worker_attention_audit_status": "passed",
+  "measurement_status": "complete",
+  "graph_prefill_requested": false,
+  "current_phase": {
+    "length": 65536,
+    "phase": "point_complete",
+    "timestamp_unix": 1791320578.9794366
+  },
+  "phase_history": [
+    {
+      "length": 65536,
+      "phase": "warmup",
+      "timestamp_unix": 1791320510.2945597
+    },
+    {
+      "length": 65536,
+      "phase": "warmup_complete",
+      "timestamp_unix": 1791320546.8127718,
+      "warmup_elapsed_seconds": 36.51740573346615
+    },
+    {
+      "length": 65536,
+      "phase": "measurement",
+      "timestamp_unix": 1791320546.8180387,
+      "repeat_index": 0,
+      "repeats": 1
+    },
+    {
+      "length": 65536,
+      "phase": "auditing",
+      "timestamp_unix": 1791320578.9270737,
+      "prefill_seconds": 8.520107197575271,
+      "elapsed_seconds": 32.10178238991648
+    },
+    {
+      "length": 65536,
+      "phase": "point_complete",
+      "timestamp_unix": 1791320578.9794366
+    }
+  ],
+  "warmup_allocator_policy": {
+    "65536": [
+      {
+        "retention_requested": true,
+        "reclaimed": false,
+        "free_bytes_before": 11704205312,
+        "free_bytes_after": 11704205312,
+        "allocated_bytes": 6193784832,
+        "reserved_bytes": 22038970368,
+        "prefill_allocator_audit": {
+          "calls": 1,
+          "retained": 1,
+          "reclaimed": 0,
+          "minimum_free_bytes_at_check": 11716788224
+        }
+      },
+      {
+        "retention_requested": true,
+        "reclaimed": false,
+        "free_bytes_before": 13147045888,
+        "free_bytes_after": 13147045888,
+        "allocated_bytes": 6193677312,
+        "reserved_bytes": 22038970368,
+        "prefill_allocator_audit": {
+          "calls": 1,
+          "retained": 1,
+          "reclaimed": 0,
+          "minimum_free_bytes_at_check": 13159628800
+        }
+      },
+      {
+        "retention_requested": true,
+        "reclaimed": false,
+        "free_bytes_before": 11022630912,
+        "free_bytes_after": 11022630912,
+        "allocated_bytes": 6193677312,
+        "reserved_bytes": 22038970368,
+        "prefill_allocator_audit": {
+          "calls": 1,
+          "retained": 1,
+          "reclaimed": 0,
+          "minimum_free_bytes_at_check": 11035213824
+        }
+      },
+      {
+        "retention_requested": true,
+        "reclaimed": false,
+        "free_bytes_before": 11033116672,
+        "free_bytes_after": 11033116672,
+        "allocated_bytes": 6193784832,
+        "reserved_bytes": 22038970368,
+        "prefill_allocator_audit": {
+          "calls": 1,
+          "retained": 1,
+          "reclaimed": 0,
+          "minimum_free_bytes_at_check": 11045699584
+        }
+      },
+      {
+        "retention_requested": true,
+        "reclaimed": false,
+        "free_bytes_before": 11637096448,
+        "free_bytes_after": 11637096448,
+        "allocated_bytes": 6193784832,
+        "reserved_bytes": 22038970368,
+        "prefill_allocator_audit": {
+          "calls": 1,
+          "retained": 1,
+          "reclaimed": 0,
+          "minimum_free_bytes_at_check": 11649679360
+        }
+      },
+      {
+        "retention_requested": true,
+        "reclaimed": false,
+        "free_bytes_before": 11335106560,
+        "free_bytes_after": 11335106560,
+        "allocated_bytes": 6193677312,
+        "reserved_bytes": 22038970368,
+        "prefill_allocator_audit": {
+          "calls": 1,
+          "retained": 1,
+          "reclaimed": 0,
+          "minimum_free_bytes_at_check": 11347689472
+        }
+      },
+      {
+        "retention_requested": true,
+        "reclaimed": false,
+        "free_bytes_before": 11637096448,
+        "free_bytes_after": 11637096448,
+        "allocated_bytes": 6193784832,
+        "reserved_bytes": 22038970368,
+        "prefill_allocator_audit": {
+          "calls": 1,
+          "retained": 1,
+          "reclaimed": 0,
+          "minimum_free_bytes_at_check": 11649679360
+        }
+      },
+      {
+        "retention_requested": true,
+        "reclaimed": false,
+        "free_bytes_before": 11637096448,
+        "free_bytes_after": 11637096448,
+        "allocated_bytes": 6194117632,
+        "reserved_bytes": 22038970368,
+        "prefill_allocator_audit": {
+          "calls": 1,
+          "retained": 1,
+          "reclaimed": 0,
+          "minimum_free_bytes_at_check": 11649679360
+        }
+      }
+    ]
+  },
+  "worker_attention_audit": [
+    {
+      "lod_runtime": true,
+      "lod_pool_count": 24,
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 23932664,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "lod_engine_configurations": [
+        {
+          "family": "kimi-k3",
+          "mode": "two-tier",
+          "levels": 2,
+          "kv_bits": 0,
+          "prefill_routes": 8,
+          "decode_routes": 8,
+          "prefill_chunk_len": 16384,
+          "prefill_state_update_len": 16384,
+          "decode_state_update_len": 256,
+          "local_len": 512,
+          "leaf_page_size": 16,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "prefill_fused_route_coarse": true,
+          "decode_fused_state_route": true,
+          "max_open_centroid_leaves": 1024,
+          "leaf_seal_capacity": null
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "attached_lod_layers": 24,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 184,
+      "model_class": "KimiK3ForConditionalGeneration",
+      "loaded_kimi_lod_modules": [
+        {
+          "module": "mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "size_bytes": 911024,
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1398784,
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1378368,
+          "sha256": "e6173c49eb6e1767b7376777a04b76cd1b83652210e9076fdbfac6ef1be8737c",
+          "build_manifest_sha256": "b0959783866081492c84db7eb91d425d593fae6c10f006fe73e24df793edb78c",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        }
+      ],
+      "dense_gluon_decode_installed": false,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 2,
+        "retained": 2,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": 11551113216
+      },
+      "rank": 0,
+      "compact_selected_projection_enabled": false,
+      "compact_projection_calls": {
+        "language_model.model.layers.3.self_attn.attn": 0,
+        "language_model.model.layers.7.self_attn.attn": 0,
+        "language_model.model.layers.11.self_attn.attn": 0,
+        "language_model.model.layers.15.self_attn.attn": 0,
+        "language_model.model.layers.19.self_attn.attn": 0,
+        "language_model.model.layers.23.self_attn.attn": 0,
+        "language_model.model.layers.27.self_attn.attn": 0,
+        "language_model.model.layers.31.self_attn.attn": 0,
+        "language_model.model.layers.35.self_attn.attn": 0,
+        "language_model.model.layers.39.self_attn.attn": 0,
+        "language_model.model.layers.43.self_attn.attn": 0,
+        "language_model.model.layers.47.self_attn.attn": 0,
+        "language_model.model.layers.51.self_attn.attn": 0,
+        "language_model.model.layers.55.self_attn.attn": 0,
+        "language_model.model.layers.59.self_attn.attn": 0,
+        "language_model.model.layers.63.self_attn.attn": 0,
+        "language_model.model.layers.67.self_attn.attn": 0,
+        "language_model.model.layers.71.self_attn.attn": 0,
+        "language_model.model.layers.75.self_attn.attn": 0,
+        "language_model.model.layers.79.self_attn.attn": 0,
+        "language_model.model.layers.83.self_attn.attn": 0,
+        "language_model.model.layers.87.self_attn.attn": 0,
+        "language_model.model.layers.91.self_attn.attn": 0,
+        "language_model.model.layers.92.self_attn.attn": 0
+      }
+    },
+    {
+      "lod_runtime": true,
+      "lod_pool_count": 24,
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 23932664,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "lod_engine_configurations": [
+        {
+          "family": "kimi-k3",
+          "mode": "two-tier",
+          "levels": 2,
+          "kv_bits": 0,
+          "prefill_routes": 8,
+          "decode_routes": 8,
+          "prefill_chunk_len": 16384,
+          "prefill_state_update_len": 16384,
+          "decode_state_update_len": 256,
+          "local_len": 512,
+          "leaf_page_size": 16,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "prefill_fused_route_coarse": true,
+          "decode_fused_state_route": true,
+          "max_open_centroid_leaves": 1024,
+          "leaf_seal_capacity": null
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "attached_lod_layers": 24,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 184,
+      "model_class": "KimiK3ForConditionalGeneration",
+      "loaded_kimi_lod_modules": [
+        {
+          "module": "mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "size_bytes": 911024,
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1398784,
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1378368,
+          "sha256": "e6173c49eb6e1767b7376777a04b76cd1b83652210e9076fdbfac6ef1be8737c",
+          "build_manifest_sha256": "b0959783866081492c84db7eb91d425d593fae6c10f006fe73e24df793edb78c",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        }
+      ],
+      "dense_gluon_decode_installed": false,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 2,
+        "retained": 2,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": 12993953792
+      },
+      "rank": 1,
+      "compact_selected_projection_enabled": false,
+      "compact_projection_calls": {
+        "language_model.model.layers.3.self_attn.attn": 0,
+        "language_model.model.layers.7.self_attn.attn": 0,
+        "language_model.model.layers.11.self_attn.attn": 0,
+        "language_model.model.layers.15.self_attn.attn": 0,
+        "language_model.model.layers.19.self_attn.attn": 0,
+        "language_model.model.layers.23.self_attn.attn": 0,
+        "language_model.model.layers.27.self_attn.attn": 0,
+        "language_model.model.layers.31.self_attn.attn": 0,
+        "language_model.model.layers.35.self_attn.attn": 0,
+        "language_model.model.layers.39.self_attn.attn": 0,
+        "language_model.model.layers.43.self_attn.attn": 0,
+        "language_model.model.layers.47.self_attn.attn": 0,
+        "language_model.model.layers.51.self_attn.attn": 0,
+        "language_model.model.layers.55.self_attn.attn": 0,
+        "language_model.model.layers.59.self_attn.attn": 0,
+        "language_model.model.layers.63.self_attn.attn": 0,
+        "language_model.model.layers.67.self_attn.attn": 0,
+        "language_model.model.layers.71.self_attn.attn": 0,
+        "language_model.model.layers.75.self_attn.attn": 0,
+        "language_model.model.layers.79.self_attn.attn": 0,
+        "language_model.model.layers.83.self_attn.attn": 0,
+        "language_model.model.layers.87.self_attn.attn": 0,
+        "language_model.model.layers.91.self_attn.attn": 0,
+        "language_model.model.layers.92.self_attn.attn": 0
+      }
+    },
+    {
+      "lod_runtime": true,
+      "lod_pool_count": 24,
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 23932664,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "lod_engine_configurations": [
+        {
+          "family": "kimi-k3",
+          "mode": "two-tier",
+          "levels": 2,
+          "kv_bits": 0,
+          "prefill_routes": 8,
+          "decode_routes": 8,
+          "prefill_chunk_len": 16384,
+          "prefill_state_update_len": 16384,
+          "decode_state_update_len": 256,
+          "local_len": 512,
+          "leaf_page_size": 16,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "prefill_fused_route_coarse": true,
+          "decode_fused_state_route": true,
+          "max_open_centroid_leaves": 1024,
+          "leaf_seal_capacity": null
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "attached_lod_layers": 24,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 184,
+      "model_class": "KimiK3ForConditionalGeneration",
+      "loaded_kimi_lod_modules": [
+        {
+          "module": "mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "size_bytes": 911024,
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1398784,
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1378368,
+          "sha256": "e6173c49eb6e1767b7376777a04b76cd1b83652210e9076fdbfac6ef1be8737c",
+          "build_manifest_sha256": "b0959783866081492c84db7eb91d425d593fae6c10f006fe73e24df793edb78c",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        }
+      ],
+      "dense_gluon_decode_installed": false,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 2,
+        "retained": 2,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": 10869538816
+      },
+      "rank": 2,
+      "compact_selected_projection_enabled": false,
+      "compact_projection_calls": {
+        "language_model.model.layers.3.self_attn.attn": 0,
+        "language_model.model.layers.7.self_attn.attn": 0,
+        "language_model.model.layers.11.self_attn.attn": 0,
+        "language_model.model.layers.15.self_attn.attn": 0,
+        "language_model.model.layers.19.self_attn.attn": 0,
+        "language_model.model.layers.23.self_attn.attn": 0,
+        "language_model.model.layers.27.self_attn.attn": 0,
+        "language_model.model.layers.31.self_attn.attn": 0,
+        "language_model.model.layers.35.self_attn.attn": 0,
+        "language_model.model.layers.39.self_attn.attn": 0,
+        "language_model.model.layers.43.self_attn.attn": 0,
+        "language_model.model.layers.47.self_attn.attn": 0,
+        "language_model.model.layers.51.self_attn.attn": 0,
+        "language_model.model.layers.55.self_attn.attn": 0,
+        "language_model.model.layers.59.self_attn.attn": 0,
+        "language_model.model.layers.63.self_attn.attn": 0,
+        "language_model.model.layers.67.self_attn.attn": 0,
+        "language_model.model.layers.71.self_attn.attn": 0,
+        "language_model.model.layers.75.self_attn.attn": 0,
+        "language_model.model.layers.79.self_attn.attn": 0,
+        "language_model.model.layers.83.self_attn.attn": 0,
+        "language_model.model.layers.87.self_attn.attn": 0,
+        "language_model.model.layers.91.self_attn.attn": 0,
+        "language_model.model.layers.92.self_attn.attn": 0
+      }
+    },
+    {
+      "lod_runtime": true,
+      "lod_pool_count": 24,
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 23932664,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "lod_engine_configurations": [
+        {
+          "family": "kimi-k3",
+          "mode": "two-tier",
+          "levels": 2,
+          "kv_bits": 0,
+          "prefill_routes": 8,
+          "decode_routes": 8,
+          "prefill_chunk_len": 16384,
+          "prefill_state_update_len": 16384,
+          "decode_state_update_len": 256,
+          "local_len": 512,
+          "leaf_page_size": 16,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "prefill_fused_route_coarse": true,
+          "decode_fused_state_route": true,
+          "max_open_centroid_leaves": 1024,
+          "leaf_seal_capacity": null
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "attached_lod_layers": 24,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 184,
+      "model_class": "KimiK3ForConditionalGeneration",
+      "loaded_kimi_lod_modules": [
+        {
+          "module": "mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "size_bytes": 911024,
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1398784,
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1378368,
+          "sha256": "e6173c49eb6e1767b7376777a04b76cd1b83652210e9076fdbfac6ef1be8737c",
+          "build_manifest_sha256": "b0959783866081492c84db7eb91d425d593fae6c10f006fe73e24df793edb78c",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        }
+      ],
+      "dense_gluon_decode_installed": false,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 2,
+        "retained": 2,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": 10880024576
+      },
+      "rank": 3,
+      "compact_selected_projection_enabled": false,
+      "compact_projection_calls": {
+        "language_model.model.layers.3.self_attn.attn": 0,
+        "language_model.model.layers.7.self_attn.attn": 0,
+        "language_model.model.layers.11.self_attn.attn": 0,
+        "language_model.model.layers.15.self_attn.attn": 0,
+        "language_model.model.layers.19.self_attn.attn": 0,
+        "language_model.model.layers.23.self_attn.attn": 0,
+        "language_model.model.layers.27.self_attn.attn": 0,
+        "language_model.model.layers.31.self_attn.attn": 0,
+        "language_model.model.layers.35.self_attn.attn": 0,
+        "language_model.model.layers.39.self_attn.attn": 0,
+        "language_model.model.layers.43.self_attn.attn": 0,
+        "language_model.model.layers.47.self_attn.attn": 0,
+        "language_model.model.layers.51.self_attn.attn": 0,
+        "language_model.model.layers.55.self_attn.attn": 0,
+        "language_model.model.layers.59.self_attn.attn": 0,
+        "language_model.model.layers.63.self_attn.attn": 0,
+        "language_model.model.layers.67.self_attn.attn": 0,
+        "language_model.model.layers.71.self_attn.attn": 0,
+        "language_model.model.layers.75.self_attn.attn": 0,
+        "language_model.model.layers.79.self_attn.attn": 0,
+        "language_model.model.layers.83.self_attn.attn": 0,
+        "language_model.model.layers.87.self_attn.attn": 0,
+        "language_model.model.layers.91.self_attn.attn": 0,
+        "language_model.model.layers.92.self_attn.attn": 0
+      }
+    },
+    {
+      "lod_runtime": true,
+      "lod_pool_count": 24,
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 23932664,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "lod_engine_configurations": [
+        {
+          "family": "kimi-k3",
+          "mode": "two-tier",
+          "levels": 2,
+          "kv_bits": 0,
+          "prefill_routes": 8,
+          "decode_routes": 8,
+          "prefill_chunk_len": 16384,
+          "prefill_state_update_len": 16384,
+          "decode_state_update_len": 256,
+          "local_len": 512,
+          "leaf_page_size": 16,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "prefill_fused_route_coarse": true,
+          "decode_fused_state_route": true,
+          "max_open_centroid_leaves": 1024,
+          "leaf_seal_capacity": null
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "attached_lod_layers": 24,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 184,
+      "model_class": "KimiK3ForConditionalGeneration",
+      "loaded_kimi_lod_modules": [
+        {
+          "module": "mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "size_bytes": 911024,
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1398784,
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1378368,
+          "sha256": "e6173c49eb6e1767b7376777a04b76cd1b83652210e9076fdbfac6ef1be8737c",
+          "build_manifest_sha256": "b0959783866081492c84db7eb91d425d593fae6c10f006fe73e24df793edb78c",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        }
+      ],
+      "dense_gluon_decode_installed": false,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 2,
+        "retained": 2,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": 11484004352
+      },
+      "rank": 4,
+      "compact_selected_projection_enabled": false,
+      "compact_projection_calls": {
+        "language_model.model.layers.3.self_attn.attn": 0,
+        "language_model.model.layers.7.self_attn.attn": 0,
+        "language_model.model.layers.11.self_attn.attn": 0,
+        "language_model.model.layers.15.self_attn.attn": 0,
+        "language_model.model.layers.19.self_attn.attn": 0,
+        "language_model.model.layers.23.self_attn.attn": 0,
+        "language_model.model.layers.27.self_attn.attn": 0,
+        "language_model.model.layers.31.self_attn.attn": 0,
+        "language_model.model.layers.35.self_attn.attn": 0,
+        "language_model.model.layers.39.self_attn.attn": 0,
+        "language_model.model.layers.43.self_attn.attn": 0,
+        "language_model.model.layers.47.self_attn.attn": 0,
+        "language_model.model.layers.51.self_attn.attn": 0,
+        "language_model.model.layers.55.self_attn.attn": 0,
+        "language_model.model.layers.59.self_attn.attn": 0,
+        "language_model.model.layers.63.self_attn.attn": 0,
+        "language_model.model.layers.67.self_attn.attn": 0,
+        "language_model.model.layers.71.self_attn.attn": 0,
+        "language_model.model.layers.75.self_attn.attn": 0,
+        "language_model.model.layers.79.self_attn.attn": 0,
+        "language_model.model.layers.83.self_attn.attn": 0,
+        "language_model.model.layers.87.self_attn.attn": 0,
+        "language_model.model.layers.91.self_attn.attn": 0,
+        "language_model.model.layers.92.self_attn.attn": 0
+      }
+    },
+    {
+      "lod_runtime": true,
+      "lod_pool_count": 24,
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 23932664,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "lod_engine_configurations": [
+        {
+          "family": "kimi-k3",
+          "mode": "two-tier",
+          "levels": 2,
+          "kv_bits": 0,
+          "prefill_routes": 8,
+          "decode_routes": 8,
+          "prefill_chunk_len": 16384,
+          "prefill_state_update_len": 16384,
+          "decode_state_update_len": 256,
+          "local_len": 512,
+          "leaf_page_size": 16,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "prefill_fused_route_coarse": true,
+          "decode_fused_state_route": true,
+          "max_open_centroid_leaves": 1024,
+          "leaf_seal_capacity": null
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "attached_lod_layers": 24,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 184,
+      "model_class": "KimiK3ForConditionalGeneration",
+      "loaded_kimi_lod_modules": [
+        {
+          "module": "mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "size_bytes": 911024,
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1398784,
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1378368,
+          "sha256": "e6173c49eb6e1767b7376777a04b76cd1b83652210e9076fdbfac6ef1be8737c",
+          "build_manifest_sha256": "b0959783866081492c84db7eb91d425d593fae6c10f006fe73e24df793edb78c",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        }
+      ],
+      "dense_gluon_decode_installed": false,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 2,
+        "retained": 2,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": 11182014464
+      },
+      "rank": 5,
+      "compact_selected_projection_enabled": false,
+      "compact_projection_calls": {
+        "language_model.model.layers.3.self_attn.attn": 0,
+        "language_model.model.layers.7.self_attn.attn": 0,
+        "language_model.model.layers.11.self_attn.attn": 0,
+        "language_model.model.layers.15.self_attn.attn": 0,
+        "language_model.model.layers.19.self_attn.attn": 0,
+        "language_model.model.layers.23.self_attn.attn": 0,
+        "language_model.model.layers.27.self_attn.attn": 0,
+        "language_model.model.layers.31.self_attn.attn": 0,
+        "language_model.model.layers.35.self_attn.attn": 0,
+        "language_model.model.layers.39.self_attn.attn": 0,
+        "language_model.model.layers.43.self_attn.attn": 0,
+        "language_model.model.layers.47.self_attn.attn": 0,
+        "language_model.model.layers.51.self_attn.attn": 0,
+        "language_model.model.layers.55.self_attn.attn": 0,
+        "language_model.model.layers.59.self_attn.attn": 0,
+        "language_model.model.layers.63.self_attn.attn": 0,
+        "language_model.model.layers.67.self_attn.attn": 0,
+        "language_model.model.layers.71.self_attn.attn": 0,
+        "language_model.model.layers.75.self_attn.attn": 0,
+        "language_model.model.layers.79.self_attn.attn": 0,
+        "language_model.model.layers.83.self_attn.attn": 0,
+        "language_model.model.layers.87.self_attn.attn": 0,
+        "language_model.model.layers.91.self_attn.attn": 0,
+        "language_model.model.layers.92.self_attn.attn": 0
+      }
+    },
+    {
+      "lod_runtime": true,
+      "lod_pool_count": 24,
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 23932664,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "lod_engine_configurations": [
+        {
+          "family": "kimi-k3",
+          "mode": "two-tier",
+          "levels": 2,
+          "kv_bits": 0,
+          "prefill_routes": 8,
+          "decode_routes": 8,
+          "prefill_chunk_len": 16384,
+          "prefill_state_update_len": 16384,
+          "decode_state_update_len": 256,
+          "local_len": 512,
+          "leaf_page_size": 16,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "prefill_fused_route_coarse": true,
+          "decode_fused_state_route": true,
+          "max_open_centroid_leaves": 1024,
+          "leaf_seal_capacity": null
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "attached_lod_layers": 24,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 184,
+      "model_class": "KimiK3ForConditionalGeneration",
+      "loaded_kimi_lod_modules": [
+        {
+          "module": "mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "size_bytes": 911024,
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1398784,
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1378368,
+          "sha256": "e6173c49eb6e1767b7376777a04b76cd1b83652210e9076fdbfac6ef1be8737c",
+          "build_manifest_sha256": "b0959783866081492c84db7eb91d425d593fae6c10f006fe73e24df793edb78c",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        }
+      ],
+      "dense_gluon_decode_installed": false,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 2,
+        "retained": 2,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": 11484004352
+      },
+      "rank": 6,
+      "compact_selected_projection_enabled": false,
+      "compact_projection_calls": {
+        "language_model.model.layers.3.self_attn.attn": 0,
+        "language_model.model.layers.7.self_attn.attn": 0,
+        "language_model.model.layers.11.self_attn.attn": 0,
+        "language_model.model.layers.15.self_attn.attn": 0,
+        "language_model.model.layers.19.self_attn.attn": 0,
+        "language_model.model.layers.23.self_attn.attn": 0,
+        "language_model.model.layers.27.self_attn.attn": 0,
+        "language_model.model.layers.31.self_attn.attn": 0,
+        "language_model.model.layers.35.self_attn.attn": 0,
+        "language_model.model.layers.39.self_attn.attn": 0,
+        "language_model.model.layers.43.self_attn.attn": 0,
+        "language_model.model.layers.47.self_attn.attn": 0,
+        "language_model.model.layers.51.self_attn.attn": 0,
+        "language_model.model.layers.55.self_attn.attn": 0,
+        "language_model.model.layers.59.self_attn.attn": 0,
+        "language_model.model.layers.63.self_attn.attn": 0,
+        "language_model.model.layers.67.self_attn.attn": 0,
+        "language_model.model.layers.71.self_attn.attn": 0,
+        "language_model.model.layers.75.self_attn.attn": 0,
+        "language_model.model.layers.79.self_attn.attn": 0,
+        "language_model.model.layers.83.self_attn.attn": 0,
+        "language_model.model.layers.87.self_attn.attn": 0,
+        "language_model.model.layers.91.self_attn.attn": 0,
+        "language_model.model.layers.92.self_attn.attn": 0
+      }
+    },
+    {
+      "lod_runtime": true,
+      "lod_pool_count": 24,
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 23932664,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "lod_engine_configurations": [
+        {
+          "family": "kimi-k3",
+          "mode": "two-tier",
+          "levels": 2,
+          "kv_bits": 0,
+          "prefill_routes": 8,
+          "decode_routes": 8,
+          "prefill_chunk_len": 16384,
+          "prefill_state_update_len": 16384,
+          "decode_state_update_len": 256,
+          "local_len": 512,
+          "leaf_page_size": 16,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "prefill_fused_route_coarse": true,
+          "decode_fused_state_route": true,
+          "max_open_centroid_leaves": 1024,
+          "leaf_seal_capacity": null
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "attached_lod_layers": 24,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 184,
+      "model_class": "KimiK3ForConditionalGeneration",
+      "loaded_kimi_lod_modules": [
+        {
+          "module": "mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "size_bytes": 911024,
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1398784,
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1378368,
+          "sha256": "e6173c49eb6e1767b7376777a04b76cd1b83652210e9076fdbfac6ef1be8737c",
+          "build_manifest_sha256": "b0959783866081492c84db7eb91d425d593fae6c10f006fe73e24df793edb78c",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        }
+      ],
+      "dense_gluon_decode_installed": false,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 2,
+        "retained": 2,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": 11484004352
+      },
+      "rank": 7,
+      "compact_selected_projection_enabled": false,
+      "compact_projection_calls": {
+        "language_model.model.layers.3.self_attn.attn": 0,
+        "language_model.model.layers.7.self_attn.attn": 0,
+        "language_model.model.layers.11.self_attn.attn": 0,
+        "language_model.model.layers.15.self_attn.attn": 0,
+        "language_model.model.layers.19.self_attn.attn": 0,
+        "language_model.model.layers.23.self_attn.attn": 0,
+        "language_model.model.layers.27.self_attn.attn": 0,
+        "language_model.model.layers.31.self_attn.attn": 0,
+        "language_model.model.layers.35.self_attn.attn": 0,
+        "language_model.model.layers.39.self_attn.attn": 0,
+        "language_model.model.layers.43.self_attn.attn": 0,
+        "language_model.model.layers.47.self_attn.attn": 0,
+        "language_model.model.layers.51.self_attn.attn": 0,
+        "language_model.model.layers.55.self_attn.attn": 0,
+        "language_model.model.layers.59.self_attn.attn": 0,
+        "language_model.model.layers.63.self_attn.attn": 0,
+        "language_model.model.layers.67.self_attn.attn": 0,
+        "language_model.model.layers.71.self_attn.attn": 0,
+        "language_model.model.layers.75.self_attn.attn": 0,
+        "language_model.model.layers.79.self_attn.attn": 0,
+        "language_model.model.layers.83.self_attn.attn": 0,
+        "language_model.model.layers.87.self_attn.attn": 0,
+        "language_model.model.layers.91.self_attn.attn": 0,
+        "language_model.model.layers.92.self_attn.attn": 0
+      }
+    }
+  ]
+}

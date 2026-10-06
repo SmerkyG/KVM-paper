@@ -2518,8 +2518,15 @@ class TritonLODAttentionCore(nn.Module):
         virtual_k: torch.Tensor | None = None,
         virtual_v: torch.Tensor | None = None,
         destination: dict[str, torch.Tensor | int] | None = None,
+        metadata_only: bool = False,
     ) -> dict[str, torch.Tensor | int]:
         batch, kv_heads, _, head_dim = k.shape
+        if metadata_only and (
+            not self.virtual_page_storage or self.recursive_page_lod
+            or self.leaf_key_quant_bits or self.leaf_value_quant_bits
+            or self.prefill_int8_leaf_mma or destination is not None
+        ):
+            raise ValueError("metadata-only directories require unquantized two-tier virtual pages")
         raw_page_key_summaries = bool(
             getattr(self, "mla_recursive_page_key_normalization", False)
         )
@@ -2731,6 +2738,7 @@ class TritonLODAttentionCore(nn.Module):
             "leaf_count": 0,
             "leaf_lens": torch.zeros(batch, dtype=torch.int32, device=k.device),
             "mla_raw_page_key_summaries": raw_page_key_summaries,
+            "metadata_only": metadata_only,
         }
         if self.virtual_page_storage:
             matching_native_quant = (
@@ -2761,7 +2769,15 @@ class TritonLODAttentionCore(nn.Module):
                 == virtual_v.untyped_storage().data_ptr()
                 and virtual_k.stride() == virtual_v.stride()
             )
-            if flat_int8_mma:
+            if metadata_only:
+                # Index-only directory for a transient, externally supplied
+                # attention field. Never allocate or write chronological K/V.
+                flat_leaf_k = virtual_k.new_empty(batch, kv_heads, 1, head_dim).expand(
+                    batch, kv_heads, sequence_capacity, head_dim
+                )
+                flat_leaf_v = flat_leaf_k[..., : int(virtual_v.size(-1))]
+                flat_leaf_capacity = sequence_capacity
+            elif flat_int8_mma:
                 flat_leaf_k = torch.empty(
                     batch,
                     kv_heads,
@@ -3241,6 +3257,8 @@ class TritonLODAttentionCore(nn.Module):
         leaf_count = leaf_offset + append_len
         leaf_capacity = int(cache["leaf_capacity"])
         if leaf_count > leaf_capacity:
+            if bool(cache.get("metadata_only", False)):
+                raise ValueError("metadata-only directory exceeds its fixed sequence capacity")
             growth_chunk = int(cache.get("leaf_growth_chunk", 0))
             if growth_chunk:
                 # Temporary DCP prefill archives can grow in bounded slabs
@@ -3411,8 +3429,9 @@ class TritonLODAttentionCore(nn.Module):
                     optimize_leaf_scale=(self.leaf_append_quant_scale_mode == "l2"),
                 )
             else:
-                leaf_k[..., leaf_offset:leaf_count, :].copy_(k)
-                leaf_v[..., leaf_offset:leaf_count, :].copy_(v)
+                if not bool(cache.get("metadata_only", False)):
+                    leaf_k[..., leaf_offset:leaf_count, :].copy_(k)
+                    leaf_v[..., leaf_offset:leaf_count, :].copy_(v)
                 append_virtual_paged_kv(
                     leaf_k,
                     leaf_v,
@@ -3705,19 +3724,29 @@ class TritonLODAttentionCore(nn.Module):
             routed_projection = bool(
                 os.environ.get("LOD_KIMI_ROUTED_LEAF_PROJECTION") == "1"
             )
+            compact_selected_projection = bool(
+                os.environ.get("LOD_KIMI_COMPACT_SELECTED_PROJECTION") == "1"
+                and not compact_projection and not routed_projection
+            )
             sparse_projection = bool(
                 os.environ.get("LOD_KIMI_SPARSE_LEAF_PROJECTION") == "1"
                 and not compact_projection and not routed_projection
+                and not compact_selected_projection
             )
             incremental_projection = bool(
                 os.environ.get("LOD_KIMI_INCREMENTAL_LEAF_PROJECTION") == "1"
                 and not sparse_projection and not compact_projection
                 and not routed_projection and int(q.size(0)) == 1
+                and not compact_selected_projection
             )
-            if sparse_projection and route_head_counts is None:
-                from .kernels.paged_prefill import count_expert_routes
-
-                route_head_counts, route_offsets = count_expert_routes(
+            if (sparse_projection or compact_selected_projection) and route_head_counts is None:
+                if os.environ.get("LOD_KIMI_SORT_LEAF_ROUTES") == "1":
+                    from .kernels.kimi_sorted_route_counts import count_sorted_kimi_routes
+                    count_routes = count_sorted_kimi_routes
+                else:
+                    from .kernels.paged_prefill import count_expert_routes
+                    count_routes = count_expert_routes
+                route_head_counts, route_offsets = count_routes(
                     top_slots.contiguous(), active_slots=active_slots,
                     buffers=getattr(self, "_lod_prefill_attention_buffers", None),
                 )
@@ -3750,6 +3779,12 @@ class TritonLODAttentionCore(nn.Module):
                 # Bound its temporary without changing routes or arithmetic.
                 target_token_heads = 4 * 1024 * 1024
                 max_group_heads = max(1, target_token_heads // leaf_count)
+                # Distributed K3 fine attention receives all 96 heads, but
+                # can reuse one TP-sized projection/route workspace. This
+                # contextual bound changes scratch, not selection or logits.
+                max_group_heads = min(max_group_heads, int(getattr(
+                    self, "_lod_kimi_prefill_head_group_limit", query_heads,
+                )))
                 group_heads = max(
                     divisor
                     for divisor in (1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 96)
@@ -3816,7 +3851,25 @@ class TritonLODAttentionCore(nn.Module):
                         kimi_w_uv=kimi_w_uv[head_begin:head_end],
                     )
                 else:
-                    if sparse_projection:
+                    compact_leaf_offsets = None
+                    if compact_selected_projection:
+                        from .kernels.kimi_compact_leaf_projection import project_compact_kimi_leaves
+
+                        group_counts = route_head_counts.view(
+                            int(q.size(0)), query_heads, active_slots,
+                        )[:, head_begin:head_end].contiguous()
+                        group_k, group_v, compact_leaf_offsets = project_compact_kimi_leaves(
+                            page_k[..., :leaf_count, :],
+                            kimi_w_uk_t[head_begin:head_end],
+                            kimi_w_uv[head_begin:head_end], cache, group_counts,
+                            active_slots=active_slots,
+                            hash_probes=self._page_lookup_probes(cache),
+                            buffers=getattr(self, "_lod_prefill_attention_buffers", None),
+                        )
+                        self._lod_kimi_compact_projection_calls = (
+                            getattr(self, "_lod_kimi_compact_projection_calls", 0) + 1
+                        )
+                    elif sparse_projection:
                         from .kernels.kimi_sparse_leaf_projection import (
                             project_needed_kimi_leaves,
                         )
@@ -3874,6 +3927,7 @@ class TritonLODAttentionCore(nn.Module):
                         num_warps=int(os.environ.get("LOD_KIMI_LEAF_WARPS", 1)),
                         scalar_page_lookup=True,
                         sorted_route_counts=os.environ.get("LOD_KIMI_SORT_LEAF_ROUTES") == "1",
+                        compact_leaf_offsets=compact_leaf_offsets,
                     )
                 group_route_head_counts = None
                 group_route_offsets = None
@@ -4276,7 +4330,7 @@ class TritonLODAttentionCore(nn.Module):
                     and not bool(page_cache.get("quantization_finalized", False))
                     and all(os.environ.get(name) != "1" for name in (
                         "LOD_KIMI_ROUTED_LEAF_PROJECTION", "LOD_KIMI_SPARSE_LEAF_PROJECTION",
-                        "LOD_KIMI_INCREMENTAL_LEAF_PROJECTION"))
+                        "LOD_KIMI_INCREMENTAL_LEAF_PROJECTION", "LOD_KIMI_COMPACT_SELECTED_PROJECTION"))
                 ):
                     from .kernels.aiter_mla_prefill_attention import expand_kimi_leaf_kv
 
@@ -4785,7 +4839,9 @@ class TritonLODAttentionCore(nn.Module):
                 top_slots,
                 page_cache,
                 active_slots=state_len,
-                reduce_routes=aiter_coarse is None,
+                reduce_routes=(aiter_coarse is None or bool(getattr(
+                    self, "_lod_kimi_reduce_prefill_routes", False,
+                ))),
             )
         debug_sync("leaf-refinement")
         if profile_kimi_remote and hasattr(self, "_lod_leaf_timing_events"):
@@ -5866,6 +5922,13 @@ class TritonLODAttentionCore(nn.Module):
             first_remote_state_coverage = max(
                 initial_len, first_remote_begin - exact_lookback
             )
+            if final_cache_coverage is not None:
+                # Short, ragged DCP prefixes can require an exact tail longer
+                # than the local lookback. Do not archive past their explicit
+                # GLOBAL-aligned final boundary during the first-block build.
+                first_remote_state_coverage = min(
+                    first_remote_state_coverage, final_cache_coverage
+                )
             append_begin = state_coverage
             append_owner_parts = []
             while state_coverage < first_remote_state_coverage:
@@ -6479,12 +6542,23 @@ class TritonLODAttentionCore(nn.Module):
                     dim=2,
                 )
             )
-            exact_output, _ = self._prefill_local_attention(
-                exact_q,
-                exact_k,
-                exact_v,
-                query_offset=exact_query_offset,
-            )
+            # A ragged scheduler slice can straddle the exact-first boundary.
+            # Its expanded query must follow the same prefix slice as exact_q;
+            # the remaining rows are handled by the routed loop below.
+            if kimi_expanded_query is not None:
+                self._lod_kimi_expanded_prefill_chunk = kimi_expanded_query[
+                    ..., :front_query_end, :
+                ]
+            try:
+                exact_output, _ = self._prefill_local_attention(
+                    exact_q,
+                    exact_k,
+                    exact_v,
+                    query_offset=exact_query_offset,
+                )
+            finally:
+                if kimi_expanded_query is not None:
+                    del self._lod_kimi_expanded_prefill_chunk
             if output_buffer is not None:
                 output_buffer[..., :front_query_end, :].copy_(exact_output)
                 outputs.append(output_buffer[..., :front_query_end, :])

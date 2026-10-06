@@ -1,0 +1,558 @@
+{
+  "scope": "isolated split reducer, not serving latency",
+  "rows": [
+    {
+      "batch": 1,
+      "splits": 64,
+      "block_d": 512,
+      "warps": 8,
+      "serial": true,
+      "graph_kernel_us": 11.057984083890915,
+      "samples_us": [
+        11.104359477758408,
+        11.057984083890915,
+        11.059480905532837,
+        11.057855933904648,
+        11.054981499910355
+      ],
+      "max_output_error": 0.0,
+      "resources": {
+        "vgpr_count": 76,
+        "sgpr_count": 88,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 1,
+      "splits": 64,
+      "block_d": 64,
+      "warps": 2,
+      "serial": false,
+      "graph_kernel_us": 3.512953221797943,
+      "samples_us": [
+        3.517456352710724,
+        3.512953221797943,
+        3.5112060606479645,
+        3.5142064094543457,
+        3.5098280757665634
+      ],
+      "max_output_error": 0.0,
+      "resources": {
+        "vgpr_count": 44,
+        "sgpr_count": 42,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 1,
+      "splits": 64,
+      "block_d": 64,
+      "warps": 4,
+      "serial": false,
+      "graph_kernel_us": 3.9614498615264893,
+      "samples_us": [
+        3.955325111746788,
+        3.986699879169464,
+        3.963575139641762,
+        3.958449885249138,
+        3.9614498615264893
+      ],
+      "max_output_error": 0.0,
+      "resources": {
+        "vgpr_count": 30,
+        "sgpr_count": 32,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 1,
+      "splits": 64,
+      "block_d": 64,
+      "warps": 8,
+      "serial": false,
+      "graph_kernel_us": 6.144921854138374,
+      "samples_us": [
+        6.144921854138374,
+        6.39079362154007,
+        6.260544061660767,
+        6.140546873211861,
+        6.1385467648506165
+      ],
+      "max_output_error": 0.0,
+      "resources": {
+        "vgpr_count": 25,
+        "sgpr_count": 30,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 1,
+      "splits": 64,
+      "block_d": 128,
+      "warps": 4,
+      "serial": false,
+      "graph_kernel_us": 3.977074846625328,
+      "samples_us": [
+        3.977074846625328,
+        3.978196904063225,
+        3.9734501391649246,
+        3.9778217673301697,
+        3.974825143814087
+      ],
+      "max_output_error": 0.0,
+      "resources": {
+        "vgpr_count": 44,
+        "sgpr_count": 42,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 1,
+      "splits": 64,
+      "block_d": 256,
+      "warps": 4,
+      "serial": false,
+      "graph_kernel_us": 3.4885812550783157,
+      "samples_us": [
+        3.650828078389168,
+        4.2556967586278915,
+        3.4865811467170715,
+        3.4874562174081802,
+        3.4885812550783157
+      ],
+      "max_output_error": 0.0,
+      "resources": {
+        "vgpr_count": 78,
+        "sgpr_count": 64,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 1,
+      "splits": 128,
+      "block_d": 512,
+      "warps": 8,
+      "serial": true,
+      "graph_kernel_us": 21.31960242986679,
+      "samples_us": [
+        22.015221416950226,
+        21.31972759962082,
+        21.310603618621826,
+        21.31960242986679,
+        21.315352618694305
+      ],
+      "max_output_error": 0.0,
+      "resources": {
+        "vgpr_count": 141,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 45,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 1,
+      "splits": 128,
+      "block_d": 64,
+      "warps": 2,
+      "serial": false,
+      "graph_kernel_us": 4.073074832558632,
+      "samples_us": [
+        4.077446833252907,
+        4.078947007656097,
+        4.071449860930443,
+        4.073074832558632,
+        4.070571810007095
+      ],
+      "max_output_error": 4.76837158203125e-07,
+      "resources": {
+        "vgpr_count": 79,
+        "sgpr_count": 30,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 1,
+      "splits": 128,
+      "block_d": 64,
+      "warps": 4,
+      "serial": false,
+      "graph_kernel_us": 4.911312460899353,
+      "samples_us": [
+        4.869437590241432,
+        4.911312460899353,
+        4.8640623688697815,
+        4.9226876348257065,
+        4.939687624573708
+      ],
+      "max_output_error": 4.76837158203125e-07,
+      "resources": {
+        "vgpr_count": 45,
+        "sgpr_count": 37,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 1,
+      "splits": 128,
+      "block_d": 64,
+      "warps": 8,
+      "serial": false,
+      "graph_kernel_us": 7.053159177303314,
+      "samples_us": [
+        7.090159505605698,
+        7.351156324148178,
+        7.053159177303314,
+        6.972659379243851,
+        6.975912302732468
+      ],
+      "max_output_error": 4.76837158203125e-07,
+      "resources": {
+        "vgpr_count": 31,
+        "sgpr_count": 34,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 1,
+      "splits": 128,
+      "block_d": 128,
+      "warps": 4,
+      "serial": false,
+      "graph_kernel_us": 4.7751907259225845,
+      "samples_us": [
+        5.528306216001511,
+        4.72969077527523,
+        4.779812321066856,
+        4.7751907259225845,
+        4.7494374215602875
+      ],
+      "max_output_error": 0.0,
+      "resources": {
+        "vgpr_count": 83,
+        "sgpr_count": 47,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 1,
+      "splits": 128,
+      "block_d": 256,
+      "warps": 4,
+      "serial": false,
+      "graph_kernel_us": 4.353318735957146,
+      "samples_us": [
+        5.0718095153570175,
+        4.671565443277359,
+        4.352571815252304,
+        4.34369370341301,
+        4.353318735957146
+      ],
+      "max_output_error": 0.0,
+      "resources": {
+        "vgpr_count": 157,
+        "sgpr_count": 63,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 8,
+      "splits": 64,
+      "block_d": 512,
+      "warps": 8,
+      "serial": true,
+      "graph_kernel_us": 23.951196670532227,
+      "samples_us": [
+        25.32055377960205,
+        23.951321840286255,
+        23.941822350025177,
+        23.94106835126877,
+        23.951196670532227
+      ],
+      "max_output_error": 0.0001220703125,
+      "resources": {
+        "vgpr_count": 76,
+        "sgpr_count": 88,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 8,
+      "splits": 64,
+      "block_d": 64,
+      "warps": 2,
+      "serial": false,
+      "graph_kernel_us": 10.624362528324127,
+      "samples_us": [
+        10.627365857362747,
+        11.154859513044357,
+        10.624362528324127,
+        10.37711575627327,
+        10.183119028806686
+      ],
+      "max_output_error": 0.0001220703125,
+      "resources": {
+        "vgpr_count": 44,
+        "sgpr_count": 42,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 8,
+      "splits": 64,
+      "block_d": 64,
+      "warps": 4,
+      "serial": false,
+      "graph_kernel_us": 16.1604180932045,
+      "samples_us": [
+        17.07990914583206,
+        16.534166038036346,
+        16.1604180932045,
+        15.773050487041473,
+        15.646550059318542
+      ],
+      "max_output_error": 0.0001220703125,
+      "resources": {
+        "vgpr_count": 30,
+        "sgpr_count": 32,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 8,
+      "splits": 64,
+      "block_d": 64,
+      "warps": 8,
+      "serial": false,
+      "graph_kernel_us": 28.860759735107422,
+      "samples_us": [
+        31.190353631973267,
+        29.76836860179901,
+        28.860759735107422,
+        28.504261374473572,
+        28.479012846946716
+      ],
+      "max_output_error": 0.0001220703125,
+      "resources": {
+        "vgpr_count": 25,
+        "sgpr_count": 30,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 8,
+      "splits": 64,
+      "block_d": 128,
+      "warps": 4,
+      "serial": false,
+      "graph_kernel_us": 10.893237590789795,
+      "samples_us": [
+        11.011362820863724,
+        11.352106183767319,
+        10.893237590789795,
+        10.646240413188934,
+        10.449615865945816
+      ],
+      "max_output_error": 0.0001220703125,
+      "resources": {
+        "vgpr_count": 44,
+        "sgpr_count": 42,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 8,
+      "splits": 64,
+      "block_d": 256,
+      "warps": 4,
+      "serial": false,
+      "graph_kernel_us": 8.43089371919632,
+      "samples_us": [
+        8.43089371919632,
+        8.85738730430603,
+        8.520140498876572,
+        8.312268555164337,
+        8.291769027709961
+      ],
+      "max_output_error": 0.0001220703125,
+      "resources": {
+        "vgpr_count": 78,
+        "sgpr_count": 64,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 8,
+      "splits": 128,
+      "block_d": 512,
+      "warps": 8,
+      "serial": true,
+      "graph_kernel_us": 54.20318841934204,
+      "samples_us": [
+        54.34368848800659,
+        54.223060607910156,
+        54.20318841934204,
+        54.200685024261475,
+        54.19168472290039
+      ],
+      "max_output_error": 0.0009765625,
+      "resources": {
+        "vgpr_count": 141,
+        "sgpr_count": 106,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 45,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 8,
+      "splits": 128,
+      "block_d": 64,
+      "warps": 2,
+      "serial": false,
+      "graph_kernel_us": 13.275706768035889,
+      "samples_us": [
+        13.556453585624695,
+        13.730703294277191,
+        13.275706768035889,
+        12.982834875583649,
+        12.84833699464798
+      ],
+      "max_output_error": 0.00048828125,
+      "resources": {
+        "vgpr_count": 79,
+        "sgpr_count": 30,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 8,
+      "splits": 128,
+      "block_d": 64,
+      "warps": 4,
+      "serial": false,
+      "graph_kernel_us": 19.96862143278122,
+      "samples_us": [
+        21.619725227355957,
+        20.64523696899414,
+        19.96862143278122,
+        19.550378620624542,
+        19.291256368160248
+      ],
+      "max_output_error": 0.00048828125,
+      "resources": {
+        "vgpr_count": 45,
+        "sgpr_count": 37,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 8,
+      "splits": 128,
+      "block_d": 64,
+      "warps": 8,
+      "serial": false,
+      "graph_kernel_us": 34.75505709648132,
+      "samples_us": [
+        37.369149923324585,
+        35.626670718193054,
+        34.75505709648132,
+        34.23181474208832,
+        34.117066860198975
+      ],
+      "max_output_error": 0.00048828125,
+      "resources": {
+        "vgpr_count": 31,
+        "sgpr_count": 34,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 8,
+      "splits": 128,
+      "block_d": 128,
+      "warps": 4,
+      "serial": false,
+      "graph_kernel_us": 15.660302340984344,
+      "samples_us": [
+        16.292165219783783,
+        16.07692241668701,
+        15.660302340984344,
+        15.325053036212921,
+        15.07030874490738
+      ],
+      "max_output_error": 0.00048828125,
+      "resources": {
+        "vgpr_count": 83,
+        "sgpr_count": 47,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    },
+    {
+      "batch": 8,
+      "splits": 128,
+      "block_d": 256,
+      "warps": 4,
+      "serial": false,
+      "graph_kernel_us": 14.56756591796875,
+      "samples_us": [
+        14.983434975147247,
+        14.905434846878052,
+        14.567190408706665,
+        14.535064995288849,
+        14.56756591796875
+      ],
+      "max_output_error": 0.0009765625,
+      "resources": {
+        "vgpr_count": 157,
+        "sgpr_count": 63,
+        "vgpr_spill_count": 0,
+        "sgpr_spill_count": 0,
+        "private_segment_fixed_size": 0
+      }
+    }
+  ],
+  "status": "complete"
+}

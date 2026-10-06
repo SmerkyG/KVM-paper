@@ -1,5 +1,12 @@
 # Kimi K3 24-layer MLA-stack proxy
 
+October 6 audit: the earlier dense fixture registration retained its tiny
+FFN/second AttnRes branch even though LoD removed them. Consequently the
+historical fixture comparisons below are not strictly matched attention-only
+controls. Ordinary full-model measurements are unaffected. See the new
+[12-layer corrected decode diagnosis](DECODE_PROFILE.md) for audited controls,
+four-update serving timings, and separate GPU traces.
+
 This benchmark uses [`tests/fixtures/kimi-k3-mla-stack`](../../tests/fixtures/kimi-k3-mla-stack),
 a dummy-weight model containing K3's 24 MLA layers and no KDA or FFN/MoE
 compute. It retains K3's official attention dimensions, 12-layer

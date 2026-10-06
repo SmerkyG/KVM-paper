@@ -1,0 +1,132 @@
+{
+  "scope": "warmed complete leaf stage on captured trained K3 inputs; not full-model latency",
+  "source": "results/kimi-k3-full-model-current/trained-prefill-leaf-input.pt",
+  "query_shape": [
+    1,
+    12,
+    16384,
+    192
+  ],
+  "leaf_count": 16127,
+  "active_slots": 2048,
+  "routes_unchanged": true,
+  "projection_tiles": {
+    "16": {
+      "output_relative_l2": 0.0,
+      "output_max_absolute": 0.0,
+      "lse_max_absolute": 0.0,
+      "complete_leaf_stage": {
+        "median_ms": 1.10862398147583,
+        "samples_ms": [
+          1.1893830299377441,
+          1.146103024482727,
+          1.10862398147583,
+          1.0949840545654297,
+          1.0889040231704712
+        ]
+      },
+      "count_and_projection_only": {
+        "median_ms": 0.24731600284576416,
+        "samples_ms": [
+          0.37503498792648315,
+          0.2485159933567047,
+          0.24731600284576416,
+          0.23083700239658356,
+          0.2312760055065155
+        ]
+      },
+      "selected_leaf_head_pairs": 55584,
+      "total_leaf_head_pairs": 193524,
+      "padded_compact_rows": 87312,
+      "capacity_rows": 562176,
+      "reusable_projected_capacity_bytes": 359792640,
+      "no_host_count_synchronization": true,
+      "control_over_candidate": 1.1297085360435244
+    },
+    "32": {
+      "output_relative_l2": 0.0,
+      "output_max_absolute": 0.0,
+      "lse_max_absolute": 0.0,
+      "complete_leaf_stage": {
+        "median_ms": 1.305901050567627,
+        "samples_ms": [
+          1.3503010272979736,
+          1.301820993423462,
+          1.31502103805542,
+          1.305901050567627,
+          1.2835420370101929
+        ]
+      },
+      "count_and_projection_only": {
+        "median_ms": 0.5185520052909851,
+        "samples_ms": [
+          0.5203530192375183,
+          0.5201529860496521,
+          0.5157120227813721,
+          0.5154330134391785,
+          0.5185520052909851
+        ]
+      },
+      "selected_leaf_head_pairs": 55584,
+      "total_leaf_head_pairs": 193524,
+      "padded_compact_rows": 128608,
+      "capacity_rows": 955392,
+      "reusable_projected_capacity_bytes": 611450880,
+      "no_host_count_synchronization": true,
+      "control_over_candidate": 0.9590481411983103
+    },
+    "64": {
+      "output_relative_l2": 0.0,
+      "output_max_absolute": 0.0,
+      "lse_max_absolute": 0.0,
+      "complete_leaf_stage": {
+        "median_ms": 1.065384030342102,
+        "samples_ms": [
+          1.1071449518203735,
+          1.0783849954605103,
+          1.065384030342102,
+          1.0569050312042236,
+          1.0559049844741821
+        ]
+      },
+      "count_and_projection_only": {
+        "median_ms": 0.27995601296424866,
+        "samples_ms": [
+          0.2870360016822815,
+          0.28187599778175354,
+          0.27995601296424866,
+          0.2785159945487976,
+          0.27571600675582886
+        ]
+      },
+      "selected_leaf_head_pairs": 55584,
+      "total_leaf_head_pairs": 193524,
+      "padded_compact_rows": 220608,
+      "capacity_rows": 1741824,
+      "reusable_projected_capacity_bytes": 1114767360,
+      "no_host_count_synchronization": true,
+      "control_over_candidate": 1.1755591781619272
+    }
+  },
+  "ordinary_before": {
+    "median_ms": 1.3056609630584717,
+    "samples_ms": [
+      1.3065400123596191,
+      1.3056609630584717,
+      1.3558210134506226,
+      1.2584220170974731,
+      1.1651439666748047
+    ]
+  },
+  "ordinary_after": {
+    "median_ms": 1.1991829872131348,
+    "samples_ms": [
+      1.2380620241165161,
+      1.2250219583511353,
+      1.1991829872131348,
+      1.1667829751968384,
+      1.1503039598464966
+    ]
+  },
+  "status": "complete"
+}

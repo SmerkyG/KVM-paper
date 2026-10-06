@@ -14,7 +14,7 @@ def main():
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--lengths", nargs="+", type=int, default=[32768, 65536])
     parser.add_argument("--variants", nargs="+",
-                        choices=("default", "tile64", "tile128", "routed", "fused", "sparse", "incremental", "tile_refine", "direct", "refine_direct", "final_reclaim", "final_fence", "final_only", "reuse_allocator", "reuse_group1", "reuse_group8", "reuse_group12", "reuse_native_local", "reuse_distributed8", "reuse_overlap_projection", "reuse_dense_tile_pack", "reuse_cached_weights", "reuse_kway", "reuse_tiled_state", "reuse_update_graph", "reuse_chunk_pack", "reuse_chunk512", "reuse_chunk1024", "reuse_coarsek64", "reuse_sorted_leaves", "reuse_leaf64", "reuse_combined", "reuse_combined_subtile", "reuse_combined_subtile_score", "reuse_combined_subtile_max", "reuse_combined_subtile_q64", "reuse_combined_shared_latent", "reuse_combined_joint_kv"),
+                        choices=("default", "tile64", "tile128", "routed", "fused", "sparse", "incremental", "tile_refine", "direct", "refine_direct", "final_reclaim", "final_fence", "final_only", "reuse_allocator", "reuse_group1", "reuse_group8", "reuse_group12", "reuse_native_local", "reuse_distributed8", "reuse_overlap_projection", "reuse_dense_tile_pack", "reuse_cached_weights", "reuse_kway", "reuse_tiled_state", "reuse_update_graph", "reuse_chunk_pack", "reuse_chunk512", "reuse_chunk1024", "reuse_coarsek64", "reuse_sorted_leaves", "reuse_leaf64", "reuse_combined", "reuse_combined_subtile", "reuse_combined_subtile_score", "reuse_combined_subtile_max", "reuse_combined_subtile_q64", "reuse_combined_shared_latent", "reuse_combined_joint_kv", "current", "current_compact"),
                         default=["default", "tile64", "tile128", "routed"])
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--batch-size", type=int, default=1)
@@ -64,6 +64,10 @@ def main():
 
     def change_variant(worker, variant, merge_token_block, merge_state_block):
         from vllm_lod_plugin import runtime
+
+        os.environ["LOD_KIMI_COMPACT_SELECTED_PROJECTION"] = "1" if variant == "current_compact" else "0"
+        if variant in ("current", "current_compact"):
+            variant = "reuse_combined_subtile_score"
 
         runner = worker.model_runner
         active_runtime = getattr(runner, "_vllm_lod_runtime", None)
@@ -162,6 +166,11 @@ def main():
                 "reserved_bytes": torch.cuda.memory_reserved(),
                 "peak_allocated_bytes": torch.cuda.max_memory_allocated(),
                 "peak_reserved_bytes": torch.cuda.max_memory_reserved(),
+                "compact_selected_projection_enabled": os.environ.get("LOD_KIMI_COMPACT_SELECTED_PROJECTION") == "1",
+                "compact_projection_calls": {
+                    name: getattr(pool.engine, "_lod_kimi_compact_projection_calls", 0)
+                    for name, pool in runtime.pools.items()
+                } if runtime else {},
                 "construction_group_size": (
                     runtime.cross_layer_prefill_group_size if runtime else None),
                 "state_update_graphs": None if update_graphs is None else {

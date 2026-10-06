@@ -1,0 +1,25 @@
+{
+  "scope": "All 93 trained K3 layers, native full TP8 attention and EP8 INT4 MoE; embedding/AttnRes/FFNs included, final output mix/LM head and serving scheduler excluded",
+  "run": "21210-kimi-eight-stage-full-sized-banks",
+  "node": "dev-shared-research-4.dev-training.svc.cluster.local",
+  "source_log": "/home/dan/subusers/agent/.cluster-run/agent/logs/21210-kimi-eight-stage-full-sized-banks.log",
+  "recovered_from": "Eight successful worker point records; later owner-KDA warmup failed with HIP launch resources exhausted, so no complete parent JSON was emitted",
+  "prompt_tokens": 32768,
+  "batch_slots": 8,
+  "request_cohorts": 2,
+  "request_count": 16,
+  "scheduler_slice_tokens": 16384,
+  "microbatch_count": 32,
+  "total_tokens": 524288,
+  "warmups": 1,
+  "measured_passes": 1,
+  "full_tp8_seconds": 68.85889084637165,
+  "steady_tokens_per_second_final_rank": 7776.294540720886,
+  "worker_seconds": [68.85800497606397, 68.85880235955119, 68.85855218023062, 68.85786357522011, 68.85812598280609, 68.85807945206761, 68.8578738681972, 68.85889084637165],
+  "owner_kda_seconds": null,
+  "tp8_kda_pipeline_seconds": null,
+  "full_layer_short_validation": {
+    "owner_kda": "passed; bitwise equality to sequential same-layout outputs",
+    "tp8_kda": "passed; bitwise equality to sequential same-layout outputs"
+  }
+}

@@ -1,0 +1,1250 @@
+{
+  "checkpoint": "tests/fixtures/kimi-k3-mla-stack",
+  "mode": "two-tier",
+  "capacity_only": false,
+  "diagnostic_only": true,
+  "route_scatter_validation": false,
+  "weight_cache_id": null,
+  "real_token_cache": null,
+  "reference_baselines": [],
+  "request_owner_prefill": true,
+  "scheduler_row_chunk": 16384,
+  "scheduler_total_budget": 131080,
+  "batch_size": 8,
+  "decode_tokens": 1,
+  "tensor_parallel_size": 8,
+  "decode_context_parallel_size": 8,
+  "repeats": 1,
+  "rotating_prefills": false,
+  "rotating_cohort": 8,
+  "distributed_prefill_construction": false,
+  "cross_layer_prefill_group": null,
+  "independent_local_dcp_prefill": false,
+  "replicated_summary_dcp_prefill": false,
+  "global_centroid_sharded_leaf_prefill": false,
+  "transient_reconstructed_prefill_workspace": false,
+  "sharded_workspace_layout": null,
+  "environment": {
+    "LOD_KIMI_SORT_LEAF_ROUTES": "1",
+    "LOD_KIMI_OWNER_QUERY_CHUNK": "16384",
+    "LOD_KIMI_DIRECT_LEAF_RESULT": "1",
+    "LOD_KIMI_LEAF_BLOCK_M": "64",
+    "LOD_KIMI_LEAF_WARPS": "1",
+    "LOD_KIMI_OWNER_PRESSURE_CHECK": "1",
+    "LOD_KIMI_SUBTILE64": "score",
+    "LOD_KIMI_REUSE_PREFILL_ALLOCATOR": "1",
+    "PYTORCH_ALLOC_CONF": "expandable_segments:True,garbage_collection_threshold:0.1",
+    "LOD_KIMI_TILE_REFINE": "1",
+    "LOD_BENCHMARK_ADMISSION_COHORT": "8",
+    "LOD_KIMI_OWNER_MOE_CHUNK": "16384",
+    "LOD_KIMI_PREFILL_MIN_FREE_GIB": "8",
+    "LOD_KIMI_TILE_PACK_QUERY_BLOCK": "1024",
+    "LOD_KIMI_REQUEST_OWNER_PREFILL": "1",
+    "LOD_KIMI_OWNER_SHARD_RESIDUAL": "1",
+    "CLUSTER_RUN_NODE": "dev-shared-research-3.dev-training.svc.cluster.local",
+    "HSA_NO_SCRATCH_RECLAIM": "0",
+    "LOD_KIMI_CHUNK_TILE_PACK": "1",
+    "LOD_KIMI_OWNER_REUSE_TRANSPORT": "0",
+    "LOD_KIMI_PREFILL_RECLAIM_INTERVAL": "0",
+    "LOD_BENCHMARK_PREFILL_COHORT": "8",
+    "LOD_BENCHMARK_SYNC_PREFILL_CACHE": "1"
+  },
+  "measurements": {},
+  "gpu_memory_utilization": 0.8,
+  "kv_cache_memory_bytes": 1073741824,
+  "worker_attention_audit_status": "passed",
+  "measurement_status": "complete",
+  "graph_prefill_requested": false,
+  "owner_chunk_diagnostic": [
+    {
+      "rank": 0,
+      "chunk": {
+        "global_start": 49152,
+        "global_end_exclusive": 65536,
+        "total_tokens": 131072
+      },
+      "scope": "one rank, one instrumented model chunk; not serving latency",
+      "weight_layout_estimate": {
+        "embedding_or_head_kept_tp": {
+          "local_parameter_bytes": 7340032,
+          "tp1_additional_parameter_bytes_estimate": 0
+        },
+        "other_nonexpert": {
+          "local_parameter_bytes": 2106353664,
+          "tp1_additional_parameter_bytes_estimate": 9116319744
+        }
+      },
+      "gpu_timeline_span_ms": 2344.522833,
+      "gpu_activity_union_ms": 2343.293291000005,
+      "stages": {
+        "K3/model_other": {
+          "gpu_activity_count": 1,
+          "summed_gpu_ms_not_wall_ms": 0.0033980000000000247,
+          "gpu_activity_union_ms": 0.0033980000000000247
+        },
+        "K3/residual_mix_and_gather": {
+          "gpu_activity_count": 41,
+          "summed_gpu_ms_not_wall_ms": 2.4963969999999214,
+          "gpu_activity_union_ms": 2.4963969999999214
+        },
+        "K3/mla_projection_and_dispatch": {
+          "gpu_activity_count": 169,
+          "summed_gpu_ms_not_wall_ms": 192.36561999999927,
+          "gpu_activity_union_ms": 192.3656189999991
+        },
+        "unattributed": {
+          "gpu_activity_count": 1867,
+          "summed_gpu_ms_not_wall_ms": 741.0650220000032,
+          "gpu_activity_union_ms": 741.0649860000042
+        },
+        "K3/local_attention": {
+          "gpu_activity_count": 87,
+          "summed_gpu_ms_not_wall_ms": 100.62493900000074,
+          "gpu_activity_union_ms": 100.62493900000074
+        },
+        "K3/remote_attention": {
+          "gpu_activity_count": 4989,
+          "summed_gpu_ms_not_wall_ms": 1124.0168530000003,
+          "gpu_activity_union_ms": 1124.0168019999994
+        },
+        "K3/state_update": {
+          "gpu_activity_count": 1172,
+          "summed_gpu_ms_not_wall_ms": 174.40042100000326,
+          "gpu_activity_union_ms": 174.40040600000268
+        },
+        "K3/output_transport": {
+          "gpu_activity_count": 34,
+          "summed_gpu_ms_not_wall_ms": 2.9116039999992354,
+          "gpu_activity_union_ms": 2.9116039999992354
+        },
+        "K3/query_transport": {
+          "gpu_activity_count": 37,
+          "summed_gpu_ms_not_wall_ms": 2.791643000000302,
+          "gpu_activity_union_ms": 2.791643000000302
+        },
+        "K3/owner_attention_other": {
+          "gpu_activity_count": 31,
+          "summed_gpu_ms_not_wall_ms": 2.618573999999382,
+          "gpu_activity_union_ms": 2.618573999999382
+        }
+      },
+      "kernels": [
+        {
+          "name": "ncclDevKernel_Generic_2(ncclDevKernelArgsStorage<4096ul>) [clone .kd]",
+          "calls": 98,
+          "summed_gpu_ms_not_wall_ms": 477.2634839999998
+        },
+        {
+          "name": "std::enable_if<!(kattr_no_packed_fp32_ops_v<ck_tile::gfx9_t>), void>::type ck_tile::kentry<ck_tile::gfx9_t, 2, ck_tile::FmhaFwdKernel<ck_tile::BlockFmhaPipelineQRKSVSAsync<ck_tile::BlockFmhaPipelineProblem<std::bfloat16_t, std::bfloat16_t, std::bfloat16_t, float, float, std::bfloat16_t, unsigned char, float, std::bfloat16_t, float, std::bfloat16_t, ck_tile::TileFmhaShape<ck_tile::sequence<128, 128, 32, 128, 32, 192>, ck_tile::sequence<4, 1, 1>, ck_tile::sequence<32, 32, 16>, ck_tile::sequence<4, 1, 1>, ck_tile::sequence<32, 32, 16>, true>, false, ck_tile::ComposedAttention<0u, true>, ck_tile::SimplifiedGenericAttentionMask<true>, false, ck_tile::TileFmhaTraits<true, false, true, true, false, (ck_tile::BlockAttentionBiasEnum)0, false, true, false, (ck_tile::BlockAttentionQuantScaleEnum)0, -1, false, false> >, ck_tile::BlockFmhaPipelineQXKSVSCustomPolicy<true, true, 3, 3> >, ck_tile::Default2DEpilogue<ck_tile::Default2DEpilogueProblem<float, std::bfloat16_t, true, true, true>, void> >, ck_tile::FmhaFwdKernel<ck_tile::BlockFmhaPipelineQRKSVSAsync<ck_tile::BlockFmhaPipelineProblem<std::bfloat16_t, std::bfloat16_t, std::bfloat16_t, float, float, std::bfloat16_t, unsigned char, float, std::bfloat16_t, float, std::bfloat16_t, ck_tile::TileFmhaShape<ck_tile::sequence<128, 128, 32, 128, 32, 192>, ck_tile::sequence<4, 1, 1>, ck_tile::sequence<32, 32, 16>, ck_tile::sequence<4, 1, 1>, ck_tile::sequence<32, 32, 16>, true>, false, ck_tile::ComposedAttention<0u, true>, ck_tile::SimplifiedGenericAttentionMask<true>, false, ck_tile::TileFmhaTraits<true, false, true, true, false, (ck_tile::BlockAttentionBiasEnum)0, false, true, false, (ck_tile::BlockAttentionQuantScaleEnum)0, -1, false, false> >, ck_tile::BlockFmhaPipelineQXKSVSCustomPolicy<true, true, 3, 3> >, ck_tile::Default2DEpilogue<ck_tile::Default2DEpilogueProblem<float, std::bfloat16_t, true, true, true>, void> >::FmhaFwdBatchModeKargs>(ck_tile::FmhaFwdKernel<ck_tile::BlockFmhaPipelineQRKSVSAsync<ck_tile::BlockFmhaPipelineProblem<std::bfloat16_t, std::bfloat16_t, std::bfloat16_t, float, float, std::bfloat16_t, unsigned char, float, std::bfloat16_t, float, std::bfloat16_t, ck_tile::TileFmhaShape<ck_tile::sequence<128, 128, 32, 128, 32, 192>, ck_tile::sequence<4, 1, 1>, ck_tile::sequence<32, 32, 16>, ck_tile::sequence<4, 1, 1>, ck_tile::sequence<32, 32, 16>, true>, false, ck_tile::ComposedAttention<0u, true>, ck_tile::SimplifiedGenericAttentionMask<true>, false, ck_tile::TileFmhaTraits<true, false, true, true, false, (ck_tile::BlockAttentionBiasEnum)0, false, true, false, (ck_tile::BlockAttentionQuantScaleEnum)0, -1, false, false> >, ck_tile::BlockFmhaPipelineQXKSVSCustomPolicy<true, true, 3, 3> >, ck_tile::Default2DEpilogue<ck_tile::Default2DEpilogueProblem<float, std::bfloat16_t, true, true, true>, void> >::FmhaFwdBatchModeKargs) [clone .kd]",
+          "calls": 24,
+          "summed_gpu_ms_not_wall_ms": 414.37861999999967
+        },
+        {
+          "name": "_paged_leaf_attention_kernel.kd",
+          "calls": 192,
+          "summed_gpu_ms_not_wall_ms": 312.4820479999987
+        },
+        {
+          "name": "std::enable_if<!(kattr_no_packed_fp32_ops_v<ck_tile::gfx9_t>), void>::type ck_tile::kentry<ck_tile::gfx9_t, 2, ck_tile::FmhaFwdKernel<ck_tile::BlockFmhaPipelineQRKSVSAsync<ck_tile::BlockFmhaPipelineProblem<std::bfloat16_t, std::bfloat16_t, std::bfloat16_t, float, float, std::bfloat16_t, unsigned char, float, std::bfloat16_t, float, std::bfloat16_t, ck_tile::TileFmhaShape<ck_tile::sequence<128, 128, 32, 128, 32, 192>, ck_tile::sequence<4, 1, 1>, ck_tile::sequence<32, 32, 16>, ck_tile::sequence<4, 1, 1>, ck_tile::sequence<32, 32, 16>, true>, false, ck_tile::ComposedAttention<0u, true>, ck_tile::SimplifiedGenericAttentionMask<false>, false, ck_tile::TileFmhaTraits<true, false, true, true, false, (ck_tile::BlockAttentionBiasEnum)1, false, true, false, (ck_tile::BlockAttentionQuantScaleEnum)0, -1, false, false> >, ck_tile::BlockFmhaPipelineQXKSVSCustomPolicy<true, true, 3, 3> >, ck_tile::Default2DEpilogue<ck_tile::Default2DEpilogueProblem<float, std::bfloat16_t, true, true, true>, void> >, ck_tile::FmhaFwdKernel<ck_tile::BlockFmhaPipelineQRKSVSAsync<ck_tile::BlockFmhaPipelineProblem<std::bfloat16_t, std::bfloat16_t, std::bfloat16_t, float, float, std::bfloat16_t, unsigned char, float, std::bfloat16_t, float, std::bfloat16_t, ck_tile::TileFmhaShape<ck_tile::sequence<128, 128, 32, 128, 32, 192>, ck_tile::sequence<4, 1, 1>, ck_tile::sequence<32, 32, 16>, ck_tile::sequence<4, 1, 1>, ck_tile::sequence<32, 32, 16>, true>, false, ck_tile::ComposedAttention<0u, true>, ck_tile::SimplifiedGenericAttentionMask<false>, false, ck_tile::TileFmhaTraits<true, false, true, true, false, (ck_tile::BlockAttentionBiasEnum)1, false, true, false, (ck_tile::BlockAttentionQuantScaleEnum)0, -1, false, false> >, ck_tile::BlockFmhaPipelineQXKSVSCustomPolicy<true, true, 3, 3> >, ck_tile::Default2DEpilogue<ck_tile::Default2DEpilogueProblem<float, std::bfloat16_t, true, true, true>, void> >::FmhaFwdBatchModeKargs>(ck_tile::FmhaFwdKernel<ck_tile::BlockFmhaPipelineQRKSVSAsync<ck_tile::BlockFmhaPipelineProblem<std::bfloat16_t, std::bfloat16_t, std::bfloat16_t, float, float, std::bfloat16_t, unsigned char, float, std::bfloat16_t, float, std::bfloat16_t, ck_tile::TileFmhaShape<ck_tile::sequence<128, 128, 32, 128, 32, 192>, ck_tile::sequence<4, 1, 1>, ck_tile::sequence<32, 32, 16>, ck_tile::sequence<4, 1, 1>, ck_tile::sequence<32, 32, 16>, true>, false, ck_tile::ComposedAttention<0u, true>, ck_tile::SimplifiedGenericAttentionMask<false>, false, ck_tile::TileFmhaTraits<true, false, true, true, false, (ck_tile::BlockAttentionBiasEnum)1, false, true, false, (ck_tile::BlockAttentionQuantScaleEnum)0, -1, false, false> >, ck_tile::BlockFmhaPipelineQXKSVSCustomPolicy<true, true, 3, 3> >, ck_tile::Default2DEpilogue<ck_tile::Default2DEpilogueProblem<float, std::bfloat16_t, true, true, true>, void> >::FmhaFwdBatchModeKargs) [clone .kd]",
+          "calls": 24,
+          "summed_gpu_ms_not_wall_ms": 308.7659880000008
+        },
+        {
+          "name": "Cijk_Alik_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT320x224x64_MI16x16x1_SN_LDSB0_AFC1_AG0_AGGSUA0_AGNTAB0_AFEM1_AFEM1_ASEM1_BL1_BS1_CD1_1_CLR1_CLS0_CADS0_DTLA0_DTLB0_DTLM0_DTVA1_DTVB0_DTVMXSA0_DTVMXSB0_DTVSM0_DPLB0_EPS0_ELFLR0_EMLLn1_FDSI0_GRPM1_GRVWA8_GRVWB8_GSUAMBSK_GLS0_HPLR0_ISA942_ICIW0_IU1_K1_LDSTI0_LBSPPA0_LBSPPB256_LBSPPMXSA0_LBSPPMXSB0_LBSPPM0_LPA0_LPB16_LPMXSA0_LPMXSB0_LPM0_LRVW8_LWPMn1_MIAV0_MIWT5_14_MXLIBL_MXSFNS_MO40_MGRIPM1_NTn1_NTA0_NTB0_NTC0_NTD4_NTE0_NTMXSA0_NTMXSB0_NTM0_NTWS0_NVn1_NVA0_NVB0_NVC0_NVD0_NVE0_NVMXSA0_NVMXSB0_NVM0_NVWS0_NEPBS16_NLCA2_NLCB1_ONLL1_PAP0_PGL0_PGR2_PLR1_PKA1_SGROB0_SIA3_SS1_SPO0_SRVW0_SSO0_SVW1_SK0_SKFTR0_SKFDPO0_SKWS0_SKXCCM0_SNLL0_SIP1_SGRO0_TDMI0_TDMIM0_TDMS0_TIN0_THn1_THA0_THB0_THC0_THD0_THE0_THMXSA0_THMXSB0_THM0_THWS0_TLDS1_TLDSM1_ULSGRO0_USL1_USLMX0_UDFMAC0_UIOFGRO0_UPLRP0_USFGROn1_USI0_VSn1_VWA1_VWB2_WSGRA0_WSGRB0_WS64_WG64_4_1_WGMXCC1.kd",
+          "calls": 24,
+          "summed_gpu_ms_not_wall_ms": 152.11834200000018
+        },
+        {
+          "name": "Cijk_Alik_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT384x192x64_MI16x16x1_SN_LDSB0_AFC1_AG0_AGGSUA0_AGNTAB0_AFEM1_AFEM1_ASEM1_BL1_BS1_CD1_1_CLR1_CLS0_CADS0_DTLA0_DTLB0_DTLM0_DTVA1_DTVB0_DTVMXSA0_DTVMXSB0_DTVSM0_DPLB0_EPS0_ELFLR0_EMLLn1_FDSI0_GRPM1_GRVWA8_GRVWB8_GSUAMBSK_GLS0_HPLR0_ISA942_ICIW0_IU1_K1_LDSTI0_LBSPPA0_LBSPPB512_LBSPPMXSA0_LBSPPMXSB0_LBSPPM0_LPA0_LPB16_LPMXSA0_LPMXSB0_LPM0_LRVW8_LWPMn1_MIAV0_MIWT6_12_MXLIBL_MXSFNS_MO40_MGRIPM1_NTn1_NTA0_NTB0_NTC0_NTD4_NTE0_NTMXSA0_NTMXSB0_NTM0_NTWS0_NVn1_NVA0_NVB0_NVC0_NVD0_NVE0_NVMXSA0_NVMXSB0_NVM0_NVWS0_NEPBS16_NLCA2_NLCB1_ONLL1_PAP0_PGL0_PGR2_PLR1_PKA1_SGROB0_SIA3_SS1_SPO0_SRVW0_SSO0_SVW2_SK0_SKFTR0_SKFDPO0_SKWS0_SKXCCM0_SNLL0_SIP1_SGRO0_TDMI0_TDMIM0_TDMS0_TIN0_THn1_THA0_THB0_THC0_THD0_THE0_THMXSA0_THMXSB0_THM0_THWS0_TLDS1_TLDSM1_ULSGRO0_USL1_USLMX0_UDFMAC0_UIOFGRO0_UPLRP0_USFGROn1_USI0_VSn1_VWA2_VWB4_WSGRA0_WSGRB0_WS64_WG64_4_1_WGMXCC1.kd",
+          "calls": 24,
+          "summed_gpu_ms_not_wall_ms": 99.51637500000001
+        },
+        {
+          "name": "Cijk_Alik_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT256x192x64_MI16x16x1_SN_LDSB1_AFC1_AG0_AGGSUA0_AGNTAB0_AFEM1_AFEM1_ASEM1_BL1_BS1_CD1_1_CLR1_CLS0_CADS0_DTLA0_DTLB0_DTLM0_DTVA0_DTVB0_DTVMXSA0_DTVMXSB0_DTVSM0_DPLB0_EPS0_ELFLR0_EMLLn1_FDSI0_GRPM1_GRVWA8_GRVWB8_GSUAMBSK_GLS0_HPLR0_ISA942_ICIW0_IU1_K1_LDSTI0_LBSPPA1024_LBSPPB256_LBSPPMXSA0_LBSPPMXSB0_LBSPPM0_LPA16_LPB16_LPMXSA0_LPMXSB0_LPM0_LRVW8_LWPMn1_MIAV0_MIWT8_6_MXLIBL_MXSFNS_MO40_MGRIPM1_NTn1_NTA0_NTB0_NTC0_NTD4_NTE0_NTMXSA0_NTMXSB0_NTM0_NTWS0_NVn1_NVA0_NVB0_NVC0_NVD0_NVE0_NVMXSA0_NVMXSB0_NVM0_NVWS0_NEPBS16_NLCA1_NLCB1_ONLL1_PAP0_PGL0_PGR2_PLR1_PKA1_SGROB0_SIA3_SS1_SPO0_SRVW0_SSO0_SVW8_SK0_SKFTR0_SKFDPO0_SKWS0_SKXCCM0_SNLL0_SIP1_SGRO0_TDMI0_TDMIM0_TDMS0_TIN0_THn1_THA0_THB0_THC0_THD0_THE0_THMXSA0_THMXSB0_THM0_THWS0_TLDS1_TLDSM1_ULSGRO1_USL1_USLMX0_UDFMAC0_UIOFGRO0_UPLRP0_USFGROn1_USI0_VSn1_VWA8_VWB2_WSGRA0_WSGRB0_WS64_WG32_8_1_WGMXCC1.kd",
+          "calls": 24,
+          "summed_gpu_ms_not_wall_ms": 96.73449699999988
+        },
+        {
+          "name": "void at::native::elementwise_kernel_manual_unroll<128, 8, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int, bool)#1}) [clone .kd]",
+          "calls": 696,
+          "summed_gpu_ms_not_wall_ms": 68.76138299999843
+        },
+        {
+          "name": "_pack_kimi_expanded_keys_kernel.kd",
+          "calls": 216,
+          "summed_gpu_ms_not_wall_ms": 59.192536000000445
+        },
+        {
+          "name": "_rescore_centroid_tiles.kd",
+          "calls": 24,
+          "summed_gpu_ms_not_wall_ms": 56.244720999999984
+        },
+        {
+          "name": "Cijk_Alik_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT256x192x64_MI16x16x1_SN_LDSB1_AFC1_AG0_AGGSUA0_AGNTAB0_AFEM1_AFEM1_ASEM1_BL1_BS1_CD1_1_CLR1_CLS0_CADS0_DTLA0_DTLB0_DTLM0_DTVA0_DTVB0_DTVMXSA0_DTVMXSB0_DTVSM0_DPLB0_EPS0_ELFLR0_EMLLn1_FDSI0_GRPM1_GRVWA8_GRVWB8_GSUAMBSK_GLS0_HPLR0_ISA942_ICIW0_IU1_K1_LDSTI0_LBSPPA1024_LBSPPB256_LBSPPMXSA0_LBSPPMXSB0_LBSPPM0_LPA16_LPB16_LPMXSA0_LPMXSB0_LPM0_LRVW8_LWPMn1_MIAV0_MIWT8_6_MXLIBL_MXSFNS_MO40_MGRIPM1_NTn1_NTA0_NTB0_NTC0_NTD4_NTE0_NTMXSA0_NTMXSB0_NTM0_NTWS0_NVn1_NVA0_NVB0_NVC0_NVD0_NVE0_NVMXSA0_NVMXSB0_NVM0_NVWS0_NEPBS16_NLCA1_NLCB1_ONLL1_PAP0_PGL0_PGR2_PLR1_PKA1_SGROB0_SIA3_SS1_SPO0_SRVW0_SSO0_SVW8_SK0_SKFTR0_SKFDPO0_SKWS0_SKXCCM0_SNLL0_SIP1_SGRO0_TDMI0_TDMIM0_TDMS0_TIN0_THn1_THA0_THB0_THC0_THD0_THE0_THMXSA0_THMXSB0_THM0_THWS0_TLDS1_TLDSM1_ULSGRO0_USL1_USLMX0_UDFMAC0_UIOFGRO0_UPLRP0_USFGROn1_USI0_VSn1_VWA8_VWB2_WSGRA0_WSGRB0_WS64_WG32_8_1_WGMXCC1.kd",
+          "calls": 24,
+          "summed_gpu_ms_not_wall_ms": 35.443343999999854
+        },
+        {
+          "name": "Cijk_Alik_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT256x128x32_MI16x16x1_SN_LDSB1_AFC1_AG0_AGGSUA0_AGNTAB0_AFEM1_AFEM1_ASEM1_BL1_BS1_CD1_1_CLR1_CLS0_CADS0_DTLA0_DTLB0_DTLM0_DTVA0_DTVB0_DTVMXSA0_DTVMXSB0_DTVSM0_DPLB0_EPS0_ELFLR0_EMLLn1_FDSI0_GRPM1_GRVWA4_GRVWB4_GSUAMBSK_GLS0_HPLR0_ISA942_ICIW0_IU1_K1_LDSTI0_LBSPPA512_LBSPPB256_LBSPPMXSA0_LBSPPMXSB0_LBSPPM0_LPA4_LPB4_LPMXSA0_LPMXSB0_LPM0_LRVW4_LWPMn1_MIAV0_MIWT8_4_MXLIBL_MXSFNS_MO40_MGRIPM1_NTn1_NTA0_NTB0_NTC0_NTD4_NTE0_NTMXSA0_NTMXSB0_NTM0_NTWS0_NVn1_NVA0_NVB0_NVC0_NVD0_NVE0_NVMXSA0_NVMXSB0_NVM0_NVWS0_NEPBS16_NLCA1_NLCB1_ONLL1_PAP0_PGL0_PGR2_PLR1_PKA1_SGROB0_SIA3_SS1_SPO0_SRVW0_SSO0_SVW8_SK0_SKFTR0_SKFDPO0_SKWS0_SKXCCM0_SNLL0_SIP1_SGRO0_TDMI0_TDMIM0_TDMS0_TIN0_THn1_THA0_THB0_THC0_THD0_THE0_THMXSA0_THMXSB0_THM0_THWS0_TLDS1_TLDSM1_ULSGRO1_USL1_USLMX0_UDFMAC0_UIOFGRO0_UPLRP0_USFGROn1_USI0_VSn1_VWA8_VWB4_WSGRA0_WSGRB0_WS64_WG32_8_1_WGMXCC1.kd",
+          "calls": 192,
+          "summed_gpu_ms_not_wall_ms": 33.35179999999835
+        },
+        {
+          "name": "Cijk_Ailk_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT256x352x32_MI16x16x1_SN_LDSB1_AFC1_AG0_AGGSUA0_AGNTAB0_AFEM1_AFEM1_ASEM1_BL1_BS1_CD1_1_CLR1_CLS0_CADS0_DTLA0_DTLB0_DTLM0_DTVA0_DTVB0_DTVMXSA0_DTVMXSB0_DTVSM0_DPLB0_EPS0_ELFLR0_EMLLn1_FDSI0_GRPM1_GRVWA4_GRVWB4_GSUAMBSK_GLS0_HPLR0_ISA942_ICIW0_IU1_K1_LDSTI0_LBSPPA0_LBSPPB128_LBSPPMXSA0_LBSPPMXSB0_LBSPPM0_LPA0_LPB4_LPMXSA0_LPMXSB0_LPM0_LRVW4_LWPMn1_MIAV0_MIWT8_11_MXLIBL_MXSFNS_MO40_MGRIPM1_NTn1_NTA0_NTB0_NTC0_NTD4_NTE0_NTMXSA0_NTMXSB0_NTM0_NTWS0_NVn1_NVA0_NVB0_NVC0_NVD0_NVE0_NVMXSA0_NVMXSB0_NVM0_NVWS0_NEPBS8_NLCA1_NLCB1_ONLL1_PAP0_PGL0_PGR2_PLR1_PKA1_SGROB0_SIA3_SS1_SPO0_SRVW0_SSO0_SVW8_SK0_SKFTR0_SKFDPO0_SKWS0_SKXCCM0_SNLL0_SIP1_SGRO0_TDMI0_TDMIM0_TDMS0_TIN0_THn1_THA0_THB0_THC0_THD0_THE0_THMXSA0_THMXSB0_THM0_THWS0_TLDS1_TLDSM1_ULSGRO1_USL1_USLMX0_UDFMAC0_UIOFGRO0_UPLRP0_USFGROn1_USI0_VSn1_VWA8_VWB1_WSGRA0_WSGRB0_WS64_WG32_8_1_WGMXCC1.kd",
+          "calls": 192,
+          "summed_gpu_ms_not_wall_ms": 32.275461000002196
+        },
+        {
+          "name": "_reduce_expert_route_attention_kernel.kd",
+          "calls": 192,
+          "summed_gpu_ms_not_wall_ms": 26.695815999999787
+        },
+        {
+          "name": "_merge_mla_route_refinement_kernel.kd",
+          "calls": 24,
+          "summed_gpu_ms_not_wall_ms": 23.462635000000127
+        },
+        {
+          "name": "Cijk_Alik_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT128x256x32_MI16x16x1_SN_LDSB1_AFC1_AG0_AGGSUA0_AGNTAB0_AFEM1_AFEM1_ASEM1_BL1_BS1_CD1_1_CLR1_CLS0_CADS0_DTLA0_DTLB0_DTLM0_DTVA0_DTVB0_DTVMXSA0_DTVMXSB0_DTVSM0_DPLB0_EPS0_ELFLR0_EMLLn1_FDSI0_GRPM1_GRVWA4_GRVWB4_GSUAMBSK_GLS0_HPLR0_ISA942_ICIW0_IU1_K1_LDSTI0_LBSPPA512_LBSPPB256_LBSPPMXSA0_LBSPPMXSB0_LBSPPM0_LPA4_LPB4_LPMXSA0_LPMXSB0_LPM0_LRVW4_LWPMn1_MIAV0_MIWT8_4_MXLIBL_MXSFNS_MO40_MGRIPM1_NTn1_NTA0_NTB0_NTC0_NTD4_NTE0_NTMXSA0_NTMXSB0_NTM0_NTWS0_NVn1_NVA0_NVB0_NVC0_NVD0_NVE0_NVMXSA0_NVMXSB0_NVM0_NVWS0_NEPBS16_NLCA1_NLCB1_ONLL1_PAP0_PGL0_PGR2_PLR1_PKA1_SGROB0_SIA3_SS1_SPO0_SRVW0_SSO0_SVW8_SK0_SKFTR0_SKFDPO0_SKWS0_SKXCCM0_SNLL0_SIP1_SGRO0_TDMI0_TDMIM0_TDMS0_TIN0_THn1_THA0_THB0_THC0_THD0_THE0_THMXSA0_THMXSB0_THM0_THWS0_TLDS1_TLDSM1_ULSGRO1_USL1_USLMX0_UDFMAC0_UIOFGRO0_UPLRP0_USFGROn1_USI0_VSn1_VWA8_VWB4_WSGRA0_WSGRB0_WS64_WG16_16_1_WGMXCC1.kd",
+          "calls": 24,
+          "summed_gpu_ms_not_wall_ms": 11.877805000000201
+        },
+        {
+          "name": "_reduce_route_candidates_kernel.kd",
+          "calls": 24,
+          "summed_gpu_ms_not_wall_ms": 11.759404000000977
+        },
+        {
+          "name": "_count_expert_routes_kernel.kd",
+          "calls": 24,
+          "summed_gpu_ms_not_wall_ms": 11.710526000000412
+        },
+        {
+          "name": "_select_centroid_tiles.kd",
+          "calls": 24,
+          "summed_gpu_ms_not_wall_ms": 10.467620000000185
+        },
+        {
+          "name": "Cijk_Ailk_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT512x112x64_MI16x16x1_SN_LDSB0_AFC1_AG0_AGGSUA0_AGNTAB0_AFEM1_AFEM1_ASEM1_BL1_BS1_CD1_1_CLR1_CLS0_CADS0_DTLA0_DTLB0_DTLM0_DTVA1_DTVB0_DTVMXSA0_DTVMXSB0_DTVSM0_DPLB0_EPS0_ELFLR0_EMLLn1_FDSI0_GRPM1_GRVWA8_GRVWB4_GSUAMBSK_GLS0_HPLR0_ISA942_ICIW0_IU1_K1_LDSTI0_LBSPPA0_LBSPPB128_LBSPPMXSA0_LBSPPMXSB0_LBSPPM0_LPA0_LPB16_LPMXSA0_LPMXSB0_LPM0_LRVW8_LWPMn1_MIAV0_MIWT8_7_MXLIBL_MXSFNS_MO40_MGRIPM1_NTn1_NTA0_NTB0_NTC0_NTD4_NTE0_NTMXSA0_NTMXSB0_NTM0_NTWS0_NVn1_NVA0_NVB0_NVC0_NVD0_NVE0_NVMXSA0_NVMXSB0_NVM0_NVWS0_NEPBS8_NLCA1_NLCB1_ONLL1_PAP0_PGL0_PGR2_PLR1_PKA1_SGROB0_SIA3_SS1_SPO0_SRVW0_SSO0_SVW8_SK0_SKFTR0_SKFDPO0_SKWS0_SKXCCM0_SNLL0_SIP1_SGRO0_TDMI0_TDMIM0_TDMS0_TIN0_THn1_THA0_THB0_THC0_THD0_THE0_THMXSA0_THMXSB0_THM0_THWS0_TLDS1_TLDSM1_ULSGRO0_USL1_USLMX0_UDFMAC0_UIOFGRO0_UPLRP0_USFGROn1_USI0_VSn1_VWA8_VWB1_WSGRA0_WSGRB0_WS64_WG64_4_1_WGMXCC1.kd",
+          "calls": 24,
+          "summed_gpu_ms_not_wall_ms": 9.875194000000185
+        },
+        {
+          "name": "__amd_rocclr_copyBuffer.kd",
+          "calls": 768,
+          "summed_gpu_ms_not_wall_ms": 8.564186999998153
+        },
+        {
+          "name": "_attn_res_kernel.kd",
+          "calls": 25,
+          "summed_gpu_ms_not_wall_ms": 7.987498999999731
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<8, at::native::BinaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 3ul> >(int, at::native::BinaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 3ul>) [clone .kd]",
+          "calls": 24,
+          "summed_gpu_ms_not_wall_ms": 6.089569000000221
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<8, at::native::sigmoid_kernel_cuda(at::TensorIteratorBase&)::{lambda()#2}::operator()() const::{lambda()#4}::operator()() const::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul> >(int, at::native::sigmoid_kernel_cuda(at::TensorIteratorBase&)::{lambda()#2}::operator()() const::{lambda()#4}::operator()() const::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul>) [clone .kd]",
+          "calls": 24,
+          "summed_gpu_ms_not_wall_ms": 5.998969000000391
+        },
+        {
+          "name": "_sort_count_chunks.kd",
+          "calls": 192,
+          "summed_gpu_ms_not_wall_ms": 5.673126000002259
+        },
+        {
+          "name": "void aiter::add_rmsnorm_quant_kernel<std::bfloat16_t, std::bfloat16_t, 256, 8, false, false, true, 1>(std::bfloat16_t*, std::bfloat16_t*, float*, std::bfloat16_t*, std::bfloat16_t*, std::bfloat16_t*, double, bool, int, int, int, int, int, int, int, bool, bool) [clone .kd]",
+          "calls": 24,
+          "summed_gpu_ms_not_wall_ms": 4.432312999999904
+        },
+        {
+          "name": "Cijk_Ailk_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT256x144x32_MI16x16x1_SN_LDSB0_AFC1_AG0_AGGSUA0_AGNTAB0_AFEM1_AFEM1_ASEM1_BL1_BS1_CD1_1_CLR1_CLS0_CADS0_DTLA0_DTLB0_DTLM0_DTVA1_DTVB0_DTVMXSA0_DTVMXSB0_DTVSM0_DPLB0_EPS0_ELFLR0_EMLLn1_FDSI0_GRPM1_GRVWA4_GRVWB2_GSUAMBSK_GLS0_HPLR0_ISA942_ICIW0_IU1_K1_LDSTI0_LBSPPA0_LBSPPB128_LBSPPMXSA0_LBSPPMXSB0_LBSPPM0_LPA0_LPB4_LPMXSA0_LPMXSB0_LPM0_LRVW4_LWPMn1_MIAV0_MIWT4_9_MXLIBL_MXSFNS_MO40_MGRIPM1_NTn1_NTA0_NTB0_NTC0_NTD4_NTE0_NTMXSA0_NTMXSB0_NTM0_NTWS0_NVn1_NVA0_NVB0_NVC0_NVD0_NVE0_NVMXSA0_NVMXSB0_NVM0_NVWS0_NEPBS8_NLCA1_NLCB1_ONLL1_PAP0_PGL0_PGR2_PLR1_PKA1_SGROB0_SIA3_SS1_SPO0_SRVW0_SSO0_SVW4_SK0_SKFTR0_SKFDPO0_SKWS0_SKXCCM0_SNLL0_SIP1_SGRO0_TDMI0_TDMIM0_TDMS0_TIN0_THn1_THA0_THB0_THC0_THD0_THE0_THMXSA0_THMXSB0_THM0_THWS0_TLDS1_TLDSM1_ULSGRO0_USL1_USLMX0_UDFMAC0_UIOFGRO0_UPLRP0_USFGROn1_USI0_VSn1_VWA4_VWB1_WSGRA0_WSGRB0_WS64_WG64_4_1_WGMXCC1.kd",
+          "calls": 48,
+          "summed_gpu_ms_not_wall_ms": 4.208492999999711
+        },
+        {
+          "name": "Cijk_Alik_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT256x128x32_MI16x16x1_SN_LDSB1_AFC1_AG0_AGGSUA0_AGNTAB0_AFEM1_AFEM1_ASEM1_BL1_BS1_CD1_1_CLR1_CLS0_CADS0_DTLA0_DTLB0_DTLM0_DTVA0_DTVB0_DTVMXSA0_DTVMXSB0_DTVSM0_DPLB0_EPS0_ELFLR0_EMLLn1_FDSI0_GRPM1_GRVWA4_GRVWB4_GSUAMBSK_GLS0_HPLR0_ISA942_ICIW0_IU1_K1_LDSTI0_LBSPPA512_LBSPPB256_LBSPPMXSA0_LBSPPMXSB0_LBSPPM0_LPA4_LPB4_LPMXSA0_LPMXSB0_LPM0_LRVW4_LWPMn1_MIAV0_MIWT8_4_MXLIBL_MXSFNS_MO40_MGRIPM1_NTn1_NTA0_NTB0_NTC0_NTD4_NTE0_NTMXSA0_NTMXSB0_NTM0_NTWS0_NVn1_NVA0_NVB0_NVC0_NVD0_NVE0_NVMXSA0_NVMXSB0_NVM0_NVWS0_NEPBS16_NLCA1_NLCB1_ONLL1_PAP0_PGL0_PGR2_PLR1_PKA1_SGROB0_SIA3_SS1_SPO0_SRVW0_SSO0_SVW8_SK0_SKFTR0_SKFDPO0_SKWS0_SKXCCM0_SNLL0_SIP1_SGRO0_TDMI0_TDMIM0_TDMS0_TIN0_THn1_THA0_THB0_THC0_THD0_THE0_THMXSA0_THMXSB0_THM0_THWS0_TLDS1_TLDSM1_ULSGRO0_USL1_USLMX0_UDFMAC0_UIOFGRO0_UPLRP0_USFGROn1_USI0_VSn1_VWA8_VWB4_WSGRA0_WSGRB0_WS64_WG32_8_1_WGMXCC1.kd",
+          "calls": 24,
+          "summed_gpu_ms_not_wall_ms": 3.9897170000000477
+        },
+        {
+          "name": "void at::native::(anonymous namespace)::CatArrayBatchedCopy<at::native::(anonymous namespace)::OpaqueType<2u>, unsigned int, 3, 64, 64>(at::native::(anonymous namespace)::OpaqueType<2u>*, at::native::(anonymous namespace)::CatArrInputTensorMetadata<at::native::(anonymous namespace)::OpaqueType<2u>, unsigned int, 64, 64>, at::native::(anonymous namespace)::TensorSizeStride<unsigned int, 4u>, int, unsigned int) [clone .kd]",
+          "calls": 24,
+          "summed_gpu_ms_not_wall_ms": 3.6445630000000673
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<int>, std::array<char*, 1ul> >(int, at::native::FillFunctor<int>, std::array<char*, 1ul>) [clone .kd]",
+          "calls": 672,
+          "summed_gpu_ms_not_wall_ms": 3.047323999997774
+        },
+        {
+          "name": "void rocprim::ROCPRIM_400600_NS::detail::trampoline_kernel<rocprim::ROCPRIM_400600_NS::default_config, rocprim::ROCPRIM_400600_NS::detail::scan_config_selector<int>, rocprim::ROCPRIM_400600_NS::detail::scan_impl<(rocprim::ROCPRIM_400600_NS::detail::lookback_scan_determinism)0, false, false, rocprim::ROCPRIM_400600_NS::default_config, int const*, int*, int, std::plus<int>, int>(void*, unsigned long&, int const*, int*, int, unsigned long, std::plus<int>, ihipStream_t*, bool)::{lambda(auto:1, auto:2)#1}::operator()<std::integral_constant<bool, false>, std::integral_constant<bool, true> >(std::integral_constant<bool, false>, std::integral_constant<bool, true>) const::{lambda(auto:1)#1}, rocprim::ROCPRIM_400600_NS::detail::comp_target<(rocprim::ROCPRIM_400600_NS::detail::gen)5, (rocprim::ROCPRIM_400600_NS::detail::target_arch)942, (rocprim::ROCPRIM_400600_NS::detail::gpu)9, (rocprim::ROCPRIM_400600_NS::detail::rep)0>, rocprim::ROCPRIM_400600_NS::detail::default_config_static_selector, (rocprim::ROCPRIM_400600_NS::arch::wavefront::target)1>(rocprim::ROCPRIM_400600_NS::detail::scan_impl<(rocprim::ROCPRIM_400600_NS::detail::lookback_scan_determinism)0, false, false, rocprim::ROCPRIM_400600_NS::default_config, int const*, int*, int, std::plus<int>, int>(void*, unsigned long&, int const*, int*, int, unsigned long, std::plus<int>, ihipStream_t*, bool)::{lambda(auto:1, auto:2)#1}::operator()<std::integral_constant<bool, false>, std::integral_constant<bool, true> >(std::integral_constant<bool, false>, std::integral_constant<bool, true>) const::{lambda(auto:1)#1}) [clone .kd]",
+          "calls": 384,
+          "summed_gpu_ms_not_wall_ms": 2.4159119999991234
+        },
+        {
+          "name": "_scatter_expert_routes_kernel.kd",
+          "calls": 216,
+          "summed_gpu_ms_not_wall_ms": 2.3493540000012145
+        },
+        {
+          "name": "void aiter::add_rmsnorm_quant_kernel<std::bfloat16_t, std::bfloat16_t, 64, 8, false, false, true, 1>(std::bfloat16_t*, std::bfloat16_t*, float*, std::bfloat16_t*, std::bfloat16_t*, std::bfloat16_t*, double, bool, int, int, int, int, int, int, int, bool, bool) [clone .kd]",
+          "calls": 24,
+          "summed_gpu_ms_not_wall_ms": 2.2861829999998697
+        },
+        {
+          "name": "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<c10::BFloat16, at::native::MaxOps<c10::BFloat16>, unsigned int, c10::BFloat16, 4, 4> >(at::native::ReduceOp<c10::BFloat16, at::native::MaxOps<c10::BFloat16>, unsigned int, c10::BFloat16, 4, 4>) [clone .kd]",
+          "calls": 48,
+          "summed_gpu_ms_not_wall_ms": 1.6892070000009844
+        },
+        {
+          "name": "_finish_ordinals.kd",
+          "calls": 191,
+          "summed_gpu_ms_not_wall_ms": 1.6718300000001765
+        },
+        {
+          "name": "_accumulate_state_deltas_kernel.kd",
+          "calls": 24,
+          "summed_gpu_ms_not_wall_ms": 1.65458999999988
+        },
+        {
+          "name": "void rocprim::ROCPRIM_400600_NS::detail::init_lookback_scan_state_kernel<rocprim::ROCPRIM_400600_NS::detail::lookback_scan_state<int, false, true>, rocprim::ROCPRIM_400600_NS::detail::block_id_wrapper<unsigned int, true> >(rocprim::ROCPRIM_400600_NS::detail::lookback_scan_state<int, false, true>, unsigned int, rocprim::ROCPRIM_400600_NS::detail::block_id_wrapper<unsigned int, true>, unsigned int, rocprim::ROCPRIM_400600_NS::detail::lookback_scan_state<int, false, true>::value_type*) [clone .kd]",
+          "calls": 383,
+          "summed_gpu_ms_not_wall_ms": 1.519150000002308
+        },
+        {
+          "name": "void at::native::tensor_kernel_scan_innermost_dim_with_indices<long, std::greater_equal<long> >(long const*, long*, long*, int, int, unsigned int, unsigned int, long, std::greater_equal<long>) [clone .kd]",
+          "calls": 24,
+          "summed_gpu_ms_not_wall_ms": 1.3629979999999196
+        },
+        {
+          "name": "_prefix_fragments.kd",
+          "calls": 192,
+          "summed_gpu_ms_not_wall_ms": 1.2073099999997066
+        },
+        {
+          "name": "void at::native::reduce_kernel<128, 4, at::native::ReduceOp<int, at::native::func_wrapper_t<int, at::native::sum_functor<int, int, int>::operator()(at::TensorIterator&)::{lambda(int, int)#1}>, unsigned int, int, 4, 4> >(at::native::ReduceOp<int, at::native::func_wrapper_t<int, at::native::sum_functor<int, int, int>::operator()(at::TensorIterator&)::{lambda(int, int)#1}>, unsigned int, int, 4, 4>) [clone .kd]",
+          "calls": 216,
+          "summed_gpu_ms_not_wall_ms": 1.1729300000002258
+        }
+      ]
+    },
+    {
+      "rank": 1,
+      "chunk": null,
+      "scope": "one rank, one instrumented model chunk; not serving latency",
+      "weight_layout_estimate": {
+        "embedding_or_head_kept_tp": {
+          "local_parameter_bytes": 7340032,
+          "tp1_additional_parameter_bytes_estimate": 0
+        },
+        "other_nonexpert": {
+          "local_parameter_bytes": 2106353664,
+          "tp1_additional_parameter_bytes_estimate": 9116319744
+        }
+      }
+    },
+    {
+      "rank": 2,
+      "chunk": null,
+      "scope": "one rank, one instrumented model chunk; not serving latency",
+      "weight_layout_estimate": {
+        "embedding_or_head_kept_tp": {
+          "local_parameter_bytes": 7340032,
+          "tp1_additional_parameter_bytes_estimate": 0
+        },
+        "other_nonexpert": {
+          "local_parameter_bytes": 2106353664,
+          "tp1_additional_parameter_bytes_estimate": 9116319744
+        }
+      }
+    },
+    {
+      "rank": 3,
+      "chunk": null,
+      "scope": "one rank, one instrumented model chunk; not serving latency",
+      "weight_layout_estimate": {
+        "embedding_or_head_kept_tp": {
+          "local_parameter_bytes": 7340032,
+          "tp1_additional_parameter_bytes_estimate": 0
+        },
+        "other_nonexpert": {
+          "local_parameter_bytes": 2106353664,
+          "tp1_additional_parameter_bytes_estimate": 9116319744
+        }
+      }
+    },
+    {
+      "rank": 4,
+      "chunk": null,
+      "scope": "one rank, one instrumented model chunk; not serving latency",
+      "weight_layout_estimate": {
+        "embedding_or_head_kept_tp": {
+          "local_parameter_bytes": 7340032,
+          "tp1_additional_parameter_bytes_estimate": 0
+        },
+        "other_nonexpert": {
+          "local_parameter_bytes": 2106353664,
+          "tp1_additional_parameter_bytes_estimate": 9116319744
+        }
+      }
+    },
+    {
+      "rank": 5,
+      "chunk": null,
+      "scope": "one rank, one instrumented model chunk; not serving latency",
+      "weight_layout_estimate": {
+        "embedding_or_head_kept_tp": {
+          "local_parameter_bytes": 7340032,
+          "tp1_additional_parameter_bytes_estimate": 0
+        },
+        "other_nonexpert": {
+          "local_parameter_bytes": 2106353664,
+          "tp1_additional_parameter_bytes_estimate": 9116319744
+        }
+      }
+    },
+    {
+      "rank": 6,
+      "chunk": null,
+      "scope": "one rank, one instrumented model chunk; not serving latency",
+      "weight_layout_estimate": {
+        "embedding_or_head_kept_tp": {
+          "local_parameter_bytes": 7340032,
+          "tp1_additional_parameter_bytes_estimate": 0
+        },
+        "other_nonexpert": {
+          "local_parameter_bytes": 2106353664,
+          "tp1_additional_parameter_bytes_estimate": 9116319744
+        }
+      }
+    },
+    {
+      "rank": 7,
+      "chunk": null,
+      "scope": "one rank, one instrumented model chunk; not serving latency",
+      "weight_layout_estimate": {
+        "embedding_or_head_kept_tp": {
+          "local_parameter_bytes": 7340032,
+          "tp1_additional_parameter_bytes_estimate": 0
+        },
+        "other_nonexpert": {
+          "local_parameter_bytes": 2106353664,
+          "tp1_additional_parameter_bytes_estimate": 9116319744
+        }
+      }
+    }
+  ],
+  "worker_attention_audit": [
+    {
+      "lod_runtime": true,
+      "lod_pool_count": 24,
+      "lod_engine_configurations": [
+        {
+          "family": "kimi-k3",
+          "mode": "two-tier",
+          "levels": 2,
+          "kv_bits": 0,
+          "prefill_routes": 8,
+          "decode_routes": 8,
+          "prefill_chunk_len": 16384,
+          "prefill_state_update_len": 16384,
+          "decode_state_update_len": 256,
+          "local_len": 512,
+          "leaf_page_size": 16,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "prefill_fused_route_coarse": true,
+          "decode_fused_state_route": true,
+          "max_open_centroid_leaves": 1024,
+          "leaf_seal_capacity": null
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "attached_lod_layers": 24,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 0,
+      "model_class": "KimiLinearForCausalLM",
+      "loaded_kimi_lod_modules": [
+        {
+          "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "size_bytes": 911024,
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1398784,
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        }
+      ],
+      "dense_gluon_decode_installed": false,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "NONE",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 192,
+        "retained": 192,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": 238251147264
+      }
+    },
+    {
+      "lod_runtime": true,
+      "lod_pool_count": 24,
+      "lod_engine_configurations": [
+        {
+          "family": "kimi-k3",
+          "mode": "two-tier",
+          "levels": 2,
+          "kv_bits": 0,
+          "prefill_routes": 8,
+          "decode_routes": 8,
+          "prefill_chunk_len": 16384,
+          "prefill_state_update_len": 16384,
+          "decode_state_update_len": 256,
+          "local_len": 512,
+          "leaf_page_size": 16,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "prefill_fused_route_coarse": true,
+          "decode_fused_state_route": true,
+          "max_open_centroid_leaves": 1024,
+          "leaf_seal_capacity": null
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "attached_lod_layers": 24,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 0,
+      "model_class": "KimiLinearForCausalLM",
+      "loaded_kimi_lod_modules": [
+        {
+          "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "size_bytes": 911024,
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1398784,
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        }
+      ],
+      "dense_gluon_decode_installed": false,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "NONE",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 192,
+        "retained": 192,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": 238957887488
+      }
+    },
+    {
+      "lod_runtime": true,
+      "lod_pool_count": 24,
+      "lod_engine_configurations": [
+        {
+          "family": "kimi-k3",
+          "mode": "two-tier",
+          "levels": 2,
+          "kv_bits": 0,
+          "prefill_routes": 8,
+          "decode_routes": 8,
+          "prefill_chunk_len": 16384,
+          "prefill_state_update_len": 16384,
+          "decode_state_update_len": 256,
+          "local_len": 512,
+          "leaf_page_size": 16,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "prefill_fused_route_coarse": true,
+          "decode_fused_state_route": true,
+          "max_open_centroid_leaves": 1024,
+          "leaf_seal_capacity": null
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "attached_lod_layers": 24,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 0,
+      "model_class": "KimiLinearForCausalLM",
+      "loaded_kimi_lod_modules": [
+        {
+          "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "size_bytes": 911024,
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1398784,
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        }
+      ],
+      "dense_gluon_decode_installed": false,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "NONE",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 192,
+        "retained": 192,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": 238253244416
+      }
+    },
+    {
+      "lod_runtime": true,
+      "lod_pool_count": 24,
+      "lod_engine_configurations": [
+        {
+          "family": "kimi-k3",
+          "mode": "two-tier",
+          "levels": 2,
+          "kv_bits": 0,
+          "prefill_routes": 8,
+          "decode_routes": 8,
+          "prefill_chunk_len": 16384,
+          "prefill_state_update_len": 16384,
+          "decode_state_update_len": 256,
+          "local_len": 512,
+          "leaf_page_size": 16,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "prefill_fused_route_coarse": true,
+          "decode_fused_state_route": true,
+          "max_open_centroid_leaves": 1024,
+          "leaf_seal_capacity": null
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "attached_lod_layers": 24,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 0,
+      "model_class": "KimiLinearForCausalLM",
+      "loaded_kimi_lod_modules": [
+        {
+          "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "size_bytes": 911024,
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1398784,
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        }
+      ],
+      "dense_gluon_decode_installed": false,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "NONE",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 192,
+        "retained": 192,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": 238253244416
+      }
+    },
+    {
+      "lod_runtime": true,
+      "lod_pool_count": 24,
+      "lod_engine_configurations": [
+        {
+          "family": "kimi-k3",
+          "mode": "two-tier",
+          "levels": 2,
+          "kv_bits": 0,
+          "prefill_routes": 8,
+          "decode_routes": 8,
+          "prefill_chunk_len": 16384,
+          "prefill_state_update_len": 16384,
+          "decode_state_update_len": 256,
+          "local_len": 512,
+          "leaf_page_size": 16,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "prefill_fused_route_coarse": true,
+          "decode_fused_state_route": true,
+          "max_open_centroid_leaves": 1024,
+          "leaf_seal_capacity": null
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "attached_lod_layers": 24,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 0,
+      "model_class": "KimiLinearForCausalLM",
+      "loaded_kimi_lod_modules": [
+        {
+          "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "size_bytes": 911024,
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1398784,
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        }
+      ],
+      "dense_gluon_decode_installed": false,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "NONE",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 192,
+        "retained": 192,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": 238454571008
+      }
+    },
+    {
+      "lod_runtime": true,
+      "lod_pool_count": 24,
+      "lod_engine_configurations": [
+        {
+          "family": "kimi-k3",
+          "mode": "two-tier",
+          "levels": 2,
+          "kv_bits": 0,
+          "prefill_routes": 8,
+          "decode_routes": 8,
+          "prefill_chunk_len": 16384,
+          "prefill_state_update_len": 16384,
+          "decode_state_update_len": 256,
+          "local_len": 512,
+          "leaf_page_size": 16,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "prefill_fused_route_coarse": true,
+          "decode_fused_state_route": true,
+          "max_open_centroid_leaves": 1024,
+          "leaf_seal_capacity": null
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "attached_lod_layers": 24,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 0,
+      "model_class": "KimiLinearForCausalLM",
+      "loaded_kimi_lod_modules": [
+        {
+          "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "size_bytes": 911024,
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1398784,
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        }
+      ],
+      "dense_gluon_decode_installed": false,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "NONE",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 192,
+        "retained": 192,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": 238353907712
+      }
+    },
+    {
+      "lod_runtime": true,
+      "lod_pool_count": 24,
+      "lod_engine_configurations": [
+        {
+          "family": "kimi-k3",
+          "mode": "two-tier",
+          "levels": 2,
+          "kv_bits": 0,
+          "prefill_routes": 8,
+          "decode_routes": 8,
+          "prefill_chunk_len": 16384,
+          "prefill_state_update_len": 16384,
+          "decode_state_update_len": 256,
+          "local_len": 512,
+          "leaf_page_size": 16,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "prefill_fused_route_coarse": true,
+          "decode_fused_state_route": true,
+          "max_open_centroid_leaves": 1024,
+          "leaf_seal_capacity": null
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "attached_lod_layers": 24,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 0,
+      "model_class": "KimiLinearForCausalLM",
+      "loaded_kimi_lod_modules": [
+        {
+          "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "size_bytes": 911024,
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1398784,
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        }
+      ],
+      "dense_gluon_decode_installed": false,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "NONE",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 192,
+        "retained": 192,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": 238454571008
+      }
+    },
+    {
+      "lod_runtime": true,
+      "lod_pool_count": 24,
+      "lod_engine_configurations": [
+        {
+          "family": "kimi-k3",
+          "mode": "two-tier",
+          "levels": 2,
+          "kv_bits": 0,
+          "prefill_routes": 8,
+          "decode_routes": 8,
+          "prefill_chunk_len": 16384,
+          "prefill_state_update_len": 16384,
+          "decode_state_update_len": 256,
+          "local_len": 512,
+          "leaf_page_size": 16,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "prefill_fused_route_coarse": true,
+          "decode_fused_state_route": true,
+          "max_open_centroid_leaves": 1024,
+          "leaf_seal_capacity": null
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "attached_lod_layers": 24,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 0,
+      "model_class": "KimiLinearForCausalLM",
+      "loaded_kimi_lod_modules": [
+        {
+          "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "size_bytes": 911024,
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1398784,
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        }
+      ],
+      "dense_gluon_decode_installed": false,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "NONE",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 192,
+        "retained": 192,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": 238454571008
+      }
+    }
+  ]
+}

@@ -377,6 +377,7 @@ def _paged_leaf_attention_kernel(
     kimi_w_uk_t,
     kimi_w_uv,
     page_indices,
+    compact_leaf_offsets,
     page_k_scales,
     page_v_scales,
     quantized_leaf_k,
@@ -401,6 +402,9 @@ def _paged_leaf_attention_kernel(
     program_limit,
     experts,
     active_slots,
+    KV_HEADS: tl.constexpr,
+    PAGE_K_BATCH_STRIDE: tl.constexpr,
+    PAGE_V_BATCH_STRIDE: tl.constexpr,
     PAGE_K_HEAD_STRIDE: tl.constexpr,
     PAGE_V_HEAD_STRIDE: tl.constexpr,
     PAGE_K_TOKEN_STRIDE: tl.constexpr,
@@ -434,6 +438,7 @@ def _paged_leaf_attention_kernel(
     QUANT_TOKEN_GROUP_SIZE: tl.constexpr,
     QUANTIZED_SUMMARIES: tl.constexpr,
     KIMI_LATENT_PROJECTION: tl.constexpr,
+    COMPACT_PROJECTED_LEAVES: tl.constexpr,
     SCALAR_PAGE_LOOKUP: tl.constexpr,
     INDEXED: tl.constexpr,
     PROGRAMS_POINTER: tl.constexpr,
@@ -519,6 +524,9 @@ def _paged_leaf_attention_kernel(
         mask=valid_program,
         other=0,
     ).to(tl.int32)
+    if COMPACT_PROJECTED_LEAVES:
+        compact_begin = tl.load(compact_leaf_offsets + expert,
+                                mask=valid_program, other=0).to(tl.int64)
     if HASH_PROBES == 0:
         page_table = (
             slot_pages
@@ -548,7 +556,12 @@ def _paged_leaf_attention_kernel(
         # sixteen indexed K/V rows as before.
         if SCALAR_PAGE_LOOKUP and not QUANT_BITS:
             page_aligned_lookup = BLOCK_N == PAGE_SIZE and SPLIT_N == 1
-        if page_aligned_lookup:
+        if COMPACT_PROJECTED_LEAVES:
+            # The selected-centroid projection preserves leaf order, so no
+            # page-directory or chronological-index lookup is needed here.
+            page_id = tl.zeros((BLOCK_N,), tl.int64)
+            within_page = logical_key.to(tl.int64)
+        elif page_aligned_lookup:
             # Residual INT4 always visits one complete virtual page at a time.
             # Resolve its directory entry and page metadata once, rather than
             # issuing the same loads independently for all sixteen leaf lanes.
@@ -636,17 +649,26 @@ def _paged_leaf_attention_kernel(
         directory_token = (
             directory_kv_row * PAGE_CAPACITY + page_id
         ) * PAGE_SIZE + within_page
-        if INDEXED:
+        if COMPACT_PROJECTED_LEAVES:
+            storage_token = compact_begin + logical_key.to(tl.int64)
+            valid_key &= storage_token < LEAF_CAPACITY
+            key_storage_offset = storage_token * PAGE_K_TOKEN_STRIDE
+            value_storage_offset = storage_token * PAGE_V_TOKEN_STRIDE
+        elif INDEXED:
             leaf_index = tl.load(
                 page_indices + directory_token, mask=valid_key, other=0
             ).to(tl.int64)
             valid_key &= (leaf_index >= 0) & (leaf_index < LEAF_CAPACITY)
             storage_token = kv_row * LEAF_CAPACITY + leaf_index
             key_storage_offset = (
-                kv_row * PAGE_K_HEAD_STRIDE + leaf_index * PAGE_K_TOKEN_STRIDE
+                (kv_row // KV_HEADS) * PAGE_K_BATCH_STRIDE
+                + (kv_row % KV_HEADS) * PAGE_K_HEAD_STRIDE
+                + leaf_index * PAGE_K_TOKEN_STRIDE
             )
             value_storage_offset = (
-                kv_row * PAGE_V_HEAD_STRIDE + leaf_index * PAGE_V_TOKEN_STRIDE
+                (kv_row // KV_HEADS) * PAGE_V_BATCH_STRIDE
+                + (kv_row % KV_HEADS) * PAGE_V_HEAD_STRIDE
+                + leaf_index * PAGE_V_TOKEN_STRIDE
             )
         else:
             storage_token = directory_token
@@ -2021,6 +2043,7 @@ def paged_leaf_attention(
     top_slots: torch.Tensor,
     *,
     page_indices: torch.Tensor,
+    compact_leaf_offsets: torch.Tensor | None = None,
     page_k_scales: torch.Tensor | None = None,
     page_v_scales: torch.Tensor | None = None,
     quantized_leaf_k: torch.Tensor | None = None,
@@ -2080,6 +2103,17 @@ def paged_leaf_attention(
         value_dim = 128
     else:
         value_dim = int(page_v.size(-1))
+    compact_projected_leaves = isinstance(compact_leaf_offsets, torch.Tensor)
+    if compact_projected_leaves:
+        if (kimi_latent_projection or quantized_leaf_k is not None
+                or quantized_leaf_v is not None or kv_group_size != 1
+                or not page_k.is_contiguous() or not page_v.is_contiguous()
+                or page_k.dtype != torch.bfloat16 or page_v.dtype != torch.bfloat16
+                or compact_leaf_offsets.dtype != torch.int32
+                or compact_leaf_offsets.device != q.device
+                or not compact_leaf_offsets.is_contiguous()
+                or compact_leaf_offsets.numel() != batch * kv_heads * active_slots + 1):
+            raise ValueError("compact leaf attention requires contiguous BF16 per-head expert ranges")
     page_size = int(page_indices.size(3))
     page_capacity = int(page_indices.size(2))
     state_capacity = int(slot_pages.size(2))
@@ -2203,6 +2237,8 @@ def paged_leaf_attention(
     leaf_capacity = (
         int(quantized_leaf_k.size(2)) if residual_quantized else int(page_k.size(2))
     )
+    if compact_projected_leaves:
+        leaf_capacity = int(page_k.numel()) // head_dim
     quantized_leaf_k_arg = quantized_leaf_k if residual_quantized else page_k
     quantized_leaf_v_arg = quantized_leaf_v if residual_quantized else page_v
     page_sum_k_arg = page_sum_k if isinstance(page_sum_k, torch.Tensor) else page_k
@@ -2224,6 +2260,7 @@ def paged_leaf_attention(
         kimi_w_uk_t if kimi_latent_projection else q,
         kimi_w_uv if kimi_latent_projection else q,
         page_indices,
+        compact_leaf_offsets if compact_projected_leaves else page_indices,
         page_k_scales if residual_quantized else page_k,
         page_v_scales if residual_quantized else page_v,
         quantized_leaf_k_arg,
@@ -2248,6 +2285,9 @@ def paged_leaf_attention(
         cumulative_blocks[-1:],
         int(q_lengths.numel()),
         active_slots,
+        KV_HEADS=kv_heads,
+        PAGE_K_BATCH_STRIDE=int(page_k.stride(0)),
+        PAGE_V_BATCH_STRIDE=int(page_v.stride(0)),
         PAGE_K_HEAD_STRIDE=int(page_k.stride(1)),
         PAGE_V_HEAD_STRIDE=int(page_v.stride(1)),
         PAGE_K_TOKEN_STRIDE=int(page_k.stride(2)),
@@ -2293,6 +2333,7 @@ def paged_leaf_attention(
         QUANT_TOKEN_GROUP_SIZE=quant_token_group_size if residual_quantized else 1,
         QUANTIZED_SUMMARIES=quantized_summaries,
         KIMI_LATENT_PROJECTION=kimi_latent_projection,
+        COMPACT_PROJECTED_LEAVES=compact_projected_leaves,
         SCALAR_PAGE_LOOKUP=scalar_page_lookup,
         INDEXED=True,
         PROGRAMS_POINTER=True,

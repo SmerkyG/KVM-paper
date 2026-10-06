@@ -427,8 +427,48 @@ def _apply_module_metadata(
                 f"Weight-cache daemon exported missing module {module_name!r}"
             )
         for name, value in values.items():
+            # Attention/cache dispatch belongs to the fresh serving client,
+            # not the weight representation. A backing daemon constructed
+            # for dense attention can otherwise overwrite the LoD client's
+            # absorbed-MLA eligibility and prevent semantic pool attachment.
+            # Filter on import too, so already-resident daemons need no reload.
+            if name.startswith("_vllm_lod_"):
+                continue
             if name not in module._parameters and name not in module._buffers:
                 setattr(module, name, value)
+
+
+def _restore_kimi_lod_projection_views(model: nn.Module) -> None:
+    """Expose exact LoD projections from a dense daemon's original BF16 KV weight.
+
+    Native dense MLA can retain private FP8 BMM helpers rather than W_UK_T/W_UV.
+    Its original BF16 kv_b_proj weight is still present. These two views share
+    that mapped storage; no model reload, quantization, or weight copies occur.
+    """
+    for module in model.modules():
+        if not getattr(module, "_vllm_lod_absorbed_mla", False):
+            continue
+        module.is_aiter_triton_fp8_bmm_enabled = False
+        module.is_aiter_triton_fp4_bmm_enabled = False
+        if getattr(module, "W_UK_T", None) is not None:
+            if getattr(module, "W_UV", None) is None:
+                raise RuntimeError("daemon exported only one canonical MLA projection")
+            continue
+        weight = module.kv_b_proj.weight
+        heads, key_dim, value_dim, latent_dim = (
+            module.num_heads, module.qk_nope_head_dim, module.v_head_dim, module.kv_lora_rank)
+        if (weight.dtype != torch.bfloat16 or weight.is_meta
+                or tuple(weight.shape) != (heads * (key_dim + value_dim), latent_dim)
+                or bool(getattr(weight, "is_shuffled", False))):
+            raise RuntimeError("cannot recover LoD projection views from noncanonical KV weight")
+        per_head = weight.view(heads, key_dim + value_dim, latent_dim)
+        module.W_UK_T = nn.Parameter(per_head[:, :key_dim], requires_grad=False)
+        module.W_UV = nn.Parameter(per_head[:, key_dim:].transpose(1, 2), requires_grad=False)
+        if getattr(module, "dcp_q_replicate", False):
+            from vllm.distributed.parallel_state import get_dcp_group
+
+            module.W_UK_T_dcp_qrep = get_dcp_group().all_gather(
+                module.W_UK_T.contiguous(), dim=0)
 
 
 def _restore_daemon_runtime_objects(model: nn.Module) -> None:
@@ -442,6 +482,8 @@ def _restore_daemon_runtime_objects(model: nn.Module) -> None:
     ``moe_kernel`` object only during post-load processing. Recreate just that
     object around the already-converted daemon-owned weights.
     """
+
+    _restore_kimi_lod_projection_views(model)
 
     # MoE routers are deliberately lightweight Python objects rather than
     # child Modules. They retain direct references to score-bias Parameters

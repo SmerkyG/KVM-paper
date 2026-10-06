@@ -38,6 +38,12 @@ def _ensure_exact_lod_decode_capture_sizes(vllm_config: Any) -> None:
     capture_sizes = compilation.cudagraph_capture_sizes
     if not capture_sizes:
         return
+    if os.getenv("LOD_KIMI_REQUEST_OWNER_DECODE") == "1":
+        # Fixed eight-owner layout, not a variable-batch serving mode.
+        # Smaller synthetic warmups must not replace its sole real B8 graph.
+        compilation.cudagraph_capture_sizes = [8]
+        compilation.max_cudagraph_capture_size = 8
+        return
     pool_size = VLLMLODSettings.from_environment().pool_size
     scheduler = getattr(vllm_config, "scheduler_config", None)
     max_requests = int(getattr(scheduler, "max_num_seqs", pool_size))

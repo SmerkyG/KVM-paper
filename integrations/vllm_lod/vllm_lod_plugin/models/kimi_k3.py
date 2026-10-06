@@ -299,19 +299,66 @@ def _run_lod_mla(
     ):
         raise ValueError("Kimi MLA output buffer has incompatible geometry")
 
+    if getattr(pool, "kimi_request_owner_prefill", False):
+        if getattr(pool, "kimi_head_owner_prefill", False):
+            from .kimi_k3_head_prefill import head_owner_prefill
+
+            result = head_owner_prefill(
+                layer, pool, query, pack_latent_record(latent, direct_key),
+            ).reshape(output_shape)
+            if output_buffer is not None:
+                output_buffer.copy_(result)
+                return output_buffer
+            return result
+        if getattr(pool, "kimi_captured_owner_decode", False) and pool.decode_enabled:
+            if query.size(0) != 8:
+                # Uncaptured synthetic startup profiling may use one row.
+                # Real batches are validated as B8 by scheduler preprocessing.
+                return query.new_zeros(output_shape)
+            from .kimi_k3_owner_decode import owner_decode_attention, owner_decode_query
+            complete_query = owner_decode_query(pool, query, q_dcp_replicated)
+            result = owner_decode_attention(pool, complete_query,
+                pack_latent_record(latent, direct_key)).reshape(output_shape)
+            if output_buffer is not None:
+                output_buffer.copy_(result)
+                return output_buffer
+            return result
+        from .kimi_k3_request_prefill import request_owner_prefill
+
+        result = request_owner_prefill(
+            layer, pool, query, pack_latent_record(latent, direct_key),
+        ).reshape(output_shape)
+        if output_buffer is not None:
+            output_buffer.copy_(result)
+            return output_buffer
+        return result
+
     dcp_decode = bool(
-        q_dcp_replicated is not None
-        and getattr(pool, "decode_enabled", False)
+        getattr(pool, "decode_enabled", False)
         and int(getattr(pool, "dcp_world_size", 1)) > 1
+        and int(query.size(0)) <= int(pool.max_requests)
     )
     if dcp_decode:
-        if layer.W_UK_T_dcp_qrep is None:
-            raise RuntimeError("Kimi DCP query projection was not materialized")
-        q_absorbed = absorb_query(
-            q_dcp_replicated,
-            layer.W_UK_T_dcp_qrep,
-            nope_dim=int(layer.qk_nope_head_dim),
-        )
+        from vllm.distributed.parallel_state import get_dcp_group
+
+        dcp_group = get_dcp_group()
+        if q_dcp_replicated is not None:
+            if layer.W_UK_T_dcp_qrep is None:
+                raise RuntimeError("Kimi DCP query projection was not materialized")
+            q_absorbed = absorb_query(
+                q_dcp_replicated,
+                layer.W_UK_T_dcp_qrep,
+                nope_dim=int(layer.qk_nope_head_dim),
+            )
+        else:
+            # Native vLLM can leave Q projections TP-sharded even with DCP
+            # enabled. Replicated Q is only an optimization: every sequence
+            # shard still needs every head's query, followed by an LSE-aware
+            # reduce-scatter. Never decode just this rank's history/heads.
+            q_local = absorb_query(
+                query, layer.W_UK_T, nope_dim=int(layer.qk_nope_head_dim),
+            )
+            q_absorbed = dcp_group.all_gather(q_local.contiguous(), dim=1)
         record = pack_latent_record(latent, direct_key)
         value = record[..., : latent.size(-1)]
         partial_output = torch.empty(
@@ -327,13 +374,15 @@ def _run_lod_mla(
             value,
             partial_output,
         )
-        from vllm.distributed.parallel_state import get_dcp_group
-        from vllm.v1.attention.ops.common import cp_lse_ag_out_rs
+        try:
+            from vllm.v1.attention.ops.dcp import cp_lse_ag_out_rs
+        except ImportError:  # Older vLLM releases kept this helper in common.
+            from vllm.v1.attention.ops.common import cp_lse_ag_out_rs
 
         attention_output = cp_lse_ag_out_rs(
             partial_output,
             partial_lse,
-            get_dcp_group(),
+            dcp_group,
             is_lse_base_on_e=True,
         )
         output = (output_buffer if output_buffer is not None else
@@ -390,16 +439,25 @@ def _run_lod_mla(
     )
 
     if getattr(pool, "direct_prefill_plan", None) is not None:
-        pool.direct_prefill(
-            q_absorbed,
-            record,
-            value,
-            attention_output,
-            mla_query=query,
-            mla_w_uk_t=layer.W_UK_T,
-            mla_w_uv=(layer.W_UV if projected_prefill else None),
-            defer_mla_query_absorption=projected_prefill,
-        )
+        # Some MLA wrappers also provide complete group-head queries during
+        # prefill. Reuse them when present; this K3 image currently supplies
+        # them only during decode, so sharded prefill still needs a gather.
+        if getattr(pool, "kimi_sharded_leaf_prefill", False):
+            pool._kimi_replicated_prefill_query = q_dcp_replicated
+        try:
+            pool.direct_prefill(
+                q_absorbed,
+                record,
+                value,
+                attention_output,
+                mla_query=query,
+                mla_w_uk_t=layer.W_UK_T,
+                mla_w_uv=(layer.W_UV if projected_prefill else None),
+                defer_mla_query_absorption=projected_prefill,
+            )
+        finally:
+            if hasattr(pool, "_kimi_replicated_prefill_query"):
+                del pool._kimi_replicated_prefill_query
     elif bool(getattr(pool, "decode_enabled", False)) and int(query.size(0)) <= int(
         pool.max_requests
     ):
@@ -446,6 +504,13 @@ def register_kimi_k3_lod() -> None:
     """Install the narrow MLA interception used only when a LoD pool exists."""
 
     _install_attention_only_fixture()
+    if os.getenv("LOD_KIMI_REQUEST_OWNER_PREFILL") == "1":
+        from .kimi_k3_owner_moe import install_owner_moe_chunking
+
+        install_owner_moe_chunking()
+        from .kimi_k3_owner_residual import install_owner_residual_sharding
+
+        install_owner_residual_sharding()
 
     import vllm.model_executor.layers.attention.mla_attention as mla_module
     from vllm.config import get_current_vllm_config
@@ -566,6 +631,9 @@ def register_kimi_k3_dense() -> None:
     MLA registration and cache path without any LoD interception machinery.
     """
 
+    # The private attention-only fixture must remove its FFN in dense controls
+    # as well as LoD. Ordinary checkpoints never enable that config field.
+    _install_attention_only_fixture()
     _install_dense_gluon_decode()
 
 

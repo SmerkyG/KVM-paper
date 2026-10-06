@@ -8,6 +8,7 @@ from typing import Any
 import torch
 import triton
 
+from ._coarse_route_views import coarse_route_mean_view
 from .aiter_page1_attention import (
     kernel_exact_residual_int4_attention_3d,
     kernel_exact_tiered_attention_3d,
@@ -43,7 +44,7 @@ from .paged_routing import (
     _reduce_decode_route_topk_kernel,
     materialized_state_route_gqa,
 )
-from .distributed_topk import distributed_global_topk, localize_global_topk
+from .distributed_topk import distributed_global_topk_into
 
 
 def fused_decode_paged_lod_attention(
@@ -984,18 +985,13 @@ def fused_decode_paged_lod_attention(
                     and (route_kernel is _decode_route_coarse_gqa_groups_kernel)
                     and isinstance(gqa_union_page1_k, torch.Tensor)
                 ):
-                    coarse_rows = (
-                        int(state_k.size(0))
-                        * int(state_k.size(1))
-                        * int(state_k.size(2))
+                    cached_means = coarse_route_mean_view(
+                        state_k, gqa_union_page1_k,
+                        int(gqa_union_page1_coarse_offset),
+                        gqa_union_physical_kv_heads,
                     )
-                    coarse_begin = int(gqa_union_page1_coarse_offset)
-                    if coarse_begin >= 0 and coarse_begin + coarse_rows <= int(
-                        gqa_union_page1_k.size(0)
-                    ):
-                        route_state_k = gqa_union_page1_k.narrow(
-                            0, coarse_begin, coarse_rows
-                        ).view_as(state_k)
+                    if cached_means is not None:
+                        route_state_k = cached_means
                         route_keys_are_means = True
                 route_arguments = (
                     q,
@@ -1114,24 +1110,15 @@ def fused_decode_paged_lod_attention(
                         sink_len = int(sink_k.size(2)) if include_sink else 0
                         route_state_k = state_k
                         route_keys_are_means = False
-                        coarse_rows = (
-                            int(state_k.size(0))
-                            * int(state_k.size(1))
-                            * int(state_k.size(2))
-                        )
-                        coarse_begin = int(gqa_union_page1_coarse_offset)
-                        if (
-                            isinstance(gqa_union_page1_k, torch.Tensor)
-                            and coarse_begin >= 0
-                            and (
-                                coarse_begin + coarse_rows
-                                <= int(gqa_union_page1_k.size(0))
+                        if isinstance(gqa_union_page1_k, torch.Tensor):
+                            cached_means = coarse_route_mean_view(
+                                state_k, gqa_union_page1_k,
+                                int(gqa_union_page1_coarse_offset),
+                                gqa_union_physical_kv_heads,
                             )
-                        ):
-                            route_state_k = gqa_union_page1_k.narrow(
-                                0, coarse_begin, coarse_rows
-                            ).view_as(state_k)
-                            route_keys_are_means = True
+                            if cached_means is not None:
+                                route_state_k = cached_means
+                                route_keys_are_means = True
                         _decode_route_coarse_gqa_groups_fixed_prepare_kernel[
                             route_rows, active_groups
                         ](
@@ -1344,6 +1331,8 @@ def fused_decode_paged_lod_attention(
                                         if max_open_centroid_leaves is not None
                                         else 0
                                     ),
+                                    SLOT_LENGTH_BATCH_STRIDE=slot_lengths.stride(0),
+                                    SLOT_LENGTH_HEAD_STRIDE=slot_lengths.stride(1),
                                     num_warps=2
                                     if packed_fp16_route_candidates
                                     else route_reduce_num_warps,
@@ -1389,6 +1378,8 @@ def fused_decode_paged_lod_attention(
                             if max_open_centroid_leaves is not None
                             else 0
                         ),
+                        SLOT_LENGTH_BATCH_STRIDE=slot_lengths.stride(0),
+                        SLOT_LENGTH_HEAD_STRIDE=slot_lengths.stride(1),
                         num_warps=route_reduce_num_warps,
                         waves_per_eu=waves_per_eu,
                     )
@@ -1427,6 +1418,8 @@ def fused_decode_paged_lod_attention(
                             if max_open_centroid_leaves is not None
                             else 0
                         ),
+                        SLOT_LENGTH_BATCH_STRIDE=slot_lengths.stride(0),
+                        SLOT_LENGTH_HEAD_STRIDE=slot_lengths.stride(1),
                         num_warps=route_reduce_num_warps,
                         waves_per_eu=waves_per_eu,
                     )
@@ -1437,22 +1430,15 @@ def fused_decode_paged_lod_attention(
                 raise ValueError("distributed routing requires an executed state route")
             local_route_scores = buffers["route_top_scores"]
             local_route_slots = top_slots
-            global_scores, global_owners, global_slots = distributed_global_topk(
+            distributed_global_topk_into(
                 local_route_scores,
                 local_route_slots,
                 distributed_route_group,
-            )
-            owned_scores, owned_slots = localize_global_topk(
-                global_scores,
-                global_owners,
-                global_slots,
-                local_rank=int(distributed_route_group.rank_in_group),
+                packed=buffers["distributed_route_packed"],
             )
             # Preserve the fixed buffer addresses consumed by captured leaf
             # and correction kernels. Non-owner routes remain -1/-inf, which
             # is the same empty-route representation used for short states.
-            local_route_scores.copy_(owned_scores)
-            local_route_slots.copy_(owned_slots)
             top_slots = local_route_slots
         if recursive_page_cache is not None:
 
@@ -1967,12 +1953,15 @@ def fused_decode_paged_lod_attention(
                 buffers["gqa_union_hip_block_table"]
                 if gqa_union_hip_exact
                 else buffers["gqa_union_token_indices"]
-            )
+            )[:sequence_count]
             hip_context_lens = (
                 buffers["gqa_union_hip_context_lens"]
                 if gqa_union_hip_exact
                 else buffers["gqa_union_token_counts"]
-            )
+            )[:sequence_count]
+            # Scratch is reserved for the maximum request capacity. Mixed
+            # scheduler steps can decode fewer rows; pass live metadata views
+            # to shape-validated consumers without shrinking their storage.
             direct_fixed_routes = bool(
                 gqa_union_fixed_mask
                 and gqa_union_fixed_mask_direct_routes
@@ -2418,17 +2407,20 @@ def fused_decode_paged_lod_attention(
                     from lod_attention.kernels.kimi_gluon_decode import (
                         KIMI_GLUON_LOD_SPLITS,
                         absorbed_mla_lod_decode_gfx942,
+                        kimi_lod_decode_splits,
                     )
 
+                    consumer_splits = kimi_lod_decode_splits(
+                        batch, head_tiled_metadata=gqa_union_head_tiled_metadata)
                     if gqa_union_head_tiled_metadata:
                         compact_query = q[:, :, 0, :]
                         compact_out = output[:, :, 0, :]
                         compact_partial = buffers["kimi_gluon_partial"][
                             :sequence_count
-                        ].view(batch, query_heads, KIMI_GLUON_LOD_SPLITS, value_dim)
+                        ].view(batch, query_heads, KIMI_GLUON_LOD_SPLITS, value_dim)[:, :, :consumer_splits]
                         compact_partial_lse = buffers["kimi_gluon_partial_lse"][
                             :sequence_count
-                        ].view(batch, query_heads, KIMI_GLUON_LOD_SPLITS)
+                        ].view(batch, query_heads, KIMI_GLUON_LOD_SPLITS)[:, :, :consumer_splits]
                     else:
                         compact_query = q[:, :, 0, :].reshape(
                             sequence_count, kv_group_size, head_dim
@@ -2481,7 +2473,7 @@ def fused_decode_paged_lod_attention(
                         dcp_rank=dcp_rank,
                         dcp_world_size=dcp_world_size,
                         dcp_interleave_size=dcp_interleave_size,
-                        num_splits=KIMI_GLUON_LOD_SPLITS,
+                        num_splits=consumer_splits,
                         partial=compact_partial,
                         partial_lse=compact_partial_lse,
                         final_lse=(

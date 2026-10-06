@@ -1730,6 +1730,8 @@ def _reduce_decode_route_coarse_kernel(
     LOG_MASS_FRACTION: tl.constexpr,
     CANDIDATES_PER_GROUP: tl.constexpr = 8,
     MAX_OPEN_LEAVES: tl.constexpr = 0,
+    SLOT_LENGTH_BATCH_STRIDE: tl.constexpr = -1,
+    SLOT_LENGTH_HEAD_STRIDE: tl.constexpr = -1,
 ):
     query_row = tl.program_id(0).to(tl.int64)
     candidate_offset = tl.arange(0, CANDIDATE_TILE)
@@ -1775,7 +1777,14 @@ def _reduce_decode_route_coarse_kernel(
         safe_slot = tl.where(selected, best_indices, 0).to(tl.int64)
         slot_length = tl.load(
             slot_lengths
-            + (cache_batch * KV_HEADS + kv_head) * STATE_CAPACITY
+            + cache_batch * (
+                KV_HEADS * STATE_CAPACITY
+                if SLOT_LENGTH_BATCH_STRIDE < 0 else SLOT_LENGTH_BATCH_STRIDE
+            )
+            + kv_head * (
+                STATE_CAPACITY
+                if SLOT_LENGTH_HEAD_STRIDE < 0 else SLOT_LENGTH_HEAD_STRIDE
+            )
             + safe_slot,
             mask=selected,
             other=0,
@@ -1858,6 +1867,8 @@ def _reduce_decode_route_topk_kernel(
     PACKED_CANDIDATES: tl.constexpr = False,
     PACKED_FP16_CANDIDATES: tl.constexpr = False,
     MAX_OPEN_LEAVES: tl.constexpr = 0,
+    SLOT_LENGTH_BATCH_STRIDE: tl.constexpr = -1,
+    SLOT_LENGTH_HEAD_STRIDE: tl.constexpr = -1,
 ):
     """Reduce score-only route candidates without serial coarse PV work."""
     query_row = tl.program_id(0).to(tl.int64)
@@ -1977,7 +1988,14 @@ def _reduce_decode_route_topk_kernel(
         safe_slot = tl.where(selected, best_indices, 0).to(tl.int64)
         slot_length = tl.load(
             slot_lengths
-            + (cache_batch * KV_HEADS + kv_head) * STATE_CAPACITY
+            + cache_batch * (
+                KV_HEADS * STATE_CAPACITY
+                if SLOT_LENGTH_BATCH_STRIDE < 0 else SLOT_LENGTH_BATCH_STRIDE
+            )
+            + kv_head * (
+                STATE_CAPACITY
+                if SLOT_LENGTH_HEAD_STRIDE < 0 else SLOT_LENGTH_HEAD_STRIDE
+            )
             + safe_slot,
             mask=selected,
             other=0,
@@ -2057,6 +2075,8 @@ def _reduce_decode_route_coarse_vector_topk_kernel(
     LOG_MASS_FRACTION: tl.constexpr,
     CANDIDATES_PER_GROUP: tl.constexpr = 8,
     MAX_OPEN_LEAVES: tl.constexpr = 0,
+    SLOT_LENGTH_BATCH_STRIDE: tl.constexpr = -1,
+    SLOT_LENGTH_HEAD_STRIDE: tl.constexpr = -1,
 ):
     """Reduce route candidates and segment outputs with parallel axes."""
     query_row = tl.program_id(0).to(tl.int64)
@@ -2090,7 +2110,14 @@ def _reduce_decode_route_coarse_vector_topk_kernel(
         safe_slot = tl.where(selected, best_indices, 0).to(tl.int64)
         slot_length = tl.load(
             slot_lengths
-            + (cache_batch * KV_HEADS + kv_head) * STATE_CAPACITY
+            + cache_batch * (
+                KV_HEADS * STATE_CAPACITY
+                if SLOT_LENGTH_BATCH_STRIDE < 0 else SLOT_LENGTH_BATCH_STRIDE
+            )
+            + kv_head * (
+                STATE_CAPACITY
+                if SLOT_LENGTH_HEAD_STRIDE < 0 else SLOT_LENGTH_HEAD_STRIDE
+            )
             + safe_slot,
             mask=selected,
             other=0,

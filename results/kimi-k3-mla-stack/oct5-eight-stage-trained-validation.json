@@ -1,0 +1,596 @@
+{
+  "scope": "Experimental eight-stage K3 attention pipeline with native distributed FFNs.\n\nCompare owner-local KDA+MLA with owner MLA/native TP8 KDA, keeping the\ntrained EP8 INT4 MoE at its original place between every attention layer.\nThis is a prefill layout benchmark, not an installed vLLM serving scheduler.\nEmbedding, both AttnRes mixes, FFNs, transfers and LoD updates are timed;\nweight assembly, final output normalization/LM head and sampling are not.\n",
+  "workers": [
+    {
+      "rank": 0,
+      "layers": 24,
+      "ranges": [
+        [
+          0,
+          3
+        ],
+        [
+          3,
+          6
+        ],
+        [
+          6,
+          9
+        ],
+        [
+          9,
+          12
+        ],
+        [
+          12,
+          15
+        ],
+        [
+          15,
+          18
+        ],
+        [
+          18,
+          21
+        ],
+        [
+          21,
+          24
+        ]
+      ],
+      "kinds": [
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla"
+      ],
+      "checks": {},
+      "points": {}
+    },
+    {
+      "rank": 1,
+      "layers": 24,
+      "ranges": [
+        [
+          0,
+          3
+        ],
+        [
+          3,
+          6
+        ],
+        [
+          6,
+          9
+        ],
+        [
+          9,
+          12
+        ],
+        [
+          12,
+          15
+        ],
+        [
+          15,
+          18
+        ],
+        [
+          18,
+          21
+        ],
+        [
+          21,
+          24
+        ]
+      ],
+      "kinds": [
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla"
+      ],
+      "checks": {},
+      "points": {}
+    },
+    {
+      "rank": 2,
+      "layers": 24,
+      "ranges": [
+        [
+          0,
+          3
+        ],
+        [
+          3,
+          6
+        ],
+        [
+          6,
+          9
+        ],
+        [
+          9,
+          12
+        ],
+        [
+          12,
+          15
+        ],
+        [
+          15,
+          18
+        ],
+        [
+          18,
+          21
+        ],
+        [
+          21,
+          24
+        ]
+      ],
+      "kinds": [
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla"
+      ],
+      "checks": {},
+      "points": {}
+    },
+    {
+      "rank": 3,
+      "layers": 24,
+      "ranges": [
+        [
+          0,
+          3
+        ],
+        [
+          3,
+          6
+        ],
+        [
+          6,
+          9
+        ],
+        [
+          9,
+          12
+        ],
+        [
+          12,
+          15
+        ],
+        [
+          15,
+          18
+        ],
+        [
+          18,
+          21
+        ],
+        [
+          21,
+          24
+        ]
+      ],
+      "kinds": [
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla"
+      ],
+      "checks": {},
+      "points": {}
+    },
+    {
+      "rank": 4,
+      "layers": 24,
+      "ranges": [
+        [
+          0,
+          3
+        ],
+        [
+          3,
+          6
+        ],
+        [
+          6,
+          9
+        ],
+        [
+          9,
+          12
+        ],
+        [
+          12,
+          15
+        ],
+        [
+          15,
+          18
+        ],
+        [
+          18,
+          21
+        ],
+        [
+          21,
+          24
+        ]
+      ],
+      "kinds": [
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla"
+      ],
+      "checks": {},
+      "points": {}
+    },
+    {
+      "rank": 5,
+      "layers": 24,
+      "ranges": [
+        [
+          0,
+          3
+        ],
+        [
+          3,
+          6
+        ],
+        [
+          6,
+          9
+        ],
+        [
+          9,
+          12
+        ],
+        [
+          12,
+          15
+        ],
+        [
+          15,
+          18
+        ],
+        [
+          18,
+          21
+        ],
+        [
+          21,
+          24
+        ]
+      ],
+      "kinds": [
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla"
+      ],
+      "checks": {},
+      "points": {}
+    },
+    {
+      "rank": 6,
+      "layers": 24,
+      "ranges": [
+        [
+          0,
+          3
+        ],
+        [
+          3,
+          6
+        ],
+        [
+          6,
+          9
+        ],
+        [
+          9,
+          12
+        ],
+        [
+          12,
+          15
+        ],
+        [
+          15,
+          18
+        ],
+        [
+          18,
+          21
+        ],
+        [
+          21,
+          24
+        ]
+      ],
+      "kinds": [
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla"
+      ],
+      "checks": {},
+      "points": {}
+    },
+    {
+      "rank": 7,
+      "layers": 24,
+      "ranges": [
+        [
+          0,
+          3
+        ],
+        [
+          3,
+          6
+        ],
+        [
+          6,
+          9
+        ],
+        [
+          9,
+          12
+        ],
+        [
+          12,
+          15
+        ],
+        [
+          15,
+          18
+        ],
+        [
+          18,
+          21
+        ],
+        [
+          21,
+          24
+        ]
+      ],
+      "kinds": [
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla"
+      ],
+      "checks": {
+        "owner_kda": "all first-512-token outputs bitwise equal to sequential same-layout execution",
+        "tp8_kda": "all first-512-token outputs bitwise equal to sequential same-layout execution"
+      },
+      "points": {}
+    }
+  ],
+  "checks": {
+    "owner_kda": "all first-512-token outputs bitwise equal to sequential same-layout execution",
+    "tp8_kda": "all first-512-token outputs bitwise equal to sequential same-layout execution"
+  },
+  "points": {},
+  "trained_weights": true,
+  "native_moe_ep": 8,
+  "attention_stages": 8,
+  "layer_count": 24,
+  "stage_ranges": [
+    [
+      0,
+      3
+    ],
+    [
+      3,
+      6
+    ],
+    [
+      6,
+      9
+    ],
+    [
+      9,
+      12
+    ],
+    [
+      12,
+      15
+    ],
+    [
+      15,
+      18
+    ],
+    [
+      18,
+      21
+    ],
+    [
+      21,
+      24
+    ]
+  ],
+  "chunk_size": 2048,
+  "pipeline_overlap": true,
+  "cuda_graph_capture": false,
+  "weight_assembly_timed": false,
+  "lm_head_timed": false,
+  "input_token_sha256": [
+    "643959862a12e3b465e477914a90f315b360b13a6b10de22997ddbf7a019d06f",
+    "430f40af492e31ec5ab0daadc1213ceddc7e13584ecbe4821fb21da628136d45",
+    "213098321f30e138144a446dfcfd6284c240fde6996be5c04c64a067a0663cf7",
+    "1d2754e70b39749ea53c32a63ecf43edc4e35319efa6c5fc9acca8988e4604ac",
+    "6fd30e66d95c790d431466009281c7ef33aff4232efff9c67a0930bbe7763646",
+    "e40dbb80f2f1ca9f2e2121bbe5b357e4826685f5422360dc61c66d6e4f0fc178",
+    "ca73d57375b26936df6d80868ea8b3b64ed05d422a408e544a6ad1ddc4c0eb4b",
+    "960f67c8798114a83d9e6409a378fec4af1f89cd4ab8faca4ae8919c82a9456e"
+  ],
+  "additional_weight_storage": "prototype retains native TP shards and only stage-owned full attention weights",
+  "timing": "one shape-exact warmup and one synchronized wall pass; slowest worker; final-stage completion events separately"
+}

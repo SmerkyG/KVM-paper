@@ -1,0 +1,81 @@
+{
+  "checkpoint": "/tmp/dan-agent-kimi-k3-f831ab66814297da540d832a5235f8e904f29d06",
+  "max_model_len": 263178,
+  "mode": "two-tier",
+  "capacity_only": true,
+  "diagnostic_only": false,
+  "route_scatter_validation": false,
+  "weight_cache_id": "kimi-k3-node2-full-int4-v1",
+  "real_token_cache": "results/kimi-k3-full-model-current/prolong-kimi-k3-speed-token-cache.pt",
+  "reference_baselines": [
+    "results/kimi-k3-full-model-current/oct4-full-b8-decode-256k512k-four-updates.json"
+  ],
+  "request_owner_prefill": false,
+  "owner_local_mla": false,
+  "owner_tp_mla": false,
+  "head_owner_mla": false,
+  "attention_owners": null,
+  "attention_heads_per_owner": null,
+  "owner_local_projection_audits": null,
+  "scheduler_row_chunk": 16384,
+  "scheduler_total_budget": 16392,
+  "batch_size": 8,
+  "decode_tokens": 2,
+  "reference_decode_trace": true,
+  "decode_execution": "native",
+  "tensor_parallel_size": 8,
+  "decode_context_parallel_size": 8,
+  "repeats": 1,
+  "rotating_prefills": false,
+  "rotating_cohort": 8,
+  "distributed_prefill_construction": false,
+  "cross_layer_prefill_group": null,
+  "independent_local_dcp_prefill": false,
+  "replicated_summary_dcp_prefill": false,
+  "global_centroid_sharded_leaf_prefill": false,
+  "transient_reconstructed_prefill_workspace": false,
+  "sharded_workspace_layout": null,
+  "environment": {
+    "LOD_KIMI_SORT_LEAF_ROUTES": "1",
+    "LOD_KIMI_PREFILL_SHADOW_GROW_CHUNK": "65536",
+    "LOD_KIMI_DIRECT_LEAF_RESULT": "1",
+    "LOD_KIMI_LEAF_BLOCK_M": "64",
+    "LOD_KIMI_LEAF_WARPS": "1",
+    "LOD_KIMI_SUBTILE64": "score",
+    "LOD_KIMI_REUSE_PREFILL_ALLOCATOR": "1",
+    "LOD_KIMI_TILE_REFINE": "1",
+    "LOD_KIMI_PREFILL_MIN_FREE_GIB": "4",
+    "LOD_KIMI_TILE_PACK_QUERY_BLOCK": "1024",
+    "LOD_KIMI_COMPACT_SELECTED_PROJECTION": "1",
+    "LOD_BENCHMARK_SYNC_PREFILL_CACHE": "1",
+    "CLUSTER_RUN_NODE": "dev-shared-research-2.dev-training.svc.cluster.local",
+    "HSA_NO_SCRATCH_RECLAIM": "1",
+    "LOD_KIMI_CHUNK_TILE_PACK": "1",
+    "LOD_BENCHMARK_PREFILL_MEMORY_AUDIT": "1",
+    "LOD_KIMI_PREFILL_RECLAIM_INTERVAL": "32768",
+    "LOD_BENCHMARK_SYNCHRONIZED_DECODE": "1",
+    "LOD_BENCHMARK_ADMISSION_COHORT": "8"
+  },
+  "measurements": {},
+  "gpu_memory_utilization": 0.8,
+  "kv_cache_memory_bytes": 1073741824,
+  "worker_attention_audit_status": "pending",
+  "measurement_status": "failed",
+  "graph_prefill_requested": false,
+  "current_phase": {
+    "length": 262144,
+    "phase": "warmup",
+    "timestamp_unix": 1791302235.797253
+  },
+  "phase_history": [
+    {
+      "length": 262144,
+      "phase": "warmup",
+      "timestamp_unix": 1791302235.797253
+    }
+  ],
+  "failure": {
+    "exception_type": "EngineDeadError",
+    "message": "EngineCore encountered an issue. See stack trace (above) for the root cause."
+  }
+}

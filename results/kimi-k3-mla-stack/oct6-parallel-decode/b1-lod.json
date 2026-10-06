@@ -1,0 +1,5582 @@
+{
+  "batch_size": 1,
+  "decode_ms_per_batch_step": 2.159874602788832,
+  "diagnostic_scope": "separate instrumented pass; kernel sums are not serving latency",
+  "diagnostic_steps": 257,
+  "diagnostic_trace": [
+    {
+      "actual_graph_replays": 257,
+      "cpu_events": [
+        {
+          "calls": 257,
+          "name": "hipGraphLaunch",
+          "self_cpu_us": 375788.89299999893
+        },
+        {
+          "calls": 256,
+          "name": "hipEventSynchronize",
+          "self_cpu_us": 247115.653
+        },
+        {
+          "calls": 3696,
+          "name": "hipLaunchKernel",
+          "self_cpu_us": 32526.335000001818
+        },
+        {
+          "calls": 2668,
+          "name": "hipModuleLaunchKernel",
+          "self_cpu_us": 20642.21000000128
+        },
+        {
+          "calls": 1792,
+          "name": "hipEventRecordWithFlags",
+          "self_cpu_us": 16897.946000001226
+        },
+        {
+          "calls": 1192,
+          "name": "hipMemcpyAsync",
+          "self_cpu_us": 10465.011999999717
+        },
+        {
+          "calls": 256,
+          "name": "record_param_comms",
+          "self_cpu_us": 9774.821999998623
+        },
+        {
+          "calls": 768,
+          "name": "aten::index",
+          "self_cpu_us": 6932.82800000005
+        },
+        {
+          "calls": 256,
+          "name": "aiter::rmsnorm",
+          "self_cpu_us": 6595.828999999744
+        },
+        {
+          "calls": 256,
+          "name": "vllm::all_gather",
+          "self_cpu_us": 6221.110999999042
+        },
+        {
+          "calls": 2104,
+          "name": "aten::copy_",
+          "self_cpu_us": 6100.946000002938
+        },
+        {
+          "calls": 9073,
+          "name": "aten::slice",
+          "self_cpu_us": 5072.458999999338
+        },
+        {
+          "calls": 256,
+          "name": "vllm::rocm_unquantized_gemm",
+          "self_cpu_us": 4957.982999999772
+        },
+        {
+          "calls": 256,
+          "name": "_rocm_C::wvSplitK",
+          "self_cpu_us": 4242.827999999297
+        },
+        {
+          "calls": 3348,
+          "name": "aten::empty",
+          "self_cpu_us": 4106.646000002125
+        },
+        {
+          "calls": 1448,
+          "name": "aten::fill_",
+          "self_cpu_us": 3901.4900000003677
+        },
+        {
+          "calls": 16372,
+          "name": "hipPointerGetAttribute",
+          "self_cpu_us": 3680.412000002134
+        },
+        {
+          "calls": 256,
+          "name": "vllm_ir::rms_norm",
+          "self_cpu_us": 3567.336000000114
+        },
+        {
+          "calls": 1412,
+          "name": "aten::empty_strided",
+          "self_cpu_us": 3154.7289999984428
+        },
+        {
+          "calls": 11093,
+          "name": "aten::as_strided",
+          "self_cpu_us": 2786.900000000667
+        },
+        {
+          "calls": 256,
+          "name": "vllm_aiter::rms_norm",
+          "self_cpu_us": 2614.8270000000875
+        },
+        {
+          "calls": 256,
+          "name": "c10d::_allgather_base_",
+          "self_cpu_us": 2267.9119999994455
+        },
+        {
+          "calls": 256,
+          "name": "aten::argmax",
+          "self_cpu_us": 2015.6230000002206
+        },
+        {
+          "calls": 2,
+          "name": "hipDeviceSynchronize",
+          "self_cpu_us": 1874.5860000000102
+        },
+        {
+          "calls": 256,
+          "name": "hipStreamWaitEvent",
+          "self_cpu_us": 1848.5690000004906
+        },
+        {
+          "calls": 304,
+          "name": "aten::gather",
+          "self_cpu_us": 1738.2080000011288
+        },
+        {
+          "calls": 3327,
+          "name": "hipStreamIsCapturing",
+          "self_cpu_us": 1634.050000001485
+        },
+        {
+          "calls": 608,
+          "name": "aten::arange",
+          "self_cpu_us": 1298.5529999980004
+        },
+        {
+          "calls": 840,
+          "name": "aten::_to_copy",
+          "self_cpu_us": 912.0800000005743
+        },
+        {
+          "calls": 512,
+          "name": "aten::is_pinned",
+          "self_cpu_us": 873.8569999988003
+        },
+        {
+          "calls": 512,
+          "name": "hipPointerGetAttributes",
+          "self_cpu_us": 749.2779999999552
+        },
+        {
+          "calls": 2424,
+          "name": "aten::view",
+          "self_cpu_us": 738.1900000011515
+        },
+        {
+          "calls": 256,
+          "name": "aiter::rms_norm",
+          "self_cpu_us": 686.8829999991108
+        },
+        {
+          "calls": 768,
+          "name": "hipEventDestroy",
+          "self_cpu_us": 651.2350000001784
+        },
+        {
+          "calls": 12,
+          "name": "aten::bmm",
+          "self_cpu_us": 620.0630000008969
+        },
+        {
+          "calls": 268,
+          "name": "aten::max",
+          "self_cpu_us": 595.4729999990282
+        },
+        {
+          "calls": 1840,
+          "name": "aten::reshape",
+          "self_cpu_us": 578.2319999997928
+        },
+        {
+          "calls": 560,
+          "name": "aten::zeros",
+          "self_cpu_us": 526.1729999989684
+        },
+        {
+          "calls": 1644,
+          "name": "aten::to",
+          "self_cpu_us": 477.8930000000346
+        },
+        {
+          "calls": 572,
+          "name": "aten::empty_like",
+          "self_cpu_us": 419.98500000177205
+        }
+      ],
+      "gpu_activity_union_ms": 588.2765930000085,
+      "gpu_timeline_span_ms": 733.877742,
+      "kernels": [
+        {
+          "calls": 9508,
+          "name": "void meta::comms::ddaAllGatherIpc<signed char, 8, false>(signed char* const*, signed char*, unsigned long, signed char const*, int, meta::comms::IpcGpuBarrier) [clone .kd]",
+          "summed_gpu_us": 84678.42800000064
+        },
+        {
+          "calls": 12336,
+          "name": "void wvSplitK_hf_sml_<__hip_bfloat16, 64, 2, 16, 8, 2, 1>(int, int, int, int, int, int, __hip_bfloat16 const*, __hip_bfloat16 const*, __hip_bfloat16 const*, __hip_bfloat16*, int, int) [clone .kd]",
+          "summed_gpu_us": 82264.4619999965
+        },
+        {
+          "calls": 3084,
+          "name": "_absorbed_mla_stage1_gfx942.kd",
+          "summed_gpu_us": 73502.84000000078
+        },
+        {
+          "calls": 3084,
+          "name": "_decode_route_coarse_gqa_groups_kernel.kd",
+          "summed_gpu_us": 41182.71399999832
+        },
+        {
+          "calls": 3084,
+          "name": "void meta::comms::ddaReduceScatterIpc<__hip_bfloat16, 8, false>(__hip_bfloat16* const*, __hip_bfloat16*, unsigned long, __hip_bfloat16 const*, int, meta::comms::IpcGpuBarrier) [clone .kd]",
+          "summed_gpu_us": 26123.387999999573
+        },
+        {
+          "calls": 3341,
+          "name": "_attn_res_kernel.kd",
+          "summed_gpu_us": 22170.210999998446
+        },
+        {
+          "calls": 4533,
+          "name": "__amd_rocclr_copyBuffer.kd",
+          "summed_gpu_us": 17711.73100000232
+        },
+        {
+          "calls": 3341,
+          "name": "void aiter::ar_ll_gfx9<std::bfloat16_t, 8, 256>(std::bfloat16_t* const*, std::bfloat16_t*, std::bfloat16_t const*, unsigned long, int, unsigned int*, unsigned long) [clone .kd]",
+          "summed_gpu_us": 17499.605000001262
+        },
+        {
+          "calls": 3084,
+          "name": "void at::native::(anonymous namespace)::CatArrayBatchedCopy<at::native::(anonymous namespace)::OpaqueType<2u>, unsigned int, 3, 64, 64>(at::native::(anonymous namespace)::OpaqueType<2u>*, at::native::(anonymous namespace)::CatArrInputTensorMetadata<at::native::(anonymous namespace)::OpaqueType<2u>, unsigned int, 64, 64>, at::native::(anonymous namespace)::TensorSizeStride<unsigned int, 4u>, int, unsigned int) [clone .kd]",
+          "summed_gpu_us": 17264.419000000547
+        },
+        {
+          "calls": 3084,
+          "name": "Cijk_Ailk_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT32x16x128_MI16x16x1_SN_LDSB0_AFC1_AG0_AGGSUA0_AGNTAB0_AFEM1_AFEM1_ASEM1_BL1_BS1_CD1_1_CLR1_CLS0_CADS0_DTLA0_DTLB0_DTLM0_DTVA0_DTVB0_DTVMXSA0_DTVMXSB0_DTVSM0_DPLB0_EPS0_ELFLR0_EMLLn1_FDSI0_GRPM1_GRVWA8_GRVWB8_GSUAMBSK_GLS0_HPLR0_ISA942_ICIW0_IU1_K1_LDSTI0_LBSPPA512_LBSPPB256_LBSPPMXSA0_LBSPPMXSB0_LBSPPM0_LPA32_LPB16_LPMXSA0_LPMXSB0_LPM0_LRVW8_LWPMn1_MIAV0_MIWT2_1_MXLIBL_MXSFNS_MO40_MGRIPM1_NTn1_NTA0_NTB0_NTC0_NTD4_NTE0_NTMXSA0_NTMXSB0_NTM0_NTWS0_NVn1_NVA0_NVB0_NVC0_NVD0_NVE0_NVMXSA0_NVMXSB0_NVM0_NVWS0_NEPBS8_NLCA1_NLCB1_ONLL1_PAP0_PGL0_PGR2_PLR1_PKA1_SGROB0_SIA3_SS1_SPO0_SRVW0_SSO0_SVW2_SK0_SKFTR0_SKFDPO0_SKWS0_SKXCCM0_SNLL0_SIP1_SGRO0_TDMI0_TDMIM0_TDMS0_TIN0_THn1_THA0_THB0_THC0_THD0_THE0_THMXSA0_THMXSB0_THM0_THWS0_TLDS1_TLDSM1_ULSGRO0_USL1_USLMX0_UDFMAC0_UIOFGRO0_UPLRP0_USFGROn1_USI0_VSn1_VWA2_VWB1_WSGRA0_WSGRB0_WS64_WG16_4_4_WGMXCC1.kd",
+          "summed_gpu_us": 15725.762000000595
+        },
+        {
+          "calls": 3084,
+          "name": "void at::native::vectorized_elementwise_kernel<8, at::native::sigmoid_kernel_cuda(at::TensorIteratorBase&)::{lambda()#2}::operator()() const::{lambda()#4}::operator()() const::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul> >(int, at::native::sigmoid_kernel_cuda(at::TensorIteratorBase&)::{lambda()#2}::operator()() const::{lambda()#4}::operator()() const::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul>) [clone .kd]",
+          "summed_gpu_us": 14795.146000002183
+        },
+        {
+          "calls": 3084,
+          "name": "_reduce_head_tiled_mla_splits_kernel.kd",
+          "summed_gpu_us": 14773.154000001034
+        },
+        {
+          "calls": 3084,
+          "name": "_reduce_decode_route_topk_kernel.kd",
+          "summed_gpu_us": 14058.303999998956
+        },
+        {
+          "calls": 3084,
+          "name": "Cijk_Alik_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT16x16x512_MI16x16x1_SN_LDSB1_AFC1_AG0_AGGSUA0_AGNTAB0_AFEM1_AFEM1_ASEM1_BL1_BS1_CD1_1_CLR1_CLS0_CADS0_DTLA0_DTLB0_DTLM0_DTVA0_DTVB0_DTVMXSA0_DTVMXSB0_DTVSM0_DPLB0_EPS0_ELFLR0_EMLLn1_FDSI0_GRPM1_GRVWA8_GRVWB8_GSUAMBSK_GLS0_HPLR0_ISA942_ICIW0_IU1_K1_LDSTI0_LBSPPA1024_LBSPPB1024_LBSPPMXSA0_LBSPPMXSB0_LBSPPM0_LPA16_LPB16_LPMXSA0_LPMXSB0_LPM0_LRVW8_LWPMn1_MIAV0_MIWT1_1_MXLIBL_MXSFNS_MO40_MGRIPM1_NTn1_NTA0_NTB0_NTC0_NTD4_NTE0_NTMXSA0_NTMXSB0_NTM0_NTWS0_NVn1_NVA0_NVB0_NVC0_NVD0_NVE0_NVMXSA0_NVMXSB0_NVM0_NVWS0_NEPBS16_NLCA1_NLCB1_ONLL1_PAP0_PGL0_PGR2_PLR1_PKA1_SGROB0_SIA3_SS1_SPO0_SRVW0_SSO0_SVW1_SK0_SKFTR0_SKFDPO0_SKWS0_SKXCCM0_SNLL0_SIP1_SGRO0_TDMI0_TDMIM0_TDMS0_TIN0_THn1_THA0_THB0_THC0_THD0_THE0_THMXSA0_THMXSB0_THM0_THWS0_TLDS1_TLDSM1_ULSGRO0_USL1_USLMX0_UDFMAC0_UIOFGRO0_UPLRP0_USFGROn1_USI0_VSn1_VWA1_VWB1_WSGRA0_WSGRB0_WS64_WG16_4_4_WGMXCC1.kd",
+          "summed_gpu_us": 14017.821000000076
+        },
+        {
+          "calls": 3084,
+          "name": "_materialize_decode_gqa_union_page_descriptors_kernel.kd",
+          "summed_gpu_us": 13947.99200000316
+        },
+        {
+          "calls": 3084,
+          "name": "kernel.kd",
+          "summed_gpu_us": 13939.764999999508
+        },
+        {
+          "calls": 3084,
+          "name": "_reduce_gathered_rank_topk_kernel.kd",
+          "summed_gpu_us": 13929.754000003157
+        },
+        {
+          "calls": 3084,
+          "name": "_decode_topk_gqa_union_kernel.kd",
+          "summed_gpu_us": 13809.115999996771
+        },
+        {
+          "calls": 3084,
+          "name": "void at::native::(anonymous namespace)::CatArrayBatchedCopy_contig<at::native::(anonymous namespace)::OpaqueType<2u>, unsigned int, 3, 128, 1>(at::native::(anonymous namespace)::OpaqueType<2u>*, at::native::(anonymous namespace)::CatArrInputTensorMetadata<at::native::(anonymous namespace)::OpaqueType<2u>, unsigned int, 128, 1>, at::native::(anonymous namespace)::TensorSizeStride<unsigned int, 4u>, int, unsigned int) [clone .kd]",
+          "summed_gpu_us": 13175.906000001753
+        },
+        {
+          "calls": 3084,
+          "name": "void at::native::vectorized_elementwise_kernel<8, at::native::BinaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 3ul> >(int, at::native::BinaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 3ul>) [clone .kd]",
+          "summed_gpu_us": 12626.462000001506
+        },
+        {
+          "calls": 3084,
+          "name": "_pack_route_candidates_kernel.kd",
+          "summed_gpu_us": 12139.437000000833
+        },
+        {
+          "calls": 3084,
+          "name": "void aiter::fused_qk_rmsnorm_kernel<std::bfloat16_t, 256, 8, true, 1>(std::bfloat16_t*, std::bfloat16_t*, std::bfloat16_t const*, std::bfloat16_t const*, std::bfloat16_t const*, std::bfloat16_t const*, float, float, int, int, int, int, int, int, int) [clone .kd]",
+          "summed_gpu_us": 12131.593999999885
+        },
+        {
+          "calls": 596,
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<int>, std::array<char*, 1ul> >(int, at::native::FillFunctor<int>, std::array<char*, 1ul>) [clone .kd]",
+          "summed_gpu_us": 2453.1310000012527
+        },
+        {
+          "calls": 256,
+          "name": "void at::native::index_elementwise_kernel<128, 4, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<2> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<2> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1}>(long, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<2> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<2> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1}) [clone .kd]",
+          "summed_gpu_us": 1346.6060000007642
+        },
+        {
+          "calls": 268,
+          "name": "void at::native::vectorized_elementwise_kernel<16, at::native::FillFunctor<bool>, std::array<char*, 1ul> >(int, at::native::FillFunctor<bool>, std::array<char*, 1ul>) [clone .kd]",
+          "summed_gpu_us": 1303.030000000655
+        },
+        {
+          "calls": 256,
+          "name": "_trace_replay_kernel.kd",
+          "summed_gpu_us": 1288.9680000000008
+        },
+        {
+          "calls": 256,
+          "name": "void wvSplitK_hf_sml_<__hip_bfloat16, 64, 1, 16, 8, 4, 1>(int, int, int, int, int, int, __hip_bfloat16 const*, __hip_bfloat16 const*, __hip_bfloat16 const*, __hip_bfloat16*, int, int) [clone .kd]",
+          "summed_gpu_us": 1269.408999999533
+        },
+        {
+          "calls": 256,
+          "name": "_gumbel_sample_kernel.kd",
+          "summed_gpu_us": 1250.3710000001602
+        },
+        {
+          "calls": 280,
+          "name": "void at::native::_scatter_gather_elementwise_kernel<256, 4, at::native::_cuda_scatter_gather_internal_kernel<false, at::native::OpaqueType<8>, long>::operator()<at::native::TensorAssign>(at::TensorIterator&, long, long, long, at::native::TensorAssign const&)::{lambda(int)#1}>(int, at::native::_cuda_scatter_gather_internal_kernel<false, at::native::OpaqueType<8>, long>::operator()<at::native::TensorAssign>(at::TensorIterator&, long, long, long, at::native::TensorAssign const&)::{lambda(int)#1}) [clone .kd]",
+          "summed_gpu_us": 1213.6270000002055
+        },
+        {
+          "calls": 256,
+          "name": "_dcp_local_seq_lens_kernel.kd",
+          "summed_gpu_us": 1171.3220000002102
+        },
+        {
+          "calls": 256,
+          "name": "_scatter_num_accepted_kernel.kd",
+          "summed_gpu_us": 1167.81000000105
+        },
+        {
+          "calls": 257,
+          "name": "triton_poi_fused_add_bitwise_and_bitwise_or_ge_lt_mul_sub_0.kd",
+          "summed_gpu_us": 1165.6119999997254
+        },
+        {
+          "calls": 256,
+          "name": "_gather_block_tables_kernel.kd",
+          "summed_gpu_us": 1165.4100000000094
+        },
+        {
+          "calls": 256,
+          "name": "_combine_sampled_and_draft_tokens_kernel.kd",
+          "summed_gpu_us": 1160.1729999997979
+        },
+        {
+          "calls": 257,
+          "name": "void at::native::elementwise_kernel_manual_unroll<128, 8, at::native::gpu_kernel_impl_nocast<at::native::(anonymous namespace)::masked_fill_kernel(at::TensorIterator&, c10::Scalar const&)::{lambda()#1}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16, bool)#1}>(at::TensorIteratorBase&, at::native::(anonymous namespace)::masked_fill_kernel(at::TensorIterator&, c10::Scalar const&)::{lambda()#1}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16, bool)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::(anonymous namespace)::masked_fill_kernel(at::TensorIterator&, c10::Scalar const&)::{lambda()#1}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16, bool)#1}>(at::TensorIteratorBase&, at::native::(anonymous namespace)::masked_fill_kernel(at::TensorIterator&, c10::Scalar const&)::{lambda()#1}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16, bool)#1} const&)::{lambda(int, bool)#1}) [clone .kd]",
+          "summed_gpu_us": 1158.2460000005483
+        },
+        {
+          "calls": 256,
+          "name": "_compute_slot_mappings_kernel.kd",
+          "summed_gpu_us": 1155.8499999996416
+        },
+        {
+          "calls": 256,
+          "name": "void at::native::index_elementwise_kernel<128, 4, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<4> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<4> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1}>(long, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<4> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<4> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1}) [clone .kd]",
+          "summed_gpu_us": 1152.5259999997884
+        },
+        {
+          "calls": 257,
+          "name": "void at::native::(anonymous namespace)::indexSelectSmallIndex<c10::BFloat16, long, unsigned int, 2, 2, -2>(at::cuda::detail::TensorInfo<c10::BFloat16, unsigned int>, at::cuda::detail::TensorInfo<c10::BFloat16 const, unsigned int>, at::cuda::detail::TensorInfo<long const, unsigned int>, int, int, unsigned int, long) [clone .kd]",
+          "summed_gpu_us": 1124.0909999997539
+        },
+        {
+          "calls": 256,
+          "name": "void aiter::add_rmsnorm_quant_kernel<std::bfloat16_t, std::bfloat16_t, 256, 32, false, false, true, 1>(std::bfloat16_t*, std::bfloat16_t*, float*, std::bfloat16_t*, std::bfloat16_t*, std::bfloat16_t*, double, bool, int, int, int, int, int, int, int, bool, bool) [clone .kd]",
+          "summed_gpu_us": 1094.325999999573
+        },
+        {
+          "calls": 257,
+          "name": "triton_poi_fused_bitwise_and_bitwise_not_bitwise_or_ge_lt_1.kd",
+          "summed_gpu_us": 1085.3359999991794
+        },
+        {
+          "calls": 256,
+          "name": "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<float, at::native::ArgMaxOps<float>, unsigned int, long, 4, 4> >(at::native::ReduceOp<float, at::native::ArgMaxOps<float>, unsigned int, long, 4, 4>) [clone .kd]",
+          "summed_gpu_us": 1084.1670000000408
+        },
+        {
+          "calls": 256,
+          "name": "_get_num_sampled_and_rejected_kernel.kd",
+          "summed_gpu_us": 922.3339999995228
+        },
+        {
+          "calls": 256,
+          "name": "_post_update_kernel.kd",
+          "summed_gpu_us": 805.0169999999466
+        },
+        {
+          "calls": 256,
+          "name": "_prepare_pos_seq_lens_kernel.kd",
+          "summed_gpu_us": 665.1770000002098
+        },
+        {
+          "calls": 256,
+          "name": "void at::native::index_elementwise_kernel<128, 4, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1}>(long, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1}) [clone .kd]",
+          "summed_gpu_us": 624.9750000000809
+        },
+        {
+          "calls": 256,
+          "name": "void (anonymous namespace)::elementwise_kernel_with_index<int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}>(int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}, function_traits<at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}>::result_type*) [clone .kd]",
+          "summed_gpu_us": 548.5360000000646
+        },
+        {
+          "calls": 48,
+          "name": "void at::native::elementwise_kernel_manual_unroll<128, 8, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int, bool)#1}) [clone .kd]",
+          "summed_gpu_us": 165.35000000020955
+        },
+        {
+          "calls": 24,
+          "name": "void at::native::bitonicSortKVInPlace<-2, -1, 16, 16, long, long, at::native::LTOp<long, true>, unsigned int>(at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, unsigned int, unsigned int, at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, at::native::LTOp<long, true>) [clone .kd]",
+          "summed_gpu_us": 133.85399999970105
+        },
+        {
+          "calls": 36,
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::bfloat16tofloat32_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul> >(int, at::native::bfloat16tofloat32_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul>) [clone .kd]",
+          "summed_gpu_us": 115.5230000000447
+        },
+        {
+          "calls": 48,
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<float>, std::array<char*, 1ul> >(int, at::native::FillFunctor<float>, std::array<char*, 1ul>) [clone .kd]",
+          "summed_gpu_us": 111.75200000032783
+        },
+        {
+          "calls": 36,
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctor_add<long>, std::array<char*, 3ul> >(int, at::native::CUDAFunctor_add<long>, std::array<char*, 3ul>) [clone .kd]",
+          "summed_gpu_us": 103.60300000011921
+        },
+        {
+          "calls": 24,
+          "name": "_prepare_state_clustering_keys_kernel.kd",
+          "summed_gpu_us": 91.69399999978486
+        },
+        {
+          "calls": 48,
+          "name": "void (anonymous namespace)::elementwise_kernel_with_index<int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>(int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}, function_traits<at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>::result_type*) [clone .kd]",
+          "summed_gpu_us": 91.43199999991339
+        },
+        {
+          "calls": 12,
+          "name": "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<c10::BFloat16, at::native::MaxOps<c10::BFloat16>, unsigned int, c10::BFloat16, 4, 4> >(at::native::ReduceOp<c10::BFloat16, at::native::MaxOps<c10::BFloat16>, unsigned int, c10::BFloat16, 4, 4>) [clone .kd]",
+          "summed_gpu_us": 81.10700000007637
+        },
+        {
+          "calls": 12,
+          "name": "Cijk_Alik_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT16x16x256_MI16x16x1_SN_LDSB1_AFC1_AG0_AGGSUA0_AGNTAB0_AFEM1_AFEM1_ASEM1_BL1_BS1_CD1_1_CLR1_CLS0_CADS0_DTLA0_DTLB0_DTLM0_DTVA0_DTVB0_DTVMXSA0_DTVMXSB0_DTVSM0_DPLB0_EPS0_ELFLR0_EMLLn1_FDSI0_GRPM1_GRVWA8_GRVWB8_GSUAMBSK_GLS0_HPLR0_ISA942_ICIW0_IU1_K1_LDSTI0_LBSPPA512_LBSPPB512_LBSPPMXSA0_LBSPPMXSB0_LBSPPM0_LPA16_LPB16_LPMXSA0_LPMXSB0_LPM0_LRVW8_LWPMn1_MIAV0_MIWT1_1_MXLIBL_MXSFNS_MO40_MGRIPM1_NTn1_NTA0_NTB0_NTC0_NTD4_NTE0_NTMXSA0_NTMXSB0_NTM0_NTWS0_NVn1_NVA0_NVB0_NVC0_NVD0_NVE0_NVMXSA0_NVMXSB0_NVM0_NVWS0_NEPBS16_NLCA1_NLCB1_ONLL1_PAP0_PGL0_PGR2_PLR1_PKA1_SGROB0_SIA3_SS1_SPO0_SRVW0_SSO0_SVW1_SK0_SKFTR0_SKFDPO0_SKWS0_SKXCCM0_SNLL0_SIP1_SGRO0_TDMI0_TDMIM0_TDMS0_TIN0_THn1_THA0_THB0_THC0_THD0_THE0_THMXSA0_THMXSB0_THM0_THWS0_TLDS1_TLDSM1_ULSGRO1_USL1_USLMX0_UDFMAC0_UIOFGRO0_UPLRP0_USFGROn1_USI0_VSn1_VWA1_VWB1_WSGRA0_WSGRB0_WS64_WG16_4_4_WGMXCC1.kd",
+          "summed_gpu_us": 71.3880000001518
+        },
+        {
+          "calls": 12,
+          "name": "void at::native::bitonicSortKVInPlace<-2, -1, 16, 16, float, long, at::native::LTOp<float, true>, unsigned int>(at::cuda::detail::TensorInfo<float, unsigned int>, unsigned int, unsigned int, unsigned int, at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, at::native::LTOp<float, true>) [clone .kd]",
+          "summed_gpu_us": 68.30799999996088
+        },
+        {
+          "calls": 12,
+          "name": "_materialize_page1_fixed_leaves_kernel.kd",
+          "summed_gpu_us": 60.665999999735504
+        },
+        {
+          "calls": 12,
+          "name": "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<float, at::native::MeanOps<float, float, float, float>, unsigned int, float, 4, 4> >(at::native::ReduceOp<float, at::native::MeanOps<float, float, float, float>, unsigned int, float, 4, 4>) [clone .kd]",
+          "summed_gpu_us": 57.907000000122935
+        },
+        {
+          "calls": 24,
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<long>, std::array<char*, 1ul> >(int, at::native::FillFunctor<long>, std::array<char*, 1ul>) [clone .kd]",
+          "summed_gpu_us": 52.2560000004014
+        },
+        {
+          "calls": 12,
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::bfloat16_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda(float)#1}, std::array<char*, 2ul> >(int, at::native::bfloat16_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda(float)#1}, std::array<char*, 2ul>) [clone .kd]",
+          "summed_gpu_us": 49.82799999997951
+        },
+        {
+          "calls": 12,
+          "name": "void at::native::tensor_kernel_scan_innermost_dim_with_indices<long, std::greater_equal<long> >(long const*, long*, long*, int, int, unsigned int, unsigned int, long, std::greater_equal<long>) [clone .kd]",
+          "summed_gpu_us": 46.58800000010524
+        },
+        {
+          "calls": 12,
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::(anonymous namespace)::pow_tensor_scalar_kernel_impl<float, float>(at::TensorIteratorBase&, float)::{lambda(float)#1}, std::array<char*, 2ul> >(int, at::native::(anonymous namespace)::pow_tensor_scalar_kernel_impl<float, float>(at::TensorIteratorBase&, float)::{lambda(float)#1}, std::array<char*, 2ul>) [clone .kd]",
+          "summed_gpu_us": 45.506999999750406
+        },
+        {
+          "calls": 12,
+          "name": "_publish_page_ids_kernel.kd",
+          "summed_gpu_us": 44.78700000012759
+        },
+        {
+          "calls": 12,
+          "name": "void rocprim::ROCPRIM_400600_NS::detail::trampoline_kernel<rocprim::ROCPRIM_400600_NS::default_config, rocprim::ROCPRIM_400600_NS::detail::scan_config_selector<int>, rocprim::ROCPRIM_400600_NS::detail::scan_impl<(rocprim::ROCPRIM_400600_NS::detail::lookback_scan_determinism)0, false, false, rocprim::ROCPRIM_400600_NS::default_config, int const*, int*, int, std::plus<int>, int>(void*, unsigned long&, int const*, int*, int, unsigned long, std::plus<int>, ihipStream_t*, bool)::{lambda(auto:1, auto:2)#1}::operator()<std::integral_constant<bool, false>, std::integral_constant<bool, true> >(std::integral_constant<bool, false>, std::integral_constant<bool, true>) const::{lambda(auto:1)#2}, rocprim::ROCPRIM_400600_NS::detail::comp_target<(rocprim::ROCPRIM_400600_NS::detail::gen)5, (rocprim::ROCPRIM_400600_NS::detail::target_arch)942, (rocprim::ROCPRIM_400600_NS::detail::gpu)9, (rocprim::ROCPRIM_400600_NS::detail::rep)0>, rocprim::ROCPRIM_400600_NS::detail::default_config_static_selector, (rocprim::ROCPRIM_400600_NS::arch::wavefront::target)1>(rocprim::ROCPRIM_400600_NS::detail::scan_impl<(rocprim::ROCPRIM_400600_NS::detail::lookback_scan_determinism)0, false, false, rocprim::ROCPRIM_400600_NS::default_config, int const*, int*, int, std::plus<int>, int>(void*, unsigned long&, int const*, int*, int, unsigned long, std::plus<int>, ihipStream_t*, bool)::{lambda(auto:1, auto:2)#1}::operator()<std::integral_constant<bool, false>, std::integral_constant<bool, true> >(std::integral_constant<bool, false>, std::integral_constant<bool, true>) const::{lambda(auto:1)#2}) [clone .kd]",
+          "summed_gpu_us": 43.108000000123866
+        },
+        {
+          "calls": 12,
+          "name": "_apply_state_deltas_kernel.kd",
+          "summed_gpu_us": 41.266999999876134
+        },
+        {
+          "calls": 12,
+          "name": "_materialize_absorbed_mla_coarse_means_kernel.kd",
+          "summed_gpu_us": 40.98800000024494
+        },
+        {
+          "calls": 12,
+          "name": "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl_nocast<at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> > const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> > const&)::{lambda(int, bool)#1}) [clone .kd]",
+          "summed_gpu_us": 39.74699999962468
+        },
+        {
+          "calls": 12,
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::(anonymous namespace)::launch_clamp_scalar(at::TensorIteratorBase&, c10::Scalar, c10::Scalar, at::native::detail::ClampLimits)::{lambda()#1}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul> >(int, at::native::(anonymous namespace)::launch_clamp_scalar(at::TensorIteratorBase&, c10::Scalar, c10::Scalar, at::native::detail::ClampLimits)::{lambda()#1}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul>) [clone .kd]",
+          "summed_gpu_us": 37.226000000024214
+        },
+        {
+          "calls": 12,
+          "name": "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1} const&)::{lambda(int, bool)#1}) [clone .kd]",
+          "summed_gpu_us": 37.028000000165775
+        },
+        {
+          "calls": 12,
+          "name": "_accumulate_state_deltas_kernel.kd",
+          "summed_gpu_us": 36.388000000151806
+        },
+        {
+          "calls": 12,
+          "name": "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1} const&)::{lambda(int, bool)#1}) [clone .kd]",
+          "summed_gpu_us": 35.42799999995623
+        },
+        {
+          "calls": 12,
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::sqrt_kernel_cuda(at::TensorIteratorBase&)::{lambda()#2}::operator()() const::{lambda()#2}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul> >(int, at::native::sqrt_kernel_cuda(at::TensorIteratorBase&)::{lambda()#2}::operator()() const::{lambda()#2}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul>) [clone .kd]",
+          "summed_gpu_us": 34.54700000002049
+        },
+        {
+          "calls": 12,
+          "name": "_write_virtual_page_indices_kernel.kd",
+          "summed_gpu_us": 34.02800000004936
+        },
+        {
+          "calls": 12,
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::AUnaryFunctor<long, long, long, at::native::binary_internal::MulFunctor<long> >, std::array<char*, 2ul> >(int, at::native::AUnaryFunctor<long, long, long, at::native::binary_internal::MulFunctor<long> >, std::array<char*, 2ul>) [clone .kd]",
+          "summed_gpu_us": 33.62800000002608
+        },
+        {
+          "calls": 12,
+          "name": "void at::native::_scatter_gather_elementwise_kernel<256, 4, at::native::_cuda_scatter_gather_internal_kernel<true, at::native::OpaqueType<8>, long>::operator()<at::native::TensorAssign>(at::TensorIterator&, long, long, long, at::native::TensorAssign const&)::{lambda(int)#1}>(int, at::native::_cuda_scatter_gather_internal_kernel<true, at::native::OpaqueType<8>, long>::operator()<at::native::TensorAssign>(at::TensorIterator&, long, long, long, at::native::TensorAssign const&)::{lambda(int)#1}) [clone .kd]",
+          "summed_gpu_us": 32.18700000003446
+        },
+        {
+          "calls": 12,
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::reciprocal_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#2}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul> >(int, at::native::reciprocal_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#2}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul>) [clone .kd]",
+          "summed_gpu_us": 31.78800000017509
+        },
+        {
+          "calls": 12,
+          "name": "void at::native::_scatter_gather_elementwise_kernel<256, 4, at::native::_cuda_scatter_gather_internal_kernel<false, at::native::OpaqueType<4>, long>::operator()<at::native::TensorAssign>(at::TensorIterator&, long, long, long, at::native::TensorAssign const&)::{lambda(int)#1}>(int, at::native::_cuda_scatter_gather_internal_kernel<false, at::native::OpaqueType<4>, long>::operator()<at::native::TensorAssign>(at::TensorIterator&, long, long, long, at::native::TensorAssign const&)::{lambda(int)#1}) [clone .kd]",
+          "summed_gpu_us": 31.307999999960884
+        },
+        {
+          "calls": 12,
+          "name": "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl_nocast<at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#8}::operator()() const::{lambda(bool, long, long)#1}>(at::TensorIteratorBase&, at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#8}::operator()() const::{lambda(bool, long, long)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#8}::operator()() const::{lambda(bool, long, long)#1}>(at::TensorIteratorBase&, at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#8}::operator()() const::{lambda(bool, long, long)#1} const&)::{lambda(int, bool)#1}) [clone .kd]",
+          "summed_gpu_us": 31.226999999955297
+        },
+        {
+          "calls": 12,
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>) [clone .kd]",
+          "summed_gpu_us": 30.947000000043772
+        },
+        {
+          "calls": 12,
+          "name": "void at::native::_scatter_gather_elementwise_kernel<256, 4, at::native::_cuda_scatter_gather_internal_kernel<false, at::native::OpaqueType<2>, long>::operator()<at::native::TensorAssign>(at::TensorIterator&, long, long, long, at::native::TensorAssign const&)::{lambda(int)#1}>(int, at::native::_cuda_scatter_gather_internal_kernel<false, at::native::OpaqueType<2>, long>::operator()<at::native::TensorAssign>(at::TensorIterator&, long, long, long, at::native::TensorAssign const&)::{lambda(int)#1}) [clone .kd]",
+          "summed_gpu_us": 30.74800000002142
+        },
+        {
+          "calls": 12,
+          "name": "void at::native::unrolled_elementwise_kernel<at::native::BinaryFunctor<long, long, bool, at::native::(anonymous namespace)::CompareEqFunctor<long> >, std::array<char*, 3ul>, 4, TrivialOffsetCalculator<2, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithoutCast, at::native::memory::StoreWithoutCast>(int, at::native::BinaryFunctor<long, long, bool, at::native::(anonymous namespace)::CompareEqFunctor<long> >, std::array<char*, 3ul>, TrivialOffsetCalculator<2, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithoutCast, at::native::memory::StoreWithoutCast) [clone .kd]",
+          "summed_gpu_us": 30.308000000193715
+        },
+        {
+          "calls": 12,
+          "name": "_initialize_page1_fixed_prefix_kernel.kd",
+          "summed_gpu_us": 19.787000000011176
+        }
+      ],
+      "live_route_population": {
+        "layers": [
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.0.self_attn.attn",
+            "max_leaves": 244,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 8,
+                "min": 8,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 2048,
+                "min": 2048,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.1.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 8,
+                "min": 8,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 2048,
+                "min": 2048,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.2.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 8,
+                "min": 8,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 2048,
+                "min": 2048,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.3.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 8,
+                "min": 8,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 2048,
+                "min": 2048,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.4.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 8,
+                "min": 8,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 2048,
+                "min": 2048,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.5.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 8,
+                "min": 8,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 2048,
+                "min": 2048,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.6.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 8,
+                "min": 8,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 2048,
+                "min": 2048,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.7.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 8,
+                "min": 8,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 2048,
+                "min": 2048,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.8.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 8,
+                "min": 8,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 2048,
+                "min": 2048,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.9.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 8,
+                "min": 8,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 2048,
+                "min": 2048,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.10.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 8,
+                "min": 8,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 2048,
+                "min": 2048,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.11.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          }
+        ],
+        "rank": 0
+      },
+      "rank": 0,
+      "trace_path": "results/kimi-k3-mla-stack/oct6-parallel-decode/b1-lod.trace.json"
+    },
+    {
+      "actual_graph_replays": 257,
+      "live_route_population": {
+        "layers": [
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.0.self_attn.attn",
+            "max_leaves": 244,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.1.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.2.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.3.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.4.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.5.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.6.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.7.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.8.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.9.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.10.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.11.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          }
+        ],
+        "rank": 1
+      },
+      "rank": 1
+    },
+    {
+      "actual_graph_replays": 257,
+      "live_route_population": {
+        "layers": [
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.0.self_attn.attn",
+            "max_leaves": 244,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.1.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.2.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.3.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.4.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.5.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.6.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.7.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.8.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.9.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.10.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.11.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          }
+        ],
+        "rank": 2
+      },
+      "rank": 2
+    },
+    {
+      "actual_graph_replays": 257,
+      "live_route_population": {
+        "layers": [
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.0.self_attn.attn",
+            "max_leaves": 244,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.1.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.2.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.3.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.4.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.5.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.6.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.7.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.8.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.9.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.10.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.11.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          }
+        ],
+        "rank": 3
+      },
+      "rank": 3
+    },
+    {
+      "actual_graph_replays": 257,
+      "live_route_population": {
+        "layers": [
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.0.self_attn.attn",
+            "max_leaves": 244,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.1.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.2.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.3.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.4.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.5.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.6.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.7.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.8.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.9.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.10.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.11.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          }
+        ],
+        "rank": 4
+      },
+      "rank": 4
+    },
+    {
+      "actual_graph_replays": 257,
+      "live_route_population": {
+        "layers": [
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 8,
+                "min": 8,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 2048,
+                "min": 2048,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.0.self_attn.attn",
+            "max_leaves": 255,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.1.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.2.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.3.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.4.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.5.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.6.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.7.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.8.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.9.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.10.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.11.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          }
+        ],
+        "rank": 5
+      },
+      "rank": 5
+    },
+    {
+      "actual_graph_replays": 257,
+      "live_route_population": {
+        "layers": [
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.0.self_attn.attn",
+            "max_leaves": 244,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.1.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.2.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.3.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.4.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.5.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.6.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.7.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.8.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.9.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.10.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.11.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          }
+        ],
+        "rank": 6
+      },
+      "rank": 6
+    },
+    {
+      "actual_graph_replays": 257,
+      "live_route_population": {
+        "layers": [
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.0.self_attn.attn",
+            "max_leaves": 244,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.1.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.2.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.3.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.4.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.5.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.6.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.7.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.8.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.9.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.10.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          },
+          {
+            "buffers": {
+              "gqa_union_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              },
+              "gqa_union_token_counts": {
+                "max": 0,
+                "min": 0,
+                "shape": [
+                  6
+                ]
+              }
+            },
+            "layer": "model.layers.11.self_attn.attn",
+            "max_leaves": 256,
+            "mean_leaves": 15.998046875,
+            "occupied_slots": 512,
+            "slots_above_cap": 0,
+            "state_lens": [
+              512
+            ]
+          }
+        ],
+        "rank": 7
+      },
+      "rank": 7
+    }
+  ],
+  "diagnostic_updates": [
+    {
+      "model.layers.0.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.1.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.10.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.11.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.2.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.3.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.4.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.5.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.6.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.7.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.8.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.9.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      }
+    },
+    {
+      "model.layers.0.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.1.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.10.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.11.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.2.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.3.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.4.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.5.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.6.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.7.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.8.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.9.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      }
+    },
+    {
+      "model.layers.0.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.1.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.10.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.11.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.2.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.3.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.4.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.5.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.6.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.7.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.8.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.9.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      }
+    },
+    {
+      "model.layers.0.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.1.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.10.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.11.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.2.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.3.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.4.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.5.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.6.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.7.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.8.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.9.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      }
+    },
+    {
+      "model.layers.0.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.1.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.10.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.11.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.2.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.3.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.4.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.5.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.6.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.7.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.8.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.9.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      }
+    },
+    {
+      "model.layers.0.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.1.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.10.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.11.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.2.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.3.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.4.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.5.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.6.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.7.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.8.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.9.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      }
+    },
+    {
+      "model.layers.0.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.1.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.10.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.11.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.2.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.3.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.4.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.5.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.6.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.7.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.8.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.9.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      }
+    },
+    {
+      "model.layers.0.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.1.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.10.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.11.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.2.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.3.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.4.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.5.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.6.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.7.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.8.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      },
+      "model.layers.9.self_attn.attn": {
+        "catch_up_batches": 1,
+        "catch_up_rows": 1
+      }
+    }
+  ],
+  "elapsed_seconds": 2.7045035138726234,
+  "environment": {
+    "LOD_BENCHMARK_ADMISSION_COHORT": "1",
+    "LOD_BENCHMARK_SYNCHRONIZED_DECODE": "1",
+    "LOD_BENCHMARK_SYNC_PREFILL_CACHE": "1",
+    "LOD_KIMI_CHUNK_TILE_PACK": "1",
+    "LOD_KIMI_DIRECT_LEAF_RESULT": "1",
+    "LOD_KIMI_LEAF_BLOCK_M": "64",
+    "LOD_KIMI_LEAF_WARPS": "1",
+    "LOD_KIMI_PREFILL_MIN_FREE_GIB": "4",
+    "LOD_KIMI_PREFILL_RECLAIM_INTERVAL": "0",
+    "LOD_KIMI_REUSE_PREFILL_ALLOCATOR": "1",
+    "LOD_KIMI_SORT_LEAF_ROUTES": "1",
+    "LOD_KIMI_SUBTILE64": "score",
+    "LOD_KIMI_TILE_PACK_QUERY_BLOCK": "1024",
+    "LOD_KIMI_TILE_REFINE": "1",
+    "TRITON_CACHE_AUTOTUNING": "1",
+    "TRITON_CACHE_DIR": "/tmp/dan-agent/.triton/cache",
+    "VLLM_ALLOW_INSECURE_SERIALIZATION": "1",
+    "VLLM_CACHE_ROOT": "/tmp/dan-agent/vllm_cache",
+    "VLLM_LOD_ENABLED": "1",
+    "VLLM_LOD_MODE": "two-tier",
+    "VLLM_LOD_POOL_SIZE": "1",
+    "VLLM_PLUGINS": "lod_attention",
+    "VLLM_ROCM_USE_AITER": "1",
+    "VLLM_ROCM_USE_AITER_MOE": "1"
+  },
+  "fixture_audit": [
+    {
+      "attention_only_layers": 12,
+      "ffn_layers": 0,
+      "rank": 0,
+      "router_geometry": {
+        "model.layers.0.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.1.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.10.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.11.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.2.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.3.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.4.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.5.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.6.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.7.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.8.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.9.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        }
+      }
+    },
+    {
+      "attention_only_layers": 12,
+      "ffn_layers": 0,
+      "rank": 1,
+      "router_geometry": {
+        "model.layers.0.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.1.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.10.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.11.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.2.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.3.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.4.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.5.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.6.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.7.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.8.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.9.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        }
+      }
+    },
+    {
+      "attention_only_layers": 12,
+      "ffn_layers": 0,
+      "rank": 2,
+      "router_geometry": {
+        "model.layers.0.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.1.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.10.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.11.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.2.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.3.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.4.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.5.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.6.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.7.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.8.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.9.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        }
+      }
+    },
+    {
+      "attention_only_layers": 12,
+      "ffn_layers": 0,
+      "rank": 3,
+      "router_geometry": {
+        "model.layers.0.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.1.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.10.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.11.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.2.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.3.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.4.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.5.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.6.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.7.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.8.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.9.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        }
+      }
+    },
+    {
+      "attention_only_layers": 12,
+      "ffn_layers": 0,
+      "rank": 4,
+      "router_geometry": {
+        "model.layers.0.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.1.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.10.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.11.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.2.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.3.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.4.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.5.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.6.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.7.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.8.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.9.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        }
+      }
+    },
+    {
+      "attention_only_layers": 12,
+      "ffn_layers": 0,
+      "rank": 5,
+      "router_geometry": {
+        "model.layers.0.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.1.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.10.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.11.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.2.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.3.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.4.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.5.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.6.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.7.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.8.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.9.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        }
+      }
+    },
+    {
+      "attention_only_layers": 12,
+      "ffn_layers": 0,
+      "rank": 6,
+      "router_geometry": {
+        "model.layers.0.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.1.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.10.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.11.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.2.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.3.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.4.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.5.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.6.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.7.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.8.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.9.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        }
+      }
+    },
+    {
+      "attention_only_layers": 12,
+      "ffn_layers": 0,
+      "rank": 7,
+      "router_geometry": {
+        "model.layers.0.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.1.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.10.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.11.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.2.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.3.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.4.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.5.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.6.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.7.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.8.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        },
+        "model.layers.9.self_attn.attn": {
+          "centroid_tile": 64,
+          "head_dim": 576,
+          "waves": 4
+        }
+      }
+    }
+  ],
+  "fixture_only": true,
+  "input_policy": "deterministic synthetic IDs; dummy weights, not quality evidence",
+  "layers": 12,
+  "length": 65536,
+  "measured_batch_timing": {
+    "all_requests_live_overlap_seconds": 2.213871467858553,
+    "decode_window_seconds": 2.213871467858553,
+    "first_token_spread_seconds": 0.0,
+    "last_token_spread_seconds": 0.0,
+    "metric_window_seconds": 2.7024235390126705,
+    "prefill_window_seconds": 0.4885520711541176,
+    "request_decode_seconds": [
+      2.213871467858553
+    ],
+    "request_num_cached_tokens": [
+      0
+    ],
+    "request_num_preemptions": [
+      0
+    ],
+    "request_prefill_seconds": [
+      0.4885520711541176
+    ],
+    "unattributed_wall_seconds": 0.0020799748599529266,
+    "wall_elapsed_seconds": 2.7045035138726234
+  },
+  "measured_decode_update_counters": [
+    {
+      "model.layers.0.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.1.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.10.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.11.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.2.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.3.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.4.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.5.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.6.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.7.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.8.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.9.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      }
+    },
+    {
+      "model.layers.0.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.1.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.10.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.11.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.2.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.3.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.4.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.5.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.6.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.7.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.8.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.9.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      }
+    },
+    {
+      "model.layers.0.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.1.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.10.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.11.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.2.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.3.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.4.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.5.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.6.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.7.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.8.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.9.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      }
+    },
+    {
+      "model.layers.0.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.1.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.10.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.11.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.2.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.3.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.4.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.5.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.6.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.7.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.8.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.9.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      }
+    },
+    {
+      "model.layers.0.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.1.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.10.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.11.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.2.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.3.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.4.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.5.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.6.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.7.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.8.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.9.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      }
+    },
+    {
+      "model.layers.0.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.1.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.10.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.11.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.2.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.3.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.4.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.5.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.6.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.7.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.8.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.9.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      }
+    },
+    {
+      "model.layers.0.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.1.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.10.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.11.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.2.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.3.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.4.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.5.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.6.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.7.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.8.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.9.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      }
+    },
+    {
+      "model.layers.0.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.1.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.10.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.11.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.2.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.3.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.4.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.5.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.6.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.7.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.8.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      },
+      "model.layers.9.self_attn.attn": {
+        "catch_up_batches": 4,
+        "catch_up_rows": 4
+      }
+    }
+  ],
+  "mode": "two-tier",
+  "owner_decode": false,
+  "prefill_seconds": 0.4885520711541176,
+  "prompt_sha256": [
+    "ab112f4bf3547d623113a82164e76eb7ca89c2b5a131ea9164ab0e9f8e3d55c0"
+  ],
+  "status": "complete",
+  "timed_decode_steps": 1025,
+  "worker_attention_audit": [
+    {
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "attached_lod_layers": 12,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "attention_layer_count": 12,
+      "breakable_cudagraph_entries": [],
+      "compact_projection_calls": {
+        "model.layers.0.self_attn.attn": 0,
+        "model.layers.1.self_attn.attn": 0,
+        "model.layers.10.self_attn.attn": 0,
+        "model.layers.11.self_attn.attn": 0,
+        "model.layers.2.self_attn.attn": 0,
+        "model.layers.3.self_attn.attn": 0,
+        "model.layers.4.self_attn.attn": 0,
+        "model.layers.5.self_attn.attn": 0,
+        "model.layers.6.self_attn.attn": 0,
+        "model.layers.7.self_attn.attn": 0,
+        "model.layers.8.self_attn.attn": 0,
+        "model.layers.9.self_attn.attn": 0
+      },
+      "compact_selected_projection_enabled": false,
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "dense_gluon_decode_installed": false,
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_name": "AMD Instinct MI325X",
+      "device_total_memory_bytes": 274861129728,
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 0,
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "loaded_kimi_lod_modules": [
+        {
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "module": "mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          },
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "size_bytes": 911024
+        },
+        {
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "module": "mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          },
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "size_bytes": 1398784
+        },
+        {
+          "build_manifest_sha256": "b0959783866081492c84db7eb91d425d593fae6c10f006fe73e24df793edb78c",
+          "module": "mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          },
+          "sha256": "e6173c49eb6e1767b7376777a04b76cd1b83652210e9076fdbfac6ef1be8737c",
+          "size_bytes": 1378368
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "lod_engine_configurations": [
+        {
+          "decode_fused_state_route": true,
+          "decode_routes": 8,
+          "decode_state_update_len": 256,
+          "family": "kimi-k3",
+          "kv_bits": 0,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "leaf_page_size": 16,
+          "leaf_seal_capacity": null,
+          "levels": 2,
+          "local_len": 512,
+          "max_open_centroid_leaves": 1024,
+          "mode": "two-tier",
+          "prefill_chunk_len": 16384,
+          "prefill_fused_route_coarse": true,
+          "prefill_routes": 8,
+          "prefill_state_update_len": 16384
+        }
+      ],
+      "lod_pool_count": 12,
+      "lod_runtime": true,
+      "model_class": "KimiLinearForCausalLM",
+      "prefill_allocator_audit": {
+        "calls": 2,
+        "minimum_free_bytes_at_check": 254267097088,
+        "reclaimed": 0,
+        "retained": 2
+      },
+      "rank": 0,
+      "shared_decode_scratch": {
+        "participating_layers": 12,
+        "registries": 1,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded",
+        "storage_bytes": 21381240,
+        "unique_tensor_count": 46
+      },
+      "torch_hip_version": "7.15.26333"
+    },
+    {
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "attached_lod_layers": 12,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "attention_layer_count": 12,
+      "breakable_cudagraph_entries": [],
+      "compact_projection_calls": {
+        "model.layers.0.self_attn.attn": 0,
+        "model.layers.1.self_attn.attn": 0,
+        "model.layers.10.self_attn.attn": 0,
+        "model.layers.11.self_attn.attn": 0,
+        "model.layers.2.self_attn.attn": 0,
+        "model.layers.3.self_attn.attn": 0,
+        "model.layers.4.self_attn.attn": 0,
+        "model.layers.5.self_attn.attn": 0,
+        "model.layers.6.self_attn.attn": 0,
+        "model.layers.7.self_attn.attn": 0,
+        "model.layers.8.self_attn.attn": 0,
+        "model.layers.9.self_attn.attn": 0
+      },
+      "compact_selected_projection_enabled": false,
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "dense_gluon_decode_installed": false,
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_name": "AMD Instinct MI325X",
+      "device_total_memory_bytes": 274861129728,
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 0,
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "loaded_kimi_lod_modules": [
+        {
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "module": "mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          },
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "size_bytes": 911024
+        },
+        {
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "module": "mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          },
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "size_bytes": 1398784
+        },
+        {
+          "build_manifest_sha256": "b0959783866081492c84db7eb91d425d593fae6c10f006fe73e24df793edb78c",
+          "module": "mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          },
+          "sha256": "e6173c49eb6e1767b7376777a04b76cd1b83652210e9076fdbfac6ef1be8737c",
+          "size_bytes": 1378368
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "lod_engine_configurations": [
+        {
+          "decode_fused_state_route": true,
+          "decode_routes": 8,
+          "decode_state_update_len": 256,
+          "family": "kimi-k3",
+          "kv_bits": 0,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "leaf_page_size": 16,
+          "leaf_seal_capacity": null,
+          "levels": 2,
+          "local_len": 512,
+          "max_open_centroid_leaves": 1024,
+          "mode": "two-tier",
+          "prefill_chunk_len": 16384,
+          "prefill_fused_route_coarse": true,
+          "prefill_routes": 8,
+          "prefill_state_update_len": 16384
+        }
+      ],
+      "lod_pool_count": 12,
+      "lod_runtime": true,
+      "model_class": "KimiLinearForCausalLM",
+      "prefill_allocator_audit": {
+        "calls": 2,
+        "minimum_free_bytes_at_check": 255353421824,
+        "reclaimed": 0,
+        "retained": 2
+      },
+      "rank": 1,
+      "shared_decode_scratch": {
+        "participating_layers": 12,
+        "registries": 1,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded",
+        "storage_bytes": 21381240,
+        "unique_tensor_count": 46
+      },
+      "torch_hip_version": "7.15.26333"
+    },
+    {
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "attached_lod_layers": 12,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "attention_layer_count": 12,
+      "breakable_cudagraph_entries": [],
+      "compact_projection_calls": {
+        "model.layers.0.self_attn.attn": 0,
+        "model.layers.1.self_attn.attn": 0,
+        "model.layers.10.self_attn.attn": 0,
+        "model.layers.11.self_attn.attn": 0,
+        "model.layers.2.self_attn.attn": 0,
+        "model.layers.3.self_attn.attn": 0,
+        "model.layers.4.self_attn.attn": 0,
+        "model.layers.5.self_attn.attn": 0,
+        "model.layers.6.self_attn.attn": 0,
+        "model.layers.7.self_attn.attn": 0,
+        "model.layers.8.self_attn.attn": 0,
+        "model.layers.9.self_attn.attn": 0
+      },
+      "compact_selected_projection_enabled": false,
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "dense_gluon_decode_installed": false,
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_name": "AMD Instinct MI325X",
+      "device_total_memory_bytes": 274861129728,
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 0,
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "loaded_kimi_lod_modules": [
+        {
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "module": "mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          },
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "size_bytes": 911024
+        },
+        {
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "module": "mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          },
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "size_bytes": 1398784
+        },
+        {
+          "build_manifest_sha256": "b0959783866081492c84db7eb91d425d593fae6c10f006fe73e24df793edb78c",
+          "module": "mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          },
+          "sha256": "e6173c49eb6e1767b7376777a04b76cd1b83652210e9076fdbfac6ef1be8737c",
+          "size_bytes": 1378368
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "lod_engine_configurations": [
+        {
+          "decode_fused_state_route": true,
+          "decode_routes": 8,
+          "decode_state_update_len": 256,
+          "family": "kimi-k3",
+          "kv_bits": 0,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "leaf_page_size": 16,
+          "leaf_seal_capacity": null,
+          "levels": 2,
+          "local_len": 512,
+          "max_open_centroid_leaves": 1024,
+          "mode": "two-tier",
+          "prefill_chunk_len": 16384,
+          "prefill_fused_route_coarse": true,
+          "prefill_routes": 8,
+          "prefill_state_update_len": 16384
+        }
+      ],
+      "lod_pool_count": 12,
+      "lod_runtime": true,
+      "model_class": "KimiLinearForCausalLM",
+      "prefill_allocator_audit": {
+        "calls": 2,
+        "minimum_free_bytes_at_check": 254413897728,
+        "reclaimed": 0,
+        "retained": 2
+      },
+      "rank": 2,
+      "shared_decode_scratch": {
+        "participating_layers": 12,
+        "registries": 1,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded",
+        "storage_bytes": 21381240,
+        "unique_tensor_count": 46
+      },
+      "torch_hip_version": "7.15.26333"
+    },
+    {
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "attached_lod_layers": 12,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "attention_layer_count": 12,
+      "breakable_cudagraph_entries": [],
+      "compact_projection_calls": {
+        "model.layers.0.self_attn.attn": 0,
+        "model.layers.1.self_attn.attn": 0,
+        "model.layers.10.self_attn.attn": 0,
+        "model.layers.11.self_attn.attn": 0,
+        "model.layers.2.self_attn.attn": 0,
+        "model.layers.3.self_attn.attn": 0,
+        "model.layers.4.self_attn.attn": 0,
+        "model.layers.5.self_attn.attn": 0,
+        "model.layers.6.self_attn.attn": 0,
+        "model.layers.7.self_attn.attn": 0,
+        "model.layers.8.self_attn.attn": 0,
+        "model.layers.9.self_attn.attn": 0
+      },
+      "compact_selected_projection_enabled": false,
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "dense_gluon_decode_installed": false,
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_name": "AMD Instinct MI325X",
+      "device_total_memory_bytes": 274861129728,
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 0,
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "loaded_kimi_lod_modules": [
+        {
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "module": "mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          },
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "size_bytes": 911024
+        },
+        {
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "module": "mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          },
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "size_bytes": 1398784
+        },
+        {
+          "build_manifest_sha256": "b0959783866081492c84db7eb91d425d593fae6c10f006fe73e24df793edb78c",
+          "module": "mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          },
+          "sha256": "e6173c49eb6e1767b7376777a04b76cd1b83652210e9076fdbfac6ef1be8737c",
+          "size_bytes": 1378368
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "lod_engine_configurations": [
+        {
+          "decode_fused_state_route": true,
+          "decode_routes": 8,
+          "decode_state_update_len": 256,
+          "family": "kimi-k3",
+          "kv_bits": 0,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "leaf_page_size": 16,
+          "leaf_seal_capacity": null,
+          "levels": 2,
+          "local_len": 512,
+          "max_open_centroid_leaves": 1024,
+          "mode": "two-tier",
+          "prefill_chunk_len": 16384,
+          "prefill_fused_route_coarse": true,
+          "prefill_routes": 8,
+          "prefill_state_update_len": 16384
+        }
+      ],
+      "lod_pool_count": 12,
+      "lod_runtime": true,
+      "model_class": "KimiLinearForCausalLM",
+      "prefill_allocator_audit": {
+        "calls": 2,
+        "minimum_free_bytes_at_check": 254413897728,
+        "reclaimed": 0,
+        "retained": 2
+      },
+      "rank": 3,
+      "shared_decode_scratch": {
+        "participating_layers": 12,
+        "registries": 1,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded",
+        "storage_bytes": 21381240,
+        "unique_tensor_count": 46
+      },
+      "torch_hip_version": "7.15.26333"
+    },
+    {
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "attached_lod_layers": 12,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "attention_layer_count": 12,
+      "breakable_cudagraph_entries": [],
+      "compact_projection_calls": {
+        "model.layers.0.self_attn.attn": 0,
+        "model.layers.1.self_attn.attn": 0,
+        "model.layers.10.self_attn.attn": 0,
+        "model.layers.11.self_attn.attn": 0,
+        "model.layers.2.self_attn.attn": 0,
+        "model.layers.3.self_attn.attn": 0,
+        "model.layers.4.self_attn.attn": 0,
+        "model.layers.5.self_attn.attn": 0,
+        "model.layers.6.self_attn.attn": 0,
+        "model.layers.7.self_attn.attn": 0,
+        "model.layers.8.self_attn.attn": 0,
+        "model.layers.9.self_attn.attn": 0
+      },
+      "compact_selected_projection_enabled": false,
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "dense_gluon_decode_installed": false,
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_name": "AMD Instinct MI325X",
+      "device_total_memory_bytes": 274861129728,
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 0,
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "loaded_kimi_lod_modules": [
+        {
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "module": "mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          },
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "size_bytes": 911024
+        },
+        {
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "module": "mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          },
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "size_bytes": 1398784
+        },
+        {
+          "build_manifest_sha256": "b0959783866081492c84db7eb91d425d593fae6c10f006fe73e24df793edb78c",
+          "module": "mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          },
+          "sha256": "e6173c49eb6e1767b7376777a04b76cd1b83652210e9076fdbfac6ef1be8737c",
+          "size_bytes": 1378368
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "lod_engine_configurations": [
+        {
+          "decode_fused_state_route": true,
+          "decode_routes": 8,
+          "decode_state_update_len": 256,
+          "family": "kimi-k3",
+          "kv_bits": 0,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "leaf_page_size": 16,
+          "leaf_seal_capacity": null,
+          "levels": 2,
+          "local_len": 512,
+          "max_open_centroid_leaves": 1024,
+          "mode": "two-tier",
+          "prefill_chunk_len": 16384,
+          "prefill_fused_route_coarse": true,
+          "prefill_routes": 8,
+          "prefill_state_update_len": 16384
+        }
+      ],
+      "lod_pool_count": 12,
+      "lod_runtime": true,
+      "model_class": "KimiLinearForCausalLM",
+      "prefill_allocator_audit": {
+        "calls": 2,
+        "minimum_free_bytes_at_check": 254682333184,
+        "reclaimed": 0,
+        "retained": 2
+      },
+      "rank": 4,
+      "shared_decode_scratch": {
+        "participating_layers": 12,
+        "registries": 1,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded",
+        "storage_bytes": 21381240,
+        "unique_tensor_count": 46
+      },
+      "torch_hip_version": "7.15.26333"
+    },
+    {
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "attached_lod_layers": 12,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "attention_layer_count": 12,
+      "breakable_cudagraph_entries": [],
+      "compact_projection_calls": {
+        "model.layers.0.self_attn.attn": 0,
+        "model.layers.1.self_attn.attn": 0,
+        "model.layers.10.self_attn.attn": 0,
+        "model.layers.11.self_attn.attn": 0,
+        "model.layers.2.self_attn.attn": 0,
+        "model.layers.3.self_attn.attn": 0,
+        "model.layers.4.self_attn.attn": 0,
+        "model.layers.5.self_attn.attn": 0,
+        "model.layers.6.self_attn.attn": 0,
+        "model.layers.7.self_attn.attn": 0,
+        "model.layers.8.self_attn.attn": 0,
+        "model.layers.9.self_attn.attn": 0
+      },
+      "compact_selected_projection_enabled": false,
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "dense_gluon_decode_installed": false,
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_name": "AMD Instinct MI325X",
+      "device_total_memory_bytes": 274861129728,
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 0,
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "loaded_kimi_lod_modules": [
+        {
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "module": "mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          },
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "size_bytes": 911024
+        },
+        {
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "module": "mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          },
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "size_bytes": 1398784
+        },
+        {
+          "build_manifest_sha256": "b0959783866081492c84db7eb91d425d593fae6c10f006fe73e24df793edb78c",
+          "module": "mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          },
+          "sha256": "e6173c49eb6e1767b7376777a04b76cd1b83652210e9076fdbfac6ef1be8737c",
+          "size_bytes": 1378368
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "lod_engine_configurations": [
+        {
+          "decode_fused_state_route": true,
+          "decode_routes": 8,
+          "decode_state_update_len": 256,
+          "family": "kimi-k3",
+          "kv_bits": 0,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "leaf_page_size": 16,
+          "leaf_seal_capacity": null,
+          "levels": 2,
+          "local_len": 512,
+          "max_open_centroid_leaves": 1024,
+          "mode": "two-tier",
+          "prefill_chunk_len": 16384,
+          "prefill_fused_route_coarse": true,
+          "prefill_routes": 8,
+          "prefill_state_update_len": 16384
+        }
+      ],
+      "lod_pool_count": 12,
+      "lod_runtime": true,
+      "model_class": "KimiLinearForCausalLM",
+      "prefill_allocator_audit": {
+        "calls": 2,
+        "minimum_free_bytes_at_check": 254401314816,
+        "reclaimed": 0,
+        "retained": 2
+      },
+      "rank": 5,
+      "shared_decode_scratch": {
+        "participating_layers": 12,
+        "registries": 1,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded",
+        "storage_bytes": 21381240,
+        "unique_tensor_count": 46
+      },
+      "torch_hip_version": "7.15.26333"
+    },
+    {
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "attached_lod_layers": 12,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "attention_layer_count": 12,
+      "breakable_cudagraph_entries": [],
+      "compact_projection_calls": {
+        "model.layers.0.self_attn.attn": 0,
+        "model.layers.1.self_attn.attn": 0,
+        "model.layers.10.self_attn.attn": 0,
+        "model.layers.11.self_attn.attn": 0,
+        "model.layers.2.self_attn.attn": 0,
+        "model.layers.3.self_attn.attn": 0,
+        "model.layers.4.self_attn.attn": 0,
+        "model.layers.5.self_attn.attn": 0,
+        "model.layers.6.self_attn.attn": 0,
+        "model.layers.7.self_attn.attn": 0,
+        "model.layers.8.self_attn.attn": 0,
+        "model.layers.9.self_attn.attn": 0
+      },
+      "compact_selected_projection_enabled": false,
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "dense_gluon_decode_installed": false,
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_name": "AMD Instinct MI325X",
+      "device_total_memory_bytes": 274861129728,
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 0,
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "loaded_kimi_lod_modules": [
+        {
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "module": "mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          },
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "size_bytes": 911024
+        },
+        {
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "module": "mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          },
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "size_bytes": 1398784
+        },
+        {
+          "build_manifest_sha256": "b0959783866081492c84db7eb91d425d593fae6c10f006fe73e24df793edb78c",
+          "module": "mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          },
+          "sha256": "e6173c49eb6e1767b7376777a04b76cd1b83652210e9076fdbfac6ef1be8737c",
+          "size_bytes": 1378368
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "lod_engine_configurations": [
+        {
+          "decode_fused_state_route": true,
+          "decode_routes": 8,
+          "decode_state_update_len": 256,
+          "family": "kimi-k3",
+          "kv_bits": 0,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "leaf_page_size": 16,
+          "leaf_seal_capacity": null,
+          "levels": 2,
+          "local_len": 512,
+          "max_open_centroid_leaves": 1024,
+          "mode": "two-tier",
+          "prefill_chunk_len": 16384,
+          "prefill_fused_route_coarse": true,
+          "prefill_routes": 8,
+          "prefill_state_update_len": 16384
+        }
+      ],
+      "lod_pool_count": 12,
+      "lod_runtime": true,
+      "model_class": "KimiLinearForCausalLM",
+      "prefill_allocator_audit": {
+        "calls": 2,
+        "minimum_free_bytes_at_check": 254535532544,
+        "reclaimed": 0,
+        "retained": 2
+      },
+      "rank": 6,
+      "shared_decode_scratch": {
+        "participating_layers": 12,
+        "registries": 1,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded",
+        "storage_bytes": 21381240,
+        "unique_tensor_count": 46
+      },
+      "torch_hip_version": "7.15.26333"
+    },
+    {
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "attached_lod_layers": 12,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "attention_layer_count": 12,
+      "breakable_cudagraph_entries": [],
+      "compact_projection_calls": {
+        "model.layers.0.self_attn.attn": 0,
+        "model.layers.1.self_attn.attn": 0,
+        "model.layers.10.self_attn.attn": 0,
+        "model.layers.11.self_attn.attn": 0,
+        "model.layers.2.self_attn.attn": 0,
+        "model.layers.3.self_attn.attn": 0,
+        "model.layers.4.self_attn.attn": 0,
+        "model.layers.5.self_attn.attn": 0,
+        "model.layers.6.self_attn.attn": 0,
+        "model.layers.7.self_attn.attn": 0,
+        "model.layers.8.self_attn.attn": 0,
+        "model.layers.9.self_attn.attn": 0
+      },
+      "compact_selected_projection_enabled": false,
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "dense_gluon_decode_installed": false,
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_name": "AMD Instinct MI325X",
+      "device_total_memory_bytes": 274861129728,
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 0,
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "loaded_kimi_lod_modules": [
+        {
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "module": "mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          },
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "size_bytes": 911024
+        },
+        {
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "module": "mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          },
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "size_bytes": 1398784
+        },
+        {
+          "build_manifest_sha256": "b0959783866081492c84db7eb91d425d593fae6c10f006fe73e24df793edb78c",
+          "module": "mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/tmp/dan-agent/aiter-jit-k3/mha_fwd_bf16_nbias_mask_nlse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          },
+          "sha256": "e6173c49eb6e1767b7376777a04b76cd1b83652210e9076fdbfac6ef1be8737c",
+          "size_bytes": 1378368
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "lod_engine_configurations": [
+        {
+          "decode_fused_state_route": true,
+          "decode_routes": 8,
+          "decode_state_update_len": 256,
+          "family": "kimi-k3",
+          "kv_bits": 0,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "leaf_page_size": 16,
+          "leaf_seal_capacity": null,
+          "levels": 2,
+          "local_len": 512,
+          "max_open_centroid_leaves": 1024,
+          "mode": "two-tier",
+          "prefill_chunk_len": 16384,
+          "prefill_fused_route_coarse": true,
+          "prefill_routes": 8,
+          "prefill_state_update_len": 16384
+        }
+      ],
+      "lod_pool_count": 12,
+      "lod_runtime": true,
+      "model_class": "KimiLinearForCausalLM",
+      "prefill_allocator_audit": {
+        "calls": 2,
+        "minimum_free_bytes_at_check": 254682333184,
+        "reclaimed": 0,
+        "retained": 2
+      },
+      "rank": 7,
+      "shared_decode_scratch": {
+        "participating_layers": 12,
+        "registries": 1,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded",
+        "storage_bytes": 21381240,
+        "unique_tensor_count": 46
+      },
+      "torch_hip_version": "7.15.26333"
+    }
+  ]
+}

@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import math
 import sys
-from types import SimpleNamespace
+from contextlib import nullcontext
+from types import ModuleType, SimpleNamespace
 
 import pytest
 import torch
@@ -19,6 +20,95 @@ from vllm_lod_plugin.models.kimi_k3 import (
     pack_latent_record,
 )
 from vllm_lod_plugin.pool import VLLMLayerLODPool
+
+
+def test_dense_registration_applies_private_fixture_without_lod_interception(monkeypatch):
+    calls = []
+    monkeypatch.setattr(kimi_k3, "_install_attention_only_fixture", lambda: calls.append("fixture"))
+    monkeypatch.setattr(kimi_k3, "_install_dense_gluon_decode", lambda: calls.append("dense"))
+    kimi_k3.register_kimi_k3_dense()
+    assert calls == ["fixture", "dense"]
+
+
+@pytest.mark.parametrize("fail_exact", [False, True])
+def test_cached_prefill_slices_expanded_query_at_exact_first_boundary(monkeypatch, fail_exact):
+    """Ragged continuation crosses the initial exact block without stale Q."""
+    from lod_attention._core import TritonLODAttentionCore
+
+    monkeypatch.delenv("LOD_KIMI_PROFILE_PREFILL", raising=False)
+    stream = SimpleNamespace(wait_stream=lambda _: None)
+    monkeypatch.setattr(torch.cuda, "Stream", lambda **_: stream)
+    monkeypatch.setattr(torch.cuda, "current_stream", lambda *_: stream)
+    monkeypatch.setattr(torch.cuda, "stream", lambda _: nullcontext())
+    expanded = torch.arange(7 * 192).reshape(1, 1, 7, 192).float()
+    state = dict(state_k=torch.zeros(1, 1, 2, 576),
+                 state_v=torch.zeros(1, 1, 2, 512), counts=torch.ones(1, 1, 2, 1),
+                 state_len=0, scheduled_state_len=0, coverage=0, state_capacity=2,
+                 recent_k=torch.zeros(1, 1, 3, 576), recent_v=torch.zeros(1, 1, 3, 512),
+                 recent_len=3, total_len=3, page_cache={})
+    engine = SimpleNamespace(_lod_state=state, split_prefill_local_attention=True,
+        prefill_chunk_len=8, prefill_local_len=16, prefill_state_update_len=8,
+        chunk_len=2, prefill_exact_first_chunk=True,
+        _state_capacity=lambda *_: 2, _state_clustering_query_scale=lambda _: None,
+        _mean=lambda tensor, _: tensor, prefill_local_attention_backend="aiter",
+        _lod_kimi_expanded_prefill_query=expanded, _lod_stage_cached_prefill_update=True)
+    seen = []
+
+    def local(q, k, v, *, query_offset):
+        real_q = engine._lod_kimi_expanded_prefill_chunk
+        assert q.size(2) == real_q.size(2) == k.size(2) - query_offset
+        seen.append(real_q.clone())
+        if fail_exact:
+            raise RuntimeError("exact branch failure")
+        return real_q[..., :128], torch.zeros(*real_q.shape[:3])
+
+    engine._prefill_local_attention = local
+    engine._two_level_attention = lambda *_args, **_kwargs: engine._lod_kimi_expanded_prefill_chunk[..., :128]
+    q, key, value = torch.zeros(1, 1, 7, 576), torch.zeros(1, 1, 7, 576), torch.zeros(1, 1, 7, 512)
+    if fail_exact:
+        with pytest.raises(RuntimeError, match="exact branch failure"):
+            TritonLODAttentionCore._cached_prefill_attention(engine, q, key, value)
+    else:
+        out = TritonLODAttentionCore._cached_prefill_attention(engine, q, key, value)
+        torch.testing.assert_close(out, expanded[..., :128])
+        assert [chunk.size(2) for chunk in seen] == [5, 2]
+        torch.testing.assert_close(seen[1], expanded[..., 5:, :])
+    torch.testing.assert_close(seen[0], expanded[..., :5, :])
+    assert not hasattr(engine, "_lod_kimi_expanded_prefill_chunk")
+
+
+@pytest.mark.parametrize("length,coverage", [(1262, 1216), (1261, 1216), (2100, 2048), (4095, 4064)])
+def test_cache_only_construction_respects_explicit_ragged_dcp_boundary(monkeypatch, length, coverage):
+    from lod_attention._config import LODConfig
+    from lod_attention._engines import KernelTwoLevelLODAttention
+
+    engine = KernelTwoLevelLODAttention(LODConfig(state_clustering_normalization="cosine"),
+        query_heads=12, key_value_heads=1, scale=192**-0.5)
+    engine.head_dim = 576
+    configure_engine(engine, family=ModelFamily.KIMI_K3, mode=LODMode.TWO_TIER,
+        request_capacity=65536, has_query_norm=True, has_key_norm=False)
+    # The real DCP8 schedule divides token counts by eight, not the logical
+    # global boundary. Mock GPU-only merges; run the actual construction loop.
+    engine.chunk_len = engine.state_min_len = 32
+    engine.local_len = 64
+    engine.prefill_chunk_len = engine.prefill_state_update_len = 2048
+    engine.prefill_local_len = 2080
+    engine.decode_state_update_len = 32
+    archived = []
+
+    def update(sk, sv, counts, norms, key, value, *, state_len, available_context, **kwargs):
+        archived.append(available_context)
+        owners = torch.zeros(*key.shape[:3], dtype=torch.long)
+        return sk, sv, counts, state_len, owners, None
+
+    monkeypatch.setattr(engine, "_update_state", update)
+    monkeypatch.setattr(engine, "_new_page_cache", lambda *_args, **_kwargs: {"region_owned_pages": True})
+    monkeypatch.setattr(engine, "_append_page_cache", lambda *_args, **_kwargs: None)
+    key = torch.ones(1, 1, length, 576, dtype=torch.bfloat16)
+    state = engine.build_cache_from_bf16(key, key[..., :512], final_cache_coverage=coverage).state
+    assert archived and max(archived) <= coverage
+    assert state["coverage"] == coverage and state["total_len"] == length
+    assert state["recent_len"] == length - coverage
 
 
 def test_growing_dcp_shadow_capacity_changes_storage_only(monkeypatch) -> None:
@@ -113,9 +203,26 @@ def test_growing_latent_page_lists_match_preallocated_gpu_archive() -> None:
                 == cache["leaf_v"].untyped_storage().data_ptr())
     for name in ("slot_lengths", "next_page", "leaf_lens"):
         torch.testing.assert_close(caches[0][name], caches[1][name])
-    pages = int(caches[0]["next_page"].item())
-    torch.testing.assert_close(caches[0]["page_indices"][..., :pages, :],
-                               caches[1]["page_indices"][..., :pages, :])
+    # Parallel page allocation need not assign identical physical page IDs.
+    # Two-tier refinement consumes the complete leaf set of each centroid;
+    # compare that semantic set rather than nondeterministic allocator order.
+    for slot in range(3):
+        listed = []
+        for cache in caches:
+            # In paged-directory mode the root contains directory IDs, not
+            # physical leaf-page IDs. Follow both levels, just as the kernels
+            # do, before collecting all of this centroid's leaves.
+            directories = cache["slot_pages"][0, 0, slot]
+            directories = directories[directories.ge(0)].long()
+            pages = cache["overflow_page_values"][0, 0, directories].flatten()
+            page_count = math.ceil(int(cache["slot_lengths"][0, 0, slot]) / 16)
+            pages = pages[:page_count].long()
+            assert bool(pages.ge(0).all())
+            indices = cache["page_indices"][0, 0, pages].flatten()
+            listed.append(indices[indices.ge(0)].sort().values)
+        expected = torch.arange(slot, 158, 3, device=key.device, dtype=listed[0].dtype)
+        torch.testing.assert_close(listed[0], expected)
+        torch.testing.assert_close(listed[1], expected)
 
 
 def test_prefill_allocator_audit_does_not_change_retention_policy(monkeypatch):
@@ -968,13 +1075,15 @@ def test_projected_prefill_defers_absorbed_query_materialization(monkeypatch) ->
     assert observed["defer_mla_query_absorption"] is True
 
 
-def test_graph_warmup_rows_do_not_enter_smaller_decode_pool() -> None:
+@pytest.mark.parametrize("world", (1, 8))
+def test_graph_warmup_rows_do_not_enter_smaller_decode_pool(world) -> None:
     tokens, heads, nope, latent_dim, direct = 16, 2, 4, 8, 2
     query = torch.randn(tokens, heads, nope + direct)
     latent = torch.randn(tokens, latent_dim)
     direct_key = torch.randn(tokens, 1, direct)
 
     class Pool:
+        dcp_world_size = world
         direct_prefill_plan = None
         decode_enabled = True
         max_requests = 1
@@ -1002,6 +1111,30 @@ def test_graph_warmup_rows_do_not_enter_smaller_decode_pool() -> None:
         None,
     )
     assert torch.count_nonzero(result) == 0
+
+
+def test_dcp_dummy_capture_installs_host_and_device_identity_row_maps(monkeypatch):
+    # The lifecycle calculation is CPU-only; its backend type is needed only
+    # when the runtime attaches real vLLM layers, not by this method.
+    if "vllm_lod_plugin.runtime" not in sys.modules:
+        backend = ModuleType("vllm_lod_plugin.backend")
+        backend.LODAttentionImpl = type("LODAttentionImpl", (), {})
+        monkeypatch.setitem(sys.modules, "vllm_lod_plugin.backend", backend)
+    from vllm_lod_plugin.runtime import VLLMLODRuntime
+
+    pools = [SimpleNamespace(local_lens=torch.ones(4, dtype=torch.int32),
+                            active_decode_rows=()) for _ in range(2)]
+    runtime = SimpleNamespace(speculative_tokens=0,
+        hybrid_speculative_full_attention=False, pool_size=4,
+        active_indices=torch.full((4,), -1, dtype=torch.long),
+        pools=dict(enumerate(pools)))
+    VLLMLODRuntime._prepare_dummy_batch(runtime, 2, 1)
+    assert runtime._active_decode_rows is None
+    assert runtime.active_indices.tolist() == [0, 1, -1, -1]
+    for pool in pools:
+        assert pool.decode_enabled and pool.active_decode_rows == (0, 1)
+        assert not pool.local_lens.any()
+    monkeypatch.delitem(sys.modules, "vllm_lod_plugin.runtime", raising=False)
 
 
 def test_breakable_prefill_writes_static_output_from_fresh_inputs() -> None:
@@ -1067,6 +1200,66 @@ def test_decode_capture_sizes_only_keep_large_prefill_shapes_when_requested(
     expected = list(range(1, 9)) + ([16_384, 16_392] if graph_prefill else [])
     assert config.compilation_config.cudagraph_capture_sizes == expected
     assert config.compilation_config.max_cudagraph_capture_size == max(expected)
+
+
+@pytest.mark.parametrize("replicated_query", (False, True))
+def test_dcp_decode_combines_all_slices_with_or_without_replicated_query(monkeypatch, replicated_query):
+    """Q replication is a projection optimization, not a DCP correctness gate."""
+    tokens, local_heads, world, nope, latent_dim, direct = 2, 12, 8, 4, 8, 2
+    query = torch.randn(tokens, local_heads, nope + direct)
+    uk = torch.randn(local_heads, nope, latent_dim)
+    qrep = torch.cat([query + rank for rank in range(world)], dim=1)
+    ukrep = torch.cat([uk + rank / 10 for rank in range(world)], dim=0)
+    expected = absorb_query(qrep, ukrep, nope_dim=nope)
+    calls = []
+
+    def gather(value, dim):
+        assert dim == 1
+        torch.testing.assert_close(value, absorb_query(query, uk, nope_dim=nope))
+        calls.append("gather")
+        return expected
+
+    group = SimpleNamespace(all_gather=gather)
+    parallel = ModuleType("vllm.distributed.parallel_state")
+    parallel.get_dcp_group = lambda: group
+    monkeypatch.setitem(sys.modules, "vllm.distributed.parallel_state", parallel)
+    dcp = ModuleType("vllm.v1.attention.ops.dcp")
+
+    def combine(partial, lse, received_group, *, is_lse_base_on_e):
+        assert received_group is group and is_lse_base_on_e
+        assert lse.shape == (tokens, local_heads * world)
+        calls.append("combine")
+        return partial[:, 3 * local_heads:4 * local_heads]
+
+    dcp.cp_lse_ag_out_rs = combine
+    monkeypatch.setitem(sys.modules, "vllm.v1.attention.ops.dcp", dcp)
+
+    class Pool:
+        dcp_world_size = world
+        decode_enabled = True
+        max_requests = tokens
+        direct_prefill_plan = None
+
+        def decode_dcp(self, q, key, value, output):
+            torch.testing.assert_close(q, expected)
+            assert key.untyped_storage().data_ptr() == value.untyped_storage().data_ptr()
+            output.copy_(torch.arange(local_heads * world).view(1, -1, 1).expand_as(output))
+            calls.append("decode_dcp")
+            return output, torch.zeros(tokens, local_heads * world)
+
+        def decode(self, *_args, **_kwargs):
+            raise AssertionError("rank-local attention alone loses seven DCP slices")
+
+    layer = SimpleNamespace(_vllm_lod_pool=Pool(), W_UK_T=uk,
+        W_UK_T_dcp_qrep=ukrep if replicated_query else None,
+        qk_nope_head_dim=nope, num_heads=local_heads, v_head_dim=latent_dim,
+        _v_up_proj=lambda source, target: target.copy_(source.flatten(1)))
+    result = kimi_k3._run_lod_mla(layer, query, torch.randn(tokens, latent_dim),
+        torch.randn(tokens, 1, direct), (tokens, local_heads * latent_dim),
+        qrep if replicated_query else None)
+    assert calls == (["gather"] if not replicated_query else []) + ["decode_dcp", "combine"]
+    expected_output = torch.arange(36, 48).view(1, local_heads, 1).expand(tokens, -1, latent_dim)
+    torch.testing.assert_close(result, expected_output.flatten(1).float())
 
 
 def test_single_owner_decode_dispatches_full_heads_in_mla_tiles() -> None:
@@ -1656,7 +1849,7 @@ def test_kimi_fullscore_probe_selector_preserves_ties_and_partial_tiles(states, 
 
 
 @pytest.mark.parametrize("chunk_items", [512, 1024, 2048])
-@pytest.mark.parametrize("queries,states", [(37, 23), (513, 1039)])
+@pytest.mark.parametrize("queries,states", [(37, 23), (513, 1039), (2048, 2896)])
 def test_kimi_sorted_route_ordinals_are_dense_and_unique(chunk_items, queries, states) -> None:
     if not torch.cuda.is_available():
         pytest.skip("requires GPU route sorting")
@@ -1687,3 +1880,27 @@ def test_kimi_sorted_route_ordinals_are_dense_and_unique(chunk_items, queries, s
                                - torch.repeat_interleave(starts, expected_counts.long()))
             expected_pairs = sorted_slots * items + sorted_ordinals
             torch.testing.assert_close(actual_pairs.sort().values, expected_pairs)
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="GPU owner route packing")
+@pytest.mark.parametrize("queries", [2048, 16384])
+def test_kimi_owner_repeated_routes_have_exact_packing_prefix(queries):
+    from lod_attention.kernels.kimi_sorted_route_counts import count_sorted_kimi_routes
+    from lod_attention.kernels.paged_prefill import _pack_expert_routes
+
+    states, heads = 2896, 12
+    routes = torch.tensor([0, 1, 2, 3, 6, 7, 8, 9], device="cuda")
+    routes = routes.expand(1, heads, queries, 8).contiguous()
+    expected = torch.zeros(heads, states, dtype=torch.int32, device="cuda")
+    expected[:, [0, 1, 2, 3, 6, 7, 8, 9]] = queries
+    buffers = {}
+    for _ in range(16):
+        counts, offsets = count_sorted_kimi_routes(routes, active_slots=states, buffers=buffers)
+        torch.testing.assert_close(counts, expected.flatten(), atol=0, rtol=0)
+        _, actual_counts, prefix, _, _, _ = _pack_expert_routes(
+            routes, active_slots=states, kv_heads=heads, kv_group_size=1,
+            expert_count=heads * states, block_m=64, head_counts=counts,
+            route_offsets=offsets, buffers=buffers,
+        )
+        torch.testing.assert_close(actual_counts, expected.flatten(), atol=0, rtol=0)
+        torch.testing.assert_close(prefix[1:].long(), expected.flatten().cumsum(0), atol=0, rtol=0)

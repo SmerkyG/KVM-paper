@@ -1,0 +1,328 @@
+{
+  "scope": "Two real K3 MLA+MoE layers; compare TP Q/K/V/O with one attention owner.\n\nPrefill only. No embedding, LM head, sampling, scheduler, or pipeline overlap\nis timed. Native AttnRes and EP/TP MoE are retained. Both variants use the\nsame single-owner LoD math/cache and identical weights and hidden inputs.\nThis small random-weight geometry fixture is not a trained-model quality or\nfull-K3 latency benchmark. Weight assembly is outside the prefill interval.\nExpert choices are frozen from the control prefill: ordinary BF16 W_O\nroundoff otherwise flips near-tied random MoE routes. Router GEMMs and native\nexpert kernels still execute; this is not natural-routing quality evidence.\n",
+  "chunk_size": 2048,
+  "layers": 2,
+  "owner_rank": 0,
+  "pipeline_overlap": false,
+  "cuda_graph_capture": false,
+  "moe_backend": "native vLLM Triton BF16 SITU, identical in both variants",
+  "moe_routes": "recorded control-prefill logits reused in both variants; router GEMMs still timed",
+  "quality_evidence": false,
+  "timing": "max of eight synchronized wall intervals; one measured pass after exact-shape warmup",
+  "geometry": {
+    "hidden": 7168,
+    "heads": 96,
+    "latent": 512,
+    "direct": 64,
+    "experts": 32,
+    "active_experts": 4,
+    "expert_latent": 4096,
+    "expert_intermediate": 2048
+  },
+  "points": {
+    "32768": {
+      "tp_seconds": 0.3077462241053581,
+      "owner_seconds": 0.3227396057918668,
+      "speedup": 0.9535434095554488,
+      "max_relative_l2": 0.010041411966085434
+    },
+    "65536": {
+      "tp_seconds": 0.8748691901564598,
+      "owner_seconds": 0.905635304749012,
+      "speedup": 0.9660281413155832,
+      "max_relative_l2": 0.010026617906987667
+    }
+  },
+  "workers": [
+    {
+      "rank": 0,
+      "world_size": 8,
+      "layers": 2,
+      "moe_types": [
+        "KimiMoE",
+        "KimiMoE"
+      ],
+      "expert_parallel_size": 8,
+      "peak_allocated_bytes": 15697728512,
+      "points": {
+        "32768": {
+          "tp_qkvo_seconds": 0.3077462241053581,
+          "owner_qkvo_seconds": 0.3227375764399767,
+          "relative_l2": 0.010041411966085434,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.6216932535171509,
+          "cache_audit": {
+            "tp_qkvo": [
+              {
+                "total_len": 32768,
+                "coverage": 32512,
+                "state_len": 2896,
+                "leaf_count": 32511
+              },
+              {
+                "total_len": 32768,
+                "coverage": 32512,
+                "state_len": 2896,
+                "leaf_count": 32511
+              }
+            ],
+            "owner_qkvo": [
+              {
+                "total_len": 32768,
+                "coverage": 32512,
+                "state_len": 2896,
+                "leaf_count": 32511
+              },
+              {
+                "total_len": 32768,
+                "coverage": 32512,
+                "state_len": 2896,
+                "leaf_count": 32511
+              }
+            ]
+          }
+        },
+        "65536": {
+          "tp_qkvo_seconds": 0.8748656194657087,
+          "owner_qkvo_seconds": 0.9056222541257739,
+          "relative_l2": 0.010026617906987667,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.6209630966186523,
+          "cache_audit": {
+            "tp_qkvo": [
+              {
+                "total_len": 65536,
+                "coverage": 65280,
+                "state_len": 4096,
+                "leaf_count": 65279
+              },
+              {
+                "total_len": 65536,
+                "coverage": 65280,
+                "state_len": 4096,
+                "leaf_count": 65279
+              }
+            ],
+            "owner_qkvo": [
+              {
+                "total_len": 65536,
+                "coverage": 65280,
+                "state_len": 4096,
+                "leaf_count": 65279
+              },
+              {
+                "total_len": 65536,
+                "coverage": 65280,
+                "state_len": 4096,
+                "leaf_count": 65279
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "rank": 1,
+      "world_size": 8,
+      "layers": 2,
+      "moe_types": [
+        "KimiMoE",
+        "KimiMoE"
+      ],
+      "expert_parallel_size": 8,
+      "peak_allocated_bytes": 11502057984,
+      "points": {
+        "32768": {
+          "tp_qkvo_seconds": 0.3076245356351137,
+          "owner_qkvo_seconds": 0.3227396057918668,
+          "relative_l2": 0.010041411966085434,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.6216932535171509,
+          "cache_audit": null
+        },
+        "65536": {
+          "tp_qkvo_seconds": 0.8747968301177025,
+          "owner_qkvo_seconds": 0.9056161744520068,
+          "relative_l2": 0.010026617906987667,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.6209630966186523,
+          "cache_audit": null
+        }
+      }
+    },
+    {
+      "rank": 2,
+      "world_size": 8,
+      "layers": 2,
+      "moe_types": [
+        "KimiMoE",
+        "KimiMoE"
+      ],
+      "expert_parallel_size": 8,
+      "peak_allocated_bytes": 11502057984,
+      "points": {
+        "32768": {
+          "tp_qkvo_seconds": 0.30767191480845213,
+          "owner_qkvo_seconds": 0.32271081674844027,
+          "relative_l2": 0.010041411966085434,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.6216932535171509,
+          "cache_audit": null
+        },
+        "65536": {
+          "tp_qkvo_seconds": 0.8748236298561096,
+          "owner_qkvo_seconds": 0.9056172240525484,
+          "relative_l2": 0.010026617906987667,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.6209630966186523,
+          "cache_audit": null
+        }
+      }
+    },
+    {
+      "rank": 3,
+      "world_size": 8,
+      "layers": 2,
+      "moe_types": [
+        "KimiMoE",
+        "KimiMoE"
+      ],
+      "expert_parallel_size": 8,
+      "peak_allocated_bytes": 11502057984,
+      "points": {
+        "32768": {
+          "tp_qkvo_seconds": 0.3076233556494117,
+          "owner_qkvo_seconds": 0.32271040603518486,
+          "relative_l2": 0.010041411966085434,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.6216932535171509,
+          "cache_audit": null
+        },
+        "65536": {
+          "tp_qkvo_seconds": 0.8748691901564598,
+          "owner_qkvo_seconds": 0.9056319035589695,
+          "relative_l2": 0.010026617906987667,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.6209630966186523,
+          "cache_audit": null
+        }
+      }
+    },
+    {
+      "rank": 4,
+      "world_size": 8,
+      "layers": 2,
+      "moe_types": [
+        "KimiMoE",
+        "KimiMoE"
+      ],
+      "expert_parallel_size": 8,
+      "peak_allocated_bytes": 11502057984,
+      "points": {
+        "32768": {
+          "tp_qkvo_seconds": 0.30770369432866573,
+          "owner_qkvo_seconds": 0.32272574584931135,
+          "relative_l2": 0.010041411966085434,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.6216932535171509,
+          "cache_audit": null
+        },
+        "65536": {
+          "tp_qkvo_seconds": 0.8748539900407195,
+          "owner_qkvo_seconds": 0.9055840345099568,
+          "relative_l2": 0.010026617906987667,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.6209630966186523,
+          "cache_audit": null
+        }
+      }
+    },
+    {
+      "rank": 5,
+      "world_size": 8,
+      "layers": 2,
+      "moe_types": [
+        "KimiMoE",
+        "KimiMoE"
+      ],
+      "expert_parallel_size": 8,
+      "peak_allocated_bytes": 11502057984,
+      "points": {
+        "32768": {
+          "tp_qkvo_seconds": 0.307635304518044,
+          "owner_qkvo_seconds": 0.3226903872564435,
+          "relative_l2": 0.010041411966085434,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.6216932535171509,
+          "cache_audit": null
+        },
+        "65536": {
+          "tp_qkvo_seconds": 0.8748155003413558,
+          "owner_qkvo_seconds": 0.9056109236553311,
+          "relative_l2": 0.010026617906987667,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.6209630966186523,
+          "cache_audit": null
+        }
+      }
+    },
+    {
+      "rank": 6,
+      "world_size": 8,
+      "layers": 2,
+      "moe_types": [
+        "KimiMoE",
+        "KimiMoE"
+      ],
+      "expert_parallel_size": 8,
+      "peak_allocated_bytes": 11502057984,
+      "points": {
+        "32768": {
+          "tp_qkvo_seconds": 0.3077082447707653,
+          "owner_qkvo_seconds": 0.3227288471534848,
+          "relative_l2": 0.010041411966085434,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.6216932535171509,
+          "cache_audit": null
+        },
+        "65536": {
+          "tp_qkvo_seconds": 0.8748646397143602,
+          "owner_qkvo_seconds": 0.905635304749012,
+          "relative_l2": 0.010026617906987667,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.6209630966186523,
+          "cache_audit": null
+        }
+      }
+    },
+    {
+      "rank": 7,
+      "world_size": 8,
+      "layers": 2,
+      "moe_types": [
+        "KimiMoE",
+        "KimiMoE"
+      ],
+      "expert_parallel_size": 8,
+      "peak_allocated_bytes": 11502057984,
+      "points": {
+        "32768": {
+          "tp_qkvo_seconds": 0.30765933357179165,
+          "owner_qkvo_seconds": 0.3227175371721387,
+          "relative_l2": 0.010041411966085434,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.6216932535171509,
+          "cache_audit": null
+        },
+        "65536": {
+          "tp_qkvo_seconds": 0.8748424798250198,
+          "owner_qkvo_seconds": 0.9056080644950271,
+          "relative_l2": 0.010026617906987667,
+          "max_absolute_error": 0.140625,
+          "output_rms": 1.6209630966186523,
+          "cache_audit": null
+        }
+      }
+    }
+  ]
+}

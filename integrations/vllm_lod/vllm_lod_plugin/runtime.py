@@ -14,6 +14,7 @@ import numpy as np
 import torch
 
 from lod_attention.kernels.paged_leaf_attention import stable_owner_ranks
+from lod_attention.kernels._decode_scratch import can_share_decode_scratch
 from lod_attention._config import (
     ModelFamily,
     PREFIX_CACHE_LOCAL_WINDOW,
@@ -302,6 +303,15 @@ class VLLMLODRuntime:
         unique_layers: dict[int, tuple[str, Any]] = {}
         for name, layer in self.layers.items():
             unique_layers[id(layer)] = (name, layer)
+        parallel = self.model_state.vllm_config.parallel_config
+        # K3 MLA layers execute sequentially on the attention stream. Keep
+        # sharing off for interleaved microbatches and speculative execution,
+        # where a second attention call could still be using the workspace.
+        shared_decode_scratch = (
+            {} if self.family is ModelFamily.KIMI_K3
+            and can_share_decode_scratch(parallel, self.speculative_tokens)
+            else None
+        )
         for layer_index, (name, layer) in enumerate(unique_layers.values()):
             has_query_norm, has_key_norm = norm_flags.get(name, (False, False))
             pool = VLLMLayerLODPool(
@@ -319,11 +329,14 @@ class VLLMLODRuntime:
                 dcp_world_size=self.dcp_world_size,
                 dcp_rank=self.dcp_rank,
                 dcp_group=self.dcp_group,
+                shared_decode_scratch=shared_decode_scratch,
                 dcp_interleave_size=int(
                     self.model_state.vllm_config.parallel_config.cp_kv_cache_interleave_size
                 ),
             )
             for rows in sorted(decode_sizes):
+                if pool.kimi_request_owner_prefill:
+                    continue
                 pool.reserve_decode_buffers(rows)
                 if self.dcp_world_size > 1:
                     pool.reserve_dcp_decode_buffers(
@@ -371,7 +384,7 @@ class VLLMLODRuntime:
             # stream per attention layer.
             for pool in self.pools.values():
                 pool.deferred_prefill_stream = self._cross_layer_prefill_stream
-        if self.pools:
+        if self.pools and not getattr(next(iter(self.pools.values())), "kimi_request_owner_prefill", False):
             scheduler = self.model_state.vllm_config.scheduler_config
             validate_production_scheduler(
                 max_model_len=int(self.model_state.max_model_len),
@@ -534,6 +547,14 @@ class VLLMLODRuntime:
             if token_ids is not None:
                 self._restore_cached_prefix(req_id, token_ids, int(computed[row]))
         pure_decode = max_query_len == 1 and bool(np.all(computed >= prompt_lengths))
+        if pure_decode and getattr(next(iter(self.pools.values())), "kimi_request_owner_prefill", False):
+            if getattr(next(iter(self.pools.values())), "kimi_captured_owner_decode", False):
+                self._prepare_owner_decode(req_ids, computed)
+                return
+            self._prepare_direct_prefill(
+                req_ids, computed, np.arange(num_reqs + 1), prompt_lengths,
+            )
+            return
         if not pure_decode:
             query_starts = np.asarray(
                 runner.query_start_loc.np[: num_reqs + 1], dtype=np.int64
@@ -783,7 +804,17 @@ class VLLMLODRuntime:
                     "the environment setting or reduce --max-num-seqs"
                 )
         else:
-            row = self.free_lod_rows.pop()
+            if self.pools and getattr(next(iter(self.pools.values())), "kimi_request_owner_prefill", False):
+                # Smaller activation cohorts must not repeatedly reuse only
+                # the first owners. Rotate free semantic rows across ranks.
+                from .models.kimi_k3_request_prefill import take_owner_row
+
+                cursor = getattr(self, "_kimi_owner_row_cursor", 0)
+                row, self._kimi_owner_row_cursor = take_owner_row(
+                    self.free_lod_rows, cursor, self.pool_size,
+                )
+            else:
+                row = self.free_lod_rows.pop()
         self.lod_row_by_slot[slot] = row
         return row
 
@@ -821,7 +852,21 @@ class VLLMLODRuntime:
         )
         self._active_decode_rows = None
         for pool in self.pools.values():
+            # DCP decode requires the host row map even for synthetic capture
+            # inputs. Keep it consistent with the graph-visible identity map;
+            # the next live batch reinstalls its real request ownership.
+            pool.active_decode_rows = tuple(range(request_rows))
             pool.local_lens.zero_()
+            if getattr(pool, "kimi_captured_owner_decode", False):
+                pool.owner_decode_pool.local_lens.zero_()
+                pool.owner_decode_buffers["input_index"].fill_(pool.dcp_rank)
+                pool.owner_decode_input_row = pool.dcp_rank
+
+    def _prepare_owner_decode(self, slots: list[int | str], lengths: Any) -> None:
+        from .models.kimi_k3_owner_decode import prepare_owner_decode_batch
+        requests = [(self._lod_row(slot), int(length))
+                    for slot, length in zip(slots, lengths, strict=True)]
+        prepare_owner_decode_batch(self, requests)
 
     def _prepare_speculative_decode(
         self,
@@ -937,7 +982,8 @@ class VLLMLODRuntime:
         self._active_decode_rows = mapped
 
     def _catch_up_one_across_layers(
-        self, row: int, total_length: int
+        self, row: int, total_length: int, *,
+        pools: tuple[VLLMLayerLODPool, ...] | None = None,
     ) -> bool:
         """Batch one request's centroid update without moving layer caches."""
 
@@ -954,7 +1000,7 @@ class VLLMLODRuntime:
         if profile_begin is not None:
             profile_begin.record(torch.cuda.current_stream(self.model_state.device))
 
-        pools = tuple(self.pools.values())
+        pools = tuple(self.pools.values()) if pools is None else pools
         if len(pools) < 2:
             return False
         reference = pools[0]
@@ -2189,8 +2235,6 @@ class VLLMLODRuntime:
             ),
         )
         overflow_len = target_coverage - old_coverage
-        if overflow_len != total_len - previous_len:
-            raise AssertionError("cross-layer cached update is not one aligned block")
 
         # As in the initial-prefix case, the final scheduler chunk is followed
         # only by rank-local DCP decode.  Rebuilding the global shadow for that
@@ -2207,6 +2251,9 @@ class VLLMLODRuntime:
                 staged_sources=staged_sources,
             )
             return
+
+        if overflow_len != total_len - previous_len:
+            raise AssertionError("cross-layer cached update is not one aligned block")
 
         def cache_state(pool: VLLMLayerLODPool) -> dict[str, object]:
             if pool.dcp_world_size == 1:
@@ -2772,6 +2819,10 @@ class VLLMLODRuntime:
             source = shadow.state
             page = source.get("page_cache")
             global_history = int(source["total_len"])
+            if isinstance(page, dict) and page.get("dcp_leaf_sharded"):
+                from .models.kimi_k3_sharded_prefill import owned_history
+
+                return owned_history(pool, source)
             if (
                 not pool.is_absorbed_mla
                 or pool.dcp_interleave_size != 1
@@ -2780,39 +2831,9 @@ class VLLMLODRuntime:
             ):
                 key, value, observed = pool._dcp_local_records(shadow)
                 return key, value, observed
-            leaf_k = page.get("leaf_k")
-            sink_k = source.get("sink_k")
-            if not isinstance(leaf_k, torch.Tensor):
-                raise TypeError("BF16 DCP shadow has no chronological leaf archive")
-            sink_len = int(sink_k.size(2)) if isinstance(sink_k, torch.Tensor) else 0
-            rank = int(pool.dcp_rank)
-            world = int(pool.dcp_world_size)
-            parts: list[torch.Tensor] = []
-            if rank < sink_len:
-                if not isinstance(sink_k, torch.Tensor):
-                    raise RuntimeError("DCP rank lost the protected sink")
-                parts.append(sink_k[..., rank:sink_len:world, :])
-            first_archive_position = rank
-            if first_archive_position < sink_len:
-                first_archive_position += (
-                    (sink_len - first_archive_position + world - 1) // world
-                ) * world
-            archive_length = global_history - sink_len
-            archive_offset = first_archive_position - sink_len
-            if 0 <= archive_offset < archive_length:
-                parts.append(leaf_k[..., archive_offset:archive_length:world, :])
-            if not parts:
-                local_k = leaf_k[..., :0, :]
-            elif len(parts) == 1:
-                local_k = parts[0]
-            else:
-                local_k = torch.cat(parts, dim=2)
-            expected = pool._dcp_local_length(global_history)
-            if int(local_k.size(2)) != expected:
-                raise AssertionError(
-                    "strided DCP shadow ownership produced the wrong local length"
-                )
-            return local_k, local_k[..., : pool.value_dim], global_history
+            from .models.kimi_k3_sharded_prefill import owned_bf16_shadow_records
+
+            return owned_bf16_shadow_records(pool, source)
 
         new_length = global_length - previous_length
         local_keys: list[torch.Tensor] = []
@@ -3100,6 +3121,35 @@ class VLLMLODRuntime:
             raise ValueError("vLLM query boundaries do not match the request batch")
         if len(prompt_lengths) != len(slots):
             raise ValueError("vLLM prompt lengths do not match the request batch")
+
+        if getattr(next(iter(self.pools.values())), "kimi_request_owner_prefill", False):
+            if os.getenv("LOD_KIMI_OWNER_PRESSURE_CHECK") == "1" and any(
+                int(end) - int(begin) > 1 for begin, end in zip(query_starts, query_starts[1:])
+            ):
+                # Owner attention bypasses normal DCP construction/reclamation.
+                # Check once before the whole prefill forward, not in all 24
+                # attention layers. Only idle allocator blocks are released;
+                # semantic caches, live workspaces and graph addresses stay put.
+                _reclaim_prefill_allocator(self.model_state.device)
+            plan = []
+            prompts = {}
+            for index, slot in enumerate(slots):
+                begin, end = map(int, query_starts[index:index + 2])
+                if begin == end:
+                    continue
+                row = self._lod_row(slot)
+                previous = int(computed_lengths[index])
+                for pool in self.pools.values():
+                    if int(pool.metadata[row].get("total_len", 0)) != previous:
+                        raise RuntimeError("request-owner runtime length does not match scheduler")
+                plan.append((row, begin, end, previous))
+                prompts[row] = int(prompt_lengths[index])
+                self.logical_lengths[row] = previous + end - begin
+            for pool in self.pools.values():
+                pool.decode_enabled = False
+                pool.direct_prefill_plan = tuple(plan)
+                pool.direct_prefill_prompt_lengths = prompts.copy()
+            return True
 
         if slots and bool(np.all(computed_lengths == 0)):
             unassigned = sum(slot not in self.lod_row_by_slot for slot in slots)
@@ -3396,6 +3446,17 @@ class VLLMLODRuntime:
         pure_decode = (
             not is_prefilling and max_query_len == 1
         )
+        if pure_decode and getattr(next(iter(self.pools.values())), "kimi_request_owner_prefill", False):
+            if getattr(next(iter(self.pools.values())), "kimi_captured_owner_decode", False):
+                self._prepare_owner_decode(list(map(int, input_batch.idx_mapping_np)),
+                    input_batch.num_computed_tokens_np)
+                return
+            self._prepare_direct_prefill(
+                list(map(int, input_batch.idx_mapping_np)),
+                input_batch.num_computed_tokens_np,
+                np.arange(rows + 1), input_batch.prefill_len_np[:rows],
+            )
+            return
         if not pure_decode:
             slots = list(map(int, input_batch.idx_mapping_np))
             query_starts = np.asarray(

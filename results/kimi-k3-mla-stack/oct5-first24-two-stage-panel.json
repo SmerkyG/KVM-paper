@@ -1,0 +1,2740 @@
+{
+  "scope": "K3's first 24 attention layers: TP2 versus two owner-local 12-layer stages.\n\nNative KDA convolution/recurrence/gated norm, MLA LoD, and attention-side\nAttnRes are retained. Feed-forward branches, embeddings, and LM head are\nexcluded from both layouts. Random normalized weights are identical across\nvariants, not trained-model quality evidence. TP2 keeps the full latent history\non each query-head rank; there is no DCP. Owners keep full heads for their own\n12 layers. This tests two stages of a proposed eight-stage layout, not PP2 of\nthe entire model or a throughput claim for K3 with distributed MoE.\n",
+  "points": {
+    "32768/B1": {
+      "tp2": {
+        "seconds": 1.1524640200659633,
+        "peak_allocated_bytes": 45091607040,
+        "sum_collective_input_bytes": 22548578304
+      },
+      "sequential": {
+        "seconds": 1.641239800490439,
+        "peak_allocated_bytes": 51138678784,
+        "sum_collective_input_bytes": 0,
+        "relative_l2_to_tp2": 0.020608650520443916
+      },
+      "pipeline": {
+        "seconds": 1.2829209612682462,
+        "peak_allocated_bytes": 51608440832,
+        "sum_collective_input_bytes": 0,
+        "relative_l2_to_tp2": 0.020608650520443916,
+        "bitwise_equal_to_sequential": true
+      },
+      "stage_handoff_payload_bytes": 469762048
+    },
+    "32768/B8": {
+      "tp2": {
+        "seconds": 9.236730396747589,
+        "peak_allocated_bytes": 53038540288,
+        "sum_collective_input_bytes": 180388626432
+      },
+      "sequential": {
+        "seconds": 13.187868441455066,
+        "peak_allocated_bytes": 59129697792,
+        "sum_collective_input_bytes": 0,
+        "relative_l2_to_tp2": 0.020496021956205368
+      },
+      "pipeline": {
+        "seconds": 7.240427715703845,
+        "peak_allocated_bytes": 62887794176,
+        "sum_collective_input_bytes": 0,
+        "relative_l2_to_tp2": 0.020496021956205368,
+        "bitwise_equal_to_sequential": true
+      },
+      "stage_handoff_payload_bytes": 3758096384
+    },
+    "65536/B1": {
+      "tp2": {
+        "seconds": 2.4975500274449587,
+        "peak_allocated_bytes": 48304614912,
+        "sum_collective_input_bytes": 45097156608
+      },
+      "sequential": {
+        "seconds": 3.658278027549386,
+        "peak_allocated_bytes": 52996683776,
+        "sum_collective_input_bytes": 0,
+        "relative_l2_to_tp2": 0.021055933088064194
+      },
+      "pipeline": {
+        "seconds": 2.331008344888687,
+        "peak_allocated_bytes": 53936207872,
+        "sum_collective_input_bytes": 0,
+        "relative_l2_to_tp2": 0.021055933088064194,
+        "bitwise_equal_to_sequential": true
+      },
+      "stage_handoff_payload_bytes": 939524096
+    },
+    "65536/B8": {
+      "tp2": {
+        "seconds": 20.101207913830876,
+        "peak_allocated_bytes": 59620203008,
+        "sum_collective_input_bytes": 360777252864
+      },
+      "sequential": {
+        "seconds": 29.347928817383945,
+        "peak_allocated_bytes": 68453411328,
+        "sum_collective_input_bytes": 0,
+        "relative_l2_to_tp2": 0.020937014371156693
+      },
+      "pipeline": {
+        "seconds": 15.384878573007882,
+        "peak_allocated_bytes": 75969604096,
+        "sum_collective_input_bytes": 0,
+        "relative_l2_to_tp2": 0.020937014371156693,
+        "bitwise_equal_to_sequential": true
+      },
+      "stage_handoff_payload_bytes": 7516192768
+    }
+  },
+  "workers": [
+    {
+      "rank": 0,
+      "world_size": 2,
+      "layer_kinds": [
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla"
+      ],
+      "points": {
+        "32768/B1": {
+          "tp2": {
+            "seconds": 1.1524640200659633,
+            "peak_allocated_bytes": 45091607040,
+            "reductions": 48,
+            "reduction_input_bytes": 11274289152,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "7": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "11": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "15": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "19": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "23": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              }
+            }
+          },
+          "sequential": {
+            "seconds": 1.641239800490439,
+            "peak_allocated_bytes": 50668916736,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "7": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "11": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              }
+            }
+          },
+          "pipeline": {
+            "seconds": 0.8179580345749855,
+            "peak_allocated_bytes": 50668916736,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "7": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "11": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              }
+            }
+          }
+        },
+        "32768/B8": {
+          "tp2": {
+            "seconds": 9.236730396747589,
+            "peak_allocated_bytes": 53038540288,
+            "reductions": 384,
+            "reduction_input_bytes": 90194313216,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "1": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "2": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "3": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "4": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "5": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "6": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "7": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "7": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "1": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "2": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "3": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "4": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "5": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "6": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "7": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "11": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "1": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "2": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "3": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "4": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "5": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "6": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "7": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "15": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "1": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "2": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "3": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "4": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "5": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "6": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "7": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "19": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "1": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "2": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "3": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "4": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "5": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "6": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "7": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "23": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "1": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "2": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "3": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "4": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "5": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "6": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "7": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              }
+            }
+          },
+          "sequential": {
+            "seconds": 13.187868441455066,
+            "peak_allocated_bytes": 55371601408,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "1": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "2": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "3": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "4": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "5": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "6": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "7": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "7": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "1": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "2": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "3": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "4": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "5": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "6": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "7": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "11": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "1": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "2": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "3": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "4": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "5": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "6": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "7": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              }
+            }
+          },
+          "pipeline": {
+            "seconds": 6.534574842080474,
+            "peak_allocated_bytes": 55371601408,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "1": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "2": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "3": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "4": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "5": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "6": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "7": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "7": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "1": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "2": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "3": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "4": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "5": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "6": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "7": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "11": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "1": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "2": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "3": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "4": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "5": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "6": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "7": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              }
+            }
+          }
+        },
+        "65536/B1": {
+          "tp2": {
+            "seconds": 2.4975500274449587,
+            "peak_allocated_bytes": 48304614912,
+            "reductions": 96,
+            "reduction_input_bytes": 22548578304,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "7": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "11": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "15": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "19": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "23": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              }
+            }
+          },
+          "sequential": {
+            "seconds": 3.658278027549386,
+            "peak_allocated_bytes": 52057159680,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "7": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "11": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              }
+            }
+          },
+          "pipeline": {
+            "seconds": 1.8425521608442068,
+            "peak_allocated_bytes": 52057159680,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "7": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "11": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              }
+            }
+          }
+        },
+        "65536/B8": {
+          "tp2": {
+            "seconds": 20.101207913830876,
+            "peak_allocated_bytes": 59620203008,
+            "reductions": 768,
+            "reduction_input_bytes": 180388626432,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "1": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "2": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "3": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "4": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "5": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "6": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "7": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "7": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "1": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "2": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "3": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "4": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "5": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "6": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "7": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "11": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "1": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "2": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "3": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "4": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "5": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "6": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "7": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "15": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "1": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "2": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "3": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "4": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "5": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "6": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "7": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "19": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "1": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "2": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "3": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "4": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "5": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "6": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "7": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "23": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "1": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "2": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "3": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "4": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "5": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "6": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "7": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              }
+            }
+          },
+          "sequential": {
+            "seconds": 29.347928817383945,
+            "peak_allocated_bytes": 60937218560,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "1": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "2": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "3": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "4": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "5": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "6": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "7": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "7": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "1": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "2": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "3": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "4": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "5": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "6": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "7": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "11": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "1": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "2": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "3": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "4": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "5": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "6": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "7": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              }
+            }
+          },
+          "pipeline": {
+            "seconds": 14.730366600677371,
+            "peak_allocated_bytes": 60937218560,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "1": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "2": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "3": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "4": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "5": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "6": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "7": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "7": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "1": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "2": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "3": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "4": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "5": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "6": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "7": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "11": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "1": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "2": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "3": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "4": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "5": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "6": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "7": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "rank": 1,
+      "world_size": 2,
+      "layer_kinds": [
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla"
+      ],
+      "points": {
+        "32768/B1": {
+          "tp2": {
+            "seconds": 1.1522766426205635,
+            "peak_allocated_bytes": 45091607040,
+            "reductions": 48,
+            "reduction_input_bytes": 11274289152,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "7": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "11": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "15": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "19": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "23": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              }
+            }
+          },
+          "sequential": {
+            "seconds": 1.6410493329167366,
+            "peak_allocated_bytes": 51138678784,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {
+              "15": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "19": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "23": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              }
+            },
+            "relative_l2_to_tp2": 0.020608650520443916
+          },
+          "pipeline": {
+            "seconds": 1.2829209612682462,
+            "peak_allocated_bytes": 51608440832,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {
+              "15": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "19": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "23": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              }
+            },
+            "relative_l2_to_tp2": 0.020608650520443916,
+            "bitwise_equal_to_sequential": true
+          }
+        },
+        "32768/B8": {
+          "tp2": {
+            "seconds": 9.236328111961484,
+            "peak_allocated_bytes": 53038540288,
+            "reductions": 384,
+            "reduction_input_bytes": 90194313216,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "1": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "2": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "3": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "4": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "5": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "6": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "7": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "7": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "1": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "2": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "3": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "4": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "5": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "6": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "7": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "11": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "1": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "2": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "3": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "4": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "5": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "6": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "7": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "15": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "1": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "2": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "3": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "4": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "5": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "6": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "7": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "19": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "1": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "2": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "3": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "4": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "5": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "6": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "7": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "23": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "1": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "2": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "3": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "4": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "5": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "6": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "7": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              }
+            }
+          },
+          "sequential": {
+            "seconds": 13.187438286840916,
+            "peak_allocated_bytes": 59129697792,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {
+              "15": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "1": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "2": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "3": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "4": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "5": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "6": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "7": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "19": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "1": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "2": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "3": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "4": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "5": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "6": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "7": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "23": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "1": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "2": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "3": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "4": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "5": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "6": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "7": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              }
+            },
+            "relative_l2_to_tp2": 0.020496021956205368
+          },
+          "pipeline": {
+            "seconds": 7.240427715703845,
+            "peak_allocated_bytes": 62887794176,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {
+              "15": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "1": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "2": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "3": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "4": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "5": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "6": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "7": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "19": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "1": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "2": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "3": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "4": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "5": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "6": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "7": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "23": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "1": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "2": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "3": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "4": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "5": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "6": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                },
+                "7": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              }
+            },
+            "relative_l2_to_tp2": 0.020496021956205368,
+            "bitwise_equal_to_sequential": true
+          }
+        },
+        "65536/B1": {
+          "tp2": {
+            "seconds": 2.497305310331285,
+            "peak_allocated_bytes": 48304614912,
+            "reductions": 96,
+            "reduction_input_bytes": 22548578304,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "7": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "11": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "15": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "19": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "23": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              }
+            }
+          },
+          "sequential": {
+            "seconds": 3.6582584772258997,
+            "peak_allocated_bytes": 52996683776,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {
+              "15": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "19": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "23": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              }
+            },
+            "relative_l2_to_tp2": 0.021055933088064194
+          },
+          "pipeline": {
+            "seconds": 2.331008344888687,
+            "peak_allocated_bytes": 53936207872,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {
+              "15": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "19": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "23": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              }
+            },
+            "relative_l2_to_tp2": 0.021055933088064194,
+            "bitwise_equal_to_sequential": true
+          }
+        },
+        "65536/B8": {
+          "tp2": {
+            "seconds": 20.100932216271758,
+            "peak_allocated_bytes": 59620203008,
+            "reductions": 768,
+            "reduction_input_bytes": 180388626432,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "1": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "2": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "3": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "4": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "5": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "6": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "7": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "7": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "1": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "2": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "3": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "4": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "5": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "6": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "7": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "11": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "1": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "2": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "3": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "4": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "5": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "6": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "7": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "15": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "1": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "2": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "3": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "4": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "5": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "6": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "7": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "19": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "1": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "2": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "3": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "4": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "5": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "6": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "7": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "23": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "1": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "2": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "3": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "4": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "5": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "6": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "7": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              }
+            }
+          },
+          "sequential": {
+            "seconds": 29.3477351795882,
+            "peak_allocated_bytes": 68453411328,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {
+              "15": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "1": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "2": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "3": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "4": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "5": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "6": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "7": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "19": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "1": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "2": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "3": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "4": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "5": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "6": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "7": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "23": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "1": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "2": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "3": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "4": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "5": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "6": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "7": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              }
+            },
+            "relative_l2_to_tp2": 0.020937014371156693
+          },
+          "pipeline": {
+            "seconds": 15.384878573007882,
+            "peak_allocated_bytes": 75969604096,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {
+              "15": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "1": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "2": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "3": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "4": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "5": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "6": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "7": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "19": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "1": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "2": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "3": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "4": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "5": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "6": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "7": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              },
+              "23": {
+                "0": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "1": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "2": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "3": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "4": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "5": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "6": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                },
+                "7": {
+                  "total_len": 65536,
+                  "coverage": 65280,
+                  "state_len": 4096
+                }
+              }
+            },
+            "relative_l2_to_tp2": 0.020937014371156693,
+            "bitwise_equal_to_sequential": true
+          }
+        }
+      }
+    }
+  ],
+  "stage_layers": 12,
+  "stages": 2,
+  "chunk_size": 16384,
+  "fixed_transport_slots": 2,
+  "input_bank_retained": true,
+  "random_weights": true,
+  "quality_evidence": false,
+  "moe_included": false,
+  "cuda_graph_capture": false,
+  "diagnostic": false,
+  "valid_timing": true,
+  "timing": "max of two synchronized wall intervals; one warmed measured pass per variant",
+  "traffic_note": "collective input bytes are logical payload, not measured wire bytes; p2p payload excludes protocol overhead"
+}

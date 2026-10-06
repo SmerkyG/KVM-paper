@@ -17,6 +17,8 @@ from vllm_lod_plugin.weight_cache_protocol import (
 )
 from vllm_lod_plugin.weight_cache_daemon import _simple_metadata
 from vllm_lod_plugin.weight_cache_loader import (
+    _apply_module_metadata,
+    _restore_kimi_lod_projection_views,
     _attention_weight_layout_hash,
     _weight_layout_hash,
 )
@@ -87,6 +89,50 @@ def test_metadata_export_keeps_structured_runtime_objects_local() -> None:
     assert _simple_metadata((1, 2)) == (1, 2)
     assert _simple_metadata([1, 2]) == [1, 2]
     assert _simple_metadata(group_shape(1, 32)) is _simple_metadata.missing
+
+
+@pytest.mark.parametrize("client_lod", [False, True])
+def test_weight_import_keeps_serving_attention_flags_local(client_lod) -> None:
+    import torch
+
+    model = torch.nn.Module()
+    model.attn = torch.nn.Module()
+    model.attn._vllm_lod_absorbed_mla = client_lod
+    _apply_module_metadata(model, {"attn": {
+        "_vllm_lod_absorbed_mla": not client_lod,
+        "_vllm_lod_backend_installed": True,
+        "is_weight_shuffled": True}})
+    assert model.attn._vllm_lod_absorbed_mla is client_lod
+    assert not hasattr(model.attn, "_vllm_lod_backend_installed")
+    assert model.attn.is_weight_shuffled is True
+
+
+def test_lod_canonical_views_reuse_dense_daemon_original_kv_storage() -> None:
+    import torch
+
+    model = torch.nn.Module()
+    model.attn = torch.nn.Module()
+    attn = model.attn
+    attn._vllm_lod_absorbed_mla = True
+    attn.num_heads, attn.qk_nope_head_dim = 2, 3
+    attn.v_head_dim, attn.kv_lora_rank = 4, 5
+    attn.kv_b_proj = torch.nn.Linear(5, 14, bias=False, dtype=torch.bfloat16)
+    attn.is_aiter_triton_fp8_bmm_enabled = True
+    attn.is_aiter_triton_fp4_bmm_enabled = False
+    original = attn.kv_b_proj.weight
+    before = original.detach().clone()
+    _restore_kimi_lod_projection_views(model)
+    assert tuple(attn.W_UK_T.shape) == (2, 3, 5)
+    assert tuple(attn.W_UV.shape) == (2, 5, 4)
+    assert attn.W_UK_T.untyped_storage().data_ptr() == original.untyped_storage().data_ptr()
+    assert attn.W_UV.untyped_storage().data_ptr() == original.untyped_storage().data_ptr()
+    assert torch.equal(attn.W_UK_T, before.view(2, 7, 5)[:, :3])
+    assert torch.equal(attn.W_UV, before.view(2, 7, 5)[:, 3:].transpose(1, 2))
+    assert torch.equal(original, before)
+    assert not attn.is_aiter_triton_fp8_bmm_enabled
+    saved = attn.W_UK_T
+    _restore_kimi_lod_projection_views(model)
+    assert attn.W_UK_T is saved
 
 
 def test_weight_layout_hash_ignores_runtime_context_capacity() -> None:

@@ -30,6 +30,12 @@ from lod_attention.kernels.aiter_mla_prefill_attention import (
 from lod_attention.kernels.aiter_prefill_attention import (
     _specialized_kimi_coarse_mha_fwd,
 )
+from .kimi_k3_sharded_prefill import (
+    archive_workspace,
+    combine_prefill_partials,
+    gather_prefill,
+    projection_scope,
+)
 
 
 def merge_partitions(
@@ -242,6 +248,34 @@ def owned_routes(slots: torch.Tensor, *, rank: int, local_states: int) -> torch.
     return torch.where(owned, slots - first, -1).to(torch.int32)
 
 
+def _shared_mixed_decode(layer: Any, pool: Any, query: torch.Tensor,
+                         record: torch.Tensor, result: torch.Tensor, plan: tuple) -> None:
+    """Use ordinary global DCP decode for one-token rows beside a prefill."""
+    from .kimi_k3 import absorb_query
+    from lod_attention.kernels.aiter_mla_prefill_attention import project_kimi_head_values
+    from vllm.v1.attention.ops.dcp import cp_lse_ag_out_rs
+
+    if tuple(item[0] for item in plan) != pool.active_decode_rows[:len(plan)]:
+        raise AssertionError("mixed DCP decode disagrees with its active-row map")
+    positions = torch.tensor([item[1] for item in plan], device=query.device, dtype=torch.long)
+    raw_q = gather_prefill(pool.dcp_group, query.index_select(0, positions), dim=1)
+    q = absorb_query(raw_q, layer.W_UK_T_dcp_qrep, nope_dim=int(layer.qk_nope_head_dim))
+    key = record.index_select(0, positions)
+    partial = query.new_empty(len(plan), q.size(1), 512)
+    partial, lse = pool.decode_dcp(q, key, key[..., :512], partial)
+    attention = cp_lse_ag_out_rs(partial, lse, pool.dcp_group, is_lse_base_on_e=True)
+    projected = project_kimi_head_values(attention.unsqueeze(2), layer.W_UV).squeeze(2)
+    result.index_copy_(0, positions, projected)
+    for slot, _, _, previous in plan:
+        total = previous + 1
+        local = pool._dcp_local_length(total)
+        pool.metadata[slot].update(
+            total_len=local, recent_len=local - int(pool.metadata[slot]["coverage"]),
+            dcp_global_total_len=total,
+        )
+        pool.dcp_global_lens[slot].fill_(total)
+
+
 def _refresh_shared_summaries(pool: Any, slot: int, record: torch.Tensor, total: int) -> None:
     """One small centroid exchange per GLOBAL 16K construction boundary."""
     state = pool._row_cache(slot).state
@@ -261,7 +295,14 @@ def _refresh_shared_summaries(pool: Any, slot: int, record: torch.Tensor, total:
         state["counts"][..., :local_states, :],
         lengths[..., None].float(),
     ), dim=-1).contiguous()
-    gathered = pool.dcp_group.all_gather(packed, dim=2)
+    buffers = getattr(pool.engine, "_lod_prefill_attention_buffers", None)
+    gathered = gather_prefill(
+        pool.dcp_group, packed, dim=2,
+        buffer=archive_workspace(
+            buffers, "shared_centroid_exchange", (pool.dcp_world_size, *packed.shape),
+            token_axis=3, dtype=packed.dtype, device=packed.device,
+        ),
+    )
     keys = gathered[..., :576].contiguous()
     old = pool.dcp_prefill_summaries.get(slot)
     coverage = pool._dcp_global_decode_coverage(total)
@@ -285,9 +326,8 @@ def _shared_remote_attention(
     local_out: torch.Tensor, local_lse: torch.Tensor,
 ) -> torch.Tensor:
     """Head-sharded coarse/routing; owner-sharded exact leaf refinement."""
-    from vllm.v1.attention.ops.dcp import cp_lse_ag_out_rs
-
     engine = pool.engine
+    buffers = getattr(engine, "_lod_prefill_attention_buffers", None)
     shared = pool.dcp_prefill_summaries[slot]
     query_heads, query_len = int(query.size(1)), int(query.size(2))
     local_states = int(shared["local_states"])
@@ -298,7 +338,7 @@ def _shared_remote_attention(
         scale=float(engine.scaling), normalize_route_query=False,
         slot_lengths=shared["slot_lengths"],
         max_open_leaf_tokens=engine.max_open_centroid_leaves,
-        buffers=getattr(engine, "_lod_prefill_attention_buffers", None),
+        buffers=buffers,
     )
     if coarse.ready_stream is not None:
         torch.cuda.current_stream(query.device).wait_stream(coarse.ready_stream)
@@ -309,38 +349,41 @@ def _shared_remote_attention(
     # This does not rerank or change an approximation: singleton summaries
     # already equal their exact leaves. Keep their existing coarse term.
     slots = torch.where(slots.ge(0) & selected_lengths.gt(1), slots, -1)
-    all_slots = pool.dcp_group.all_gather(slots[0].to(torch.int32).contiguous(), dim=0)
-    local_slots = owned_routes(
-        all_slots.unsqueeze(0), rank=pool.dcp_rank, local_states=local_states
+    slot_buffer = archive_workspace(
+        buffers, "sharded_prefill_slots", (pool.dcp_world_size, *slots.shape),
+        token_axis=3, dtype=slots.dtype, device=slots.device,
     )
-    all_q = pool.dcp_group.all_gather(
-        query[0].permute(1, 0, 2).contiguous(), dim=1
-    ).permute(1, 0, 2).unsqueeze(0)
+    all_slots = gather_prefill(pool.dcp_group, slots, dim=1, buffer=slot_buffer)
+    local_slots = owned_routes(
+        all_slots, rank=pool.dcp_rank, local_states=local_states
+    )
+    all_q = gather_prefill(
+        pool.dcp_group, query, dim=1,
+        buffer=archive_workspace(
+            buffers, "sharded_prefill_query", (pool.dcp_world_size, *query.shape),
+            token_axis=3, dtype=query.dtype, device=query.device,
+        ),
+    )
     cache = pool._row_cache(slot).state
     carrier = cache["page_cache"]["leaf_k"][..., :1, :].expand(
         1, all_q.size(1), query_len, 576
     )
-    engine._lod_kimi_expanded_prefill_chunk = all_q
-    engine._lod_kimi_w_uk_t = layer.W_UK_T_dcp_qrep
-    engine._lod_kimi_w_uv = layer._lod_dcp_w_uv
-    try:
+    with projection_scope(engine, all_q, layer.W_UK_T_dcp_qrep, layer._lod_dcp_w_uv,
+                          head_group_limit=query_heads):
         fine, fine_lse = engine._paged_leaf_attention(
             carrier, local_slots, cache["page_cache"],
             active_slots=local_states, reduce_routes=True,
         )
-    finally:
-        for name in ("_lod_kimi_expanded_prefill_chunk", "_lod_kimi_w_uk_t", "_lod_kimi_w_uv"):
-            delattr(engine, name)
-    fine, fine_lse = cp_lse_ag_out_rs(
-        fine[0].permute(1, 0, 2).contiguous(),
-        fine_lse[0].transpose(0, 1).contiguous(), pool.dcp_group,
-        return_lse=True, is_lse_base_on_e=True,
+    fine, fine_lse = combine_prefill_partials(
+        pool, fine, fine_lse, heads=query_heads, buffers=buffers,
     )
+    # The local field was enqueued before routing on its own stream. Its
+    # scratch stays live until the final merge, before synchronous update.
+    torch.cuda.current_stream(query.device).wait_stream(engine._lod_prefill_local_stream)
     own_carrier = carrier[:, :query_heads]
     return merge_aiter_mla_prefill_refinement(
         own_carrier, carrier[:, :1, :0], coarse.mean_v[..., :0, :],
-        coarse, slots, fine.transpose(0, 1).unsqueeze(0),
-        fine_lse.transpose(0, 1).unsqueeze(0), local_out, local_lse,
+        coarse, slots, fine, fine_lse, local_out, local_lse,
         kv_group_size=query_heads, scale=float(engine.scaling),
     )
 
@@ -350,14 +393,24 @@ def shared_dcp_prefill(layer: Any, pool: Any, query: torch.Tensor, record: torch
     if pool.dcp_interleave_size != 1 or record.size(-1) != 576:
         raise NotImplementedError("shared DCP prototype needs full K3 and unit interleave")
     chunk = int(pool._dcp_global_lengths["prefill_chunk_len"])
-    plan = pool.direct_prefill_plan
+    mixed = tuple(item for item in pool.direct_prefill_plan if item[2] - item[1] == 1 and item[3] > 0)
+    plan = tuple(item for item in pool.direct_prefill_plan if item not in mixed)
     if any(end - begin != chunk or previous % chunk for _, begin, end, previous in plan):
         raise NotImplementedError("shared DCP prototype needs aligned 16K scheduler chunks")
     if getattr(layer, "_lod_dcp_w_uv", None) is None:
-        layer._lod_dcp_w_uv = pool.dcp_group.all_gather(layer.W_UV.contiguous(), dim=0)
+        layer._lod_dcp_w_uv = gather_prefill(pool.dcp_group, layer.W_UV, dim=0)
     if layer.W_UK_T_dcp_qrep is None:
-        layer.W_UK_T_dcp_qrep = pool.dcp_group.all_gather(layer.W_UK_T.contiguous(), dim=0)
+        layer.W_UK_T_dcp_qrep = gather_prefill(pool.dcp_group, layer.W_UK_T, dim=0)
+    engine = pool.engine
+    buffers = getattr(engine, "_lod_prefill_attention_buffers", None)
+    foreground = torch.cuda.current_stream(query.device)
+    local_stream = getattr(engine, "_lod_prefill_local_stream", None)
+    if local_stream is None:
+        local_stream = torch.cuda.Stream(device=query.device)
+        engine._lod_prefill_local_stream = local_stream
     result = query.new_empty(query.size(0), query.size(1), 128)
+    if mixed:
+        _shared_mixed_decode(layer, pool, query, record, result, mixed)
     for slot, begin, end, previous in plan:
         pool.wait_deferred_prefill((slot,))
         row_q = query[begin:end].permute(1, 0, 2).unsqueeze(0)
@@ -369,13 +422,17 @@ def shared_dcp_prefill(layer: Any, pool: Any, query: torch.Tensor, record: torch
             exact_k = torch.cat((shared["sink_k"], shared["tail_k"], row_k), dim=2)
         else:
             exact_k = row_k
-        local_out, local_lse = aiter_kimi_local_prefill_attention(
-            row_k.expand(1, query.size(1), chunk, 576), exact_k,
-            query_offset=exact_k.size(2) - chunk, scale=float(pool.engine.scaling),
-            expanded_q=row_q, w_uk_t=layer.W_UK_T, w_uv=layer.W_UV,
-        )
+        local_stream.wait_stream(foreground)
+        with torch.cuda.stream(local_stream):
+            local_out, local_lse = aiter_kimi_local_prefill_attention(
+                row_k.expand(1, query.size(1), chunk, 576), exact_k,
+                query_offset=exact_k.size(2) - chunk, scale=float(engine.scaling),
+                expanded_q=row_q, w_uk_t=layer.W_UK_T, w_uv=layer.W_UV,
+                buffers=buffers,
+            )
         merged = (_shared_remote_attention(layer, pool, slot, row_q, local_out, local_lse)
                   if previous else local_out)
+        foreground.wait_stream(local_stream)
         result[begin:end].copy_(merged[0].permute(1, 0, 2))
         owned_offset = (pool.dcp_rank - previous) % pool.dcp_world_size
         owned = row_k[..., owned_offset::pool.dcp_world_size, :].contiguous()

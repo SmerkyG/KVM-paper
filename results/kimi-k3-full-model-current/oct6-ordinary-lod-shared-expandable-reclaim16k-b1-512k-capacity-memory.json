@@ -1,0 +1,601 @@
+{
+  "source_result": "oct6-ordinary-lod-shared-expandable-reclaim16k-b1-512k-capacity.json",
+  "source_job": "21330-kimi-ordinary-lod-shared-expandable-reclaim16k-b1-512k-capacity",
+  "status": "failed-prefill-no-serving-timing",
+  "snapshots": [
+    {
+      "chunk_index": 0,
+      "input_lengths": [
+        16384
+      ],
+      "rank": 0,
+      "allocation_groups_bytes": {
+        "persistent_semantic_cache": 1969814880,
+        "owner_persistent_semantic_cache": 0,
+        "owner_prefill_rows": 0,
+        "replicated_prefill_shadows": 0,
+        "decode_scratch": 76774824,
+        "owner_decode_scratch": 0,
+        "owner_projection_weights": 0,
+        "owner_transport": 0,
+        "shared_prefill_scratch": 0,
+        "queued_construction_sources": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 26253720,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "torch_allocated_bytes": 3393590272,
+      "torch_reserved_bytes": 3565158400,
+      "torch_peak_allocated_bytes_so_far": 3393590272,
+      "device_free_bytes": 30589059072,
+      "device_total_bytes": 274861129728,
+      "completed_global_tokens": null,
+      "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+    },
+    {
+      "chunk_index": 1,
+      "input_lengths": [
+        16384
+      ],
+      "rank": 0,
+      "allocation_groups_bytes": {
+        "persistent_semantic_cache": 1969814880,
+        "owner_persistent_semantic_cache": 0,
+        "owner_prefill_rows": 0,
+        "replicated_prefill_shadows": 2355293664,
+        "decode_scratch": 76774824,
+        "owner_decode_scratch": 0,
+        "owner_projection_weights": 0,
+        "owner_transport": 0,
+        "shared_prefill_scratch": 226492416,
+        "queued_construction_sources": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 26253720,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "torch_allocated_bytes": 7859984896,
+      "torch_reserved_bytes": 18698207232,
+      "torch_peak_allocated_bytes_so_far": 16782249472,
+      "device_free_bytes": 14694744064,
+      "device_total_bytes": 274861129728,
+      "completed_global_tokens": 16384,
+      "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+    },
+    {
+      "chunk_index": 2,
+      "input_lengths": [
+        16384
+      ],
+      "rank": 0,
+      "allocation_groups_bytes": {
+        "persistent_semantic_cache": 1969814880,
+        "owner_persistent_semantic_cache": 0,
+        "owner_prefill_rows": 0,
+        "replicated_prefill_shadows": 2355293664,
+        "decode_scratch": 76774824,
+        "owner_decode_scratch": 0,
+        "owner_projection_weights": 0,
+        "owner_transport": 0,
+        "shared_prefill_scratch": 1025629308,
+        "queued_construction_sources": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 26253720,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "torch_allocated_bytes": 10492036096,
+      "torch_reserved_bytes": 21919432704,
+      "torch_peak_allocated_bytes_so_far": 19414302208,
+      "device_free_bytes": 10699669504,
+      "device_total_bytes": 274861129728,
+      "completed_global_tokens": 32768,
+      "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+    },
+    {
+      "chunk_index": 3,
+      "input_lengths": [
+        16384
+      ],
+      "rank": 0,
+      "allocation_groups_bytes": {
+        "persistent_semantic_cache": 1969814880,
+        "owner_persistent_semantic_cache": 0,
+        "owner_prefill_rows": 0,
+        "replicated_prefill_shadows": 2355293664,
+        "decode_scratch": 76774824,
+        "owner_decode_scratch": 0,
+        "owner_projection_weights": 0,
+        "owner_transport": 0,
+        "shared_prefill_scratch": 1179666044,
+        "queued_construction_sources": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 26253720,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "torch_allocated_bytes": 10646073344,
+      "torch_reserved_bytes": 22215131136,
+      "torch_peak_allocated_bytes_so_far": 19625847296,
+      "device_free_bytes": 10389291008,
+      "device_total_bytes": 274861129728,
+      "completed_global_tokens": 49152,
+      "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+    },
+    {
+      "chunk_index": 4,
+      "input_lengths": [
+        16384
+      ],
+      "rank": 0,
+      "allocation_groups_bytes": {
+        "persistent_semantic_cache": 1969814880,
+        "owner_persistent_semantic_cache": 0,
+        "owner_prefill_rows": 0,
+        "replicated_prefill_shadows": 2355293664,
+        "decode_scratch": 76774824,
+        "owner_decode_scratch": 0,
+        "owner_projection_weights": 0,
+        "owner_transport": 0,
+        "shared_prefill_scratch": 1325941260,
+        "queued_construction_sources": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 26253720,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "torch_allocated_bytes": 10792348160,
+      "torch_reserved_bytes": 22403874816,
+      "torch_peak_allocated_bytes_so_far": 19772122112,
+      "device_free_bytes": 10179575808,
+      "device_total_bytes": 274861129728,
+      "completed_global_tokens": 65536,
+      "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+    },
+    {
+      "chunk_index": 5,
+      "input_lengths": [
+        16384
+      ],
+      "rank": 0,
+      "allocation_groups_bytes": {
+        "persistent_semantic_cache": 1969814880,
+        "owner_persistent_semantic_cache": 0,
+        "owner_prefill_rows": 0,
+        "replicated_prefill_shadows": 4777504224,
+        "decode_scratch": 76774824,
+        "owner_decode_scratch": 0,
+        "owner_projection_weights": 0,
+        "owner_transport": 0,
+        "shared_prefill_scratch": 1468312700,
+        "queued_construction_sources": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 26253720,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "torch_allocated_bytes": 15363118080,
+      "torch_reserved_bytes": 24951914496,
+      "torch_peak_allocated_bytes_so_far": 24285384192,
+      "device_free_bytes": 7614758912,
+      "device_total_bytes": 274861129728,
+      "completed_global_tokens": 81920,
+      "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+    },
+    {
+      "chunk_index": 6,
+      "input_lengths": [
+        16384
+      ],
+      "rank": 0,
+      "allocation_groups_bytes": {
+        "persistent_semantic_cache": 1969814880,
+        "owner_persistent_semantic_cache": 0,
+        "owner_prefill_rows": 0,
+        "replicated_prefill_shadows": 4777504224,
+        "decode_scratch": 76774824,
+        "owner_decode_scratch": 0,
+        "owner_projection_weights": 0,
+        "owner_transport": 0,
+        "shared_prefill_scratch": 1610250124,
+        "queued_construction_sources": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 26253720,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "torch_allocated_bytes": 15505056768,
+      "torch_reserved_bytes": 25140658176,
+      "torch_peak_allocated_bytes_so_far": 24484830720,
+      "device_free_bytes": 7413432320,
+      "device_total_bytes": 274861129728,
+      "completed_global_tokens": 98304,
+      "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+    },
+    {
+      "chunk_index": 7,
+      "input_lengths": [
+        16384
+      ],
+      "rank": 0,
+      "allocation_groups_bytes": {
+        "persistent_semantic_cache": 1969814880,
+        "owner_persistent_semantic_cache": 0,
+        "owner_prefill_rows": 0,
+        "replicated_prefill_shadows": 4777504224,
+        "decode_scratch": 76774824,
+        "owner_decode_scratch": 0,
+        "owner_projection_weights": 0,
+        "owner_transport": 0,
+        "shared_prefill_scratch": 1751885052,
+        "queued_construction_sources": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 26253720,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "torch_allocated_bytes": 15646691840,
+      "torch_reserved_bytes": 25350373376,
+      "torch_peak_allocated_bytes_so_far": 24626465792,
+      "device_free_bytes": 7191134208,
+      "device_total_bytes": 274861129728,
+      "completed_global_tokens": 114688,
+      "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+    },
+    {
+      "chunk_index": 8,
+      "input_lengths": [
+        16384
+      ],
+      "rank": 0,
+      "allocation_groups_bytes": {
+        "persistent_semantic_cache": 1969814880,
+        "owner_persistent_semantic_cache": 0,
+        "owner_prefill_rows": 0,
+        "replicated_prefill_shadows": 4777504224,
+        "decode_scratch": 76774824,
+        "owner_decode_scratch": 0,
+        "owner_projection_weights": 0,
+        "owner_transport": 0,
+        "shared_prefill_scratch": 1890056796,
+        "queued_construction_sources": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 26253720,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "torch_allocated_bytes": 15784860672,
+      "torch_reserved_bytes": 25434259456,
+      "torch_peak_allocated_bytes_so_far": 24764634624,
+      "device_free_bytes": 7098859520,
+      "device_total_bytes": 274861129728,
+      "completed_global_tokens": 131072,
+      "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+    },
+    {
+      "chunk_index": 9,
+      "input_lengths": [
+        16384
+      ],
+      "rank": 0,
+      "allocation_groups_bytes": {
+        "persistent_semantic_cache": 1969814880,
+        "owner_persistent_semantic_cache": 0,
+        "owner_prefill_rows": 0,
+        "replicated_prefill_shadows": 6589443552,
+        "decode_scratch": 76774824,
+        "owner_decode_scratch": 0,
+        "owner_projection_weights": 0,
+        "owner_transport": 0,
+        "shared_prefill_scratch": 2028044412,
+        "queued_construction_sources": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 26253720,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "torch_allocated_bytes": 17734789120,
+      "torch_reserved_bytes": 27866955776,
+      "torch_peak_allocated_bytes_so_far": 26657055232,
+      "device_free_bytes": 6375342080,
+      "device_total_bytes": 274861129728,
+      "completed_global_tokens": 147456,
+      "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+    },
+    {
+      "chunk_index": 10,
+      "input_lengths": [
+        16384
+      ],
+      "rank": 0,
+      "allocation_groups_bytes": {
+        "persistent_semantic_cache": 1969814880,
+        "owner_persistent_semantic_cache": 0,
+        "owner_prefill_rows": 0,
+        "replicated_prefill_shadows": 6589443552,
+        "decode_scratch": 76774824,
+        "owner_decode_scratch": 0,
+        "owner_projection_weights": 0,
+        "owner_transport": 0,
+        "shared_prefill_scratch": 2162654332,
+        "queued_construction_sources": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 26253720,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "torch_allocated_bytes": 17869399040,
+      "torch_reserved_bytes": 27992784896,
+      "torch_peak_allocated_bytes_so_far": 26849172992,
+      "device_free_bytes": 6239027200,
+      "device_total_bytes": 274861129728,
+      "completed_global_tokens": 163840,
+      "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+    },
+    {
+      "chunk_index": 11,
+      "input_lengths": [
+        16384
+      ],
+      "rank": 0,
+      "allocation_groups_bytes": {
+        "persistent_semantic_cache": 1969814880,
+        "owner_persistent_semantic_cache": 0,
+        "owner_prefill_rows": 0,
+        "replicated_prefill_shadows": 6589443552,
+        "decode_scratch": 76774824,
+        "owner_decode_scratch": 0,
+        "owner_projection_weights": 0,
+        "owner_transport": 0,
+        "shared_prefill_scratch": 2300365756,
+        "queued_construction_sources": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 26253720,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "torch_allocated_bytes": 18007112704,
+      "torch_reserved_bytes": 28183625728,
+      "torch_peak_allocated_bytes_so_far": 26986886656,
+      "device_free_bytes": 6037700608,
+      "device_total_bytes": 274861129728,
+      "completed_global_tokens": 180224,
+      "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+    },
+    {
+      "chunk_index": 12,
+      "input_lengths": [
+        16384
+      ],
+      "rank": 0,
+      "allocation_groups_bytes": {
+        "persistent_semantic_cache": 1969814880,
+        "owner_persistent_semantic_cache": 0,
+        "owner_prefill_rows": 0,
+        "replicated_prefill_shadows": 6589443552,
+        "decode_scratch": 76774824,
+        "owner_decode_scratch": 0,
+        "owner_projection_weights": 0,
+        "owner_transport": 0,
+        "shared_prefill_scratch": 2437971964,
+        "queued_construction_sources": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 26253720,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "torch_allocated_bytes": 18144715776,
+      "torch_reserved_bytes": 28288483328,
+      "torch_peak_allocated_bytes_so_far": 27124489728,
+      "device_free_bytes": 5924454400,
+      "device_total_bytes": 274861129728,
+      "completed_global_tokens": 196608,
+      "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+    },
+    {
+      "chunk_index": 13,
+      "input_lengths": [
+        16384
+      ],
+      "rank": 0,
+      "allocation_groups_bytes": {
+        "persistent_semantic_cache": 1969814880,
+        "owner_persistent_semantic_cache": 0,
+        "owner_prefill_rows": 0,
+        "replicated_prefill_shadows": 8401382880,
+        "decode_scratch": 76774824,
+        "owner_decode_scratch": 0,
+        "owner_projection_weights": 0,
+        "owner_transport": 0,
+        "shared_prefill_scratch": 2572253084,
+        "queued_construction_sources": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 26253720,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "torch_allocated_bytes": 20090939392,
+      "torch_reserved_bytes": 30196891648,
+      "torch_peak_allocated_bytes_so_far": 29013205504,
+      "device_free_bytes": 4007657472,
+      "device_total_bytes": 274861129728,
+      "completed_global_tokens": 212992,
+      "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+    },
+    {
+      "chunk_index": 14,
+      "input_lengths": [
+        16384
+      ],
+      "rank": 0,
+      "allocation_groups_bytes": {
+        "persistent_semantic_cache": 1969814880,
+        "owner_persistent_semantic_cache": 0,
+        "owner_prefill_rows": 0,
+        "replicated_prefill_shadows": 8401382880,
+        "decode_scratch": 76774824,
+        "owner_decode_scratch": 0,
+        "owner_projection_weights": 0,
+        "owner_transport": 0,
+        "shared_prefill_scratch": 2706455292,
+        "queued_construction_sources": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 26253720,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "torch_allocated_bytes": 20225140736,
+      "torch_reserved_bytes": 30385635328,
+      "torch_peak_allocated_bytes_so_far": 29204914688,
+      "device_free_bytes": 3808428032,
+      "device_total_bytes": 274861129728,
+      "completed_global_tokens": 229376,
+      "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+    },
+    {
+      "chunk_index": 15,
+      "input_lengths": [
+        16384
+      ],
+      "rank": 0,
+      "allocation_groups_bytes": {
+        "persistent_semantic_cache": 1969814880,
+        "owner_persistent_semantic_cache": 0,
+        "owner_prefill_rows": 0,
+        "replicated_prefill_shadows": 8401382880,
+        "decode_scratch": 76774824,
+        "owner_decode_scratch": 0,
+        "owner_projection_weights": 0,
+        "owner_transport": 0,
+        "shared_prefill_scratch": 2840578588,
+        "queued_construction_sources": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 26253720,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "torch_allocated_bytes": 20359263744,
+      "torch_reserved_bytes": 30469521408,
+      "torch_peak_allocated_bytes_so_far": 29339037696,
+      "device_free_bytes": 3716153344,
+      "device_total_bytes": 274861129728,
+      "completed_global_tokens": 245760,
+      "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+    },
+    {
+      "chunk_index": 16,
+      "input_lengths": [
+        16384
+      ],
+      "rank": 0,
+      "allocation_groups_bytes": {
+        "persistent_semantic_cache": 1969814880,
+        "owner_persistent_semantic_cache": 0,
+        "owner_prefill_rows": 0,
+        "replicated_prefill_shadows": 8401382880,
+        "decode_scratch": 76774824,
+        "owner_decode_scratch": 0,
+        "owner_projection_weights": 0,
+        "owner_transport": 0,
+        "shared_prefill_scratch": 2974642700,
+        "queued_construction_sources": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 26253720,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "torch_allocated_bytes": 20493326848,
+      "torch_reserved_bytes": 30937186304,
+      "torch_peak_allocated_bytes_so_far": 29473100800,
+      "device_free_bytes": 3240099840,
+      "device_total_bytes": 274861129728,
+      "completed_global_tokens": 262144,
+      "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+    },
+    {
+      "chunk_index": 17,
+      "input_lengths": [
+        16384
+      ],
+      "rank": 0,
+      "allocation_groups_bytes": {
+        "persistent_semantic_cache": 1969814880,
+        "owner_persistent_semantic_cache": 0,
+        "owner_prefill_rows": 0,
+        "replicated_prefill_shadows": 11017842144,
+        "decode_scratch": 76774824,
+        "owner_decode_scratch": 0,
+        "owner_projection_weights": 0,
+        "owner_transport": 0,
+        "shared_prefill_scratch": 3108654204,
+        "queued_construction_sources": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 24,
+        "registries": 1,
+        "unique_tensor_count": 44,
+        "storage_bytes": 26253720,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded"
+      },
+      "torch_allocated_bytes": 23243797504,
+      "torch_reserved_bytes": 33111932928,
+      "torch_peak_allocated_bytes_so_far": 32166063616,
+      "device_free_bytes": 1050673152,
+      "device_total_bytes": 274861129728,
+      "completed_global_tokens": 278528,
+      "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+    }
+  ]
+}

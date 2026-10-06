@@ -123,7 +123,11 @@ def configure_engine(
         engine.prefill_aiter_route_coarse = True
         engine.decode_route_group_size = 64
         engine.decode_route_segment_tiles = 1
-        engine.decode_route_num_warps = 1
+        # Full K3's 16x64, D512+64 scoring tile spills its keys and sort
+        # temporaries with one wave (603 VGPR spills on gfx942). Four waves
+        # preserve the same MFMA products/top-eight while keeping the tile in
+        # registers. Smaller absorbed geometries retain their existing tile.
+        engine.decode_route_num_warps = 4 if int(head_dim) == 576 else 1
         engine.decode_route_reduce_num_warps = 2
 
         # AMD's K3 v10 image carries a newer AITER host/kernel ABI than the

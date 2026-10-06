@@ -1,0 +1,1029 @@
+{
+  "scope": "K3's first 24 layers: TP8 full attention versus owner-local LoD stages.\n\nNative KDA convolution/recurrence/gated norm, MLA LoD, and attention-side\nAttnRes are retained. Feed-forward branches, embeddings, and LM head are\nexcluded from both layouts. Random normalized weights are identical across\nvariants, not trained-model quality evidence. The baseline uses native AITER\nfull causal MLA on each query-head rank; there is no DCP. Owners keep full heads for their own\n12 layers; the other TP ranks do no owner-stage work. This tests two stages\nof a proposed eight-stage layout, not PP2 of\nthe entire model or a throughput claim for K3 with distributed MoE.\n",
+  "points": {
+    "32768/B1": {
+      "full_tp8": {
+        "seconds": 0.35766459442675114,
+        "peak_allocated_bytes": 19198992384,
+        "sum_collective_input_bytes": 90194313216,
+        "completion_seconds": [
+          0.16452163696289063,
+          0.35706298828125
+        ],
+        "post_first_completion_mean_interval_seconds": 0.19254135131835937,
+        "completion_interval_seconds": [
+          0.19254135131835937
+        ]
+      },
+      "sequential": {
+        "seconds": 1.661483621224761,
+        "peak_allocated_bytes": 32001369600,
+        "sum_collective_input_bytes": 0,
+        "completion_seconds": [
+          0.73098876953125,
+          1.6605894775390626
+        ],
+        "post_first_completion_mean_interval_seconds": 0.9296007080078126,
+        "completion_interval_seconds": [
+          0.9296007080078126
+        ],
+        "relative_l2_to_full_tp8": 0.048437874764204025,
+        "relative_l2_to_lod_tp8": 0.022903218865394592
+      },
+      "pipeline": {
+        "seconds": 1.2881046822294593,
+        "peak_allocated_bytes": 32471131648,
+        "sum_collective_input_bytes": 0,
+        "completion_seconds": [
+          0.7432838134765625,
+          1.2875728759765626
+        ],
+        "post_first_completion_mean_interval_seconds": 0.5442890625000001,
+        "completion_interval_seconds": [
+          0.5442890625000001
+        ],
+        "relative_l2_to_full_tp8": 0.048437874764204025,
+        "relative_l2_to_lod_tp8": 0.022903218865394592,
+        "bitwise_equal_to_sequential": true
+      },
+      "stage_handoff_payload_bytes": 469762048
+    }
+  },
+  "workers": [
+    {
+      "rank": 0,
+      "world_size": 8,
+      "layer_kinds": [
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla"
+      ],
+      "points": {
+        "32768/B1": {
+          "full_tp8": {
+            "seconds": 0.3573493277654052,
+            "peak_allocated_bytes": 19198992384,
+            "reductions": 48,
+            "reduction_input_bytes": 11274289152,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "7": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "11": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "15": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "19": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "23": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              }
+            },
+            "completion_seconds": [
+              0.1644935302734375,
+              0.35686053466796874
+            ],
+            "post_first_completion_mean_interval_seconds": 0.19236700439453125,
+            "completion_interval_seconds": [
+              0.19236700439453125
+            ]
+          },
+          "sequential": {
+            "seconds": 1.661483621224761,
+            "peak_allocated_bytes": 31531607552,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "7": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "11": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              }
+            }
+          },
+          "pipeline": {
+            "seconds": 0.8177851773798466,
+            "peak_allocated_bytes": 31531607552,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "7": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "11": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "rank": 1,
+      "world_size": 8,
+      "layer_kinds": [
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla"
+      ],
+      "points": {
+        "32768/B1": {
+          "full_tp8": {
+            "seconds": 0.35754390619695187,
+            "peak_allocated_bytes": 19198992384,
+            "reductions": 48,
+            "reduction_input_bytes": 11274289152,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "7": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "11": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "15": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "19": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "23": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              }
+            },
+            "completion_seconds": [
+              0.16452163696289063,
+              0.35706298828125
+            ],
+            "post_first_completion_mean_interval_seconds": 0.19254135131835937,
+            "completion_interval_seconds": [
+              0.19254135131835937
+            ]
+          },
+          "sequential": {
+            "seconds": 1.6612253552302718,
+            "peak_allocated_bytes": 32001369600,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {
+              "15": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "19": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "23": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              }
+            },
+            "completion_seconds": [
+              0.73098876953125,
+              1.6605894775390626
+            ],
+            "post_first_completion_mean_interval_seconds": 0.9296007080078126,
+            "completion_interval_seconds": [
+              0.9296007080078126
+            ],
+            "relative_l2_to_full_tp8": 0.048437874764204025,
+            "relative_l2_to_lod_tp8": 0.022903218865394592
+          },
+          "pipeline": {
+            "seconds": 1.2881046822294593,
+            "peak_allocated_bytes": 32471131648,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {
+              "15": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "19": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              },
+              "23": {
+                "0": {
+                  "total_len": 32768,
+                  "coverage": 32512,
+                  "state_len": 2896
+                }
+              }
+            },
+            "completion_seconds": [
+              0.7432838134765625,
+              1.2875728759765626
+            ],
+            "post_first_completion_mean_interval_seconds": 0.5442890625000001,
+            "completion_interval_seconds": [
+              0.5442890625000001
+            ],
+            "relative_l2_to_full_tp8": 0.048437874764204025,
+            "relative_l2_to_lod_tp8": 0.022903218865394592,
+            "bitwise_equal_to_sequential": true
+          }
+        }
+      }
+    },
+    {
+      "rank": 2,
+      "world_size": 8,
+      "layer_kinds": [
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla"
+      ],
+      "points": {
+        "32768/B1": {
+          "full_tp8": {
+            "seconds": 0.3573866877704859,
+            "peak_allocated_bytes": 9789230592,
+            "reductions": 48,
+            "reduction_input_bytes": 11274289152,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "7": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "11": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "15": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "19": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "23": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              }
+            },
+            "completion_seconds": [
+              0.16472259521484375,
+              0.35710198974609375
+            ],
+            "post_first_completion_mean_interval_seconds": 0.19237939453125,
+            "completion_interval_seconds": [
+              0.19237939453125
+            ]
+          },
+          "sequential": {
+            "seconds": 0.00047502387315034866,
+            "peak_allocated_bytes": 9949217792,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {}
+          },
+          "pipeline": {
+            "seconds": 0.00047011300921440125,
+            "peak_allocated_bytes": 9949217792,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {}
+          }
+        }
+      }
+    },
+    {
+      "rank": 3,
+      "world_size": 8,
+      "layer_kinds": [
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla"
+      ],
+      "points": {
+        "32768/B1": {
+          "full_tp8": {
+            "seconds": 0.357430687174201,
+            "peak_allocated_bytes": 9789230592,
+            "reductions": 48,
+            "reduction_input_bytes": 11274289152,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "7": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "11": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "15": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "19": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "23": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              }
+            },
+            "completion_seconds": [
+              0.1647021026611328,
+              0.35710433959960936
+            ],
+            "post_first_completion_mean_interval_seconds": 0.19240223693847655,
+            "completion_interval_seconds": [
+              0.19240223693847655
+            ]
+          },
+          "sequential": {
+            "seconds": 0.0004398738965392113,
+            "peak_allocated_bytes": 9949217792,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {}
+          },
+          "pipeline": {
+            "seconds": 0.00043721403926610947,
+            "peak_allocated_bytes": 9949217792,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {}
+          }
+        }
+      }
+    },
+    {
+      "rank": 4,
+      "world_size": 8,
+      "layer_kinds": [
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla"
+      ],
+      "points": {
+        "32768/B1": {
+          "full_tp8": {
+            "seconds": 0.3573723277077079,
+            "peak_allocated_bytes": 9789230592,
+            "reductions": 48,
+            "reduction_input_bytes": 11274289152,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "7": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "11": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "15": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "19": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "23": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              }
+            },
+            "completion_seconds": [
+              0.16471806335449218,
+              0.35710009765625
+            ],
+            "post_first_completion_mean_interval_seconds": 0.19238203430175782,
+            "completion_interval_seconds": [
+              0.19238203430175782
+            ]
+          },
+          "sequential": {
+            "seconds": 0.00044325459748506546,
+            "peak_allocated_bytes": 9949217792,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {}
+          },
+          "pipeline": {
+            "seconds": 0.00046256277710199356,
+            "peak_allocated_bytes": 9949217792,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {}
+          }
+        }
+      }
+    },
+    {
+      "rank": 5,
+      "world_size": 8,
+      "layer_kinds": [
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla"
+      ],
+      "points": {
+        "32768/B1": {
+          "full_tp8": {
+            "seconds": 0.35766459442675114,
+            "peak_allocated_bytes": 9789230592,
+            "reductions": 48,
+            "reduction_input_bytes": 11274289152,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "7": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "11": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "15": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "19": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "23": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              }
+            },
+            "completion_seconds": [
+              0.16468667602539064,
+              0.3573235778808594
+            ],
+            "post_first_completion_mean_interval_seconds": 0.19263690185546875,
+            "completion_interval_seconds": [
+              0.19263690185546875
+            ]
+          },
+          "sequential": {
+            "seconds": 0.0004251347854733467,
+            "peak_allocated_bytes": 9949217792,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {}
+          },
+          "pipeline": {
+            "seconds": 0.00046873465180397034,
+            "peak_allocated_bytes": 9949217792,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {}
+          }
+        }
+      }
+    },
+    {
+      "rank": 6,
+      "world_size": 8,
+      "layer_kinds": [
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla"
+      ],
+      "points": {
+        "32768/B1": {
+          "full_tp8": {
+            "seconds": 0.357420576736331,
+            "peak_allocated_bytes": 9789230592,
+            "reductions": 48,
+            "reduction_input_bytes": 11274289152,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "7": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "11": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "15": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "19": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "23": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              }
+            },
+            "completion_seconds": [
+              0.16460345458984374,
+              0.3569792175292969
+            ],
+            "post_first_completion_mean_interval_seconds": 0.19237576293945316,
+            "completion_interval_seconds": [
+              0.19237576293945316
+            ]
+          },
+          "sequential": {
+            "seconds": 0.00032267533242702484,
+            "peak_allocated_bytes": 9949217792,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {}
+          },
+          "pipeline": {
+            "seconds": 0.000331975519657135,
+            "peak_allocated_bytes": 9949217792,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {}
+          }
+        }
+      }
+    },
+    {
+      "rank": 7,
+      "world_size": 8,
+      "layer_kinds": [
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla",
+        "kda",
+        "kda",
+        "kda",
+        "mla"
+      ],
+      "points": {
+        "32768/B1": {
+          "full_tp8": {
+            "seconds": 0.35741797741502523,
+            "peak_allocated_bytes": 9789230592,
+            "reductions": 48,
+            "reduction_input_bytes": 11274289152,
+            "cache_audit": {
+              "3": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "7": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "11": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "15": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "19": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              },
+              "23": {
+                "0": {
+                  "total_len": 32768,
+                  "full_attention": true,
+                  "centroid_updates": 0
+                }
+              }
+            },
+            "completion_seconds": [
+              0.16468403625488282,
+              0.35707232666015626
+            ],
+            "post_first_completion_mean_interval_seconds": 0.19238829040527344,
+            "completion_interval_seconds": [
+              0.19238829040527344
+            ]
+          },
+          "sequential": {
+            "seconds": 0.00046005286276340485,
+            "peak_allocated_bytes": 9949217792,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {}
+          },
+          "pipeline": {
+            "seconds": 0.00047592446208000183,
+            "peak_allocated_bytes": 9949217792,
+            "reductions": 0,
+            "reduction_input_bytes": 0,
+            "cache_audit": {}
+          }
+        }
+      }
+    }
+  ],
+  "stage_layers": 12,
+  "stages": 2,
+  "chunk_size": 16384,
+  "fixed_transport_slots": 2,
+  "input_bank_retained": true,
+  "random_weights": true,
+  "quality_evidence": false,
+  "moe_included": false,
+  "cuda_graph_capture": false,
+  "baseline_tensor_parallel_size": 8,
+  "baseline_decode_context_parallel_size": 1,
+  "baseline_attention": "native AITER full causal MLA, no LoD centroid construction or routing",
+  "dense_causal_alignment_check": "passed against untimed small FP32 oracle",
+  "untimed_layout_control": "lod_tp8",
+  "diagnostic": false,
+  "valid_timing": true,
+  "timing": "max of all TP worker synchronized wall intervals; one warmed pass per variant; completion events report post-fill spacing separately",
+  "traffic_note": "collective input bytes are logical payload, not measured wire bytes; p2p payload excludes protocol overhead"
+}
