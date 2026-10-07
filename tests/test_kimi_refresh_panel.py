@@ -31,7 +31,7 @@ def test_capacity_environment_does_not_change_attention_or_update_schedule():
         "HSA_NO_SCRATCH_RECLAIM": "0", "LOD_KIMI_DCP_SHARDED_LEAVES": "1"}
     assert lod_memory_environment(8, "long-1020k", False) == {
         "HSA_NO_SCRATCH_RECLAIM": "0", "LOD_KIMI_OWNER_PREFILL_HEAD_GROUP": "2",
-        "LOD_KIMI_OWNER_MOE_CHUNK": "8192"}
+        "LOD_KIMI_OWNER_MOE_CHUNK": "4096"}
 
 
 def test_resumption_reuses_audited_points_even_if_next_warmup_failed(tmp_path):

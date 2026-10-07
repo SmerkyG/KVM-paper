@@ -1,0 +1,124 @@
+{
+  "checkpoint": "/tmp/dan-agent-kimi-k3-f831ab66814297da540d832a5235f8e904f29d06",
+  "kda_prefill": "gluon_paged",
+  "kda_prefill_worker_audit": [
+    {
+      "rank": 0,
+      "variant": "gluon_paged",
+      "groups": 8,
+      "implementation": "benchmarks.kimi_k3_kda_dense_prefill"
+    },
+    {
+      "rank": 1,
+      "variant": "gluon_paged",
+      "groups": 8,
+      "implementation": "benchmarks.kimi_k3_kda_dense_prefill"
+    },
+    {
+      "rank": 2,
+      "variant": "gluon_paged",
+      "groups": 8,
+      "implementation": "benchmarks.kimi_k3_kda_dense_prefill"
+    },
+    {
+      "rank": 3,
+      "variant": "gluon_paged",
+      "groups": 8,
+      "implementation": "benchmarks.kimi_k3_kda_dense_prefill"
+    },
+    {
+      "rank": 4,
+      "variant": "gluon_paged",
+      "groups": 8,
+      "implementation": "benchmarks.kimi_k3_kda_dense_prefill"
+    },
+    {
+      "rank": 5,
+      "variant": "gluon_paged",
+      "groups": 8,
+      "implementation": "benchmarks.kimi_k3_kda_dense_prefill"
+    },
+    {
+      "rank": 6,
+      "variant": "gluon_paged",
+      "groups": 8,
+      "implementation": "benchmarks.kimi_k3_kda_dense_prefill"
+    },
+    {
+      "rank": 7,
+      "variant": "gluon_paged",
+      "groups": 8,
+      "implementation": "benchmarks.kimi_k3_kda_dense_prefill"
+    }
+  ],
+  "max_model_len": 1045514,
+  "mode": "full",
+  "allocation_audit_only": false,
+  "capacity_only": false,
+  "diagnostic_only": false,
+  "route_scatter_validation": false,
+  "weight_cache_id": "kimi-k3-shared-int4-v6",
+  "real_token_cache": "/home/dan/subusers/agent/KVM-paper-release/results/kimi-k3-full-model-current/prolong-kimi-k3-speed-token-cache.pt",
+  "reference_baselines": [
+    "/home/dan/subusers/agent/KVM-paper-release/results/kimi-k3-full-model-current/oct4-full-b8-decode-16k64k-four-updates.json",
+    "/home/dan/subusers/agent/KVM-paper-release/results/kimi-k3-full-model-current/oct4-full-b8-decode-128k128k-four-updates.json",
+    "/home/dan/subusers/agent/KVM-paper-release/results/kimi-k3-full-model-current/oct4-full-b8-decode-256k512k-four-updates.json",
+    "/home/dan/subusers/agent/KVM-paper-release/results/kimi-k3-full-model-current/oct7-frozen-b8-1020k-cohort.json"
+  ],
+  "request_owner_prefill": false,
+  "owner_local_mla": false,
+  "owner_tp_mla": false,
+  "head_owner_mla": false,
+  "attention_owners": null,
+  "attention_heads_per_owner": null,
+  "owner_local_projection_audits": null,
+  "scheduler_row_chunk": 16384,
+  "scheduler_total_budget": 16392,
+  "batch_size": 8,
+  "decode_tokens": 1026,
+  "reference_decode_trace": true,
+  "reference_trace_extensions": {},
+  "decode_execution": "native",
+  "tensor_parallel_size": 8,
+  "decode_context_parallel_size": 8,
+  "repeats": 1,
+  "rotating_prefills": false,
+  "rotating_cohort": 8,
+  "distributed_prefill_construction": false,
+  "cross_layer_prefill_group": null,
+  "independent_local_dcp_prefill": false,
+  "replicated_summary_dcp_prefill": false,
+  "global_centroid_sharded_leaf_prefill": false,
+  "transient_reconstructed_prefill_workspace": false,
+  "sharded_workspace_layout": null,
+  "environment": {
+    "CLUSTER_RUN_NODE": "dev-shared-research-4.dev-training.svc.cluster.local",
+    "HSA_NO_SCRATCH_RECLAIM": "0",
+    "PYTORCH_ALLOC_CONF": "expandable_segments:True",
+    "LOD_BENCHMARK_SYNC_PREFILL_CACHE": "1",
+    "LOD_BENCHMARK_SYNCHRONIZED_DECODE": "1",
+    "LOD_BENCHMARK_ADMISSION_COHORT": "8"
+  },
+  "measurements": {},
+  "gpu_memory_utilization": 0.8,
+  "kv_cache_memory_bytes": 33285996544,
+  "worker_attention_audit_status": "pending",
+  "measurement_status": "failed",
+  "graph_prefill_requested": false,
+  "current_phase": {
+    "length": 1044480,
+    "phase": "warmup",
+    "timestamp_unix": 1791346944.9206097
+  },
+  "phase_history": [
+    {
+      "length": 1044480,
+      "phase": "warmup",
+      "timestamp_unix": 1791346944.9206097
+    }
+  ],
+  "failure": {
+    "exception_type": "EngineDeadError",
+    "message": "EngineCore encountered an issue. See stack trace (above) for the root cause."
+  }
+}

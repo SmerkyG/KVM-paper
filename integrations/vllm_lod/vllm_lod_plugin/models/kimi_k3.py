@@ -505,9 +505,10 @@ def register_kimi_k3_lod() -> None:
 
     _install_attention_only_fixture()
     if os.getenv("LOD_KIMI_REQUEST_OWNER_PREFILL") == "1":
-        from .kimi_k3_owner_moe import install_owner_moe_chunking
+        from .kimi_k3_owner_moe import install_owner_moe_chunking, install_owner_profile_cleanup
 
         install_owner_moe_chunking()
+        install_owner_profile_cleanup()
         from .kimi_k3_owner_residual import install_owner_residual_sharding
 
         install_owner_residual_sharding()

@@ -5,13 +5,15 @@ from benchmarks.kimi_k3_prefill_sweep import owner_prefill_layout, reference_tra
 from benchmarks.prolong import token_digest
 
 
-def test_startup_oom_is_logged_but_never_becomes_a_timing(tmp_path):
+def test_startup_oom_is_logged_but_never_becomes_a_timing(tmp_path, monkeypatch):
     import json
     from benchmarks.kimi_k3_prefill_sweep import create_sweep_engine
 
     args = NS(output=tmp_path / "capacity.json", mode="two-tier", batch_size=8,
         checkpoint="trained", kv_cache_memory_bytes=1 << 30, lengths=[1044480])
-    kwargs = dict(max_model_len=1045522)
+    monkeypatch.setenv("LOD_KIMI_OWNER_MOE_CHUNK", "4096")
+    kwargs = dict(max_model_len=1045522, max_num_batched_tokens=16392,
+        long_prefill_token_threshold=2048)
     def out_of_memory(**config):
         assert config == kwargs
         raise RuntimeError("out of memory during profiling")
@@ -22,6 +24,9 @@ def test_startup_oom_is_logged_but_never_becomes_a_timing(tmp_path):
     assert result["current_phase"] == {"phase": "engine_initialization"}
     assert result["measurements"] == {}
     assert result["planned_lengths"] == [1044480]
+    assert result["scheduler_total_budget"] == 16392
+    assert result["scheduler_row_chunk"] == 2048
+    assert result["environment"]["LOD_KIMI_OWNER_MOE_CHUNK"] == "4096"
     assert create_sweep_engine(lambda **config: config, kwargs, args) == kwargs
 
 

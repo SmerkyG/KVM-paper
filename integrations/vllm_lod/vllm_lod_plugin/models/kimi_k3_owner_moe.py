@@ -12,6 +12,44 @@ import os
 import torch
 
 
+def install_owner_profile_cleanup() -> None:
+    """Release dead dummy-forward workspaces before RCCL's sampler allocation.
+
+    Only explicit-KV-budget startup profiling needs this: that path still runs
+    the full model to compile it, but does not use its allocator high-water
+    mark to size KV. RCCL cannot reclaim PyTorch's cached MoE temporaries.
+    Normal sampling, graph replay and attention scheduling are unchanged.
+    """
+    if os.getenv("LOD_KIMI_REQUEST_OWNER_PREFILL") != "1":
+        return
+    try:
+        from vllm.v1.worker.gpu.model_runner import GPUModelRunner
+    except ImportError:
+        return  # Older vLLM runners do not have this startup profile path.
+    if getattr(GPUModelRunner, "_lod_owner_profile_cleanup_installed", False):
+        return
+    profile = GPUModelRunner.profile_run
+    sampler = GPUModelRunner._dummy_sampler_run
+
+    def profile_run(self, *args, **kwargs):
+        previous = getattr(self, "_lod_owner_in_explicit_profile", False)
+        budget = getattr(self.cache_config, "kv_cache_memory_bytes", None)
+        self._lod_owner_in_explicit_profile = bool(budget)
+        try:
+            return profile(self, *args, **kwargs)
+        finally:
+            self._lod_owner_in_explicit_profile = previous
+
+    def dummy_sampler_run(self, *args, **kwargs):
+        if getattr(self, "_lod_owner_in_explicit_profile", False):
+            torch.accelerator.empty_cache()
+        return sampler(self, *args, **kwargs)
+
+    GPUModelRunner.profile_run = profile_run
+    GPUModelRunner._dummy_sampler_run = dummy_sampler_run
+    GPUModelRunner._lod_owner_profile_cleanup_installed = True
+
+
 def install_owner_moe_chunking() -> None:
     if os.getenv("LOD_KIMI_REQUEST_OWNER_PREFILL") != "1":
         return

@@ -494,6 +494,53 @@ def test_owner_query_chunk_and_model_budget_are_explicit(monkeypatch, row_chunk,
     assert kwargs["max_num_batched_tokens"] == budget
 
 
+@pytest.mark.parametrize("budget,fail", [(None, False), (1073741824, False),
+                                       (1073741824, True)])
+def test_owner_profile_cleanup_only_releases_before_explicit_startup_sampler(monkeypatch, budget, fail):
+    from vllm_lod_plugin.models.kimi_k3_owner_moe import install_owner_profile_cleanup
+
+    calls = []
+    class Runner:
+        cache_config = SimpleNamespace(kv_cache_memory_bytes=budget)
+
+        def profile_run(self):
+            calls.append("forward")
+            return self._dummy_sampler_run("hidden")
+
+        def _dummy_sampler_run(self, hidden):
+            calls.append(hidden)
+            if fail:
+                raise RuntimeError("sampler failure")
+            return 7
+
+    monkeypatch.setitem(sys.modules, "vllm.v1.worker.gpu.model_runner",
+                        SimpleNamespace(GPUModelRunner=Runner))
+    monkeypatch.setenv("LOD_KIMI_REQUEST_OWNER_PREFILL", "1")
+    monkeypatch.setattr(torch.accelerator, "empty_cache", lambda: calls.append("release"))
+    install_owner_profile_cleanup()
+    install_owner_profile_cleanup()  # No stacked wrappers.
+    runner = Runner()
+    if fail:
+        with pytest.raises(RuntimeError, match="sampler failure"):
+            runner.profile_run()
+    else:
+        assert runner.profile_run() == 7
+    assert calls == (["forward", "release", "hidden"] if budget else ["forward", "hidden"])
+    assert not runner._lod_owner_in_explicit_profile
+    calls.clear()
+    with pytest.raises(RuntimeError) if fail else nullcontext():
+        runner._dummy_sampler_run("normal warmup")
+    assert calls == ["normal warmup"]
+
+
+def test_owner_profile_cleanup_is_not_installed_for_dense(monkeypatch):
+    from vllm_lod_plugin.models.kimi_k3_owner_moe import install_owner_profile_cleanup
+
+    monkeypatch.setenv("LOD_KIMI_REQUEST_OWNER_PREFILL", "0")
+    monkeypatch.setitem(sys.modules, "vllm.v1.worker.gpu.model_runner", None)
+    install_owner_profile_cleanup()
+
+
 def test_owner_moe_chunking_keeps_tokenwise_native_result(monkeypatch):
     from vllm_lod_plugin.models.kimi_k3_owner_moe import install_owner_moe_chunking
 

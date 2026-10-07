@@ -63,12 +63,44 @@ reported by `rocm-smi --showpids`.
    million-token capacity. No asynchronous DCP construction uses this scope.
 
 The million-token B8 attempt additionally uses two-head temporary projection
-groups and the existing tokenwise native MoE wrapper in 8K slices. Attention
+groups and the existing tokenwise native MoE wrapper in 4K slices. Attention
 scheduler slices remain 8×2K, while centroid updates remain global 16K/256.
 These bounds do not drop tokens or change the attention approximation.
 ROCm launch scratch reclamation is permitted in the new LoD runner; the failed
 short B8 retry with reclamation disabled reached a reported 130 MB free during
 an RCCL launch. That failure is logged, not counted as a timing.
+
+### Trained million-token startup failures
+
+The permanent-cache fixture is not enough to certify serving. A real trained
+1020K/B8 engine with 8K MoE slices failed during vLLM's dummy forward:
+AITER's per-expert MoE output requested **896 MiB** with only 88 MiB free on
+rank 0. Reducing just the MoE slice to 4K completed the forward but failed in
+the subsequent dummy sampler's RCCL allocation of **6 MiB**. These are startup
+failures, not measured generation results:
+[8K slice](oct7-lod-b8-million-initial-allocation.json),
+[4K slice](oct7-lod-b8-million-initial-allocation-moe4096.json).
+
+A narrowly scoped startup fix now releases unused PyTorch allocator blocks
+between that dummy forward and the dummy sampler, only in request-owner K3
+engines with an explicit native-KV budget. RCCL's direct allocations cannot
+ask PyTorch to release its cached temporary blocks. The hook restores its
+profile-only flag even if initialization fails and does not run in serving,
+normal sampling, or graph replay. Its focused tests check call ordering,
+explicit-budget gating, idempotence and exception cleanup. The trained 4K-slice
+[allocation retry](oct7-lod-b8-million-allocation-moe4096-profile-cleanup.json)
+now **completes initialization and native model graph capture** on all ranks.
+Rank 0 holds 32.843 GiB of live client allocations, including 30.120 GiB of
+owner semantic cache, and has 2.023 GiB physically free before releasing its
+unused cached profiling blocks. These are startup readings, not measured
+generation peaks. Full-length warmup and measured generation are now running;
+they must still complete before claiming million-token B8 support.
+
+The fresh dense 1020K/B8 control also ran out of device resources during its
+first warmup, after successful engine initialization with a 31 GiB native
+cache. It supplies no speed cell. Dense 512K/B8 did complete both passes:
+939.950 s prefill / 61.130 ms per decode step. This control's capacity failure
+does not establish whether the smaller native cache used by LoD will fit.
 
 `--report-memory` now uses the existing alias-aware storage accountant outside
 generation timing, including parent/owner construction workspaces, and can

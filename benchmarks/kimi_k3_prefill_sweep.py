@@ -90,6 +90,11 @@ def create_sweep_engine(factory, kwargs, args):
         write_json(args.output, dict(mode=args.mode, batch_size=args.batch_size,
             checkpoint=args.checkpoint, max_model_len=kwargs["max_model_len"],
             kv_cache_memory_bytes=args.kv_cache_memory_bytes,
+            scheduler_row_chunk=kwargs.get("long_prefill_token_threshold"),
+            scheduler_total_budget=kwargs.get("max_num_batched_tokens"),
+            environment={name: value for name, value in os.environ.items()
+                if name.startswith(("LOD_KIMI_", "LOD_BENCHMARK_")) or name in (
+                    "HSA_NO_SCRATCH_RECLAIM", "CLUSTER_RUN_NODE", "PYTORCH_ALLOC_CONF")},
             planned_lengths=args.lengths, measurements={}, measurement_status="failed",
             current_phase=dict(phase="engine_initialization"),
             failure=dict(exception_type=type(error).__name__, message=str(error))))

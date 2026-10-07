@@ -1,0 +1,50 @@
+{
+  "batch_size": 8,
+  "checkpoint": "/tmp/dan-agent-kimi-k3-f831ab66814297da540d832a5235f8e904f29d06",
+  "current_phase": {
+    "phase": "engine_initialization"
+  },
+  "environment": {
+    "CLUSTER_RUN_NODE": "dev-shared-research-4.dev-training.svc.cluster.local",
+    "HSA_NO_SCRATCH_RECLAIM": "0",
+    "LOD_BENCHMARK_ADMISSION_COHORT": "8",
+    "LOD_BENCHMARK_PREFILL_COHORT": "8",
+    "LOD_BENCHMARK_SYNCHRONIZED_DECODE": "1",
+    "LOD_BENCHMARK_SYNC_PREFILL_CACHE": "1",
+    "LOD_KIMI_CHUNK_TILE_PACK": "1",
+    "LOD_KIMI_DIRECT_LEAF_RESULT": "1",
+    "LOD_KIMI_LEAF_BLOCK_M": "64",
+    "LOD_KIMI_LEAF_WARPS": "1",
+    "LOD_KIMI_OWNER_MOE_CHUNK": "4096",
+    "LOD_KIMI_OWNER_POOL_BACKED_PREFILL": "1",
+    "LOD_KIMI_OWNER_PREFILL_HEAD_GROUP": "2",
+    "LOD_KIMI_OWNER_PRESSURE_CHECK": "1",
+    "LOD_KIMI_OWNER_QUERY_CHUNK": "2048",
+    "LOD_KIMI_OWNER_REUSE_TRANSPORT": "1",
+    "LOD_KIMI_OWNER_SHARD_RESIDUAL": "0",
+    "LOD_KIMI_PREFILL_MIN_FREE_GIB": "4",
+    "LOD_KIMI_PREFILL_RECLAIM_INTERVAL": "0",
+    "LOD_KIMI_REQUEST_OWNER_DECODE": "1",
+    "LOD_KIMI_REQUEST_OWNER_PREFILL": "1",
+    "LOD_KIMI_REUSE_PREFILL_ALLOCATOR": "1",
+    "LOD_KIMI_SORT_LEAF_ROUTES": "1",
+    "LOD_KIMI_SUBTILE64": "score",
+    "LOD_KIMI_TILE_PACK_QUERY_BLOCK": "1024",
+    "LOD_KIMI_TILE_REFINE": "1",
+    "PYTORCH_ALLOC_CONF": "expandable_segments:True"
+  },
+  "failure": {
+    "exception_type": "RuntimeError",
+    "message": "Engine core initialization failed. See root cause above. Failed core proc(s): {}"
+  },
+  "kv_cache_memory_bytes": 1073741824,
+  "max_model_len": 1045514,
+  "measurement_status": "failed",
+  "measurements": {},
+  "mode": "two-tier",
+  "planned_lengths": [
+    1044480
+  ],
+  "scheduler_row_chunk": 2048,
+  "scheduler_total_budget": 16392
+}

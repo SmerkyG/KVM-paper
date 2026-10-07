@@ -50,7 +50,9 @@ Sources: [16K](oct7-trained-decode-union-b8-16k.json),
 B1 dense and LoD have completed every point through 1020K. At 1020K, LoD
 prefill is **178.284 s versus 342.108 s** dense (1.919×); decode is
 **22.611 versus 28.049 ms/step** (1.240×), including four catch-ups.
-Fresh dense and request-owned B8 sweeps continue on separate nodes.
+Fresh dense B8 completes through 512K (939.950 s / 61.130 ms per decode step);
+its 1020K warmup fails for lack of device resources and is not a speed result.
+The request-owned B8 sweep continues on a separate node.
 The completed six-head B8 configuration regressed in prefill and is preserved
 in [the superseded-run log](OCT7_B8_UNSHARED.md), not mixed into the replacement
 table. Its allocator audit reports pressure-induced reclamation: rank 0
@@ -71,7 +73,8 @@ even when the request's capacity is larger. The existing live-leaf memory
 bound still reduces groups as needed; the 1020K capacity attempt keeps its
 explicit two-head bound. Shared construction scratch and this geometry are
 being remeasured on every canonical B8 point, then at 512K and 1020K.
-The fresh canonical 32K point is 33.860 s / 31.058 ms per decode step. At 16K,
+The fresh canonical 128K point is 150.394 s / 31.962 ms per decode step,
+versus dense's 153.288 s / 38.618 ms. At 16K,
 the measured client allocation peak falls from 27.419 to 21.595 GiB; this is
 an allocator peak, not a reduction in weight storage or permanent KV size.
 The sweep runner saves every completed point before
@@ -88,8 +91,11 @@ generation** through 256K; the new shared-scratch panel is still in progress.
 Long owner prefills additionally share construction scratch across serial
 layers and release it at the decode handoff. Million-token B8 remains an
 actual capacity test, not a claimed success before it completes.
-The bounded 8K MoE setting for that capacity test is preserved during owner
+The bounded MoE setting for that capacity test is preserved during owner
 setup; it no longer gets overwritten by the 16K attention scheduler budget.
+The trained million-token engine now initializes with 4K MoE slices and a
+startup-only allocator cleanup before the dummy sampler. Full-length warmup
+and measured generation are running; initialization alone is not a fit claim.
 
 With the image runtime and a resident full-model daemon, the sequential runner
 does not require the proprietary cluster runner:
@@ -109,7 +115,7 @@ not freely generated model-quality scores.
 Resuming skips individual audited points, including those saved before a
 later capacity failure, without rerunning them or changing their stored times.
 
-The broad CPU regression check passed **692 tests** (GPU-only cases skipped):
+The broad CPU regression check passed **697 tests** (99 GPU-only cases skipped):
 
 ```bash
 python -m pytest -q tests/test_kimi*.py tests/test_benchmarks.py tests/test_attention_timing.py
@@ -123,7 +129,8 @@ The projection-group GPU test additionally compares twelve, eight, six, four
 and two heads, with bitwise-equal output/LSE for both ordinary and compact
 selected-leaf projection (four cases passed).
 After the final grouping/startup-reporting changes, the focused benchmark and
-policy suite passed 101 tests. Startup allocation failures are now logged as
+policy suite passed 106 tests (three GPU-only cases skipped), including the
+profile-only allocator cleanup. Startup allocation failures are now logged as
 failed initialization with no invented timing points.
 
 Existing quality evidence remains in [PROLONG_QUALITY.md](PROLONG_QUALITY.md)

@@ -70,7 +70,7 @@ def lod_memory_environment(batch, block, sharded):
         env["LOD_KIMI_DCP_SHARDED_LEAVES"] = "1"
     if batch == 8 and block == "long-1020k":
         # Same attention tokens and global updates, smaller temporary GEMMs.
-        env.update(LOD_KIMI_OWNER_PREFILL_HEAD_GROUP="2", LOD_KIMI_OWNER_MOE_CHUNK="8192")
+        env.update(LOD_KIMI_OWNER_PREFILL_HEAD_GROUP="2", LOD_KIMI_OWNER_MOE_CHUNK="4096")
     return env
 
 
