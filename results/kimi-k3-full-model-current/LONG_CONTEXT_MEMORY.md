@@ -93,8 +93,27 @@ now **completes initialization and native model graph capture** on all ranks.
 Rank 0 holds 32.843 GiB of live client allocations, including 30.120 GiB of
 owner semantic cache, and has 2.023 GiB physically free before releasing its
 unused cached profiling blocks. These are startup readings, not measured
-generation peaks. Full-length warmup and measured generation are now running;
-they must still complete before claiming million-token B8 support.
+generation peaks. The subsequent full-length warmup fails on a 48-MiB KDA
+projection allocation with no free device memory:
+[4K-slice generation attempt](oct7-current-lod-b8-long-1020k-moe4096.json).
+Later scheduler/runtime-length errors in that log are consequences of the
+worker OOM, not the original failure.
+
+The next exact-storage trial shards the **prefill AttnRes bank** by token over
+the TP group, gathering each native mix's output before the normal TP layers.
+For the trained 7,168-channel model, the 16K call's eight bank blocks occupy
+1.750 GiB/rank unsharded versus 0.219 GiB/rank sharded: a calculated 1.531 GiB
+bank saving, not a measured whole-model peak reduction. Eight-token B8 decode
+explicitly bypasses this sharding and adds no new collectives to its graph.
+CPU tests cover all eight rank slices and native state updates; three GPU
+cases match native bank-mix outputs bitwise. The attention cache is unchanged.
+
+That [sharded-bank 4K-MoE retry](oct7-current-lod-b8-long-1020k-bankshard.json)
+passes the former KDA allocation but fails in AITER MoE's per-expert temporary
+buffers: stage 1 requests 722 MiB and stage 2 requests 448 MiB. A 2K MoE-slice
+retry is in progress. It halves the tokenwise MoE input slice, not the
+attention scheduler budget, global update interval, or retained KV history.
+Neither failed warmup supplies a timing cell or establishes 1020K/B8 support.
 
 The fresh dense 1020K/B8 control also ran out of device resources during its
 first warmup, after successful engine initialization with a 31 GiB native
@@ -121,8 +140,10 @@ client peak). See [current timings](CURRENT_TIMINGS.md) and
 
 B8 completed both generations through 256K with bounded decode workspace;
 that unshared-prefill configuration is preserved in [its log](OCT7_B8_UNSHARED.md).
-The new shared-prefill-scratch canonical sweep remeasures these points before
-512K/1020K capacity and generation, which still need to complete.
+The new shared-prefill-scratch canonical sweep has now also completed every
+point through 256K, including all audited updates. It measures 330.056 s
+prefill / 32.571 ms decode there. The separate 512K warmup/measurement is
+running; 1020K generation still needs to fit and complete.
 Its measured 16K client allocation peak is **21.595 GiB**, compared with
 **27.419 GiB** in the superseded engine at the same 256K reservation: 5.823 GiB
 less peak client memory. Both are measured-pass allocator peaks, not total

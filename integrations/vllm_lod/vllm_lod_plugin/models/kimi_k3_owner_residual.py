@@ -79,7 +79,7 @@ def install_owner_residual_sharding() -> None:
         tokens = int(positions.numel())
         blocks = self.config.attn_res_block_size
         # Tiny/dummy or unaligned calls retain the complete native path.
-        if blocks is None or tokens < group.world_size or tokens % group.world_size:
+        if blocks is None or tokens <= group.world_size or tokens % group.world_size:
             return native_forward(self, input_ids, positions, intermediate_tensors,
                                   inputs_embeds=inputs_embeds, **kwargs)
         pp = get_pp_group()

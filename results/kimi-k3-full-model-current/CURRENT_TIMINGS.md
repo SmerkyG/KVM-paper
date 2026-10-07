@@ -19,7 +19,7 @@ One exact-shape untimed warmup and one measured pass, 1,026 output tokens / 1,02
 | B8 | 32K | 32.955 | 33.860 | 0.973× |
 | B8 | 64K | 69.263 | 70.851 | 0.978× |
 | B8 | 128K | 153.288 | 150.394 | 1.019× |
-| B8 | 256K | 360.076 | — | — |
+| B8 | 256K | 360.076 | 330.056 | 1.091× |
 | B8 | 512K | 939.950 | — | — |
 | B8 | 1020K | — | — | — |
 
@@ -38,7 +38,7 @@ One exact-shape untimed warmup and one measured pass, 1,026 output tokens / 1,02
 | B8 | 32K | 33.975 | 31.058 | 1.094× |
 | B8 | 64K | 35.588 | 31.508 | 1.129× |
 | B8 | 128K | 38.618 | 31.962 | 1.208× |
-| B8 | 256K | 48.105 | — | — |
+| B8 | 256K | 48.105 | 32.571 | 1.477× |
 | B8 | 512K | 61.130 | — | — |
 | B8 | 1020K | — | — | — |
 
@@ -50,8 +50,11 @@ One exact-shape untimed warmup and one measured pass, 1,026 output tokens / 1,02
 - `oct7-current-full-b8-short.json`: complete; {'length': 131072, 'phase': 'point_complete', 'timestamp_unix': 1791343919.5279937}
 - `oct7-current-lod-b1-long.json`: complete; {'length': 1044480, 'phase': 'point_complete', 'timestamp_unix': 1791343395.1450899}
 - `oct7-current-lod-b1-short.json`: complete; {'length': 262144, 'phase': 'point_complete', 'timestamp_unix': 1791342608.5192482}
+- `oct7-current-lod-b8-long-1020k-bankshard.json`: failed; {'length': 1044480, 'phase': 'warmup', 'timestamp_unix': 1791348365.866205}
+- `oct7-current-lod-b8-long-1020k-moe4096.json`: failed; {'length': 1044480, 'phase': 'warmup', 'timestamp_unix': 1791347959.1571953}
+- `oct7-current-lod-b8-long-512k-remaining-512k.json`: in_progress; {'length': 524288, 'phase': 'warmup', 'timestamp_unix': 1791348106.7196164}
 - `oct7-current-lod-b8-long-512k.json`: failed; {'length': 524288, 'phase': 'warmup', 'timestamp_unix': 1791343656.9135764}
-- `oct7-current-lod-b8-short-remaining-256k.json`: in_progress; {'length': 262144, 'phase': 'warmup', 'timestamp_unix': 1791347217.0763578}
+- `oct7-current-lod-b8-short-remaining-256k.json`: complete; {'length': 262144, 'phase': 'point_complete', 'timestamp_unix': 1791347944.4846623}
 - `oct7-current-lod-b8-short.json`: failed; {'length': 16384, 'phase': 'measurement', 'timestamp_unix': 1791343538.2167103, 'repeat_index': 0, 'repeats': 1}
 
 ## Raw sources
@@ -62,6 +65,9 @@ One exact-shape untimed warmup and one measured pass, 1,026 output tokens / 1,02
 - [oct7-current-full-b8-short.json](oct7-current-full-b8-short.json)
 - [oct7-current-lod-b1-long.json](oct7-current-lod-b1-long.json)
 - [oct7-current-lod-b1-short.json](oct7-current-lod-b1-short.json)
+- [oct7-current-lod-b8-long-1020k-bankshard.json](oct7-current-lod-b8-long-1020k-bankshard.json)
+- [oct7-current-lod-b8-long-1020k-moe4096.json](oct7-current-lod-b8-long-1020k-moe4096.json)
+- [oct7-current-lod-b8-long-512k-remaining-512k.json](oct7-current-lod-b8-long-512k-remaining-512k.json)
 - [oct7-current-lod-b8-long-512k.json](oct7-current-lod-b8-long-512k.json)
 - [oct7-current-lod-b8-short-remaining-256k.json](oct7-current-lod-b8-short-remaining-256k.json)
 - [oct7-current-lod-b8-short.json](oct7-current-lod-b8-short.json)

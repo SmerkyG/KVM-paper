@@ -73,8 +73,8 @@ even when the request's capacity is larger. The existing live-leaf memory
 bound still reduces groups as needed; the 1020K capacity attempt keeps its
 explicit two-head bound. Shared construction scratch and this geometry are
 being remeasured on every canonical B8 point, then at 512K and 1020K.
-The fresh canonical 128K point is 150.394 s / 31.962 ms per decode step,
-versus dense's 153.288 s / 38.618 ms. At 16K,
+The fresh canonical 256K point is **330.056 s / 32.571 ms per decode step**,
+versus dense's **360.076 s / 48.105 ms** (1.091× prefill, 1.477× decode). At 16K,
 the measured client allocation peak falls from 27.419 to 21.595 GiB; this is
 an allocator peak, not a reduction in weight storage or permanent KV size.
 The sweep runner saves every completed point before
@@ -94,8 +94,12 @@ actual capacity test, not a claimed success before it completes.
 The bounded MoE setting for that capacity test is preserved during owner
 setup; it no longer gets overwritten by the 16K attention scheduler budget.
 The trained million-token engine now initializes with 4K MoE slices and a
-startup-only allocator cleanup before the dummy sampler. Full-length warmup
-and measured generation are running; initialization alone is not a fit claim.
+startup-only allocator cleanup before the dummy sampler. Generation still
+runs out of VRAM: initially in KDA, then in MoE after sharding only the
+prefill residual bank. The next capacity trial uses 2K MoE slices with that
+sharded bank. Attention chunks, routing and update cadences do not change;
+eight-token B8 decode retains its native residual-bank path. Initialization
+alone is not a fit claim. The independent 512K warmup/measurement continues.
 
 With the image runtime and a resident full-model daemon, the sequential runner
 does not require the proprietary cluster runner:

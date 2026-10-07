@@ -98,6 +98,14 @@ def test_sharded_native_forward_preserves_residual_updates_and_outputs(monkeypat
         reference_model.final_bank[rank * 2:rank * 2 + 2], atol=0, rtol=0)
     assert len(calls) == 9
 
+    # B8 decode must retain the native bank and avoid extra collectives in its
+    # graph. This is a prefill memory choice, not a decode-layout change.
+    calls.clear()
+    decode_model = NativeModel()
+    decode_model.forward(None, positions[:8], None, inputs_embeds=input_values[:8])
+    assert decode_model.final_bank.shape == (8, 2, 5)
+    assert calls == []
+
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="native K3 AttnRes GPU kernel")
 @pytest.mark.parametrize("rank,blocks,write", [(0, 0, 0), (4, 2, -1), (7, 7, 7)])

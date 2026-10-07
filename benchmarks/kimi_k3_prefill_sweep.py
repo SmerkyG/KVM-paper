@@ -76,8 +76,9 @@ def configure_owner_prefill_environment(batch_size: int) -> tuple[int, int]:
     row_chunk, total_budget = owner_prefill_layout(batch_size)
     os.environ.update(LOD_KIMI_REQUEST_OWNER_PREFILL="1",
         LOD_KIMI_OWNER_QUERY_CHUNK=str(row_chunk),
-        LOD_BENCHMARK_PREFILL_COHORT=str(batch_size), LOD_KIMI_OWNER_SHARD_RESIDUAL="0")
+        LOD_BENCHMARK_PREFILL_COHORT=str(batch_size))
     os.environ.setdefault("LOD_KIMI_OWNER_MOE_CHUNK", str(total_budget))
+    os.environ.setdefault("LOD_KIMI_OWNER_SHARD_RESIDUAL", "0")
     return row_chunk, total_budget
 
 

@@ -31,17 +31,22 @@ def test_startup_oom_is_logged_but_never_becomes_a_timing(tmp_path, monkeypatch)
 
 
 @pytest.mark.parametrize("explicit_moe_chunk", [None, "8192"])
-def test_owner_setup_preserves_moe_bound_without_shrinking_attention_budget(monkeypatch, explicit_moe_chunk):
+@pytest.mark.parametrize("shard_residual", [None, "0", "1"])
+def test_owner_setup_preserves_moe_bound_without_shrinking_attention_budget(monkeypatch, explicit_moe_chunk, shard_residual):
     import os
     from benchmarks.kimi_k3_prefill_sweep import configure_owner_prefill_environment
 
     monkeypatch.setenv("LOD_KIMI_OWNER_QUERY_CHUNK", "2048")
+    monkeypatch.delenv("LOD_KIMI_OWNER_SHARD_RESIDUAL", raising=False)
+    if shard_residual is not None:
+        monkeypatch.setenv("LOD_KIMI_OWNER_SHARD_RESIDUAL", shard_residual)
     monkeypatch.delenv("LOD_KIMI_OWNER_MOE_CHUNK", raising=False)
     if explicit_moe_chunk is not None:
         monkeypatch.setenv("LOD_KIMI_OWNER_MOE_CHUNK", explicit_moe_chunk)
     assert configure_owner_prefill_environment(8) == (2048, 16392)
     assert os.environ["LOD_KIMI_OWNER_MOE_CHUNK"] == (explicit_moe_chunk or "16392")
     assert os.environ["LOD_BENCHMARK_PREFILL_COHORT"] == "8"
+    assert os.environ["LOD_KIMI_OWNER_SHARD_RESIDUAL"] == (shard_residual or "0")
 
 
 def test_capacity_diagnostic_uses_global_counts_and_local_leaf_storage():
