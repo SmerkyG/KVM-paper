@@ -15,11 +15,11 @@ One exact-shape untimed warmup and one measured pass, 1,026 output tokens / 1,02
 | B1 | 256K | 44.929 | 36.038 | 1.247× |
 | B1 | 512K | 117.511 | 83.521 | 1.407× |
 | B1 | 1020K | 342.108 | 178.284 | 1.919× |
-| B8 | 16K | 16.038 | 16.218 | 0.989× |
-| B8 | 32K | 32.955 | 40.551 | 0.813× |
-| B8 | 64K | 69.263 | 94.297 | 0.735× |
-| B8 | 128K | 153.288 | 206.788 | 0.741× |
-| B8 | 256K | 360.076 | 481.708 | 0.747× |
+| B8 | 16K | 16.038 | 16.221 | 0.989× |
+| B8 | 32K | 32.955 | 33.860 | 0.973× |
+| B8 | 64K | 69.263 | — | — |
+| B8 | 128K | 153.288 | — | — |
+| B8 | 256K | 360.076 | — | — |
 | B8 | 512K | — | — | — |
 | B8 | 1020K | — | — | — |
 
@@ -34,11 +34,11 @@ One exact-shape untimed warmup and one measured pass, 1,026 output tokens / 1,02
 | B1 | 256K | 23.849 | 22.370 | 1.066× |
 | B1 | 512K | 25.352 | 22.431 | 1.130× |
 | B1 | 1020K | 28.049 | 22.611 | 1.240× |
-| B8 | 16K | 32.948 | 31.426 | 1.048× |
-| B8 | 32K | 33.975 | 31.182 | 1.090× |
-| B8 | 64K | 35.588 | 31.507 | 1.130× |
-| B8 | 128K | 38.618 | 31.962 | 1.208× |
-| B8 | 256K | 48.105 | 32.553 | 1.478× |
+| B8 | 16K | 32.948 | 30.753 | 1.071× |
+| B8 | 32K | 33.975 | 31.058 | 1.094× |
+| B8 | 64K | 35.588 | — | — |
+| B8 | 128K | 38.618 | — | — |
+| B8 | 256K | 48.105 | — | — |
 | B8 | 512K | — | — | — |
 | B8 | 1020K | — | — | — |
 
@@ -50,7 +50,7 @@ One exact-shape untimed warmup and one measured pass, 1,026 output tokens / 1,02
 - `oct7-current-lod-b1-long.json`: complete; {'length': 1044480, 'phase': 'point_complete', 'timestamp_unix': 1791343395.1450899}
 - `oct7-current-lod-b1-short.json`: complete; {'length': 262144, 'phase': 'point_complete', 'timestamp_unix': 1791342608.5192482}
 - `oct7-current-lod-b8-long-512k.json`: failed; {'length': 524288, 'phase': 'warmup', 'timestamp_unix': 1791343656.9135764}
-- `oct7-current-lod-b8-short-remaining-256k.json`: complete; {'length': 262144, 'phase': 'point_complete', 'timestamp_unix': 1791345932.3175273}
+- `oct7-current-lod-b8-short-remaining-256k.json`: in_progress; {'length': 32768, 'phase': 'point_complete', 'timestamp_unix': 1791346643.3167064}
 - `oct7-current-lod-b8-short.json`: failed; {'length': 16384, 'phase': 'measurement', 'timestamp_unix': 1791343538.2167103, 'repeat_index': 0, 'repeats': 1}
 
 ## Raw sources

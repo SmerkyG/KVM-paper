@@ -81,6 +81,21 @@ def configure_owner_prefill_environment(batch_size: int) -> tuple[int, int]:
     return row_chunk, total_budget
 
 
+def create_sweep_engine(factory, kwargs, args):
+    """Log startup capacity failures, without inventing measured points."""
+    try:
+        return factory(**kwargs)
+    except Exception as error:
+        from benchmarks._vllm import write_json
+        write_json(args.output, dict(mode=args.mode, batch_size=args.batch_size,
+            checkpoint=args.checkpoint, max_model_len=kwargs["max_model_len"],
+            kv_cache_memory_bytes=args.kv_cache_memory_bytes,
+            planned_lengths=args.lengths, measurements={}, measurement_status="failed",
+            current_phase=dict(phase="engine_initialization"),
+            failure=dict(exception_type=type(error).__name__, message=str(error))))
+        raise
+
+
 def reset_peak_memory(worker):
     import torch
 
@@ -726,7 +741,7 @@ def main() -> None:
             for request in range(args.batch_size)
         ]
 
-    llm = LLM(**kwargs)
+    llm = create_sweep_engine(LLM, kwargs, args)
     result = None
     try:
         from benchmarks.kimi_k3_kda_dense_prefill import select_kda

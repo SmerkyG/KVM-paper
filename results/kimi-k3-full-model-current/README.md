@@ -9,6 +9,8 @@ The preceding panel is preserved in [OCT6_VALIDATED_RESULTS.md](OCT6_VALIDATED_R
 Full trained K3, eight MI325X GPUs, TP8/DCP8/EP8. Dense uses the improved
 Gluon decoder. Both modes now use the approved G8 direct-state-I/O KDA prefill
 baseline, resident packed INT4 **MoE weights**, and real frozen ProLong tokens.
+The supplied v10 image userspace reports vLLM
+`0.30.1rc1.dev143+g29468dde8`; the direct runner keeps compilation on local disk.
 Attention storage is BF16. B1 LoD uses DCP8; B8 uses one request's attention
 per GPU while retaining native TP projections, KDA and MoE. Global per-request
 cadences remain 16K prefill / 256 decode, top-eight routing, and the existing
@@ -49,18 +51,29 @@ B1 dense and LoD have completed every point through 1020K. At 1020K, LoD
 prefill is **178.284 s versus 342.108 s** dense (1.919×); decode is
 **22.611 versus 28.049 ms/step** (1.240×), including four catch-ups.
 Fresh dense and request-owned B8 sweeps continue on separate nodes.
-The fresh B8 prefill points currently regress against dense. This engine's
-256K capacity chooses six-head projection groups even at short live lengths,
-where the previous trials used twelve. A same-engine 32K comparison of six
-and twelve heads, at that same capacity, is queued to isolate this choice;
-neither group changes routing or the attention approximation. These partial
-points are fresh observations, not yet a claim of the fastest B8 configuration.
-The existing allocator audit also reports pressure-induced reclamation:
-rank 0 reclaims on 48 of the 64 checks for the 64K point's warmup and measured
-pass combined. Those counters establish pressure, not its exclusive time
-cost. The queued trial includes the new shared construction workspace in both
-arms; it can isolate grouping, but a gain versus the preceding engine is a
-combined pipeline improvement, not an isolated measurement of scratch sharing.
+The completed six-head B8 configuration regressed in prefill and is preserved
+in [the superseded-run log](OCT7_B8_UNSHARED.md), not mixed into the replacement
+table. Its allocator audit reports pressure-induced reclamation: rank 0
+reclaimed on 48 of 64 checks for the 64K warmup and measured pass combined.
+Those counters establish pressure, not its exclusive time cost.
+
+With shared construction scratch, the same-engine 32K trial records
+**33.9295 s with six heads versus 33.7891 s with twelve** (0.414% lower latency).
+All eight first tokens agree. This is a small one-pass grouping difference,
+not a statistically established large gain. The two arms have identical
+prompts, but this short prefill-only trial's prompt builder differs from the
+canonical forced-continuation panel. Its absolute times are therefore not
+substituted into that panel or used to attribute the preceding slowdown.
+[Raw comparison](oct7-owner-head-groups-32k-cap256k.json).
+
+The default now retains twelve-head projection groups for short live prefixes,
+even when the request's capacity is larger. The existing live-leaf memory
+bound still reduces groups as needed; the 1020K capacity attempt keeps its
+explicit two-head bound. Shared construction scratch and this geometry are
+being remeasured on every canonical B8 point, then at 512K and 1020K.
+The fresh canonical 32K point is 33.860 s / 31.058 ms per decode step. At 16K,
+the measured client allocation peak falls from 27.419 to 21.595 GiB; this is
+an allocator peak, not a reduction in weight storage or permanent KV size.
 The sweep runner saves every completed point before
 attempting a longer context. These are fresh measurements, not rerenders of
 the previous controls. The [memory investigation](LONG_CONTEXT_MEMORY.md)
@@ -70,7 +83,8 @@ Completion of a storage-only fixture does not certify million-token generation.
 The first B8 retry exposed oversized decode-update score workspace: 256-token
 catch-up inherited a 16K prefill reservation. The corrected workspace follows
 the actual overflow in 256-token buckets; scores and centroid choices do not
-change. The new B8 warmup **and measured generation** complete through 256K.
+change. That bounded-score configuration completed B8 warmup **and measured
+generation** through 256K; the new shared-scratch panel is still in progress.
 Long owner prefills additionally share construction scratch across serial
 layers and release it at the decode handoff. Million-token B8 remains an
 actual capacity test, not a claimed success before it completes.
@@ -95,7 +109,7 @@ not freely generated model-quality scores.
 Resuming skips individual audited points, including those saved before a
 later capacity failure, without rerunning them or changing their stored times.
 
-The current CPU regression check passes **692 tests** (GPU-only cases skipped):
+The broad CPU regression check passed **692 tests** (GPU-only cases skipped):
 
 ```bash
 python -m pytest -q tests/test_kimi*.py tests/test_benchmarks.py tests/test_attention_timing.py
@@ -108,6 +122,9 @@ live-cache selected sets and numerical output/LSE agreement on every rank.
 The projection-group GPU test additionally compares twelve, eight, six, four
 and two heads, with bitwise-equal output/LSE for both ordinary and compact
 selected-leaf projection (four cases passed).
+After the final grouping/startup-reporting changes, the focused benchmark and
+policy suite passed 101 tests. Startup allocation failures are now logged as
+failed initialization with no invented timing points.
 
 Existing quality evidence remains in [PROLONG_QUALITY.md](PROLONG_QUALITY.md)
 and [CHAT_QUALITY.md](CHAT_QUALITY.md); it is not relabeled as a new fusion

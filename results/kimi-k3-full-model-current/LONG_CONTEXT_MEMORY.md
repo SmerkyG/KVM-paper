@@ -87,9 +87,16 @@ space is 4.385 GiB (weights and other process allocations are outside that
 client peak). See [current timings](CURRENT_TIMINGS.md) and
 [raw B1 long sweep](oct7-current-lod-b1-long.json).
 
-Fresh B8 now completes both generations through 256K with bounded decode workspace.
-Its longer points, then 512K/1020K capacity and generation, still need to
-complete. A separate 24-MLA-layer fixture inspects the million-token backing
+B8 completed both generations through 256K with bounded decode workspace;
+that unshared-prefill configuration is preserved in [its log](OCT7_B8_UNSHARED.md).
+The new shared-prefill-scratch canonical sweep remeasures these points before
+512K/1020K capacity and generation, which still need to complete.
+Its measured 16K client allocation peak is **21.595 GiB**, compared with
+**27.419 GiB** in the superseded engine at the same 256K reservation: 5.823 GiB
+less peak client memory. Both are measured-pass allocator peaks, not total
+device usage or an attribution of exclusive kernel time. The new canonical
+32K point completes in 33.860 s prefill / 31.058 ms decode.
+A separate 24-MLA-layer fixture inspects the million-token backing
 allocation only; it does not include trained weights/MoE and is not a serving
 benchmark. Its legacy scheduler cannot stand in for the trained K3 owner
 prefill scheduler, so no fixture prefill speed is promoted.
@@ -103,12 +110,16 @@ this is not evidence that the full-model runtime fits. Source:
 [`oct7-million-token-storage-accounting.json`](../kimi-k3-mla-stack/oct7-million-token-storage-accounting.json).
 
 Membership statistics must be sampled **before** request cleanup. The
-`--report-memory` warmup-only observer captures them at pool cleanup and
+`--report-memory` warmup-only observer attempts to capture them at pool cleanup and
 removes itself before the measured pass. Statistics read after cleanup are
 zero and cannot establish a reclamation opportunity. It handles the runtime
 attached to either the model runner or its model state. The fresh B1 engines
 started before this diagnostic was complete; their timings remain valid,
 but cleared/absent membership statistics are not used for memory decisions.
+The new B8 engine also reports empty membership dictionaries; do not treat
+these as evidence that no centroids are closed or that their leaves can be
+reclaimed. Allocation peaks and the alias-aware storage inventory are available
+independently of this missing diagnostic.
 
 Earlier B8/256K one-pass capacity success did not survive a second generation.
 Require full-length warmup **and** the subsequent 1,025-step measured decode

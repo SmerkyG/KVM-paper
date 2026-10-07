@@ -49,7 +49,10 @@ def configure_kimi_layout(
         "LOD_KIMI_OWNER_REUSE_TRANSPORT": "1",
         "LOD_KIMI_OWNER_SHARD_RESIDUAL": "0",
         "LOD_KIMI_OWNER_POOL_BACKED_PREFILL": "1",
-        "LOD_KIMI_OWNER_PREFILL_HEAD_GROUP": "6" if max_model_len > 131072 else "12",
+        # Bound scratch by live archived leaves inside the attention engine,
+        # not a request's future capacity. Shared construction scratch lets
+        # short live prefixes retain the tested twelve-head geometry.
+        "LOD_KIMI_OWNER_PREFILL_HEAD_GROUP": "12",
         "LOD_KIMI_OWNER_PRESSURE_CHECK": "1",
     }
     # Explicit experimental prefill-only owner layouts remain opt-in. Do not

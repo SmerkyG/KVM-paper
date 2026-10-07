@@ -288,9 +288,9 @@ def test_kimi_defaults_do_not_leak_into_dense_or_b1(clean_kimi_layout):
     assert kwargs["max_num_batched_tokens"] == 16385
 
 
-def test_kimi_long_owner_default_uses_memory_safe_prefill(clean_kimi_layout):
+def test_kimi_long_owner_default_does_not_limit_short_prefix_by_future_capacity(clean_kimi_layout):
     kimi_kwargs(max_model_len=132114)
-    assert os.environ["LOD_KIMI_OWNER_PREFILL_HEAD_GROUP"] == "6"
+    assert os.environ["LOD_KIMI_OWNER_PREFILL_HEAD_GROUP"] == "12"
     assert os.environ["LOD_KIMI_OWNER_PRESSURE_CHECK"] == "1"
 
 

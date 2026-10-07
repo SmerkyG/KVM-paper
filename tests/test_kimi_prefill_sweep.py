@@ -5,6 +5,26 @@ from benchmarks.kimi_k3_prefill_sweep import owner_prefill_layout, reference_tra
 from benchmarks.prolong import token_digest
 
 
+def test_startup_oom_is_logged_but_never_becomes_a_timing(tmp_path):
+    import json
+    from benchmarks.kimi_k3_prefill_sweep import create_sweep_engine
+
+    args = NS(output=tmp_path / "capacity.json", mode="two-tier", batch_size=8,
+        checkpoint="trained", kv_cache_memory_bytes=1 << 30, lengths=[1044480])
+    kwargs = dict(max_model_len=1045522)
+    def out_of_memory(**config):
+        assert config == kwargs
+        raise RuntimeError("out of memory during profiling")
+    with pytest.raises(RuntimeError, match="out of memory"):
+        create_sweep_engine(out_of_memory, kwargs, args)
+    result = json.loads(args.output.read_text())
+    assert result["measurement_status"] == "failed"
+    assert result["current_phase"] == {"phase": "engine_initialization"}
+    assert result["measurements"] == {}
+    assert result["planned_lengths"] == [1044480]
+    assert create_sweep_engine(lambda **config: config, kwargs, args) == kwargs
+
+
 @pytest.mark.parametrize("explicit_moe_chunk", [None, "8192"])
 def test_owner_setup_preserves_moe_bound_without_shrinking_attention_budget(monkeypatch, explicit_moe_chunk):
     import os

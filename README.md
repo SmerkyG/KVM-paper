@@ -8,6 +8,16 @@ results with an exact local window and protected sink through log-sum-exp.
 This branch is the minimal inference release for the LoD Attention paper. It
 contains one fixed production policy, not the research-time tuning matrix.
 
+## Kimi K3 development branch
+
+The local `lod-k3` branch additionally develops absorbed-MLA LoD for Kimi K3.
+Its [current prefill/decode panel](results/kimi-k3-full-model-current/CURRENT_TIMINGS.md),
+[benchmark instructions](results/kimi-k3-full-model-current/README.md), and
+[1020K memory work](results/kimi-k3-full-model-current/LONG_CONTEXT_MEMORY.md)
+are separate from the Qwen/K2 paper-release results below. B1 generation is
+validated through 1020K; the latest B8 sweep and long-context capacity tests
+are still in progress. This branch has not been pushed.
+
 ## Supported configurations
 
 | Mode | Remote detail | Leaf storage |
