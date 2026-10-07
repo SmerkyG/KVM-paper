@@ -213,7 +213,13 @@ class VLLMLayerLODPool:
             state_clustering_centroid_rescale=centroid_rescale,
             state_clustering_centroid_rescale_scope="assignment",
             routing_normalization=routing_normalization,
-            leaf_paged_directory=settings.levels == 2,
+            # Long K3 capacity trials can reuse the existing inline+hash
+            # directory instead of reserving a worst-case root for every
+            # centroid. This changes page addressing, never membership/KV.
+            leaf_paged_directory=(settings.levels == 2 and not (
+                self.is_absorbed_mla
+                and os.getenv("LOD_KIMI_COMPACT_PAGE_DIRECTORY") == "1"
+            )),
         )
         if settings.levels == 3:
             config_kwargs.update(
@@ -239,6 +245,10 @@ class VLLMLayerLODPool:
             default_open_count=ROUTE_COUNT,
         )
         self.engine.head_dim = self.head_dim
+        if self.is_absorbed_mla and not config.leaf_paged_directory and settings.levels == 2:
+            # Keep fixed-address construction robust for long garbage buckets;
+            # eligible <=1024-leaf centroids fit entirely in the inline list.
+            self.engine.leaf_hash_probes = 32
         configure_engine(
             self.engine,
             family=self.family,
@@ -754,25 +764,35 @@ class VLLMLayerLODPool:
 
         if self.settings.levels == 2:
             page_size = 16
-            maximum_slot_pages = max(1, math.ceil(self.leaf_capacity / page_size))
-            root_capacity = max(1, math.ceil(maximum_slot_pages / 64))
-            slot_pages = torch.full(
-                (r, h, s, root_capacity),
-                -1,
-                dtype=torch.int32,
-                device=self.device,
-            )
-            overflow_page_keys = torch.full(
-                (r, h, 1), -1, dtype=torch.int32, device=self.device
-            )
-            overflow_page_values = torch.full(
-                (r, h, self.page_capacity, 64),
-                -1,
-                dtype=torch.int32,
-                device=self.device,
-            )
-            overflow_active = False
-            overflow_safe_until = root_capacity * 64 * page_size
+            paged_directory = bool(self.engine.leaf_paged_directory)
+            if paged_directory:
+                maximum_slot_pages = max(1, math.ceil(self.leaf_capacity / page_size))
+                root_capacity = max(1, math.ceil(maximum_slot_pages / 64))
+                slot_pages = torch.full(
+                    (r, h, s, root_capacity), -1, dtype=torch.int32, device=self.device,
+                )
+                overflow_page_keys = torch.full(
+                    (r, h, 1), -1, dtype=torch.int32, device=self.device
+                )
+                overflow_page_values = torch.full(
+                    (r, h, self.page_capacity, 64),
+                    -1, dtype=torch.int32, device=self.device,
+                )
+                overflow_active = False
+                overflow_safe_until = root_capacity * 64 * page_size
+            else:
+                slot_pages = torch.full(
+                    (r, h, s, int(self.engine.leaf_inline_pages_per_slot)),
+                    -1, dtype=torch.int32, device=self.device,
+                )
+                overflow_page_keys = torch.full(
+                    (r, h, self.hash_capacity), -1, dtype=torch.int32, device=self.device,
+                )
+                overflow_page_values = torch.full_like(overflow_page_keys, -1)
+                # Fixed pools always permit bounded hash lookup. Only long
+                # posting lists use it; no leaves or directory entries vanish.
+                overflow_active = True
+                overflow_safe_until = 0
             if unified_page1:
                 leaf_k = unified_page1_k[
                     arena_leaf_offset : arena_leaf_offset + r * h * self.leaf_capacity
@@ -810,7 +830,7 @@ class VLLMLayerLODPool:
                 "overflow_used": torch.zeros((), dtype=torch.int32, device=self.device),
                 "overflow_active": overflow_active,
                 "overflow_safe_until": overflow_safe_until,
-                "paged_page_directory": True,
+                "paged_page_directory": paged_directory,
                 "page_directory_size": 64,
                 "slot_lengths": torch.zeros(
                     r, h, s, dtype=torch.int32, device=self.device

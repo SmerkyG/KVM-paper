@@ -44,8 +44,9 @@ reported by `rocm-smi --showpids`.
    head groups with context length rather than retaining projections for all
    96 heads. The million-token B8 capacity attempt uses two-head groups;
    four-, six-, and twelve-head grouping have the same selected-set math.
-   The 512K attempt retains the normal grouping and runs in its own engine
-   first, so a later 1020K allocation failure cannot erase that result.
+   The initial 512K attempt retained normal grouping and failed in warmup.
+   A separate four-head, bounded-MoE retry runs before claiming support, so
+   a later 1020K allocation failure cannot erase a completed 512K result.
 5. Use expandable client allocations, local compilation caches, and remove
    verified orphaned clients before timing. Do not rematerialize daemon weights
    or assume that unused allocator reservations are necessary live KV memory.
@@ -110,10 +111,49 @@ cases match native bank-mix outputs bitwise. The attention cache is unchanged.
 
 That [sharded-bank 4K-MoE retry](oct7-current-lod-b8-long-1020k-bankshard.json)
 passes the former KDA allocation but fails in AITER MoE's per-expert temporary
-buffers: stage 1 requests 722 MiB and stage 2 requests 448 MiB. A 2K MoE-slice
-retry is in progress. It halves the tokenwise MoE input slice, not the
-attention scheduler budget, global update interval, or retained KV history.
-Neither failed warmup supplies a timing cell or establishes 1020K/B8 support.
+buffers: stage 1 requests 722 MiB and stage 2 requests 448 MiB. The
+[2K MoE-slice retry](oct7-current-lod-b8-long-1020k-bankshard-moe2048.json)
+also fails with HIP/HSA device-resource errors under memory pressure.
+It halves the tokenwise MoE input slice, not the attention scheduler budget,
+global update interval, or retained KV history. None of these failed warmups
+supplies a timing cell or establishes 1020K/B8 support.
+
+### Exact compact page-directory trial
+
+`LOD_KIMI_COMPACT_PAGE_DIRECTORY=1` reuses the existing inline-plus-hash
+directory for two-tier absorbed MLA, instead of a worst-case root array for
+every centroid. Up to 128 pages (2,048 leaves) fit inline; longer lists retain
+all their pages in a fixed-capacity overflow table with 32-probe lookup.
+Thus every <=1,024-leaf centroid eligible for refinement fits inline. The
+closed garbage buckets are still represented completely: nothing is evicted
+or quantized, and their coarse sums and mass remain unchanged.
+
+A million-token-capacity GPU test stores 70,017 real BF16 latent records,
+including 68,000 in one overflow bucket, then appends incrementally. It checks
+every source record and every centroid's membership, aliases values to the
+latent prefix, preserves backing addresses, and reports no hash overflow.
+Directory storage falls from **87,908,356 to 12,582,912 bytes per layer**, a
+measured **1.684 GiB/rank** saving across 24 MLA layers. The actual pool-backed
+consumer also passes CUDA-graph capture/replay and bitwise eager/replay output
+checks for both old and compact indexing. This is a storage/consumer result,
+not a trained serving speed claim or an unconditional default change.
+
+The [trained compact-directory attempt](oct7-current-lod-b8-long-1020k-compact-bankshard-moe2048.json)
+initializes, but its first warmup still fails with device-resource errors.
+The visible exception surfaces at KDA convolution; the asynchronous HIP error
+and preceding queue diagnostics do **not** establish that convolution is the
+originating fault. A [native-kernel resource probe](oct7-kda-convolution-resource-probe.json)
+finds **zero spills** for channel tiles 256, 128 and 64 at 1,536/1,792 channels,
+including 16K B1 and 8x2K strided inputs. Tile 256 is faster (0.047–0.056 ms
+for the full 16K call versus 0.082–0.096 ms at 128); output and native state
+updates match bitwise. Keep the existing convolution tile. These isolated
+probe times are not substituted into full-model serving measurements.
+
+The next capacity diagnostic uses only a frozen 16K B8 prompt, but reserves
+the complete 1020K cache, with 1K MoE slices and the two exact-storage changes
+above. It tests startup/runtime headroom cheaply before another long attempt.
+The independent 512K full warmup/measurement uses compact indexing, four-head
+projection groups, 4K MoE slices and the sharded prefill residual bank.
 
 The fresh dense 1020K/B8 control also ran out of device resources during its
 first warmup, after successful engine initialization with a 31 GiB native
@@ -142,8 +182,10 @@ B8 completed both generations through 256K with bounded decode workspace;
 that unshared-prefill configuration is preserved in [its log](OCT7_B8_UNSHARED.md).
 The new shared-prefill-scratch canonical sweep has now also completed every
 point through 256K, including all audited updates. It measures 330.056 s
-prefill / 32.571 ms decode there. The separate 512K warmup/measurement is
-running; 1020K generation still needs to fit and complete.
+prefill / 32.571 ms decode there. The initial separate 512K warmup failed
+with device-resource errors; its bounded-workspace retry is running.
+1020K B8 generation still needs to fit and complete. No failed warmup
+is treated as a prefill timing.
 Its measured 16K client allocation peak is **21.595 GiB**, compared with
 **27.419 GiB** in the superseded engine at the same 256K reservation: 5.823 GiB
 less peak client memory. Both are measured-pass allocator peaks, not total

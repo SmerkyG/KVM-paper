@@ -50,9 +50,12 @@ One exact-shape untimed warmup and one measured pass, 1,026 output tokens / 1,02
 - `oct7-current-full-b8-short.json`: complete; {'length': 131072, 'phase': 'point_complete', 'timestamp_unix': 1791343919.5279937}
 - `oct7-current-lod-b1-long.json`: complete; {'length': 1044480, 'phase': 'point_complete', 'timestamp_unix': 1791343395.1450899}
 - `oct7-current-lod-b1-short.json`: complete; {'length': 262144, 'phase': 'point_complete', 'timestamp_unix': 1791342608.5192482}
+- `oct7-current-lod-b8-long-1020k-bankshard-moe2048.json`: failed; {'length': 1044480, 'phase': 'warmup', 'timestamp_unix': 1791348707.8605654}
 - `oct7-current-lod-b8-long-1020k-bankshard.json`: failed; {'length': 1044480, 'phase': 'warmup', 'timestamp_unix': 1791348365.866205}
+- `oct7-current-lod-b8-long-1020k-compact-bankshard-moe2048.json`: failed; {'length': 1044480, 'phase': 'warmup', 'timestamp_unix': 1791349205.387964}
 - `oct7-current-lod-b8-long-1020k-moe4096.json`: failed; {'length': 1044480, 'phase': 'warmup', 'timestamp_unix': 1791347959.1571953}
-- `oct7-current-lod-b8-long-512k-remaining-512k.json`: in_progress; {'length': 524288, 'phase': 'warmup', 'timestamp_unix': 1791348106.7196164}
+- `oct7-current-lod-b8-long-512k-compact-bankshard-moe4096.json`: in_progress; {'length': 524288, 'phase': 'warmup', 'timestamp_unix': 1791350012.8475597}
+- `oct7-current-lod-b8-long-512k-remaining-512k.json`: failed; {'length': 524288, 'phase': 'warmup', 'timestamp_unix': 1791348106.7196164}
 - `oct7-current-lod-b8-long-512k.json`: failed; {'length': 524288, 'phase': 'warmup', 'timestamp_unix': 1791343656.9135764}
 - `oct7-current-lod-b8-short-remaining-256k.json`: complete; {'length': 262144, 'phase': 'point_complete', 'timestamp_unix': 1791347944.4846623}
 - `oct7-current-lod-b8-short.json`: failed; {'length': 16384, 'phase': 'measurement', 'timestamp_unix': 1791343538.2167103, 'repeat_index': 0, 'repeats': 1}
@@ -65,8 +68,11 @@ One exact-shape untimed warmup and one measured pass, 1,026 output tokens / 1,02
 - [oct7-current-full-b8-short.json](oct7-current-full-b8-short.json)
 - [oct7-current-lod-b1-long.json](oct7-current-lod-b1-long.json)
 - [oct7-current-lod-b1-short.json](oct7-current-lod-b1-short.json)
+- [oct7-current-lod-b8-long-1020k-bankshard-moe2048.json](oct7-current-lod-b8-long-1020k-bankshard-moe2048.json)
 - [oct7-current-lod-b8-long-1020k-bankshard.json](oct7-current-lod-b8-long-1020k-bankshard.json)
+- [oct7-current-lod-b8-long-1020k-compact-bankshard-moe2048.json](oct7-current-lod-b8-long-1020k-compact-bankshard-moe2048.json)
 - [oct7-current-lod-b8-long-1020k-moe4096.json](oct7-current-lod-b8-long-1020k-moe4096.json)
+- [oct7-current-lod-b8-long-512k-compact-bankshard-moe4096.json](oct7-current-lod-b8-long-512k-compact-bankshard-moe4096.json)
 - [oct7-current-lod-b8-long-512k-remaining-512k.json](oct7-current-lod-b8-long-512k-remaining-512k.json)
 - [oct7-current-lod-b8-long-512k.json](oct7-current-lod-b8-long-512k.json)
 - [oct7-current-lod-b8-short-remaining-256k.json](oct7-current-lod-b8-short-remaining-256k.json)

@@ -222,8 +222,9 @@ def test_graph_replay_audit_counts_execution_not_instantiation():
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="HIP state/directory validation")
 @pytest.mark.parametrize("capacity", [32768, 65536])
+@pytest.mark.parametrize("compact_directory", [False, True])
 @torch.inference_mode()
-def test_pool_backed_owner_prefill_preserves_cache_and_captured_decode(monkeypatch, capacity):
+def test_pool_backed_owner_prefill_preserves_cache_and_captured_decode(monkeypatch, capacity, compact_directory):
     """Real two-block construction and decode; backing reuse changes no math."""
     from contextlib import nullcontext
     from vllm_lod_plugin.config import VLLMLODSettings
@@ -232,6 +233,7 @@ def test_pool_backed_owner_prefill_preserves_cache_and_captured_decode(monkeypat
     from lod_attention.kernels import paged_decode
 
     device = torch.device("cuda")
+    monkeypatch.setenv("LOD_KIMI_COMPACT_PAGE_DIRECTORY", str(int(compact_directory)))
     torch.manual_seed(67)
     layer = SimpleNamespace(num_heads=96, num_kv_heads=1, head_size=576,
                             kv_lora_rank=512, scale=192**-.5,
@@ -281,13 +283,20 @@ def test_pool_backed_owner_prefill_preserves_cache_and_captured_decode(monkeypat
         # Compare the actual leaf set behind every centroid, not allocator order.
         roots, directories, indices, lengths = [page[name][0,0].cpu() for name in (
             "slot_pages", "overflow_page_values", "page_indices", "slot_lengths")]
+        keys = page["overflow_page_keys"][0, 0].cpu()
+        hashed = (dict(zip(keys[keys.ge(0)].tolist(), directories[keys.ge(0)].tolist()))
+                  if compact_directory else {})
         result = []
         for slot, length in enumerate(lengths[:int(reference["state_capacity"])].tolist()):
             leaves = []
             for ordinal in range((length+15)//16):
-                directory = int(roots[slot,ordinal//64])
-                assert directory >= 0
-                physical = int(directories[directory,ordinal%64])
+                if compact_directory:
+                    physical = (int(roots[slot, ordinal]) if ordinal < roots.size(1)
+                                else hashed[slot * 65536 + ordinal])
+                else:
+                    directory = int(roots[slot,ordinal//64])
+                    assert directory >= 0
+                    physical = int(directories[directory,ordinal%64])
                 assert physical >= 0
                 leaves.extend(indices[physical,:min(16,length-ordinal*16)].tolist())
             assert all(0 <= leaf < int(page["leaf_count"]) for leaf in leaves)
@@ -319,8 +328,33 @@ def test_pool_backed_owner_prefill_preserves_cache_and_captured_decode(monkeypat
         with monkeypatch.context() as patch:
             patch.setattr(paged_decode, "coarse_route_mean_view",
                 (lambda *args: None) if index == 0 else record_mean_reuse)
+            pool.ensure_unified_page1_fixed((0,))
+            def snapshot(value):
+                if isinstance(value, torch.Tensor):
+                    return [(value, value.clone())]
+                if isinstance(value, dict):
+                    return [pair for child in value.values() for pair in snapshot(child)]
+                return []
+            initial = snapshot(dict(state=pool.state, local_lens=pool.local_lens,
+                                    state_lens=pool.state_lens, leaf_lens=pool.leaf_lens))
+            def restore():
+                for tensor, saved in initial:
+                    tensor.copy_(saved)
             pool.decode_dcp(q,key,key[...,:512],out)
-        outputs.append(out)
+            eager = out.clone()
+            # Capture the actual pool consumer, not just an eager numerical
+            # call under a test name mentioning graph capture. Restore the
+            # device state in place: re-installing a pool-backed source would
+            # reset its own aliased page directory and invalidate the source.
+            restore()
+            graph = torch.cuda.CUDAGraph()
+            with torch.cuda.graph(graph):
+                pool.decode_dcp(q, key, key[..., :512], out)
+            restore()
+            graph.replay()
+            torch.cuda.synchronize()
+            torch.testing.assert_close(eager, out, atol=0, rtol=0)
+        outputs.append(out.clone())
     torch.cuda.synchronize()
     torch.testing.assert_close(outputs[0],outputs[1],atol=0,rtol=0)
     assert reused

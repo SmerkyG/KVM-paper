@@ -866,8 +866,10 @@ def main() -> None:
             result.update(worker_attention_audit=audits, worker_attention_audit_status="passed")
 
         save_result()
-        if args.allocation_audit_only:
+        if args.allocation_audit_only or args.report_memory:
             result["allocation_worker_memory"] = llm.collective_rpc(peak_memory)
+            save_result()
+        if args.allocation_audit_only:
             result["measurement_status"] = "complete"
             result["scope"] = "reserved storage only; no long-context generation or speed claim"
             save_result()
