@@ -1,0 +1,330 @@
+{
+  "scope": "read-only; device totals may include active inference clients",
+  "timestamp_utc": "2026-10-07T06:56:35.437745+00:00",
+  "cache_id": "kimi-k3-node2-scratch0-v2",
+  "daemon": {
+    "status": "ok",
+    "pid": 271502,
+    "groups": [
+      {
+        "key": "36e6c84daf327b4f17b99a72",
+        "description": "/tmp/dan-agent-kimi-k3-f831ab66814297da540d832a5235f8e904f29d06 dtype=torch.bfloat16 quant=mxfp4 tp=8 pp=1",
+        "active_client_pids": [],
+        "resident_bytes": {
+          "35343232-6339-6466-6138-373561323037": 215702009568,
+          "62653031-6663-3630-3038-323836623662": 215702009568,
+          "34313035-3030-3162-3363-303932646465": 215702009568,
+          "65313036-3339-6162-3033-363735633032": 215702009568,
+          "39386239-3031-3363-3766-626563653630": 215702009568,
+          "64636663-3237-3130-3135-373264633433": 215702009568,
+          "36326433-3961-3839-6163-653765326234": 215702009568,
+          "63343132-6137-3038-6135-653962656638": 215702009568
+        },
+        "allocation_bytes": {
+          "35343232-6339-6466-6138-373561323037": 226953789440,
+          "62653031-6663-3630-3038-323836623662": 226691645440,
+          "34313035-3030-3162-3363-303932646465": 226960080896,
+          "65313036-3339-6162-3033-363735633032": 226819571712,
+          "39386239-3031-3363-3766-626563653630": 226685353984,
+          "64636663-3237-3130-3135-373264633433": 226697936896,
+          "36326433-3961-3839-6163-653765326234": 226955886592,
+          "63343132-6137-3038-6135-653962656638": 226028945408
+        },
+        "endpoints": {
+          "35343232-6339-6466-6138-373561323037": "/tmp/vllm-weight-cache-620101/kimi-k3-node2-scratch0-v2/gpu-1fedab08742151547143a737.sock",
+          "62653031-6663-3630-3038-323836623662": "/tmp/vllm-weight-cache-620101/kimi-k3-node2-scratch0-v2/gpu-38ffe5d36aa558bdbf53360e.sock",
+          "34313035-3030-3162-3363-303932646465": "/tmp/vllm-weight-cache-620101/kimi-k3-node2-scratch0-v2/gpu-18cdda44746f0df31826193f.sock",
+          "65313036-3339-6162-3033-363735633032": "/tmp/vllm-weight-cache-620101/kimi-k3-node2-scratch0-v2/gpu-ca8663462ce42c007f2d0931.sock",
+          "39386239-3031-3363-3766-626563653630": "/tmp/vllm-weight-cache-620101/kimi-k3-node2-scratch0-v2/gpu-af7e8bfa9c73c5621a9ef3be.sock",
+          "64636663-3237-3130-3135-373264633433": "/tmp/vllm-weight-cache-620101/kimi-k3-node2-scratch0-v2/gpu-713acb786e6f79764ac34153.sock",
+          "36326433-3961-3839-6163-653765326234": "/tmp/vllm-weight-cache-620101/kimi-k3-node2-scratch0-v2/gpu-99472f573c165261bee8a6a8.sock",
+          "63343132-6137-3038-6135-653962656638": "/tmp/vllm-weight-cache-620101/kimi-k3-node2-scratch0-v2/gpu-73d53f16f3dfa4494f088fc4.sock"
+        }
+      }
+    ]
+  },
+  "workers": [
+    {
+      "pid": 314105,
+      "tensors": 2858,
+      "fingerprint": {
+        "architectures": [
+          "KimiK3ForConditionalGeneration"
+        ],
+        "attention_hash": "kimi-canonical-mla-v1",
+        "device_arch": "gfx942",
+        "dp_size": 1,
+        "dtype": "torch.bfloat16",
+        "expert_parallel": true,
+        "model": "/tmp/dan-agent-kimi-k3-f831ab66814297da540d832a5235f8e904f29d06",
+        "model_hash": "74e5415580f196677cfde5fb9b8ec72372a9e032b514fb932d34aebe45b249fd",
+        "pp_rank": 0,
+        "pp_size": 1,
+        "quantization": "mxfp4",
+        "quantization_hash": "00776a11164f14df390722bc842d256bd10d8ff22884681abc52427521892dc8",
+        "revision": "",
+        "torch_version": "2.12.0+rocm10.0.0",
+        "tp_rank": 2,
+        "tp_size": 8,
+        "vllm_version": "0.30.1rc1.dev143+g29468dde8"
+      },
+      "scratch_environment": {
+        "HSA_NO_SCRATCH_RECLAIM": "0",
+        "HSA_SCRATCH_SINGLE_LIMIT_ASYNC": "268435456"
+      }
+    },
+    {
+      "pid": 314106,
+      "tensors": 2858,
+      "fingerprint": {
+        "architectures": [
+          "KimiK3ForConditionalGeneration"
+        ],
+        "attention_hash": "kimi-canonical-mla-v1",
+        "device_arch": "gfx942",
+        "dp_size": 1,
+        "dtype": "torch.bfloat16",
+        "expert_parallel": true,
+        "model": "/tmp/dan-agent-kimi-k3-f831ab66814297da540d832a5235f8e904f29d06",
+        "model_hash": "74e5415580f196677cfde5fb9b8ec72372a9e032b514fb932d34aebe45b249fd",
+        "pp_rank": 0,
+        "pp_size": 1,
+        "quantization": "mxfp4",
+        "quantization_hash": "00776a11164f14df390722bc842d256bd10d8ff22884681abc52427521892dc8",
+        "revision": "",
+        "torch_version": "2.12.0+rocm10.0.0",
+        "tp_rank": 3,
+        "tp_size": 8,
+        "vllm_version": "0.30.1rc1.dev143+g29468dde8"
+      },
+      "scratch_environment": {
+        "HSA_NO_SCRATCH_RECLAIM": "0",
+        "HSA_SCRATCH_SINGLE_LIMIT_ASYNC": "268435456"
+      }
+    },
+    {
+      "pid": 314107,
+      "tensors": 2858,
+      "fingerprint": {
+        "architectures": [
+          "KimiK3ForConditionalGeneration"
+        ],
+        "attention_hash": "kimi-canonical-mla-v1",
+        "device_arch": "gfx942",
+        "dp_size": 1,
+        "dtype": "torch.bfloat16",
+        "expert_parallel": true,
+        "model": "/tmp/dan-agent-kimi-k3-f831ab66814297da540d832a5235f8e904f29d06",
+        "model_hash": "74e5415580f196677cfde5fb9b8ec72372a9e032b514fb932d34aebe45b249fd",
+        "pp_rank": 0,
+        "pp_size": 1,
+        "quantization": "mxfp4",
+        "quantization_hash": "00776a11164f14df390722bc842d256bd10d8ff22884681abc52427521892dc8",
+        "revision": "",
+        "torch_version": "2.12.0+rocm10.0.0",
+        "tp_rank": 4,
+        "tp_size": 8,
+        "vllm_version": "0.30.1rc1.dev143+g29468dde8"
+      },
+      "scratch_environment": {
+        "HSA_NO_SCRATCH_RECLAIM": "0",
+        "HSA_SCRATCH_SINGLE_LIMIT_ASYNC": "268435456"
+      }
+    },
+    {
+      "pid": 314110,
+      "tensors": 2858,
+      "fingerprint": {
+        "architectures": [
+          "KimiK3ForConditionalGeneration"
+        ],
+        "attention_hash": "kimi-canonical-mla-v1",
+        "device_arch": "gfx942",
+        "dp_size": 1,
+        "dtype": "torch.bfloat16",
+        "expert_parallel": true,
+        "model": "/tmp/dan-agent-kimi-k3-f831ab66814297da540d832a5235f8e904f29d06",
+        "model_hash": "74e5415580f196677cfde5fb9b8ec72372a9e032b514fb932d34aebe45b249fd",
+        "pp_rank": 0,
+        "pp_size": 1,
+        "quantization": "mxfp4",
+        "quantization_hash": "00776a11164f14df390722bc842d256bd10d8ff22884681abc52427521892dc8",
+        "revision": "",
+        "torch_version": "2.12.0+rocm10.0.0",
+        "tp_rank": 7,
+        "tp_size": 8,
+        "vllm_version": "0.30.1rc1.dev143+g29468dde8"
+      },
+      "scratch_environment": {
+        "HSA_NO_SCRATCH_RECLAIM": "0",
+        "HSA_SCRATCH_SINGLE_LIMIT_ASYNC": "268435456"
+      }
+    },
+    {
+      "pid": 314104,
+      "tensors": 2858,
+      "fingerprint": {
+        "architectures": [
+          "KimiK3ForConditionalGeneration"
+        ],
+        "attention_hash": "kimi-canonical-mla-v1",
+        "device_arch": "gfx942",
+        "dp_size": 1,
+        "dtype": "torch.bfloat16",
+        "expert_parallel": true,
+        "model": "/tmp/dan-agent-kimi-k3-f831ab66814297da540d832a5235f8e904f29d06",
+        "model_hash": "74e5415580f196677cfde5fb9b8ec72372a9e032b514fb932d34aebe45b249fd",
+        "pp_rank": 0,
+        "pp_size": 1,
+        "quantization": "mxfp4",
+        "quantization_hash": "00776a11164f14df390722bc842d256bd10d8ff22884681abc52427521892dc8",
+        "revision": "",
+        "torch_version": "2.12.0+rocm10.0.0",
+        "tp_rank": 1,
+        "tp_size": 8,
+        "vllm_version": "0.30.1rc1.dev143+g29468dde8"
+      },
+      "scratch_environment": {
+        "HSA_NO_SCRATCH_RECLAIM": "0",
+        "HSA_SCRATCH_SINGLE_LIMIT_ASYNC": "268435456"
+      }
+    },
+    {
+      "pid": 314103,
+      "tensors": 2858,
+      "fingerprint": {
+        "architectures": [
+          "KimiK3ForConditionalGeneration"
+        ],
+        "attention_hash": "kimi-canonical-mla-v1",
+        "device_arch": "gfx942",
+        "dp_size": 1,
+        "dtype": "torch.bfloat16",
+        "expert_parallel": true,
+        "model": "/tmp/dan-agent-kimi-k3-f831ab66814297da540d832a5235f8e904f29d06",
+        "model_hash": "74e5415580f196677cfde5fb9b8ec72372a9e032b514fb932d34aebe45b249fd",
+        "pp_rank": 0,
+        "pp_size": 1,
+        "quantization": "mxfp4",
+        "quantization_hash": "00776a11164f14df390722bc842d256bd10d8ff22884681abc52427521892dc8",
+        "revision": "",
+        "torch_version": "2.12.0+rocm10.0.0",
+        "tp_rank": 0,
+        "tp_size": 8,
+        "vllm_version": "0.30.1rc1.dev143+g29468dde8"
+      },
+      "scratch_environment": {
+        "HSA_NO_SCRATCH_RECLAIM": "0",
+        "HSA_SCRATCH_SINGLE_LIMIT_ASYNC": "268435456"
+      }
+    },
+    {
+      "pid": 314109,
+      "tensors": 2858,
+      "fingerprint": {
+        "architectures": [
+          "KimiK3ForConditionalGeneration"
+        ],
+        "attention_hash": "kimi-canonical-mla-v1",
+        "device_arch": "gfx942",
+        "dp_size": 1,
+        "dtype": "torch.bfloat16",
+        "expert_parallel": true,
+        "model": "/tmp/dan-agent-kimi-k3-f831ab66814297da540d832a5235f8e904f29d06",
+        "model_hash": "74e5415580f196677cfde5fb9b8ec72372a9e032b514fb932d34aebe45b249fd",
+        "pp_rank": 0,
+        "pp_size": 1,
+        "quantization": "mxfp4",
+        "quantization_hash": "00776a11164f14df390722bc842d256bd10d8ff22884681abc52427521892dc8",
+        "revision": "",
+        "torch_version": "2.12.0+rocm10.0.0",
+        "tp_rank": 6,
+        "tp_size": 8,
+        "vllm_version": "0.30.1rc1.dev143+g29468dde8"
+      },
+      "scratch_environment": {
+        "HSA_NO_SCRATCH_RECLAIM": "0",
+        "HSA_SCRATCH_SINGLE_LIMIT_ASYNC": "268435456"
+      }
+    },
+    {
+      "pid": 314108,
+      "tensors": 2858,
+      "fingerprint": {
+        "architectures": [
+          "KimiK3ForConditionalGeneration"
+        ],
+        "attention_hash": "kimi-canonical-mla-v1",
+        "device_arch": "gfx942",
+        "dp_size": 1,
+        "dtype": "torch.bfloat16",
+        "expert_parallel": true,
+        "model": "/tmp/dan-agent-kimi-k3-f831ab66814297da540d832a5235f8e904f29d06",
+        "model_hash": "74e5415580f196677cfde5fb9b8ec72372a9e032b514fb932d34aebe45b249fd",
+        "pp_rank": 0,
+        "pp_size": 1,
+        "quantization": "mxfp4",
+        "quantization_hash": "00776a11164f14df390722bc842d256bd10d8ff22884681abc52427521892dc8",
+        "revision": "",
+        "torch_version": "2.12.0+rocm10.0.0",
+        "tp_rank": 5,
+        "tp_size": 8,
+        "vllm_version": "0.30.1rc1.dev143+g29468dde8"
+      },
+      "scratch_environment": {
+        "HSA_NO_SCRATCH_RECLAIM": "0",
+        "HSA_SCRATCH_SINGLE_LIMIT_ASYNC": "268435456"
+      }
+    }
+  ],
+  "devices": [
+    {
+      "card": "card1",
+      "pci_device": "0000:75:00.0",
+      "device_vram_used_bytes": 227221737472,
+      "device_vram_total_bytes": 274861129728
+    },
+    {
+      "card": "card17",
+      "pci_device": "0000:65:00.0",
+      "device_vram_used_bytes": 227221741568,
+      "device_vram_total_bytes": 274861129728
+    },
+    {
+      "card": "card25",
+      "pci_device": "0000:15:00.0",
+      "device_vram_used_bytes": 227221737472,
+      "device_vram_total_bytes": 274861129728
+    },
+    {
+      "card": "card33",
+      "pci_device": "0000:f5:00.0",
+      "device_vram_used_bytes": 226953293824,
+      "device_vram_total_bytes": 274861129728
+    },
+    {
+      "card": "card41",
+      "pci_device": "0000:85:00.0",
+      "device_vram_used_bytes": 227087527936,
+      "device_vram_total_bytes": 274861129728
+    },
+    {
+      "card": "card49",
+      "pci_device": "0000:e5:00.0",
+      "device_vram_used_bytes": 226953310208,
+      "device_vram_total_bytes": 274861129728
+    },
+    {
+      "card": "card57",
+      "pci_device": "0000:95:00.0",
+      "device_vram_used_bytes": 226953310208,
+      "device_vram_total_bytes": 274861129728
+    },
+    {
+      "card": "card9",
+      "pci_device": "0000:05:00.0",
+      "device_vram_used_bytes": 226282217472,
+      "device_vram_total_bytes": 274861129728
+    }
+  ]
+}

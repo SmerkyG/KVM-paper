@@ -93,6 +93,33 @@ initializes with 5.529 GiB physically free on rank 0 and starts the 256K
 live-prefix preflight; generation has not yet been certified by that startup
 reading.
 
+The [full-reservation 256K preflight](oct7-lod-b8-million-reservation-scratch0-256k.json)
+now **completes its real prefill and decode**, with the all-rank loaded-attention
+audit passed and eight concurrent requests through global position 260,096
+on every rank. It remains capacity-only: one decode step, no amortized timing
+cell. Its rank-0 client peak is 34.959 GiB; post-generation free memory ranges
+from **0.762 to 2.598 GiB** across ranks. This is enough for that tested prefix,
+not a guarantee at the larger active centroid count of 1020K.
+
+After the client exits, the [idle restarted-daemon snapshot](oct7-daemon-scratch0-idle-node2.json)
+has no active clients and reports **210.742–211.617 GiB/rank** device residency,
+versus 212.598–213.473 GiB for the unchanged idle node-4 control. The range is
+about **1.86 GiB/rank lower**. These are two nodes with the same image and
+matching per-rank export fingerprints, not a paired per-GPU before/after
+reading on node 2. The rest of the daemon-versus-tensor gap remains unexplained.
+
+Keep the reclamation-enabled node-2 daemon and reuse its already packed
+weights. Job 21556 now attempts the actual 1020K/B8 canonical protocol with
+the **same** 1-GiB native cache, compact directory, sharded residual bank,
+two-head fine projections, eight-head local projections, sixteen-head coarse
+projections and 1K MoE slices. It must complete exact-shape warmup plus the
+measured pass with 1,025 decode steps and four audited global-256 catch-ups.
+No million-token result is promoted while that run is pending. If its next
+active-state workspace growth exhausts the remaining margin, a further
+bounded score workspace or a separately validated smaller native reserve
+is required; the closed-centroid fraction measured at 128K is not assumed
+to supply the missing memory.
+
 ## Current exact-storage measures
 
 1. Keep the existing token-sharded B1 archive for 512K and 1020K. Preserve
