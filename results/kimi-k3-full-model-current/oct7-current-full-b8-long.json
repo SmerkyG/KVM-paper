@@ -9877,8 +9877,10 @@
   "graph_prefill_requested": false,
   "current_phase": {
     "length": 524288,
-    "phase": "warmup",
-    "timestamp_unix": 1791344832.920827
+    "phase": "measurement",
+    "timestamp_unix": 1791345835.8028927,
+    "repeat_index": 0,
+    "repeats": 1
   },
   "phase_history": [
     {
@@ -9915,6 +9917,19 @@
       "length": 524288,
       "phase": "warmup",
       "timestamp_unix": 1791344832.920827
+    },
+    {
+      "length": 524288,
+      "phase": "warmup_complete",
+      "timestamp_unix": 1791345835.7131026,
+      "warmup_elapsed_seconds": 1002.7806822732091
+    },
+    {
+      "length": 524288,
+      "phase": "measurement",
+      "timestamp_unix": 1791345835.8028927,
+      "repeat_index": 0,
+      "repeats": 1
     }
   ],
   "warmup_worker_memory": {
@@ -10263,6 +10278,352 @@
         "centroid_leaf_stats": {},
         "centroid_leaf_stats_scope": "untimed warmup, before request cleanup; absent if not armed"
       }
+    ],
+    "524288": [
+      {
+        "rank": 0,
+        "peak_torch_allocated_bytes": 28468370432,
+        "peak_torch_reserved_bytes": 29821501440,
+        "current_torch_allocated_bytes": 19546100736,
+        "device_free_bytes_after_generation": 4041211904,
+        "device_total_bytes": 274861129728,
+        "lod_storage_inventory": {
+          "allocation_groups_bytes": {
+            "persistent_semantic_cache": 0,
+            "owner_persistent_semantic_cache": 0,
+            "owner_prefill_rows": 0,
+            "replicated_prefill_shadows": 0,
+            "decode_scratch": 0,
+            "owner_decode_scratch": 0,
+            "owner_projection_weights": 0,
+            "owner_transport": 0,
+            "shared_prefill_scratch": 0,
+            "construction_workspaces": 0,
+            "owner_construction_workspaces": 0,
+            "queued_construction_sources": 0
+          },
+          "shared_decode_scratch": {
+            "participating_layers": 0,
+            "registries": 0,
+            "unique_tensor_count": 0,
+            "storage_bytes": 0,
+            "scope": "shared transient tensors only; per-layer outputs/state excluded"
+          },
+          "torch_allocated_bytes": 19546100736,
+          "torch_reserved_bytes": 29821501440,
+          "torch_peak_allocated_bytes_so_far": 28468370432,
+          "device_free_bytes": 4041211904,
+          "device_total_bytes": 274861129728,
+          "shadow_rows_by_layer": {},
+          "shadow_global_lengths_by_layer": {},
+          "sharded_prefill_archive_by_layer": {},
+          "owner_remote_pool_backed_by_layer": {},
+          "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+        },
+        "centroid_leaf_stats": {},
+        "centroid_leaf_stats_scope": "untimed warmup, before request cleanup; absent if not armed"
+      },
+      {
+        "rank": 1,
+        "peak_torch_allocated_bytes": 28468368896,
+        "peak_torch_reserved_bytes": 29821501440,
+        "current_torch_allocated_bytes": 19546100736,
+        "device_free_bytes_after_generation": 6155141120,
+        "device_total_bytes": 274861129728,
+        "lod_storage_inventory": {
+          "allocation_groups_bytes": {
+            "persistent_semantic_cache": 0,
+            "owner_persistent_semantic_cache": 0,
+            "owner_prefill_rows": 0,
+            "replicated_prefill_shadows": 0,
+            "decode_scratch": 0,
+            "owner_decode_scratch": 0,
+            "owner_projection_weights": 0,
+            "owner_transport": 0,
+            "shared_prefill_scratch": 0,
+            "construction_workspaces": 0,
+            "owner_construction_workspaces": 0,
+            "queued_construction_sources": 0
+          },
+          "shared_decode_scratch": {
+            "participating_layers": 0,
+            "registries": 0,
+            "unique_tensor_count": 0,
+            "storage_bytes": 0,
+            "scope": "shared transient tensors only; per-layer outputs/state excluded"
+          },
+          "torch_allocated_bytes": 19546100736,
+          "torch_reserved_bytes": 29821501440,
+          "torch_peak_allocated_bytes_so_far": 28468368896,
+          "device_free_bytes": 6155141120,
+          "device_total_bytes": 274861129728,
+          "shadow_rows_by_layer": {},
+          "shadow_global_lengths_by_layer": {},
+          "sharded_prefill_archive_by_layer": {},
+          "owner_remote_pool_backed_by_layer": {},
+          "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+        },
+        "centroid_leaf_stats": {},
+        "centroid_leaf_stats_scope": "untimed warmup, before request cleanup; absent if not armed"
+      },
+      {
+        "rank": 2,
+        "peak_torch_allocated_bytes": 28468368896,
+        "peak_torch_reserved_bytes": 29821501440,
+        "current_torch_allocated_bytes": 19546100736,
+        "device_free_bytes_after_generation": 4041211904,
+        "device_total_bytes": 274861129728,
+        "lod_storage_inventory": {
+          "allocation_groups_bytes": {
+            "persistent_semantic_cache": 0,
+            "owner_persistent_semantic_cache": 0,
+            "owner_prefill_rows": 0,
+            "replicated_prefill_shadows": 0,
+            "decode_scratch": 0,
+            "owner_decode_scratch": 0,
+            "owner_projection_weights": 0,
+            "owner_transport": 0,
+            "shared_prefill_scratch": 0,
+            "construction_workspaces": 0,
+            "owner_construction_workspaces": 0,
+            "queued_construction_sources": 0
+          },
+          "shared_decode_scratch": {
+            "participating_layers": 0,
+            "registries": 0,
+            "unique_tensor_count": 0,
+            "storage_bytes": 0,
+            "scope": "shared transient tensors only; per-layer outputs/state excluded"
+          },
+          "torch_allocated_bytes": 19546100736,
+          "torch_reserved_bytes": 29821501440,
+          "torch_peak_allocated_bytes_so_far": 28468368896,
+          "device_free_bytes": 4041211904,
+          "device_total_bytes": 274861129728,
+          "shadow_rows_by_layer": {},
+          "shadow_global_lengths_by_layer": {},
+          "sharded_prefill_archive_by_layer": {},
+          "owner_remote_pool_backed_by_layer": {},
+          "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+        },
+        "centroid_leaf_stats": {},
+        "centroid_leaf_stats_scope": "untimed warmup, before request cleanup; absent if not armed"
+      },
+      {
+        "rank": 3,
+        "peak_torch_allocated_bytes": 28468368896,
+        "peak_torch_reserved_bytes": 29821501440,
+        "current_torch_allocated_bytes": 19546100736,
+        "device_free_bytes_after_generation": 4041211904,
+        "device_total_bytes": 274861129728,
+        "lod_storage_inventory": {
+          "allocation_groups_bytes": {
+            "persistent_semantic_cache": 0,
+            "owner_persistent_semantic_cache": 0,
+            "owner_prefill_rows": 0,
+            "replicated_prefill_shadows": 0,
+            "decode_scratch": 0,
+            "owner_decode_scratch": 0,
+            "owner_projection_weights": 0,
+            "owner_transport": 0,
+            "shared_prefill_scratch": 0,
+            "construction_workspaces": 0,
+            "owner_construction_workspaces": 0,
+            "queued_construction_sources": 0
+          },
+          "shared_decode_scratch": {
+            "participating_layers": 0,
+            "registries": 0,
+            "unique_tensor_count": 0,
+            "storage_bytes": 0,
+            "scope": "shared transient tensors only; per-layer outputs/state excluded"
+          },
+          "torch_allocated_bytes": 19546100736,
+          "torch_reserved_bytes": 29821501440,
+          "torch_peak_allocated_bytes_so_far": 28468368896,
+          "device_free_bytes": 4041211904,
+          "device_total_bytes": 274861129728,
+          "shadow_rows_by_layer": {},
+          "shadow_global_lengths_by_layer": {},
+          "sharded_prefill_archive_by_layer": {},
+          "owner_remote_pool_backed_by_layer": {},
+          "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+        },
+        "centroid_leaf_stats": {},
+        "centroid_leaf_stats_scope": "untimed warmup, before request cleanup; absent if not armed"
+      },
+      {
+        "rank": 4,
+        "peak_torch_allocated_bytes": 28468368896,
+        "peak_torch_reserved_bytes": 29821501440,
+        "current_torch_allocated_bytes": 19546100736,
+        "device_free_bytes_after_generation": 4645191680,
+        "device_total_bytes": 274861129728,
+        "lod_storage_inventory": {
+          "allocation_groups_bytes": {
+            "persistent_semantic_cache": 0,
+            "owner_persistent_semantic_cache": 0,
+            "owner_prefill_rows": 0,
+            "replicated_prefill_shadows": 0,
+            "decode_scratch": 0,
+            "owner_decode_scratch": 0,
+            "owner_projection_weights": 0,
+            "owner_transport": 0,
+            "shared_prefill_scratch": 0,
+            "construction_workspaces": 0,
+            "owner_construction_workspaces": 0,
+            "queued_construction_sources": 0
+          },
+          "shared_decode_scratch": {
+            "participating_layers": 0,
+            "registries": 0,
+            "unique_tensor_count": 0,
+            "storage_bytes": 0,
+            "scope": "shared transient tensors only; per-layer outputs/state excluded"
+          },
+          "torch_allocated_bytes": 19546100736,
+          "torch_reserved_bytes": 29821501440,
+          "torch_peak_allocated_bytes_so_far": 28468368896,
+          "device_free_bytes": 4645191680,
+          "device_total_bytes": 274861129728,
+          "shadow_rows_by_layer": {},
+          "shadow_global_lengths_by_layer": {},
+          "sharded_prefill_archive_by_layer": {},
+          "owner_remote_pool_backed_by_layer": {},
+          "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+        },
+        "centroid_leaf_stats": {},
+        "centroid_leaf_stats_scope": "untimed warmup, before request cleanup; absent if not armed"
+      },
+      {
+        "rank": 5,
+        "peak_torch_allocated_bytes": 28468368896,
+        "peak_torch_reserved_bytes": 29821501440,
+        "current_torch_allocated_bytes": 19546100736,
+        "device_free_bytes_after_generation": 4343201792,
+        "device_total_bytes": 274861129728,
+        "lod_storage_inventory": {
+          "allocation_groups_bytes": {
+            "persistent_semantic_cache": 0,
+            "owner_persistent_semantic_cache": 0,
+            "owner_prefill_rows": 0,
+            "replicated_prefill_shadows": 0,
+            "decode_scratch": 0,
+            "owner_decode_scratch": 0,
+            "owner_projection_weights": 0,
+            "owner_transport": 0,
+            "shared_prefill_scratch": 0,
+            "construction_workspaces": 0,
+            "owner_construction_workspaces": 0,
+            "queued_construction_sources": 0
+          },
+          "shared_decode_scratch": {
+            "participating_layers": 0,
+            "registries": 0,
+            "unique_tensor_count": 0,
+            "storage_bytes": 0,
+            "scope": "shared transient tensors only; per-layer outputs/state excluded"
+          },
+          "torch_allocated_bytes": 19546100736,
+          "torch_reserved_bytes": 29821501440,
+          "torch_peak_allocated_bytes_so_far": 28468368896,
+          "device_free_bytes": 4343201792,
+          "device_total_bytes": 274861129728,
+          "shadow_rows_by_layer": {},
+          "shadow_global_lengths_by_layer": {},
+          "sharded_prefill_archive_by_layer": {},
+          "owner_remote_pool_backed_by_layer": {},
+          "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+        },
+        "centroid_leaf_stats": {},
+        "centroid_leaf_stats_scope": "untimed warmup, before request cleanup; absent if not armed"
+      },
+      {
+        "rank": 6,
+        "peak_torch_allocated_bytes": 28468368896,
+        "peak_torch_reserved_bytes": 29821501440,
+        "current_torch_allocated_bytes": 19546100736,
+        "device_free_bytes_after_generation": 4645191680,
+        "device_total_bytes": 274861129728,
+        "lod_storage_inventory": {
+          "allocation_groups_bytes": {
+            "persistent_semantic_cache": 0,
+            "owner_persistent_semantic_cache": 0,
+            "owner_prefill_rows": 0,
+            "replicated_prefill_shadows": 0,
+            "decode_scratch": 0,
+            "owner_decode_scratch": 0,
+            "owner_projection_weights": 0,
+            "owner_transport": 0,
+            "shared_prefill_scratch": 0,
+            "construction_workspaces": 0,
+            "owner_construction_workspaces": 0,
+            "queued_construction_sources": 0
+          },
+          "shared_decode_scratch": {
+            "participating_layers": 0,
+            "registries": 0,
+            "unique_tensor_count": 0,
+            "storage_bytes": 0,
+            "scope": "shared transient tensors only; per-layer outputs/state excluded"
+          },
+          "torch_allocated_bytes": 19546100736,
+          "torch_reserved_bytes": 29821501440,
+          "torch_peak_allocated_bytes_so_far": 28468368896,
+          "device_free_bytes": 4645191680,
+          "device_total_bytes": 274861129728,
+          "shadow_rows_by_layer": {},
+          "shadow_global_lengths_by_layer": {},
+          "sharded_prefill_archive_by_layer": {},
+          "owner_remote_pool_backed_by_layer": {},
+          "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+        },
+        "centroid_leaf_stats": {},
+        "centroid_leaf_stats_scope": "untimed warmup, before request cleanup; absent if not armed"
+      },
+      {
+        "rank": 7,
+        "peak_torch_allocated_bytes": 28468368896,
+        "peak_torch_reserved_bytes": 29821501440,
+        "current_torch_allocated_bytes": 19546100736,
+        "device_free_bytes_after_generation": 4645191680,
+        "device_total_bytes": 274861129728,
+        "lod_storage_inventory": {
+          "allocation_groups_bytes": {
+            "persistent_semantic_cache": 0,
+            "owner_persistent_semantic_cache": 0,
+            "owner_prefill_rows": 0,
+            "replicated_prefill_shadows": 0,
+            "decode_scratch": 0,
+            "owner_decode_scratch": 0,
+            "owner_projection_weights": 0,
+            "owner_transport": 0,
+            "shared_prefill_scratch": 0,
+            "construction_workspaces": 0,
+            "owner_construction_workspaces": 0,
+            "queued_construction_sources": 0
+          },
+          "shared_decode_scratch": {
+            "participating_layers": 0,
+            "registries": 0,
+            "unique_tensor_count": 0,
+            "storage_bytes": 0,
+            "scope": "shared transient tensors only; per-layer outputs/state excluded"
+          },
+          "torch_allocated_bytes": 19546100736,
+          "torch_reserved_bytes": 29821501440,
+          "torch_peak_allocated_bytes_so_far": 28468368896,
+          "device_free_bytes": 4645191680,
+          "device_total_bytes": 274861129728,
+          "shadow_rows_by_layer": {},
+          "shadow_global_lengths_by_layer": {},
+          "sharded_prefill_archive_by_layer": {},
+          "owner_remote_pool_backed_by_layer": {},
+          "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+        },
+        "centroid_leaf_stats": {},
+        "centroid_leaf_stats_scope": "untimed warmup, before request cleanup; absent if not armed"
+      }
     ]
   },
   "warmup_allocator_policy": {
@@ -10371,6 +10732,120 @@
         "free_bytes_before": 4645191680,
         "free_bytes_after": 14757658624,
         "allocated_bytes": 19544921088,
+        "reserved_bytes": 19709034496,
+        "prefill_allocator_audit": {
+          "calls": 0,
+          "retained": 0,
+          "reclaimed": 0,
+          "minimum_free_bytes_at_check": null
+        }
+      }
+    ],
+    "524288": [
+      {
+        "retention_requested": false,
+        "reclaimed": true,
+        "free_bytes_before": 4041211904,
+        "free_bytes_after": 14153678848,
+        "allocated_bytes": 19546100736,
+        "reserved_bytes": 19709034496,
+        "prefill_allocator_audit": {
+          "calls": 0,
+          "retained": 0,
+          "reclaimed": 0,
+          "minimum_free_bytes_at_check": null
+        }
+      },
+      {
+        "retention_requested": false,
+        "reclaimed": true,
+        "free_bytes_before": 6155141120,
+        "free_bytes_after": 16267608064,
+        "allocated_bytes": 19546100736,
+        "reserved_bytes": 19709034496,
+        "prefill_allocator_audit": {
+          "calls": 0,
+          "retained": 0,
+          "reclaimed": 0,
+          "minimum_free_bytes_at_check": null
+        }
+      },
+      {
+        "retention_requested": false,
+        "reclaimed": true,
+        "free_bytes_before": 4041211904,
+        "free_bytes_after": 14153678848,
+        "allocated_bytes": 19546100736,
+        "reserved_bytes": 19709034496,
+        "prefill_allocator_audit": {
+          "calls": 0,
+          "retained": 0,
+          "reclaimed": 0,
+          "minimum_free_bytes_at_check": null
+        }
+      },
+      {
+        "retention_requested": false,
+        "reclaimed": true,
+        "free_bytes_before": 4041211904,
+        "free_bytes_after": 14153678848,
+        "allocated_bytes": 19546100736,
+        "reserved_bytes": 19709034496,
+        "prefill_allocator_audit": {
+          "calls": 0,
+          "retained": 0,
+          "reclaimed": 0,
+          "minimum_free_bytes_at_check": null
+        }
+      },
+      {
+        "retention_requested": false,
+        "reclaimed": true,
+        "free_bytes_before": 4645191680,
+        "free_bytes_after": 14757658624,
+        "allocated_bytes": 19546100736,
+        "reserved_bytes": 19709034496,
+        "prefill_allocator_audit": {
+          "calls": 0,
+          "retained": 0,
+          "reclaimed": 0,
+          "minimum_free_bytes_at_check": null
+        }
+      },
+      {
+        "retention_requested": false,
+        "reclaimed": true,
+        "free_bytes_before": 4343201792,
+        "free_bytes_after": 14455668736,
+        "allocated_bytes": 19546100736,
+        "reserved_bytes": 19709034496,
+        "prefill_allocator_audit": {
+          "calls": 0,
+          "retained": 0,
+          "reclaimed": 0,
+          "minimum_free_bytes_at_check": null
+        }
+      },
+      {
+        "retention_requested": false,
+        "reclaimed": true,
+        "free_bytes_before": 4645191680,
+        "free_bytes_after": 14757658624,
+        "allocated_bytes": 19546100736,
+        "reserved_bytes": 19709034496,
+        "prefill_allocator_audit": {
+          "calls": 0,
+          "retained": 0,
+          "reclaimed": 0,
+          "minimum_free_bytes_at_check": null
+        }
+      },
+      {
+        "retention_requested": false,
+        "reclaimed": true,
+        "free_bytes_before": 4645191680,
+        "free_bytes_after": 14757658624,
+        "allocated_bytes": 19546100736,
         "reserved_bytes": 19709034496,
         "prefill_allocator_audit": {
           "calls": 0,

@@ -87,7 +87,7 @@ space is 4.385 GiB (weights and other process allocations are outside that
 client peak). See [current timings](CURRENT_TIMINGS.md) and
 [raw B1 long sweep](oct7-current-lod-b1-long.json).
 
-Fresh B8 now completes both generations through 128K with bounded decode workspace.
+Fresh B8 now completes both generations through 256K with bounded decode workspace.
 Its longer points, then 512K/1020K capacity and generation, still need to
 complete. A separate 24-MLA-layer fixture inspects the million-token backing
 allocation only; it does not include trained weights/MoE and is not a serving

@@ -26,7 +26,8 @@ def test_compact_capacity_rejects_invalid_sizes(args):
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="GPU required")
 @pytest.mark.parametrize("compact", [False, True])
-def test_smaller_prefill_head_groups_preserve_attention(monkeypatch, compact):
+@pytest.mark.parametrize("heads", [12, 24])
+def test_smaller_prefill_head_groups_preserve_attention(monkeypatch, compact, heads):
     """Grouping changes only temporary storage, not routes or MLA heads."""
     from lod_attention._config import LODConfig, LODMode, ModelFamily
     from lod_attention._engines import KernelTwoLevelLODAttention
@@ -37,7 +38,7 @@ def test_smaller_prefill_head_groups_preserve_attention(monkeypatch, compact):
     monkeypatch.setenv("LOD_KIMI_LEAF_BLOCK_M", "64")
     monkeypatch.setenv("LOD_KIMI_LEAF_WARPS", "1")
     torch.manual_seed(191)
-    heads, tokens, slots, queries = 12, 1024, 16, 64
+    tokens, slots, queries = 1024, 16, 64
     source = torch.randn(1, 1, tokens, 576, device="cuda").bfloat16()
     uk = (torch.randn(heads, 128, 512, device="cuda") / math.sqrt(512)).bfloat16()
     uv = (torch.randn(heads, 512, 128, device="cuda") / math.sqrt(512)).bfloat16()
@@ -48,7 +49,8 @@ def test_smaller_prefill_head_groups_preserve_attention(monkeypatch, compact):
         torch.randperm(slots, device="cuda")[:8] for _ in range(heads * queries)
     ]).int().view(1, heads, queries, 8)
     results, projection_bytes = [], []
-    for group in (12, 6, 4, 2):
+    groups = (12, 8, 6, 4, 2) if heads == 24 else (12, 6, 4, 2)
+    for group in groups:
         engine = KernelTwoLevelLODAttention(
             LODConfig(), query_heads=heads, key_value_heads=1, scale=192**-0.5,
         )
@@ -83,9 +85,8 @@ def test_smaller_prefill_head_groups_preserve_attention(monkeypatch, compact):
         torch.testing.assert_close(results[0][0], output, atol=0, rtol=0)
         torch.testing.assert_close(results[0][1], lse, atol=0, rtol=0)
     assert projection_bytes[0] > 0
-    assert projection_bytes[1] <= projection_bytes[0] * 0.51
-    assert projection_bytes[2] <= projection_bytes[0] * 0.34
-    assert projection_bytes[3] <= projection_bytes[0] * 0.17
+    for group, size in zip(groups[1:], projection_bytes[1:], strict=True):
+        assert size <= projection_bytes[0] * (group / groups[0] + 0.01)
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="GPU required")

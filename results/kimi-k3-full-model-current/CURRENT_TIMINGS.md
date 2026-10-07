@@ -19,7 +19,7 @@ One exact-shape untimed warmup and one measured pass, 1,026 output tokens / 1,02
 | B8 | 32K | 32.955 | 40.551 | 0.813× |
 | B8 | 64K | 69.263 | 94.297 | 0.735× |
 | B8 | 128K | 153.288 | 206.788 | 0.741× |
-| B8 | 256K | 360.076 | — | — |
+| B8 | 256K | 360.076 | 481.708 | 0.747× |
 | B8 | 512K | — | — | — |
 | B8 | 1020K | — | — | — |
 
@@ -38,19 +38,19 @@ One exact-shape untimed warmup and one measured pass, 1,026 output tokens / 1,02
 | B8 | 32K | 33.975 | 31.182 | 1.090× |
 | B8 | 64K | 35.588 | 31.507 | 1.130× |
 | B8 | 128K | 38.618 | 31.962 | 1.208× |
-| B8 | 256K | 48.105 | — | — |
+| B8 | 256K | 48.105 | 32.553 | 1.478× |
 | B8 | 512K | — | — | — |
 | B8 | 1020K | — | — | — |
 
 ## Sweep status
 
 - `oct7-current-full-b1-power2.json`: complete; {'length': 1044480, 'phase': 'point_complete', 'timestamp_unix': 1791342986.3664126}
-- `oct7-current-full-b8-long.json`: in_progress; {'length': 524288, 'phase': 'warmup', 'timestamp_unix': 1791344832.920827}
+- `oct7-current-full-b8-long.json`: in_progress; {'length': 524288, 'phase': 'measurement', 'timestamp_unix': 1791345835.8028927, 'repeat_index': 0, 'repeats': 1}
 - `oct7-current-full-b8-short.json`: complete; {'length': 131072, 'phase': 'point_complete', 'timestamp_unix': 1791343919.5279937}
 - `oct7-current-lod-b1-long.json`: complete; {'length': 1044480, 'phase': 'point_complete', 'timestamp_unix': 1791343395.1450899}
 - `oct7-current-lod-b1-short.json`: complete; {'length': 262144, 'phase': 'point_complete', 'timestamp_unix': 1791342608.5192482}
 - `oct7-current-lod-b8-long-512k.json`: failed; {'length': 524288, 'phase': 'warmup', 'timestamp_unix': 1791343656.9135764}
-- `oct7-current-lod-b8-short-remaining-256k.json`: in_progress; {'length': 262144, 'phase': 'warmup', 'timestamp_unix': 1791344890.866983}
+- `oct7-current-lod-b8-short-remaining-256k.json`: complete; {'length': 262144, 'phase': 'point_complete', 'timestamp_unix': 1791345932.3175273}
 - `oct7-current-lod-b8-short.json`: failed; {'length': 16384, 'phase': 'measurement', 'timestamp_unix': 1791343538.2167103, 'repeat_index': 0, 'repeats': 1}
 
 ## Raw sources

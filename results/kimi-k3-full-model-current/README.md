@@ -55,6 +55,12 @@ where the previous trials used twelve. A same-engine 32K comparison of six
 and twelve heads, at that same capacity, is queued to isolate this choice;
 neither group changes routing or the attention approximation. These partial
 points are fresh observations, not yet a claim of the fastest B8 configuration.
+The existing allocator audit also reports pressure-induced reclamation:
+rank 0 reclaims on 48 of the 64 checks for the 64K point's warmup and measured
+pass combined. Those counters establish pressure, not its exclusive time
+cost. The queued trial includes the new shared construction workspace in both
+arms; it can isolate grouping, but a gain versus the preceding engine is a
+combined pipeline improvement, not an isolated measurement of scratch sharing.
 The sweep runner saves every completed point before
 attempting a longer context. These are fresh measurements, not rerenders of
 the previous controls. The [memory investigation](LONG_CONTEXT_MEMORY.md)
@@ -64,7 +70,7 @@ Completion of a storage-only fixture does not certify million-token generation.
 The first B8 retry exposed oversized decode-update score workspace: 256-token
 catch-up inherited a 16K prefill reservation. The corrected workspace follows
 the actual overflow in 256-token buckets; scores and centroid choices do not
-change. The new B8 warmup **and measured generation** complete through 128K so far.
+change. The new B8 warmup **and measured generation** complete through 256K.
 Long owner prefills additionally share construction scratch across serial
 layers and release it at the decode handoff. Million-token B8 remains an
 actual capacity test, not a claimed success before it completes.
@@ -88,6 +94,20 @@ identities are checked against the recorded cohorts. These are timing traces,
 not freely generated model-quality scores.
 Resuming skips individual audited points, including those saved before a
 later capacity failure, without rerunning them or changing their stored times.
+
+The current CPU regression check passes **692 tests** (GPU-only cases skipped):
+
+```bash
+python -m pytest -q tests/test_kimi*.py tests/test_benchmarks.py tests/test_attention_timing.py
+```
+
+The changed cache/score-workspace paths were also checked on GPU: exact
+scores and indices, independent versus shared per-layer construction, and
+captured pool-backed decode. The trained fusion A/B above checks actual
+live-cache selected sets and numerical output/LSE agreement on every rank.
+The projection-group GPU test additionally compares twelve, eight, six, four
+and two heads, with bitwise-equal output/LSE for both ordinary and compact
+selected-leaf projection (four cases passed).
 
 Existing quality evidence remains in [PROLONG_QUALITY.md](PROLONG_QUALITY.md)
 and [CHAT_QUALITY.md](CHAT_QUALITY.md); it is not relabeled as a new fusion
