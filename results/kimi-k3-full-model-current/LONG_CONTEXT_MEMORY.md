@@ -30,6 +30,38 @@ by this inventory; do not attribute it to specific scratch or fragmentation
 without another measurement. Container `ps` PIDs differ from the host PIDs
 reported by `rocm-smi --showpids`.
 
+A subsequent read-only inspection finds **`HSA_NO_SCRATCH_RECLAIM=1` in all
+eight resident daemon workers on both node 2 and node 4** (read-only cluster
+jobs 21542 and 21543). The normal
+image launcher defaults to that setting unless explicitly overridden.
+The new LoD inference clients use `0`, but do not alter an already-running
+daemon's environment or ROCr context. [AMD's runtime documentation](https://rocm.docs.amd.com/en/develop/reference/env-variables.html)
+states that `1` can retain dispatch scratch in its process's queues until
+process exit. This is therefore a concrete candidate for part of the
+daemon-versus-exported-storage gap, **not proof that the full 11–12 GiB is
+scratch or recoverable**.
+
+Before rebuilding the leaf archive, test a daemon started with scratch
+reclamation enabled and a bounded asynchronous scratch threshold, keeping
+the same locally staged checkpoint and packed weight format. Measure its
+post-export residency and exported tensor identity, then repeat the existing
+short-prefix/full-reservation preflight. Only proceed to 1020K if sufficient
+headroom is actually recovered. The newer HIP/ROCr APIs also allow changing
+an asynchronous scratch threshold programmatically, but the old live daemon
+has no supported control operation for that; do not inject code into it or
+invalidate IPC handles.
+
+The controlled restart now uses node 2 only: job 21546 gracefully stops its
+idle broker through the supported `stop` operation, and job 21547 starts
+`kimi-k3-node2-scratch0-v2` with `HSA_NO_SCRATCH_RECLAIM=0` and
+`HSA_SCRATCH_SINGLE_LIMIT_ASYNC=268435456`. The unchanged checkpoint is on
+local XFS (96 safetensors shards, verified by job 21544); no Ceph weight read
+or cache deletion is needed. Node 4's resident daemon stays unchanged as a
+control. Job 21548 reserves the complete 1020K/B8 cache while testing a
+256K live prefix first. This is an allocation preflight, **not a new timing
+cell**, and no memory saving or million-token support is claimed while it
+is in progress.
+
 ## Current exact-storage measures
 
 1. Keep the existing token-sharded B1 archive for 512K and 1020K. Preserve
