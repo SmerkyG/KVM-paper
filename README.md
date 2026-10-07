@@ -21,8 +21,8 @@ tests have not completed generation. This branch has not been pushed.
 The latest [live-split and allocator fixes](results/kimi-k3-full-model-current/LIVE_SPLITS_ALLOCATOR.md)
 decouple dense decode partitioning from maximum context reservation and keep
 registered graph communication while retaining expandable large-context
-memory. That document contains the new targeted speed/fit checks; the full
-sweep above predates these fixes and has not been rerun in its entirety.
+memory. The current sweep above includes only measurements with these fixes;
+remaining cells are filled by fresh matched reruns, not older controls.
 
 ## Supported configurations
 

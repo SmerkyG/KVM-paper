@@ -110,7 +110,9 @@ registered capture and expandable eager allocation on all eight ranks.
 
 Do not infer million-token B8 support from a capacity reservation or from the
 small distributed fixture. B8/512K has not been repeated after this allocator
-fix.
+fix. The complete rerun progress is now tracked in
+[CURRENT_TIMINGS.md](CURRENT_TIMINGS.md); the preceding complete panel is
+preserved separately in [OCT7_PRE_FIX_TIMINGS.md](OCT7_PRE_FIX_TIMINGS.md).
 
 The focused CPU set passed 350 tests with 46 accelerator skips. The full
 CPU suite passed 824 with 137 skips and one pre-existing reachability failure:

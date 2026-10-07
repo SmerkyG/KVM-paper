@@ -15,19 +15,22 @@ import subprocess
 import sys
 import time
 
-from benchmarks.kimi_k3_current_timings import LENGTHS, RESULTS, ROOT, render, validate_point
+from benchmarks.kimi_k3_current_timings import (
+    CURRENT_PREFIX, EXCLUDED_POINTS, LENGTHS, RESULTS, ROOT,
+    current_sources, render, validate_current_point,
+)
 
 
 def completed_lengths(mode, batch, directory=RESULTS):
     """Resume by audited points, not the final status of a whole long block."""
-    label = "full" if mode == "full" else "lod"
     completed = set()
-    for path in directory.glob(f"oct7-current-{label}-b{batch}-*.json"):
+    for path in current_sources(directory):
         data = json.loads(path.read_text())
         if data.get("mode") != mode or data.get("batch_size") != batch:
-            raise ValueError("current artifact name disagrees with its workload")
+            continue
         completed.update(int(length) for length, point in data.get("measurements", {}).items()
-                         if validate_point(data, point))
+                         if (path.name, int(length)) not in EXCLUDED_POINTS
+                         and validate_current_point(data, point))
     return completed
 
 
@@ -153,7 +156,7 @@ def main():
         if args.block not in (block.split("-", 1)[0], "all"):
             continue
         label = "full" if args.mode == "full" else "lod"
-        output = RESULTS / f"oct7-current-{label}-b{args.batch_size}-{block}.json"
+        output = RESULTS / f"{CURRENT_PREFIX}-{label}-b{args.batch_size}-{block}.json"
         completed = completed_lengths(args.mode, args.batch_size)
         lengths = [length for length in lengths if length not in completed]
         if not lengths:
@@ -162,6 +165,8 @@ def main():
         env = dict(os.environ, PYTORCH_ALLOC_CONF="expandable_segments:True",
                    TRITON_CACHE_AUTOTUNING="1", VLLM_USE_TRITON_AWQ="1",
                    AITER_CONFIG_FMOE=str(RESULTS / "kimik3_i4_tuned_fmoe_b2x16k_merged.csv"))
+        if args.mode == "full":
+            env["HSA_NO_SCRATCH_RECLAIM"] = "1"
         if args.mode == "two-tier":
             from benchmarks.kimi_k3_decode_power2 import LOD_ENV
             env.update(LOD_ENV)

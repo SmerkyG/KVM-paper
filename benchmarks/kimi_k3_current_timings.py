@@ -16,6 +16,26 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "results/kimi-k3-full-model-current"
 LENGTHS = (16384, 32768, 65536, 131072, 262144, 524288, 1044480)
+CURRENT_PREFIX = "oct7-fixed"
+# Already measured with the final live-split policy and IPC-safe allocator.
+# Deliberately exclude earlier experimental split policies and stale audits.
+VERIFIED_SOURCES = (
+    "oct7-live-splits-floor-full-b1.json",
+    "oct7-live-splits-full-b8-small-reservation.json",
+    "oct7-graph-allocator-lod-b8.json",
+    "oct7-graph-allocator-lod-b1-long-fit.json",
+)
+# The local CPU regression suite overlapped these two measurements on node 2.
+# Keep their raw records intact; only quiet replacements enter the panel.
+EXCLUDED_POINTS = {
+    ("oct7-fixed-lod-b1-short.json", 32768),
+    ("oct7-fixed-lod-b1-short.json", 65536),
+}
+
+
+def current_sources(directory=RESULTS):
+    return sorted(set(directory.glob(f"{CURRENT_PREFIX}-*.json")) | {
+        directory / name for name in VERIFIED_SOURCES if (directory / name).exists()})
 
 
 def validate_point(data, point):
@@ -63,15 +83,35 @@ def matched(dense, lod):
         raise ValueError("dense/LoD forced continuations differ")
 
 
+def validate_current_point(data, point):
+    """Audit behavior, not a whole-source hash or a maximum reservation."""
+    if not validate_point(data, point):
+        return False
+    workers = point.get("worker_attention_audit", [])
+    if len(workers) != 8:
+        raise ValueError("missing eight-rank runtime policy audit")
+    for worker in workers:
+        tp = worker.get("graph_collectives", {}).get("tp", {})
+        if (not worker.get("expandable_eager_allocator")
+                or not tp.get("registered_capture")
+                or not tp.get("isolated_graph_allocator")):
+            raise ValueError("not the current IPC-safe expandable allocator policy")
+        if data["mode"] == "full" and not worker.get("dense_live_splits"):
+            raise ValueError("dense decode did not use live-context splits")
+    return True
+
+
 def render(directory=RESULTS):
     points, sources, progress = {}, [], []
-    for path in sorted(directory.glob("oct7-current-*.json")):
+    for path in current_sources(directory):
         data = json.loads(path.read_text())
         sources.append(path.name)
         progress.append(f"- `{path.name}`: {data.get('measurement_status', 'unknown')}; "
                         f"{data.get('current_phase', {})}")
         for context, point in data.get("measurements", {}).items():
-            if validate_point(data, point):
+            if (path.name, int(context)) in EXCLUDED_POINTS:
+                continue
+            if validate_current_point(data, point):
                 key = (data["mode"], data["batch_size"], int(context))
                 if key in points:
                     raise ValueError(f"ambiguous current source for {key}; archive the superseded JSON")
@@ -89,11 +129,11 @@ def render(directory=RESULTS):
                 ratio = f"{full[field] / lod[field]:.3f}×" if full and lod else "—"
                 target.append("| " + " | ".join(row + cells + [ratio]) + " |")
     note = (
-        "This full October 7 refresh predates the "
-        "[live-split / graph-allocator fixes](LIVE_SPLITS_ALLOCATOR.md). New "
-        "targeted checks are reported there; the complete sweep has not yet "
-        "been repeated with the fixes. Keep these baseline timings distinct "
-        "from the new default's results.\n\n"
+        "These measurements use the current "
+        "[live-context dense splits and IPC-safe graph allocator](LIVE_SPLITS_ALLOCATOR.md). "
+        "Eager caches retain expandable allocation; graph communication uses registered "
+        "ordinary allocations. The [pre-fix sweep](OCT7_PRE_FIX_TIMINGS.md) is archived "
+        "and is not mixed into these cells.\n\n"
         "Full trained K3; TP8/DCP8/EP8, eight MI325X GPUs, frozen real ProLong prompts "
         "and identical teacher-forced continuations. Both arms use the approved G8 "
         "direct-state-I/O KDA prefill baseline and the same packed INT4 MoE weights. "
@@ -103,6 +143,13 @@ def render(directory=RESULTS):
         "1,025 decode steps, four global-256 catch-ups per LoD request/layer. "
         "No prefix hits, preemptions, profiling events, or warmup times in these cells. "
         "A dash means no completed fresh measurement—not a reused older result.\n\n"
+        "B1 long-context LoD retains the exact token-sharded archive; its validated "
+        "16K allocator control also uses that storage layout. B8 512K uses the "
+        "documented compact-directory/sharded-bank memory configuration. B8 1020K "
+        "has not completed generation: previous capacity failures are not timings.\n\n"
+        "The first new B1 LoD 32K/64K passes overlapped CPU regression tests on "
+        "the timing node. Their raw records remain intact, but only quiet "
+        "replacement passes are used in the table.\n\n"
     )
     columns = "| Batch | Context | Dense | Two-tier LoD | Dense / LoD |\n|:--|--:|--:|--:|--:|\n"
     path = directory / "CURRENT_TIMINGS.md"

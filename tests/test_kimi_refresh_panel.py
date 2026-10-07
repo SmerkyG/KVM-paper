@@ -48,9 +48,20 @@ def test_resumption_reuses_audited_points_even_if_next_warmup_failed(tmp_path):
     data, point = fixture()
     data.update(measurement_status="failed", measurements={"16384": point,
         "32768": dict(measurement_status="warming")})
-    (tmp_path / "oct7-current-lod-b8-short.json").write_text(json.dumps(data))
+    (tmp_path / "oct7-fixed-lod-b8-short.json").write_text(json.dumps(data))
     assert completed_lengths("two-tier", 8, tmp_path) == {16384}
     assert completed_lengths("full", 8, tmp_path) == set()
+
+
+def test_resumption_does_not_skip_points_measured_before_policy_fix(tmp_path):
+    import json
+    from tests.test_kimi_current_timings import fixture
+    from benchmarks.kimi_k3_refresh_panel import completed_lengths
+
+    data, point = fixture()
+    data["measurements"] = {"16384": point}
+    (tmp_path / "oct7-current-lod-b8-short.json").write_text(json.dumps(data))
+    assert completed_lengths("two-tier", 8, tmp_path) == set()
 
 
 def test_second_resumption_cannot_overwrite_first_resumptions_points(tmp_path):

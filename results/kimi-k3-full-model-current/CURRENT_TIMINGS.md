@@ -1,84 +1,71 @@
 # Current K3 matched speed sweep
 
-This full October 7 refresh predates the
-[live-split / graph-allocator fixes](LIVE_SPLITS_ALLOCATOR.md). New targeted
-checks are reported there; the complete sweep has not yet been repeated with
-the fixes. Keep these baseline timings distinct from the new default's results.
+These measurements use the current [live-context dense splits and IPC-safe graph allocator](LIVE_SPLITS_ALLOCATOR.md). Eager caches retain expandable allocation; graph communication uses registered ordinary allocations. The [pre-fix sweep](OCT7_PRE_FIX_TIMINGS.md) is archived and is not mixed into these cells.
 
 Full trained K3; TP8/DCP8/EP8, eight MI325X GPUs, frozen real ProLong prompts and identical teacher-forced continuations. Both arms use the approved G8 direct-state-I/O KDA prefill baseline and the same packed INT4 MoE weights. Attention caches remain BF16. Dense decode uses the improved Gluon kernel. LoD B1 uses DCP8; B8 uses one request's attention per GPU.
 
 One exact-shape untimed warmup and one measured pass, 1,026 output tokens / 1,025 decode steps, four global-256 catch-ups per LoD request/layer. No prefix hits, preemptions, profiling events, or warmup times in these cells. A dash means no completed fresh measurement—not a reused older result.
 
+B1 long-context LoD retains the exact token-sharded archive; its validated 16K allocator control also uses that storage layout. B8 512K uses the documented compact-directory/sharded-bank memory configuration. B8 1020K has not completed generation: previous capacity failures are not timings.
+
+The first new B1 LoD 32K/64K passes overlapped CPU regression tests on the timing node. Their raw records remain intact, but only quiet replacement passes are used in the table.
+
 ## Prefill (seconds per batch)
 
 | Batch | Context | Dense | Two-tier LoD | Dense / LoD |
 |:--|--:|--:|--:|--:|
-| B1 | 16K | 2.005 | 2.016 | 0.995× |
-| B1 | 32K | 4.108 | 4.140 | 0.992× |
-| B1 | 64K | 8.641 | 8.402 | 1.029× |
-| B1 | 128K | 19.009 | 17.184 | 1.106× |
-| B1 | 256K | 44.929 | 36.038 | 1.247× |
-| B1 | 512K | 117.511 | 83.521 | 1.407× |
-| B1 | 1020K | 342.108 | 178.284 | 1.919× |
-| B8 | 16K | 16.038 | 16.221 | 0.989× |
-| B8 | 32K | 32.955 | 33.860 | 0.973× |
-| B8 | 64K | 69.263 | 70.851 | 0.978× |
-| B8 | 128K | 153.288 | 150.394 | 1.019× |
-| B8 | 256K | 360.076 | 330.056 | 1.091× |
-| B8 | 512K | 939.950 | 849.782 | 1.106× |
+| B1 | 16K | 2.006 | 2.001 | 1.002× |
+| B1 | 32K | 4.106 | — | — |
+| B1 | 64K | 8.651 | — | — |
+| B1 | 128K | 18.988 | 17.175 | 1.106× |
+| B1 | 256K | 44.885 | 35.275 | 1.272× |
+| B1 | 512K | 117.490 | 83.278 | 1.411× |
+| B1 | 1020K | — | 178.188 | — |
+| B8 | 16K | 16.104 | 16.226 | 0.992× |
+| B8 | 32K | — | — | — |
+| B8 | 64K | — | — | — |
+| B8 | 128K | — | 150.572 | — |
+| B8 | 256K | — | — | — |
+| B8 | 512K | — | — | — |
 | B8 | 1020K | — | — | — |
 
 ## Decode (milliseconds per batch step)
 
 | Batch | Context | Dense | Two-tier LoD | Dense / LoD |
 |:--|--:|--:|--:|--:|
-| B1 | 16K | 22.238 | 22.237 | 1.000× |
-| B1 | 32K | 22.305 | 22.240 | 1.003× |
-| B1 | 64K | 22.634 | 22.243 | 1.018× |
-| B1 | 128K | 22.998 | 22.302 | 1.031× |
-| B1 | 256K | 23.849 | 22.370 | 1.066× |
-| B1 | 512K | 25.352 | 22.431 | 1.130× |
-| B1 | 1020K | 28.049 | 22.611 | 1.240× |
-| B8 | 16K | 32.948 | 30.753 | 1.071× |
-| B8 | 32K | 33.975 | 31.058 | 1.094× |
-| B8 | 64K | 35.588 | 31.508 | 1.129× |
-| B8 | 128K | 38.618 | 31.962 | 1.208× |
-| B8 | 256K | 48.105 | 32.571 | 1.477× |
-| B8 | 512K | 61.130 | 33.163 | 1.843× |
+| B1 | 16K | 21.311 | 21.646 | 0.985× |
+| B1 | 32K | 21.459 | — | — |
+| B1 | 64K | 21.721 | — | — |
+| B1 | 128K | 22.227 | 21.689 | 1.025× |
+| B1 | 256K | 23.380 | 21.756 | 1.075× |
+| B1 | 512K | 24.692 | 21.827 | 1.131× |
+| B1 | 1020K | — | 21.986 | — |
+| B8 | 16K | 31.743 | 30.134 | 1.053× |
+| B8 | 32K | — | — | — |
+| B8 | 64K | — | — | — |
+| B8 | 128K | — | 31.339 | — |
+| B8 | 256K | — | — | — |
+| B8 | 512K | — | — | — |
 | B8 | 1020K | — | — | — |
 
 ## Sweep status
 
-- `oct7-current-full-b1-power2.json`: complete; {'length': 1044480, 'phase': 'point_complete', 'timestamp_unix': 1791342986.3664126}
-- `oct7-current-full-b8-long-remaining-1020k.json`: failed; {'length': 1044480, 'phase': 'warmup', 'timestamp_unix': 1791346944.9206097}
-- `oct7-current-full-b8-long.json`: complete; {'length': 524288, 'phase': 'point_complete', 'timestamp_unix': 1791346838.7539039}
-- `oct7-current-full-b8-short.json`: complete; {'length': 131072, 'phase': 'point_complete', 'timestamp_unix': 1791343919.5279937}
-- `oct7-current-lod-b1-long.json`: complete; {'length': 1044480, 'phase': 'point_complete', 'timestamp_unix': 1791343395.1450899}
-- `oct7-current-lod-b1-short.json`: complete; {'length': 262144, 'phase': 'point_complete', 'timestamp_unix': 1791342608.5192482}
-- `oct7-current-lod-b8-long-1020k-bankshard-moe2048.json`: failed; {'length': 1044480, 'phase': 'warmup', 'timestamp_unix': 1791348707.8605654}
-- `oct7-current-lod-b8-long-1020k-bankshard.json`: failed; {'length': 1044480, 'phase': 'warmup', 'timestamp_unix': 1791348365.866205}
-- `oct7-current-lod-b8-long-1020k-compact-bankshard-moe2048.json`: failed; {'length': 1044480, 'phase': 'warmup', 'timestamp_unix': 1791349205.387964}
-- `oct7-current-lod-b8-long-1020k-moe4096.json`: failed; {'length': 1044480, 'phase': 'warmup', 'timestamp_unix': 1791347959.1571953}
-- `oct7-current-lod-b8-long-512k-compact-bankshard-moe4096.json`: complete; {'length': 524288, 'phase': 'point_complete', 'timestamp_unix': 1791351805.6355321}
-- `oct7-current-lod-b8-long-512k-remaining-512k.json`: failed; {'length': 524288, 'phase': 'warmup', 'timestamp_unix': 1791348106.7196164}
-- `oct7-current-lod-b8-long-512k.json`: failed; {'length': 524288, 'phase': 'warmup', 'timestamp_unix': 1791343656.9135764}
-- `oct7-current-lod-b8-short-remaining-256k.json`: complete; {'length': 262144, 'phase': 'point_complete', 'timestamp_unix': 1791347944.4846623}
-- `oct7-current-lod-b8-short.json`: failed; {'length': 16384, 'phase': 'measurement', 'timestamp_unix': 1791343538.2167103, 'repeat_index': 0, 'repeats': 1}
+- `oct7-fixed-full-b1-long.json`: in_progress; {'length': 1044480, 'phase': 'warmup', 'timestamp_unix': 1791383381.3752227}
+- `oct7-fixed-full-b1-short.json`: complete; {'length': 262144, 'phase': 'point_complete', 'timestamp_unix': 1791383002.2503943}
+- `oct7-fixed-lod-b1-long.json`: complete; {'length': 1044480, 'phase': 'point_complete', 'timestamp_unix': 1791383568.2486668}
+- `oct7-fixed-lod-b1-short.json`: complete; {'length': 262144, 'phase': 'point_complete', 'timestamp_unix': 1791383074.202787}
+- `oct7-graph-allocator-lod-b1-long-fit.json`: complete; {'length': 524288, 'phase': 'point_complete', 'timestamp_unix': 1791381975.557606}
+- `oct7-graph-allocator-lod-b8.json`: complete; {'length': 131072, 'phase': 'point_complete', 'timestamp_unix': 1791381951.7831194}
+- `oct7-live-splits-floor-full-b1.json`: complete; {'length': 131072, 'phase': 'point_complete', 'timestamp_unix': 1791381562.9180846}
+- `oct7-live-splits-full-b8-small-reservation.json`: complete; {'length': 16384, 'phase': 'point_complete', 'timestamp_unix': 1791382181.4139628}
 
 ## Raw sources
 
-- [oct7-current-full-b1-power2.json](oct7-current-full-b1-power2.json)
-- [oct7-current-full-b8-long-remaining-1020k.json](oct7-current-full-b8-long-remaining-1020k.json)
-- [oct7-current-full-b8-long.json](oct7-current-full-b8-long.json)
-- [oct7-current-full-b8-short.json](oct7-current-full-b8-short.json)
-- [oct7-current-lod-b1-long.json](oct7-current-lod-b1-long.json)
-- [oct7-current-lod-b1-short.json](oct7-current-lod-b1-short.json)
-- [oct7-current-lod-b8-long-1020k-bankshard-moe2048.json](oct7-current-lod-b8-long-1020k-bankshard-moe2048.json)
-- [oct7-current-lod-b8-long-1020k-bankshard.json](oct7-current-lod-b8-long-1020k-bankshard.json)
-- [oct7-current-lod-b8-long-1020k-compact-bankshard-moe2048.json](oct7-current-lod-b8-long-1020k-compact-bankshard-moe2048.json)
-- [oct7-current-lod-b8-long-1020k-moe4096.json](oct7-current-lod-b8-long-1020k-moe4096.json)
-- [oct7-current-lod-b8-long-512k-compact-bankshard-moe4096.json](oct7-current-lod-b8-long-512k-compact-bankshard-moe4096.json)
-- [oct7-current-lod-b8-long-512k-remaining-512k.json](oct7-current-lod-b8-long-512k-remaining-512k.json)
-- [oct7-current-lod-b8-long-512k.json](oct7-current-lod-b8-long-512k.json)
-- [oct7-current-lod-b8-short-remaining-256k.json](oct7-current-lod-b8-short-remaining-256k.json)
-- [oct7-current-lod-b8-short.json](oct7-current-lod-b8-short.json)
+- [oct7-fixed-full-b1-long.json](oct7-fixed-full-b1-long.json)
+- [oct7-fixed-full-b1-short.json](oct7-fixed-full-b1-short.json)
+- [oct7-fixed-lod-b1-long.json](oct7-fixed-lod-b1-long.json)
+- [oct7-fixed-lod-b1-short.json](oct7-fixed-lod-b1-short.json)
+- [oct7-graph-allocator-lod-b1-long-fit.json](oct7-graph-allocator-lod-b1-long-fit.json)
+- [oct7-graph-allocator-lod-b8.json](oct7-graph-allocator-lod-b8.json)
+- [oct7-live-splits-floor-full-b1.json](oct7-live-splits-floor-full-b1.json)
+- [oct7-live-splits-full-b8-small-reservation.json](oct7-live-splits-full-b8-small-reservation.json)
