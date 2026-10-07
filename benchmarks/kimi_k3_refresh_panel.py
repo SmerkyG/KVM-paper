@@ -17,7 +17,7 @@ import time
 
 from benchmarks.kimi_k3_current_timings import (
     CURRENT_PREFIX, EXCLUDED_POINTS, LENGTHS, RESULTS, ROOT,
-    current_sources, render, validate_current_point,
+    current_sources, validate_current_point,
 )
 
 
@@ -90,6 +90,12 @@ def wait_for_preceding(path):
         time.sleep(5)
     if "==> cluster-run completed: status=finished exit_code=0" not in path.read_text()[-10000:]:
         raise RuntimeError("preceding engine did not complete successfully; inspect it before starting another")
+
+
+def render_current_panel():
+    """Reload reporting policy after long runs without restarting an engine."""
+    subprocess.run([sys.executable, "-m", "benchmarks.kimi_k3_current_timings"],
+                   cwd=ROOT, check=True)
 
 
 def million_token_cohort(checkpoint, token_cache):
@@ -185,7 +191,7 @@ def main():
             command.extend(("--max-model-len", str(args.max_model_len)))
         print("K3_CURRENT_COMMAND " + json.dumps(command), flush=True)
         subprocess.run(command, cwd=ROOT, env=env, check=True)
-        print(render(), flush=True)
+        render_current_panel()
 
 
 if __name__ == "__main__":

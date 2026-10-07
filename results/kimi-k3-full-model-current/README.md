@@ -37,9 +37,10 @@ The v10 userspace reports vLLM `0.30.1rc1.dev143+g29468dde8`. The direct runner
 keeps compilation artifacts on local disk. Resident weight caches are
 `kimi-k3-shared-int4-v6` on node 4 and `kimi-k3-node2-scratch0-v2` on node 2;
 reuse the existing ID rather than loading another full weight copy. See
-[memory work](LONG_CONTEXT_MEMORY.md) for capacity history. B1 has previously
-completed generation through 1020K and B8 through 512K; B8 1020K has **not**
-completed generation and is not a timing cell.
+[memory work](LONG_CONTEXT_MEMORY.md) for capacity history. Fresh B1 measurements
+complete through 1020K and B8 LoD through 512K. Dense B8/512K is finishing;
+fresh dense and LoD B8/1020K attempts are queued behind it. B8 1020K has
+**not** yet completed generation and is not a timing cell.
 
 ## Reproduction
 

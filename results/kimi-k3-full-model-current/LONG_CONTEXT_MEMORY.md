@@ -1,5 +1,24 @@
 # Fitting 1020K B1 and B8 two-tier LoD
 
+## Current post-allocator-fix capacity retry (October 7)
+
+The fresh LoD B8/512K run completes exact-shape warmup and the measured
+generation: **849.877 s prefill / 32.570 ms per batch decode step**, with all
+eight requests live for 1,025 steps and four global-256 updates in every MLA
+layer. Raw result: [oct7-fixed-lod-b8-long-512k.json](oct7-fixed-lod-b8-long-512k.json).
+The dense 512K measured pass is finishing. Fresh B8/1020K attempts in both
+modes wait for that job to exit before allocating an engine.
+
+These retries use the current IPC-safe graph allocator and live-context
+dense split policy, not a new quantization or leaf-dropping scheme. LoD keeps
+all BF16 latents, the compact page directory, sharded residual-prefill bank,
+two-head fine projection slices, eight-head local projection slices,
+sixteen-head coarse projection slices, and 1K MoE slices. Dense uses a
+31-GiB native-cache reservation. Neither an initialized engine nor a
+short-prefix capacity check establishes full-length support; complete
+warmup and measured generation remain required. See
+[CURRENT_TIMINGS.md](CURRENT_TIMINGS.md) for audited progress.
+
 Target: full trained K3, eight MI325X GPUs, BF16 attention storage, complete
 top-eight leaf refinement, unchanged global 16K/256-token cadences. No
 chronological-token quantization, fewer selected leaves, or fixture timing

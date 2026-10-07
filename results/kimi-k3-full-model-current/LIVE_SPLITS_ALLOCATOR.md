@@ -108,9 +108,13 @@ choose four active splits per row, rather than the old reservation-selected
 `oct7-live-splits-full-b8-small-reservation.json`. Its loaded audit confirms
 registered capture and expandable eager allocation on all eight ranks.
 
-Do not infer million-token B8 support from a capacity reservation or from the
-small distributed fixture. B8/512K has not been repeated after this allocator
-fix. The complete rerun progress is now tracked in
+The fresh B8/512K LoD check has now completed both passes after the allocator
+fix: **849.877 s prefill / 32.570 ms per decode step**, including four updates
+per request in all 24 MLA layers. The dense 512K control is finishing its
+measured pass. Do not infer million-token B8 support from a capacity reservation
+or from the small distributed fixture. Fresh dense and LoD B8/1020K attempts
+are queued behind that control, with no simultaneous engines on one node.
+The complete rerun progress is tracked in
 [CURRENT_TIMINGS.md](CURRENT_TIMINGS.md); the preceding complete panel is
 preserved separately in [OCT7_PRE_FIX_TIMINGS.md](OCT7_PRE_FIX_TIMINGS.md).
 

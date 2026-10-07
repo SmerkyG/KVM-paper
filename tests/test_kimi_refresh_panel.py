@@ -86,3 +86,14 @@ def test_failed_predecessor_does_not_start_a_new_engine(tmp_path):
         wait_for_preceding(log)
     log.write_text("==> cluster-run completed: status=finished exit_code=0\n")
     wait_for_preceding(log)
+
+
+def test_reporting_policy_is_reloaded_in_a_fresh_cpu_process(monkeypatch):
+    import sys
+    from benchmarks import kimi_k3_refresh_panel as panel
+
+    calls = []
+    monkeypatch.setattr(panel.subprocess, "run", lambda *args, **kwargs: calls.append((args, kwargs)))
+    panel.render_current_panel()
+    assert calls == [(([sys.executable, "-m", "benchmarks.kimi_k3_current_timings"],),
+                      {"cwd": panel.ROOT, "check": True})]

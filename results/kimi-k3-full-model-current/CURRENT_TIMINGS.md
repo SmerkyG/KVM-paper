@@ -6,7 +6,7 @@ Full trained K3; TP8/DCP8/EP8, eight MI325X GPUs, frozen real ProLong prompts an
 
 One exact-shape untimed warmup and one measured pass, 1,026 output tokens / 1,025 decode steps, four global-256 catch-ups per LoD request/layer. No prefix hits, preemptions, profiling events, or warmup times in these cells. A dash means no completed fresh measurement—not a reused older result.
 
-B1 long-context LoD retains the exact token-sharded archive; its validated 16K allocator control also uses that storage layout. B8 512K uses the documented compact-directory/sharded-bank memory configuration. B8 1020K has not completed generation: previous capacity failures are not timings.
+B1 long-context LoD retains the exact token-sharded archive; its validated 16K allocator control also uses that storage layout. B8 512K uses the documented compact-directory/sharded-bank memory configuration. B8 1020K uses the further bounded-workspace configuration described in [LONG_CONTEXT_MEMORY.md](LONG_CONTEXT_MEMORY.md). Only complete warmup and measured generations qualify; failed capacity attempts are not timings.
 
 The first new B1 LoD 32K/64K passes overlapped CPU regression tests on the timing node. Their raw records remain intact, but only quiet replacement passes are used in the table.
 
@@ -22,11 +22,11 @@ The first new B1 LoD 32K/64K passes overlapped CPU regression tests on the timin
 | B1 | 512K | 117.490 | 83.278 | 1.411× |
 | B1 | 1020K | 341.966 | 178.188 | 1.919× |
 | B8 | 16K | 16.104 | 16.226 | 0.992× |
-| B8 | 32K | — | 33.856 | — |
-| B8 | 64K | — | — | — |
-| B8 | 128K | — | 150.572 | — |
-| B8 | 256K | — | — | — |
-| B8 | 512K | — | — | — |
+| B8 | 32K | 32.925 | 33.856 | 0.972× |
+| B8 | 64K | 69.248 | 70.896 | 0.977× |
+| B8 | 128K | 153.255 | 150.572 | 1.018× |
+| B8 | 256K | 360.071 | 330.084 | 1.091× |
+| B8 | 512K | — | 849.877 | — |
 | B8 | 1020K | — | — | — |
 
 ## Decode (milliseconds per batch step)
@@ -41,21 +41,24 @@ The first new B1 LoD 32K/64K passes overlapped CPU regression tests on the timin
 | B1 | 512K | 24.692 | 21.827 | 1.131× |
 | B1 | 1020K | 27.388 | 21.986 | 1.246× |
 | B8 | 16K | 31.743 | 30.134 | 1.053× |
-| B8 | 32K | — | 30.434 | — |
-| B8 | 64K | — | — | — |
-| B8 | 128K | — | 31.339 | — |
-| B8 | 256K | — | — | — |
-| B8 | 512K | — | — | — |
+| B8 | 32K | 33.005 | 30.434 | 1.084× |
+| B8 | 64K | 34.329 | 30.889 | 1.111× |
+| B8 | 128K | 38.103 | 31.339 | 1.216× |
+| B8 | 256K | 45.432 | 31.957 | 1.422× |
+| B8 | 512K | — | 32.570 | — |
 | B8 | 1020K | — | — | — |
 
 ## Sweep status
 
 - `oct7-fixed-full-b1-long.json`: complete; {'length': 1044480, 'phase': 'point_complete', 'timestamp_unix': 1791384121.719901}
 - `oct7-fixed-full-b1-short.json`: complete; {'length': 262144, 'phase': 'point_complete', 'timestamp_unix': 1791383002.2503943}
+- `oct7-fixed-full-b8-long.json`: in_progress; {'length': 524288, 'phase': 'measurement', 'timestamp_unix': 1791386948.028844, 'repeat_index': 0, 'repeats': 1}
+- `oct7-fixed-full-b8-short.json`: complete; {'length': 131072, 'phase': 'point_complete', 'timestamp_unix': 1791385017.7432396}
 - `oct7-fixed-lod-b1-long.json`: complete; {'length': 1044480, 'phase': 'point_complete', 'timestamp_unix': 1791383568.2486668}
 - `oct7-fixed-lod-b1-short-remaining-64k-retry2.json`: complete; {'length': 65536, 'phase': 'point_complete', 'timestamp_unix': 1791383882.3625453}
 - `oct7-fixed-lod-b1-short.json`: complete; {'length': 262144, 'phase': 'point_complete', 'timestamp_unix': 1791383074.202787}
-- `oct7-fixed-lod-b8-short.json`: in_progress; {'length': 65536, 'phase': 'warmup', 'timestamp_unix': 1791384107.7645981}
+- `oct7-fixed-lod-b8-long-512k.json`: complete; {'length': 524288, 'phase': 'point_complete', 'timestamp_unix': 1791386942.088362}
+- `oct7-fixed-lod-b8-short.json`: complete; {'length': 262144, 'phase': 'point_complete', 'timestamp_unix': 1791385039.2886648}
 - `oct7-graph-allocator-lod-b1-long-fit.json`: complete; {'length': 524288, 'phase': 'point_complete', 'timestamp_unix': 1791381975.557606}
 - `oct7-graph-allocator-lod-b8.json`: complete; {'length': 131072, 'phase': 'point_complete', 'timestamp_unix': 1791381951.7831194}
 - `oct7-live-splits-floor-full-b1.json`: complete; {'length': 131072, 'phase': 'point_complete', 'timestamp_unix': 1791381562.9180846}
@@ -65,9 +68,12 @@ The first new B1 LoD 32K/64K passes overlapped CPU regression tests on the timin
 
 - [oct7-fixed-full-b1-long.json](oct7-fixed-full-b1-long.json)
 - [oct7-fixed-full-b1-short.json](oct7-fixed-full-b1-short.json)
+- [oct7-fixed-full-b8-long.json](oct7-fixed-full-b8-long.json)
+- [oct7-fixed-full-b8-short.json](oct7-fixed-full-b8-short.json)
 - [oct7-fixed-lod-b1-long.json](oct7-fixed-lod-b1-long.json)
 - [oct7-fixed-lod-b1-short-remaining-64k-retry2.json](oct7-fixed-lod-b1-short-remaining-64k-retry2.json)
 - [oct7-fixed-lod-b1-short.json](oct7-fixed-lod-b1-short.json)
+- [oct7-fixed-lod-b8-long-512k.json](oct7-fixed-lod-b8-long-512k.json)
 - [oct7-fixed-lod-b8-short.json](oct7-fixed-lod-b8-short.json)
 - [oct7-graph-allocator-lod-b1-long-fit.json](oct7-graph-allocator-lod-b1-long-fit.json)
 - [oct7-graph-allocator-lod-b8.json](oct7-graph-allocator-lod-b8.json)
