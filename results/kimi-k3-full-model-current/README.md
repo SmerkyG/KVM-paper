@@ -52,8 +52,9 @@ prefill is **178.284 s versus 342.108 s** dense (1.919×); decode is
 **22.611 versus 28.049 ms/step** (1.240×), including four catch-ups.
 Fresh dense B8 completes through 512K (939.950 s / 61.130 ms per decode step);
 its 1020K warmup fails for lack of device resources and is not a speed result.
-Request-owned B8 completes through 256K. Its initial 512K warmup failed;
-the bounded-workspace retry runs on a separate node.
+Request-owned B8 completes through **512K**: 849.782 s prefill / 33.163 ms
+decode, versus 939.950 s / 61.130 ms dense (1.106× / 1.843×). The failed
+earlier 512K attempts remain separate from this completed, four-update point.
 The completed six-head B8 configuration regressed in prefill and is preserved
 in [the superseded-run log](OCT7_B8_UNSHARED.md), not mixed into the replacement
 table. Its allocator audit reports pressure-induced reclamation: rank 0
@@ -72,9 +73,12 @@ substituted into that panel or used to attribute the preceding slowdown.
 The default now retains twelve-head projection groups for short live prefixes,
 even when the request's capacity is larger. The existing live-leaf memory
 bound still reduces groups as needed; the 1020K capacity attempt keeps its
-explicit two-head bound. Shared construction scratch and this geometry are
-have been remeasured on every canonical B8 point through 256K. The longer
-points remain capacity work, not completed timing results.
+explicit two-head bound. Shared construction scratch and this geometry
+have been remeasured on every canonical B8 point through 512K. The 512K
+capacity configuration additionally uses compact directories, four-head
+fine projection groups, sharded prefill bank and 4K MoE slices. It retains
+all selected leaves and changes no routing or update cadence. The 1020K B8
+point remains capacity work, not a completed timing result.
 The fresh canonical 256K point is **330.056 s / 32.571 ms per decode step**,
 versus dense's **360.076 s / 48.105 ms** (1.091× prefill, 1.477× decode). At 16K,
 the measured client allocation peak falls from 27.419 to 21.595 GiB; this is
@@ -101,8 +105,12 @@ runs out of VRAM: initially in KDA, then in MoE after sharding only the
 prefill residual bank. The 2K MoE-slice retry and the subsequent compact
 page-directory retry still fail with HIP/HSA device-resource errors in
 warmup. The compact directory saves a verified 1.684 GiB/rank without
-dropping any leaf or changing membership. A short prompt with the complete
-1020K reservation tests smaller MoE workspaces before another long attempt.
+dropping any leaf or changing membership. A new trained **32K B8** diagnostic
+with the complete **1020K reservation** completes prefill and its first
+decode step after bounding both local and centroid projection workspaces.
+It is a capacity preflight, not a million-token timing or speed improvement
+claim. GPU tests retain exact selected sets and numerically equivalent
+attention/LSE; the grouped projection paths remain opt-in.
 Attention chunks, routing and update cadences do not change; eight-token B8
 decode retains its native residual-bank path. Initialization alone is not
 a fit claim. See [exact memory trials](LONG_CONTEXT_MEMORY.md).

@@ -2101,8 +2101,10 @@ def _materialized_score_output(
     ``torch.matmul`` allocate that slightly different, nearly-gigabyte result
     on every update fragments the small amount of VRAM left beside K3's
     replicated prefill shadow and can force allocator synchronization.  A
-    flat maximum-capacity allocation can be reshaped contiguously for every
-    active geometry without computing padded centroids or changing scores.
+    flat geometrically growing allocation can be reshaped contiguously for
+    every active geometry without computing padded centroids or changing
+    scores. Reserving the final million-token state's width at the first
+    16K catch-up unnecessarily consumes most of the remaining runtime memory.
     """
 
     batch, heads, tokens = (int(left.size(i)) for i in range(3))
@@ -2112,9 +2114,12 @@ def _materialized_score_output(
     # during 256-token decode catch-up. That is not the required size of this
     # token-by-centroid GEMM workspace: inheriting it wastes up to 64x memory
     # for layer-batched MLA decode. Grow in 256-token buckets using the actual
-    # overflow, keeping the state-axis capacity fixed and all scores unchanged.
+    # overflow and geometric active-state buckets, keeping all scores unchanged.
+    if tokens > int(token_capacity) or states > int(state_capacity):
+        raise ValueError("materialized score output exceeds its cache capacity")
     score_tokens = min(int(token_capacity), ((tokens + 255) // 256) * 256)
-    capacity = batch * heads * score_tokens * int(state_capacity)
+    score_states = min(int(state_capacity), 1 << max(0, (states - 1).bit_length()))
+    capacity = batch * heads * score_tokens * score_states
     if required > capacity:
         raise ValueError("materialized score output exceeds its cache capacity")
     workspace = buffers.get(name)

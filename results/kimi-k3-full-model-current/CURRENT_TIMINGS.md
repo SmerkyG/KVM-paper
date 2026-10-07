@@ -20,7 +20,7 @@ One exact-shape untimed warmup and one measured pass, 1,026 output tokens / 1,02
 | B8 | 64K | 69.263 | 70.851 | 0.978× |
 | B8 | 128K | 153.288 | 150.394 | 1.019× |
 | B8 | 256K | 360.076 | 330.056 | 1.091× |
-| B8 | 512K | 939.950 | — | — |
+| B8 | 512K | 939.950 | 849.782 | 1.106× |
 | B8 | 1020K | — | — | — |
 
 ## Decode (milliseconds per batch step)
@@ -39,7 +39,7 @@ One exact-shape untimed warmup and one measured pass, 1,026 output tokens / 1,02
 | B8 | 64K | 35.588 | 31.508 | 1.129× |
 | B8 | 128K | 38.618 | 31.962 | 1.208× |
 | B8 | 256K | 48.105 | 32.571 | 1.477× |
-| B8 | 512K | 61.130 | — | — |
+| B8 | 512K | 61.130 | 33.163 | 1.843× |
 | B8 | 1020K | — | — | — |
 
 ## Sweep status
@@ -54,7 +54,7 @@ One exact-shape untimed warmup and one measured pass, 1,026 output tokens / 1,02
 - `oct7-current-lod-b8-long-1020k-bankshard.json`: failed; {'length': 1044480, 'phase': 'warmup', 'timestamp_unix': 1791348365.866205}
 - `oct7-current-lod-b8-long-1020k-compact-bankshard-moe2048.json`: failed; {'length': 1044480, 'phase': 'warmup', 'timestamp_unix': 1791349205.387964}
 - `oct7-current-lod-b8-long-1020k-moe4096.json`: failed; {'length': 1044480, 'phase': 'warmup', 'timestamp_unix': 1791347959.1571953}
-- `oct7-current-lod-b8-long-512k-compact-bankshard-moe4096.json`: in_progress; {'length': 524288, 'phase': 'warmup', 'timestamp_unix': 1791350012.8475597}
+- `oct7-current-lod-b8-long-512k-compact-bankshard-moe4096.json`: complete; {'length': 524288, 'phase': 'point_complete', 'timestamp_unix': 1791351805.6355321}
 - `oct7-current-lod-b8-long-512k-remaining-512k.json`: failed; {'length': 524288, 'phase': 'warmup', 'timestamp_unix': 1791348106.7196164}
 - `oct7-current-lod-b8-long-512k.json`: failed; {'length': 524288, 'phase': 'warmup', 'timestamp_unix': 1791343656.9135764}
 - `oct7-current-lod-b8-short-remaining-256k.json`: complete; {'length': 262144, 'phase': 'point_complete', 'timestamp_unix': 1791347944.4846623}

@@ -930,6 +930,48 @@ def aiter_kimi_expanded_prefill_route_coarse_attention(
     ):
         raise ValueError("expanded Kimi slot lengths have incompatible geometry")
 
+    # Opt-in capacity bound, not a different routing rule. Reuse expanded K/V
+    # projection storage across head groups; preserve every head's own routes,
+    # coarse output/LSE and projected means needed for exact replacement.
+    head_group = int(os.environ.get("LOD_KIMI_COARSE_PREFILL_HEAD_GROUP", "0"))
+    if head_group < 0 or (0 < head_group < query_heads and query_heads % head_group):
+        raise ValueError("coarse prefill head group must be zero or a divisor of query heads")
+    if 0 < head_group < query_heads:
+        output = _workspace_tensor(buffers, "kimi_grouped_coarse_output",
+            (batch, query_len, query_heads, 128), dtype=q_expanded.dtype, device=q_expanded.device)
+        lse = _workspace_tensor(buffers, "kimi_grouped_coarse_lse", (batch, query_heads, query_len),
+            dtype=torch.float32, device=q_expanded.device)
+        slots = _workspace_tensor(buffers, "kimi_grouped_coarse_slots",
+            (batch, query_heads, query_len, 8), dtype=torch.long, device=q_expanded.device)
+        scores = _workspace_tensor(buffers, "kimi_grouped_coarse_scores", slots.shape,
+            dtype=torch.float32, device=q_expanded.device)
+        padded_states = ((state_len + 127) // 128) * 128
+        values = _workspace_tensor(buffers, "kimi_grouped_coarse_values",
+            (batch, query_heads, padded_states, 128), dtype=q_expanded.dtype, device=q_expanded.device)
+        foreground = torch.cuda.current_stream(q_expanded.device)
+        for begin in range(0, query_heads, head_group):
+            end = begin + head_group
+            group_slots, coarse, _, _ = aiter_kimi_expanded_prefill_route_coarse_attention(
+                q_expanded[:, begin:end], state_k, state_v, counts,
+                w_uk_t[begin:end], w_uv[begin:end], state_len=state_len,
+                scale=scale, normalize_route_query=normalize_route_query,
+                slot_lengths=slot_lengths, max_open_leaf_tokens=max_open_leaf_tokens,
+                buffers=buffers, cache_immutable_weights=cache_immutable_weights)
+            if coarse.ready_stream is not None:
+                foreground.wait_stream(coarse.ready_stream)
+            if coarse.has_second_partition or coarse.selected_route_scores is None:
+                raise AssertionError("grouped Kimi coarse attention requires one partition and route scores")
+            output[:, :, begin:end].copy_(coarse.output_0)
+            lse[:, begin:end].copy_(coarse.lse_0)
+            values[:, begin:end].copy_(coarse.mean_v)
+            slots[:, begin:end].copy_(group_slots)
+            scores[:, begin:end].copy_(coarse.selected_route_scores)
+        coarse = AiterPrefillCoarse(output_0=output, lse_0=lse, output_1=output, lse_1=lse,
+            mean_k=coarse.mean_k, mean_v=values, counts=coarse.counts,
+            has_second_partition=False, ready_stream=foreground, selected_route_scores=scores)
+        # The normal consumer already reconstructs expert counts when omitted.
+        return slots, coarse, None, None
+
     def padded_partition(length: int) -> int:
         return ((length + 127) // 128) * 128
 
@@ -1389,6 +1431,33 @@ def aiter_kimi_local_prefill_attention(
             raise ValueError("Kimi local W_UK_T has incompatible geometry")
         if tuple(w_uv.shape) != (query_heads, 512, 128):
             raise ValueError("Kimi local W_UV has incompatible geometry")
+
+        # Capacity-only opt-in: the fine-leaf head-group limit does not
+        # bound these exact local projections. Serial groups keep all heads
+        # and keys, but reuse a much smaller K/V workspace. Copies finish on
+        # this stream before the next group overwrites that workspace.
+        head_group = int(os.environ.get("LOD_KIMI_LOCAL_PREFILL_HEAD_GROUP", "0"))
+        if head_group < 0 or (0 < head_group < query_heads and query_heads % head_group):
+            raise ValueError("local prefill head group must be zero or a divisor of query heads")
+        if 0 < head_group < query_heads:
+            shape = (batch, query_heads, query_len, 128)
+            if output_buffer is not None and tuple(output_buffer.shape) != shape:
+                raise ValueError("projected Kimi local output buffer has incompatible shape")
+            output = output_buffer if output_buffer is not None else _workspace_tensor(
+                buffers, "kimi_grouped_local_output", shape, dtype=q.dtype, device=q.device)
+            lse = (_workspace_tensor(buffers, "kimi_grouped_local_lse", shape[:3],
+                                    dtype=torch.float32, device=q.device) if return_lse
+                   else torch.empty(0, dtype=torch.float32, device=q.device))
+            for begin in range(0, query_heads, head_group):
+                end = begin + head_group
+                _, group_lse = aiter_kimi_local_prefill_attention(
+                    q[:, begin:end], k, query_offset=query_offset, scale=scale,
+                    expanded_q=expanded_q[:, begin:end], w_uk_t=w_uk_t[begin:end],
+                    w_uv=w_uv[begin:end], output_buffer=output[:, begin:end],
+                    return_lse=return_lse, buffers=buffers)
+                if return_lse:
+                    lse[:, begin:end].copy_(group_lse)
+            return output, lse
 
         expanded_k = _workspace_tensor(
             buffers,

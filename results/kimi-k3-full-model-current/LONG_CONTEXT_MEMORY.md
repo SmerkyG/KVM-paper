@@ -149,11 +149,101 @@ for the full 16K call versus 0.082–0.096 ms at 128); output and native state
 updates match bitwise. Keep the existing convolution tile. These isolated
 probe times are not substituted into full-model serving measurements.
 
-The next capacity diagnostic uses only a frozen 16K B8 prompt, but reserves
-the complete 1020K cache, with 1K MoE slices and the two exact-storage changes
-above. It tests startup/runtime headroom cheaply before another long attempt.
+The frozen 16K B8 diagnostic with the complete 1020K reservation and 1K MoE
+slices stalls under near-full VRAM, then fails with an engine/worker timeout
+and HIP/HSA resource error. A synchronous-launch retry narrows the visible
+failure to the sharded residual bank's RCCL all-gather with zero free device
+memory; neither diagnostic yields a serving timing. Logs and raw snapshots:
+[ordinary diagnostic](oct7-lod-b8-million-reservation-short-moe1024.json),
+[synchronous diagnostic](oct7-lod-b8-million-reservation-short-sync.json).
 The independent 512K full warmup/measurement uses compact indexing, four-head
 projection groups, 4K MoE slices and the sharded prefill residual bank.
+
+### Bounding exact-local projection memory
+
+The fine-leaf head-group limit did **not** constrain the exact-local field:
+that field expanded all 96 heads' keys and values concurrently. At a 32K
+local field, its K, intermediate K, and V buffers total **2,818,572,288 bytes
+(2.625 GiB)**. The new opt-in `LOD_KIMI_LOCAL_PREFILL_HEAD_GROUP=16` executes
+all six groups on the same stream, copying their complete output/LSE before
+reusing the projection buffers. It retains every query head and every local
+key, including the direct-key channels and original causal mask.
+
+The GPU test `tests/test_kimi_local_projection_groups.py` compares the old
+96-head path with both the first and a changed-query second grouped call.
+Attention output and LSE match within numerical tolerance. Projection storage
+is **469,762,048 bytes (0.438 GiB)**, saving **2.188 GiB**; full output/LSE are
+still assembled normally. This is a workspace measurement, not a speed claim.
+The default remains the old all-head local projection until trained capacity
+and timing checks justify changing it.
+
+A frozen 32K B8 diagnostic reserved the entire million-token cache with
+this grouped-local path, compact directory, sharded bank and 1K MoE slices.
+Its untimed per-chunk memory audit reports actual input lengths and storage
+groups. The ROCr async scratch threshold is explicitly bounded to 256 MiB;
+[AMD documents](https://rocm.docs.amd.com/en/develop/reference/env-variables.html)
+this as a reclaim threshold, not a per-token cache limit. Do not assume it
+changes the resident daemon's allocations or guarantees a serving fit.
+It passed the first 16K state construction but failed under device-resource
+pressure after chunk 8; it does not establish generation support:
+[raw failed diagnostic](oct7-lod-b8-million-reservation-grouped-local-32k.json).
+
+### Active-state score storage and grouped centroid projection
+
+The reusable construction GEMM workspace now grows in power-of-two buckets
+of the **active** centroid width rather than reserving the final state's
+width on its first use. Its output is still the same contiguous, unpadded
+GEMM, and existing storage is reused until a larger bucket is required.
+In the GPU test with a 16K overflow, 2,048 active centroids and 16K reserved
+centroids, storage is **64 MiB instead of 512 MiB**, with bitwise-identical
+BF16 scores. This saving shrinks as the state grows; it is not a saving in
+permanent history or a claim of lower final-length scratch.
+Tests: `tests/test_kimi_state_workspace.py`, cluster job 21529 (14 passed
+including the local-projection tests). The trained diagnostic with this
+change reaches chunk 12, but still fails with RCCL/HSA resource errors and
+zero reported free memory on rank 0:
+[raw diagnostic](oct7-lod-b8-million-reservation-active-state-32k.json).
+The attempted 1K scheduler-row override was rejected before model startup;
+the actual capacity trials retain the supported **8×2K** attention schedule.
+
+An additional opt-in, `LOD_KIMI_COARSE_PREFILL_HEAD_GROUP=16`, bounds
+expanded centroid K/V projections in the same way. It retains every head's
+top-eight selections, output/LSE and the complete projected centroid means
+needed for replacement; it does not change the underlying LoD approximation.
+Groups explicitly wait for their route/coarse stream before copying results
+and reusing workspace. The GPU check passes both original and changed-query/
+changed-weight calls, with exact selected sets and numerically equivalent
+attention/LSE. BF16 centroid values can differ by rounding when GEMM's output
+width changes; these values are not claimed bitwise identical.
+At 2,048 centroids, projection storage plus assembled complete values falls
+from **168 MiB to 76 MiB**. At 16K centroids the corresponding calculated
+saving is **0.719 GiB**, not an observed whole-model peak reduction.
+`tests/test_kimi_local_projection_groups.py`: job 21533, four GPU tests passed.
+
+The trained diagnostic combines grouped centroid projection with
+eight-head exact-local projection (calculated local projection workspace
+0.219 GiB instead of 2.625 GiB at a 32K exact field). Both remain **capacity
+opt-ins**, not changes to the normal timing-panel defaults. A complete short
+prompt with million-token reservation is only a preflight; full-length
+warmup and the measured 1,025-step generation must still complete.
+Neither this diagnostic nor untimed audit/compile durations enter the speed
+tables. This [32K diagnostic](oct7-lod-b8-million-reservation-grouped-coarse-32k.json)
+**completes prefill and one decode step with the full million-token cache
+reservation**. Its rank-0 client peak is 34.109 GiB, with zero device free
+memory reported after generation; it is still close to the physical limit.
+The input-batch audit passes the supported 8×2K schedule. This establishes
+that the early construction failures can be avoided, not that the larger
+active-state workspaces at 1020K fit.
+
+The next checks should reuse this exact-storage configuration, first with a
+longer live prefix at the same reservation and then full-length warmup plus
+measured decode. If pressure returns, bound projection groups further or
+serialize/reclaim completed **prefill-only** scratch before direct RCCL
+allocations. Do not assume the allocator's cached-but-unused blocks are
+available to RCCL. The 26.90-GiB raw-history lower bound remains; removing
+it would require a separately validated allocator that reclaims leaves from
+permanently closed centroids while preserving their complete sums and mass,
+or a different validated cache format—not chronological INT4 quantization.
 
 The fresh dense 1020K/B8 control also ran out of device resources during its
 first warmup, after successful engine initialization with a 31 GiB native
@@ -181,9 +271,12 @@ client peak). See [current timings](CURRENT_TIMINGS.md) and
 B8 completed both generations through 256K with bounded decode workspace;
 that unshared-prefill configuration is preserved in [its log](OCT7_B8_UNSHARED.md).
 The new shared-prefill-scratch canonical sweep has now also completed every
-point through 256K, including all audited updates. It measures 330.056 s
+point through 512K, including all audited updates. It measures 330.056 s
 prefill / 32.571 ms decode there. The initial separate 512K warmup failed
-with device-resource errors; its bounded-workspace retry is running.
+with device-resource errors; its bounded-workspace, compact-directory,
+sharded-bank retry **completes both passes**: 849.782 s prefill / 33.163 ms
+decode, versus dense's 939.950 s / 61.130 ms. Its rank-0 measured client peak
+is 26.837 GiB, with 4.141 GiB physically free after generation.
 1020K B8 generation still needs to fit and complete. No failed warmup
 is treated as a prefill timing.
 Its measured 16K client allocation peak is **21.595 GiB**, compared with

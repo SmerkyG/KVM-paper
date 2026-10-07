@@ -95,7 +95,9 @@ def create_sweep_engine(factory, kwargs, args):
             scheduler_total_budget=kwargs.get("max_num_batched_tokens"),
             environment={name: value for name, value in os.environ.items()
                 if name.startswith(("LOD_KIMI_", "LOD_BENCHMARK_")) or name in (
-                    "HSA_NO_SCRATCH_RECLAIM", "CLUSTER_RUN_NODE", "PYTORCH_ALLOC_CONF")},
+                    "HSA_NO_SCRATCH_RECLAIM", "HSA_SCRATCH_SINGLE_LIMIT_ASYNC",
+                    "HIP_LAUNCH_BLOCKING", "CUDA_LAUNCH_BLOCKING", "AMD_SERIALIZE_KERNEL",
+                    "CLUSTER_RUN_NODE", "PYTORCH_ALLOC_CONF")},
             planned_lengths=args.lengths, measurements={}, measurement_status="failed",
             current_phase=dict(phase="engine_initialization"),
             failure=dict(exception_type=type(error).__name__, message=str(error))))
@@ -832,7 +834,9 @@ def main() -> None:
             ),
             "environment": {name: value for name, value in os.environ.items()
                             if name.startswith(("LOD_KIMI_", "LOD_BENCHMARK_")) or name in (
-                                "HSA_NO_SCRATCH_RECLAIM", "CLUSTER_RUN_NODE",
+                                "HSA_NO_SCRATCH_RECLAIM", "HSA_SCRATCH_SINGLE_LIMIT_ASYNC",
+                                "HIP_LAUNCH_BLOCKING", "CUDA_LAUNCH_BLOCKING", "AMD_SERIALIZE_KERNEL",
+                                "CLUSTER_RUN_NODE",
                                 "PYTORCH_ALLOC_CONF", "PYTORCH_CUDA_ALLOC_CONF")},
             "measurements": measurements,
             "gpu_memory_utilization": args.gpu_memory_utilization,

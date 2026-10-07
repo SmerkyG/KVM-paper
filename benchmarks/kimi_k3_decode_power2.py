@@ -18,8 +18,9 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "results/kimi-k3-full-model-current"
 GIB = 1 << 30
-# B8 LoD is already known not to fit a 256K-capacity engine. Do not relabel
-# that warmup failure as a decode result or modify attention to force a fit.
+# Historical October 4 plan. The current refresh_panel runner separately
+# measures B8 beyond 256K with the validated, bounded owner workspaces. Keep
+# this archive's failed warmups distinct from those fresh serving timings.
 PLANS = [
     ("two-tier", 1, (16_384, 32_768, 65_536, 131_072, 262_144), 1),
     ("full", 1, (16_384, 32_768, 65_536, 131_072, 262_144), 1),
