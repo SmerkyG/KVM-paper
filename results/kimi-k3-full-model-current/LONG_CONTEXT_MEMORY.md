@@ -229,7 +229,7 @@ warmup and the measured 1,025-step generation must still complete.
 Neither this diagnostic nor untimed audit/compile durations enter the speed
 tables. This [32K diagnostic](oct7-lod-b8-million-reservation-grouped-coarse-32k.json)
 **completes prefill and one decode step with the full million-token cache
-reservation**. Its rank-0 client peak is 34.109 GiB, with zero device free
+reservation**. Its rank-0 client peak is 34.107 GiB, with zero device free
 memory reported after generation; it is still close to the physical limit.
 The input-batch audit passes the supported 8×2K schedule. This establishes
 that the early construction failures can be avoided, not that the larger
