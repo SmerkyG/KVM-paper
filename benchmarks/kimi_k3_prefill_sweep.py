@@ -71,6 +71,16 @@ def owner_prefill_layout(batch_size: int) -> tuple[int, int]:
     return row_chunk, max(16384, row_chunk * batch_size) + batch_size
 
 
+def configure_owner_prefill_environment(batch_size: int) -> tuple[int, int]:
+    """Configure attention slices without overwriting a bounded MoE choice."""
+    row_chunk, total_budget = owner_prefill_layout(batch_size)
+    os.environ.update(LOD_KIMI_REQUEST_OWNER_PREFILL="1",
+        LOD_KIMI_OWNER_QUERY_CHUNK=str(row_chunk),
+        LOD_BENCHMARK_PREFILL_COHORT=str(batch_size), LOD_KIMI_OWNER_SHARD_RESIDUAL="0")
+    os.environ.setdefault("LOD_KIMI_OWNER_MOE_CHUNK", str(total_budget))
+    return row_chunk, total_budget
+
+
 def reset_peak_memory(worker):
     import torch
 
@@ -328,6 +338,8 @@ def ranked_attention_audit(worker):
     if runtime is None:
         runtime = getattr(getattr(runner, "model_state", None), "_vllm_lod_runtime", None)
     from lod_attention.kernels import paged_decode
+    from lod_attention.kernels.lod_kernels import _materialized_score_output
+    from vllm_lod_plugin.models.kimi_k3_request_prefill import attend_slice
     from lod_attention.kernels._coarse_route_views import coarse_route_mean_view
     from lod_attention.kernels.kimi_gluon_decode import kimi_lod_decode_splits
     live_split_geometry = "consumer_splits" in paged_decode.fused_decode_paged_lod_attention.__code__.co_varnames
@@ -356,8 +368,11 @@ def ranked_attention_audit(worker):
                     "coarse_route_mean_view" in
                     paged_decode.fused_decode_paged_lod_attention.__code__.co_names),
             )
+    owner_slice = getattr(attend_slice, "__wrapped__", attend_slice)
     return {**audit_worker_attention_mode(worker), "rank": worker.rank,
             "decode_geometry": decode_geometry,
+            "owner_shared_construction_scope": "owner_state_workspace" in owner_slice.__code__.co_names,
+            "update_score_workspace_follows_overflow": "score_tokens" in _materialized_score_output.__code__.co_varnames,
             "compact_selected_projection_enabled": os.environ.get("LOD_KIMI_COMPACT_SELECTED_PROJECTION") == "1",
             "compact_projection_calls": {
                 name: getattr(pool.engine, "_lod_kimi_compact_projection_calls", 0)
@@ -557,11 +572,7 @@ def main() -> None:
                 or args.tensor_parallel_size != 8 or args.decode_context_parallel_size != 8
                 or args.real_token_cache is None):
             parser.error("owner MLA requires trained TP8/DCP8: native TP B1/B8 prefill, local projections B8")
-        row_chunk, total_budget = owner_prefill_layout(args.batch_size)
-        os.environ.update(LOD_KIMI_REQUEST_OWNER_PREFILL="1",
-            LOD_KIMI_OWNER_QUERY_CHUNK=str(row_chunk), LOD_BENCHMARK_PREFILL_COHORT=str(args.batch_size),
-            LOD_KIMI_OWNER_MOE_CHUNK=str(total_budget),
-            LOD_KIMI_OWNER_SHARD_RESIDUAL="0")
+        row_chunk, total_budget = configure_owner_prefill_environment(args.batch_size)
         if args.owner_tp_mla:
             # Like the local-projection experiment's shared output arena,
             # retain fixed-shape head transport buffers through steady prefill.

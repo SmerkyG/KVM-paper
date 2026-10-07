@@ -49,6 +49,12 @@ B1 dense and LoD have completed every point through 1020K. At 1020K, LoD
 prefill is **178.284 s versus 342.108 s** dense (1.919×); decode is
 **22.611 versus 28.049 ms/step** (1.240×), including four catch-ups.
 Fresh dense and request-owned B8 sweeps continue on separate nodes.
+The fresh B8 prefill points currently regress against dense. This engine's
+256K capacity chooses six-head projection groups even at short live lengths,
+where the previous trials used twelve. A same-engine 32K comparison of six
+and twelve heads, at that same capacity, is queued to isolate this choice;
+neither group changes routing or the attention approximation. These partial
+points are fresh observations, not yet a claim of the fastest B8 configuration.
 The sweep runner saves every completed point before
 attempting a longer context. These are fresh measurements, not rerenders of
 the previous controls. The [memory investigation](LONG_CONTEXT_MEMORY.md)
@@ -58,10 +64,12 @@ Completion of a storage-only fixture does not certify million-token generation.
 The first B8 retry exposed oversized decode-update score workspace: 256-token
 catch-up inherited a 16K prefill reservation. The corrected workspace follows
 the actual overflow in 256-token buckets; scores and centroid choices do not
-change. The new B8 16K warmup **and measured generation** both complete.
+change. The new B8 warmup **and measured generation** complete through 128K so far.
 Long owner prefills additionally share construction scratch across serial
 layers and release it at the decode handoff. Million-token B8 remains an
 actual capacity test, not a claimed success before it completes.
+The bounded 8K MoE setting for that capacity test is preserved during owner
+setup; it no longer gets overwritten by the 16K attention scheduler budget.
 
 With the image runtime and a resident full-model daemon, the sequential runner
 does not require the proprietary cluster runner:

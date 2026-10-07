@@ -74,6 +74,14 @@ def lod_memory_environment(batch, block, sharded):
     return env
 
 
+def wait_for_preceding(path):
+    """Wait without allocating a model; fail promptly on a failed dependency."""
+    while not path.exists() or "==> cluster-run completed:" not in path.read_text()[-10000:]:
+        time.sleep(5)
+    if "==> cluster-run completed: status=finished exit_code=0" not in path.read_text()[-10000:]:
+        raise RuntimeError("preceding engine did not complete successfully; inspect it before starting another")
+
+
 def million_token_cohort(checkpoint, token_cache):
     """Make one small, reusable identity ledger for the previously missing B8 cohort."""
     import torch
@@ -127,10 +135,7 @@ def main():
                         help="wait for this specific preceding job to exit; never overlap engines")
     args = parser.parse_args()
     if args.after_log:
-        while not args.after_log.exists() or "==> cluster-run completed:" not in args.after_log.read_text()[-10000:]:
-            time.sleep(5)
-        if "==> cluster-run completed: status=finished exit_code=0" not in args.after_log.read_text()[-10000:]:
-            raise RuntimeError("preceding engine did not complete successfully; inspect it before starting another")
+        wait_for_preceding(args.after_log)
     references = ([RESULTS / "oct4-full-b1-decode-power2-four-updates.json",
                    RESULTS / "oct4-full-b1-512k1020k-decode1025.json"] if args.batch_size == 1 else
                   [RESULTS / f"oct4-full-b8-decode-{label}-four-updates.json"

@@ -1,14 +1,17 @@
 """Same-engine trained K3 B8/2K prefill tile comparison.
 
-Keep score-only 64-key routing, exact top-eight refinement, head grouping,
+Keep score-only 64-key routing, exact top-eight refinement,
 global 16K construction, native MoE and approved G8 direct-state KDA fixed.
-Only CK's query-row tile changes. Warmup/dispatch instrumentation is untimed;
+Normally only CK's query-row tile changes; --head-groups instead/also tests
+projection scratch grouping on the same preallocated serving engine.
+Warmup/dispatch instrumentation is untimed;
 one ordinary serving measurement per arm has no profiler or internal timers.
 """
 
 from __future__ import annotations
 
 import argparse
+from itertools import product
 import os
 from pathlib import Path
 
@@ -60,6 +63,12 @@ def finish_tile_audit(worker):
                                    for name, pool in runtime.pools.items()})
 
 
+def set_head_group(worker, heads):
+    # Prefill reads this at each slice; semantic state/weights do not change.
+    os.environ["LOD_KIMI_OWNER_PREFILL_HEAD_GROUP"] = str(heads)
+    return dict(rank=worker.rank, head_group=heads)
+
+
 def frozen_prompts(documents, length, batch=8):
     if len(documents) < batch or not all(documents):
         raise ValueError("insufficient frozen ProLong documents")
@@ -81,10 +90,20 @@ def main():
     p.add_argument("--lengths", type=int, nargs="+", default=[32768, 65536])
     p.add_argument("--tiles", type=int, nargs="+", choices=(64, 128), default=[128, 64])
     p.add_argument("--head-group", type=int, choices=(6, 12), default=12)
+    p.add_argument("--head-groups", type=int, nargs="+", choices=(6, 12),
+                   help="same-engine scratch-geometry A/B; query tiles stay as requested")
+    p.add_argument("--max-model-len", type=int,
+                   help="match the current serving sweep's preallocated capacity")
     p.add_argument("--output", type=Path, required=True)
+    p.add_argument("--after-log", type=Path)
     args = p.parse_args()
     if min(args.lengths) < 32768 or any(n % 16384 for n in args.lengths):
         p.error("use global 16K multiples >=32K so routing actually executes")
+    if args.max_model_len is not None and args.max_model_len < max(args.lengths) + 1042:
+        p.error("max-model-len must include the normal decode reserve")
+    if args.after_log:
+        from benchmarks.kimi_k3_refresh_panel import wait_for_preceding
+        wait_for_preceding(args.after_log)
     configure_tile_environment(args.head_group)
     import torch
     from vllm import LLM, SamplingParams
@@ -98,19 +117,20 @@ def main():
             DATASET, DATASET_REVISION, SPEED_SHUFFLE_SEED):
         raise ValueError("not the frozen ProLong speed corpus")
     kwargs = llm_kwargs(checkpoint=args.checkpoint, mode="two-tier",
-        max_model_len=max(args.lengths) + 1042, batch_size=8,
+        max_model_len=args.max_model_len or max(args.lengths) + 1042, batch_size=8,
         tensor_parallel_size=8, decode_context_parallel_size=8, dcp_comm_backend="ag_rs",
         gpu_memory_utilization=0.8, full_attention_backend="ROCM_AITER_UNIFIED_ATTN")
     kwargs.update(load_format="ipc_cache", skip_tokenizer_init=True,
         disable_custom_all_reduce=False, enable_expert_parallel=True,
-        kv_cache_memory_bytes=3 << 30,
+        kv_cache_memory_bytes=1 << 30,
         quantization_config={"moe": {"weight": "int4_per_group_32"}},
         model_loader_extra_config=dict(auto_start=True, cache_id=args.weight_cache_id,
             backing_load_format="auto", broker_timeout=1800.0),
         compilation_config=dict(cudagraph_mode="FULL_DECODE_ONLY",
             cudagraph_capture_sizes=[8], max_cudagraph_capture_size=8))
     result = dict(status="starting", scope=__doc__, engine_config=kwargs,
-        head_group=args.head_group, kda_prefill_baseline="gluon_paged_G8",
+        head_group=args.head_group, head_groups=args.head_groups,
+        kda_prefill_baseline="gluon_paged_G8",
         production_changed=False, measurements={})
     def save():
         write_json(args.output, result)
@@ -127,11 +147,12 @@ def main():
             points = result["measurements"][str(length)] = {}
             result.setdefault("prompt_token_sha256", {})[str(length)] = [
                 token_digest(p["prompt_token_ids"]) for p in prompts]
-            for tile in args.tiles:
-                label = f"q{tile}"
+            for tile, heads in product(args.tiles, args.head_groups or [args.head_group]):
+                label = f"q{tile}" + (f"_g{heads}" if args.head_groups else "")
                 if label in points:
                     label += "_repeat"
-                result.update(status="warming", active_length=length, active_tile=tile)
+                result.update(status="warming", active_length=length, active_tile=tile, active_head_group=heads)
+                result["head_group_worker_audit"] = llm.collective_rpc(set_head_group, args=(heads,))
                 llm.collective_rpc(set_tile, args=(tile,), kwargs={"audit": True})
                 save()
                 llm.generate(prompts, params, use_tqdm=False)
@@ -145,10 +166,11 @@ def main():
                 elapsed, prefill, _, ids, _, timing = timed_generate(llm, prompts, params)
                 points[label] = dict(prefill_seconds=prefill, elapsed_seconds=elapsed,
                     generated_token_ids=ids, request_timings=timing, untimed_dispatch_audit=audit)
-                if "q128" in points:
-                    points[label]["same_first_tokens_as_q128"] = ids == points["q128"]["generated_token_ids"]
-                    points[label]["prefill_speedup"] = points["q128"]["prefill_seconds"] / prefill
-                print(f"OWNER_TILE_PREFILL length={length} tile={tile} seconds={prefill:.6f}", flush=True)
+                reference = next(iter(points))
+                points[label]["reference_arm"] = reference
+                points[label]["same_first_tokens_as_reference"] = ids == points[reference]["generated_token_ids"]
+                points[label]["prefill_speedup"] = points[reference]["prefill_seconds"] / prefill
+                print(f"OWNER_TILE_PREFILL length={length} tile={tile} group={heads} seconds={prefill:.6f}", flush=True)
                 save()
         result["status"] = "complete"
         save()

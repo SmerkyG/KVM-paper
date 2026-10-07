@@ -8,6 +8,19 @@ import pytest
 from benchmarks.kimi_k3_owner_tile_prefill import configure_tile_environment, frozen_prompts, set_tile
 
 
+def test_head_group_trial_changes_worker_scratch_bound_only(monkeypatch):
+    import os
+    from benchmarks.kimi_k3_owner_tile_prefill import set_head_group
+
+    environment = {"LOD_KIMI_COARSE_QUERY_TILE": "128"}
+    monkeypatch.setattr(os, "environ", environment)
+    worker = SimpleNamespace(rank=7)
+    for heads in (6, 12):
+        assert set_head_group(worker, heads) == {"rank": 7, "head_group": heads}
+        assert environment == {"LOD_KIMI_COARSE_QUERY_TILE": "128",
+                               "LOD_KIMI_OWNER_PREFILL_HEAD_GROUP": str(heads)}
+
+
 def test_prefill_cohort_is_admitted_before_any_owner_slice(monkeypatch):
     import os
     environment = dict(os.environ)

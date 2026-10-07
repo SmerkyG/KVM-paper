@@ -57,3 +57,15 @@ def test_second_resumption_cannot_overwrite_first_resumptions_points(tmp_path):
     assert first.name == "oct7-current-lod-b8-short-remaining-64k.json"
     first.touch()
     assert remaining_output(base, [65536]).name == "oct7-current-lod-b8-short-remaining-64k-retry2.json"
+
+
+def test_failed_predecessor_does_not_start_a_new_engine(tmp_path):
+    import pytest
+    from benchmarks.kimi_k3_refresh_panel import wait_for_preceding
+
+    log = tmp_path / "job.log"
+    log.write_text("==> cluster-run completed: status=finished exit_code=1\n")
+    with pytest.raises(RuntimeError, match="preceding engine"):
+        wait_for_preceding(log)
+    log.write_text("==> cluster-run completed: status=finished exit_code=0\n")
+    wait_for_preceding(log)

@@ -5,6 +5,20 @@ from benchmarks.kimi_k3_prefill_sweep import owner_prefill_layout, reference_tra
 from benchmarks.prolong import token_digest
 
 
+@pytest.mark.parametrize("explicit_moe_chunk", [None, "8192"])
+def test_owner_setup_preserves_moe_bound_without_shrinking_attention_budget(monkeypatch, explicit_moe_chunk):
+    import os
+    from benchmarks.kimi_k3_prefill_sweep import configure_owner_prefill_environment
+
+    monkeypatch.setenv("LOD_KIMI_OWNER_QUERY_CHUNK", "2048")
+    monkeypatch.delenv("LOD_KIMI_OWNER_MOE_CHUNK", raising=False)
+    if explicit_moe_chunk is not None:
+        monkeypatch.setenv("LOD_KIMI_OWNER_MOE_CHUNK", explicit_moe_chunk)
+    assert configure_owner_prefill_environment(8) == (2048, 16392)
+    assert os.environ["LOD_KIMI_OWNER_MOE_CHUNK"] == (explicit_moe_chunk or "16392")
+    assert os.environ["LOD_BENCHMARK_PREFILL_COHORT"] == "8"
+
+
 def test_capacity_diagnostic_uses_global_counts_and_local_leaf_storage():
     import torch
     from benchmarks.kimi_k3_prefill_sweep import centroid_leaf_stats
@@ -34,6 +48,9 @@ def test_ranked_attention_audit_records_physical_cached_means_and_live_splits(mo
     result = ranked_attention_audit(worker)["decode_geometry"]["mla"]
     assert result["cached_centroid_mean_routing"] is True
     assert result["splits_by_live_batch"] == {"1": 32}
+    audit = ranked_attention_audit(worker)
+    assert audit["owner_shared_construction_scope"] is True
+    assert audit["update_score_workspace_follows_overflow"] is True
 
 
 @pytest.mark.parametrize("runtime_on_state", [True, False])
