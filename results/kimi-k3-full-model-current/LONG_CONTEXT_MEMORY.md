@@ -62,6 +62,25 @@ control. Job 21548 reserves the complete 1020K/B8 cache while testing a
 cell**, and no memory saving or million-token support is claimed while it
 is in progress.
 
+The [idle node-4 control snapshot](oct7-daemon-scratch1-control-node4.json)
+records 2,858 exported tensor entries and 200.888 GiB of unique tensor
+storage per rank. Device-wide residency is 212.598–213.473 GiB with no
+active daemon clients; the daemon's startup accounting is a different
+counter and ranges from 212.359 to 213.246 GiB. Do not mix these two
+measurements. `benchmarks.kimi_k3_weight_residency` reads the supported
+broker status, worker metadata and Linux VRAM counters without importing
+Torch or allocating GPU memory. It can also report an active client, but
+then its device-wide total is **not exclusive daemon residency**:
+
+```bash
+python -m benchmarks.kimi_k3_weight_residency \
+  --cache-id YOUR_RESIDENT_CACHE_ID --output daemon-residency.json
+```
+
+The K3 pool audit also confirms that state values, sinks, recent tokens and
+archived leaves already alias the 512-channel latent prefix of their key
+records. There is no second persistent latent-value archive to remove.
+
 ## Current exact-storage measures
 
 1. Keep the existing token-sharded B1 archive for 512K and 1020K. Preserve
