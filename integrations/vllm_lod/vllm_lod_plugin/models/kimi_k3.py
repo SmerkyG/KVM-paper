@@ -194,15 +194,9 @@ def _install_dense_gluon_decode() -> None:
         if decode is None:
             return original_forward_mqa(self, q, kv_cache, attn_metadata, layer)
         batch, heads, _ = joined_q.shape
-        # Match vLLM's DCP split policy using this rank's local sequence
-        # length.  A fixed 128 splits is appropriate for long DCP=1 histories,
-        # but badly over-partitions an eight-way sequence shard.
-        num_splits = min(
-            128,
-            triton_mla._compute_num_kv_splits(
-                int(attn_metadata.max_seq_len), int(self._sm_count)
-            ),
-        )
+        # Capture metadata contains maximum reservation, not live context.
+        # Keep capacity fixed and select active splits per row on the device.
+        num_splits = 128
         partial_shape = (batch, heads, num_splits, 512)
         lse_shape = (batch, heads, num_splits)
         if is_workspace_manager_initialized():
@@ -238,12 +232,14 @@ def _install_dense_gluon_decode() -> None:
             partial=partial,
             partial_lse=partial_lse,
             final_lse=final_lse,
+            adaptive_splits=True,
         )
         return output, final_lse
 
     builder._reserve_attn_logits_workspace = reserve
     impl.forward_mqa = forward_mqa
     impl._vllm_lod_dense_gluon_installed = True
+    impl._vllm_lod_dense_live_splits = True
     init_logger(__name__).info(
         "Installed the gfx942 Gluon absorbed-MLA dense decode control"
     )
@@ -503,6 +499,9 @@ def _run_lod_mla_with_output(
 def register_kimi_k3_lod() -> None:
     """Install the narrow MLA interception used only when a LoD pool exists."""
 
+    from ..graph_allocator import install_ipc_graph_allocator
+
+    install_ipc_graph_allocator()
     _install_attention_only_fixture()
     if os.getenv("LOD_KIMI_REQUEST_OWNER_PREFILL") == "1":
         from .kimi_k3_owner_moe import install_owner_moe_chunking, install_owner_profile_cleanup
@@ -634,6 +633,9 @@ def register_kimi_k3_dense() -> None:
 
     # The private attention-only fixture must remove its FFN in dense controls
     # as well as LoD. Ordinary checkpoints never enable that config field.
+    from ..graph_allocator import install_ipc_graph_allocator
+
+    install_ipc_graph_allocator()
     _install_attention_only_fixture()
     _install_dense_gluon_decode()
 

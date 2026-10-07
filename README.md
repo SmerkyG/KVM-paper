@@ -11,12 +11,18 @@ contains one fixed production policy, not the research-time tuning matrix.
 ## Kimi K3 development branch
 
 The local `lod-k3` branch additionally develops absorbed-MLA LoD for Kimi K3.
-Its [current prefill/decode panel](results/kimi-k3-full-model-current/CURRENT_TIMINGS.md),
+Its [October 7 prefill/decode sweep](results/kimi-k3-full-model-current/CURRENT_TIMINGS.md),
 [benchmark instructions](results/kimi-k3-full-model-current/README.md), and
 [1020K memory work](results/kimi-k3-full-model-current/LONG_CONTEXT_MEMORY.md)
 are separate from the Qwen/K2 paper-release results below. B1 generation is
 validated through 1020K; B8 is validated through 512K. The 1020K/B8 capacity
 tests have not completed generation. This branch has not been pushed.
+
+The latest [live-split and allocator fixes](results/kimi-k3-full-model-current/LIVE_SPLITS_ALLOCATOR.md)
+decouple dense decode partitioning from maximum context reservation and keep
+registered graph communication while retaining expandable large-context
+memory. That document contains the new targeted speed/fit checks; the full
+sweep above predates these fixes and has not been rerun in its entirety.
 
 ## Supported configurations
 

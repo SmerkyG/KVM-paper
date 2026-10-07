@@ -1,5 +1,10 @@
 # Current K3 matched speed sweep
 
+This full October 7 refresh predates the
+[live-split / graph-allocator fixes](LIVE_SPLITS_ALLOCATOR.md). New targeted
+checks are reported there; the complete sweep has not yet been repeated with
+the fixes. Keep these baseline timings distinct from the new default's results.
+
 Full trained K3; TP8/DCP8/EP8, eight MI325X GPUs, frozen real ProLong prompts and identical teacher-forced continuations. Both arms use the approved G8 direct-state-I/O KDA prefill baseline and the same packed INT4 MoE weights. Attention caches remain BF16. Dense decode uses the improved Gluon kernel. LoD B1 uses DCP8; B8 uses one request's attention per GPU.
 
 One exact-shape untimed warmup and one measured pass, 1,026 output tokens / 1,025 decode steps, four global-256 catch-ups per LoD request/layer. No prefix hits, preemptions, profiling events, or warmup times in these cells. A dash means no completed fresh measurement—not a reused older result.

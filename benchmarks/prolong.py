@@ -1086,6 +1086,25 @@ def audit_worker_attention_mode(worker: Any) -> dict[str, Any]:
     except ImportError:
         dense_gluon_decode = False
 
+    # Startup/audit only: no memory snapshots or communicator inspection is
+    # inserted into timed decode or graph replay.
+    allocator_settings = torch.cuda.memory._snapshot()["allocator_settings"]
+    graph_collectives = {}
+    from vllm.distributed import get_tp_group, get_dcp_group
+
+    for name, getter in (("tp", get_tp_group), ("dcp", get_dcp_group)):
+        group = getter()
+        communicator = getattr(group, "device_communicator", None)
+        custom_ar = getattr(communicator, "aiter_ar_comm", None)
+        # vLLM wraps AITER's communicator; the transport policy lives inside.
+        custom_ar = getattr(custom_ar, "aiter_ca", custom_ar)
+        if custom_ar is not None:
+            graph_collectives[name] = {
+                "disabled": bool(custom_ar.disabled),
+                "registered_capture": bool(getattr(custom_ar, "enable_register_for_capturing", False)),
+                "isolated_graph_allocator": bool(getattr(type(custom_ar), "_lod_ipc_graph_allocator", False)),
+            }
+
     # AITER JITs the LoD routing specialization from its installed CK source,
     # which is outside this repository.  Fingerprint the exact source inputs
     # so two nominally identical benchmark arms cannot silently use different
@@ -1149,6 +1168,10 @@ def audit_worker_attention_mode(worker: Any) -> dict[str, Any]:
         "model_class": type(model).__name__ if model is not None else None,
         "loaded_kimi_lod_modules": loaded_kimi_lod_modules,
         "dense_gluon_decode_installed": dense_gluon_decode,
+        "dense_live_splits": bool(dense_gluon_decode and getattr(
+            triton_mla.TritonMLAImpl, "_vllm_lod_dense_live_splits", False)),
+        "expandable_eager_allocator": bool(allocator_settings.get("expandable_segments", False)),
+        "graph_collectives": graph_collectives,
         "aiter_route_source_sha256": aiter_route_source_sha256,
         "device_name": properties.name,
         "device_arch": getattr(properties, "gcnArchName", None),

@@ -23,6 +23,30 @@ from triton.experimental.gluon import language as gl
 KIMI_GLUON_LOD_SPLITS = 64
 
 
+@triton.jit
+def _live_dense_splits(length, capacity: tl.constexpr, minimum: tl.constexpr):
+    # vLLM's 512-keys-per-split policy, computed from this row's live DCP
+    # shard, not capture metadata (which contains maximum model capacity).
+    work = tl.maximum(1, length // 512) - 1
+    work |= work >> 1
+    work |= work >> 2
+    work |= work >> 4
+    work |= work >> 8
+    work |= work >> 16
+    return tl.minimum(tl.maximum(work + 1, minimum), capacity)
+
+
+@gluon.jit
+def _live_dense_splits_gluon(length, capacity: gl.constexpr, minimum: gl.constexpr):
+    work = gl.maximum(1, length // 512) - 1
+    work |= work >> 1
+    work |= work >> 2
+    work |= work >> 4
+    work |= work >> 8
+    work |= work >> 16
+    return gl.minimum(gl.maximum(work + 1, minimum), capacity)
+
+
 def kimi_lod_decode_splits(batch: int, *, head_tiled_metadata: bool) -> int:
     """Keep short compact sequences from being oversplit at live B4+.
 
@@ -70,15 +94,22 @@ def _reduce_head_tiled_mla_splits_kernel(
     DCP_INTERLEAVE_SIZE: tl.constexpr,
     BLOCK_S: tl.constexpr,
     BLOCK_D: tl.constexpr,
+    ADAPTIVE_DENSE_SPLITS: tl.constexpr = False,
+    MIN_DENSE_SPLITS: tl.constexpr = 1,
 ):
     batch = tl.program_id(0)
     head = tl.program_id(1)
     value_tile = tl.program_id(2)
-    metadata_row = batch * HEAD_TILES + head // 16
+    metadata_row = batch * HEAD_TILES
+    if HEAD_TILES > 1:
+        metadata_row += head // 16
     sequence_length = tl.load(sequence_lengths + metadata_row).to(tl.int32)
     # Stage one assigns ceil(length/splits) rows to every split and leaves the
     # empty suffix untouched. Re-derive the number of initialized splits.
-    split_length = tl.maximum(1, tl.cdiv(sequence_length, NUM_SPLITS))
+    partition_splits = NUM_SPLITS
+    if ADAPTIVE_DENSE_SPLITS:
+        partition_splits = _live_dense_splits(sequence_length, NUM_SPLITS, MIN_DENSE_SPLITS)
+    split_length = tl.maximum(1, tl.cdiv(sequence_length, partition_splits))
     active_splits = tl.cdiv(sequence_length, split_length)
     splits = tl.arange(0, BLOCK_S)
     dimension = value_tile * BLOCK_D + tl.arange(0, BLOCK_D)
@@ -179,6 +210,8 @@ def _absorbed_mla_stage1_gfx942(
     DCP_RANK: gl.constexpr,
     DCP_WORLD_SIZE: gl.constexpr,
     DCP_INTERLEAVE_SIZE: gl.constexpr,
+    ADAPTIVE_DENSE_SPLITS: gl.constexpr = False,
+    MIN_DENSE_SPLITS: gl.constexpr = 1,
 ):
     batch = gl.program_id(0)
     split = gl.program_id(1)
@@ -188,6 +221,18 @@ def _absorbed_mla_stage1_gfx942(
         if HEAD_TILED_METADATA
         else batch
     )
+    seq_len = gl.load(SeqLens + metadata_row).to(gl.int32)
+    partition_splits = NUM_SPLITS
+    if ADAPTIVE_DENSE_SPLITS:
+        partition_splits = _live_dense_splits_gluon(seq_len, NUM_SPLITS, MIN_DENSE_SPLITS)
+    split_len = gl.cdiv(seq_len, partition_splits)
+    split_start = split * split_len
+    split_end = gl.minimum(split_start + split_len, seq_len)
+    if ADAPTIVE_DENSE_SPLITS:
+        # Fixed launch/scratch capacity is graph-safe. Unused splits do no Q/K
+        # loads or MFMA work; the reducer masks their stale, unwritten values.
+        if split_start >= seq_len:
+            return
 
     BLOCK_H: gl.constexpr = 16
     D_LATENT: gl.constexpr = 512
@@ -288,10 +333,6 @@ def _absorbed_mla_stage1_gfx942(
     )
     q_direct = gl.convert_layout(q_direct, mfma_a)
 
-    seq_len = gl.load(SeqLens + metadata_row)
-    split_len = gl.cdiv(seq_len, NUM_SPLITS)
-    split_start = split * split_len
-    split_end = gl.minimum(split_start + split_len, seq_len)
     num_tiles = gl.cdiv(split_end - split_start, BLOCK_N)
 
     e_max = (
@@ -530,15 +571,16 @@ def absorbed_mla_decode_gfx942(
     partial: torch.Tensor | None = None,
     partial_lse: torch.Tensor | None = None,
     final_lse: torch.Tensor | None = None,
+    adaptive_splits: bool = True,
 ) -> torch.Tensor:
     """Run dense absorbed MLA over a standard vLLM paged KV cache.
 
     ``kv`` may be either a flat ``[N,576]`` cache (page size one) or vLLM's
     ordinary contiguous ``[num_blocks,page_size,576]`` cache.  Optional
     scratch tensors make the entry point allocation-free under CUDA graphs.
+    With ``adaptive_splits``, ``num_splits`` is only backing capacity: every
+    row partitions by its device-side live length, including during replay.
     """
-    from aiter.ops.triton.gluon.mla_gluon import _mla_softmax_reducev_kernel
-
     batch, nhead, qk_dim = q.shape
     if qk_dim != 576 or kv.shape[-1] != 576 or out.shape != (batch, nhead, 512):
         raise ValueError("expected q=[B,H,576], kv=[...,576], out=[B,H,512]")
@@ -550,6 +592,14 @@ def absorbed_mla_decode_gfx942(
         raise ValueError("page_table must have shape [B,max_blocks]")
     if seq_lens.shape != (batch,) or num_splits < 1:
         raise ValueError("seq_lens must have shape [B] and num_splits must be positive")
+    # Length-only splitting underoccupies B1: 96 heads and a 2K DCP shard
+    # would launch just 24 useful programs. An occupancy floor depends only
+    # on captured batch/head geometry, never maximum context reservation.
+    minimum_splits = 1
+    if adaptive_splits:
+        sms = torch.cuda.get_device_properties(q.device).multi_processor_count
+        minimum_splits = min(num_splits, triton.next_power_of_2(
+            triton.cdiv(sms, 2 * batch * triton.cdiv(nhead, 16))))
     if kv.ndim == 2:
         page_size = 1
         flat_kv = kv
@@ -619,8 +669,29 @@ def absorbed_mla_decode_gfx942(
         DCP_RANK=0,
         DCP_WORLD_SIZE=1,
         DCP_INTERLEAVE_SIZE=1,
+        ADAPTIVE_DENSE_SPLITS=adaptive_splits,
+        MIN_DENSE_SPLITS=minimum_splits,
         num_warps=4,
     )
+    if adaptive_splits:
+        _reduce_head_tiled_mla_splits_kernel[(batch, nhead, 2)](
+            partial, partial_lse, out, final_lse, seq_lens,
+            seq_lens, seq_lens, seq_lens,
+            partial.stride(0), partial.stride(1), partial.stride(2),
+            partial_lse.stride(0), partial_lse.stride(1), partial_lse.stride(2),
+            out.stride(0), out.stride(1),
+            final_lse.stride(0) if final_lse is not None else 0,
+            final_lse.stride(1) if final_lse is not None else 0,
+            NUM_SPLITS=num_splits, HEAD_DIM=512, HEAD_TILES=1,
+            HAS_FINAL_LSE=final_lse is not None, ADVANCE_DCP_LENGTHS=False,
+            DCP_RANK=0, DCP_WORLD_SIZE=1, DCP_INTERLEAVE_SIZE=1,
+            BLOCK_S=triton.next_power_of_2(num_splits), BLOCK_D=256,
+            ADAPTIVE_DENSE_SPLITS=True, num_warps=4,
+            MIN_DENSE_SPLITS=minimum_splits,
+        )
+        return out
+    from aiter.ops.triton.gluon.mla_gluon import _mla_softmax_reducev_kernel
+
     _mla_softmax_reducev_kernel[(batch, nhead, 1)](
         partial,
         partial_lse,

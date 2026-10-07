@@ -89,6 +89,11 @@ def render(directory=RESULTS):
                 ratio = f"{full[field] / lod[field]:.3f}×" if full and lod else "—"
                 target.append("| " + " | ".join(row + cells + [ratio]) + " |")
     note = (
+        "This full October 7 refresh predates the "
+        "[live-split / graph-allocator fixes](LIVE_SPLITS_ALLOCATOR.md). New "
+        "targeted checks are reported there; the complete sweep has not yet "
+        "been repeated with the fixes. Keep these baseline timings distinct "
+        "from the new default's results.\n\n"
         "Full trained K3; TP8/DCP8/EP8, eight MI325X GPUs, frozen real ProLong prompts "
         "and identical teacher-forced continuations. Both arms use the approved G8 "
         "direct-state-I/O KDA prefill baseline and the same packed INT4 MoE weights. "
