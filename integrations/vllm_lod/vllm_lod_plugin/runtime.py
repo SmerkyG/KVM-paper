@@ -222,7 +222,7 @@ class VLLMLODRuntime:
         self._initial_prefill_built_layers = 0
         self._cached_prefill_built_layers = 0
         self._cross_layer_prefill_stream: torch.cuda.Stream | None = None
-        self._prefill_attention_buffers: dict[str, torch.Tensor] = {}
+        self._prefill_attention_buffers: dict[str, Any] = {}
         self.cross_layer_initial_prefill_batches = 0
         self.cross_layer_initial_prefill_layers = 0
         self.direct_prefill_rejection: str | None = None

@@ -106,6 +106,10 @@ def prepare_owner_decode_batch(runtime: Any, requests: list[tuple[int, int]]) ->
             for name in ("_lod_state_update_buffers", "_lod_state_maxsim_buffers"):
                 if hasattr(pool.engine, name):
                     delattr(pool.engine, name)
+        # The serial owner-prefill scratch is separate from the runtime's
+        # layer-batched decode scratch. Its work is complete at this handoff;
+        # no captured decode graph or persistent leaf/centroid aliases it.
+        getattr(runtime, "_prefill_attention_buffers", {}).pop("kimi_owner_state_update", None)
     children = tuple(pool.owner_decode_pool for pool in parents)
     previous = requests[owner_row_index(tuple(row for row, _ in requests), runtime.dcp_rank)][1]
     before = [pool.catch_up_batches for pool in children]

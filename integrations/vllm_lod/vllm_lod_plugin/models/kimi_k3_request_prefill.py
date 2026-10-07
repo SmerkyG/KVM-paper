@@ -11,6 +11,7 @@ boundaries and the unfinished logical block stays exact.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from math import prod
 import os
 from typing import Any
@@ -50,6 +51,36 @@ def owner_prefill_storage(pool: Any) -> dict | None:
     if storage is None:
         raise RuntimeError("owner decode cache cannot provide direct prefill storage")
     return storage
+
+
+@contextmanager
+def owner_state_workspace(engine: Any):
+    """Reuse update scratch across serial owner layers, never semantic state.
+
+    Owner prefill enqueues every layer on the current stream. Unlike ordinary
+    asynchronous DCP construction, it has no overlapping layer-update stream.
+    Prepared keys carry their source-pointer identity, so the next layer
+    refreshes them. Remove engine references afterwards so 24 copies of the
+    large overflow-by-centroid score field cannot survive between updates.
+    """
+    registry = getattr(engine, "_lod_prefill_attention_buffers", None)
+    if registry is None:
+        yield
+        return
+    workspace = registry.setdefault("kimi_owner_state_update", {})
+    names = ("_lod_state_update_buffers", "_lod_state_maxsim_buffers")
+    for name in names:
+        if name in workspace:
+            setattr(engine, name, workspace[name])
+    try:
+        yield
+    finally:
+        for name in names:
+            buffers = getattr(engine, name, None)
+            if isinstance(buffers, dict):
+                workspace[name] = buffers
+            if hasattr(engine, name):
+                delattr(engine, name)
 
 
 def transport_workspace(group: Any, query: torch.Tensor, name: str, elements: int,
@@ -235,30 +266,29 @@ def attend_slice(pool: Any, slot: int, query: torch.Tensor, key: torch.Tensor,
             del engine._lod_kimi_expanded_prefill_chunk
     total = previous + length
     if total % chunk == 0 or total == prompt:
-        if cache is None:
-            storage = owner_prefill_storage(pool)
-            engine._lod_prefill_cache_capacity = prompt
-            if storage is not None:
-                engine._lod_prefill_storage = storage
-            try:
-                cache = engine.build_cache_from_bf16(
-                    block, block[..., :512], finalize_cache_for_decode=False,
-                )
-            finally:
-                del engine._lod_prefill_cache_capacity
+        with owner_state_workspace(engine):
+            if cache is None:
+                storage = owner_prefill_storage(pool)
+                engine._lod_prefill_cache_capacity = prompt
                 if storage is not None:
-                    del engine._lod_prefill_storage
-            if storage is not None:
-                # The remote buffers alias the fixed pool, but the exact tail
-                # is a prefill view. Use the normal partial-copy installation,
-                # not the stricter all-tensors-alias pool-backed contract.
-                cache.state["pool_backed"] = False
-                cache.state["owner_remote_pool_backed"] = True
-            row["cache"] = cache
-        else:
-            # Reuse the same chronological local field that attention just
-            # consumed, rather than concatenating recent+block a second time.
-            advance_block(engine, cache, block, total=total, working=local)
+                    engine._lod_prefill_storage = storage
+                try:
+                    cache = engine.build_cache_from_bf16(
+                        block, block[..., :512], finalize_cache_for_decode=False,
+                    )
+                finally:
+                    del engine._lod_prefill_cache_capacity
+                    if storage is not None:
+                        del engine._lod_prefill_storage
+                if storage is not None:
+                    # Remote storage aliases the fixed pool; the exact tail
+                    # stays a temporary prefill view, installed separately.
+                    cache.state["pool_backed"] = False
+                    cache.state["owner_remote_pool_backed"] = True
+                row["cache"] = cache
+            else:
+                # Attention has already consumed this chronological field.
+                advance_block(engine, cache, block, total=total, working=local)
         row["parts"].clear()
         engine.reset_runtime_cache()
     row["total"] = total

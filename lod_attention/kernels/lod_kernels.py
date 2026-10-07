@@ -2108,7 +2108,13 @@ def _materialized_score_output(
     batch, heads, tokens = (int(left.size(i)) for i in range(3))
     states = int(right.size(-1))
     required = batch * heads * tokens * states
-    capacity = batch * heads * int(token_capacity) * int(state_capacity)
+    # Max-sim's small per-token vectors reserve the 16K prefill overflow even
+    # during 256-token decode catch-up. That is not the required size of this
+    # token-by-centroid GEMM workspace: inheriting it wastes up to 64x memory
+    # for layer-batched MLA decode. Grow in 256-token buckets using the actual
+    # overflow, keeping the state-axis capacity fixed and all scores unchanged.
+    score_tokens = min(int(token_capacity), ((tokens + 255) // 256) * 256)
+    capacity = batch * heads * score_tokens * int(state_capacity)
     if required > capacity:
         raise ValueError("materialized score output exceeds its cache capacity")
     workspace = buffers.get(name)

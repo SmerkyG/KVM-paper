@@ -85,6 +85,14 @@ def snapshot_prefill_memory(worker) -> dict:
         ) for name, pool in pools.items() if name in owners},
         "owner_transport": getattr(getattr(runtime, "dcp_group", None), "_lod_owner_transport", {}),
         "shared_prefill_scratch": scratch,
+        "construction_workspaces": {name: (
+            getattr(getattr(pool, "engine", None), "_lod_state_update_buffers", None),
+            getattr(getattr(pool, "engine", None), "_lod_state_maxsim_buffers", None),
+        ) for name, pool in pools.items()},
+        "owner_construction_workspaces": {name: (
+            getattr(getattr(pool, "engine", None), "_lod_state_update_buffers", None),
+            getattr(getattr(pool, "engine", None), "_lod_state_maxsim_buffers", None),
+        ) for name, pool in owners.items()},
         "queued_construction_sources": (
             getattr(runtime, "_initial_prefill_sources", {}),
             getattr(runtime, "_cached_prefill_sources", {}),

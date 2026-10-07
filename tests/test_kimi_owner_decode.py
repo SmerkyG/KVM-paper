@@ -184,7 +184,8 @@ def test_owner_handoff_releases_parent_construction_scratch_only_once(monkeypatc
     decode_catchup = {"delta": torch.ones(6)}
     runtime = SimpleNamespace(pools=dict(enumerate(parents)), dcp_rank=3,
         logical_lengths={}, _catch_up_one_across_layers=lambda *args, **kwargs: True,
-        _cross_layer_shared_lod_state_update_buffers=decode_catchup)
+        _cross_layer_shared_lod_state_update_buffers=decode_catchup,
+        _prefill_attention_buffers={"kimi_owner_state_update": {"scores": torch.ones(8)}})
     def prepare(pool, requests, *, catch_up):
         assert catch_up is False
         pool._kimi_request_owner_rows[3]["decode_pool"] = pool.owner_decode_pool
@@ -192,6 +193,7 @@ def test_owner_handoff_releases_parent_construction_scratch_only_once(monkeypatc
     kimi_k3_owner_decode.prepare_owner_decode_batch(runtime, [(i, 32768) for i in range(8)])
     assert all(temporary() is None for temporary in temporaries)
     assert all(not hasattr(parent.engine, "_lod_state_maxsim_buffers") for parent in parents)
+    assert "kimi_owner_state_update" not in runtime._prefill_attention_buffers
     # A later step must not repeat cleanup, including if another caller has
     # retained a parent workspace. Decode catch-up scratch is always kept.
     parents[0].engine._lod_state_update_buffers = {"new": torch.ones(7)}
@@ -322,6 +324,59 @@ def test_pool_backed_owner_prefill_preserves_cache_and_captured_decode(monkeypat
     torch.cuda.synchronize()
     torch.testing.assert_close(outputs[0],outputs[1],atol=0,rtol=0)
     assert reused
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="HIP shared owner state construction")
+@torch.inference_mode()
+def test_owner_prefill_reuses_one_workspace_across_different_layer_keys(monkeypatch):
+    from contextlib import nullcontext
+    from vllm_lod_plugin.config import VLLMLODSettings
+    from vllm_lod_plugin.pool import VLLMLayerLODPool
+    from vllm_lod_plugin.models import kimi_k3_request_prefill as module
+
+    torch.manual_seed(71)
+    device = torch.device("cuda")
+    layer = SimpleNamespace(num_heads=96, num_kv_heads=1, head_size=576,
+        kv_lora_rank=512, scale=192**-.5, _vllm_lod_absorbed_mla=True)
+    records = [torch.randn(32768, 1, 576, device=device, dtype=torch.bfloat16) for _ in range(2)]
+    query = torch.zeros(16384, 1, 192, device=device, dtype=torch.bfloat16)
+    shared_registry = {}
+    parents = []
+    monkeypatch.setattr(module, "projection_scope", lambda *args, **kwargs: nullcontext())
+    monkeypatch.setenv("LOD_KIMI_OWNER_POOL_BACKED_PREFILL", "1")
+    for shared in (False, True):
+        group = []
+        for _ in range(2):
+            child = VLLMLayerLODPool(layer, settings=VLLMLODSettings(), max_requests=1,
+                request_capacity=32768, active_indices=torch.zeros(1, dtype=torch.long, device=device),
+                dtype=torch.bfloat16, device=device, request_owner_prefill=False)
+            engine = child.engine
+            if shared:
+                engine._lod_prefill_attention_buffers = shared_registry
+            monkeypatch.setattr(engine, "_prefill_local_attention",
+                                lambda q, *args, **kwargs: (q[..., :128], None))
+            monkeypatch.setattr(engine, "_two_level_attention", lambda q, *args, **kwargs: q[..., :128])
+            group.append(SimpleNamespace(engine=engine, owner_decode_pool=child,
+                                         _kimi_request_owner_rows={}))
+        parents.append(group)
+        # Different latent distributions on consecutive layers must force
+        # prepared-centroid refresh, despite the reused scratch pointers.
+        for previous in (0, 16384):
+            for parent, key in zip(group, records, strict=True):
+                module.attend_slice(parent, 0, query, key[previous:previous+16384],
+                                    None, None, previous=previous, prompt=32768)
+    torch.cuda.synchronize()
+    for reference, shared in zip(*parents, strict=True):
+        left = reference._kimi_request_owner_rows[0]["cache"].state
+        right = shared._kimi_request_owner_rows[0]["cache"].state
+        for name in ("state_k", "state_v", "counts", "recent_k", "sink_k"):
+            torch.testing.assert_close(left[name], right[name], atol=0, rtol=0)
+        torch.testing.assert_close(left["page_cache"]["slot_lengths"],
+                                   right["page_cache"]["slot_lengths"], atol=0, rtol=0)
+        assert not hasattr(shared.engine, "_lod_state_update_buffers")
+        assert not hasattr(shared.engine, "_lod_state_maxsim_buffers")
+    assert set(shared_registry["kimi_owner_state_update"]) == {
+        "_lod_state_update_buffers", "_lod_state_maxsim_buffers"}
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="HIP graph/kernel validation")

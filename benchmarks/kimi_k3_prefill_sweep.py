@@ -98,6 +98,12 @@ def peak_memory(worker):
     return result
 
 
+def memory_runtime(worker):
+    runner = worker.model_runner
+    runtime = getattr(getattr(runner, "model_state", None), "_vllm_lod_runtime", None)
+    return runtime if runtime is not None else getattr(runner, "_vllm_lod_runtime", None)
+
+
 def centroid_leaf_stats(worker):
     """Untimed capacity diagnostic; do not discard any leaves here.
 
@@ -105,7 +111,7 @@ def centroid_leaf_stats(worker):
     decide closure; local directory lengths decide reclaimable shard bytes.
     A sealed centroid may still contribute its complete coarse sum and mass.
     """
-    runtime = getattr(worker.model_runner.model_state, "_vllm_lod_runtime", None)
+    runtime = memory_runtime(worker)
     records = {}
     for name, parent in getattr(runtime, "pools", {}).items():
         pool = getattr(parent, "owner_decode_pool", None) or parent
@@ -138,7 +144,7 @@ def pool_leaf_stats(pool):
 
 def arm_warmup_leaf_stats(worker):
     """Observe cleanup only in untimed warmup; remove all hooks before timing."""
-    runtime = getattr(worker.model_runner.model_state, "_vllm_lod_runtime", None)
+    runtime = memory_runtime(worker)
     worker._kimi_warmup_leaf_stats = {}
     worker._kimi_warmup_leaf_stats_hooks = []
     for name, parent in getattr(runtime, "pools", {}).items():
@@ -146,8 +152,11 @@ def arm_warmup_leaf_stats(worker):
         if not getattr(pool, "is_absorbed_mla", False):
             continue
         for attribute in ("reset", "_reset_range"):
-            original = getattr(pool, attribute)
-            had_override = attribute in vars(pool)
+            # The scheduler resets the parent range, not necessarily the
+            # child owner's reset method. Sample its semantic child before
+            # that parent lifecycle operation clears or overwrites the row.
+            original = getattr(parent, attribute)
+            had_override = attribute in vars(parent)
 
             def observe(*args, _pool=pool, _name=name, _original=original, **kwargs):
                 record = pool_leaf_stats(_pool)
@@ -156,8 +165,8 @@ def arm_warmup_leaf_stats(worker):
                     worker._kimi_warmup_leaf_stats[_name] = record
                 return _original(*args, **kwargs)
 
-            setattr(pool, attribute, observe)
-            worker._kimi_warmup_leaf_stats_hooks.append((pool, attribute, original, had_override))
+            setattr(parent, attribute, observe)
+            worker._kimi_warmup_leaf_stats_hooks.append((parent, attribute, original, had_override))
 
 
 def finish_warmup_leaf_stats(worker):
@@ -808,6 +817,13 @@ def main() -> None:
             temporary = args.output.with_suffix(args.output.suffix + ".tmp")
             temporary.write_text(json.dumps(result, indent=2) + "\n")
             temporary.replace(args.output)
+            if (args.output.name.startswith("oct7-current-")
+                    and result.get("current_phase", {}).get("phase") == "point_complete"
+                    and not args.capacity_only and not args.diagnostic_only):
+                # After generation/auditing, never inside the serving timer.
+                # Keep the canonical panel current during a multi-hour sweep.
+                from benchmarks.kimi_k3_current_timings import render
+                render(args.output.parent)
 
         def audit_point(point: dict, length: int) -> None:
             owners = point.get("active_attention_owner_ranks")

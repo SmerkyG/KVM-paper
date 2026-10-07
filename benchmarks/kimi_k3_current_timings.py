@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 
@@ -100,11 +101,13 @@ def render(directory=RESULTS):
     )
     columns = "| Batch | Context | Dense | Two-tier LoD | Dense / LoD |\n|:--|--:|--:|--:|--:|\n"
     path = directory / "CURRENT_TIMINGS.md"
-    path.write_text("# Current K3 matched speed sweep\n\n" + note
+    temporary = path.with_suffix(path.suffix + f".{os.getpid()}.tmp")
+    temporary.write_text("# Current K3 matched speed sweep\n\n" + note
         + "## Prefill (seconds per batch)\n\n" + columns + "\n".join(prefill)
         + "\n\n## Decode (milliseconds per batch step)\n\n" + columns + "\n".join(decode)
         + "\n\n## Sweep status\n\n" + "\n".join(progress)
         + "\n\n## Raw sources\n\n" + "\n".join(f"- [{name}]({name})" for name in sources) + "\n")
+    temporary.replace(path)
     return path
 
 

@@ -36,7 +36,9 @@ def test_ranked_attention_audit_records_physical_cached_means_and_live_splits(mo
     assert result["splits_by_live_batch"] == {"1": 32}
 
 
-def test_leaf_memory_observer_captures_before_cleanup_and_leaves_no_timing_hook():
+@pytest.mark.parametrize("runtime_on_state", [True, False])
+@pytest.mark.parametrize("request_owner", [True, False])
+def test_leaf_memory_observer_captures_before_cleanup_and_leaves_no_timing_hook(runtime_on_state, request_owner):
     import torch
     from benchmarks.kimi_k3_prefill_sweep import arm_warmup_leaf_stats, finish_warmup_leaf_stats
 
@@ -57,18 +59,32 @@ def test_leaf_memory_observer_captures_before_cleanup_and_leaves_no_timing_hook(
             return self.reset(start)
 
     pool = Pool()
-    worker = NS(model_runner=NS(model_state=NS(_vllm_lod_runtime=NS(pools={"mla": pool}))))
+    class Parent:
+        owner_decode_pool = pool
+
+        def reset(self, slot):
+            return pool.reset(slot)
+
+        def _reset_range(self, start, stop):
+            return pool._reset_range(start, stop)
+
+    lifecycle = Parent() if request_owner else pool
+    runtime = NS(pools={"mla": lifecycle})
+    runner = NS(model_state=NS(_vllm_lod_runtime=runtime)) if runtime_on_state else NS(
+        model_state=NS(), _vllm_lod_runtime=runtime)
+    worker = NS(model_runner=runner)
     arm_warmup_leaf_stats(worker)
-    assert pool.reset(0) == 0
+    assert lifecycle.reset(0) == 0
     assert worker._kimi_warmup_leaf_stats == {}
     pool.state["counts"][0, 0, :, 0] = torch.tensor([1025., 10.])
     pool.state["page_cache"]["slot_lengths"][0, 0] = torch.tensor([128, 10])
-    pool._reset_range(0, 1)
+    lifecycle._reset_range(0, 1)
     saved = finish_warmup_leaf_stats(worker)["mla"]
     assert saved["global_member_count"] == 1035
     assert saved["local_leaves_in_closed_centroids"] == 128
     assert "reset" not in vars(pool) and "_reset_range" not in vars(pool)
-    pool.reset(0)
+    assert "reset" not in vars(lifecycle) and "_reset_range" not in vars(lifecycle)
+    lifecycle.reset(0)
     assert worker._kimi_warmup_leaf_stats["mla"] == saved
 
 

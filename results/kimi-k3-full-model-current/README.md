@@ -21,6 +21,11 @@ prefix hits, internal profiler events and failed warmups are excluded.
 
 ## October 7 routing fusion
 
+The trained 32K B8 prefill query-tile trial showed no serving gain
+(33.77995 s with 128 query rows versus 33.78116 s with 64), so the current
+128-row tile is retained. Its dispatch correction and raw trial are recorded
+in [CACHED_ROUTING.md](CACHED_ROUTING.md).
+
 The safe request-owner path now fuses exact top-eight reduction and centroid
 union construction, removing one launch per MLA layer. Distributed B1 keeps
 the required global candidate merge before constructing its union.
@@ -40,12 +45,23 @@ Sources: [16K](oct7-trained-decode-union-b8-16k.json),
 
 ## Current sweeps and capacity work
 
-Dense B1 and LoD B1 are running on separate nodes, followed by dense and
-request-owned B8 sweeps. The sweep runner saves every completed point before
+B1 dense and LoD have completed every point through 1020K. At 1020K, LoD
+prefill is **178.284 s versus 342.108 s** dense (1.919×); decode is
+**22.611 versus 28.049 ms/step** (1.240×), including four catch-ups.
+Fresh dense and request-owned B8 sweeps continue on separate nodes.
+The sweep runner saves every completed point before
 attempting a longer context. These are fresh measurements, not rerenders of
 the previous controls. The [memory investigation](LONG_CONTEXT_MEMORY.md)
 separates permanent latent storage, native reservations and reusable scratch.
 Completion of a storage-only fixture does not certify million-token generation.
+
+The first B8 retry exposed oversized decode-update score workspace: 256-token
+catch-up inherited a 16K prefill reservation. The corrected workspace follows
+the actual overflow in 256-token buckets; scores and centroid choices do not
+change. The new B8 16K warmup **and measured generation** both complete.
+Long owner prefills additionally share construction scratch across serial
+layers and release it at the decode handoff. Million-token B8 remains an
+actual capacity test, not a claimed success before it completes.
 
 With the image runtime and a resident full-model daemon, the sequential runner
 does not require the proprietary cluster runner:
@@ -62,6 +78,8 @@ disk. `--block short` measures through 256K for LoD (128K for B8 dense), while
 `--block long` measures the remaining lengths. Frozen prompt and continuation
 identities are checked against the recorded cohorts. These are timing traces,
 not freely generated model-quality scores.
+Resuming skips individual audited points, including those saved before a
+later capacity failure, without rerunning them or changing their stored times.
 
 Existing quality evidence remains in [PROLONG_QUALITY.md](PROLONG_QUALITY.md)
 and [CHAT_QUALITY.md](CHAT_QUALITY.md); it is not relabeled as a new fusion

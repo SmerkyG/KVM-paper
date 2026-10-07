@@ -65,14 +65,15 @@ def test_sharded_b1_memory_reports_backing_without_counting_the_archive_twice(mo
 
 
 def test_owner_memory_counts_child_cache_and_deduplicates_backed_prefill(monkeypatch):
-    leaf, tail, pending, weights = [torch.empty(n) for n in (576, 17, 19, 23)]
+    leaf, tail, pending, weights, construction = [torch.empty(n) for n in (576, 17, 19, 23, 37)]
+    engine = NS(_lod_state_update_buffers={"delta": construction, "alias": leaf})
     child = NS(state={"page_cache": {"leaf_k": leaf, "leaf_v": leaf[:512]}},
-               decode_buffer_storage=None, dcp_decode_buffer_storage=None)
+               decode_buffer_storage=None, dcp_decode_buffer_storage=None, engine=engine)
     cache = NS(state={"leaf_k": leaf, "recent_k": tail, "owner_remote_pool_backed": True})
     pool = NS(state={}, owner_decode_pool=child, owner_decode_buffers={},
         dcp_prefill_shadows={}, decode_buffer_storage=None, dcp_decode_buffer_storage=None,
         _kimi_request_owner_rows={2: {"cache": cache, "parts": [pending]}},
-        layer=NS(_lod_owner_uk=weights, _lod_owner_uv=weights))
+        layer=NS(_lod_owner_uk=weights, _lod_owner_uv=weights), engine=engine)
     runtime = NS(pools={"layer": pool})
     worker = NS(model_runner=NS(model_state=NS(_vllm_lod_runtime=runtime)))
     for name in ("memory_allocated", "memory_reserved", "max_memory_allocated"):
@@ -83,5 +84,7 @@ def test_owner_memory_counts_child_cache_and_deduplicates_backed_prefill(monkeyp
     assert groups["owner_persistent_semantic_cache"] == 576 * 4
     assert groups["owner_prefill_rows"] == (17 + 19) * 4
     assert groups["owner_projection_weights"] == 23 * 4
-    assert sum(groups.values()) == (576 + 17 + 19 + 23) * 4
+    assert groups["construction_workspaces"] == 37 * 4
+    assert groups["owner_construction_workspaces"] == 0
+    assert sum(groups.values()) == (576 + 17 + 19 + 23 + 37) * 4
     assert snapshot["owner_remote_pool_backed_by_layer"] == {"layer": {"2": True}}

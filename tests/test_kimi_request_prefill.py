@@ -1,6 +1,7 @@
 """Request/head ownership and preservation of global prefill boundaries."""
 
 from types import SimpleNamespace
+from contextlib import nullcontext
 import sys
 
 import pytest
@@ -34,6 +35,25 @@ def test_owner_prefill_storage_is_opt_in_and_requires_fixed_owner_pool(monkeypat
     child = SimpleNamespace(_initial_prefill_storage=lambda rows: (calls.append(rows), storage)[1])
     assert owner_prefill_storage(SimpleNamespace(owner_decode_pool=child)) is storage
     assert calls == [(0,)]
+
+
+@pytest.mark.parametrize("fail", [False, True])
+def test_owner_state_workspace_is_shared_without_retaining_layer_references(fail):
+    from vllm_lod_plugin.models.kimi_k3_request_prefill import owner_state_workspace
+
+    registry = {}
+    engines = [SimpleNamespace(_lod_prefill_attention_buffers=registry) for _ in range(2)]
+    scratch = {"scores": torch.ones(4)}
+    with owner_state_workspace(engines[0]):
+        engines[0]._lod_state_maxsim_buffers = scratch
+    assert not hasattr(engines[0], "_lod_state_maxsim_buffers")
+    with pytest.raises(RuntimeError) if fail else nullcontext():
+        with owner_state_workspace(engines[1]):
+            assert engines[1]._lod_state_maxsim_buffers is scratch
+            if fail:
+                raise RuntimeError("update failure")
+    assert not hasattr(engines[1], "_lod_state_maxsim_buffers")
+    assert registry["kimi_owner_state_update"]["_lod_state_maxsim_buffers"] is scratch
 
 
 @pytest.mark.parametrize("head_group", [None, "6"])

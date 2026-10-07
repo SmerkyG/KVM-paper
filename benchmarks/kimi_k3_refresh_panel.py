@@ -15,7 +15,33 @@ import subprocess
 import sys
 import time
 
-from benchmarks.kimi_k3_current_timings import LENGTHS, RESULTS, ROOT, render
+from benchmarks.kimi_k3_current_timings import LENGTHS, RESULTS, ROOT, render, validate_point
+
+
+def completed_lengths(mode, batch, directory=RESULTS):
+    """Resume by audited points, not the final status of a whole long block."""
+    label = "full" if mode == "full" else "lod"
+    completed = set()
+    for path in directory.glob(f"oct7-current-{label}-b{batch}-*.json"):
+        data = json.loads(path.read_text())
+        if data.get("mode") != mode or data.get("batch_size") != batch:
+            raise ValueError("current artifact name disagrees with its workload")
+        completed.update(int(length) for length, point in data.get("measurements", {}).items()
+                         if validate_point(data, point))
+    return completed
+
+
+def remaining_output(output, lengths):
+    """Never overwrite a previously saved point on a second resumption."""
+    if not output.exists():
+        return output
+    remaining = output.with_name(output.stem + f"-remaining-{max(lengths)//1024}k.json")
+    attempt = 2
+    candidate = remaining
+    while candidate.exists():
+        candidate = remaining.with_name(remaining.stem + f"-retry{attempt}.json")
+        attempt += 1
+    return candidate
 
 
 def plans(mode, batch, upper):
@@ -35,6 +61,17 @@ def plans(mode, batch, upper):
             output.append(("long", long, 1 if mode == "two-tier" else 5 if batch == 1 else
                            31 if max(long) > 524288 else 17, mode == "two-tier" and batch == 1))
     return output
+
+
+def lod_memory_environment(batch, block, sharded):
+    """Exact-storage capacity choices; no routing or cadence overrides."""
+    env = {"HSA_NO_SCRATCH_RECLAIM": "0"}
+    if sharded:
+        env["LOD_KIMI_DCP_SHARDED_LEAVES"] = "1"
+    if batch == 8 and block == "long-1020k":
+        # Same attention tokens and global updates, smaller temporary GEMMs.
+        env.update(LOD_KIMI_OWNER_PREFILL_HEAD_GROUP="2", LOD_KIMI_OWNER_MOE_CHUNK="8192")
+    return env
 
 
 def million_token_cohort(checkpoint, token_cache):
@@ -92,6 +129,8 @@ def main():
     if args.after_log:
         while not args.after_log.exists() or "==> cluster-run completed:" not in args.after_log.read_text()[-10000:]:
             time.sleep(5)
+        if "==> cluster-run completed: status=finished exit_code=0" not in args.after_log.read_text()[-10000:]:
+            raise RuntimeError("preceding engine did not complete successfully; inspect it before starting another")
     references = ([RESULTS / "oct4-full-b1-decode-power2-four-updates.json",
                    RESULTS / "oct4-full-b1-512k1020k-decode1025.json"] if args.batch_size == 1 else
                   [RESULTS / f"oct4-full-b8-decode-{label}-four-updates.json"
@@ -103,21 +142,18 @@ def main():
             continue
         label = "full" if args.mode == "full" else "lod"
         output = RESULTS / f"oct7-current-{label}-b{args.batch_size}-{block}.json"
-        if output.exists() and json.loads(output.read_text()).get("measurement_status") == "complete":
+        completed = completed_lengths(args.mode, args.batch_size)
+        lengths = [length for length in lengths if length not in completed]
+        if not lengths:
             continue
+        output = remaining_output(output, lengths)
         env = dict(os.environ, PYTORCH_ALLOC_CONF="expandable_segments:True",
                    TRITON_CACHE_AUTOTUNING="1", VLLM_USE_TRITON_AWQ="1",
                    AITER_CONFIG_FMOE=str(RESULTS / "kimik3_i4_tuned_fmoe_b2x16k_merged.csv"))
         if args.mode == "two-tier":
             from benchmarks.kimi_k3_decode_power2 import LOD_ENV
             env.update(LOD_ENV)
-            if sharded:
-                env.update(LOD_KIMI_DCP_SHARDED_LEAVES="1", HSA_NO_SCRATCH_RECLAIM="0")
-            if block == "long-1020k":
-                # Existing exact projection grouping, no new attention rule.
-                # Two heads bound temporary projected K/V at million-token
-                # B8 without changing top-eight or leaf attention contents.
-                env.update(LOD_KIMI_OWNER_PREFILL_HEAD_GROUP="2", HSA_NO_SCRATCH_RECLAIM="0")
+            env.update(lod_memory_environment(args.batch_size, block, sharded))
         command = [sys.executable, "-m", "benchmarks.kimi_k3_prefill_sweep",
             "--checkpoint", args.checkpoint, "--weight-cache-id", args.weight_cache_id,
             "--mode", args.mode, "--batch-size", str(args.batch_size),
