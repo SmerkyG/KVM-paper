@@ -111,6 +111,12 @@ decode step after bounding both local and centroid projection workspaces.
 It is a capacity preflight, not a million-token timing or speed improvement
 claim. GPU tests retain exact selected sets and numerically equivalent
 attention/LSE; the grouped projection paths remain opt-in.
+The longer 256K live-prefix control at the same million-token reservation
+still fails. Neither reducing the native reservation to 512 MiB nor adding
+idle-block reclamation before residual collectives completes that control.
+The unsuccessful per-collective reclamation code was removed, and native
+cache reservation remains 1 GiB. Reclaiming leaves of permanently closed
+centroids is the next storage opportunity, not an implemented saving.
 Attention chunks, routing and update cadences do not change; eight-token B8
 decode retains its native residual-bank path. Initialization alone is not
 a fit claim. See [exact memory trials](LONG_CONTEXT_MEMORY.md).
@@ -150,6 +156,10 @@ After the final grouping/startup-reporting changes, the focused benchmark and
 policy suite passed 106 tests (three GPU-only cases skipped), including the
 profile-only allocator cleanup. Startup allocation failures are now logged as
 failed initialization with no invented timing points.
+The follow-up capacity-reporting/lifecycle suite passes 53 tests (three
+GPU-only cases skipped). Its membership observer now samples a still-live
+cache when vLLM returns before cleanup; empty post-cleanup counts are never
+used to claim a reclamation opportunity.
 
 Existing quality evidence remains in [PROLONG_QUALITY.md](PROLONG_QUALITY.md)
 and [CHAT_QUALITY.md](CHAT_QUALITY.md); it is not relabeled as a new fusion

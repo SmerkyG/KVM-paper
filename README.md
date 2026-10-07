@@ -15,8 +15,8 @@ Its [current prefill/decode panel](results/kimi-k3-full-model-current/CURRENT_TI
 [benchmark instructions](results/kimi-k3-full-model-current/README.md), and
 [1020K memory work](results/kimi-k3-full-model-current/LONG_CONTEXT_MEMORY.md)
 are separate from the Qwen/K2 paper-release results below. B1 generation is
-validated through 1020K; the latest B8 sweep and long-context capacity tests
-are still in progress. This branch has not been pushed.
+validated through 1020K; B8 is validated through 512K. The 1020K/B8 capacity
+tests have not completed generation. This branch has not been pushed.
 
 ## Supported configurations
 

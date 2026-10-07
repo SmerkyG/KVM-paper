@@ -135,6 +135,38 @@ def test_leaf_memory_observer_captures_before_cleanup_and_leaves_no_timing_hook(
     assert worker._kimi_warmup_leaf_stats["mla"] == saved
 
 
+def test_warmup_membership_snapshot_reads_live_cache_before_cleanup():
+    from types import SimpleNamespace as NS
+    import torch
+    from benchmarks.kimi_k3_prefill_sweep import arm_warmup_leaf_stats, finish_warmup_leaf_stats
+
+    class Pool:
+        is_absorbed_mla = True
+        engine = NS(max_open_centroid_leaves=1024)
+
+        def __init__(self):
+            self.state = dict(counts=torch.zeros(1, 1, 2, 1),
+                page_cache=dict(slot_lengths=torch.zeros(1, 1, 2, dtype=torch.int32)))
+
+        def reset(self, slot):
+            self.state["counts"].zero_()
+            self.state["page_cache"]["slot_lengths"].zero_()
+
+        def _reset_range(self, start, stop):
+            self.reset(start)
+
+    pool = Pool()
+    runtime = NS(pools={"mla": pool})
+    worker = NS(model_runner=NS(model_state=NS(_vllm_lod_runtime=runtime)))
+    arm_warmup_leaf_stats(worker)
+    pool.state["counts"][0, 0, :, 0] = torch.tensor([2048., 10.])
+    pool.state["page_cache"]["slot_lengths"][0, 0] = torch.tensor([2048, 10])
+    saved = finish_warmup_leaf_stats(worker)["mla"]
+    assert saved["global_member_count"] == 2058
+    assert saved["local_leaves_in_closed_centroids"] == 2048
+    assert "reset" not in vars(pool) and "_reset_range" not in vars(pool)
+
+
 def test_fit_test_can_replay_two_tokens_from_verified_long_trace():
     tokens = list(range(17))
     record = {"trace_tokens": 13, "trace_token_sha256": token_digest(tokens[4:])}

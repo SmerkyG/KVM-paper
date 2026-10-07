@@ -203,6 +203,14 @@ def arm_warmup_leaf_stats(worker):
 
 
 def finish_warmup_leaf_stats(worker):
+    # vLLM may return the final output before its next request-cleanup tick.
+    # In that case no reset observer has fired yet, and the cache is still
+    # authoritative. Read it now as well; never replace a captured live
+    # snapshot with a later empty/reset state.
+    for name, record in centroid_leaf_stats(worker).items():
+        previous = worker._kimi_warmup_leaf_stats.get(name, {})
+        if record["global_member_count"] > previous.get("global_member_count", 0):
+            worker._kimi_warmup_leaf_stats[name] = record
     for pool, attribute, original, had_override in worker._kimi_warmup_leaf_stats_hooks:
         if had_override:
             setattr(pool, attribute, original)

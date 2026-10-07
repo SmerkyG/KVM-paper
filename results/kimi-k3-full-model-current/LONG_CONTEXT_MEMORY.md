@@ -5,7 +5,7 @@ top-eight leaf refinement, unchanged global 16K/256-token cadences. No
 chronological-token quantization, fewer selected leaves, or fixture timing
 is used to claim a memory/speed success.
 
-## Storage lower bound
+## Storage lower bound when retaining all archived positions
 
 Each archived K3 position is one BF16 576-channel record (512 latent + 64
 direct-key channels). Values alias the latent prefix; expanded per-head K/V
@@ -266,9 +266,34 @@ If permanent-history reclamation is needed, the conservative design is:
   Empty post-cleanup statistics cannot justify this change. No leaf is
   reclaimed by the current implementation.
 
-This is a follow-up design, not an implemented memory saving. The live
-256K-prefix diagnostic with full 1020K reservation first tests whether the
-already validated exact-storage bounds are sufficient without this change.
+This is a follow-up design, not an implemented memory saving. The
+[256K-prefix diagnostic with full 1020K reservation](oct7-lod-b8-million-reservation-grouped-coarse-256k.json)
+failed during warmup after roughly 82K global tokens. Its asynchronous
+RCCL/HSA callback reported 4,199 MB available on rank 5; that callback alone
+does not identify the originating allocation or prove a zero-free-memory
+failure. It provides no timing cell. Separate capacity controls test
+reclaiming idle allocator blocks before residual-bank collectives and a
+smaller native cache reservation; neither changes the LoD history or routing.
+
+The [512-MiB native-cache allocation audit](oct7-lod-b8-million-native512mb-allocation.json)
+completes native graph initialization with the full million-token LoD
+reservation. vLLM reports capacity for 9,061,121 native tokens, or 8.67
+requests at the million-token limit. Rank 0 has 4.094 GiB physically free
+after startup. This saves 512 MiB compared with the 1-GiB native reservation,
+but startup capacity is not evidence that all eight requests can complete
+prefill/decode without preemption. The longer-prefix serving control must
+pass before reducing the reproduction runner's native-cache default. That
+[longer-prefix control](oct7-lod-b8-million-reservation-native512mb-256k.json)
+fails near 96K global tokens during warmup with an HSA resource error and
+zero free memory reported on rank 0. The native reservation remains 1 GiB.
+
+The [residual-collective reclamation trial](oct7-lod-b8-million-reservation-collective-reclaim-256k.json)
+also fails: MoE stage 2 cannot allocate 112 MiB on ranks 0, 2 and 3, with
+34.53 GiB of live PyTorch allocations and zero device free memory. Several
+other ranks wait for the failed workers. This is not a demonstrated
+collective deadlock or a serving timing. The new reclamation helper and its
+flag were removed after this unsuccessful trial; no per-collective allocator
+trimming is promoted to the retained implementation.
 
 The fresh dense 1020K/B8 control also ran out of device resources during its
 first warmup, after successful engine initialization with a 31 GiB native
