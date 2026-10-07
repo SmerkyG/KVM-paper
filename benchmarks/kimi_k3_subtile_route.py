@@ -173,6 +173,12 @@ def isolated_subtile_sources(score_only=False, reuse_max=False, tile_n=64):
             core.CK_3RDPARTY_DIR = original_root
 
 
+def subtile_operator_name(score_only=False, reuse_max=False, tile_n=64, query_tile=128):
+    """AITER's torch guard caches by Python name, not generated module name."""
+    return (f"lod_kimi_subtile_mha_n{tile_n}_q{query_tile}"
+            f"_score{int(score_only)}_reuse{int(reuse_max)}_v13")
+
+
 def subtile_factory(sources, score_only=False, reuse_max=False, tile_n=64, query_tile=128):
     # Reuse the existing typed schema/generator, changing only private sources,
     # an explicit macro and a distinct module name. Ordinary builds remain safe.
@@ -207,7 +213,6 @@ def subtile_factory(sources, score_only=False, reuse_max=False, tile_n=64, query
             f'-DCK_TILE_LOD_SUBTILE64_REUSE_MAX={int(reuse_max)}']
         return generated
 
-    @compile_ops('module_mha_fwd', fc_name='mha_fwd', gen_func=build)
     def subtile_mha(
         q: torch.Tensor, k: torch.Tensor, v: torch.Tensor,
         dropout_p: float, softmax_scale: float, is_causal: bool,
@@ -223,7 +228,12 @@ def subtile_factory(sources, score_only=False, reuse_max=False, tile_n=64, query
         sink_ptr: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]: ...
 
-    return subtile_mha
+    # Distinct generated .so names alone are insufficient: torch_compile_guard
+    # silently reuses a registered op when the Python name already exists.
+    # In particular, a same-process q128/q64 comparison would otherwise call
+    # q128 twice. Include every compile-time variant in the registration name.
+    subtile_mha.__name__ = subtile_operator_name(score_only, reuse_max, tile_n, query_tile)
+    return compile_ops('module_mha_fwd', fc_name='mha_fwd', gen_func=build)(subtile_mha)
 
 
 @lru_cache(maxsize=6)

@@ -1,0 +1,68 @@
+{
+  "status": "complete",
+  "production_changed": false,
+  "scope": "Isolate last-arriver reduction on exact production LoD descriptors.",
+  "points": [
+    {
+      "heads": 12,
+      "splits": 32,
+      "length": 4096,
+      "checks": {
+        "output": {
+          "relative_rms": 0.0,
+          "max_abs": 0.0,
+          "reference_rms": 0.11730435668865116
+        },
+        "lse_max_abs": 0.0
+      },
+      "milliseconds": {
+        "native": 0.019859329462051392,
+        "persistent": 0.03630950927734375,
+        "native_repeat": 0.018684149980545045,
+        "persistent_repeat": 0.03646710872650147
+      },
+      "speedup": 0.5469456860559426
+    },
+    {
+      "heads": 96,
+      "splits": 32,
+      "length": 4096,
+      "checks": {
+        "output": {
+          "relative_rms": 2.7996748802913886e-06,
+          "max_abs": 6.103515625e-05,
+          "reference_rms": 0.10998322484396665
+        },
+        "lse_max_abs": 0.0
+      },
+      "milliseconds": {
+        "native": 0.022497289180755616,
+        "persistent": 0.05027212142944336,
+        "native_repeat": 0.022507290840148925,
+        "persistent_repeat": 0.05053771018981933
+      },
+      "speedup": 0.44751024108521925
+    },
+    {
+      "heads": 96,
+      "splits": 32,
+      "length": 16384,
+      "checks": {
+        "output": {
+          "relative_rms": 1.3157635988540929e-08,
+          "max_abs": 2.384185791015625e-07,
+          "reference_rms": 0.08173190679920127
+        },
+        "lse_max_abs": 1.9073486328125e-06
+      },
+      "milliseconds": {
+        "native": 0.0520828914642334,
+        "persistent": 0.07772014141082764,
+        "native_repeat": 0.05175929069519043,
+        "persistent_repeat": 0.07739654064178467
+      },
+      "speedup": 0.6701337712308567
+    }
+  ],
+  "baseline_kda": "G8 direct-state prefill; no KDA in isolated decode consumer"
+}

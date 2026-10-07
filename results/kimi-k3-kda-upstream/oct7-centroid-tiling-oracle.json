@@ -1,0 +1,268 @@
+{
+  "status": "complete",
+  "scope": "Isolated query-row packing test on production fused CK route/coarse.\n\nIndexer's ReLU/head-summed math is NOT used. Same BF16 expanded centroid\ninputs, FP32 scores, log-count bias, top-eight and coarse output in every arm.\nCompilation/warmup is outside timings. KDA G8 is the shared model baseline;\nthis per-rank kernel test does not execute KDA or claim full-model gains.\n",
+  "production_changed": false,
+  "points": [
+    {
+      "queries": 256,
+      "states": 4096,
+      "heads": 12,
+      "variants": {
+        "q128_k32": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.02966929347971935
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0,
+            "oracle_output": {
+              "relative_rms": 0.006124633518932705,
+              "max_abs": 0.0010499507188796997,
+              "reference_rms": 0.029807313334700044
+            }
+          },
+          "captured_milliseconds": [
+            1.0312299728393555,
+            1.0306400299072265
+          ]
+        },
+        "q64_k32": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.02966929347971935
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0,
+            "oracle_output": {
+              "relative_rms": 0.006124633518932705,
+              "max_abs": 0.0010499507188796997,
+              "reference_rms": 0.029807313334700044
+            }
+          },
+          "captured_milliseconds": [
+            0.7555817127227783,
+            0.7555356502532959
+          ]
+        },
+        "q128_k64": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.02966929347971935
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0,
+            "oracle_output": {
+              "relative_rms": 0.006124633518932705,
+              "max_abs": 0.0010499507188796997,
+              "reference_rms": 0.029807313334700044
+            }
+          },
+          "captured_milliseconds": [
+            1.0305439949035644,
+            1.0310679435729981
+          ]
+        },
+        "q64_k64": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.02966929347971935
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0,
+            "oracle_output": {
+              "relative_rms": 0.006124633518932705,
+              "max_abs": 0.0010499507188796997,
+              "reference_rms": 0.029807313334700044
+            }
+          },
+          "captured_milliseconds": [
+            0.7557517051696777,
+            0.7555936813354492
+          ]
+        }
+      }
+    },
+    {
+      "queries": 2048,
+      "states": 4096,
+      "heads": 12,
+      "variants": {
+        "q128_k32": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.02954188824443481
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0,
+            "oracle_output": {
+              "relative_rms": 0.006092551387779493,
+              "max_abs": 0.0008549764752388,
+              "reference_rms": 0.02967348203289848
+            }
+          },
+          "captured_milliseconds": [
+            1.1165528297424316,
+            1.1164987564086915
+          ]
+        },
+        "q64_k32": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.02954188824443481
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0,
+            "oracle_output": {
+              "relative_rms": 0.006092551387779493,
+              "max_abs": 0.0008549764752388,
+              "reference_rms": 0.02967348203289848
+            }
+          },
+          "captured_milliseconds": [
+            0.8140048027038574,
+            0.81373291015625
+          ]
+        },
+        "q128_k64": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.02954188824443481
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0,
+            "oracle_output": {
+              "relative_rms": 0.006092551387779493,
+              "max_abs": 0.0008549764752388,
+              "reference_rms": 0.02967348203289848
+            }
+          },
+          "captured_milliseconds": [
+            1.1174327850341796,
+            1.1178068161010741
+          ]
+        },
+        "q64_k64": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.02954188824443481
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0,
+            "oracle_output": {
+              "relative_rms": 0.006092551387779493,
+              "max_abs": 0.0008549764752388,
+              "reference_rms": 0.02967348203289848
+            }
+          },
+          "captured_milliseconds": [
+            0.8151888847351074,
+            0.8136228561401367
+          ]
+        }
+      }
+    },
+    {
+      "queries": 16384,
+      "states": 4096,
+      "heads": 12,
+      "variants": {
+        "q128_k32": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.0295827035690415
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0,
+            "oracle_output": {
+              "relative_rms": 0.0060842941542733325,
+              "max_abs": 0.0012759864330291748,
+              "reference_rms": 0.02982665853749329
+            }
+          },
+          "captured_milliseconds": [
+            4.659384536743164,
+            4.644754791259766
+          ]
+        },
+        "q64_k32": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.0295827035690415
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0,
+            "oracle_output": {
+              "relative_rms": 0.0060842941542733325,
+              "max_abs": 0.0012759864330291748,
+              "reference_rms": 0.02982665853749329
+            }
+          },
+          "captured_milliseconds": [
+            5.003573608398438,
+            5.008345413208008
+          ]
+        },
+        "q128_k64": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.0295827035690415
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0,
+            "oracle_output": {
+              "relative_rms": 0.0060842941542733325,
+              "max_abs": 0.0012759864330291748,
+              "reference_rms": 0.02982665853749329
+            }
+          },
+          "captured_milliseconds": [
+            4.663614273071289,
+            4.649566268920898
+          ]
+        },
+        "q64_k64": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.0295827035690415
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0,
+            "oracle_output": {
+              "relative_rms": 0.0060842941542733325,
+              "max_abs": 0.0012759864330291748,
+              "reference_rms": 0.02982665853749329
+            }
+          },
+          "captured_milliseconds": [
+            5.011095809936523,
+            4.97750244140625
+          ]
+        }
+      }
+    }
+  ]
+}

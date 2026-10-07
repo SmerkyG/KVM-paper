@@ -5,6 +5,22 @@ from benchmarks.kimi_k3_prefill_sweep import owner_prefill_layout, reference_tra
 from benchmarks.prolong import token_digest
 
 
+def test_capacity_diagnostic_uses_global_counts_and_local_leaf_storage():
+    import torch
+    from benchmarks.kimi_k3_prefill_sweep import centroid_leaf_stats
+
+    pool = NS(is_absorbed_mla=True, engine=NS(max_open_centroid_leaves=1024),
+        state=dict(counts=torch.tensor([[[[1024.], [1025.], [8000.], [0.]]]]),
+                   page_cache=dict(slot_lengths=torch.tensor([[[128, 128, 1000, 0]]]))))
+    parent = NS(owner_decode_pool=pool)
+    worker = NS(model_runner=NS(model_state=NS(_vllm_lod_runtime=NS(pools={"mla": parent}))))
+    result = centroid_leaf_stats(worker)["mla"]
+    assert result["closed_centroids"] == 2
+    assert result["local_leaf_count"] == 1256
+    assert result["local_leaves_in_closed_centroids"] == 1128
+    assert result["largest_global_centroid"] == 8000
+
+
 def test_ranked_attention_audit_records_physical_cached_means_and_live_splits(monkeypatch):
     import torch
     import benchmarks.prolong as prolong
@@ -18,6 +34,42 @@ def test_ranked_attention_audit_records_physical_cached_means_and_live_splits(mo
     result = ranked_attention_audit(worker)["decode_geometry"]["mla"]
     assert result["cached_centroid_mean_routing"] is True
     assert result["splits_by_live_batch"] == {"1": 32}
+
+
+def test_leaf_memory_observer_captures_before_cleanup_and_leaves_no_timing_hook():
+    import torch
+    from benchmarks.kimi_k3_prefill_sweep import arm_warmup_leaf_stats, finish_warmup_leaf_stats
+
+    class Pool:
+        is_absorbed_mla = True
+        engine = NS(max_open_centroid_leaves=1024)
+
+        def __init__(self):
+            self.state = dict(counts=torch.zeros(1, 1, 2, 1),
+                page_cache=dict(slot_lengths=torch.zeros(1, 1, 2, dtype=torch.int32)))
+
+        def reset(self, slot):
+            self.state["counts"].zero_()
+            self.state["page_cache"]["slot_lengths"].zero_()
+            return slot
+
+        def _reset_range(self, start, stop):
+            return self.reset(start)
+
+    pool = Pool()
+    worker = NS(model_runner=NS(model_state=NS(_vllm_lod_runtime=NS(pools={"mla": pool}))))
+    arm_warmup_leaf_stats(worker)
+    assert pool.reset(0) == 0
+    assert worker._kimi_warmup_leaf_stats == {}
+    pool.state["counts"][0, 0, :, 0] = torch.tensor([1025., 10.])
+    pool.state["page_cache"]["slot_lengths"][0, 0] = torch.tensor([128, 10])
+    pool._reset_range(0, 1)
+    saved = finish_warmup_leaf_stats(worker)["mla"]
+    assert saved["global_member_count"] == 1035
+    assert saved["local_leaves_in_closed_centroids"] == 128
+    assert "reset" not in vars(pool) and "_reset_range" not in vars(pool)
+    pool.reset(0)
+    assert worker._kimi_warmup_leaf_stats["mla"] == saved
 
 
 def test_fit_test_can_replay_two_tokens_from_verified_long_trace():

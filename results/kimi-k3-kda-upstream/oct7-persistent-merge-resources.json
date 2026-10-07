@@ -1,0 +1,116 @@
+{
+  "status": "complete",
+  "production_changed": false,
+  "scope": "Isolate last-arriver reduction on exact production LoD descriptors.",
+  "points": [
+    {
+      "heads": 12,
+      "splits": 32,
+      "length": 4096,
+      "checks": {
+        "output": {
+          "relative_rms": 0.0,
+          "max_abs": 0.0,
+          "reference_rms": 0.11730435668865116
+        },
+        "lse_max_abs": 0.0
+      },
+      "persistent_kernel": {
+        "registers": 280,
+        "spills": 0,
+        "shared_bytes": 65536
+      },
+      "native_stage_kernel": {
+        "registers": 284,
+        "spills": 0,
+        "shared_bytes": 65536
+      },
+      "milliseconds": {
+        "native": 0.018707749843597413,
+        "persistent": 0.03640549898147583,
+        "native_repeat": 0.01864495038986206,
+        "persistent_repeat": 0.036384708881378174
+      },
+      "speedup": 0.5138715404811909,
+      "exact_descriptor_check": {
+        "relative_rms": 0.0,
+        "max_abs": 0.0,
+        "reference_rms": 0.11730435668865116
+      },
+      "masked_and_empty_checks": "passed"
+    },
+    {
+      "heads": 96,
+      "splits": 32,
+      "length": 4096,
+      "checks": {
+        "output": {
+          "relative_rms": 2.7996748802913886e-06,
+          "max_abs": 6.103515625e-05,
+          "reference_rms": 0.10998322484396665
+        },
+        "lse_max_abs": 0.0
+      },
+      "persistent_kernel": {
+        "registers": 280,
+        "spills": 0,
+        "shared_bytes": 65536
+      },
+      "native_stage_kernel": {
+        "registers": 284,
+        "spills": 0,
+        "shared_bytes": 65536
+      },
+      "milliseconds": {
+        "native": 0.021351308822631837,
+        "persistent": 0.05092411041259766,
+        "native_repeat": 0.021203310489654542,
+        "persistent_repeat": 0.05166609764099121
+      },
+      "speedup": 0.4192770114124552,
+      "exact_descriptor_check": {
+        "relative_rms": 2.7996748802913886e-06,
+        "max_abs": 6.103515625e-05,
+        "reference_rms": 0.10998322484396665
+      },
+      "masked_and_empty_checks": "passed"
+    },
+    {
+      "heads": 96,
+      "splits": 32,
+      "length": 16384,
+      "checks": {
+        "output": {
+          "relative_rms": 1.3157635988540929e-08,
+          "max_abs": 2.384185791015625e-07,
+          "reference_rms": 0.08173190679920127
+        },
+        "lse_max_abs": 1.9073486328125e-06
+      },
+      "persistent_kernel": {
+        "registers": 280,
+        "spills": 0,
+        "shared_bytes": 65536
+      },
+      "native_stage_kernel": {
+        "registers": 284,
+        "spills": 0,
+        "shared_bytes": 65536
+      },
+      "milliseconds": {
+        "native": 0.051311302185058597,
+        "persistent": 0.07714654922485352,
+        "native_repeat": 0.051342501640319824,
+        "persistent_repeat": 0.0773077392578125
+      },
+      "speedup": 0.6651146772035806,
+      "exact_descriptor_check": {
+        "relative_rms": 1.3157635988540929e-08,
+        "max_abs": 2.384185791015625e-07,
+        "reference_rms": 0.08173190679920127
+      },
+      "masked_and_empty_checks": "passed"
+    }
+  ],
+  "baseline_kda": "G8 direct-state prefill; no KDA in isolated decode consumer"
+}

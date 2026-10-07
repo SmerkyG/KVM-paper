@@ -1,0 +1,154 @@
+{
+  "status": "complete",
+  "upstream_commit": "8cfa0902",
+  "triton_version": "3.8.0",
+  "arch": "gfx942:sramecc+:xnack-",
+  "points": [
+    {
+      "batch": 1,
+      "query_heads": 16,
+      "kv_heads": 1,
+      "length": 16384,
+      "old": {
+        "ms": 0.04605357646942139,
+        "replays": 200,
+        "outputs": [
+          [
+            1,
+            16,
+            128
+          ]
+        ]
+      },
+      "fixed": {
+        "ms": 0.03457972526550293,
+        "replays": 200,
+        "outputs": [
+          [
+            1,
+            16,
+            128
+          ]
+        ]
+      },
+      "speedup": 1.3318086282011292,
+      "bitwise_equal": true,
+      "resources_before": [
+        {
+          "kernel": "paged_attention_decode_sliding_window_head_1",
+          "registers": 289,
+          "spills": 0,
+          "shared_bytes": 12288
+        }
+      ],
+      "resources_after": [
+        {
+          "kernel": "paged_attention_decode_sliding_window_head_1",
+          "registers": 210,
+          "spills": 0,
+          "shared_bytes": 12288
+        }
+      ]
+    },
+    {
+      "batch": 8,
+      "query_heads": 16,
+      "kv_heads": 1,
+      "length": 16384,
+      "old": {
+        "ms": 0.06643370151519776,
+        "replays": 200,
+        "outputs": [
+          [
+            8,
+            16,
+            128
+          ]
+        ]
+      },
+      "fixed": {
+        "ms": 0.036372509002685544,
+        "replays": 200,
+        "outputs": [
+          [
+            8,
+            16,
+            128
+          ]
+        ]
+      },
+      "speedup": 1.8264811347023837,
+      "bitwise_equal": true,
+      "resources_before": [
+        {
+          "kernel": "paged_attention_decode_sliding_window_head_1",
+          "registers": 289,
+          "spills": 0,
+          "shared_bytes": 12288
+        }
+      ],
+      "resources_after": [
+        {
+          "kernel": "paged_attention_decode_sliding_window_head_1",
+          "registers": 210,
+          "spills": 0,
+          "shared_bytes": 12288
+        }
+      ]
+    },
+    {
+      "batch": 8,
+      "query_heads": 64,
+      "kv_heads": 8,
+      "length": 16384,
+      "old": {
+        "ms": 0.15552709579467774,
+        "replays": 200,
+        "outputs": [
+          [
+            8,
+            64,
+            128
+          ]
+        ]
+      },
+      "fixed": {
+        "ms": 0.14200227737426757,
+        "replays": 200,
+        "outputs": [
+          [
+            8,
+            64,
+            128
+          ]
+        ]
+      },
+      "speedup": 1.0952436726402883,
+      "bitwise_equal": true,
+      "resources_before": [
+        {
+          "kernel": "paged_attention_decode_sliding_window_head_1",
+          "registers": 289,
+          "spills": 0,
+          "shared_bytes": 12288
+        },
+        {
+          "kernel": "paged_attention_decode_sliding_window",
+          "registers": 322,
+          "spills": 0,
+          "shared_bytes": 12288
+        }
+      ],
+      "resources_after": [
+        {
+          "kernel": "paged_attention_decode_sliding_window",
+          "registers": 250,
+          "spills": 0,
+          "shared_bytes": 12288
+        }
+      ]
+    }
+  ],
+  "production_changed": false,
+  "scope": "conventional paged attention; K3 MLA does not dispatch to these kernels"
+}

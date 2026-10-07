@@ -10,7 +10,7 @@ import pytest
 LAUNCHER = Path(__file__).resolve().parents[1] / "benchmarks/run_kimi_k3_v10_direct.sh"
 CACHES = (
     "TRITON_CACHE_DIR", "TORCHINDUCTOR_CACHE_DIR", "TORCH_EXTENSIONS_DIR",
-    "VLLM_CACHE_ROOT", "AITER_JIT_DIR", "FLYDSL_RUNTIME_CACHE_DIR",
+    "VLLM_CACHE_ROOT", "AITER_JIT_DIR", "AITER_ROOT_DIR", "FLYDSL_RUNTIME_CACHE_DIR",
     "FLYDSL_AUTOTUNE_CACHE_DIR",
 )
 

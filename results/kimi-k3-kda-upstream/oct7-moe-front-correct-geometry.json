@@ -1,0 +1,212 @@
+{
+  "status": "complete",
+  "scope": "per-rank MoE-front kernels only, not full-model timing/quality",
+  "baseline_kda": "G8 direct-state prefill (unchanged; no KDA executed in this isolated test)",
+  "production_changed": false,
+  "checks": [
+    {
+      "tp": 8,
+      "tokens": 1,
+      "branches": {
+        "shared": {
+          "relative_rms": 0.0,
+          "max_abs": 0.0,
+          "reference_rms": 0.6000534700048412
+        },
+        "router": {
+          "relative_rms": 1.9404224178074424e-07,
+          "max_abs": 9.5367431640625e-07,
+          "reference_rms": 1.0151666970755993
+        },
+        "latent": {
+          "relative_rms": 0.0,
+          "max_abs": 0.0,
+          "reference_rms": 0.9896803105650703
+        }
+      },
+      "router_top16_match": 1.0,
+      "fp32_oracle": {
+        "shared": {
+          "relative_rms": 0.0,
+          "max_abs": 0.0,
+          "reference_rms": 0.6000534700048412
+        },
+        "router": {
+          "relative_rms": 2.2417270712388752e-07,
+          "max_abs": 9.5367431640625e-07,
+          "reference_rms": 1.0151666861860522
+        },
+        "latent": {
+          "relative_rms": 0.0,
+          "max_abs": 0.0,
+          "reference_rms": 0.9896803105650703
+        }
+      }
+    },
+    {
+      "tp": 8,
+      "tokens": 8,
+      "branches": {
+        "shared": {
+          "relative_rms": 1.1128323490448034e-08,
+          "max_abs": 4.76837158203125e-07,
+          "reference_rms": 0.5634809202308947
+        },
+        "router": {
+          "relative_rms": 1.9477374481379232e-07,
+          "max_abs": 9.5367431640625e-07,
+          "reference_rms": 0.9915147476214298
+        },
+        "latent": {
+          "relative_rms": 1.1952207929949365e-05,
+          "max_abs": 0.001953125,
+          "reference_rms": 0.9965849095314739
+        }
+      },
+      "router_top16_match": 1.0,
+      "fp32_oracle": {
+        "shared": {
+          "relative_rms": 1.1209850759787325e-08,
+          "max_abs": 4.76837158203125e-07,
+          "reference_rms": 0.5634809202308968
+        },
+        "router": {
+          "relative_rms": 2.3210828353903154e-07,
+          "max_abs": 1.1920928955078125e-06,
+          "reference_rms": 0.991514746863214
+        },
+        "latent": {
+          "relative_rms": 6.554909783654436e-05,
+          "max_abs": 0.0078125,
+          "reference_rms": 0.9965842767874825
+        }
+      }
+    },
+    {
+      "tp": 1,
+      "tokens": 1,
+      "branches": {
+        "shared": {
+          "relative_rms": 1.0211638760733877e-06,
+          "max_abs": 3.0517578125e-05,
+          "reference_rms": 0.5475527910136877
+        },
+        "router": {
+          "relative_rms": 3.2097853575339053e-07,
+          "max_abs": 1.4007091522216797e-06,
+          "reference_rms": 0.9888049735313758
+        },
+        "latent": {
+          "relative_rms": 1.609013588529544e-08,
+          "max_abs": 9.5367431640625e-07,
+          "reference_rms": 0.9900482817536687
+        }
+      },
+      "router_top16_match": 1.0,
+      "fp32_oracle": {
+        "shared": {
+          "relative_rms": 2.9585475223058644e-06,
+          "max_abs": 0.0001220703125,
+          "reference_rms": 0.5475527903731916
+        },
+        "router": {
+          "relative_rms": 4.6504149267901104e-07,
+          "max_abs": 2.384185791015625e-06,
+          "reference_rms": 0.9888049770479103
+        },
+        "latent": {
+          "relative_rms": 8.238149501427378e-06,
+          "max_abs": 0.00048828125,
+          "reference_rms": 0.9900482903877579
+        }
+      }
+    },
+    {
+      "tp": 1,
+      "tokens": 8,
+      "branches": {
+        "shared": {
+          "relative_rms": 0.00012796097091687363,
+          "max_abs": 0.015625,
+          "reference_rms": 0.5513161407386715
+        },
+        "router": {
+          "relative_rms": 3.3126068067909066e-07,
+          "max_abs": 1.6689300537109375e-06,
+          "reference_rms": 0.9838172058157937
+        },
+        "latent": {
+          "relative_rms": 4.821442768040598e-05,
+          "max_abs": 0.0078125,
+          "reference_rms": 1.0027169116788746
+        }
+      },
+      "router_top16_match": 1.0,
+      "fp32_oracle": {
+        "shared": {
+          "relative_rms": 0.0001283009660433687,
+          "max_abs": 0.015625,
+          "reference_rms": 0.5513161335206447
+        },
+        "router": {
+          "relative_rms": 4.647575947938915e-07,
+          "max_abs": 2.384185791015625e-06,
+          "reference_rms": 0.9838172122807394
+        },
+        "latent": {
+          "relative_rms": 5.310805862523836e-05,
+          "max_abs": 0.0078125,
+          "reference_rms": 1.0027170443366789
+        }
+      }
+    }
+  ],
+  "measurements": [
+    {
+      "tp": 8,
+      "tokens": 1,
+      "per_front_ms": {
+        "native": 0.03750965595245361,
+        "merged": 0.02727895776430766,
+        "native_repeat": 0.03671099344889323,
+        "merged_repeat": 0.027199292182922365
+      },
+      "speedup": 1.3750399218525866
+    },
+    {
+      "tp": 8,
+      "tokens": 8,
+      "per_front_ms": {
+        "native": 0.038070809841156,
+        "merged": 0.027681120236714683,
+        "native_repeat": 0.035406839847564694,
+        "merged_repeat": 0.027495290835698447
+      },
+      "speedup": 1.3753348677941517
+    },
+    {
+      "tp": 1,
+      "tokens": 1,
+      "per_front_ms": {
+        "native": 0.0815608819325765,
+        "merged": 0.06881505648295085,
+        "native_repeat": 0.076663605372111,
+        "merged_repeat": 0.06511343717575073
+      },
+      "speedup": 1.185218556825329
+    },
+    {
+      "tp": 1,
+      "tokens": 8,
+      "per_front_ms": {
+        "native": 0.07856175104777018,
+        "merged": 0.06585326592127481,
+        "native_repeat": 0.07422382036844889,
+        "merged_repeat": 0.06558493773142497
+      },
+      "speedup": 1.1929818506144843
+    }
+  ],
+  "weight_sets": 8,
+  "shared_intermediate": 6144
+}

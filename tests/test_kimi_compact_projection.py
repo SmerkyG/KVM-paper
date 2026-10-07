@@ -48,7 +48,7 @@ def test_smaller_prefill_head_groups_preserve_attention(monkeypatch, compact):
         torch.randperm(slots, device="cuda")[:8] for _ in range(heads * queries)
     ]).int().view(1, heads, queries, 8)
     results, projection_bytes = [], []
-    for group in (12, 6):
+    for group in (12, 6, 4, 2):
         engine = KernelTwoLevelLODAttention(
             LODConfig(), query_heads=heads, key_value_heads=1, scale=192**-0.5,
         )
@@ -79,10 +79,13 @@ def test_smaller_prefill_head_groups_preserve_attention(monkeypatch, compact):
                 storage = value.untyped_storage()
                 storages[storage.data_ptr()] = storage.nbytes()
         projection_bytes.append(sum(storages.values()))
-    torch.testing.assert_close(results[0][0], results[1][0], atol=0, rtol=0)
-    torch.testing.assert_close(results[0][1], results[1][1], atol=0, rtol=0)
+    for output, lse in results[1:]:
+        torch.testing.assert_close(results[0][0], output, atol=0, rtol=0)
+        torch.testing.assert_close(results[0][1], lse, atol=0, rtol=0)
     assert projection_bytes[0] > 0
     assert projection_bytes[1] <= projection_bytes[0] * 0.51
+    assert projection_bytes[2] <= projection_bytes[0] * 0.34
+    assert projection_bytes[3] <= projection_bytes[0] * 0.17
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="GPU required")

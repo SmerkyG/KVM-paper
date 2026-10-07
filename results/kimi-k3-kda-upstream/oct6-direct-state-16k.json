@@ -1,0 +1,116 @@
+{
+  "scope": "Isolate direct paged state/output I/O from the already-tested Gluon math.\n\nBoth sides use the same #5866 prepare/walk and eight chunk groups. The only\ndifference is retaining versus removing initial-state gather, final-state\nscatter and output copy. Includes noncontiguous live state slabs and guards.\n",
+  "status": "passed",
+  "points": [
+    {
+      "lengths": [
+        16384
+      ],
+      "output": {
+        "relative_rms": 0.0,
+        "max_abs": 0.0,
+        "reference_rms": 0.007099528437162367
+      },
+      "state": {
+        "relative_rms": 0.0,
+        "max_abs": 0.0,
+        "reference_rms": 0.07325382456768653
+      },
+      "guards_unchanged": true,
+      "copies": {
+        "ms": 1.0172525024414063,
+        "replays": 100,
+        "outputs": [
+          [
+            1,
+            16384,
+            12,
+            128
+          ],
+          [
+            3,
+            12,
+            128,
+            128
+          ]
+        ]
+      },
+      "direct": {
+        "ms": 0.9662196350097656,
+        "replays": 100,
+        "outputs": [
+          [
+            1,
+            16384,
+            12,
+            128
+          ],
+          [
+            3,
+            12,
+            128,
+            128
+          ]
+        ]
+      },
+      "speedup": 1.0528170465415194
+    },
+    {
+      "lengths": [
+        16384,
+        4097
+      ],
+      "output": {
+        "relative_rms": 0.0,
+        "max_abs": 0.0,
+        "reference_rms": 0.007167706373905698
+      },
+      "state": {
+        "relative_rms": 0.0,
+        "max_abs": 0.0,
+        "reference_rms": 0.0804200308337939
+      },
+      "guards_unchanged": true,
+      "copies": {
+        "ms": 1.1731195831298828,
+        "replays": 100,
+        "outputs": [
+          [
+            1,
+            20481,
+            12,
+            128
+          ],
+          [
+            4,
+            12,
+            128,
+            128
+          ]
+        ]
+      },
+      "direct": {
+        "ms": 1.111576461791992,
+        "replays": 100,
+        "outputs": [
+          [
+            1,
+            20481,
+            12,
+            128
+          ],
+          [
+            4,
+            12,
+            128,
+            128
+          ]
+        ]
+      },
+      "speedup": 1.0553656212175238
+    }
+  ],
+  "groups": 8,
+  "heads": 12,
+  "production_changed": false
+}

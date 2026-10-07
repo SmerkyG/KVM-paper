@@ -26,10 +26,13 @@ export TORCHINDUCTOR_CACHE_DIR="${TORCHINDUCTOR_CACHE_DIR:-/tmp/dan-agent/torchi
 export TORCH_EXTENSIONS_DIR="${TORCH_EXTENSIONS_DIR:-/tmp/dan-agent/torch_extensions}"
 export VLLM_CACHE_ROOT="${VLLM_CACHE_ROOT:-/tmp/dan-agent/vllm_cache}"
 export AITER_JIT_DIR="${AITER_JIT_DIR:-/tmp/dan-agent/aiter-jit-k3}"
+# The newer csrc template compiler has its own root. Without this override,
+# its PS-reduction builds go to the image's HOME on Ceph despite AITER_JIT_DIR.
+export AITER_ROOT_DIR="${AITER_ROOT_DIR:-/tmp/dan-agent/aiter-template-k3}"
 export FLYDSL_RUNTIME_CACHE_DIR="${FLYDSL_RUNTIME_CACHE_DIR:-${AITER_JIT_DIR}/flydsl_cache}"
 export FLYDSL_AUTOTUNE_CACHE_DIR="${FLYDSL_AUTOTUNE_CACHE_DIR:-/tmp/dan-agent/flydsl_autotune}"
 mkdir -p "${TRITON_CACHE_DIR}" "${TORCHINDUCTOR_CACHE_DIR}" \
-  "${TORCH_EXTENSIONS_DIR}" "${VLLM_CACHE_ROOT}" "${AITER_JIT_DIR}" \
+  "${TORCH_EXTENSIONS_DIR}" "${VLLM_CACHE_ROOT}" "${AITER_JIT_DIR}" "${AITER_ROOT_DIR}" \
   "${FLYDSL_RUNTIME_CACHE_DIR}" "${FLYDSL_AUTOTUNE_CACHE_DIR}"
 
 # AITER's override directory must also contain the image's precompiled

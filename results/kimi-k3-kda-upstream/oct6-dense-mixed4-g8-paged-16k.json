@@ -1,0 +1,923 @@
+{
+  "batch": 1,
+  "changes": "only KDA chunk prefill; dense MLA, convolution, projections, gates, state gather/scatter, output copy and TP unchanged",
+  "groups": 8,
+  "length": 16384,
+  "quality_evidence": false,
+  "random_weights": true,
+  "scope": "Four real K3 attention layers: three KDA, one dense MLA, TP8, no FFNs.\n\nSame seeded weights, inputs, conv, gates, norms and TP communication for both\nvariants. Only chunk KDA changes. This is fixture performance/numerical\nevidence, never a full trained-K3 speed or perplexity result.\n",
+  "seconds": {
+    "current": 0.02752619795501232,
+    "gluon": 0.024796506389975548,
+    "gluon_paged": 0.024727286770939827
+  },
+  "speedup": 1.110083715911702,
+  "timing": "one warmed synchronized pass, max over TP ranks; no profiler in interval",
+  "tp": 8,
+  "workers": [
+    {
+      "layers": [
+        "KDA",
+        "KDA",
+        "KDA",
+        "dense MLA"
+      ],
+      "points": {
+        "current": {
+          "seconds": 0.027501698583364487
+        },
+        "gluon": {
+          "output": {
+            "max_abs": 0.09375,
+            "reference_rms": 1.164972956779411,
+            "relative_rms": 0.0061191785080529325
+          },
+          "seconds": 0.02474595606327057,
+          "state_checks": [
+            {
+              "conv": {
+                "max_abs": 0.0,
+                "reference_rms": 0.7123348744531315,
+                "relative_rms": 0.0
+              },
+              "layer": 0,
+              "recurrent": {
+                "max_abs": 0.004156529903411865,
+                "reference_rms": 0.0175853548527318,
+                "relative_rms": 0.0035650594078585466
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.015625,
+                "reference_rms": 0.7097560829661693,
+                "relative_rms": 0.003740225025318063
+              },
+              "layer": 1,
+              "recurrent": {
+                "max_abs": 0.0074960291385650635,
+                "reference_rms": 0.016924033839324334,
+                "relative_rms": 0.007874722319275742
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.01953125,
+                "reference_rms": 0.7111362964590575,
+                "relative_rms": 0.0053959089812327145
+              },
+              "layer": 2,
+              "recurrent": {
+                "max_abs": 0.012951672077178955,
+                "reference_rms": 0.02322561194621659,
+                "relative_rms": 0.009834370889823196
+              }
+            }
+          ]
+        },
+        "gluon_paged": {
+          "matches_gluon_copies_bitwise": true,
+          "output": {
+            "max_abs": 0.09375,
+            "reference_rms": 1.164972956779411,
+            "relative_rms": 0.0061191785080529325
+          },
+          "seconds": 0.024691246449947357,
+          "state_checks": [
+            {
+              "conv": {
+                "max_abs": 0.0,
+                "reference_rms": 0.7123348744531315,
+                "relative_rms": 0.0
+              },
+              "layer": 0,
+              "recurrent": {
+                "max_abs": 0.004156529903411865,
+                "reference_rms": 0.0175853548527318,
+                "relative_rms": 0.0035650594078585466
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.015625,
+                "reference_rms": 0.7097560829661693,
+                "relative_rms": 0.003740225025318063
+              },
+              "layer": 1,
+              "recurrent": {
+                "max_abs": 0.0074960291385650635,
+                "reference_rms": 0.016924033839324334,
+                "relative_rms": 0.007874722319275742
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.01953125,
+                "reference_rms": 0.7111362964590575,
+                "relative_rms": 0.0053959089812327145
+              },
+              "layer": 2,
+              "recurrent": {
+                "max_abs": 0.012951672077178955,
+                "reference_rms": 0.02322561194621659,
+                "relative_rms": 0.009834370889823196
+              }
+            }
+          ]
+        }
+      },
+      "rank": 0
+    },
+    {
+      "layers": [
+        "KDA",
+        "KDA",
+        "KDA",
+        "dense MLA"
+      ],
+      "points": {
+        "current": {
+          "seconds": 0.02748504839837551
+        },
+        "gluon": {
+          "output": {
+            "max_abs": 0.09375,
+            "reference_rms": 1.164972956779411,
+            "relative_rms": 0.0061191785080529325
+          },
+          "seconds": 0.024796506389975548,
+          "state_checks": [
+            {
+              "conv": {
+                "max_abs": 0.0,
+                "reference_rms": 0.7068577139326376,
+                "relative_rms": 0.0
+              },
+              "layer": 0,
+              "recurrent": {
+                "max_abs": 0.00775146484375,
+                "reference_rms": 0.021285489443299555,
+                "relative_rms": 0.003362575002717175
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.015625,
+                "reference_rms": 0.7153368863921156,
+                "relative_rms": 0.0037184369753008326
+              },
+              "layer": 1,
+              "recurrent": {
+                "max_abs": 0.010129570960998535,
+                "reference_rms": 0.023079187141017133,
+                "relative_rms": 0.007327975322270587
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.03125,
+                "reference_rms": 0.7068186858962142,
+                "relative_rms": 0.005348185696445181
+              },
+              "layer": 2,
+              "recurrent": {
+                "max_abs": 0.006999969482421875,
+                "reference_rms": 0.01774927965904807,
+                "relative_rms": 0.009505486198596182
+              }
+            }
+          ]
+        },
+        "gluon_paged": {
+          "matches_gluon_copies_bitwise": true,
+          "output": {
+            "max_abs": 0.09375,
+            "reference_rms": 1.164972956779411,
+            "relative_rms": 0.0061191785080529325
+          },
+          "seconds": 0.024621468037366867,
+          "state_checks": [
+            {
+              "conv": {
+                "max_abs": 0.0,
+                "reference_rms": 0.7068577139326376,
+                "relative_rms": 0.0
+              },
+              "layer": 0,
+              "recurrent": {
+                "max_abs": 0.00775146484375,
+                "reference_rms": 0.021285489443299555,
+                "relative_rms": 0.003362575002717175
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.015625,
+                "reference_rms": 0.7153368863921156,
+                "relative_rms": 0.0037184369753008326
+              },
+              "layer": 1,
+              "recurrent": {
+                "max_abs": 0.010129570960998535,
+                "reference_rms": 0.023079187141017133,
+                "relative_rms": 0.007327975322270587
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.03125,
+                "reference_rms": 0.7068186858962142,
+                "relative_rms": 0.005348185696445181
+              },
+              "layer": 2,
+              "recurrent": {
+                "max_abs": 0.006999969482421875,
+                "reference_rms": 0.01774927965904807,
+                "relative_rms": 0.009505486198596182
+              }
+            }
+          ]
+        }
+      },
+      "rank": 1
+    },
+    {
+      "layers": [
+        "KDA",
+        "KDA",
+        "KDA",
+        "dense MLA"
+      ],
+      "points": {
+        "current": {
+          "seconds": 0.027491137385368347
+        },
+        "gluon": {
+          "output": {
+            "max_abs": 0.09375,
+            "reference_rms": 1.164972956779411,
+            "relative_rms": 0.0061191785080529325
+          },
+          "seconds": 0.024777153506875038,
+          "state_checks": [
+            {
+              "conv": {
+                "max_abs": 0.0,
+                "reference_rms": 0.7184296598952643,
+                "relative_rms": 0.0
+              },
+              "layer": 0,
+              "recurrent": {
+                "max_abs": 0.003642737865447998,
+                "reference_rms": 0.020573984445034253,
+                "relative_rms": 0.0028540586592763835
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.015625,
+                "reference_rms": 0.705895948837762,
+                "relative_rms": 0.0038263394244071294
+              },
+              "layer": 1,
+              "recurrent": {
+                "max_abs": 0.012024223804473877,
+                "reference_rms": 0.02185795326414456,
+                "relative_rms": 0.007470841391866654
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.03125,
+                "reference_rms": 0.7042555131389683,
+                "relative_rms": 0.005420072300201075
+              },
+              "layer": 2,
+              "recurrent": {
+                "max_abs": 0.009918808937072754,
+                "reference_rms": 0.017030245507620747,
+                "relative_rms": 0.009725477659567529
+              }
+            }
+          ]
+        },
+        "gluon_paged": {
+          "matches_gluon_copies_bitwise": true,
+          "output": {
+            "max_abs": 0.09375,
+            "reference_rms": 1.164972956779411,
+            "relative_rms": 0.0061191785080529325
+          },
+          "seconds": 0.02470436505973339,
+          "state_checks": [
+            {
+              "conv": {
+                "max_abs": 0.0,
+                "reference_rms": 0.7184296598952643,
+                "relative_rms": 0.0
+              },
+              "layer": 0,
+              "recurrent": {
+                "max_abs": 0.003642737865447998,
+                "reference_rms": 0.020573984445034253,
+                "relative_rms": 0.0028540586592763835
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.015625,
+                "reference_rms": 0.705895948837762,
+                "relative_rms": 0.0038263394244071294
+              },
+              "layer": 1,
+              "recurrent": {
+                "max_abs": 0.012024223804473877,
+                "reference_rms": 0.02185795326414456,
+                "relative_rms": 0.007470841391866654
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.03125,
+                "reference_rms": 0.7042555131389683,
+                "relative_rms": 0.005420072300201075
+              },
+              "layer": 2,
+              "recurrent": {
+                "max_abs": 0.009918808937072754,
+                "reference_rms": 0.017030245507620747,
+                "relative_rms": 0.009725477659567529
+              }
+            }
+          ]
+        }
+      },
+      "rank": 2
+    },
+    {
+      "layers": [
+        "KDA",
+        "KDA",
+        "KDA",
+        "dense MLA"
+      ],
+      "points": {
+        "current": {
+          "seconds": 0.027501428499817848
+        },
+        "gluon": {
+          "output": {
+            "max_abs": 0.09375,
+            "reference_rms": 1.164972956779411,
+            "relative_rms": 0.0061191785080529325
+          },
+          "seconds": 0.024784374982118607,
+          "state_checks": [
+            {
+              "conv": {
+                "max_abs": 0.0,
+                "reference_rms": 0.7123855665994451,
+                "relative_rms": 0.0
+              },
+              "layer": 0,
+              "recurrent": {
+                "max_abs": 0.005707144737243652,
+                "reference_rms": 0.017534352127196683,
+                "relative_rms": 0.0034254752795902814
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.03125,
+                "reference_rms": 0.7056688403137483,
+                "relative_rms": 0.003742292708242982
+              },
+              "layer": 1,
+              "recurrent": {
+                "max_abs": 0.00881648063659668,
+                "reference_rms": 0.022073165190794646,
+                "relative_rms": 0.007801379499674546
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.01953125,
+                "reference_rms": 0.7049085989863391,
+                "relative_rms": 0.00539993363568276
+              },
+              "layer": 2,
+              "recurrent": {
+                "max_abs": 0.020243048667907715,
+                "reference_rms": 0.024403665724718433,
+                "relative_rms": 0.008941549366701359
+              }
+            }
+          ]
+        },
+        "gluon_paged": {
+          "matches_gluon_copies_bitwise": true,
+          "output": {
+            "max_abs": 0.09375,
+            "reference_rms": 1.164972956779411,
+            "relative_rms": 0.0061191785080529325
+          },
+          "seconds": 0.024678857997059822,
+          "state_checks": [
+            {
+              "conv": {
+                "max_abs": 0.0,
+                "reference_rms": 0.7123855665994451,
+                "relative_rms": 0.0
+              },
+              "layer": 0,
+              "recurrent": {
+                "max_abs": 0.005707144737243652,
+                "reference_rms": 0.017534352127196683,
+                "relative_rms": 0.0034254752795902814
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.03125,
+                "reference_rms": 0.7056688403137483,
+                "relative_rms": 0.003742292708242982
+              },
+              "layer": 1,
+              "recurrent": {
+                "max_abs": 0.00881648063659668,
+                "reference_rms": 0.022073165190794646,
+                "relative_rms": 0.007801379499674546
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.01953125,
+                "reference_rms": 0.7049085989863391,
+                "relative_rms": 0.00539993363568276
+              },
+              "layer": 2,
+              "recurrent": {
+                "max_abs": 0.020243048667907715,
+                "reference_rms": 0.024403665724718433,
+                "relative_rms": 0.008941549366701359
+              }
+            }
+          ]
+        }
+      },
+      "rank": 3
+    },
+    {
+      "layers": [
+        "KDA",
+        "KDA",
+        "KDA",
+        "dense MLA"
+      ],
+      "points": {
+        "current": {
+          "seconds": 0.027438798919320107
+        },
+        "gluon": {
+          "output": {
+            "max_abs": 0.09375,
+            "reference_rms": 1.164972956779411,
+            "relative_rms": 0.0061191785080529325
+          },
+          "seconds": 0.02473364770412445,
+          "state_checks": [
+            {
+              "conv": {
+                "max_abs": 0.0,
+                "reference_rms": 0.707963676387011,
+                "relative_rms": 0.0
+              },
+              "layer": 0,
+              "recurrent": {
+                "max_abs": 0.004303038120269775,
+                "reference_rms": 0.021133711252913575,
+                "relative_rms": 0.00328447051689132
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.015625,
+                "reference_rms": 0.7062571101062601,
+                "relative_rms": 0.003773800699516742
+              },
+              "layer": 1,
+              "recurrent": {
+                "max_abs": 0.011225640773773193,
+                "reference_rms": 0.024053973785332684,
+                "relative_rms": 0.007195298458962812
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.03125,
+                "reference_rms": 0.7052493558727153,
+                "relative_rms": 0.005369393100835529
+              },
+              "layer": 2,
+              "recurrent": {
+                "max_abs": 0.007914185523986816,
+                "reference_rms": 0.019420319466873653,
+                "relative_rms": 0.00898804669809636
+              }
+            }
+          ]
+        },
+        "gluon_paged": {
+          "matches_gluon_copies_bitwise": true,
+          "output": {
+            "max_abs": 0.09375,
+            "reference_rms": 1.164972956779411,
+            "relative_rms": 0.0061191785080529325
+          },
+          "seconds": 0.024688107892870903,
+          "state_checks": [
+            {
+              "conv": {
+                "max_abs": 0.0,
+                "reference_rms": 0.707963676387011,
+                "relative_rms": 0.0
+              },
+              "layer": 0,
+              "recurrent": {
+                "max_abs": 0.004303038120269775,
+                "reference_rms": 0.021133711252913575,
+                "relative_rms": 0.00328447051689132
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.015625,
+                "reference_rms": 0.7062571101062601,
+                "relative_rms": 0.003773800699516742
+              },
+              "layer": 1,
+              "recurrent": {
+                "max_abs": 0.011225640773773193,
+                "reference_rms": 0.024053973785332684,
+                "relative_rms": 0.007195298458962812
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.03125,
+                "reference_rms": 0.7052493558727153,
+                "relative_rms": 0.005369393100835529
+              },
+              "layer": 2,
+              "recurrent": {
+                "max_abs": 0.007914185523986816,
+                "reference_rms": 0.019420319466873653,
+                "relative_rms": 0.00898804669809636
+              }
+            }
+          ]
+        }
+      },
+      "rank": 4
+    },
+    {
+      "layers": [
+        "KDA",
+        "KDA",
+        "KDA",
+        "dense MLA"
+      ],
+      "points": {
+        "current": {
+          "seconds": 0.027487589046359062
+        },
+        "gluon": {
+          "output": {
+            "max_abs": 0.09375,
+            "reference_rms": 1.164972956779411,
+            "relative_rms": 0.0061191785080529325
+          },
+          "seconds": 0.02479206584393978,
+          "state_checks": [
+            {
+              "conv": {
+                "max_abs": 0.0,
+                "reference_rms": 0.7090004908376464,
+                "relative_rms": 0.0
+              },
+              "layer": 0,
+              "recurrent": {
+                "max_abs": 0.005474090576171875,
+                "reference_rms": 0.026399929387472664,
+                "relative_rms": 0.0028517098582505527
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.03125,
+                "reference_rms": 0.6987900474347473,
+                "relative_rms": 0.00383239373419821
+              },
+              "layer": 1,
+              "recurrent": {
+                "max_abs": 0.008329212665557861,
+                "reference_rms": 0.017962670956984034,
+                "relative_rms": 0.007607813313446255
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.0234375,
+                "reference_rms": 0.7085291046916602,
+                "relative_rms": 0.0053530573654592475
+              },
+              "layer": 2,
+              "recurrent": {
+                "max_abs": 0.010328948497772217,
+                "reference_rms": 0.022082102624574284,
+                "relative_rms": 0.010183328849012222
+              }
+            }
+          ]
+        },
+        "gluon_paged": {
+          "matches_gluon_copies_bitwise": true,
+          "output": {
+            "max_abs": 0.09375,
+            "reference_rms": 1.164972956779411,
+            "relative_rms": 0.0061191785080529325
+          },
+          "seconds": 0.024665467441082,
+          "state_checks": [
+            {
+              "conv": {
+                "max_abs": 0.0,
+                "reference_rms": 0.7090004908376464,
+                "relative_rms": 0.0
+              },
+              "layer": 0,
+              "recurrent": {
+                "max_abs": 0.005474090576171875,
+                "reference_rms": 0.026399929387472664,
+                "relative_rms": 0.0028517098582505527
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.03125,
+                "reference_rms": 0.6987900474347473,
+                "relative_rms": 0.00383239373419821
+              },
+              "layer": 1,
+              "recurrent": {
+                "max_abs": 0.008329212665557861,
+                "reference_rms": 0.017962670956984034,
+                "relative_rms": 0.007607813313446255
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.0234375,
+                "reference_rms": 0.7085291046916602,
+                "relative_rms": 0.0053530573654592475
+              },
+              "layer": 2,
+              "recurrent": {
+                "max_abs": 0.010328948497772217,
+                "reference_rms": 0.022082102624574284,
+                "relative_rms": 0.010183328849012222
+              }
+            }
+          ]
+        }
+      },
+      "rank": 5
+    },
+    {
+      "layers": [
+        "KDA",
+        "KDA",
+        "KDA",
+        "dense MLA"
+      ],
+      "points": {
+        "current": {
+          "seconds": 0.02750730887055397
+        },
+        "gluon": {
+          "output": {
+            "max_abs": 0.09375,
+            "reference_rms": 1.164972956779411,
+            "relative_rms": 0.0061191785080529325
+          },
+          "seconds": 0.024777064099907875,
+          "state_checks": [
+            {
+              "conv": {
+                "max_abs": 0.0,
+                "reference_rms": 0.7034941258497294,
+                "relative_rms": 0.0
+              },
+              "layer": 0,
+              "recurrent": {
+                "max_abs": 0.006082057952880859,
+                "reference_rms": 0.02141033136211652,
+                "relative_rms": 0.002700008779752019
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.015625,
+                "reference_rms": 0.7036539129543442,
+                "relative_rms": 0.0037396991997380143
+              },
+              "layer": 1,
+              "recurrent": {
+                "max_abs": 0.009889304637908936,
+                "reference_rms": 0.018709340355282225,
+                "relative_rms": 0.0074188277581565005
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.0205078125,
+                "reference_rms": 0.708811621594327,
+                "relative_rms": 0.0053587998547228255
+              },
+              "layer": 2,
+              "recurrent": {
+                "max_abs": 0.012360095977783203,
+                "reference_rms": 0.022663092490049226,
+                "relative_rms": 0.009264463464213129
+              }
+            }
+          ]
+        },
+        "gluon_paged": {
+          "matches_gluon_copies_bitwise": true,
+          "output": {
+            "max_abs": 0.09375,
+            "reference_rms": 1.164972956779411,
+            "relative_rms": 0.0061191785080529325
+          },
+          "seconds": 0.024727286770939827,
+          "state_checks": [
+            {
+              "conv": {
+                "max_abs": 0.0,
+                "reference_rms": 0.7034941258497294,
+                "relative_rms": 0.0
+              },
+              "layer": 0,
+              "recurrent": {
+                "max_abs": 0.006082057952880859,
+                "reference_rms": 0.02141033136211652,
+                "relative_rms": 0.002700008779752019
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.015625,
+                "reference_rms": 0.7036539129543442,
+                "relative_rms": 0.0037396991997380143
+              },
+              "layer": 1,
+              "recurrent": {
+                "max_abs": 0.009889304637908936,
+                "reference_rms": 0.018709340355282225,
+                "relative_rms": 0.0074188277581565005
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.0205078125,
+                "reference_rms": 0.708811621594327,
+                "relative_rms": 0.0053587998547228255
+              },
+              "layer": 2,
+              "recurrent": {
+                "max_abs": 0.012360095977783203,
+                "reference_rms": 0.022663092490049226,
+                "relative_rms": 0.009264463464213129
+              }
+            }
+          ]
+        }
+      },
+      "rank": 6
+    },
+    {
+      "layers": [
+        "KDA",
+        "KDA",
+        "KDA",
+        "dense MLA"
+      ],
+      "points": {
+        "current": {
+          "seconds": 0.02752619795501232
+        },
+        "gluon": {
+          "output": {
+            "max_abs": 0.09375,
+            "reference_rms": 1.164972956779411,
+            "relative_rms": 0.0061191785080529325
+          },
+          "seconds": 0.024783756583929062,
+          "state_checks": [
+            {
+              "conv": {
+                "max_abs": 0.0,
+                "reference_rms": 0.704467919396155,
+                "relative_rms": 0.0
+              },
+              "layer": 0,
+              "recurrent": {
+                "max_abs": 0.0112229585647583,
+                "reference_rms": 0.022409811151533992,
+                "relative_rms": 0.0036935305283252204
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.015625,
+                "reference_rms": 0.6969544083952293,
+                "relative_rms": 0.003843258202714554
+              },
+              "layer": 1,
+              "recurrent": {
+                "max_abs": 0.00765836238861084,
+                "reference_rms": 0.020983585415038218,
+                "relative_rms": 0.0073946758525391485
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.03125,
+                "reference_rms": 0.7035219002729562,
+                "relative_rms": 0.0053776692054636165
+              },
+              "layer": 2,
+              "recurrent": {
+                "max_abs": 0.00925666093826294,
+                "reference_rms": 0.019102385990029305,
+                "relative_rms": 0.009536416847101515
+              }
+            }
+          ]
+        },
+        "gluon_paged": {
+          "matches_gluon_copies_bitwise": true,
+          "output": {
+            "max_abs": 0.09375,
+            "reference_rms": 1.164972956779411,
+            "relative_rms": 0.0061191785080529325
+          },
+          "seconds": 0.024671627208590508,
+          "state_checks": [
+            {
+              "conv": {
+                "max_abs": 0.0,
+                "reference_rms": 0.704467919396155,
+                "relative_rms": 0.0
+              },
+              "layer": 0,
+              "recurrent": {
+                "max_abs": 0.0112229585647583,
+                "reference_rms": 0.022409811151533992,
+                "relative_rms": 0.0036935305283252204
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.015625,
+                "reference_rms": 0.6969544083952293,
+                "relative_rms": 0.003843258202714554
+              },
+              "layer": 1,
+              "recurrent": {
+                "max_abs": 0.00765836238861084,
+                "reference_rms": 0.020983585415038218,
+                "relative_rms": 0.0073946758525391485
+              }
+            },
+            {
+              "conv": {
+                "max_abs": 0.03125,
+                "reference_rms": 0.7035219002729562,
+                "relative_rms": 0.0053776692054636165
+              },
+              "layer": 2,
+              "recurrent": {
+                "max_abs": 0.00925666093826294,
+                "reference_rms": 0.019102385990029305,
+                "relative_rms": 0.009536416847101515
+              }
+            }
+          ]
+        }
+      },
+      "rank": 7
+    }
+  ]
+}

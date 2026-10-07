@@ -83,7 +83,7 @@ def peak_memory(worker):
 
     torch.cuda.synchronize()
     free, total = torch.cuda.mem_get_info()
-    return {
+    result = {
         "rank": worker.rank,
         "peak_torch_allocated_bytes": torch.cuda.max_memory_allocated(),
         "peak_torch_reserved_bytes": torch.cuda.max_memory_reserved(),
@@ -91,6 +91,83 @@ def peak_memory(worker):
         "device_free_bytes_after_generation": free,
         "device_total_bytes": total,
     }
+    from benchmarks._kimi_prefill_memory import snapshot_prefill_memory
+    result["lod_storage_inventory"] = snapshot_prefill_memory(worker)
+    result["centroid_leaf_stats"] = getattr(worker, "_kimi_warmup_leaf_stats", {})
+    result["centroid_leaf_stats_scope"] = "untimed warmup, before request cleanup; absent if not armed"
+    return result
+
+
+def centroid_leaf_stats(worker):
+    """Untimed capacity diagnostic; do not discard any leaves here.
+
+    K3 counts are physical member counts (unit merge weights). Global counts
+    decide closure; local directory lengths decide reclaimable shard bytes.
+    A sealed centroid may still contribute its complete coarse sum and mass.
+    """
+    runtime = getattr(worker.model_runner.model_state, "_vllm_lod_runtime", None)
+    records = {}
+    for name, parent in getattr(runtime, "pools", {}).items():
+        pool = getattr(parent, "owner_decode_pool", None) or parent
+        record = pool_leaf_stats(pool)
+        if record is not None:
+            records[name] = record
+    return records
+
+
+def pool_leaf_stats(pool):
+    import torch
+
+    if not getattr(pool, "is_absorbed_mla", False):
+        return None
+    page = pool.state.get("page_cache", {})
+    lengths, counts = page.get("slot_lengths"), pool.state.get("counts")
+    cap = pool.engine.max_open_centroid_leaves
+    if not isinstance(lengths, torch.Tensor) or not isinstance(counts, torch.Tensor) or cap is None:
+        return None
+    local = lengths.detach().cpu().to(torch.int64)
+    global_counts = counts.detach().cpu().squeeze(-1)
+    closed = global_counts > cap
+    return dict(cap=int(cap), nonempty_centroids=int((global_counts > 0).sum()),
+        largest_global_centroid=float(global_counts.max()),
+        global_member_count=float(global_counts.sum()),
+        closed_centroids=int(closed.sum()), local_leaf_count=int(local.sum()),
+        local_leaves_in_closed_centroids=int(local[closed].sum()),
+        note="capacity opportunity only; current archive remains intact")
+
+
+def arm_warmup_leaf_stats(worker):
+    """Observe cleanup only in untimed warmup; remove all hooks before timing."""
+    runtime = getattr(worker.model_runner.model_state, "_vllm_lod_runtime", None)
+    worker._kimi_warmup_leaf_stats = {}
+    worker._kimi_warmup_leaf_stats_hooks = []
+    for name, parent in getattr(runtime, "pools", {}).items():
+        pool = getattr(parent, "owner_decode_pool", None) or parent
+        if not getattr(pool, "is_absorbed_mla", False):
+            continue
+        for attribute in ("reset", "_reset_range"):
+            original = getattr(pool, attribute)
+            had_override = attribute in vars(pool)
+
+            def observe(*args, _pool=pool, _name=name, _original=original, **kwargs):
+                record = pool_leaf_stats(_pool)
+                previous = worker._kimi_warmup_leaf_stats.get(_name, {})
+                if record and record["global_member_count"] > previous.get("global_member_count", 0):
+                    worker._kimi_warmup_leaf_stats[_name] = record
+                return _original(*args, **kwargs)
+
+            setattr(pool, attribute, observe)
+            worker._kimi_warmup_leaf_stats_hooks.append((pool, attribute, original, had_override))
+
+
+def finish_warmup_leaf_stats(worker):
+    for pool, attribute, original, had_override in worker._kimi_warmup_leaf_stats_hooks:
+        if had_override:
+            setattr(pool, attribute, original)
+        else:
+            delattr(pool, attribute)
+    worker._kimi_warmup_leaf_stats_hooks = []
+    return worker._kimi_warmup_leaf_stats
 
 
 def owner_prefill_audit(worker):
@@ -406,6 +483,11 @@ def main() -> None:
                         help="warm once, then profile one model chunk; no serving timing")
     parser.add_argument("--report-memory", action="store_true",
                         help="read worker peak memory outside timed generation")
+    parser.add_argument("--allocation-audit-only", action="store_true",
+                        help="inspect reserved backing storage; do not run or report serving timing")
+    parser.add_argument("--kda-prefill", choices=("current", "gluon_paged"),
+                        default="gluon_paged",
+                        help="use the same approved G8 KDA prefill baseline in dense and LoD")
     owner_group = parser.add_mutually_exclusive_group()
     owner_group.add_argument("--ordinary-dcp", action="store_true",
                              help="explicitly disable the default B8 request-owner layout")
@@ -627,6 +709,10 @@ def main() -> None:
     llm = LLM(**kwargs)
     result = None
     try:
+        from benchmarks.kimi_k3_kda_dense_prefill import select_kda
+        kda_audits = llm.collective_rpc(select_kda, args=(args.kda_prefill, 8))
+        if {audit["rank"] for audit in kda_audits} != set(range(args.tensor_parallel_size)):
+            raise RuntimeError("missing KDA baseline worker audit")
         owner_local_audits = None
         if args.owner_local_mla:
             from benchmarks._kimi_owner_local_mla import install_owner_local_mla
@@ -650,8 +736,11 @@ def main() -> None:
         measurements = {}
         result = {
             "checkpoint": args.checkpoint,
+            "kda_prefill": args.kda_prefill,
+            "kda_prefill_worker_audit": kda_audits,
             "max_model_len": kwargs["max_model_len"],
             "mode": args.mode,
+            "allocation_audit_only": args.allocation_audit_only,
             "capacity_only": args.capacity_only,
             "diagnostic_only": args.diagnostic_only,
             "route_scatter_validation": args.validate_route_scatter,
@@ -729,6 +818,12 @@ def main() -> None:
             result.update(worker_attention_audit=audits, worker_attention_audit_status="passed")
 
         save_result()
+        if args.allocation_audit_only:
+            result["allocation_worker_memory"] = llm.collective_rpc(peak_memory)
+            result["measurement_status"] = "complete"
+            result["scope"] = "reserved storage only; no long-context generation or speed claim"
+            save_result()
+            return
         for length in args.lengths:
             if args.reference_decode_trace:
                 params = [SamplingParams(temperature=0, max_tokens=args.decode_tokens,
@@ -753,9 +848,13 @@ def main() -> None:
                     arm_prefill_batch_audit, finish_prefill_batch_audit,
                     validate_prefill_batch_audits)
                 llm.collective_rpc(arm_prefill_batch_audit)
+            if args.report_memory:
+                llm.collective_rpc(arm_warmup_leaf_stats)
             warmup_started = time.perf_counter()
             warmup_outputs = llm.generate(prompts(length), params, use_tqdm=False)
             warmup_elapsed = time.perf_counter() - warmup_started
+            if args.report_memory:
+                llm.collective_rpc(finish_warmup_leaf_stats)
             if args.reference_decode_trace and any(
                 list(output.outputs[0].token_ids) != trace
                 for output, trace in zip(warmup_outputs, reference_traces[length], strict=True)

@@ -1,0 +1,208 @@
+{
+  "status": "complete",
+  "scope": "Isolated query-row packing test on production fused CK route/coarse.\n\nIndexer's ReLU/head-summed math is NOT used. Same BF16 expanded centroid\ninputs, FP32 scores, log-count bias, top-eight and coarse output in every arm.\nCompilation/warmup is outside timings. KDA G8 is the shared model baseline;\nthis per-rank kernel test does not execute KDA or claim full-model gains.\n",
+  "production_changed": false,
+  "points": [
+    {
+      "queries": 256,
+      "states": 4096,
+      "heads": 12,
+      "variants": {
+        "q128_k32": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.02966929347971935
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0
+          },
+          "captured_milliseconds": [
+            1.0301198959350586,
+            1.02993803024292
+          ]
+        },
+        "q64_k32": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.02966929347971935
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0
+          },
+          "captured_milliseconds": [
+            0.7552297115325928,
+            0.7549878120422363
+          ]
+        },
+        "q128_k64": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.02966929347971935
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0
+          },
+          "captured_milliseconds": [
+            1.030992031097412,
+            1.030698013305664
+          ]
+        },
+        "q64_k64": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.02966929347971935
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0
+          },
+          "captured_milliseconds": [
+            0.755015754699707,
+            0.754881763458252
+          ]
+        }
+      }
+    },
+    {
+      "queries": 2048,
+      "states": 4096,
+      "heads": 12,
+      "variants": {
+        "q128_k32": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.02954188824443481
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0
+          },
+          "captured_milliseconds": [
+            1.1166487693786622,
+            1.1167468070983886
+          ]
+        },
+        "q64_k32": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.02954188824443481
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0
+          },
+          "captured_milliseconds": [
+            0.8122849464416504,
+            0.8117790222167969
+          ]
+        },
+        "q128_k64": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.02954188824443481
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0
+          },
+          "captured_milliseconds": [
+            1.1168107986450195,
+            1.117144775390625
+          ]
+        },
+        "q64_k64": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.02954188824443481
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0
+          },
+          "captured_milliseconds": [
+            0.8127650260925293,
+            0.8121789932250977
+          ]
+        }
+      }
+    },
+    {
+      "queries": 16384,
+      "states": 4096,
+      "heads": 12,
+      "variants": {
+        "q128_k32": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.0295827035690415
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0
+          },
+          "captured_milliseconds": [
+            4.661450958251953,
+            4.653142929077148
+          ]
+        },
+        "q64_k32": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.0295827035690415
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0
+          },
+          "captured_milliseconds": [
+            4.984456253051758,
+            4.996792221069336
+          ]
+        },
+        "q128_k64": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.0295827035690415
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0
+          },
+          "captured_milliseconds": [
+            4.655362701416015,
+            4.647103118896484
+          ]
+        },
+        "q64_k64": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.0295827035690415
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0
+          },
+          "captured_milliseconds": [
+            5.000206375122071,
+            4.9999443054199215
+          ]
+        }
+      }
+    }
+  ]
+}

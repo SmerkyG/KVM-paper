@@ -1,0 +1,63 @@
+{
+  "status": "complete",
+  "scope": "Isolated query-row packing test on production fused CK route/coarse.\n\nIndexer's ReLU/head-summed math is NOT used. Same BF16 expanded centroid\ninputs, FP32 scores, log-count bias, top-eight and coarse output in every arm.\nCompilation/warmup is outside timings. KDA G8 is the shared model baseline;\nthis per-rank kernel test does not execute KDA or claim full-model gains.\n",
+  "production_changed": false,
+  "serving_subtile": true,
+  "points": [
+    {
+      "queries": 2048,
+      "states": 4096,
+      "heads": 6,
+      "variants": {
+        "q128_k32": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.029677440845276702
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0,
+            "oracle_output": {
+              "relative_rms": 0.006092338103044877,
+              "max_abs": 0.0009102374315261841,
+              "reference_rms": 0.030205457090871995
+            }
+          },
+          "captured_milliseconds": [
+            0.4447295665740967,
+            0.443927526473999
+          ],
+          "coarse_only_milliseconds": [
+            0.363284707069397,
+            0.36339075565338136
+          ]
+        },
+        "q64_k32": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.029677440845276702
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0,
+            "oracle_output": {
+              "relative_rms": 0.006092338103044877,
+              "max_abs": 0.0009102374315261841,
+              "reference_rms": 0.030205457090871995
+            }
+          },
+          "captured_milliseconds": [
+            0.44448161125183105,
+            0.44451560974121096
+          ],
+          "coarse_only_milliseconds": [
+            0.3635087490081787,
+            0.36379873752593994
+          ]
+        }
+      }
+    }
+  ]
+}

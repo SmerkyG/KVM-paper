@@ -1,0 +1,141 @@
+{
+  "scope": "Compare upstream Gluon KDA decode with the image's already-fused HIP decoder.\n\nRecurrent state comes from a native 16K prefill; convolution, recurrence,\ngated RMSNorm and both writable caches are included for both kernels.\nNo MLA/LoD or production setting changes are made by this per-rank probe.\n",
+  "upstream_commit": "8253efc4",
+  "heads": 12,
+  "head_dim": 128,
+  "context": 16384,
+  "num_buffers": 2,
+  "status": "passed",
+  "points": [
+    {
+      "batch": 1,
+      "output": {
+        "relative_rms": 0.0,
+        "max_abs": 0.0,
+        "reference_rms": 0.44754144963486425
+      },
+      "state": {
+        "relative_rms": 5.244613848214672e-08,
+        "max_abs": 1.1920928955078125e-07,
+        "reference_rms": 0.04251454448997259
+      },
+      "conv": {
+        "relative_rms": 0.0,
+        "max_abs": 0.0,
+        "reference_rms": 1.0017050667739682
+      },
+      "state_after_33_steps": {
+        "relative_rms": 1.0209982411818877e-06,
+        "max_abs": 3.6954879760742188e-06,
+        "reference_rms": 0.04807151301109303
+      },
+      "conv_after_33_steps": {
+        "relative_rms": 0.0,
+        "max_abs": 0.0,
+        "reference_rms": 1.0047739300712129
+      },
+      "hip": {
+        "ms": 0.006810287847751524,
+        "replays": 1025,
+        "outputs": [
+          [
+            1,
+            1,
+            12,
+            128
+          ],
+          [
+            2,
+            12,
+            128,
+            128
+          ]
+        ]
+      },
+      "gluon": {
+        "ms": 0.0076656509027248475,
+        "replays": 1025,
+        "outputs": [
+          [
+            1,
+            1,
+            12,
+            128
+          ],
+          [
+            2,
+            12,
+            128,
+            128
+          ]
+        ]
+      },
+      "speedup": 0.8884161220191655
+    },
+    {
+      "batch": 8,
+      "output": {
+        "relative_rms": 0.0,
+        "max_abs": 0.0,
+        "reference_rms": 0.43674653466088664
+      },
+      "state": {
+        "relative_rms": 5.3323453379361105e-08,
+        "max_abs": 1.7881393432617188e-07,
+        "reference_rms": 0.06781049660175129
+      },
+      "conv": {
+        "relative_rms": 0.0,
+        "max_abs": 0.0,
+        "reference_rms": 1.0032528792576694
+      },
+      "state_after_33_steps": {
+        "relative_rms": 1.0980218622246226e-06,
+        "max_abs": 5.0067901611328125e-06,
+        "reference_rms": 0.07193922836732115
+      },
+      "conv_after_33_steps": {
+        "relative_rms": 0.0,
+        "max_abs": 0.0,
+        "reference_rms": 1.001688151665332
+      },
+      "hip": {
+        "ms": 0.007902722242401867,
+        "replays": 1025,
+        "outputs": [
+          [
+            1,
+            8,
+            12,
+            128
+          ],
+          [
+            9,
+            12,
+            128,
+            128
+          ]
+        ]
+      },
+      "gluon": {
+        "ms": 0.008567922638683785,
+        "replays": 1025,
+        "outputs": [
+          [
+            1,
+            8,
+            12,
+            128
+          ],
+          [
+            9,
+            12,
+            128,
+            128
+          ]
+        ]
+      },
+      "speedup": 0.9223615309878537
+    }
+  ]
+}

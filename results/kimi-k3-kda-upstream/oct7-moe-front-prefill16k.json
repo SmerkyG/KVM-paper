@@ -1,0 +1,77 @@
+{
+  "status": "complete",
+  "scope": "per-rank MoE-front kernels only, not full-model timing/quality",
+  "baseline_kda": "G8 direct-state prefill (unchanged; no KDA executed in this isolated test)",
+  "production_changed": false,
+  "checks": [
+    {
+      "tp": 8,
+      "tokens": 16384,
+      "branches": {
+        "shared": {
+          "relative_rms": 6.059957916599035e-05,
+          "max_abs": 0.015625,
+          "reference_rms": 0.5594833922773916
+        },
+        "router": {
+          "relative_rms": 0.0,
+          "max_abs": 0.0,
+          "reference_rms": 1.0003533903354576
+        },
+        "latent": {
+          "relative_rms": 0.0,
+          "max_abs": 0.0,
+          "reference_rms": 1.0003888731524528
+        }
+      },
+      "router_top16_match": 1.0
+    },
+    {
+      "tp": 1,
+      "tokens": 16384,
+      "branches": {
+        "shared": {
+          "relative_rms": 5.7990235076957275e-05,
+          "max_abs": 0.03125,
+          "reference_rms": 0.5598194723054051
+        },
+        "router": {
+          "relative_rms": 0.0,
+          "max_abs": 0.0,
+          "reference_rms": 1.0000632350359957
+        },
+        "latent": {
+          "relative_rms": 0.0,
+          "max_abs": 0.0,
+          "reference_rms": 0.9998039411651968
+        }
+      },
+      "router_top16_match": 1.0
+    }
+  ],
+  "measurements": [
+    {
+      "tp": 8,
+      "tokens": 16384,
+      "per_front_ms": {
+        "native": 1.6052889506022134,
+        "merged": 1.9842928568522136,
+        "native_repeat": 1.605517323811849,
+        "merged_repeat": 2.013134765625
+      },
+      "speedup": 0.8089979989893056
+    },
+    {
+      "tp": 1,
+      "tokens": 16384,
+      "per_front_ms": {
+        "native": 2.1334579467773436,
+        "merged": 2.387364451090495,
+        "native_repeat": 2.126995340983073,
+        "merged_repeat": 2.307775115966797
+      },
+      "speedup": 0.8936456877385551
+    }
+  ],
+  "weight_sets": 8
+}

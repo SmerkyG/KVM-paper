@@ -1,0 +1,55 @@
+{
+  "status": "complete",
+  "scope": "Isolated query-row packing test on production fused CK route/coarse.\n\nIndexer's ReLU/head-summed math is NOT used. Same BF16 expanded centroid\ninputs, FP32 scores, log-count bias, top-eight and coarse output in every arm.\nCompilation/warmup is outside timings. KDA G8 is the shared model baseline;\nthis per-rank kernel test does not execute KDA or claim full-model gains.\n",
+  "production_changed": false,
+  "serving_subtile": true,
+  "points": [
+    {
+      "queries": 2048,
+      "states": 4096,
+      "heads": 12,
+      "variants": {
+        "q128_k32": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.02957761212170285
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0,
+            "oracle_output": {
+              "relative_rms": 0.006124633518932705,
+              "max_abs": 0.0010499507188796997,
+              "reference_rms": 0.029807313334700044
+            }
+          },
+          "captured_milliseconds": [
+            0.5499000072479248,
+            0.539044189453125
+          ]
+        },
+        "q64_k32": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.02957761212170285
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0,
+            "oracle_output": {
+              "relative_rms": 0.006124633518932705,
+              "max_abs": 0.0010499507188796997,
+              "reference_rms": 0.029807313334700044
+            }
+          },
+          "captured_milliseconds": [
+            0.5452721118927002,
+            0.5380842208862304
+          ]
+        }
+      }
+    }
+  ]
+}

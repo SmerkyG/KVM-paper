@@ -1,0 +1,139 @@
+{
+  "status": "complete",
+  "upstream_commit": "4b12dc51",
+  "extension": "per-cache-key natural-log count bias",
+  "dim": 512,
+  "direct_key_dim": 64,
+  "checks": [
+    {
+      "heads": 12,
+      "splits": 1,
+      "direct_only": false,
+      "biased": false,
+      "output": {
+        "relative_rms": 0.0008943150385849266,
+        "max_abs": 0.0070607662200927734,
+        "reference_rms": 0.58386455914963
+      },
+      "lse_max_abs": 9.5367431640625e-07
+    },
+    {
+      "heads": 12,
+      "splits": 8,
+      "direct_only": false,
+      "biased": true,
+      "output": {
+        "relative_rms": 0.0009158889925975264,
+        "max_abs": 0.007587909698486328,
+        "reference_rms": 0.5795349610084906
+      },
+      "lse_max_abs": 9.5367431640625e-07
+    },
+    {
+      "heads": 16,
+      "splits": 8,
+      "direct_only": true,
+      "biased": true,
+      "output": {
+        "relative_rms": 0.0005658424248935585,
+        "max_abs": 0.002416551113128662,
+        "reference_rms": 0.5183430081859917
+      },
+      "lse_max_abs": 9.5367431640625e-07
+    },
+    {
+      "heads": 96,
+      "splits": 1,
+      "direct_only": false,
+      "biased": true,
+      "output": {
+        "relative_rms": 0.0009499938874736832,
+        "max_abs": 0.007848739624023438,
+        "reference_rms": 0.5600351954460909
+      },
+      "lse_max_abs": 1.0728836059570312e-06
+    }
+  ],
+  "timing": [
+    {
+      "batch": 1,
+      "length": 16384,
+      "heads": 12,
+      "milliseconds": {
+        "unbiased": {
+          "ms": 0.049692931175231936,
+          "replays": 100,
+          "outputs": [
+            [
+              1,
+              12,
+              512
+            ],
+            [
+              1,
+              12
+            ]
+          ]
+        },
+        "biased": {
+          "ms": 0.05683483123779297,
+          "replays": 100,
+          "outputs": [
+            [
+              1,
+              12,
+              512
+            ],
+            [
+              1,
+              12
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "batch": 8,
+      "length": 16384,
+      "heads": 12,
+      "milliseconds": {
+        "unbiased": {
+          "ms": 0.06654069900512695,
+          "replays": 100,
+          "outputs": [
+            [
+              8,
+              12,
+              512
+            ],
+            [
+              8,
+              12
+            ]
+          ]
+        },
+        "biased": {
+          "ms": 0.06911026000976563,
+          "replays": 100,
+          "outputs": [
+            [
+              8,
+              12,
+              512
+            ],
+            [
+              8,
+              12
+            ]
+          ]
+        }
+      }
+    }
+  ],
+  "production_changed": false,
+  "count_replication": {
+    "relative_rms": 0.0018920017121139517,
+    "max_abs": 0.00875997543334961,
+    "reference_rms": 0.6340858392413031
+  }
+}

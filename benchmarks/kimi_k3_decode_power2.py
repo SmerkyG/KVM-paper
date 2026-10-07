@@ -261,6 +261,21 @@ def current_command(batch: int, lengths: tuple[int, ...], *, output: Path) -> li
 
 
 def render() -> dict:
+    if any(RESULTS.glob("oct7-current-*.json")):
+        from benchmarks.kimi_k3_current_timings import render as render_current
+        render_current(RESULTS)
+        (RESULTS / "DECODE_POWER2.md").write_text(
+            "# Kimi K3 decode timings\n\n"
+            "The fresh matched prefill **and** decode panel is now in "
+            "[CURRENT_TIMINGS.md](CURRENT_TIMINGS.md). It contains only completed, "
+            "audited October 7 measurements; pending contexts remain blank.\n\n"
+            "The superseded October 6 decode panel is preserved in "
+            "[OCT6_DECODE_POWER2.md](OCT6_DECODE_POWER2.md).\n\n"
+            "Refresh the current tables without GPU work using "
+            "`python -m benchmarks.kimi_k3_current_timings`. For new measurements, "
+            "use `benchmarks.kimi_k3_refresh_panel`, as documented in "
+            "[README.md](README.md); the old sweep command is historical.\n")
+        return {}
     sources = {}
     rows = {}
     for mode, batch, lengths, _ in PLANS:
@@ -425,6 +440,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run", action="store_true", help="Run missing measurements sequentially.")
     args = parser.parse_args()
+    if args.run and any(RESULTS.glob("oct7-current-*.json")):
+        parser.error("use benchmarks.kimi_k3_refresh_panel for the fresh matched protocol")
     current = render()
     if not args.run:
         return

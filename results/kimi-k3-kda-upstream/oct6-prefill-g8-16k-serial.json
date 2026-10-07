@@ -1,0 +1,178 @@
+{
+  "scope": "Isolated KDA upstream A/B probe; pinned runtime, no production monkeypatch.\n\nFirst validate against an FP32 recurrence and the image's current KDA, then\ntime the same 16K operands. This is a per-rank kernel fixture, not K3 latency\nor trained-model quality evidence. The full dense four-layer probe imports\nthese same adapters only after this preflight passes.\n",
+  "upstream_commit": "446b8e9a",
+  "candidate": {
+    "ms": 0.9762702941894531,
+    "replays": 100,
+    "outputs": [
+      [
+        1,
+        16384,
+        12,
+        128
+      ],
+      [
+        1,
+        12,
+        128,
+        128
+      ]
+    ]
+  },
+  "device": "AMD Instinct MI325X",
+  "arch": "gfx942:sramecc+:xnack-",
+  "heads": 12,
+  "dim": 128,
+  "groups": 8,
+  "seed": 0,
+  "status": "passed",
+  "production_changed": false,
+  "checks": [
+    {
+      "lengths": [
+        63,
+        65
+      ],
+      "shift": 0.0,
+      "duplicate": false,
+      "current_output": {
+        "relative_rms": 0.00448732625873498,
+        "max_abs": 0.0003385618329048157,
+        "reference_rms": 0.0068321671546137195
+      },
+      "current_state": {
+        "relative_rms": 0.003303914602369712,
+        "max_abs": 0.005335748195648193,
+        "reference_rms": 0.080508131164118
+      },
+      "candidate_output": {
+        "relative_rms": 0.004348815183616704,
+        "max_abs": 0.0003938600420951843,
+        "reference_rms": 0.0068321671546137195
+      },
+      "candidate_state": {
+        "relative_rms": 0.0032218936378353223,
+        "max_abs": 0.004748642444610596,
+        "reference_rms": 0.080508131164118
+      },
+      "old_vs_new_output": {
+        "relative_rms": 0.005836947320643671,
+        "max_abs": 0.000732421875,
+        "reference_rms": 0.006827922614265198
+      },
+      "old_vs_new_state": {
+        "relative_rms": 0.0037635882200201458,
+        "max_abs": 0.0064351558685302734,
+        "reference_rms": 0.08051121916874533
+      },
+      "tolerance": 0.008
+    },
+    {
+      "lengths": [
+        65
+      ],
+      "shift": -3.0,
+      "duplicate": true,
+      "current_output": {
+        "relative_rms": 0.009650663844840259,
+        "max_abs": 0.0008310060948133469,
+        "reference_rms": 0.009068908763246834
+      },
+      "current_state": {
+        "relative_rms": 0.009508930164999105,
+        "max_abs": 0.013137169182300568,
+        "reference_rms": 0.09662689106354695
+      },
+      "candidate_output": {
+        "relative_rms": 0.010455299155201414,
+        "max_abs": 0.0011294838041067123,
+        "reference_rms": 0.009068908763246834
+      },
+      "candidate_state": {
+        "relative_rms": 0.01010474223922373,
+        "max_abs": 0.01338544487953186,
+        "reference_rms": 0.09662689106354695
+      },
+      "old_vs_new_output": {
+        "relative_rms": 0.01159116068273911,
+        "max_abs": 0.0010986328125,
+        "reference_rms": 0.009069500646819825
+      },
+      "old_vs_new_state": {
+        "relative_rms": 0.010524170270054735,
+        "max_abs": 0.015563666820526123,
+        "reference_rms": 0.09663916585990832
+      },
+      "tolerance": 0.02
+    },
+    {
+      "lengths": [
+        64
+      ],
+      "shift": 3.0,
+      "duplicate": false,
+      "current_output": {
+        "relative_rms": 0.004104166848300781,
+        "max_abs": 0.0003103315830230713,
+        "reference_rms": 0.004109291788578401
+      },
+      "current_state": {
+        "relative_rms": 0.0026298778367885756,
+        "max_abs": 0.0019171535968780518,
+        "reference_rms": 0.046293621490104984
+      },
+      "candidate_output": {
+        "relative_rms": 0.004141429095592403,
+        "max_abs": 0.00046938657760620117,
+        "reference_rms": 0.004109291788578401
+      },
+      "candidate_state": {
+        "relative_rms": 0.0029441134696610648,
+        "max_abs": 0.004300057888031006,
+        "reference_rms": 0.046293621490104984
+      },
+      "old_vs_new_output": {
+        "relative_rms": 0.005612810503465308,
+        "max_abs": 0.00048828125,
+        "reference_rms": 0.00410626846720531
+      },
+      "old_vs_new_state": {
+        "relative_rms": 0.0032299723065874046,
+        "max_abs": 0.003936767578125,
+        "reference_rms": 0.046297947575196154
+      },
+      "tolerance": 0.008
+    }
+  ],
+  "long_check": {
+    "output": {
+      "relative_rms": 0.005852334759802986,
+      "max_abs": 0.0009765625,
+      "reference_rms": 0.007095010189637967
+    },
+    "state": {
+      "relative_rms": 0.004121118247608205,
+      "max_abs": 0.009388923645019531,
+      "reference_rms": 0.07324939445399083
+    }
+  },
+  "current": {
+    "ms": 1.699158935546875,
+    "replays": 100,
+    "outputs": [
+      [
+        1,
+        16384,
+        12,
+        128
+      ],
+      [
+        1,
+        12,
+        128,
+        128
+      ]
+    ]
+  },
+  "speedup": 1.740459528124431
+}

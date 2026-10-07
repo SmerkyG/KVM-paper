@@ -1,0 +1,60 @@
+{
+  "batches": [
+    8
+  ],
+  "engine_config": {
+    "attention_config": {
+      "backend": null,
+      "backend_per_kind": {
+        "mla_attention": "TRITON_MLA"
+      }
+    },
+    "compilation_config": {
+      "cudagraph_capture_sizes": [
+        8
+      ],
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "max_cudagraph_capture_size": 8
+    },
+    "dcp_comm_backend": "ag_rs",
+    "decode_context_parallel_size": 8,
+    "disable_custom_all_reduce": false,
+    "disable_log_stats": false,
+    "dtype": "bfloat16",
+    "enable_expert_parallel": true,
+    "enable_prefix_caching": false,
+    "enable_trace_replay": true,
+    "gpu_memory_utilization": 0.1,
+    "hf_overrides": {
+      "moe_intermediate_size": 768,
+      "num_experts": 896,
+      "num_experts_per_token": 8,
+      "routed_expert_hidden_size": 3584
+    },
+    "kernel_config": {
+      "moe_backend": "triton"
+    },
+    "kv_cache_dtype": "bfloat16",
+    "kv_cache_memory_bytes": 1073741824,
+    "language_model_only": true,
+    "load_format": "dummy",
+    "long_prefill_token_threshold": 4370,
+    "max_model_len": 4370,
+    "max_num_batched_tokens": 16392,
+    "max_num_seqs": 8,
+    "model": "tests/fixtures/kimi-k3-attention-moe",
+    "model_impl": "vllm",
+    "scheduler_cls": "vllm_lod_plugin.scheduler.LODChunkAlignedScheduler",
+    "skip_tokenizer_init": true,
+    "tensor_parallel_size": 8,
+    "trust_remote_code": true
+  },
+  "fixture_only": true,
+  "kda_prefill_baseline": "gluon_paged_G8",
+  "length": 4096,
+  "measurements": {},
+  "mode": "full",
+  "production_changed": false,
+  "status": "starting",
+  "timed_decode_steps": 257
+}

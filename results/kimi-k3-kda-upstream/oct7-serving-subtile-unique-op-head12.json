@@ -1,0 +1,63 @@
+{
+  "status": "complete",
+  "scope": "Isolated query-row packing test on production fused CK route/coarse.\n\nIndexer's ReLU/head-summed math is NOT used. Same BF16 expanded centroid\ninputs, FP32 scores, log-count bias, top-eight and coarse output in every arm.\nCompilation/warmup is outside timings. KDA G8 is the shared model baseline;\nthis per-rank kernel test does not execute KDA or claim full-model gains.\n",
+  "production_changed": false,
+  "serving_subtile": true,
+  "points": [
+    {
+      "queries": 2048,
+      "states": 4096,
+      "heads": 12,
+      "variants": {
+        "q128_k32": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.02957761212170285
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0,
+            "oracle_output": {
+              "relative_rms": 0.006124633518932705,
+              "max_abs": 0.0010499507188796997,
+              "reference_rms": 0.029807313334700044
+            }
+          },
+          "captured_milliseconds": [
+            0.527820348739624,
+            0.49870882034301756
+          ],
+          "coarse_only_milliseconds": [
+            0.3743246078491211,
+            0.37377865314483644
+          ]
+        },
+        "q64_k32": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.02957761212170285
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0,
+            "oracle_output": {
+              "relative_rms": 0.006124633518932705,
+              "max_abs": 0.0010499507188796997,
+              "reference_rms": 0.029807313334700044
+            }
+          },
+          "captured_milliseconds": [
+            0.4082160949707031,
+            0.3809105396270752
+          ],
+          "coarse_only_milliseconds": [
+            0.24781038761138915,
+            0.2467945098876953
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -4709,6 +4709,8 @@ class VLLMLayerLODPool:
             gqa_union_decode=True,
             gqa_union_hip=True,
             gqa_union_compact_page_descriptors=True,
+            gqa_union_fuse_compact_route=bool(getattr(
+                self.engine, "_kimi_fuse_compact_union", True)),
             gqa_union_page1_k=page["unified_page1_k"],
             gqa_union_page1_v=page["unified_page1_v"],
             gqa_union_page1_bias=page["unified_page1_bias"],

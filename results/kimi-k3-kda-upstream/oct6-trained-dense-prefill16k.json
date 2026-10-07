@@ -1,0 +1,732 @@
+{
+  "active_batch": 8,
+  "active_variant": "gluon_paged",
+  "dcp": 8,
+  "engine_config": {
+    "attention_config": {
+      "backend": null,
+      "backend_per_kind": {
+        "mla_attention": "TRITON_MLA"
+      }
+    },
+    "compilation_config": {
+      "cudagraph_capture_sizes": [
+        1,
+        8
+      ],
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "max_cudagraph_capture_size": 8
+    },
+    "dcp_comm_backend": "ag_rs",
+    "decode_context_parallel_size": 8,
+    "disable_custom_all_reduce": false,
+    "disable_log_stats": false,
+    "dtype": "bfloat16",
+    "enable_expert_parallel": true,
+    "enable_prefix_caching": false,
+    "gpu_memory_utilization": 0.8,
+    "kv_cache_dtype": "bfloat16",
+    "kv_cache_memory_bytes": 2147483648,
+    "language_model_only": true,
+    "load_format": "ipc_cache",
+    "long_prefill_token_threshold": 16384,
+    "max_model_len": 16393,
+    "max_num_batched_tokens": 16392,
+    "max_num_seqs": 8,
+    "model": "/tmp/dan-agent-kimi-k3-f831ab66814297da540d832a5235f8e904f29d06",
+    "model_impl": "vllm",
+    "model_loader_extra_config": {
+      "auto_start": true,
+      "backing_load_format": "auto",
+      "broker_timeout": 1800.0,
+      "cache_id": "kimi-k3-node2-full-int4-v1"
+    },
+    "quantization_config": {
+      "moe": {
+        "weight": "int4_per_group_32"
+      }
+    },
+    "scheduler_cls": "vllm_lod_plugin.scheduler.LODChunkAlignedScheduler",
+    "skip_tokenizer_init": true,
+    "tensor_parallel_size": 8,
+    "trust_remote_code": true
+  },
+  "groups": 8,
+  "length": 16384,
+  "measurements": {
+    "1": {
+      "current": {
+        "aggregate_prompt_tokens_per_second": 8016.817090365962,
+        "elapsed_seconds": 2.045738539658487,
+        "generated_token_ids": [
+          [
+            11
+          ]
+        ],
+        "prefill_seconds": 2.04370385594666,
+        "request_timings": {
+          "all_requests_live_overlap_seconds": 0.0,
+          "decode_window_seconds": 0.0,
+          "first_token_spread_seconds": 0.0,
+          "last_token_spread_seconds": 0.0,
+          "metric_window_seconds": 2.04370385594666,
+          "prefill_window_seconds": 2.04370385594666,
+          "request_decode_seconds": [
+            0.0
+          ],
+          "request_num_cached_tokens": [
+            0
+          ],
+          "request_num_preemptions": [
+            0
+          ],
+          "request_prefill_seconds": [
+            2.04370385594666
+          ],
+          "unattributed_wall_seconds": 0.0020346837118268013,
+          "wall_elapsed_seconds": 2.045738539658487
+        },
+        "worker_hooks": [
+          {
+            "groups": 8,
+            "implementation": "vllm.models.kimi_k3.amd.ops.kda_prefill",
+            "rank": 0,
+            "variant": "current"
+          },
+          {
+            "groups": 8,
+            "implementation": "vllm.models.kimi_k3.amd.ops.kda_prefill",
+            "rank": 1,
+            "variant": "current"
+          },
+          {
+            "groups": 8,
+            "implementation": "vllm.models.kimi_k3.amd.ops.kda_prefill",
+            "rank": 2,
+            "variant": "current"
+          },
+          {
+            "groups": 8,
+            "implementation": "vllm.models.kimi_k3.amd.ops.kda_prefill",
+            "rank": 3,
+            "variant": "current"
+          },
+          {
+            "groups": 8,
+            "implementation": "vllm.models.kimi_k3.amd.ops.kda_prefill",
+            "rank": 4,
+            "variant": "current"
+          },
+          {
+            "groups": 8,
+            "implementation": "vllm.models.kimi_k3.amd.ops.kda_prefill",
+            "rank": 5,
+            "variant": "current"
+          },
+          {
+            "groups": 8,
+            "implementation": "vllm.models.kimi_k3.amd.ops.kda_prefill",
+            "rank": 6,
+            "variant": "current"
+          },
+          {
+            "groups": 8,
+            "implementation": "vllm.models.kimi_k3.amd.ops.kda_prefill",
+            "rank": 7,
+            "variant": "current"
+          }
+        ]
+      },
+      "gluon": {
+        "aggregate_prompt_tokens_per_second": 8132.849514968494,
+        "elapsed_seconds": 2.016323233023286,
+        "generated_token_ids": [
+          [
+            11
+          ]
+        ],
+        "prefill_seconds": 2.0145460665225983,
+        "request_timings": {
+          "all_requests_live_overlap_seconds": 0.0,
+          "decode_window_seconds": 0.0,
+          "first_token_spread_seconds": 0.0,
+          "last_token_spread_seconds": 0.0,
+          "metric_window_seconds": 2.0145460665225983,
+          "prefill_window_seconds": 2.0145460665225983,
+          "request_decode_seconds": [
+            0.0
+          ],
+          "request_num_cached_tokens": [
+            0
+          ],
+          "request_num_preemptions": [
+            0
+          ],
+          "request_prefill_seconds": [
+            2.0145460665225983
+          ],
+          "unattributed_wall_seconds": 0.0017771665006875992,
+          "wall_elapsed_seconds": 2.016323233023286
+        },
+        "same_first_tokens_as_current": true,
+        "speedup": 1.0144736275375388,
+        "worker_hooks": [
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 0,
+            "variant": "gluon"
+          },
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 1,
+            "variant": "gluon"
+          },
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 2,
+            "variant": "gluon"
+          },
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 3,
+            "variant": "gluon"
+          },
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 4,
+            "variant": "gluon"
+          },
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 5,
+            "variant": "gluon"
+          },
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 6,
+            "variant": "gluon"
+          },
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 7,
+            "variant": "gluon"
+          }
+        ]
+      },
+      "gluon_paged": {
+        "aggregate_prompt_tokens_per_second": 8158.031763661923,
+        "elapsed_seconds": 2.010021866299212,
+        "generated_token_ids": [
+          [
+            11
+          ]
+        ],
+        "prefill_seconds": 2.00832755677402,
+        "request_timings": {
+          "all_requests_live_overlap_seconds": 0.0,
+          "decode_window_seconds": 0.0,
+          "first_token_spread_seconds": 0.0,
+          "last_token_spread_seconds": 0.0,
+          "metric_window_seconds": 2.00832755677402,
+          "prefill_window_seconds": 2.00832755677402,
+          "request_decode_seconds": [
+            0.0
+          ],
+          "request_num_cached_tokens": [
+            0
+          ],
+          "request_num_preemptions": [
+            0
+          ],
+          "request_prefill_seconds": [
+            2.00832755677402
+          ],
+          "unattributed_wall_seconds": 0.001694309525191784,
+          "wall_elapsed_seconds": 2.010021866299212
+        },
+        "same_first_tokens_as_copies": true,
+        "same_first_tokens_as_current": true,
+        "speedup": 1.0176148054401368,
+        "worker_hooks": [
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 0,
+            "variant": "gluon_paged"
+          },
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 1,
+            "variant": "gluon_paged"
+          },
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 2,
+            "variant": "gluon_paged"
+          },
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 3,
+            "variant": "gluon_paged"
+          },
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 4,
+            "variant": "gluon_paged"
+          },
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 5,
+            "variant": "gluon_paged"
+          },
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 6,
+            "variant": "gluon_paged"
+          },
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 7,
+            "variant": "gluon_paged"
+          }
+        ]
+      }
+    },
+    "8": {
+      "current": {
+        "aggregate_prompt_tokens_per_second": 8012.5494684214655,
+        "elapsed_seconds": 16.360126320272684,
+        "generated_token_ids": [
+          [
+            11
+          ],
+          [
+            10689
+          ],
+          [
+            11
+          ],
+          [
+            5445
+          ],
+          [
+            2284
+          ],
+          [
+            26
+          ],
+          [
+            46036
+          ],
+          [
+            316
+          ]
+        ],
+        "prefill_seconds": 16.35833894275129,
+        "request_timings": {
+          "all_requests_live_overlap_seconds": -14.312386997044086,
+          "decode_window_seconds": 0.0,
+          "first_token_spread_seconds": 14.312386997044086,
+          "last_token_spread_seconds": 14.312386997044086,
+          "metric_window_seconds": 16.35833894275129,
+          "prefill_window_seconds": 16.35833894275129,
+          "request_decode_seconds": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "request_num_cached_tokens": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "request_num_preemptions": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "request_prefill_seconds": [
+            2.045951945707202,
+            2.0538379941135645,
+            4.1100310971960425,
+            4.1032968843355775,
+            4.06961955409497,
+            4.059280219487846,
+            4.090331832878292,
+            4.094115694053471
+          ],
+          "unattributed_wall_seconds": 0.0017873775213956833,
+          "wall_elapsed_seconds": 16.360126320272684
+        },
+        "worker_hooks": [
+          {
+            "groups": 8,
+            "implementation": "vllm.models.kimi_k3.amd.ops.kda_prefill",
+            "rank": 0,
+            "variant": "current"
+          },
+          {
+            "groups": 8,
+            "implementation": "vllm.models.kimi_k3.amd.ops.kda_prefill",
+            "rank": 1,
+            "variant": "current"
+          },
+          {
+            "groups": 8,
+            "implementation": "vllm.models.kimi_k3.amd.ops.kda_prefill",
+            "rank": 2,
+            "variant": "current"
+          },
+          {
+            "groups": 8,
+            "implementation": "vllm.models.kimi_k3.amd.ops.kda_prefill",
+            "rank": 3,
+            "variant": "current"
+          },
+          {
+            "groups": 8,
+            "implementation": "vllm.models.kimi_k3.amd.ops.kda_prefill",
+            "rank": 4,
+            "variant": "current"
+          },
+          {
+            "groups": 8,
+            "implementation": "vllm.models.kimi_k3.amd.ops.kda_prefill",
+            "rank": 5,
+            "variant": "current"
+          },
+          {
+            "groups": 8,
+            "implementation": "vllm.models.kimi_k3.amd.ops.kda_prefill",
+            "rank": 6,
+            "variant": "current"
+          },
+          {
+            "groups": 8,
+            "implementation": "vllm.models.kimi_k3.amd.ops.kda_prefill",
+            "rank": 7,
+            "variant": "current"
+          }
+        ]
+      },
+      "gluon": {
+        "aggregate_prompt_tokens_per_second": 8121.039793173351,
+        "elapsed_seconds": 16.142702107317746,
+        "generated_token_ids": [
+          [
+            11
+          ],
+          [
+            10689
+          ],
+          [
+            11
+          ],
+          [
+            5445
+          ],
+          [
+            2284
+          ],
+          [
+            26
+          ],
+          [
+            46036
+          ],
+          [
+            316
+          ]
+        ],
+        "prefill_seconds": 16.13980516511947,
+        "request_timings": {
+          "all_requests_live_overlap_seconds": -14.118023012764752,
+          "decode_window_seconds": 0.0,
+          "first_token_spread_seconds": 14.118023012764752,
+          "last_token_spread_seconds": 14.118023012764752,
+          "metric_window_seconds": 16.13980516511947,
+          "prefill_window_seconds": 16.13980516511947,
+          "request_decode_seconds": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "request_num_cached_tokens": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "request_num_preemptions": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "request_prefill_seconds": [
+            2.0217821523547173,
+            4.038338092155755,
+            4.042453397996724,
+            4.047830149531364,
+            4.019506827928126,
+            4.00566007848829,
+            4.038275113329291,
+            4.046847230754793
+          ],
+          "unattributed_wall_seconds": 0.0028969421982765198,
+          "wall_elapsed_seconds": 16.142702107317746
+        },
+        "same_first_tokens_as_current": true,
+        "speedup": 1.013540050539402,
+        "worker_hooks": [
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 0,
+            "variant": "gluon"
+          },
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 1,
+            "variant": "gluon"
+          },
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 2,
+            "variant": "gluon"
+          },
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 3,
+            "variant": "gluon"
+          },
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 4,
+            "variant": "gluon"
+          },
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 5,
+            "variant": "gluon"
+          },
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 6,
+            "variant": "gluon"
+          },
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 7,
+            "variant": "gluon"
+          }
+        ]
+      },
+      "gluon_paged": {
+        "aggregate_prompt_tokens_per_second": 8129.127803952654,
+        "elapsed_seconds": 16.125458762049675,
+        "generated_token_ids": [
+          [
+            11
+          ],
+          [
+            10689
+          ],
+          [
+            11
+          ],
+          [
+            5445
+          ],
+          [
+            2284
+          ],
+          [
+            26
+          ],
+          [
+            46036
+          ],
+          [
+            316
+          ]
+        ],
+        "prefill_seconds": 16.123746994882822,
+        "request_timings": {
+          "all_requests_live_overlap_seconds": -14.106888938695192,
+          "decode_window_seconds": 0.0,
+          "first_token_spread_seconds": 14.106888938695192,
+          "last_token_spread_seconds": 14.106888938695192,
+          "metric_window_seconds": 16.123746994882822,
+          "prefill_window_seconds": 16.123746994882822,
+          "request_decode_seconds": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "request_num_cached_tokens": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "request_num_preemptions": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "request_prefill_seconds": [
+            2.0168580561876297,
+            4.03488099668175,
+            4.048574689775705,
+            4.048953782767057,
+            4.016312069259584,
+            4.008928464725614,
+            4.034405203536153,
+            4.0292455311864614
+          ],
+          "unattributed_wall_seconds": 0.001711767166852951,
+          "wall_elapsed_seconds": 16.125458762049675
+        },
+        "same_first_tokens_as_copies": true,
+        "same_first_tokens_as_current": true,
+        "speedup": 1.0145494684295728,
+        "worker_hooks": [
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 0,
+            "variant": "gluon_paged"
+          },
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 1,
+            "variant": "gluon_paged"
+          },
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 2,
+            "variant": "gluon_paged"
+          },
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 3,
+            "variant": "gluon_paged"
+          },
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 4,
+            "variant": "gluon_paged"
+          },
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 5,
+            "variant": "gluon_paged"
+          },
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 6,
+            "variant": "gluon_paged"
+          },
+          {
+            "groups": 8,
+            "implementation": "__main__",
+            "rank": 7,
+            "variant": "gluon_paged"
+          }
+        ]
+      }
+    }
+  },
+  "production_changed": false,
+  "prompt_token_sha256": {
+    "1": [
+      "6fe6c0627ecd84db8b87eb3f9fcc44a5b9dca64e0b1981bfb67844d08300952c"
+    ],
+    "8": [
+      "6fe6c0627ecd84db8b87eb3f9fcc44a5b9dca64e0b1981bfb67844d08300952c",
+      "1bd53640e62b25d60aeaf19e4c13b0cd7e277936a02594cabdae2e88b4e89784",
+      "a059c358eb2a6d695262a1535b1fe3b37a84ceb8f98a3bd6981442e9389ac0d2",
+      "4ea25776d5c48cc1addcfb8f75df371cc9774ac824e8d8539ed471817aa42189",
+      "d961b93ec8214cd23f297424a1d326d78bbfa87d1298bfaf51040dc57d920718",
+      "e388790f408f86b01cce85458996f0952fe103d57e3394c6f82472f676a00f20",
+      "ae8908f1a702256e135c28b9991bb20ffb206c6ba81ac11db55a89b0570b9675",
+      "18382041f96340d1dd3cf576dd5a230982f7c11750159dd2d2651b7afd722b30"
+    ]
+  },
+  "scope": "Matched trained-K3 dense prefill: replace only KDA, in one resident engine.\n\nThe unmodified runtime, new KDA math with unchanged state/output copies, and\ndirect state/output I/O are measured independently. Native dense MLA, MoE,\nweights, scheduler, convolution, normalization and HIP decode stay unchanged.\nOne exact-shape warmup and one ordinary ProLong serving measurement per point;\nno profiler, internal timers, prefix-cache hits, or weight reloads in between.\n",
+  "status": "complete",
+  "tp": 8,
+  "trained_weights": true,
+  "weight_cache_id": "kimi-k3-node2-full-int4-v1"
+}

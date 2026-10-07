@@ -1,0 +1,63 @@
+{
+  "status": "complete",
+  "scope": "Isolated query-row packing test on production fused CK route/coarse.\n\nIndexer's ReLU/head-summed math is NOT used. Same BF16 expanded centroid\ninputs, FP32 scores, log-count bias, top-eight and coarse output in every arm.\nCompilation/warmup is outside timings. KDA G8 is the shared model baseline;\nthis per-rank kernel test does not execute KDA or claim full-model gains.\n",
+  "production_changed": false,
+  "serving_subtile": true,
+  "points": [
+    {
+      "queries": 2048,
+      "states": 4096,
+      "heads": 12,
+      "variants": {
+        "q128_k32": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.02957761212170285
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0,
+            "oracle_output": {
+              "relative_rms": 0.006124633518932705,
+              "max_abs": 0.0010499507188796997,
+              "reference_rms": 0.029807313334700044
+            }
+          },
+          "captured_milliseconds": [
+            0.5203505039215088,
+            0.49935078620910645
+          ],
+          "coarse_only_milliseconds": [
+            0.374194598197937,
+            0.37473859786987307
+          ]
+        },
+        "q64_k32": {
+          "checks": {
+            "output": {
+              "relative_rms": 0.0,
+              "max_abs": 0.0,
+              "reference_rms": 0.02957761212170285
+            },
+            "lse_max_abs": 0.0,
+            "route_set_match": 1.0,
+            "oracle_output": {
+              "relative_rms": 0.006124633518932705,
+              "max_abs": 0.0010499507188796997,
+              "reference_rms": 0.029807313334700044
+            }
+          },
+          "captured_milliseconds": [
+            0.5112726211547851,
+            0.49786081314086916
+          ],
+          "coarse_only_milliseconds": [
+            0.37362658977508545,
+            0.3732585906982422
+          ]
+        }
+      }
+    }
+  ]
+}

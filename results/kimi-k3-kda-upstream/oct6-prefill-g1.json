@@ -1,0 +1,15 @@
+{
+  "scope": "Isolated KDA upstream A/B probe; pinned runtime, no production monkeypatch.\n\nFirst validate against an FP32 recurrence and the image's current KDA, then\ntime the same 16K operands. This is a per-rank kernel fixture, not K3 latency\nor trained-model quality evidence. The full dense four-layer probe imports\nthese same adapters only after this preflight passes.\n",
+  "upstream_commit": "446b8e9a",
+  "candidate": "Gluon chunk KDA CDNA3 port",
+  "device": "AMD Instinct MI325X",
+  "arch": "gfx942:sramecc+:xnack-",
+  "heads": 12,
+  "dim": 128,
+  "groups": 1,
+  "seed": 0,
+  "status": "failed",
+  "production_changed": false,
+  "checks": [],
+  "exception": "OutOfResources(74240, 65536, 'shared memory')"
+}

@@ -1,0 +1,62 @@
+{
+  "batches": [
+    1
+  ],
+  "engine_config": {
+    "attention_config": {
+      "backend": "CUSTOM",
+      "backend_per_kind": {
+        "mla_attention": "TRITON_MLA"
+      }
+    },
+    "compilation_config": {
+      "cudagraph_capture_sizes": [
+        1
+      ],
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "max_cudagraph_capture_size": 1
+    },
+    "dcp_comm_backend": "ag_rs",
+    "decode_context_parallel_size": 8,
+    "disable_custom_all_reduce": false,
+    "disable_log_stats": false,
+    "dtype": "bfloat16",
+    "enable_expert_parallel": true,
+    "enable_prefix_caching": false,
+    "enable_trace_replay": true,
+    "gpu_memory_utilization": 0.8,
+    "kv_cache_dtype": "bfloat16",
+    "kv_cache_memory_bytes": 1073741824,
+    "language_model_only": true,
+    "load_format": "ipc_cache",
+    "long_prefill_token_threshold": 16384,
+    "max_model_len": 17426,
+    "max_num_batched_tokens": 16385,
+    "max_num_seqs": 1,
+    "model": "/tmp/dan-agent-kimi-k3-f831ab66814297da540d832a5235f8e904f29d06",
+    "model_impl": "vllm",
+    "model_loader_extra_config": {
+      "auto_start": true,
+      "backing_load_format": "auto",
+      "broker_timeout": 1800.0,
+      "cache_id": "kimi-k3-shared-int4-v6"
+    },
+    "quantization_config": {
+      "moe": {
+        "weight": "int4_per_group_32"
+      }
+    },
+    "scheduler_cls": "vllm_lod_plugin.scheduler.LODChunkAlignedScheduler",
+    "skip_tokenizer_init": true,
+    "tensor_parallel_size": 8,
+    "trust_remote_code": true
+  },
+  "fixture_only": false,
+  "kda_prefill_baseline": "gluon_paged_G8",
+  "length": 16384,
+  "measurements": {},
+  "mode": "two-tier",
+  "production_changed": false,
+  "status": "starting",
+  "timed_decode_steps": 1025
+}

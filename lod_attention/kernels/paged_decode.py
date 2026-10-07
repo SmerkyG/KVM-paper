@@ -108,6 +108,7 @@ def fused_decode_paged_lod_attention(
     gqa_union_staged_fixed_aiter: bool = False,
     gqa_union_fixed_mask_aiter: bool = False,
     gqa_union_compact_page_descriptors: bool = False,
+    gqa_union_fuse_compact_route: bool = False,
     gqa_union_overlap_local_sink: bool = False,
     gqa_union_fixed_mask_tile_size: int = 64,
     gqa_union_fixed_mask_adaptive_segments: bool = False,
@@ -958,10 +959,13 @@ def fused_decode_paged_lod_attention(
                 gqa_union_fused_route_union = bool(
                     gqa_union_score_only
                     and not gqa_union_fixed_mask
-                    # Compact descriptors need one complete packed slot list.
-                    # Build it in the dedicated per-GQA workgroup instead of
-                    # atomically appending it from route workgroups.
-                    and not gqa_union_compact_pages
+                    # Kernel completion publishes the complete atomic union.
+                    # Distributed routing must merge its global candidates
+                    # before building any compact union from them.
+                    and (not gqa_union_compact_pages or (
+                        gqa_union_fuse_compact_route
+                        and gqa_union_head_tiled_metadata
+                        and distributed_route_group is None))
                     and recursive_page_cache is None
                 )
                 gqa_union_direct_slot_queue = False

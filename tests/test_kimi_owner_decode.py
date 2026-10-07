@@ -241,6 +241,9 @@ def test_pool_backed_owner_prefill_preserves_cache_and_captured_decode(monkeypat
     parents = []
     for index, child in enumerate(pools):
         engine = child.engine
+        # Isolate backing reuse/physical mean reuse from the newly fused
+        # atomic union ordering. The fusion has separate set/oracle checks.
+        engine._kimi_fuse_compact_union = False
         # Only construction is under test here. Avoid the costly 96-head
         # prefill readout; below, actual routed decode checks the cache output.
         monkeypatch.setattr(engine, "_prefill_local_attention",
@@ -322,8 +325,9 @@ def test_pool_backed_owner_prefill_preserves_cache_and_captured_decode(monkeypat
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="HIP graph/kernel validation")
+@pytest.mark.parametrize("fused_union", [False, True])
 @torch.inference_mode()
-def test_owner_attention_graph_replay_matches_eager_with_fixed_cache_pointers():
+def test_owner_attention_graph_replay_matches_eager_with_fixed_cache_pointers(fused_union):
     from vllm_lod_plugin.config import VLLMLODSettings
 
     device = torch.device("cuda")
@@ -341,6 +345,7 @@ def test_owner_attention_graph_replay_matches_eager_with_fixed_cache_pointers():
         dtype=torch.bfloat16, dcp_rank=0, dcp_group=group, layer=layer)
     initialize_owner_decode(parent)
     decode = parent.owner_decode_pool
+    decode.engine._kimi_fuse_compact_union = fused_union
     prefix = torch.randn(1,1,16384,576,device=device,dtype=torch.bfloat16)
     cache = decode.engine.build_cache_from_bf16(prefix,prefix[...,:512])
     q = torch.randn(8,96,192,device=device,dtype=torch.bfloat16)
@@ -359,7 +364,11 @@ def test_owner_attention_graph_replay_matches_eager_with_fixed_cache_pointers():
     pointers = {k:t.data_ptr() for k,t in parent.owner_decode_buffers.items()}
     graph.replay()
     torch.cuda.synchronize()
-    torch.testing.assert_close(parent.owner_decode_buffers["receive"],expected,atol=0,rtol=0)
+    # Atomic union order can change summation rounding, not membership.
+    # Keep the deterministic separate-union control bitwise; exercise the
+    # default fused graph with numerical tolerance and unchanged pointers.
+    tolerance = dict(atol=3e-4, rtol=.015) if fused_union else dict(atol=0, rtol=0)
+    torch.testing.assert_close(parent.owner_decode_buffers["receive"],expected,**tolerance)
     assert decode.local_lens.item()==int(cache.state["recent_len"])+1
     # The captured graph uses a device row map, not a baked-in Python slice.
     decode.install(0,cache)
@@ -368,7 +377,7 @@ def test_owner_attention_graph_replay_matches_eager_with_fixed_cache_pointers():
     decode.install(0,cache)
     graph.replay()
     torch.cuda.synchronize()
-    torch.testing.assert_close(parent.owner_decode_buffers["receive"],expected,atol=0,rtol=0)
+    torch.testing.assert_close(parent.owner_decode_buffers["receive"],expected,**tolerance)
     assert pointers=={k:t.data_ptr() for k,t in parent.owner_decode_buffers.items()}
 
 
