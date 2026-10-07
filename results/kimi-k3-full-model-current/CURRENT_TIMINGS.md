@@ -52,6 +52,8 @@ The first new B1 LoD 32K/64K passes overlapped CPU regression tests on the timin
 
 - `oct7-fixed-full-b1-long.json`: complete; {'length': 1044480, 'phase': 'point_complete', 'timestamp_unix': 1791384121.719901}
 - `oct7-fixed-full-b1-short.json`: complete; {'length': 262144, 'phase': 'point_complete', 'timestamp_unix': 1791383002.2503943}
+- `oct7-fixed-full-b8-long-remaining-1020k-cache29-scratch0.json`: failed; {'length': 1044480, 'phase': 'warmup', 'timestamp_unix': 1791388559.5035017}
+- `oct7-fixed-full-b8-long-remaining-1020k-cache29.json`: failed; {'length': 1044480, 'phase': 'warmup', 'timestamp_unix': 1791388346.8181174}
 - `oct7-fixed-full-b8-long-remaining-1020k.json`: failed; {'length': 1044480, 'phase': 'warmup', 'timestamp_unix': 1791388059.2712798}
 - `oct7-fixed-full-b8-long.json`: complete; {'length': 524288, 'phase': 'point_complete', 'timestamp_unix': 1791387950.1725783}
 - `oct7-fixed-full-b8-short.json`: complete; {'length': 131072, 'phase': 'point_complete', 'timestamp_unix': 1791385017.7432396}
@@ -70,6 +72,8 @@ The first new B1 LoD 32K/64K passes overlapped CPU regression tests on the timin
 
 - [oct7-fixed-full-b1-long.json](oct7-fixed-full-b1-long.json)
 - [oct7-fixed-full-b1-short.json](oct7-fixed-full-b1-short.json)
+- [oct7-fixed-full-b8-long-remaining-1020k-cache29-scratch0.json](oct7-fixed-full-b8-long-remaining-1020k-cache29-scratch0.json)
+- [oct7-fixed-full-b8-long-remaining-1020k-cache29.json](oct7-fixed-full-b8-long-remaining-1020k-cache29.json)
 - [oct7-fixed-full-b8-long-remaining-1020k.json](oct7-fixed-full-b8-long-remaining-1020k.json)
 - [oct7-fixed-full-b8-long.json](oct7-fixed-full-b8-long.json)
 - [oct7-fixed-full-b8-short.json](oct7-fixed-full-b8-short.json)

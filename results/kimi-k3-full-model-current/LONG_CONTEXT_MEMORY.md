@@ -36,8 +36,11 @@ during warmup: HSA resource errors with 0 MB free on ranks 0, 2 and 3 and
 Neither attempt changes the attention kernel, prompt cohort, decode cadence,
 quantization or scratch-reclamation policy. A final memory-only control keeps
 29 GiB and enables scratch reclamation (`HSA_NO_SCRATCH_RECLAIM=0`), as the
-LoD runner already does. Its actual complete generation must still be checked
-before claiming support or promoting this environment change.
+LoD runner already does. This also fails during warmup with an HSA resource
+error and zero free memory on rank 5. Raw failure:
+[oct7-fixed-full-b8-long-remaining-1020k-cache29-scratch0.json](oct7-fixed-full-b8-long-remaining-1020k-cache29-scratch0.json).
+No dense 1020K/B8 timing is claimed, and the unsuccessful environment change
+is not promoted to the normal dense timing runner.
 The LoD attempt is independently running full-length warmup on node 2.
 
 ## Capacity investigation history

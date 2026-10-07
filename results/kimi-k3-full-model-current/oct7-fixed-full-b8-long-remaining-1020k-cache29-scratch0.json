@@ -1,0 +1,467 @@
+{
+  "checkpoint": "/tmp/dan-agent-kimi-k3-f831ab66814297da540d832a5235f8e904f29d06",
+  "kda_prefill": "gluon_paged",
+  "kda_prefill_worker_audit": [
+    {
+      "rank": 0,
+      "variant": "gluon_paged",
+      "groups": 8,
+      "implementation": "benchmarks.kimi_k3_kda_dense_prefill"
+    },
+    {
+      "rank": 1,
+      "variant": "gluon_paged",
+      "groups": 8,
+      "implementation": "benchmarks.kimi_k3_kda_dense_prefill"
+    },
+    {
+      "rank": 2,
+      "variant": "gluon_paged",
+      "groups": 8,
+      "implementation": "benchmarks.kimi_k3_kda_dense_prefill"
+    },
+    {
+      "rank": 3,
+      "variant": "gluon_paged",
+      "groups": 8,
+      "implementation": "benchmarks.kimi_k3_kda_dense_prefill"
+    },
+    {
+      "rank": 4,
+      "variant": "gluon_paged",
+      "groups": 8,
+      "implementation": "benchmarks.kimi_k3_kda_dense_prefill"
+    },
+    {
+      "rank": 5,
+      "variant": "gluon_paged",
+      "groups": 8,
+      "implementation": "benchmarks.kimi_k3_kda_dense_prefill"
+    },
+    {
+      "rank": 6,
+      "variant": "gluon_paged",
+      "groups": 8,
+      "implementation": "benchmarks.kimi_k3_kda_dense_prefill"
+    },
+    {
+      "rank": 7,
+      "variant": "gluon_paged",
+      "groups": 8,
+      "implementation": "benchmarks.kimi_k3_kda_dense_prefill"
+    }
+  ],
+  "max_model_len": 1045514,
+  "mode": "full",
+  "allocation_audit_only": false,
+  "capacity_only": false,
+  "diagnostic_only": false,
+  "route_scatter_validation": false,
+  "weight_cache_id": "kimi-k3-shared-int4-v6",
+  "real_token_cache": "/home/dan/subusers/agent/KVM-paper-release/results/kimi-k3-full-model-current/prolong-kimi-k3-speed-token-cache.pt",
+  "reference_baselines": [
+    "/home/dan/subusers/agent/KVM-paper-release/results/kimi-k3-full-model-current/oct7-frozen-b8-1020k-cohort.json"
+  ],
+  "request_owner_prefill": false,
+  "owner_local_mla": false,
+  "owner_tp_mla": false,
+  "head_owner_mla": false,
+  "attention_owners": null,
+  "attention_heads_per_owner": null,
+  "owner_local_projection_audits": null,
+  "scheduler_row_chunk": 16384,
+  "scheduler_total_budget": 16392,
+  "batch_size": 8,
+  "decode_tokens": 1026,
+  "reference_decode_trace": true,
+  "reference_trace_extensions": {},
+  "decode_execution": "native",
+  "tensor_parallel_size": 8,
+  "decode_context_parallel_size": 8,
+  "repeats": 1,
+  "rotating_prefills": false,
+  "rotating_cohort": 8,
+  "distributed_prefill_construction": false,
+  "cross_layer_prefill_group": null,
+  "independent_local_dcp_prefill": false,
+  "replicated_summary_dcp_prefill": false,
+  "global_centroid_sharded_leaf_prefill": false,
+  "transient_reconstructed_prefill_workspace": false,
+  "sharded_workspace_layout": null,
+  "environment": {
+    "PYTORCH_ALLOC_CONF": "expandable_segments:True",
+    "CLUSTER_RUN_NODE": "dev-shared-research-4.dev-training.svc.cluster.local",
+    "HSA_NO_SCRATCH_RECLAIM": "0",
+    "LOD_BENCHMARK_SYNC_PREFILL_CACHE": "1",
+    "LOD_BENCHMARK_SYNCHRONIZED_DECODE": "1",
+    "LOD_BENCHMARK_ADMISSION_COHORT": "8"
+  },
+  "measurements": {},
+  "gpu_memory_utilization": 0.8,
+  "kv_cache_memory_bytes": 31138512896,
+  "worker_attention_audit_status": "pending",
+  "measurement_status": "failed",
+  "graph_prefill_requested": false,
+  "allocation_worker_memory": [
+    {
+      "rank": 0,
+      "peak_torch_allocated_bytes": 32659250688,
+      "peak_torch_reserved_bytes": 32816234496,
+      "current_torch_allocated_bytes": 32566870016,
+      "device_free_bytes_after_generation": 1948254208,
+      "device_total_bytes": 274861129728,
+      "lod_storage_inventory": {
+        "allocation_groups_bytes": {
+          "persistent_semantic_cache": 0,
+          "owner_persistent_semantic_cache": 0,
+          "owner_prefill_rows": 0,
+          "replicated_prefill_shadows": 0,
+          "decode_scratch": 0,
+          "owner_decode_scratch": 0,
+          "owner_projection_weights": 0,
+          "owner_transport": 0,
+          "shared_prefill_scratch": 0,
+          "construction_workspaces": 0,
+          "owner_construction_workspaces": 0,
+          "queued_construction_sources": 0
+        },
+        "shared_decode_scratch": {
+          "participating_layers": 0,
+          "registries": 0,
+          "unique_tensor_count": 0,
+          "storage_bytes": 0,
+          "scope": "shared transient tensors only; per-layer outputs/state excluded"
+        },
+        "torch_allocated_bytes": 32566870016,
+        "torch_reserved_bytes": 32721862656,
+        "torch_peak_allocated_bytes_so_far": 32659250688,
+        "device_free_bytes": 1948254208,
+        "device_total_bytes": 274861129728,
+        "shadow_rows_by_layer": {},
+        "shadow_global_lengths_by_layer": {},
+        "sharded_prefill_archive_by_layer": {},
+        "owner_remote_pool_backed_by_layer": {},
+        "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+      },
+      "centroid_leaf_stats": {},
+      "centroid_leaf_stats_scope": "untimed warmup, before request cleanup; absent if not armed"
+    },
+    {
+      "rank": 1,
+      "peak_torch_allocated_bytes": 32659250688,
+      "peak_torch_reserved_bytes": 32816234496,
+      "current_torch_allocated_bytes": 32566870016,
+      "device_free_bytes_after_generation": 4066377728,
+      "device_total_bytes": 274861129728,
+      "lod_storage_inventory": {
+        "allocation_groups_bytes": {
+          "persistent_semantic_cache": 0,
+          "owner_persistent_semantic_cache": 0,
+          "owner_prefill_rows": 0,
+          "replicated_prefill_shadows": 0,
+          "decode_scratch": 0,
+          "owner_decode_scratch": 0,
+          "owner_projection_weights": 0,
+          "owner_transport": 0,
+          "shared_prefill_scratch": 0,
+          "construction_workspaces": 0,
+          "owner_construction_workspaces": 0,
+          "queued_construction_sources": 0
+        },
+        "shared_decode_scratch": {
+          "participating_layers": 0,
+          "registries": 0,
+          "unique_tensor_count": 0,
+          "storage_bytes": 0,
+          "scope": "shared transient tensors only; per-layer outputs/state excluded"
+        },
+        "torch_allocated_bytes": 32566870016,
+        "torch_reserved_bytes": 32721862656,
+        "torch_peak_allocated_bytes_so_far": 32659250688,
+        "device_free_bytes": 4066377728,
+        "device_total_bytes": 274861129728,
+        "shadow_rows_by_layer": {},
+        "shadow_global_lengths_by_layer": {},
+        "sharded_prefill_archive_by_layer": {},
+        "owner_remote_pool_backed_by_layer": {},
+        "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+      },
+      "centroid_leaf_stats": {},
+      "centroid_leaf_stats_scope": "untimed warmup, before request cleanup; absent if not armed"
+    },
+    {
+      "rank": 2,
+      "peak_torch_allocated_bytes": 32659250688,
+      "peak_torch_reserved_bytes": 32816234496,
+      "current_torch_allocated_bytes": 32566870016,
+      "device_free_bytes_after_generation": 1952448512,
+      "device_total_bytes": 274861129728,
+      "lod_storage_inventory": {
+        "allocation_groups_bytes": {
+          "persistent_semantic_cache": 0,
+          "owner_persistent_semantic_cache": 0,
+          "owner_prefill_rows": 0,
+          "replicated_prefill_shadows": 0,
+          "decode_scratch": 0,
+          "owner_decode_scratch": 0,
+          "owner_projection_weights": 0,
+          "owner_transport": 0,
+          "shared_prefill_scratch": 0,
+          "construction_workspaces": 0,
+          "owner_construction_workspaces": 0,
+          "queued_construction_sources": 0
+        },
+        "shared_decode_scratch": {
+          "participating_layers": 0,
+          "registries": 0,
+          "unique_tensor_count": 0,
+          "storage_bytes": 0,
+          "scope": "shared transient tensors only; per-layer outputs/state excluded"
+        },
+        "torch_allocated_bytes": 32566870016,
+        "torch_reserved_bytes": 32721862656,
+        "torch_peak_allocated_bytes_so_far": 32659250688,
+        "device_free_bytes": 1952448512,
+        "device_total_bytes": 274861129728,
+        "shadow_rows_by_layer": {},
+        "shadow_global_lengths_by_layer": {},
+        "sharded_prefill_archive_by_layer": {},
+        "owner_remote_pool_backed_by_layer": {},
+        "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+      },
+      "centroid_leaf_stats": {},
+      "centroid_leaf_stats_scope": "untimed warmup, before request cleanup; absent if not armed"
+    },
+    {
+      "rank": 3,
+      "peak_torch_allocated_bytes": 32659250688,
+      "peak_torch_reserved_bytes": 32816234496,
+      "current_torch_allocated_bytes": 32566870016,
+      "device_free_bytes_after_generation": 1952448512,
+      "device_total_bytes": 274861129728,
+      "lod_storage_inventory": {
+        "allocation_groups_bytes": {
+          "persistent_semantic_cache": 0,
+          "owner_persistent_semantic_cache": 0,
+          "owner_prefill_rows": 0,
+          "replicated_prefill_shadows": 0,
+          "decode_scratch": 0,
+          "owner_decode_scratch": 0,
+          "owner_projection_weights": 0,
+          "owner_transport": 0,
+          "shared_prefill_scratch": 0,
+          "construction_workspaces": 0,
+          "owner_construction_workspaces": 0,
+          "queued_construction_sources": 0
+        },
+        "shared_decode_scratch": {
+          "participating_layers": 0,
+          "registries": 0,
+          "unique_tensor_count": 0,
+          "storage_bytes": 0,
+          "scope": "shared transient tensors only; per-layer outputs/state excluded"
+        },
+        "torch_allocated_bytes": 32566870016,
+        "torch_reserved_bytes": 32721862656,
+        "torch_peak_allocated_bytes_so_far": 32659250688,
+        "device_free_bytes": 1952448512,
+        "device_total_bytes": 274861129728,
+        "shadow_rows_by_layer": {},
+        "shadow_global_lengths_by_layer": {},
+        "sharded_prefill_archive_by_layer": {},
+        "owner_remote_pool_backed_by_layer": {},
+        "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+      },
+      "centroid_leaf_stats": {},
+      "centroid_leaf_stats_scope": "untimed warmup, before request cleanup; absent if not armed"
+    },
+    {
+      "rank": 4,
+      "peak_torch_allocated_bytes": 32659250688,
+      "peak_torch_reserved_bytes": 32816234496,
+      "current_torch_allocated_bytes": 32566870016,
+      "device_free_bytes_after_generation": 2556428288,
+      "device_total_bytes": 274861129728,
+      "lod_storage_inventory": {
+        "allocation_groups_bytes": {
+          "persistent_semantic_cache": 0,
+          "owner_persistent_semantic_cache": 0,
+          "owner_prefill_rows": 0,
+          "replicated_prefill_shadows": 0,
+          "decode_scratch": 0,
+          "owner_decode_scratch": 0,
+          "owner_projection_weights": 0,
+          "owner_transport": 0,
+          "shared_prefill_scratch": 0,
+          "construction_workspaces": 0,
+          "owner_construction_workspaces": 0,
+          "queued_construction_sources": 0
+        },
+        "shared_decode_scratch": {
+          "participating_layers": 0,
+          "registries": 0,
+          "unique_tensor_count": 0,
+          "storage_bytes": 0,
+          "scope": "shared transient tensors only; per-layer outputs/state excluded"
+        },
+        "torch_allocated_bytes": 32566870016,
+        "torch_reserved_bytes": 32721862656,
+        "torch_peak_allocated_bytes_so_far": 32659250688,
+        "device_free_bytes": 2556428288,
+        "device_total_bytes": 274861129728,
+        "shadow_rows_by_layer": {},
+        "shadow_global_lengths_by_layer": {},
+        "sharded_prefill_archive_by_layer": {},
+        "owner_remote_pool_backed_by_layer": {},
+        "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+      },
+      "centroid_leaf_stats": {},
+      "centroid_leaf_stats_scope": "untimed warmup, before request cleanup; absent if not armed"
+    },
+    {
+      "rank": 5,
+      "peak_torch_allocated_bytes": 32659250688,
+      "peak_torch_reserved_bytes": 32816234496,
+      "current_torch_allocated_bytes": 32566870016,
+      "device_free_bytes_after_generation": 2254438400,
+      "device_total_bytes": 274861129728,
+      "lod_storage_inventory": {
+        "allocation_groups_bytes": {
+          "persistent_semantic_cache": 0,
+          "owner_persistent_semantic_cache": 0,
+          "owner_prefill_rows": 0,
+          "replicated_prefill_shadows": 0,
+          "decode_scratch": 0,
+          "owner_decode_scratch": 0,
+          "owner_projection_weights": 0,
+          "owner_transport": 0,
+          "shared_prefill_scratch": 0,
+          "construction_workspaces": 0,
+          "owner_construction_workspaces": 0,
+          "queued_construction_sources": 0
+        },
+        "shared_decode_scratch": {
+          "participating_layers": 0,
+          "registries": 0,
+          "unique_tensor_count": 0,
+          "storage_bytes": 0,
+          "scope": "shared transient tensors only; per-layer outputs/state excluded"
+        },
+        "torch_allocated_bytes": 32566870016,
+        "torch_reserved_bytes": 32721862656,
+        "torch_peak_allocated_bytes_so_far": 32659250688,
+        "device_free_bytes": 2254438400,
+        "device_total_bytes": 274861129728,
+        "shadow_rows_by_layer": {},
+        "shadow_global_lengths_by_layer": {},
+        "sharded_prefill_archive_by_layer": {},
+        "owner_remote_pool_backed_by_layer": {},
+        "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+      },
+      "centroid_leaf_stats": {},
+      "centroid_leaf_stats_scope": "untimed warmup, before request cleanup; absent if not armed"
+    },
+    {
+      "rank": 6,
+      "peak_torch_allocated_bytes": 32659250688,
+      "peak_torch_reserved_bytes": 32816234496,
+      "current_torch_allocated_bytes": 32566870016,
+      "device_free_bytes_after_generation": 2556428288,
+      "device_total_bytes": 274861129728,
+      "lod_storage_inventory": {
+        "allocation_groups_bytes": {
+          "persistent_semantic_cache": 0,
+          "owner_persistent_semantic_cache": 0,
+          "owner_prefill_rows": 0,
+          "replicated_prefill_shadows": 0,
+          "decode_scratch": 0,
+          "owner_decode_scratch": 0,
+          "owner_projection_weights": 0,
+          "owner_transport": 0,
+          "shared_prefill_scratch": 0,
+          "construction_workspaces": 0,
+          "owner_construction_workspaces": 0,
+          "queued_construction_sources": 0
+        },
+        "shared_decode_scratch": {
+          "participating_layers": 0,
+          "registries": 0,
+          "unique_tensor_count": 0,
+          "storage_bytes": 0,
+          "scope": "shared transient tensors only; per-layer outputs/state excluded"
+        },
+        "torch_allocated_bytes": 32566870016,
+        "torch_reserved_bytes": 32721862656,
+        "torch_peak_allocated_bytes_so_far": 32659250688,
+        "device_free_bytes": 2556428288,
+        "device_total_bytes": 274861129728,
+        "shadow_rows_by_layer": {},
+        "shadow_global_lengths_by_layer": {},
+        "sharded_prefill_archive_by_layer": {},
+        "owner_remote_pool_backed_by_layer": {},
+        "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+      },
+      "centroid_leaf_stats": {},
+      "centroid_leaf_stats_scope": "untimed warmup, before request cleanup; absent if not armed"
+    },
+    {
+      "rank": 7,
+      "peak_torch_allocated_bytes": 32659250688,
+      "peak_torch_reserved_bytes": 32816234496,
+      "current_torch_allocated_bytes": 32566870016,
+      "device_free_bytes_after_generation": 2556428288,
+      "device_total_bytes": 274861129728,
+      "lod_storage_inventory": {
+        "allocation_groups_bytes": {
+          "persistent_semantic_cache": 0,
+          "owner_persistent_semantic_cache": 0,
+          "owner_prefill_rows": 0,
+          "replicated_prefill_shadows": 0,
+          "decode_scratch": 0,
+          "owner_decode_scratch": 0,
+          "owner_projection_weights": 0,
+          "owner_transport": 0,
+          "shared_prefill_scratch": 0,
+          "construction_workspaces": 0,
+          "owner_construction_workspaces": 0,
+          "queued_construction_sources": 0
+        },
+        "shared_decode_scratch": {
+          "participating_layers": 0,
+          "registries": 0,
+          "unique_tensor_count": 0,
+          "storage_bytes": 0,
+          "scope": "shared transient tensors only; per-layer outputs/state excluded"
+        },
+        "torch_allocated_bytes": 32566870016,
+        "torch_reserved_bytes": 32721862656,
+        "torch_peak_allocated_bytes_so_far": 32659250688,
+        "device_free_bytes": 2556428288,
+        "device_total_bytes": 274861129728,
+        "shadow_rows_by_layer": {},
+        "shadow_global_lengths_by_layer": {},
+        "sharded_prefill_archive_by_layer": {},
+        "owner_remote_pool_backed_by_layer": {},
+        "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch"
+      },
+      "centroid_leaf_stats": {},
+      "centroid_leaf_stats_scope": "untimed warmup, before request cleanup; absent if not armed"
+    }
+  ],
+  "current_phase": {
+    "length": 1044480,
+    "phase": "warmup",
+    "timestamp_unix": 1791388559.5035017
+  },
+  "phase_history": [
+    {
+      "length": 1044480,
+      "phase": "warmup",
+      "timestamp_unix": 1791388559.5035017
+    }
+  ],
+  "failure": {
+    "exception_type": "EngineDeadError",
+    "message": "EngineCore encountered an issue. See stack trace (above) for the root cause."
+  }
+}

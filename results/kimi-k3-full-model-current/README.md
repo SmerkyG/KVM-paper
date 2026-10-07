@@ -39,8 +39,10 @@ keeps compilation artifacts on local disk. Resident weight caches are
 reuse the existing ID rather than loading another full weight copy. See
 [memory work](LONG_CONTEXT_MEMORY.md) for capacity history. Fresh B1 measurements
 complete through 1020K and both B8 modes through 512K. Fresh B8/1020K attempts use
-separate nodes, each after its mode's 512K engine exits. B8 1020K has
-**not** yet completed generation and is not a timing cell.
+separate nodes, each after its mode's 512K engine exits. Dense failed warmup
+with 31-GiB and 29-GiB pools, including a scratch-reclamation control; LoD is
+still in full-length warmup. B8 1020K has **not** yet completed generation
+and is not a timing cell.
 
 ## Reproduction
 
