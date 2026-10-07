@@ -22,6 +22,18 @@ short-prefix capacity check establishes full-length support; complete
 warmup and measured generation remain required. See
 [CURRENT_TIMINGS.md](CURRENT_TIMINGS.md) for audited progress.
 
+The fresh **31-GiB dense B8/1020K attempt failed during warmup**, after engine
+initialization. HSA reported `HSA_STATUS_ERROR_OUT_OF_RESOURCES` with only
+14 MB free on ranks 4–7; no complete prompt generation or timing was saved.
+Raw failure: [oct7-fixed-full-b8-long-remaining-1020k.json](oct7-fixed-full-b8-long-remaining-1020k.json).
+vLLM advertised 9,415,634 cache tokens, or 9.01 requests at the configured
+1,045,514-token reservation. A follow-up uses **29 GiB**, expected to retain
+capacity for eight requests while freeing 2 GiB per GPU for execution.
+It does not change the attention kernel, prompt cohort, decode cadence,
+quantization or scratch-reclamation policy. Its actual reported capacity and
+complete generation must still be checked before claiming support.
+The LoD attempt is independently running full-length warmup on node 2.
+
 ## Capacity investigation history
 
 The remaining sections retain earlier attempts and are not the current speed
