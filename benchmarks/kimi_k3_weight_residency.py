@@ -53,7 +53,7 @@ def snapshot(cache_id, cache_dir=None):
     workers = []
     for ready in sorted(cache_namespace(cache_dir, cache_id).glob("gpu-*.ready.json")):
         data = json.loads(ready.read_text())
-        workers.append(dict(pid=data["pid"], tensors=data["tensors"],
+        workers.append(dict(pid=data["pid"], socket=data["socket"], tensors=data["tensors"],
             fingerprint=data["fingerprint"], scratch_environment=scratch_environment(data["pid"])))
     return dict(scope="read-only; device totals may include active inference clients",
         timestamp_utc=datetime.now(timezone.utc).isoformat(), cache_id=cache_id,

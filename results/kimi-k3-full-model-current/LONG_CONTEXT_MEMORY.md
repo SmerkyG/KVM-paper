@@ -108,6 +108,23 @@ about **1.86 GiB/rank lower**. These are two nodes with the same image and
 matching per-rank export fingerprints, not a paired per-GPU before/after
 reading on node 2. The rest of the daemon-versus-tensor gap remains unexplained.
 
+A [read-only IPC-extent inspection](oct7-daemon-ipc-extents-scratch0.json)
+on ranks 0, 2 and 7 finds 895 allocation handles/rank, 200.888 GiB of
+exported storage union and only **39.87 MiB** of minimum leading/internal
+unexported gaps. It fetches the already-created manifest without rebuilding
+any CUDA tensor and checks that no GPU context was initialized. Handles
+are not saved. [PyTorch's IPC implementation](https://github.com/pytorch/pytorch/blob/main/torch/multiprocessing/reductions.py)
+shares whole allocations and describes a storage's size/offset, but its
+metadata does not give the complete allocation size. Unused **trailing**
+space therefore remains unknown; this does not prove or disprove a large
+allocator-residency contribution. Do not claim a compaction saving from
+these lower-bound extents.
+
+```bash
+python -m benchmarks.kimi_k3_ipc_extents \
+  --cache-id YOUR_RESIDENT_CACHE_ID --ranks 0 2 7 --output ipc-extents.json
+```
+
 Keep the reclamation-enabled node-2 daemon and reuse its already packed
 weights. Job 21556 now attempts the actual 1020K/B8 canonical protocol with
 the **same** 1-GiB native cache, compact directory, sharded residual bank,
