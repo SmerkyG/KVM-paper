@@ -29,9 +29,15 @@ Raw failure: [oct7-fixed-full-b8-long-remaining-1020k.json](oct7-fixed-full-b8-l
 vLLM advertised 9,415,634 cache tokens, or 9.01 requests at the configured
 1,045,514-token reservation. A follow-up uses **29 GiB**, expected to retain
 capacity for eight requests while freeing 2 GiB per GPU for execution.
-It does not change the attention kernel, prompt cohort, decode cadence,
-quantization or scratch-reclamation policy. Its actual reported capacity and
-complete generation must still be checked before claiming support.
+The 29-GiB retry reports **8,808,755 tokens / 8.43 requests**, but also fails
+during warmup: HSA resource errors with 0 MB free on ranks 0, 2 and 3 and
+80 MB on rank 5. Raw failure:
+[oct7-fixed-full-b8-long-remaining-1020k-cache29.json](oct7-fixed-full-b8-long-remaining-1020k-cache29.json).
+Neither attempt changes the attention kernel, prompt cohort, decode cadence,
+quantization or scratch-reclamation policy. A final memory-only control keeps
+29 GiB and enables scratch reclamation (`HSA_NO_SCRATCH_RECLAIM=0`), as the
+LoD runner already does. Its actual complete generation must still be checked
+before claiming support or promoting this environment change.
 The LoD attempt is independently running full-length warmup on node 2.
 
 ## Capacity investigation history
