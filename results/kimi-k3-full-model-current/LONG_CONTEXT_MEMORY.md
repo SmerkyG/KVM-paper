@@ -245,6 +245,31 @@ it would require a separately validated allocator that reclaims leaves from
 permanently closed centroids while preserving their complete sums and mass,
 or a different validated cache format—not chronological INT4 quantization.
 
+If permanent-history reclamation is needed, the conservative design is:
+
+- In K3's unit-weight append/merge scheme, a centroid's member count only
+  increases until request reset. Once it exceeds the existing 1,024-leaf
+  opening cap it cannot become eligible for refinement again. Its key sum,
+  value sum and full member count must continue updating normally.
+- Keep sink records and the entire current exact local field independently.
+  Only reclaim a closed centroid's leaves once they are outside that field
+  and all readers from the preceding attention/update have completed.
+- Use reusable physical latent blocks plus indexed leaf membership, not a
+  fixed chronological allocation of `max_model_len` records. The existing
+  chronological allocation cannot return scattered records to the allocator.
+- Keep **total members** separate from **resident leaves**: zeroing the
+  count used for the cap would accidentally make a closed centroid eligible
+  again. Retain stable device directory pointers and update indices at the
+  existing global-256 boundaries so decode graph replay needs no allocation.
+- Measure the closed-leaf fraction before cleanup, then prove selected sets,
+  output/LSE and two-generation replay equivalence before claiming a saving.
+  Empty post-cleanup statistics cannot justify this change. No leaf is
+  reclaimed by the current implementation.
+
+This is a follow-up design, not an implemented memory saving. The live
+256K-prefix diagnostic with full 1020K reservation first tests whether the
+already validated exact-storage bounds are sufficient without this change.
+
 The fresh dense 1020K/B8 control also ran out of device resources during its
 first warmup, after successful engine initialization with a 31 GiB native
 cache. It supplies no speed cell. Dense 512K/B8 did complete both passes:
