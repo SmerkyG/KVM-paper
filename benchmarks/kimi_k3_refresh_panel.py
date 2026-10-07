@@ -141,6 +141,8 @@ def main():
     parser.add_argument("--weight-cache-id", required=True)
     parser.add_argument("--token-cache", type=Path,
                         default=RESULTS / "prolong-kimi-k3-speed-token-cache.pt")
+    parser.add_argument("--max-model-len", type=int,
+                        help="keep the original reservation for a targeted matched rerun")
     parser.add_argument("--after-log", type=Path,
                         help="wait for this specific preceding job to exit; never overlap engines")
     args = parser.parse_args()
@@ -179,6 +181,8 @@ def main():
             "--kv-cache-memory-bytes", str(cache_gib << 30),
             "--real-token-cache", str(args.token_cache),
             "--reference-baselines", *map(str, references), "--output", str(output)]
+        if args.max_model_len is not None:
+            command.extend(("--max-model-len", str(args.max_model_len)))
         print("K3_CURRENT_COMMAND " + json.dumps(command), flush=True)
         subprocess.run(command, cwd=ROOT, env=env, check=True)
         print(render(), flush=True)
