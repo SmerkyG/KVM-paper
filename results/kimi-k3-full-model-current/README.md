@@ -38,8 +38,8 @@ keeps compilation artifacts on local disk. Resident weight caches are
 `kimi-k3-shared-int4-v6` on node 4 and `kimi-k3-node2-scratch0-v2` on node 2;
 reuse the existing ID rather than loading another full weight copy. See
 [memory work](LONG_CONTEXT_MEMORY.md) for capacity history. Fresh B1 measurements
-complete through 1020K and B8 LoD through 512K. Dense B8/512K is finishing;
-fresh dense and LoD B8/1020K attempts are queued behind it. B8 1020K has
+complete through 1020K and both B8 modes through 512K. Fresh B8/1020K attempts use
+separate nodes, each after its mode's 512K engine exits. B8 1020K has
 **not** yet completed generation and is not a timing cell.
 
 ## Reproduction
@@ -54,6 +54,11 @@ bash benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_refresh_panel \
 
 bash benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_refresh_panel \
   --mode full --batch-size 8 --upper-context 524288 \
+  --checkpoint /tmp/local/Kimi-K3 --weight-cache-id YOUR_CACHE_ID
+
+# Capacity attempt: only fully completed points enter the timing table.
+bash benchmarks/run_kimi_k3_v10_direct.sh -m benchmarks.kimi_k3_refresh_panel \
+  --mode two-tier --batch-size 8 --upper-context 1044480 --block long \
   --checkpoint /tmp/local/Kimi-K3 --weight-cache-id YOUR_CACHE_ID
 
 python -m benchmarks.kimi_k3_current_timings

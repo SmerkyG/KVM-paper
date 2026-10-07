@@ -6,8 +6,11 @@ The fresh LoD B8/512K run completes exact-shape warmup and the measured
 generation: **849.877 s prefill / 32.570 ms per batch decode step**, with all
 eight requests live for 1,025 steps and four global-256 updates in every MLA
 layer. Raw result: [oct7-fixed-lod-b8-long-512k.json](oct7-fixed-lod-b8-long-512k.json).
-The dense 512K measured pass is finishing. Fresh B8/1020K attempts in both
-modes wait for that job to exit before allocating an engine.
+The fresh dense control also completes: **939.860 s prefill / 60.436 ms per
+decode step**, giving LoD speedups of **1.106× prefill / 1.856× decode**.
+Raw result: [oct7-fixed-full-b8-long.json](oct7-fixed-full-b8-long.json).
+Fresh B8/1020K attempts use separate nodes, each waiting for its mode's 512K
+engine to exit before allocating the next engine.
 
 These retries use the current IPC-safe graph allocator and live-context
 dense split policy, not a new quantization or leaf-dropping scheme. LoD keeps
@@ -18,6 +21,12 @@ sixteen-head coarse projection slices, and 1K MoE slices. Dense uses a
 short-prefix capacity check establishes full-length support; complete
 warmup and measured generation remain required. See
 [CURRENT_TIMINGS.md](CURRENT_TIMINGS.md) for audited progress.
+
+## Capacity investigation history
+
+The remaining sections retain earlier attempts and are not the current speed
+panel. The post-fix results above and `CURRENT_TIMINGS.md` supersede their
+timings.
 
 Target: full trained K3, eight MI325X GPUs, BF16 attention storage, complete
 top-eight leaf refinement, unchanged global 16K/256-token cadences. No

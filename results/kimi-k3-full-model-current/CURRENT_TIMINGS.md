@@ -26,7 +26,7 @@ The first new B1 LoD 32K/64K passes overlapped CPU regression tests on the timin
 | B8 | 64K | 69.248 | 70.896 | 0.977× |
 | B8 | 128K | 153.255 | 150.572 | 1.018× |
 | B8 | 256K | 360.071 | 330.084 | 1.091× |
-| B8 | 512K | — | 849.877 | — |
+| B8 | 512K | 939.860 | 849.877 | 1.106× |
 | B8 | 1020K | — | — | — |
 
 ## Decode (milliseconds per batch step)
@@ -45,18 +45,20 @@ The first new B1 LoD 32K/64K passes overlapped CPU regression tests on the timin
 | B8 | 64K | 34.329 | 30.889 | 1.111× |
 | B8 | 128K | 38.103 | 31.339 | 1.216× |
 | B8 | 256K | 45.432 | 31.957 | 1.422× |
-| B8 | 512K | — | 32.570 | — |
+| B8 | 512K | 60.436 | 32.570 | 1.856× |
 | B8 | 1020K | — | — | — |
 
 ## Sweep status
 
 - `oct7-fixed-full-b1-long.json`: complete; {'length': 1044480, 'phase': 'point_complete', 'timestamp_unix': 1791384121.719901}
 - `oct7-fixed-full-b1-short.json`: complete; {'length': 262144, 'phase': 'point_complete', 'timestamp_unix': 1791383002.2503943}
-- `oct7-fixed-full-b8-long.json`: in_progress; {'length': 524288, 'phase': 'measurement', 'timestamp_unix': 1791386948.028844, 'repeat_index': 0, 'repeats': 1}
+- `oct7-fixed-full-b8-long-remaining-1020k.json`: failed; {'length': 1044480, 'phase': 'warmup', 'timestamp_unix': 1791388059.2712798}
+- `oct7-fixed-full-b8-long.json`: complete; {'length': 524288, 'phase': 'point_complete', 'timestamp_unix': 1791387950.1725783}
 - `oct7-fixed-full-b8-short.json`: complete; {'length': 131072, 'phase': 'point_complete', 'timestamp_unix': 1791385017.7432396}
 - `oct7-fixed-lod-b1-long.json`: complete; {'length': 1044480, 'phase': 'point_complete', 'timestamp_unix': 1791383568.2486668}
 - `oct7-fixed-lod-b1-short-remaining-64k-retry2.json`: complete; {'length': 65536, 'phase': 'point_complete', 'timestamp_unix': 1791383882.3625453}
 - `oct7-fixed-lod-b1-short.json`: complete; {'length': 262144, 'phase': 'point_complete', 'timestamp_unix': 1791383074.202787}
+- `oct7-fixed-lod-b8-long-1020k.json`: in_progress; {'length': 1044480, 'phase': 'warmup', 'timestamp_unix': 1791387696.2671509}
 - `oct7-fixed-lod-b8-long-512k.json`: complete; {'length': 524288, 'phase': 'point_complete', 'timestamp_unix': 1791386942.088362}
 - `oct7-fixed-lod-b8-short.json`: complete; {'length': 262144, 'phase': 'point_complete', 'timestamp_unix': 1791385039.2886648}
 - `oct7-graph-allocator-lod-b1-long-fit.json`: complete; {'length': 524288, 'phase': 'point_complete', 'timestamp_unix': 1791381975.557606}
@@ -68,11 +70,13 @@ The first new B1 LoD 32K/64K passes overlapped CPU regression tests on the timin
 
 - [oct7-fixed-full-b1-long.json](oct7-fixed-full-b1-long.json)
 - [oct7-fixed-full-b1-short.json](oct7-fixed-full-b1-short.json)
+- [oct7-fixed-full-b8-long-remaining-1020k.json](oct7-fixed-full-b8-long-remaining-1020k.json)
 - [oct7-fixed-full-b8-long.json](oct7-fixed-full-b8-long.json)
 - [oct7-fixed-full-b8-short.json](oct7-fixed-full-b8-short.json)
 - [oct7-fixed-lod-b1-long.json](oct7-fixed-lod-b1-long.json)
 - [oct7-fixed-lod-b1-short-remaining-64k-retry2.json](oct7-fixed-lod-b1-short-remaining-64k-retry2.json)
 - [oct7-fixed-lod-b1-short.json](oct7-fixed-lod-b1-short.json)
+- [oct7-fixed-lod-b8-long-1020k.json](oct7-fixed-lod-b8-long-1020k.json)
 - [oct7-fixed-lod-b8-long-512k.json](oct7-fixed-lod-b8-long-512k.json)
 - [oct7-fixed-lod-b8-short.json](oct7-fixed-lod-b8-short.json)
 - [oct7-graph-allocator-lod-b1-long-fit.json](oct7-graph-allocator-lod-b1-long-fit.json)
