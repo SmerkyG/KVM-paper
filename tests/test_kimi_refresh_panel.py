@@ -31,7 +31,13 @@ def test_capacity_environment_does_not_change_attention_or_update_schedule():
         "HSA_NO_SCRATCH_RECLAIM": "0", "LOD_KIMI_DCP_SHARDED_LEAVES": "1"}
     assert lod_memory_environment(8, "long-1020k", False) == {
         "HSA_NO_SCRATCH_RECLAIM": "0", "LOD_KIMI_OWNER_PREFILL_HEAD_GROUP": "2",
-        "LOD_KIMI_OWNER_MOE_CHUNK": "4096"}
+        "LOD_KIMI_OWNER_MOE_CHUNK": "1024", "LOD_KIMI_COMPACT_PAGE_DIRECTORY": "1",
+        "LOD_KIMI_OWNER_SHARD_RESIDUAL": "1", "LOD_KIMI_LOCAL_PREFILL_HEAD_GROUP": "8",
+        "LOD_KIMI_COARSE_PREFILL_HEAD_GROUP": "16", "HSA_SCRATCH_SINGLE_LIMIT_ASYNC": "268435456"}
+    assert lod_memory_environment(8, "long-512k", False) == {
+        "HSA_NO_SCRATCH_RECLAIM": "0", "LOD_KIMI_OWNER_PREFILL_HEAD_GROUP": "4",
+        "LOD_KIMI_OWNER_MOE_CHUNK": "4096", "LOD_KIMI_COMPACT_PAGE_DIRECTORY": "1",
+        "LOD_KIMI_OWNER_SHARD_RESIDUAL": "1"}
 
 
 def test_resumption_reuses_audited_points_even_if_next_warmup_failed(tmp_path):

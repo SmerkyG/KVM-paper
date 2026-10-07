@@ -68,9 +68,16 @@ def lod_memory_environment(batch, block, sharded):
     env = {"HSA_NO_SCRATCH_RECLAIM": "0"}
     if sharded:
         env["LOD_KIMI_DCP_SHARDED_LEAVES"] = "1"
-    if batch == 8 and block == "long-1020k":
-        # Same attention tokens and global updates, smaller temporary GEMMs.
-        env.update(LOD_KIMI_OWNER_PREFILL_HEAD_GROUP="2", LOD_KIMI_OWNER_MOE_CHUNK="4096")
+    if batch == 8 and block in ("long-512k", "long-1020k"):
+        # The 512K path completed both trained generations. The 1020K path
+        # has passed a short live-prefix preflight with full reservation;
+        # require the actual full-length run before claiming support.
+        env.update(LOD_KIMI_COMPACT_PAGE_DIRECTORY="1", LOD_KIMI_OWNER_SHARD_RESIDUAL="1",
+                   LOD_KIMI_OWNER_PREFILL_HEAD_GROUP="4", LOD_KIMI_OWNER_MOE_CHUNK="4096")
+        if block == "long-1020k":
+            env.update(LOD_KIMI_OWNER_PREFILL_HEAD_GROUP="2", LOD_KIMI_OWNER_MOE_CHUNK="1024",
+                       LOD_KIMI_LOCAL_PREFILL_HEAD_GROUP="8", LOD_KIMI_COARSE_PREFILL_HEAD_GROUP="16",
+                       HSA_SCRATCH_SINGLE_LIMIT_ASYNC="268435456")
     return env
 
 
