@@ -266,6 +266,44 @@ If permanent-history reclamation is needed, the conservative design is:
   Empty post-cleanup statistics cannot justify this change. No leaf is
   reclaimed by the current implementation.
 
+### Trained measurement of the reclamation opportunity
+
+The [128K B8 real-token capacity check](oct7-lod-b8-closed-centroid-fraction-128k.json)
+completes all eight prefills and one decode step. It uses the frozen canonical
+128K cohort, compact indexing, sharded residual bank, four-head fine
+projection, and 4K MoE slices, with a **128K-sized**, not million-token,
+reservation. All 24 MLA layers are inspected on each owner while their caches
+are still live. The loaded-attention and 8×2K input-batch audits pass.
+This is a storage diagnostic, not an amortized decode timing or a new speed
+cell. Its untimed warmup includes compilation.
+
+| Owner / request | Archived leaves in >1,024-member centroids | Reclaimable raw BF16 bytes across 24 MLA layers |
+|--:|--:|--:|
+| 0 | 3.66% | 0.123 GiB |
+| 1 | 1.41% | 0.047 GiB |
+| 2 | 14.93% | 0.503 GiB |
+| 3 | 0.77% | 0.026 GiB |
+| 4 | 5.08% | 0.171 GiB |
+| 5 | 3.82% | 0.129 GiB |
+| 6 | 2.36% | 0.080 GiB |
+| 7 | 0.67% | 0.022 GiB |
+
+The pooled fraction is **4.09%**. Each owner has 3,139,560 archived member
+records summed across its 24 layers. The bytes above are calculated as the
+measured closed-leaf count × 576 channels × 2 bytes; they are not an actual
+reduction in allocator usage, nor do they include directory reclamation.
+Closed centroids still retain their full summaries. Their largest individual
+member counts vary from 1,889 to 9,119 across owners.
+
+This proves that reclamation has a real but uneven opportunity. It does
+**not** justify assuming the same fraction at 1020K or promising that this
+allocator alone supplies enough headroom on every rank. A production change
+must use reusable physical blocks (so closed records actually reduce peak
+allocation) and enforce a capacity bound/fail explicitly if the live frontier
+exceeds it. The separate 11–12-GiB difference between exported weight storage
+and daemon residency is also worth diagnosing, but is not a demonstrated
+removable allocation. No weights were reloaded for these checks.
+
 This is a follow-up design, not an implemented memory saving. The
 [256K-prefix diagnostic with full 1020K reservation](oct7-lod-b8-million-reservation-grouped-coarse-256k.json)
 failed during warmup after roughly 82K global tokens. Its asynchronous

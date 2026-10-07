@@ -139,7 +139,7 @@ not freely generated model-quality scores.
 Resuming skips individual audited points, including those saved before a
 later capacity failure, without rerunning them or changing their stored times.
 
-The broad CPU regression check passed **697 tests** (99 GPU-only cases skipped):
+The latest broad CPU regression check passed **709 tests** (105 GPU-only cases skipped):
 
 ```bash
 python -m pytest -q tests/test_kimi*.py tests/test_benchmarks.py tests/test_attention_timing.py
