@@ -6,6 +6,13 @@ the remaining sweeps run; blank cells are not estimates or older controls.
 Run `python -m benchmarks.kimi_k3_current_timings` to refresh it without GPU work.
 The preceding panel is preserved in [OCT6_VALIDATED_RESULTS.md](OCT6_VALIDATED_RESULTS.md).
 
+Current resident weight caches: node 4 uses `kimi-k3-shared-int4-v6`; node 2
+now uses `kimi-k3-node2-scratch0-v2` for the controlled scratch-reclamation
+capacity test. Historical commands retain the cache IDs actually measured.
+When reusing node 2, pass its current ID instead of automatically loading a
+second full weight copy under the old ID. The restart and its validation are
+tracked in [LONG_CONTEXT_MEMORY.md](LONG_CONTEXT_MEMORY.md).
+
 Full trained K3, eight MI325X GPUs, TP8/DCP8/EP8. Dense uses the improved
 Gluon decoder. Both modes now use the approved G8 direct-state-I/O KDA prefill
 baseline, resident packed INT4 **MoE weights**, and real frozen ProLong tokens.

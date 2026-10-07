@@ -81,6 +81,18 @@ The K3 pool audit also confirms that state values, sinks, recent tokens and
 archived leaves already alias the 512-channel latent prefix of their key
 records. There is no second persistent latent-value archive to remove.
 
+The restarted daemon [ready snapshot](oct7-daemon-scratch0-active-node2.json)
+matches **every rank's fingerprint, 2,858 tensor entries and 200.888 GiB
+exported storage** against the untouched control. Its startup allocation
+accounting is 210.506–211.373 GiB/rank, versus 212.359–213.246 GiB for the
+control: roughly 1.9 GiB/rank lower accounting, **not an 11–12 GiB saving**.
+This snapshot includes an active inference client, so its device totals
+cannot yet be compared to the idle control. All eight new workers have the
+intended scratch environment. The engine with the full 1020K reservation
+initializes with 5.529 GiB physically free on rank 0 and starts the 256K
+live-prefix preflight; generation has not yet been certified by that startup
+reading.
+
 ## Current exact-storage measures
 
 1. Keep the existing token-sharded B1 archive for 512K and 1020K. Preserve
