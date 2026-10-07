@@ -114,8 +114,9 @@ records. There is no second persistent latent-value archive to remove.
    bitwise. This avoids 24 persistent copies of a near-512-MiB score matrix at
    million-token capacity. No asynchronous DCP construction uses this scope.
 
-The million-token B8 attempt additionally uses two-head temporary projection
-groups and the existing tokenwise native MoE wrapper in 4K slices. Attention
+The million-token B8 attempts additionally use two-head temporary projection
+groups and the existing tokenwise native MoE wrapper, initially in 4K slices
+and later as small as 1K in the capacity controls documented below. Attention
 scheduler slices remain 8×2K, while centroid updates remain global 16K/256.
 These bounds do not drop tokens or change the attention approximation.
 ROCm launch scratch reclamation is permitted in the new LoD runner; the failed
@@ -410,8 +411,8 @@ client peak). See [current timings](CURRENT_TIMINGS.md) and
 B8 completed both generations through 256K with bounded decode workspace;
 that unshared-prefill configuration is preserved in [its log](OCT7_B8_UNSHARED.md).
 The new shared-prefill-scratch canonical sweep has now also completed every
-point through 512K, including all audited updates. It measures 330.056 s
-prefill / 32.571 ms decode there. The initial separate 512K warmup failed
+point through 512K, including all audited updates. At 256K it measures
+330.056 s prefill / 32.571 ms decode. The initial separate 512K warmup failed
 with device-resource errors; its bounded-workspace, compact-directory,
 sharded-bank retry **completes both passes**: 849.782 s prefill / 33.163 ms
 decode, versus dense's 939.950 s / 61.130 ms. Its rank-0 measured client peak
