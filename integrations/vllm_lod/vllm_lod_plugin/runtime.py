@@ -171,7 +171,7 @@ class VLLMLODRuntime:
                     and bool(layer.impl.lod_eligible)
                 )
                 or (
-                    self.family is ModelFamily.KIMI_K3
+                    self.family in (ModelFamily.KIMI_K3, ModelFamily.GLM53_FLASH)
                     and bool(getattr(layer, "_vllm_lod_absorbed_mla", False))
                 )
             )
@@ -308,7 +308,7 @@ class VLLMLODRuntime:
         # sharing off for interleaved microbatches and speculative execution,
         # where a second attention call could still be using the workspace.
         shared_decode_scratch = (
-            {} if self.family is ModelFamily.KIMI_K3
+            {} if self.family in (ModelFamily.KIMI_K3, ModelFamily.GLM53_FLASH)
             and can_share_decode_scratch(parallel, self.speculative_tokens)
             else None
         )
@@ -2426,6 +2426,11 @@ class VLLMLODRuntime:
             value = page.get(name)
             if not isinstance(value, torch.Tensor):
                 raise TypeError("cross-layer BF16 archive is missing")
+            if pool.dcp_world_size == 1:
+                # The persistent archive has all reserved request rows, but
+                # this continuation (like pack_state above) owns one row.
+                # Never broadcast inactive rows into its centroid update.
+                value = value[slots[0] : slots[0] + 1]
             return value[..., archive_begin:archive_end, :]
 
         updated_state_len: int | None = None

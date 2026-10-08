@@ -1,0 +1,83 @@
+{
+  "candidates": [
+    {
+      "block_m": 32,
+      "block_n": 16,
+      "gluon_shared_latent": false,
+      "phases_ms": {
+        "dispatch": 0.6454319953918457,
+        "dispatch_blocks": 0.0061599998734891415,
+        "dispatch_group": 0.6153129935264587,
+        "dispatch_prepare": 0.017798999324440956,
+        "kernel": 10.449514389038086,
+        "pack": 0.006240000016987324,
+        "total": 11.10118579864502
+      },
+      "refinement_ms": 11.781217575073242,
+      "reuse_shared_latent": false,
+      "status": "complete",
+      "waves": 2
+    },
+    {
+      "block_m": 32,
+      "block_n": 16,
+      "gluon_shared_latent": true,
+      "phases_ms": {
+        "dispatch": 0.641273021697998,
+        "dispatch_blocks": 0.0061599998734891415,
+        "dispatch_group": 0.6142330169677734,
+        "dispatch_prepare": 0.014600000344216824,
+        "kernel": 9.430646896362305,
+        "pack": 0.006238999776542187,
+        "total": 10.07815933227539
+      },
+      "refinement_ms": 11.146465301513672,
+      "reuse_shared_latent": true,
+      "status": "complete",
+      "waves": 2
+    },
+    {
+      "block_m": 16,
+      "block_n": 16,
+      "gluon_shared_latent": true,
+      "phases_ms": {
+        "dispatch": 0.6422320008277893,
+        "dispatch_blocks": 0.0062790000811219215,
+        "dispatch_group": 0.6087930202484131,
+        "dispatch_prepare": 0.020880000665783882,
+        "kernel": 10.04419994354248,
+        "pack": 0.0063599999994039536,
+        "total": 10.692791938781738
+      },
+      "refinement_ms": 11.406023979187012,
+      "reuse_shared_latent": true,
+      "status": "complete",
+      "waves": 1
+    },
+    {
+      "block_m": 32,
+      "block_n": 16,
+      "gluon_shared_latent": true,
+      "phases_ms": {
+        "dispatch": 0.6252319812774658,
+        "dispatch_blocks": 0.0060800001956522465,
+        "dispatch_group": 0.5971930027008057,
+        "dispatch_prepare": 0.01607999950647354,
+        "kernel": 32.02933883666992,
+        "pack": 0.0061599998734891415,
+        "total": 32.66073226928711
+      },
+      "refinement_ms": 32.77084732055664,
+      "reuse_shared_latent": true,
+      "status": "complete",
+      "waves": 1
+    }
+  ],
+  "history": 16384,
+  "policy": "top-eight; oversized selected regions remain closed above 1024 leaves",
+  "queries": 16384,
+  "route_coarse_ms": 22.75432777404785,
+  "scope": "TP1 remote-only kernel diagnostic; random inputs; not model timings",
+  "shared_latent": true,
+  "slots": 2048
+}

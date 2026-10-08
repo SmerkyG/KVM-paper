@@ -1,0 +1,81 @@
+{
+  "candidates": [
+    {
+      "block_m": 64,
+      "block_n": 32,
+      "gluon_layout": false,
+      "gpu_ms": 10.430289268493652,
+      "query_tiled": true,
+      "status": "complete",
+      "warps": 4
+    },
+    {
+      "block_m": 32,
+      "block_n": 32,
+      "gluon_layout": true,
+      "gpu_ms": 10.329689979553223,
+      "query_tiled": true,
+      "registers": 285,
+      "shared_bytes": 32768,
+      "spills": 0,
+      "status": "complete",
+      "warps": 4
+    },
+    {
+      "block_m": 64,
+      "block_n": 32,
+      "gluon_layout": true,
+      "gpu_ms": 8.63666820526123,
+      "query_tiled": true,
+      "registers": 443,
+      "shared_bytes": 65536,
+      "spills": 0,
+      "status": "complete",
+      "warps": 4
+    },
+    {
+      "block_m": 32,
+      "block_n": 64,
+      "gluon_layout": true,
+      "gpu_ms": 8.509635925292969,
+      "query_tiled": true,
+      "registers": 366,
+      "shared_bytes": 65536,
+      "spills": 0,
+      "status": "complete",
+      "warps": 4
+    },
+    {
+      "block_m": 64,
+      "block_n": 64,
+      "gluon_layout": true,
+      "gpu_ms": 7.301767826080322,
+      "query_tiled": true,
+      "registers": 512,
+      "shared_bytes": 65536,
+      "spills": 26,
+      "status": "complete",
+      "warps": 4
+    },
+    {
+      "block_m": 64,
+      "block_n": 64,
+      "gluon_layout": true,
+      "gpu_ms": 10.866604804992676,
+      "query_tiled": true,
+      "registers": 256,
+      "shared_bytes": 65536,
+      "spills": 112,
+      "status": "complete",
+      "warps": 8
+    }
+  ],
+  "query_shape": [
+    1,
+    64,
+    4096,
+    512
+  ],
+  "scope": "random-input GPU route/coarse layout diagnostic",
+  "slots": 2048
+}

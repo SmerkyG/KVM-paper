@@ -1,0 +1,65 @@
+{
+  "fixture_only": true,
+  "batch_size": 8,
+  "native_cache_reservation_bytes": 4294967296,
+  "peak_definition": "maximum worker peak across warmup and measured pass",
+  "decode_note": "Two outputs test handoff only; not amortized decode timing.",
+  "measurements": {
+    "65536": {
+      "full": {
+        "prefill_seconds": 10.945307102054358,
+        "peak_allocated_gib": 8.744219303131104,
+        "peak_reserved_gib": 10.48828125
+      },
+      "replicated": {
+        "prefill_seconds": 7.798477312549949,
+        "peak_allocated_gib": 17.595247268676758,
+        "peak_reserved_gib": 21.796875,
+        "generated_ids_match_replicated": true,
+        "relative_prefill_time": 1.0
+      },
+      "distributed": {
+        "prefill_seconds": 12.432445934042335,
+        "peak_allocated_gib": 20.343414306640625,
+        "peak_reserved_gib": 23.455078125,
+        "generated_ids_match_replicated": false,
+        "relative_prefill_time": 1.594214541604811
+      },
+      "reconstructed": {
+        "prefill_seconds": 8.432170333340764,
+        "peak_allocated_gib": 16.317026138305664,
+        "peak_reserved_gib": 19.6015625,
+        "generated_ids_match_replicated": false,
+        "relative_prefill_time": 1.081258557971442
+      }
+    },
+    "131072": {
+      "full": {
+        "prefill_seconds": 34.573253873735666,
+        "peak_allocated_gib": 9.23912239074707,
+        "peak_reserved_gib": 10.775390625
+      },
+      "replicated": {
+        "prefill_seconds": 18.737788187339902,
+        "peak_allocated_gib": 20.3320255279541,
+        "peak_reserved_gib": 26.75390625,
+        "generated_ids_match_replicated": true,
+        "relative_prefill_time": 1.0
+      },
+      "distributed": {
+        "prefill_seconds": 30.090053644031286,
+        "peak_allocated_gib": 21.57920265197754,
+        "peak_reserved_gib": 25.791015625,
+        "generated_ids_match_replicated": false,
+        "relative_prefill_time": 1.605848744963479
+      },
+      "reconstructed": {
+        "prefill_seconds": 20.95778371579945,
+        "peak_allocated_gib": 17.73482608795166,
+        "peak_reserved_gib": 22.421875,
+        "generated_ids_match_replicated": false,
+        "relative_prefill_time": 1.1184769251452782
+      }
+    }
+  }
+}

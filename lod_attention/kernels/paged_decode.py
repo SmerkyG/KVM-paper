@@ -183,6 +183,13 @@ def fused_decode_paged_lod_attention(
     )
     execute_state_route = fuse_state_route
     fuse_state_route = bool(fuse_state_route or precomputed_state_route)
+    if execute_state_route and buffers is not None and "route_candidate_scores" in buffers:
+        candidates = buffers["route_candidate_scores"]
+        if candidates.size(0) < batch or candidates.size(1) != query_heads:
+            raise ValueError(
+                f"route scratch {tuple(candidates.shape)} does not match "
+                f"decode batch={batch}, heads={query_heads}"
+            )
     route_fused_mtp_local = False
     route_fused_decode_local = False
     page_shape = (
@@ -1087,6 +1094,7 @@ def fused_decode_paged_lod_attention(
                         "FUSE_LOCAL": route_fused_decode_local,
                         "PREPARE_BASELINE": (
                             recursive_page_cache is not None and gqa_union_score_only
+                            and head_dim not in (512, 576)
                         ),
                         "BASELINE_SINK_LEN": (
                             int(sink_k.size(2)) if include_sink else 0
@@ -1458,7 +1466,24 @@ def fused_decode_paged_lod_attention(
                 or (route_residual_mass is not None and reuse_residual_local_attention)
             )
             recursive_aiter_baseline = bool(gqa_union_score_only)
-            if recursive_aiter_baseline:
+            recursive_mla = bool(recursive_aiter_baseline and head_dim in (512, 576)
+                                 and value_dim == 512 and gqa_union_head_tiled_metadata)
+            if recursive_mla:
+                from .mla_recursive_decode import recursive_mla_baseline
+
+                baseline_begin = timing_begin()
+                recursive_mla_baseline(
+                    q, local_k, new_k, cache_indices, local_lens, state_lens,
+                    buffers, gqa_union_page1_k, gqa_union_page1_bias,
+                    gqa_union_fixed_indices, state_len=state_len,
+                    local_limit=local_len, sink_len=int(sink_k.size(2)) if include_sink else 0,
+                    scale=float(scale), include_new=include_new,
+                    dcp_global_lens=dcp_global_lens, dcp_rank=dcp_rank,
+                    dcp_world_size=dcp_world_size, dcp_interleave_size=dcp_interleave_size,
+                )
+                reuse_separate_local = True
+                timing_end("recursive_mla_baseline", baseline_begin)
+            elif recursive_aiter_baseline:
                 # Score centroids once for routing, then let the source-derived
                 # AITER kernel evaluate the complete coarse/local/sink baseline.
                 # The final reducer removes each routed centroid's coarse mass
@@ -1630,25 +1655,31 @@ def fused_decode_paged_lod_attention(
             )
             materialized_page_scores = None
             recursive_begin = timing_begin()
+            # MLA head tiles share one physical latent archive. Do not flatten
+            # zero-stride virtual-head views as separate physical page rows.
+            physical_mla = head_dim in (512, 576) and int(cache_tensor("leaf_k").size(1)) == 1
+            refine_state_k = state_k[:, :1] if physical_mla else state_k
+            refine_state_v = state_v[:, :1] if physical_mla else state_v
+            refine_counts = counts[:, :1] if physical_mla else counts
             recursive_out, recursive_lse = query_major_indexed_residual_page_attention(
                 q,
-                state_k,
-                state_v,
-                counts,
+                refine_state_k,
+                refine_state_v,
+                refine_counts,
                 cache_tensor("leaf_k"),
                 cache_tensor("leaf_v"),
                 cache_tensor("page_indices"),
                 cache_tensor("page_sum_k"),
                 cache_tensor("page_sum_v"),
                 cache_tensor("page_counts"),
-                slot_pages,
-                overflow_page_keys,
-                overflow_page_values,
+                cache_tensor("slot_pages") if physical_mla else slot_pages,
+                cache_tensor("overflow_page_keys") if physical_mla else overflow_page_keys,
+                cache_tensor("overflow_page_values") if physical_mla else overflow_page_values,
                 overflow_used,
-                slot_lengths,
+                cache_tensor("slot_lengths") if physical_mla else slot_lengths,
                 top_slots,
                 cache_indices=cache_indices,
-                kv_group_size=kv_group_size,
+                kv_group_size=query_heads if physical_mla else kv_group_size,
                 scale=scale,
                 hash_probes=hash_probes,
                 page_block_n=recursive_page_select_block_n
@@ -1657,7 +1688,7 @@ def fused_decode_paged_lod_attention(
                 # D256 Qwen keeps both waves busy with two warps; D128 K2 is
                 # faster with one. This is launch geometry only—the selected
                 # pages and attention calculation are unchanged.
-                num_warps=2 if head_dim == 256 else 1,
+                num_warps=2 if head_dim in (256, 512, 576) else 1,
                 waves_per_eu=waves_per_eu,
                 quantized_leaf_k=cache_tensor("quantized_leaf_k")
                 if quantized_attention
@@ -1767,7 +1798,12 @@ def fused_decode_paged_lod_attention(
                 ADVANCE_LOCAL=(
                     include_new and ragged_local_lens and advance_local_lens
                 ),
-                SUBTRACT_ROUTES=True,
+                # MLA masks these parents in the baseline before softmax.
+                SUBTRACT_ROUTES=not recursive_mla,
+                final_lse=buffers.get("kimi_gluon_final_lse"),
+                HAS_FINAL_LSE=recursive_mla,
+                OUTPUT_BATCH_STRIDE=output.stride(0),
+                OUTPUT_HEAD_STRIDE=output.stride(1),
                 num_warps=final_reduce_num_warps,
                 waves_per_eu=waves_per_eu,
             )
@@ -2407,7 +2443,7 @@ def fused_decode_paged_lod_attention(
                 )
                 timing_end("gqa_union_indices", union_begin)
                 compact_begin = timing_begin()
-                if head_dim == 576 and value_dim == 512:
+                if head_dim in (512, 576) and value_dim == 512:
                     from lod_attention.kernels.kimi_gluon_decode import (
                         KIMI_GLUON_LOD_SPLITS,
                         absorbed_mla_lod_decode_gfx942,

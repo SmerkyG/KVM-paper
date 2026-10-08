@@ -2360,10 +2360,15 @@ class TritonLODAttentionCore(nn.Module):
                     and key_dim - value_dim == 64
                     and int(state_k.size(1)) == 1
                 )
-                if not asymmetric_mla and (key_dim > 256 or value_dim != key_dim):
+                latent_only_mla = (
+                    key_dim == value_dim == 512 and int(state_k.size(1)) == 1
+                )
+                if not (asymmetric_mla or latent_only_mla) and (
+                    key_dim > 256 or value_dim != key_dim
+                ):
                     raise RuntimeError(
                         "AITER route/coarse prefill supports equal K/V heads up to "
-                        "256 or absorbed MLA K/V=(L+64, L); got "
+                        "256 or absorbed MLA K/V=(512,512)/(L+64,L); got "
                         f"K/V=({key_dim}, {value_dim})"
                     )
                 expanded_kimi_q = getattr(
@@ -2385,7 +2390,7 @@ class TritonLODAttentionCore(nn.Module):
                     graph_cache = getattr(self, "_lod_kimi_coarse_graphs", None)
                     if graph_cache is not None:
                         route_coarse = graph_cache.run
-                elif asymmetric_mla:
+                elif asymmetric_mla or latent_only_mla:
                     from .kernels.aiter_mla_prefill_attention import (
                         aiter_mla_prefill_route_coarse_attention as route_coarse,
                     )
@@ -2434,7 +2439,7 @@ class TritonLODAttentionCore(nn.Module):
                         }
                         if expanded_kimi
                         else {}
-                        if asymmetric_mla
+                        if asymmetric_mla or latent_only_mla
                         else {
                             "kv_group_size": self.num_key_value_groups,
                             # Rank the same top eight as the uncapped calculation.
@@ -3625,7 +3630,6 @@ class TritonLODAttentionCore(nn.Module):
             and isinstance(expanded_kimi_q, torch.Tensor)
             and isinstance(kimi_w_uk_t, torch.Tensor)
             and isinstance(kimi_w_uv, torch.Tensor)
-            and not bool(cache.get("quantization_finalized", False))
         )
         preprojected = getattr(self, "_lod_kimi_preprojected_leaves", None)
         if preprojected is not None:
@@ -3654,6 +3658,14 @@ class TritonLODAttentionCore(nn.Module):
                 else None
             ),
         }
+        if getattr(self, "_lod_shared_latent_kv", False):
+            # NoPE MLA consumes complete 16-token latent pages. Resolve each
+            # page directory entry once, not independently for all 16 lanes.
+            leaf_kwargs["scalar_page_lookup"] = True
+            # Kimi's sort/prefix ordinal builder is also applicable without
+            # projecting leaves. Keep the short-slab atomic fast path.
+            leaf_kwargs["sorted_route_counts"] = bool(
+                q.size(2) >= 2048 and getattr(self, "_lod_glm_sorted_routes", True))
         route_head_counts = getattr(self, "_lod_prefill_route_head_counts", None)
         if route_head_counts is not None:
             del self._lod_prefill_route_head_counts
@@ -3718,14 +3730,18 @@ class TritonLODAttentionCore(nn.Module):
                     "all_leaf_head_pairs": int(q.size(0)) * query_heads * leaf_count,
                 })
                 self._lod_kimi_projection_usage = usage
+            quantized_projection = bool(cache.get("quantization_finalized", False))
             compact_projection = bool(
                 getattr(self, "_lod_kimi_compact_leaf_prefill", False)
+                and not quantized_projection
             )
             routed_projection = bool(
                 os.environ.get("LOD_KIMI_ROUTED_LEAF_PROJECTION") == "1"
+                and not quantized_projection
             )
             compact_selected_projection = bool(
-                os.environ.get("LOD_KIMI_COMPACT_SELECTED_PROJECTION") == "1"
+                (os.environ.get("LOD_KIMI_COMPACT_SELECTED_PROJECTION") == "1"
+                 or quantized_projection)
                 and not compact_projection and not routed_projection
             )
             sparse_projection = bool(
@@ -3915,8 +3931,17 @@ class TritonLODAttentionCore(nn.Module):
                     group_q = expanded_kimi_q[:, head_begin:head_end].contiguous()
                     group_kv_size = 1
                     group_leaf_kwargs = dict(leaf_kwargs)
+                    # The compact projection has already decoded INT4;
+                    # the expert consumer sees ordinary projected BF16.
+                    if compact_selected_projection and bool(cache.get("quantization_finalized", False)):
+                        for name in ("quantized_leaf_k", "quantized_leaf_v", "page_k_scales",
+                                     "page_v_scales", "page_sum_k", "page_sum_v",
+                                     "quantized_page_sum_k", "quantized_page_sum_v",
+                                     "page_sum_k_scales", "page_sum_v_scales", "page_counts",
+                                     "quant_group_size", "quant_token_group_size"):
+                            group_leaf_kwargs.pop(name, None)
                     # K3's projected D192/V128 leaves are already organized
-                    # as 16-token pages.  A 32-query, one-wave tile fills the
+                    # as 16-token pages. A 32-query, one-wave tile fills the
                     # MI325X more effectively than the generic 16x32/two-wave
                     # geometry and avoids reading a second page for the common
                     # one-page centroid.  This changes only tiling; routes,
@@ -4147,6 +4172,16 @@ class TritonLODAttentionCore(nn.Module):
         context_len: int | None = None,
     ) -> torch.Tensor:
         del owners, exact_k, exact_v
+        if (int(q.size(2)) > 1 and int(q.size(-1)) == 512
+                and getattr(self, "_lod_shared_latent_kv", False)
+                and isinstance(getattr(self, "_lod_kimi_expanded_prefill_chunk", None), torch.Tensor)
+                and isinstance(getattr(self, "_lod_kimi_w_uv", None), torch.Tensor)):
+            from .kernels.glm_projected_prefill import projected_two_level_attention
+
+            return projected_two_level_attention(
+                self, q, local_k, local_v, state_k, counts, state_len=state_len,
+                page_cache=page_cache, local_branch=local_branch,
+                sink_k=sink_k, sink_v=sink_v, output_buffer=output_buffer)
         debug_kimi_sync = bool(
             os.environ.get("LOD_KIMI_DEBUG_SYNC") == "1"
             and int(q.size(-1)) == 576
@@ -5084,6 +5119,23 @@ class TritonLODAttentionCore(nn.Module):
         valid_starts: torch.Tensor | None = None,
         output_buffer: torch.Tensor | None = None,
     ) -> torch.Tensor:
+        initial_attention = getattr(self, "_lod_initial_attention", None)
+        if initial_attention is not None:
+            # Optional model-native initial prefix; cache construction remains
+            # identical. The adapter installs this only for an uncached chunk.
+            w_uv = getattr(self, "_lod_kimi_w_uv", None)
+            if getattr(self, "_lod_shared_latent_kv", False) and isinstance(w_uv, torch.Tensor):
+                from .kernels.aiter_mla_prefill_attention import project_kimi_head_values
+                result = initial_attention(q, k, v, causal=causal,
+                    valid_starts=valid_starts, output_buffer=None)
+                result = project_kimi_head_values(result, w_uv)
+                if output_buffer is not None:
+                    output_buffer.copy_(result)
+                    return output_buffer
+                return result
+            return initial_attention(q, k, v, causal=causal,
+                                     valid_starts=valid_starts,
+                                     output_buffer=output_buffer)
         if valid_starts is None and self.prefill_local_attention_backend == "aiter":
             # The exact front is ordinary causal GQA. Reuse the native-GQA CK
             # path used by the local branch instead of physically repeating
@@ -5176,6 +5228,42 @@ class TritonLODAttentionCore(nn.Module):
             expected_value_dim,
         ):
             raise ValueError("local-attention output buffer has the wrong shape")
+        if (
+            self.prefill_local_attention_backend == "aiter"
+            and int(q.size(-1)) == int(k.size(-1)) == int(v.size(-1)) == 512
+            and int(k.size(1)) == 1
+            and (
+                getattr(self, "_lod_shared_latent_kv", False)
+                or (k.data_ptr() == v.data_ptr() and k.stride() == v.stride())
+            )
+            and getattr(self, "mla_state_key_normalization", "none") == "none"
+        ):
+            from .kernels.latent_local_prefill import latent_local_prefill_attention
+
+            projected = isinstance(kimi_w_uv, torch.Tensor)
+            if projected and getattr(self, "_lod_glm_project_local", False):
+                from .kernels.glm_projected_prefill import projected_local_attention
+                expanded = getattr(self, "_lod_kimi_expanded_prefill_chunk",
+                    getattr(self, "_lod_kimi_expanded_prefill_query", None))
+                return projected_local_attention(expanded, k,
+                    self._lod_kimi_w_uk_t, kimi_w_uv, query_offset=query_offset,
+                    scale=self.scaling, return_lse=return_lse,
+                    buffers=getattr(self, "_lod_prefill_attention_buffers", None),
+                    output_buffer=output_buffer)
+            result = latent_local_prefill_attention(
+                q, k, query_offset=query_offset, scale=self.scaling,
+                output_buffer=None if projected else output_buffer, return_lse=return_lse,
+                buffers=getattr(self, "_lod_prefill_attention_buffers", None),
+            )
+            if not projected:
+                return result
+            from .kernels.aiter_mla_prefill_attention import project_kimi_head_values
+            output, lse = result
+            output = project_kimi_head_values(output, kimi_w_uv)
+            if output_buffer is not None:
+                output_buffer.copy_(output)
+                output = output_buffer
+            return output, lse
         if (
             self.prefill_local_attention_backend == "aiter"
             and int(q.size(-1)) == 576
@@ -5446,7 +5534,8 @@ class TritonLODAttentionCore(nn.Module):
                 or kimi_expanded_query.ndim != 4
                 or tuple(kimi_expanded_query.shape[:3])
                 != (batch_size, int(q.size(1)) if q is not None else 0, attention_len)
-                or int(kimi_expanded_query.size(-1)) != 192
+                or int(kimi_expanded_query.size(-1)) != (
+                    256 if getattr(self, "_lod_shared_latent_kv", False) else 192)
             ):
                 raise ValueError("Kimi expanded prefill query has incompatible geometry")
         if not build_cache_only and q is None:
@@ -6372,7 +6461,8 @@ class TritonLODAttentionCore(nn.Module):
                 or kimi_expanded_query.ndim != 4
                 or tuple(kimi_expanded_query.shape[:3])
                 != (int(q.size(0)), int(q.size(1)), turn_len)
-                or int(kimi_expanded_query.size(-1)) != 192
+                or int(kimi_expanded_query.size(-1)) != (
+                    256 if getattr(self, "_lod_shared_latent_kv", False) else 192)
             ):
                 raise ValueError(
                     "cached Kimi expanded prefill query has incompatible geometry"
@@ -6389,9 +6479,10 @@ class TritonLODAttentionCore(nn.Module):
         working_k = torch.cat(
             (recent_k[..., :recent_len, :], new_k), dim=2
         ).contiguous()
-        working_v = torch.cat(
-            (recent_v[..., :recent_len, :], new_v), dim=2
-        ).contiguous()
+        working_v = (
+            working_k if getattr(self, "_lod_shared_latent_kv", False)
+            else torch.cat((recent_v[..., :recent_len, :], new_v), dim=2).contiguous()
+        )
 
         state_capacity = max(
             int(cache["state_capacity"]),

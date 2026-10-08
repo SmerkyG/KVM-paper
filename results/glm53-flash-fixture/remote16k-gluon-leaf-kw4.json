@@ -1,0 +1,47 @@
+{
+  "candidates": [
+    {
+      "block_m": 32,
+      "block_n": 16,
+      "gluon_shared_latent": false,
+      "phases_ms": {
+        "dispatch": 0.6499519944190979,
+        "dispatch_blocks": 0.006000000052154064,
+        "dispatch_group": 0.6231920123100281,
+        "dispatch_prepare": 0.014759999699890614,
+        "kernel": 10.339116096496582,
+        "pack": 0.0060800001956522465,
+        "total": 10.995147705078125
+      },
+      "refinement_ms": 11.742938995361328,
+      "reuse_shared_latent": false,
+      "status": "complete",
+      "waves": 2
+    },
+    {
+      "block_m": 32,
+      "block_n": 16,
+      "gluon_shared_latent": true,
+      "phases_ms": {
+        "dispatch": 0.6468319892883301,
+        "dispatch_blocks": 0.0061599998734891415,
+        "dispatch_group": 0.6172720193862915,
+        "dispatch_prepare": 0.01711999997496605,
+        "kernel": 9.225929260253906,
+        "pack": 0.006240000016987324,
+        "total": 9.879000663757324
+      },
+      "refinement_ms": 11.146666526794434,
+      "reuse_shared_latent": true,
+      "status": "complete",
+      "waves": 2
+    }
+  ],
+  "history": 16384,
+  "policy": "top-eight; oversized selected regions remain closed above 1024 leaves",
+  "queries": 16384,
+  "route_coarse_ms": 22.77016830444336,
+  "scope": "TP1 remote-only kernel diagnostic; random inputs; not model timings",
+  "shared_latent": true,
+  "slots": 2048
+}

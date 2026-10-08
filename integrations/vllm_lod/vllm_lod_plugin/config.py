@@ -220,6 +220,7 @@ class VLLMLODSettings:
             ModelFamily.QWEN38,
             ModelFamily.K2,
             ModelFamily.KIMI_K3,
+            ModelFamily.GLM53_FLASH,
         ):
             raise ValueError(f"unsupported LoD model family: {family}")
         return replace(self, family=family)

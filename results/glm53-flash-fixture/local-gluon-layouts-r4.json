@@ -1,0 +1,104 @@
+{
+  "candidates": [
+    {
+      "block_m": 64,
+      "block_n": 32,
+      "gluon_warps": null,
+      "gpu_ms": 4.358898162841797,
+      "mfma": 16,
+      "status": "complete",
+      "warps": 4
+    },
+    {
+      "block_m": 64,
+      "block_n": 64,
+      "gluon_warps": [
+        2,
+        2
+      ],
+      "gpu_ms": 3.46311092376709,
+      "mfma": 16,
+      "status": "complete",
+      "warps": 4
+    },
+    {
+      "block_m": 64,
+      "block_n": 64,
+      "gluon_warps": [
+        2,
+        2
+      ],
+      "gpu_ms": 3.542030096054077,
+      "mfma": 32,
+      "status": "complete",
+      "warps": 4
+    },
+    {
+      "block_m": 64,
+      "block_n": 64,
+      "gluon_warps": [
+        2,
+        4
+      ],
+      "gpu_ms": 8.053606986999512,
+      "mfma": 16,
+      "status": "complete",
+      "warps": 8
+    },
+    {
+      "block_m": 64,
+      "block_n": 64,
+      "gluon_warps": [
+        2,
+        4
+      ],
+      "gpu_ms": 5.770479202270508,
+      "mfma": 32,
+      "status": "complete",
+      "warps": 8
+    },
+    {
+      "block_m": 32,
+      "block_n": 128,
+      "error": "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help.",
+      "gluon_warps": [
+        1,
+        4
+      ],
+      "mfma": 16,
+      "status": "failed",
+      "warps": 4
+    },
+    {
+      "block_m": 32,
+      "block_n": 128,
+      "error": "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help.",
+      "gluon_warps": [
+        1,
+        4
+      ],
+      "mfma": 32,
+      "status": "failed",
+      "warps": 4
+    },
+    {
+      "block_m": 64,
+      "block_n": 128,
+      "error": "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help.",
+      "gluon_warps": [
+        2,
+        4
+      ],
+      "mfma": 32,
+      "status": "failed",
+      "warps": 8
+    }
+  ],
+  "scope": "diagnostic exact causal local kernel on random tensors",
+  "shape": [
+    1,
+    64,
+    4096,
+    512
+  ]
+}

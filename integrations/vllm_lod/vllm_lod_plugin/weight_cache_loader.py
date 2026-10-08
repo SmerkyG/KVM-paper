@@ -415,6 +415,29 @@ def _remaining_meta_tensors(model: nn.Module) -> list[str]:
     return sorted(set(names))
 
 
+def _unused_glm_indexer(model: nn.Module, name: str) -> bool:
+    """A native GLM daemon may retain indexer weights that LoD never uses.
+
+    Only skip the deliberately absent indexer and its rotary embedding
+    below a GLM LoD attention module. The MLA keys themselves are NoPE.
+    Missing weights/modules anywhere else remain a hard error.
+    """
+    parts = name.split(".")
+    optional = next((i for i, part in enumerate(parts)
+                     if part in ("indexer", "indexer_rope_emb")), None)
+    if optional is None:
+        return False
+    parent: nn.Module = model
+    for part in parts[:optional]:
+        parent = getattr(parent, part, None)
+        if not isinstance(parent, nn.Module):
+            return False
+    return (getattr(parent, "indexer", None) is None
+            and getattr(parent, parts[optional], None) is None
+            and any(getattr(child, "_vllm_lod_glm53", False)
+                    for child in parent.modules()))
+
+
 def _apply_module_metadata(
     model: nn.Module, metadata: dict[str, dict[str, Any]]
 ) -> None:
@@ -423,6 +446,8 @@ def _apply_module_metadata(
     for module_name, values in metadata.items():
         module = modules.get(module_name)
         if module is None:
+            if _unused_glm_indexer(model, module_name):
+                continue
             raise RuntimeError(
                 f"Weight-cache daemon exported missing module {module_name!r}"
             )
@@ -433,6 +458,14 @@ def _apply_module_metadata(
             # absorbed-MLA eligibility and prevent semantic pool attachment.
             # Filter on import too, so already-resident daemons need no reload.
             if name.startswith("_vllm_lod_"):
+                continue
+            if name in ("is_sparse", "use_sparse", "is_v32") and any(
+                getattr(child, "_vllm_lod_glm53", False)
+                for child in module.modules()
+            ):
+                # Native GLM and indexer-free LoD share identical projection
+                # weights, not attention dispatch. Keep the constructor's
+                # choice (including optional native-prefix mode) intact.
                 continue
             if name not in module._parameters and name not in module._buffers:
                 setattr(module, name, value)
@@ -469,6 +502,17 @@ def _restore_kimi_lod_projection_views(model: nn.Module) -> None:
 
             module.W_UK_T_dcp_qrep = get_dcp_group().all_gather(
                 module.W_UK_T.contiguous(), dim=0)
+
+
+def _restore_fp8_moe_runtime(model: nn.Module, method_type: type) -> int:
+    """Rebuild Python kernels, never shuffle the mapped FP8 weights again."""
+    restored = 0
+    for module in model.modules():
+        method = getattr(module, "quant_method", None)
+        if isinstance(method, method_type) and method.moe_kernel is None:
+            method._init_moe_kernel(module)
+            restored += 1
+    return restored
 
 
 def _restore_daemon_runtime_objects(model: nn.Module) -> None:
@@ -547,6 +591,15 @@ def _restore_daemon_runtime_objects(model: nn.Module) -> None:
         logger.info(
             "Rebuilt %d daemon-backed Kimi-K3 INT4 MoE kernels", rebuilt_mxfp4
         )
+
+    try:
+        from vllm.model_executor.layers.quantization.fp8 import Fp8MoEMethod
+    except ImportError:
+        Fp8MoEMethod = None
+    if Fp8MoEMethod is not None:
+        restored_fp8 = _restore_fp8_moe_runtime(model, Fp8MoEMethod)
+        if restored_fp8:
+            logger.info("Rebuilt %d daemon-backed FP8 MoE kernels", restored_fp8)
 
     try:
         from vllm.model_executor.layers.fused_moe.oracle.unquantized import (
@@ -710,6 +763,8 @@ class IPCWeightCacheModelLoader:
         entries: dict[str, dict[str, Any]] = response["entries"]
         imported: list[torch.Tensor] = []
         for name, entry in entries.items():
+            if _unused_glm_indexer(model, name):
+                continue
             if entry["transport"] == "cuda_ipc":
                 args = list(entry["ipc_args"])
                 # PyTorch reduce_tensor's CUDA/HIP reconstruction tuple stores

@@ -21,6 +21,8 @@ from vllm_lod_plugin.weight_cache_loader import (
     _restore_kimi_lod_projection_views,
     _attention_weight_layout_hash,
     _weight_layout_hash,
+    _unused_glm_indexer,
+    _restore_fp8_moe_runtime,
 )
 
 
@@ -133,6 +135,81 @@ def test_lod_canonical_views_reuse_dense_daemon_original_kv_storage() -> None:
     saved = attn.W_UK_T
     _restore_kimi_lod_projection_views(model)
     assert attn.W_UK_T is saved
+
+
+@pytest.mark.parametrize("native_prefix", [False, True])
+def test_glm_ipc_preserves_client_sparse_dispatch(native_prefix) -> None:
+    import torch
+
+    model = torch.nn.Module()
+    model.attn = torch.nn.Module()
+    model.attn.is_v32 = native_prefix
+    model.attn.core = torch.nn.Module()
+    model.attn.core.is_sparse = native_prefix
+    model.attn.core.inner = torch.nn.Module()
+    model.attn.core.inner._vllm_lod_glm53 = True
+    model.attn.core.inner.use_sparse = native_prefix
+    model.native = torch.nn.Module()
+    model.native.is_sparse = False
+    _apply_module_metadata(model, {
+        "attn": {"is_v32": not native_prefix},
+        "attn.core": {"is_sparse": not native_prefix},
+        "attn.core.inner": {"use_sparse": not native_prefix},
+        "native": {"is_sparse": True},
+    })
+    assert model.attn.is_v32 is native_prefix
+    assert model.attn.core.is_sparse is native_prefix
+    assert model.attn.core.inner.use_sparse is native_prefix
+    assert model.native.is_sparse is True
+
+
+def test_glm_lod_skips_only_its_absent_native_indexer() -> None:
+    import torch
+
+    model = torch.nn.Module()
+    model.attn = torch.nn.Module()
+    model.attn.indexer = None
+    model.attn.indexer_rope_emb = None
+    model.attn.core = torch.nn.Module()
+    model.attn.core._vllm_lod_glm53 = True
+    assert _unused_glm_indexer(model, "attn.indexer.wk.weight")
+    assert _unused_glm_indexer(model, "attn.indexer_rope_emb.cos_sin_cache")
+    assert not _unused_glm_indexer(model, "attn.q_proj.weight")
+    assert not _unused_glm_indexer(model, "missing.indexer.wk.weight")
+    _apply_module_metadata(model, {"attn.indexer.wk": {"unused": True}})
+    _apply_module_metadata(model, {"attn.indexer_rope_emb": {"unused": True}})
+    with pytest.raises(RuntimeError, match="missing module"):
+        _apply_module_metadata(model, {"attn.missing": {"invalid": True}})
+    model.attn.core._vllm_lod_glm53 = False
+    assert not _unused_glm_indexer(model, "attn.indexer.wk.weight")
+    assert not _unused_glm_indexer(model, "attn.indexer_rope_emb.cos_sin_cache")
+    model.attn.core._vllm_lod_glm53 = True
+    model.attn.indexer = torch.nn.Module()
+    assert not _unused_glm_indexer(model, "attn.indexer_rope_emb.cos_sin_cache")
+
+
+def test_fp8_ipc_rebuild_does_not_convert_shared_weights() -> None:
+    import torch
+
+    class Method:
+        def __init__(self):
+            self.moe_kernel = None
+            self.calls = 0
+
+        def _init_moe_kernel(self, layer):
+            self.calls += 1
+            self.moe_kernel = object()
+
+        def process_weights_after_loading(self, layer):
+            raise AssertionError("must not reconvert daemon-owned weights")
+
+    model = torch.nn.Linear(4, 4, bias=False)
+    original = model.weight.detach().clone()
+    model.quant_method = Method()
+    assert _restore_fp8_moe_runtime(model, Method) == 1
+    assert _restore_fp8_moe_runtime(model, Method) == 0
+    assert model.quant_method.calls == 1
+    assert torch.equal(model.weight, original)
 
 
 def test_weight_layout_hash_ignores_runtime_context_capacity() -> None:

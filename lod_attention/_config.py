@@ -8,6 +8,8 @@ from typing import Any
 
 ROUTE_COUNT = 8
 PAGE_SIZE = 16
+# Three-tier decode opens two distinct pages per routed centroid in one scan.
+DECODE_PAGE_COUNT = 2
 CHUNK_SIZE = 256
 LOCAL_WINDOW = 512
 PREFIX_CACHE_LOCAL_WINDOW = 1_024
@@ -52,6 +54,7 @@ class ModelFamily(str, Enum):
     QWEN38 = "qwen3.8"
     K2 = "k2-horizon"
     KIMI_K3 = "kimi-k3"
+    GLM53_FLASH = "glm5.3-flash"
 
 
 def _text_config(config: Any) -> Any:
@@ -80,6 +83,8 @@ def model_family(config_or_model: Any) -> ModelFamily:
     }
     if root_type == "k2_horizon" or "k2horizonforcausallm" in architectures:
         return ModelFamily.K2
+    if root_type in ("glm5_next", "glm5_next_text") or text_type == "glm5_next_text":
+        return ModelFamily.GLM53_FLASH
     if (
         root_type == "kimi_k3"
         or text_type == "kimi_linear"
@@ -98,7 +103,7 @@ def model_family(config_or_model: Any) -> ModelFamily:
         return ModelFamily.QWEN38
 
     raise ValueError(
-        "This LoD release supports Qwen3.8, K2 Horizon, and Kimi K3; "
+        "This LoD checkout supports Qwen3.8, K2 Horizon, Kimi K3 and experimental GLM5.3-Flash; "
         f"received model_type={root_type or text_type or '<unknown>'!r}."
     )
 

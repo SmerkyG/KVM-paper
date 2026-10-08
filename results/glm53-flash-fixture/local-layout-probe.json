@@ -1,0 +1,92 @@
+{
+  "candidates": [
+    {
+      "block_m": 64,
+      "block_n": 64,
+      "gluon_warps": [
+        2,
+        2
+      ],
+      "gpu_ms": 3.787997007369995,
+      "mfma": 16,
+      "registers": 512,
+      "shared_bytes": 65536,
+      "spills": 12,
+      "status": "complete",
+      "warps": 4
+    },
+    {
+      "block_m": 64,
+      "block_n": 64,
+      "gluon_warps": [
+        4,
+        1
+      ],
+      "gpu_ms": 5.6220550537109375,
+      "mfma": 16,
+      "registers": 512,
+      "shared_bytes": 65536,
+      "spills": 51,
+      "status": "complete",
+      "warps": 4
+    },
+    {
+      "block_m": 64,
+      "block_n": 64,
+      "gluon_warps": [
+        1,
+        4
+      ],
+      "gpu_ms": 5.013661861419678,
+      "mfma": 16,
+      "registers": 512,
+      "shared_bytes": 65536,
+      "spills": 73,
+      "status": "complete",
+      "warps": 4
+    },
+    {
+      "block_m": 128,
+      "block_n": 32,
+      "error": "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help.",
+      "gluon_warps": [
+        4,
+        2
+      ],
+      "mfma": 16,
+      "status": "failed",
+      "warps": 8
+    },
+    {
+      "block_m": 128,
+      "block_n": 64,
+      "error": "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help.",
+      "gluon_warps": [
+        4,
+        2
+      ],
+      "mfma": 16,
+      "status": "failed",
+      "warps": 8
+    },
+    {
+      "block_m": 128,
+      "block_n": 64,
+      "error": "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help.",
+      "gluon_warps": [
+        4,
+        2
+      ],
+      "mfma": 32,
+      "status": "failed",
+      "warps": 8
+    }
+  ],
+  "scope": "diagnostic exact causal local kernel on random tensors",
+  "shape": [
+    1,
+    64,
+    4096,
+    512
+  ]
+}

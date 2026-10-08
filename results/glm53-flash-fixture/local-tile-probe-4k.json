@@ -1,0 +1,53 @@
+{
+  "candidates": [
+    {
+      "block_m": 32,
+      "block_n": 32,
+      "gpu_ms": 14.997709274291992,
+      "status": "complete",
+      "warps": 8
+    },
+    {
+      "block_m": 64,
+      "block_n": 32,
+      "gpu_ms": 21.34741973876953,
+      "status": "complete",
+      "warps": 8
+    },
+    {
+      "block_m": 32,
+      "block_n": 64,
+      "gpu_ms": 55.116024017333984,
+      "status": "complete",
+      "warps": 8
+    },
+    {
+      "block_m": 64,
+      "block_n": 64,
+      "gpu_ms": 47.942962646484375,
+      "status": "complete",
+      "warps": 8
+    },
+    {
+      "block_m": 128,
+      "block_n": 32,
+      "error": "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help.",
+      "status": "failed",
+      "warps": 8
+    },
+    {
+      "block_m": 32,
+      "block_n": 32,
+      "gpu_ms": 7.744929790496826,
+      "status": "complete",
+      "warps": 4
+    }
+  ],
+  "scope": "diagnostic exact causal local kernel on random tensors",
+  "shape": [
+    1,
+    64,
+    4096,
+    512
+  ]
+}

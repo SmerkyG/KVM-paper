@@ -49,6 +49,7 @@ def chunk_kda_prepare_kernel(
     BT: gl.constexpr,
     NUM_WARPS: gl.constexpr,
     NC: gl.constexpr,
+    BETA_ACTIVATED: gl.constexpr = False,
 ):
     """One (chunk, head) per program: l2norm, gate cumsum, the intra-chunk products and
     the (I + L)^-1 solve, written as the walk's workspace (qg, w, u, aqk, kg_t, decay).
@@ -225,14 +226,15 @@ def chunk_kda_prepare_kernel(
     beta = gl.amd.cdna3.buffer_load(
         b_p, b1 * stride_beta_token, mask=b1 < n, other=0.0
     ).to(gl.float32)
-    beta = gl.inline_asm_elementwise(
-        "v_rcp_f32 $0, $1",
-        "=v,v",
-        [1.0 + gl.exp2(beta * -LOG2E)],
-        dtype=gl.float32,
-        is_pure=True,
-        pack=1,
-    )
+    if not BETA_ACTIVATED:
+        beta = gl.inline_asm_elementwise(
+            "v_rcp_f32 $0, $1",
+            "=v,v",
+            [1.0 + gl.exp2(beta * -LOG2E)],
+            dtype=gl.float32,
+            is_pure=True,
+            pack=1,
+        )
     beta_s = gl.allocate_shared_memory(
         gl.float32, [BT], gl.SwizzledSharedLayout(1, 1, 1, [0]), beta
     )

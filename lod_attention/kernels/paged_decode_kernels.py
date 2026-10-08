@@ -1060,20 +1060,21 @@ def _materialize_absorbed_mla_coarse_means_kernel(
         latent_sum.to(tl.float32) / denominator[:, None],
         mask=active_slot[:, None],
     )
-    direct_dimension = tl.arange(0, 64)
-    direct_storage = (
-        (kv_row * STATE_CAPACITY + slot[:, None]) * HEAD_DIM
-        + 512
-        + direct_dimension
-    )
-    direct_sum = tl.load(
-        state_k + direct_storage, mask=active[:, None], other=0.0
-    )
-    tl.store(
-        coarse_k + direct_storage,
-        direct_sum.to(tl.float32) / denominator[:, None],
-        mask=active_slot[:, None],
-    )
+    if HEAD_DIM == 576:
+        direct_dimension = tl.arange(0, 64)
+        direct_storage = (
+            (kv_row * STATE_CAPACITY + slot[:, None]) * HEAD_DIM
+            + 512
+            + direct_dimension
+        )
+        direct_sum = tl.load(
+            state_k + direct_storage, mask=active[:, None], other=0.0
+        )
+        tl.store(
+            coarse_k + direct_storage,
+            direct_sum.to(tl.float32) / denominator[:, None],
+            mask=active_slot[:, None],
+        )
     tl.store(
         coarse_bias + kv_row * STATE_CAPACITY + slot,
         tl.where(active, tl.log(denominator), -float("inf")),
@@ -1102,8 +1103,8 @@ def materialize_absorbed_mla_coarse_means(
     if not all(tensor.is_cuda and tensor.is_contiguous() for tensor in tensors):
         raise ValueError("absorbed-MLA coarse refresh requires contiguous CUDA tensors")
     batch, kv_heads, state_capacity, head_dim = state_k.shape
-    if head_dim != 576:
-        raise ValueError("absorbed-MLA records must contain 512+64 channels")
+    if head_dim not in (512, 576):
+        raise ValueError("absorbed-MLA records must contain 512 or 512+64 channels")
     if active_state_len is None:
         active_state_len = state_capacity
     active_state_len = int(active_state_len)
@@ -1837,6 +1838,10 @@ def _reduce_routed_split_decode_lod_attention_kernel(
     USE_DOT: tl.constexpr,
     ADVANCE_LOCAL: tl.constexpr,
     SUBTRACT_ROUTES: tl.constexpr,
+    final_lse=None,
+    HAS_FINAL_LSE: tl.constexpr = False,
+    OUTPUT_BATCH_STRIDE: tl.constexpr = 0,
+    OUTPUT_HEAD_STRIDE: tl.constexpr = 0,
 ):
     """Remove routed summaries, then stream exact branches into one softmax."""
     query_row = tl.program_id(0).to(tl.int64)
@@ -2146,7 +2151,13 @@ def _reduce_routed_split_decode_lod_attention_kernel(
             numerator = numerator * old_weight + value * new_weight
             maximum = new_maximum
     result = numerator / denominator
-    tl.store(out + query_row * VALUE_DIM + value_dim, result, mask=value_valid)
+    if OUTPUT_BATCH_STRIDE:
+        output_offset = batch * OUTPUT_BATCH_STRIDE + query_head * OUTPUT_HEAD_STRIDE
+    else:
+        output_offset = query_row * VALUE_DIM
+    tl.store(out + output_offset + value_dim, result, mask=value_valid)
+    if HAS_FINAL_LSE:
+        tl.store(final_lse + query_row, maximum + tl.log(denominator))
     if ADVANCE_LOCAL and query_head == 0:
         local_length = tl.load(local_lens + cache_batch)
         tl.store(local_lens + cache_batch, local_length + 1)

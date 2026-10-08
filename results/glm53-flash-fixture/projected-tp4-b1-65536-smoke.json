@@ -1,0 +1,640 @@
+{
+  "batch": 1,
+  "coarse_geometry": "projected256-combined-kv",
+  "decode_ms_per_step": 4.199318820610642,
+  "ffn_intermediate_size": 512,
+  "first_token_logprobs": [
+    -6.931460857391357
+  ],
+  "fixture": "tests/fixtures/glm53-flash-mixed4-fp8",
+  "initial_prefix": "exact",
+  "kv_cache_memory_bytes": 2147483648,
+  "length": 65536,
+  "local_geometry": "projected256",
+  "max_num_batched_tokens": 16385,
+  "measured_decode_steps": 8,
+  "mode": "two-tier",
+  "output_tokens": [
+    [
+      237,
+      221,
+      237,
+      221,
+      237,
+      221,
+      237,
+      221,
+      237
+    ]
+  ],
+  "page_lookup": "scalar per page",
+  "post_generation_workers": [
+    {
+      "mla": [
+        {
+          "backend": "TritonMLAImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": true,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        }
+      ],
+      "modules": {
+        "ColumnParallelLinear": 17,
+        "DeepSeekV2FusedQkvAProjLinear": 1,
+        "FusedRMSNormGated": 3,
+        "Glm5NextDecoderLayer": 4,
+        "Glm5NextForCausalLM": 1,
+        "Glm5NextLinearAttention": 3,
+        "Glm5NextMLAAttention": 1,
+        "Glm5NextMLP": 4,
+        "Glm5NextModel": 1,
+        "LogitsProcessor": 1,
+        "MHCFusedPostPreOp": 4,
+        "MHCPostOp": 4,
+        "MHCPreOp": 4,
+        "MLAAttention": 1,
+        "MergedColumnParallelLinear": 4,
+        "ModuleList": 2,
+        "MultiHeadLatentAttentionWrapper": 1,
+        "ParallelLMHead": 1,
+        "QuantFP8": 1,
+        "RMSNorm": 11,
+        "RowParallelLinear": 8,
+        "SiluAndMulWithClamp": 4,
+        "VocabParallelEmbedding": 1,
+        "_DecodeConcatQuantFP8": 1,
+        "_Glm5NextMergedColumnParallelLinear": 3
+      },
+      "parameter_dtypes": {
+        "torch.bfloat16": 34,
+        "torch.float32": 47,
+        "torch.float8_e4m3fnuz": 8
+      },
+      "pools": [
+        {
+          "count_sums": [
+            65279.0
+          ],
+          "exact_first_chunk": true,
+          "head_tiled_decode": true,
+          "leaf_lens": [
+            65279
+          ],
+          "local_lens": [
+            264
+          ],
+          "metadata": [
+            {
+              "coverage": 65280,
+              "leaf_count": 65279,
+              "overflow_safe_until": 1040,
+              "recent_len": 256,
+              "scheduled_state_len": 4096,
+              "state_len": 4096,
+              "total_len": 65536
+            }
+          ],
+          "state_lens": [
+            4096
+          ]
+        }
+      ]
+    },
+    {
+      "mla": [
+        {
+          "backend": "TritonMLAImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": true,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        }
+      ],
+      "modules": {
+        "ColumnParallelLinear": 17,
+        "DeepSeekV2FusedQkvAProjLinear": 1,
+        "FusedRMSNormGated": 3,
+        "Glm5NextDecoderLayer": 4,
+        "Glm5NextForCausalLM": 1,
+        "Glm5NextLinearAttention": 3,
+        "Glm5NextMLAAttention": 1,
+        "Glm5NextMLP": 4,
+        "Glm5NextModel": 1,
+        "LogitsProcessor": 1,
+        "MHCFusedPostPreOp": 4,
+        "MHCPostOp": 4,
+        "MHCPreOp": 4,
+        "MLAAttention": 1,
+        "MergedColumnParallelLinear": 4,
+        "ModuleList": 2,
+        "MultiHeadLatentAttentionWrapper": 1,
+        "ParallelLMHead": 1,
+        "QuantFP8": 1,
+        "RMSNorm": 11,
+        "RowParallelLinear": 8,
+        "SiluAndMulWithClamp": 4,
+        "VocabParallelEmbedding": 1,
+        "_DecodeConcatQuantFP8": 1,
+        "_Glm5NextMergedColumnParallelLinear": 3
+      },
+      "parameter_dtypes": {
+        "torch.bfloat16": 34,
+        "torch.float32": 47,
+        "torch.float8_e4m3fnuz": 8
+      },
+      "pools": [
+        {
+          "count_sums": [
+            65279.0
+          ],
+          "exact_first_chunk": true,
+          "head_tiled_decode": true,
+          "leaf_lens": [
+            65279
+          ],
+          "local_lens": [
+            264
+          ],
+          "metadata": [
+            {
+              "coverage": 65280,
+              "leaf_count": 65279,
+              "overflow_safe_until": 1040,
+              "recent_len": 256,
+              "scheduled_state_len": 4096,
+              "state_len": 4096,
+              "total_len": 65536
+            }
+          ],
+          "state_lens": [
+            4096
+          ]
+        }
+      ]
+    },
+    {
+      "mla": [
+        {
+          "backend": "TritonMLAImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": true,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        }
+      ],
+      "modules": {
+        "ColumnParallelLinear": 17,
+        "DeepSeekV2FusedQkvAProjLinear": 1,
+        "FusedRMSNormGated": 3,
+        "Glm5NextDecoderLayer": 4,
+        "Glm5NextForCausalLM": 1,
+        "Glm5NextLinearAttention": 3,
+        "Glm5NextMLAAttention": 1,
+        "Glm5NextMLP": 4,
+        "Glm5NextModel": 1,
+        "LogitsProcessor": 1,
+        "MHCFusedPostPreOp": 4,
+        "MHCPostOp": 4,
+        "MHCPreOp": 4,
+        "MLAAttention": 1,
+        "MergedColumnParallelLinear": 4,
+        "ModuleList": 2,
+        "MultiHeadLatentAttentionWrapper": 1,
+        "ParallelLMHead": 1,
+        "QuantFP8": 1,
+        "RMSNorm": 11,
+        "RowParallelLinear": 8,
+        "SiluAndMulWithClamp": 4,
+        "VocabParallelEmbedding": 1,
+        "_DecodeConcatQuantFP8": 1,
+        "_Glm5NextMergedColumnParallelLinear": 3
+      },
+      "parameter_dtypes": {
+        "torch.bfloat16": 34,
+        "torch.float32": 47,
+        "torch.float8_e4m3fnuz": 8
+      },
+      "pools": [
+        {
+          "count_sums": [
+            65279.0
+          ],
+          "exact_first_chunk": true,
+          "head_tiled_decode": true,
+          "leaf_lens": [
+            65279
+          ],
+          "local_lens": [
+            264
+          ],
+          "metadata": [
+            {
+              "coverage": 65280,
+              "leaf_count": 65279,
+              "overflow_safe_until": 1040,
+              "recent_len": 256,
+              "scheduled_state_len": 4096,
+              "state_len": 4096,
+              "total_len": 65536
+            }
+          ],
+          "state_lens": [
+            4096
+          ]
+        }
+      ]
+    },
+    {
+      "mla": [
+        {
+          "backend": "TritonMLAImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": true,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        }
+      ],
+      "modules": {
+        "ColumnParallelLinear": 17,
+        "DeepSeekV2FusedQkvAProjLinear": 1,
+        "FusedRMSNormGated": 3,
+        "Glm5NextDecoderLayer": 4,
+        "Glm5NextForCausalLM": 1,
+        "Glm5NextLinearAttention": 3,
+        "Glm5NextMLAAttention": 1,
+        "Glm5NextMLP": 4,
+        "Glm5NextModel": 1,
+        "LogitsProcessor": 1,
+        "MHCFusedPostPreOp": 4,
+        "MHCPostOp": 4,
+        "MHCPreOp": 4,
+        "MLAAttention": 1,
+        "MergedColumnParallelLinear": 4,
+        "ModuleList": 2,
+        "MultiHeadLatentAttentionWrapper": 1,
+        "ParallelLMHead": 1,
+        "QuantFP8": 1,
+        "RMSNorm": 11,
+        "RowParallelLinear": 8,
+        "SiluAndMulWithClamp": 4,
+        "VocabParallelEmbedding": 1,
+        "_DecodeConcatQuantFP8": 1,
+        "_Glm5NextMergedColumnParallelLinear": 3
+      },
+      "parameter_dtypes": {
+        "torch.bfloat16": 34,
+        "torch.float32": 47,
+        "torch.float8_e4m3fnuz": 8
+      },
+      "pools": [
+        {
+          "count_sums": [
+            65279.0
+          ],
+          "exact_first_chunk": true,
+          "head_tiled_decode": true,
+          "leaf_lens": [
+            65279
+          ],
+          "local_lens": [
+            264
+          ],
+          "metadata": [
+            {
+              "coverage": 65280,
+              "leaf_count": 65279,
+              "overflow_safe_until": 1040,
+              "recent_len": 256,
+              "scheduled_state_len": 4096,
+              "state_len": 4096,
+              "total_len": 65536
+            }
+          ],
+          "state_lens": [
+            4096
+          ]
+        }
+      ]
+    }
+  ],
+  "prefill_seconds": 0.24132526479661465,
+  "prefill_tokens_per_second": 271567.09039657644,
+  "quality_evidence": false,
+  "random_weights": true,
+  "reference": "native learned sparse MLA (2048-token indexer budget), not dense attention",
+  "request_first_token_seconds": [
+    0.24132526479661465
+  ],
+  "request_preemptions": [
+    0
+  ],
+  "seconds": 0.27714875619858503,
+  "status": "complete",
+  "tensor_parallel_size": 4,
+  "timing": "one untimed exact-shape warmup followed by one synchronized pass",
+  "worker_pids": [
+    81797,
+    81798,
+    81799,
+    81800
+  ],
+  "workers": [
+    {
+      "mla": [
+        {
+          "backend": "TritonMLAImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": true,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        }
+      ],
+      "modules": {
+        "ColumnParallelLinear": 17,
+        "DeepSeekV2FusedQkvAProjLinear": 1,
+        "FusedRMSNormGated": 3,
+        "Glm5NextDecoderLayer": 4,
+        "Glm5NextForCausalLM": 1,
+        "Glm5NextLinearAttention": 3,
+        "Glm5NextMLAAttention": 1,
+        "Glm5NextMLP": 4,
+        "Glm5NextModel": 1,
+        "LogitsProcessor": 1,
+        "MHCFusedPostPreOp": 4,
+        "MHCPostOp": 4,
+        "MHCPreOp": 4,
+        "MLAAttention": 1,
+        "MergedColumnParallelLinear": 4,
+        "ModuleList": 2,
+        "MultiHeadLatentAttentionWrapper": 1,
+        "ParallelLMHead": 1,
+        "QuantFP8": 1,
+        "RMSNorm": 11,
+        "RowParallelLinear": 8,
+        "SiluAndMulWithClamp": 4,
+        "VocabParallelEmbedding": 1,
+        "_DecodeConcatQuantFP8": 1,
+        "_Glm5NextMergedColumnParallelLinear": 3
+      },
+      "parameter_dtypes": {
+        "torch.bfloat16": 34,
+        "torch.float32": 47,
+        "torch.float8_e4m3fnuz": 8
+      },
+      "pools": [
+        {
+          "count_sums": [
+            0.0
+          ],
+          "exact_first_chunk": true,
+          "head_tiled_decode": true,
+          "leaf_lens": [
+            0
+          ],
+          "local_lens": [
+            0
+          ],
+          "metadata": [
+            {}
+          ],
+          "state_lens": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "mla": [
+        {
+          "backend": "TritonMLAImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": true,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        }
+      ],
+      "modules": {
+        "ColumnParallelLinear": 17,
+        "DeepSeekV2FusedQkvAProjLinear": 1,
+        "FusedRMSNormGated": 3,
+        "Glm5NextDecoderLayer": 4,
+        "Glm5NextForCausalLM": 1,
+        "Glm5NextLinearAttention": 3,
+        "Glm5NextMLAAttention": 1,
+        "Glm5NextMLP": 4,
+        "Glm5NextModel": 1,
+        "LogitsProcessor": 1,
+        "MHCFusedPostPreOp": 4,
+        "MHCPostOp": 4,
+        "MHCPreOp": 4,
+        "MLAAttention": 1,
+        "MergedColumnParallelLinear": 4,
+        "ModuleList": 2,
+        "MultiHeadLatentAttentionWrapper": 1,
+        "ParallelLMHead": 1,
+        "QuantFP8": 1,
+        "RMSNorm": 11,
+        "RowParallelLinear": 8,
+        "SiluAndMulWithClamp": 4,
+        "VocabParallelEmbedding": 1,
+        "_DecodeConcatQuantFP8": 1,
+        "_Glm5NextMergedColumnParallelLinear": 3
+      },
+      "parameter_dtypes": {
+        "torch.bfloat16": 34,
+        "torch.float32": 47,
+        "torch.float8_e4m3fnuz": 8
+      },
+      "pools": [
+        {
+          "count_sums": [
+            0.0
+          ],
+          "exact_first_chunk": true,
+          "head_tiled_decode": true,
+          "leaf_lens": [
+            0
+          ],
+          "local_lens": [
+            0
+          ],
+          "metadata": [
+            {}
+          ],
+          "state_lens": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "mla": [
+        {
+          "backend": "TritonMLAImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": true,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        }
+      ],
+      "modules": {
+        "ColumnParallelLinear": 17,
+        "DeepSeekV2FusedQkvAProjLinear": 1,
+        "FusedRMSNormGated": 3,
+        "Glm5NextDecoderLayer": 4,
+        "Glm5NextForCausalLM": 1,
+        "Glm5NextLinearAttention": 3,
+        "Glm5NextMLAAttention": 1,
+        "Glm5NextMLP": 4,
+        "Glm5NextModel": 1,
+        "LogitsProcessor": 1,
+        "MHCFusedPostPreOp": 4,
+        "MHCPostOp": 4,
+        "MHCPreOp": 4,
+        "MLAAttention": 1,
+        "MergedColumnParallelLinear": 4,
+        "ModuleList": 2,
+        "MultiHeadLatentAttentionWrapper": 1,
+        "ParallelLMHead": 1,
+        "QuantFP8": 1,
+        "RMSNorm": 11,
+        "RowParallelLinear": 8,
+        "SiluAndMulWithClamp": 4,
+        "VocabParallelEmbedding": 1,
+        "_DecodeConcatQuantFP8": 1,
+        "_Glm5NextMergedColumnParallelLinear": 3
+      },
+      "parameter_dtypes": {
+        "torch.bfloat16": 34,
+        "torch.float32": 47,
+        "torch.float8_e4m3fnuz": 8
+      },
+      "pools": [
+        {
+          "count_sums": [
+            0.0
+          ],
+          "exact_first_chunk": true,
+          "head_tiled_decode": true,
+          "leaf_lens": [
+            0
+          ],
+          "local_lens": [
+            0
+          ],
+          "metadata": [
+            {}
+          ],
+          "state_lens": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "mla": [
+        {
+          "backend": "TritonMLAImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": true,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        }
+      ],
+      "modules": {
+        "ColumnParallelLinear": 17,
+        "DeepSeekV2FusedQkvAProjLinear": 1,
+        "FusedRMSNormGated": 3,
+        "Glm5NextDecoderLayer": 4,
+        "Glm5NextForCausalLM": 1,
+        "Glm5NextLinearAttention": 3,
+        "Glm5NextMLAAttention": 1,
+        "Glm5NextMLP": 4,
+        "Glm5NextModel": 1,
+        "LogitsProcessor": 1,
+        "MHCFusedPostPreOp": 4,
+        "MHCPostOp": 4,
+        "MHCPreOp": 4,
+        "MLAAttention": 1,
+        "MergedColumnParallelLinear": 4,
+        "ModuleList": 2,
+        "MultiHeadLatentAttentionWrapper": 1,
+        "ParallelLMHead": 1,
+        "QuantFP8": 1,
+        "RMSNorm": 11,
+        "RowParallelLinear": 8,
+        "SiluAndMulWithClamp": 4,
+        "VocabParallelEmbedding": 1,
+        "_DecodeConcatQuantFP8": 1,
+        "_Glm5NextMergedColumnParallelLinear": 3
+      },
+      "parameter_dtypes": {
+        "torch.bfloat16": 34,
+        "torch.float32": 47,
+        "torch.float8_e4m3fnuz": 8
+      },
+      "pools": [
+        {
+          "count_sums": [
+            0.0
+          ],
+          "exact_first_chunk": true,
+          "head_tiled_decode": true,
+          "leaf_lens": [
+            0
+          ],
+          "local_lens": [
+            0
+          ],
+          "metadata": [
+            {}
+          ],
+          "state_lens": [
+            0
+          ]
+        }
+      ]
+    }
+  ]
+}

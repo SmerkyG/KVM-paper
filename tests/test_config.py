@@ -140,7 +140,7 @@ def test_supported_model_families_are_recognized() -> None:
         text_config=SimpleNamespace(model_type="kimi_linear"),
     )
     assert model_family(kimi) is ModelFamily.KIMI_K3
-    with pytest.raises(ValueError, match="supports Qwen3.8, K2 Horizon, and Kimi K3"):
+    with pytest.raises(ValueError, match="supports Qwen3.8, K2 Horizon, Kimi K3"):
         model_family(unsupported)
 
 

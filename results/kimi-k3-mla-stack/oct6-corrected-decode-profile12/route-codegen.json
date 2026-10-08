@@ -1,0 +1,26 @@
+{
+  "scope": "Read-only compiler-artifact inspection on node 3, October 6 2026",
+  "kernel": "_decode_route_coarse_gqa_groups_kernel",
+  "compiled_at_utc": "2026-10-06T20:36:14.011988+00:00",
+  "cache_path": "/tmp/dan-agent/.triton/cache/7Y36WUMBAEOY5DJPYYFU2ETDXXEDT256BBN6ZGTPZ4UDPOKX3SBA",
+  "hash": "fe37eb5181011d8e8d2fc60b4d1263bdc839ebbe085bec9a6fcf2837b957dc82",
+  "target": "gfx942",
+  "query_heads": 96,
+  "head_tile": 16,
+  "centroid_tile": 64,
+  "key_dimensions": [512, 64],
+  "num_warps": 1,
+  "waves_per_eu": 1,
+  "num_stages": 2,
+  "shared_bytes": 32768,
+  "vgpr_count": 512,
+  "sgpr_count": 106,
+  "vgpr_spill_count": 603,
+  "sgpr_spill_count": 130,
+  "private_segment_fixed_size_bytes": 1592,
+  "evidence": [
+    "21344-kimi-k3-fixture-route-codegen",
+    "21345-kimi-k3-fixture-route-shape",
+    "21346-kimi-k3-fixture-route-spills"
+  ]
+}

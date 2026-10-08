@@ -1,0 +1,110 @@
+{
+  "all_leaf_head_pairs": 524272,
+  "attention_tiles": [
+    {
+      "complete_refinement_ms": 3.2718521118164063,
+      "max_lse_difference": 6.0558319091796875e-05,
+      "relative_output_l2": 0.0038785128854215145,
+      "tile": [
+        16,
+        16,
+        2
+      ]
+    },
+    {
+      "complete_refinement_ms": 2.5512218475341797,
+      "max_lse_difference": 6.0558319091796875e-05,
+      "relative_output_l2": 0.0038785128854215145,
+      "tile": [
+        32,
+        16,
+        2
+      ]
+    },
+    {
+      "complete_refinement_ms": 3.1370222091674806,
+      "max_lse_difference": 6.0558319091796875e-05,
+      "relative_output_l2": 0.0038785128854215145,
+      "tile": [
+        32,
+        16,
+        4
+      ]
+    },
+    {
+      "complete_refinement_ms": 2.630565071105957,
+      "max_lse_difference": 6.0558319091796875e-05,
+      "relative_output_l2": 0.0038785128854215145,
+      "tile": [
+        64,
+        16,
+        2
+      ]
+    },
+    {
+      "complete_refinement_ms": 3.249996566772461,
+      "max_lse_difference": 6.0558319091796875e-05,
+      "relative_output_l2": 0.0038772784173488617,
+      "tile": [
+        64,
+        32,
+        4
+      ]
+    }
+  ],
+  "baseline_after_ms": 3.6486236572265627,
+  "baseline_before_ms": 3.76110954284668,
+  "best_attention_tile": [
+    32,
+    16,
+    2
+  ],
+  "best_projection_tile": [
+    64,
+    64,
+    4
+  ],
+  "heads": 16,
+  "history": 49152,
+  "includes": "dispatch + projection + exact leaf attention + route reduction",
+  "iterations": 5,
+  "projected_leaf_head_pairs": 18699,
+  "projection_tiles": [
+    {
+      "projection_only_ms": 0.12025439739227295,
+      "tile": [
+        32,
+        128,
+        4
+      ]
+    },
+    {
+      "projection_only_ms": 0.10630259513854981,
+      "tile": [
+        64,
+        128,
+        4
+      ]
+    },
+    {
+      "projection_only_ms": 0.11347819566726684,
+      "tile": [
+        128,
+        128,
+        8
+      ]
+    },
+    {
+      "projection_only_ms": 0.10577460527420043,
+      "tile": [
+        64,
+        64,
+        4
+      ]
+    }
+  ],
+  "queries": 16384,
+  "scope": "random-input complete remote-refinement GPU interval, not model timing",
+  "slots": 2907,
+  "speedup_vs_bracketed_baseline": 1.4521930359045288
+}

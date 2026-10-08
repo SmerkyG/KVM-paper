@@ -326,6 +326,7 @@ def select_quality_prompts(
     length: int,
     samples: int,
     sample_offset: int,
+    allow_short_documents: bool = False,
 ) -> tuple[list[dict[str, list[int]]], list[dict[str, Any]]]:
     from datasets import load_dataset
 
@@ -360,7 +361,7 @@ def select_quality_prompts(
             max_length=length,
             return_attention_mask=False,
         )["input_ids"]
-        if len(token_ids) != length:
+        if len(token_ids) != length and not allow_short_documents:
             raise RuntimeError(
                 f"frozen ProLong document {dataset_index} produced only "
                 f"{len(token_ids):,} tokens; {length:,} are required"
@@ -370,7 +371,7 @@ def select_quality_prompts(
             {
                 "dataset_index": dataset_index,
                 "document_sha256": document_digest(text),
-                "tokens": length,
+                "tokens": len(token_ids),
                 "token_sha256": token_digest(token_ids),
             }
         )
@@ -950,7 +951,7 @@ def audit_worker_attention_mode(worker: Any) -> dict[str, Any]:
     """Report the actual worker-side attention/runtime selected by vLLM."""
 
     runner = getattr(worker, "model_runner", None)
-    state = getattr(runner, "model_state", None)
+    state = getattr(runner, "model_state", None) or runner
     model = getattr(state, "model", None)
     if model is None:
         model = getattr(state, "get_model", lambda: None)()

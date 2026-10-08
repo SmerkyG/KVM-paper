@@ -1,0 +1,28 @@
+{
+  "heads": 64,
+  "projection_included": true,
+  "queries": 16384,
+  "rows": [
+    {
+      "milliseconds": 27.667314529418945,
+      "path": "absorbed512",
+      "slots": 2048
+    },
+    {
+      "milliseconds": 15.14639949798584,
+      "path": "projected256",
+      "slots": 2048
+    },
+    {
+      "milliseconds": 48.910911560058594,
+      "path": "absorbed512",
+      "slots": 4096
+    },
+    {
+      "milliseconds": 27.762073516845703,
+      "path": "projected256",
+      "slots": 4096
+    }
+  ],
+  "scope": "random-input TP1 coarse-only GPU interval; not model latency"
+}

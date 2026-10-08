@@ -1,0 +1,65 @@
+{
+  "candidates": [
+    {
+      "block_m": 32,
+      "block_n": 16,
+      "gluon_shared_latent": false,
+      "phases_ms": {
+        "dispatch": 0.6521940231323242,
+        "dispatch_blocks": 0.006240000016987324,
+        "dispatch_group": 0.6234750151634216,
+        "dispatch_prepare": 0.016239000484347343,
+        "kernel": 10.4247465133667,
+        "pack": 0.0060800001956522465,
+        "total": 11.08302116394043
+      },
+      "refinement_ms": 12.00273323059082,
+      "scalar_page_lookup": false,
+      "status": "complete",
+      "waves": 2
+    },
+    {
+      "block_m": 32,
+      "block_n": 16,
+      "gluon_shared_latent": false,
+      "phases_ms": {
+        "dispatch": 0.6471539735794067,
+        "dispatch_blocks": 0.006279999855905771,
+        "dispatch_group": 0.6172339916229248,
+        "dispatch_prepare": 0.017319999635219574,
+        "kernel": 9.030399322509766,
+        "pack": 0.006320000160485506,
+        "total": 9.683873176574707
+      },
+      "refinement_ms": 10.84510326385498,
+      "scalar_page_lookup": true,
+      "status": "complete",
+      "waves": 2
+    },
+    {
+      "block_m": 32,
+      "block_n": 16,
+      "gluon_shared_latent": true,
+      "phases_ms": {
+        "dispatch": 0.6306350231170654,
+        "dispatch_blocks": 0.006120000034570694,
+        "dispatch_group": 0.6021549701690674,
+        "dispatch_prepare": 0.016279999166727066,
+        "kernel": 9.18107795715332,
+        "pack": 0.006279999855905771,
+        "total": 9.8179931640625
+      },
+      "refinement_ms": 10.179268836975098,
+      "scalar_page_lookup": false,
+      "status": "complete",
+      "waves": 2
+    }
+  ],
+  "history": 16384,
+  "policy": "top-eight; oversized selected regions remain closed above 1024 leaves",
+  "queries": 16384,
+  "route_coarse_ms": 22.728195190429688,
+  "scope": "TP1 remote-only kernel diagnostic; random inputs; not model timings",
+  "shared_latent": true,
+  "slots": 2048
+}

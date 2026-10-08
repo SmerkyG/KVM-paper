@@ -1,0 +1,39 @@
+{
+  "candidates": [
+    {
+      "block_m": 64,
+      "block_n": 64,
+      "gluon_layout": true,
+      "gpu_ms": 14.69131851196289,
+      "query_tiled": true,
+      "status": "complete",
+      "warps": 4
+    },
+    {
+      "block_m": 32,
+      "block_n": 128,
+      "gluon_layout": true,
+      "gpu_ms": 48.616817474365234,
+      "query_tiled": true,
+      "status": "complete",
+      "warps": 4
+    },
+    {
+      "block_m": 64,
+      "block_n": 128,
+      "gluon_layout": true,
+      "gpu_ms": 28.60080909729004,
+      "query_tiled": true,
+      "status": "complete",
+      "warps": 4
+    }
+  ],
+  "query_shape": [
+    1,
+    64,
+    4096,
+    512
+  ],
+  "scope": "random-input GPU route/coarse layout diagnostic",
+  "slots": 2048
+}

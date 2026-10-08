@@ -66,7 +66,8 @@ def _page_cache(*, leaf_capacity: int, dimension: int) -> dict[str, torch.Tensor
     }
 
 
-def test_bounded_page_hash_miss_never_forms_an_out_of_bounds_address() -> None:
+@pytest.mark.parametrize("dimension,block_m", [(16, 16), (256, 32)])
+def test_bounded_page_hash_miss_never_forms_an_out_of_bounds_address(dimension, block_m) -> None:
     """A full bounded hash must safely leave the missing page at coarse LOD."""
     from lod_attention.kernels.paged_cache import (
         append_quantized_virtual_paged_kv,
@@ -75,7 +76,6 @@ def test_bounded_page_hash_miss_never_forms_an_out_of_bounds_address() -> None:
     )
     from lod_attention.kernels.paged_prefill import paged_leaf_attention
 
-    dimension = 16
     leaf_capacity = 48
     cache = _page_cache(leaf_capacity=leaf_capacity, dimension=dimension)
     leaf_k = torch.randn(
@@ -177,12 +177,37 @@ def test_bounded_page_hash_miss_never_forms_an_out_of_bounds_address() -> None:
         active_slots=1,
         scale=dimension**-0.5,
         hash_probes=1,
-        block_m=16,
+        block_m=block_m,
         block_n=16,
     )
     torch.cuda.synchronize()
     assert torch.isfinite(output).all()
     assert torch.isfinite(lse).all()
+
+    # Recursive multi-page decode must refine the two reachable pages once
+    # and leave the unaddressable third page in a disjoint parent residual.
+    from lod_attention.kernels.paged_prefill import query_major_indexed_residual_page_attention
+
+    state_k = leaf_k.float().sum(2, keepdim=True).to(torch.bfloat16)
+    state_v = leaf_v.float().sum(2, keepdim=True).to(torch.bfloat16)
+    remaining_k = (state_k[0, 0, 0].float() - cache["page_sum_k"][0, 0, :2].float().sum(0)) / 16
+    remaining_v = (state_v[0, 0, 0].float() - cache["page_sum_v"][0, 0, :2].float().sum(0)) / 16
+    keys = torch.cat((leaf_k[0, 0, :32].float(), remaining_k[None]))
+    values = torch.cat((leaf_v[0, 0, :32].float(), remaining_v[None]))
+    logits = keys @ query[0, 0, 0].float() * dimension**-0.5
+    logits[-1] += torch.tensor(16.0, device="cuda").log()
+    expected = logits.softmax(0) @ values
+    for page_budget in (2, 4):
+        output, lse = query_major_indexed_residual_page_attention(
+            query, state_k, state_v, cache["slot_lengths"].float(), leaf_k, leaf_v,
+            cache["page_indices"], cache["page_sum_k"], cache["page_sum_v"],
+            cache["page_counts"], cache["slot_pages"], cache["overflow_page_keys"],
+            cache["overflow_page_values"], cache["overflow_used"], cache["slot_lengths"],
+            top_slots, kv_group_size=1, scale=dimension**-0.5, hash_probes=1,
+            pages_per_slot=page_budget,
+        )
+        torch.testing.assert_close(output[0, 0, 0].float(), expected, atol=0.015, rtol=0.015)
+        torch.testing.assert_close(lse[0, 0, 0], logits.logsumexp(0), atol=0.002, rtol=0.002)
 
 
 @pytest.mark.parametrize("block_n", [16, 32, 64, 128])

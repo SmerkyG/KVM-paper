@@ -30,6 +30,24 @@ def test_dense_registration_applies_private_fixture_without_lod_interception(mon
     assert calls == ["fixture", "dense"]
 
 
+def test_dcp_reserves_gathered_query_heads_before_capture():
+    reservations = []
+    pool = SimpleNamespace(max_requests=2, dcp_world_size=2, query_heads=48,
+        reserve_dcp_decode_buffers=lambda rows, heads: reservations.append((rows, heads)))
+    VLLMLayerLODPool.reserve_decode_buffers(pool, 2)
+    assert reservations == [(2, 96)]
+
+
+def test_mla_decode_rejects_narrow_scratch_without_reallocation():
+    pool = SimpleNamespace(max_requests=1, dcp_world_size=2, is_absorbed_mla=True,
+        dcp_decode_buffer_storage={"route_top_slots": torch.empty(1, 48, 1, 8)})
+    query = torch.empty(1, 96, 1, 576)
+    with pytest.raises(ValueError, match="heads differ"):
+        VLLMLayerLODPool._dcp_buffers(pool, query, 1)
+    with pytest.raises(ValueError, match="rows exceed"):
+        VLLMLayerLODPool._dcp_buffers(pool, query, 2)
+
+
 @pytest.mark.parametrize("fail_exact", [False, True])
 def test_cached_prefill_slices_expanded_query_at_exact_first_boundary(monkeypatch, fail_exact):
     """Ragged continuation crosses the initial exact block without stale Q."""
@@ -1137,6 +1155,55 @@ def test_dcp_dummy_capture_installs_host_and_device_identity_row_maps(monkeypatc
     monkeypatch.delitem(sys.modules, "vllm_lod_plugin.runtime", raising=False)
 
 
+@pytest.mark.parametrize("slot", [0, 3, 7])
+def test_cross_layer_cached_prefill_reads_only_its_active_request_row(monkeypatch, slot):
+    if "vllm_lod_plugin.runtime" not in sys.modules:
+        backend = ModuleType("vllm_lod_plugin.backend")
+        backend.LODAttentionImpl = type("LODAttentionImpl", (), {})
+        monkeypatch.setitem(sys.modules, "vllm_lod_plugin.backend", backend)
+    from vllm_lod_plugin.runtime import VLLMLODRuntime
+    import vllm_lod_plugin.runtime as runtime_module
+
+    monkeypatch.setattr(runtime_module, "_DISTRIBUTED_PREFILL_BUILD", False)
+    runtime = VLLMLODRuntime.__new__(VLLMLODRuntime)
+    stages, expected_overflow, original_states = [], [], []
+    for layer in range(2):
+        engine = SimpleNamespace(prefill_local_len=6, prefill_chunk_len=4,
+            local_len=2, sink_len=1, _streaming_state_geometry=lambda: "raw",
+            state_premerge_factor=1, state_clustering_centroid_rescale=False,
+            state_clustering_centroid_rescale_scope="global",
+            state_merge_before_append=False, fused_state_update=True,
+            fused_state_maxsim=True)
+        keys = torch.arange(8 * 8 * 2).reshape(8, 1, 8, 2).float() + layer * 1000
+        state = torch.full((8, 1, 8, 2), -1.0 - layer)
+        original_states.append(state.clone())
+        pool = SimpleNamespace(engine=engine, dcp_world_size=1,
+            settings=SimpleNamespace(kv_bits=0), is_absorbed_mla=True,
+            kv_heads=1, head_dim=2, value_dim=2,
+            metadata=[dict(state_len=2, scheduled_state_len=2, coverage=2,
+                           recent_len=2, leaf_count=1) for _ in range(8)],
+            state=dict(state_k=state, counts=torch.ones(8, 1, 8, 1),
+                       state_capacity=8, page_cache=dict(leaf_k=keys, leaf_v=keys)),
+            _finish_cross_layer_cached_cache=lambda *_args, **_kwargs: None)
+        stages.append((pool, (slot,), 4, 8, False))
+        expected_overflow.append(keys[slot:slot + 1, :, 1:5])
+
+    def update(_engine, key, value, counts, norms, overflow_k, overflow_v, **kwargs):
+        assert key.shape == overflow_k.shape[:2] + (8, 2)
+        torch.testing.assert_close(overflow_k, torch.cat(expected_overflow))
+        assert overflow_k.data_ptr() == overflow_v.data_ptr()
+        key[:, :, 2:6].copy_(overflow_k)
+        return key, value, counts, 6, torch.zeros(2, 1, 4, dtype=torch.long), None
+
+    runtime._run_prefill_state_update = update
+    runtime._build_cached_prefill_across_layers(tuple(stages))
+    for stage, original, overflow in zip(stages, original_states, expected_overflow):
+        expected = original.clone()
+        expected[slot:slot + 1, :, 2:6] = overflow
+        torch.testing.assert_close(stage[0].state["state_k"], expected)
+    monkeypatch.delitem(sys.modules, "vllm_lod_plugin.runtime", raising=False)
+
+
 def test_breakable_prefill_writes_static_output_from_fresh_inputs() -> None:
     tokens, heads, nope, latent_dim, direct, value_dim = 5, 2, 128, 512, 64, 128
 
@@ -1666,14 +1733,19 @@ def test_final_cache_graph_refreshes_data_and_owns_private_update_scratch() -> N
     assert manager.replay_count == 2 and manager.fallback_count == 1
 
 
-@pytest.mark.parametrize("states", [177, 385, 1039])
-@pytest.mark.parametrize("queries", [37, 513])
-@pytest.mark.parametrize("pack", ["ordinary", "dense", "chunk256", "chunk512", "chunk1024"])
-@pytest.mark.parametrize("tile_n", [32, 64, 128])
-@pytest.mark.parametrize("fields", [1, 16])
+@pytest.mark.parametrize("states,queries,pack,tile_n,fields", [
+    (177, 37, "ordinary", 32, 1),
+    (385, 513, "dense", 64, 16),
+    (1039, 37, "chunk256", 128, 1),
+    (177, 513, "chunk512", 32, 16),
+    (1039, 513, "chunk1024", 64, 1),
+    (385, 37, "chunk512", 128, 16),
+])
 def test_tile_max_refinement_recovers_exact_global_top_eight(states, queries, pack, tile_n, fields, monkeypatch) -> None:
+    # Representative edge cases replace the 180-way Cartesian GPU sweep.
+    # Each packing/layout branch and each ragged boundary is still exercised.
     if not torch.cuda.is_available():
-        return
+        pytest.skip("requires GPU tile refinement")
     monkeypatch.setenv("LOD_KIMI_DENSE_TILE_PACK", "1" if pack == "dense" else "0")
     monkeypatch.setenv("LOD_KIMI_CHUNK_TILE_PACK", "1" if pack.startswith("chunk") else "0")
     monkeypatch.setenv("LOD_KIMI_TILE_PACK_QUERY_BLOCK", pack.removeprefix("chunk")

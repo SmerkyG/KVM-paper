@@ -1,0 +1,4934 @@
+{
+  "checkpoint": "/tmp/dan-agent-kimi-k3-first48-f831ab66814297da540d832a5235f8e904f29d06",
+  "mode": "two-tier",
+  "capacity_only": false,
+  "diagnostic_only": false,
+  "route_scatter_validation": false,
+  "weight_cache_id": "kimi-k3-first48-int4-v1",
+  "real_token_cache": "results/kimi-k3-full-model-current/prolong-kimi-k3-speed-token-cache.pt",
+  "reference_baselines": [
+    "results/kimi-k3-full-model-current/oct4-full-warm-prefill-b8-32k64k.json",
+    "results/kimi-k3-full-model-current/oct4-full-prefill-scale-b8-5g-128k.json"
+  ],
+  "request_owner_prefill": true,
+  "owner_local_mla": true,
+  "owner_local_projection_audits": [
+    {
+      "rank": 0,
+      "mla_layer_indices": [
+        3,
+        7,
+        11,
+        15,
+        19,
+        23,
+        27,
+        31,
+        35,
+        39,
+        43,
+        47
+      ],
+      "language_layers": 48,
+      "native_kda_layers": 36,
+      "native_moe_layers": 47,
+      "native_moe_ep": 8,
+      "kda_local_heads": 12,
+      "additional_projection_bytes": 5209325568,
+      "projection_errors": {
+        "3": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004153321031481028
+        },
+        "7": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004152473993599415
+        },
+        "11": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004143768455833197
+        },
+        "15": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.00413611251860857
+        },
+        "19": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004179582931101322
+        },
+        "23": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004151756409555674
+        },
+        "27": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004142228048294783
+        },
+        "31": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004167109727859497
+        },
+        "35": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004149888176470995
+        },
+        "39": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004125780891627073
+        },
+        "43": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.0041382513009011745
+        },
+        "47": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004148539155721664
+        }
+      },
+      "kda_and_moe_unchanged": true,
+      "shared_daemon_weights_modified": false,
+      "scope": "eager prefill only; projections assembled and validated outside timing"
+    },
+    {
+      "rank": 1,
+      "mla_layer_indices": [
+        3,
+        7,
+        11,
+        15,
+        19,
+        23,
+        27,
+        31,
+        35,
+        39,
+        43,
+        47
+      ],
+      "language_layers": 48,
+      "native_kda_layers": 36,
+      "native_moe_layers": 47,
+      "native_moe_ep": 8,
+      "kda_local_heads": 12,
+      "additional_projection_bytes": 5209325568,
+      "projection_errors": {
+        "3": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004153321031481028
+        },
+        "7": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004152473993599415
+        },
+        "11": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004143768455833197
+        },
+        "15": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.00413611251860857
+        },
+        "19": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004179582931101322
+        },
+        "23": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004151756409555674
+        },
+        "27": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004142228048294783
+        },
+        "31": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004167109727859497
+        },
+        "35": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004149888176470995
+        },
+        "39": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004125780891627073
+        },
+        "43": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.0041382513009011745
+        },
+        "47": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004148539155721664
+        }
+      },
+      "kda_and_moe_unchanged": true,
+      "shared_daemon_weights_modified": false,
+      "scope": "eager prefill only; projections assembled and validated outside timing"
+    },
+    {
+      "rank": 2,
+      "mla_layer_indices": [
+        3,
+        7,
+        11,
+        15,
+        19,
+        23,
+        27,
+        31,
+        35,
+        39,
+        43,
+        47
+      ],
+      "language_layers": 48,
+      "native_kda_layers": 36,
+      "native_moe_layers": 47,
+      "native_moe_ep": 8,
+      "kda_local_heads": 12,
+      "additional_projection_bytes": 5209325568,
+      "projection_errors": {
+        "3": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004153321031481028
+        },
+        "7": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004152473993599415
+        },
+        "11": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004143768455833197
+        },
+        "15": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.00413611251860857
+        },
+        "19": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004179582931101322
+        },
+        "23": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004151756409555674
+        },
+        "27": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004142228048294783
+        },
+        "31": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004167109727859497
+        },
+        "35": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004149888176470995
+        },
+        "39": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004125780891627073
+        },
+        "43": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.0041382513009011745
+        },
+        "47": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004148539155721664
+        }
+      },
+      "kda_and_moe_unchanged": true,
+      "shared_daemon_weights_modified": false,
+      "scope": "eager prefill only; projections assembled and validated outside timing"
+    },
+    {
+      "rank": 3,
+      "mla_layer_indices": [
+        3,
+        7,
+        11,
+        15,
+        19,
+        23,
+        27,
+        31,
+        35,
+        39,
+        43,
+        47
+      ],
+      "language_layers": 48,
+      "native_kda_layers": 36,
+      "native_moe_layers": 47,
+      "native_moe_ep": 8,
+      "kda_local_heads": 12,
+      "additional_projection_bytes": 5209325568,
+      "projection_errors": {
+        "3": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004153321031481028
+        },
+        "7": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004152473993599415
+        },
+        "11": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004143768455833197
+        },
+        "15": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.00413611251860857
+        },
+        "19": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004179582931101322
+        },
+        "23": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004151756409555674
+        },
+        "27": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004142228048294783
+        },
+        "31": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004167109727859497
+        },
+        "35": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004149888176470995
+        },
+        "39": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004125780891627073
+        },
+        "43": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.0041382513009011745
+        },
+        "47": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004148539155721664
+        }
+      },
+      "kda_and_moe_unchanged": true,
+      "shared_daemon_weights_modified": false,
+      "scope": "eager prefill only; projections assembled and validated outside timing"
+    },
+    {
+      "rank": 4,
+      "mla_layer_indices": [
+        3,
+        7,
+        11,
+        15,
+        19,
+        23,
+        27,
+        31,
+        35,
+        39,
+        43,
+        47
+      ],
+      "language_layers": 48,
+      "native_kda_layers": 36,
+      "native_moe_layers": 47,
+      "native_moe_ep": 8,
+      "kda_local_heads": 12,
+      "additional_projection_bytes": 5209325568,
+      "projection_errors": {
+        "3": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004153321031481028
+        },
+        "7": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004152473993599415
+        },
+        "11": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004143768455833197
+        },
+        "15": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.00413611251860857
+        },
+        "19": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004179582931101322
+        },
+        "23": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004151756409555674
+        },
+        "27": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004142228048294783
+        },
+        "31": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004167109727859497
+        },
+        "35": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004149888176470995
+        },
+        "39": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004125780891627073
+        },
+        "43": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.0041382513009011745
+        },
+        "47": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004148539155721664
+        }
+      },
+      "kda_and_moe_unchanged": true,
+      "shared_daemon_weights_modified": false,
+      "scope": "eager prefill only; projections assembled and validated outside timing"
+    },
+    {
+      "rank": 5,
+      "mla_layer_indices": [
+        3,
+        7,
+        11,
+        15,
+        19,
+        23,
+        27,
+        31,
+        35,
+        39,
+        43,
+        47
+      ],
+      "language_layers": 48,
+      "native_kda_layers": 36,
+      "native_moe_layers": 47,
+      "native_moe_ep": 8,
+      "kda_local_heads": 12,
+      "additional_projection_bytes": 5209325568,
+      "projection_errors": {
+        "3": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004153321031481028
+        },
+        "7": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004152473993599415
+        },
+        "11": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004143768455833197
+        },
+        "15": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.00413611251860857
+        },
+        "19": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004179582931101322
+        },
+        "23": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004151756409555674
+        },
+        "27": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004142228048294783
+        },
+        "31": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004167109727859497
+        },
+        "35": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004149888176470995
+        },
+        "39": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004125780891627073
+        },
+        "43": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.0041382513009011745
+        },
+        "47": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004148539155721664
+        }
+      },
+      "kda_and_moe_unchanged": true,
+      "shared_daemon_weights_modified": false,
+      "scope": "eager prefill only; projections assembled and validated outside timing"
+    },
+    {
+      "rank": 6,
+      "mla_layer_indices": [
+        3,
+        7,
+        11,
+        15,
+        19,
+        23,
+        27,
+        31,
+        35,
+        39,
+        43,
+        47
+      ],
+      "language_layers": 48,
+      "native_kda_layers": 36,
+      "native_moe_layers": 47,
+      "native_moe_ep": 8,
+      "kda_local_heads": 12,
+      "additional_projection_bytes": 5209325568,
+      "projection_errors": {
+        "3": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004153321031481028
+        },
+        "7": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004152473993599415
+        },
+        "11": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004143768455833197
+        },
+        "15": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.00413611251860857
+        },
+        "19": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004179582931101322
+        },
+        "23": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004151756409555674
+        },
+        "27": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004142228048294783
+        },
+        "31": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004167109727859497
+        },
+        "35": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004149888176470995
+        },
+        "39": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004125780891627073
+        },
+        "43": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.0041382513009011745
+        },
+        "47": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004148539155721664
+        }
+      },
+      "kda_and_moe_unchanged": true,
+      "shared_daemon_weights_modified": false,
+      "scope": "eager prefill only; projections assembled and validated outside timing"
+    },
+    {
+      "rank": 7,
+      "mla_layer_indices": [
+        3,
+        7,
+        11,
+        15,
+        19,
+        23,
+        27,
+        31,
+        35,
+        39,
+        43,
+        47
+      ],
+      "language_layers": 48,
+      "native_kda_layers": 36,
+      "native_moe_layers": 47,
+      "native_moe_ep": 8,
+      "kda_local_heads": 12,
+      "additional_projection_bytes": 5209325568,
+      "projection_errors": {
+        "3": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004153321031481028
+        },
+        "7": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004152473993599415
+        },
+        "11": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004143768455833197
+        },
+        "15": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.00413611251860857
+        },
+        "19": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004179582931101322
+        },
+        "23": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004151756409555674
+        },
+        "27": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004142228048294783
+        },
+        "31": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004167109727859497
+        },
+        "35": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004149888176470995
+        },
+        "39": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004125780891627073
+        },
+        "43": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.0041382513009011745
+        },
+        "47": {
+          "query_relative_l2": 0.0,
+          "gated_output_relative_l2": 0.004148539155721664
+        }
+      },
+      "kda_and_moe_unchanged": true,
+      "shared_daemon_weights_modified": false,
+      "scope": "eager prefill only; projections assembled and validated outside timing"
+    }
+  ],
+  "scheduler_row_chunk": 16384,
+  "scheduler_total_budget": 131080,
+  "batch_size": 8,
+  "decode_tokens": 1,
+  "reference_decode_trace": false,
+  "decode_execution": "eager_request_owner",
+  "tensor_parallel_size": 8,
+  "decode_context_parallel_size": 8,
+  "repeats": 1,
+  "rotating_prefills": false,
+  "rotating_cohort": 8,
+  "distributed_prefill_construction": false,
+  "cross_layer_prefill_group": null,
+  "independent_local_dcp_prefill": false,
+  "replicated_summary_dcp_prefill": false,
+  "global_centroid_sharded_leaf_prefill": false,
+  "transient_reconstructed_prefill_workspace": false,
+  "sharded_workspace_layout": null,
+  "environment": {
+    "LOD_KIMI_SORT_LEAF_ROUTES": "1",
+    "LOD_KIMI_DIRECT_LEAF_RESULT": "1",
+    "LOD_KIMI_LEAF_BLOCK_M": "64",
+    "LOD_BENCHMARK_SYNCHRONIZED_DECODE": "1",
+    "LOD_KIMI_LEAF_WARPS": "1",
+    "LOD_KIMI_SUBTILE64": "score",
+    "LOD_KIMI_REUSE_PREFILL_ALLOCATOR": "1",
+    "LOD_KIMI_TILE_REFINE": "1",
+    "LOD_BENCHMARK_ADMISSION_COHORT": "8",
+    "LOD_KIMI_PREFILL_MIN_FREE_GIB": "4",
+    "LOD_KIMI_TILE_PACK_QUERY_BLOCK": "1024",
+    "CLUSTER_RUN_NODE": "dev-shared-research-2.dev-training.svc.cluster.local",
+    "HSA_NO_SCRATCH_RECLAIM": "1",
+    "LOD_KIMI_CHUNK_TILE_PACK": "1",
+    "LOD_KIMI_PREFILL_RECLAIM_INTERVAL": "0",
+    "LOD_BENCHMARK_PREFILL_COHORT": "8",
+    "LOD_KIMI_REQUEST_OWNER_PREFILL": "1",
+    "LOD_KIMI_OWNER_QUERY_CHUNK": "16384",
+    "LOD_KIMI_OWNER_MOE_CHUNK": "131080",
+    "LOD_KIMI_OWNER_SHARD_RESIDUAL": "0",
+    "LOD_BENCHMARK_SYNC_PREFILL_CACHE": "1"
+  },
+  "measurements": {
+    "32768": {
+      "warmup_elapsed_seconds": 15.4432104928419,
+      "before_warmup_allocator_policy": [
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 129901789184,
+          "free_bytes_after": 129901789184,
+          "allocated_bytes": 13098635264,
+          "reserved_bytes": 13323206656,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 131780837376,
+          "free_bytes_after": 131780837376,
+          "allocated_bytes": 13098635264,
+          "reserved_bytes": 13323206656,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 129903886336,
+          "free_bytes_after": 129903886336,
+          "allocated_bytes": 13098635264,
+          "reserved_bytes": 13323206656,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 129903886336,
+          "free_bytes_after": 129903886336,
+          "allocated_bytes": 13098635264,
+          "reserved_bytes": 13323206656,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 130440757248,
+          "free_bytes_after": 130440757248,
+          "allocated_bytes": 13098635264,
+          "reserved_bytes": 13323206656,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 130172321792,
+          "free_bytes_after": 130172321792,
+          "allocated_bytes": 13098635264,
+          "reserved_bytes": 13323206656,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 130440757248,
+          "free_bytes_after": 130440757248,
+          "allocated_bytes": 13098635264,
+          "reserved_bytes": 13323206656,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 130440757248,
+          "free_bytes_after": 130440757248,
+          "allocated_bytes": 13098635264,
+          "reserved_bytes": 13323206656,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        }
+      ],
+      "warmup_allocator_policy": [
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 41836085248,
+          "free_bytes_after": 41836085248,
+          "allocated_bytes": 20600736256,
+          "reserved_bytes": 101063852032,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 43715133440,
+          "free_bytes_after": 43715133440,
+          "allocated_bytes": 20600736256,
+          "reserved_bytes": 101063852032,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 41838182400,
+          "free_bytes_after": 41838182400,
+          "allocated_bytes": 20600736256,
+          "reserved_bytes": 101063852032,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 41838182400,
+          "free_bytes_after": 41838182400,
+          "allocated_bytes": 20600736256,
+          "reserved_bytes": 101063852032,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 42375053312,
+          "free_bytes_after": 42375053312,
+          "allocated_bytes": 20600736256,
+          "reserved_bytes": 101063852032,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 42106617856,
+          "free_bytes_after": 42106617856,
+          "allocated_bytes": 20600736256,
+          "reserved_bytes": 101063852032,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 42375053312,
+          "free_bytes_after": 42375053312,
+          "allocated_bytes": 20600736256,
+          "reserved_bytes": 101063852032,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 42375053312,
+          "free_bytes_after": 42375053312,
+          "allocated_bytes": 20600736256,
+          "reserved_bytes": 101063852032,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        }
+      ],
+      "elapsed_seconds": 14.722925703972578,
+      "prefill_seconds": 14.71197674702853,
+      "elapsed_samples_seconds": [
+        14.722925703972578
+      ],
+      "prefill_samples_seconds": [
+        14.71197674702853
+      ],
+      "decode_ms_per_batch_step": null,
+      "decode_samples_seconds_per_batch_step": [],
+      "aggregate_prompt_tokens_per_second": 17818.40771689276,
+      "generated_token_ids": [
+        [
+          27587
+        ],
+        [
+          74633
+        ],
+        [
+          88412
+        ],
+        [
+          31441
+        ],
+        [
+          111734
+        ],
+        [
+          49007
+        ],
+        [
+          9937
+        ],
+        [
+          113361
+        ]
+      ],
+      "owner_decode_update_deltas": [],
+      "owner_prefill_audit": [
+        {
+          "rank": 0,
+          "owned_query_sizes": {
+            "16384": 48
+          },
+          "transport_arena_allocations": 0,
+          "transport_arena_bytes": 0,
+          "allocator_pressure_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          },
+          "max_requests_per_prefill_call": 8,
+          "latest_full_cohort_previous": 16384
+        },
+        {
+          "rank": 1,
+          "owned_query_sizes": {
+            "16384": 48
+          },
+          "transport_arena_allocations": 0,
+          "transport_arena_bytes": 0,
+          "allocator_pressure_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          },
+          "max_requests_per_prefill_call": 8,
+          "latest_full_cohort_previous": 16384
+        },
+        {
+          "rank": 2,
+          "owned_query_sizes": {
+            "16384": 48
+          },
+          "transport_arena_allocations": 0,
+          "transport_arena_bytes": 0,
+          "allocator_pressure_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          },
+          "max_requests_per_prefill_call": 8,
+          "latest_full_cohort_previous": 16384
+        },
+        {
+          "rank": 3,
+          "owned_query_sizes": {
+            "16384": 48
+          },
+          "transport_arena_allocations": 0,
+          "transport_arena_bytes": 0,
+          "allocator_pressure_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          },
+          "max_requests_per_prefill_call": 8,
+          "latest_full_cohort_previous": 16384
+        },
+        {
+          "rank": 4,
+          "owned_query_sizes": {
+            "16384": 48
+          },
+          "transport_arena_allocations": 0,
+          "transport_arena_bytes": 0,
+          "allocator_pressure_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          },
+          "max_requests_per_prefill_call": 8,
+          "latest_full_cohort_previous": 16384
+        },
+        {
+          "rank": 5,
+          "owned_query_sizes": {
+            "16384": 48
+          },
+          "transport_arena_allocations": 0,
+          "transport_arena_bytes": 0,
+          "allocator_pressure_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          },
+          "max_requests_per_prefill_call": 8,
+          "latest_full_cohort_previous": 16384
+        },
+        {
+          "rank": 6,
+          "owned_query_sizes": {
+            "16384": 48
+          },
+          "transport_arena_allocations": 0,
+          "transport_arena_bytes": 0,
+          "allocator_pressure_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          },
+          "max_requests_per_prefill_call": 8,
+          "latest_full_cohort_previous": 16384
+        },
+        {
+          "rank": 7,
+          "owned_query_sizes": {
+            "16384": 48
+          },
+          "transport_arena_allocations": 0,
+          "transport_arena_bytes": 0,
+          "allocator_pressure_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          },
+          "max_requests_per_prefill_call": 8,
+          "latest_full_cohort_previous": 16384
+        }
+      ],
+      "prompt_token_sha256": [
+        "643959862a12e3b465e477914a90f315b360b13a6b10de22997ddbf7a019d06f",
+        "430f40af492e31ec5ab0daadc1213ceddc7e13584ecbe4821fb21da628136d45",
+        "1bff96ee858c56dd8e7dba1d8634a29326307aa643f368c1d3a4eb7c5dfc540d",
+        "9bd966a2a03ced5ad22b47c4ee2d7f6b49faaf80c232d61ed82cf02d2ad4a1c4",
+        "ca73d57375b26936df6d80868ea8b3b64ed05d422a408e544a6ad1ddc4c0eb4b",
+        "37f2dd5319fb8f1a9fbc8e2cc57001bc7e20db8c81edc2ee736828d595623f41",
+        "2de2b619685460cda83ca11fe481152ec0954655ff3f3d374a47d81befb1847c",
+        "d2f5cb3feb247dc7d26fd1afaef43960ce1e0b05873e5b6722e1fbc940c6de64"
+      ],
+      "warmup_worker_memory": [
+        {
+          "rank": 0,
+          "peak_torch_allocated_bytes": 82806467584,
+          "peak_torch_reserved_bytes": 101063852032,
+          "current_torch_allocated_bytes": 20600736256,
+          "device_free_bytes_after_generation": 41836085248,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 1,
+          "peak_torch_allocated_bytes": 82806466048,
+          "peak_torch_reserved_bytes": 101063852032,
+          "current_torch_allocated_bytes": 20600736256,
+          "device_free_bytes_after_generation": 43715133440,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 2,
+          "peak_torch_allocated_bytes": 82806466048,
+          "peak_torch_reserved_bytes": 101063852032,
+          "current_torch_allocated_bytes": 20600736256,
+          "device_free_bytes_after_generation": 41838182400,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 3,
+          "peak_torch_allocated_bytes": 82806466048,
+          "peak_torch_reserved_bytes": 101063852032,
+          "current_torch_allocated_bytes": 20600736256,
+          "device_free_bytes_after_generation": 41838182400,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 4,
+          "peak_torch_allocated_bytes": 82806466048,
+          "peak_torch_reserved_bytes": 101063852032,
+          "current_torch_allocated_bytes": 20600736256,
+          "device_free_bytes_after_generation": 42375053312,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 5,
+          "peak_torch_allocated_bytes": 82806466048,
+          "peak_torch_reserved_bytes": 101063852032,
+          "current_torch_allocated_bytes": 20600736256,
+          "device_free_bytes_after_generation": 42106617856,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 6,
+          "peak_torch_allocated_bytes": 82806466048,
+          "peak_torch_reserved_bytes": 101063852032,
+          "current_torch_allocated_bytes": 20600736256,
+          "device_free_bytes_after_generation": 42375053312,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 7,
+          "peak_torch_allocated_bytes": 82806466048,
+          "peak_torch_reserved_bytes": 101063852032,
+          "current_torch_allocated_bytes": 20600736256,
+          "device_free_bytes_after_generation": 42375053312,
+          "device_total_bytes": 274861129728
+        }
+      ],
+      "worker_memory": [
+        {
+          "rank": 0,
+          "peak_torch_allocated_bytes": 82808509952,
+          "peak_torch_reserved_bytes": 101065949184,
+          "current_torch_allocated_bytes": 20600736256,
+          "device_free_bytes_after_generation": 41833988096,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 1,
+          "peak_torch_allocated_bytes": 82808508416,
+          "peak_torch_reserved_bytes": 101065949184,
+          "current_torch_allocated_bytes": 20600736256,
+          "device_free_bytes_after_generation": 43713036288,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 2,
+          "peak_torch_allocated_bytes": 82808508416,
+          "peak_torch_reserved_bytes": 101065949184,
+          "current_torch_allocated_bytes": 20600736256,
+          "device_free_bytes_after_generation": 41836085248,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 3,
+          "peak_torch_allocated_bytes": 82808508416,
+          "peak_torch_reserved_bytes": 101065949184,
+          "current_torch_allocated_bytes": 20600736256,
+          "device_free_bytes_after_generation": 41836085248,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 4,
+          "peak_torch_allocated_bytes": 82808508416,
+          "peak_torch_reserved_bytes": 101065949184,
+          "current_torch_allocated_bytes": 20600736256,
+          "device_free_bytes_after_generation": 42372956160,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 5,
+          "peak_torch_allocated_bytes": 82808508416,
+          "peak_torch_reserved_bytes": 101065949184,
+          "current_torch_allocated_bytes": 20600736256,
+          "device_free_bytes_after_generation": 42104520704,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 6,
+          "peak_torch_allocated_bytes": 82808508416,
+          "peak_torch_reserved_bytes": 101065949184,
+          "current_torch_allocated_bytes": 20600736256,
+          "device_free_bytes_after_generation": 42372956160,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 7,
+          "peak_torch_allocated_bytes": 82808508416,
+          "peak_torch_reserved_bytes": 101065949184,
+          "current_torch_allocated_bytes": 20600736256,
+          "device_free_bytes_after_generation": 42372956160,
+          "device_total_bytes": 274861129728
+        }
+      ],
+      "measurement_status": "complete",
+      "worker_attention_audit": [
+        {
+          "lod_runtime": true,
+          "lod_pool_count": 12,
+          "lod_engine_configurations": [
+            {
+              "family": "kimi-k3",
+              "mode": "two-tier",
+              "levels": 2,
+              "kv_bits": 0,
+              "prefill_routes": 8,
+              "decode_routes": 8,
+              "prefill_chunk_len": 16384,
+              "prefill_state_update_len": 16384,
+              "decode_state_update_len": 256,
+              "local_len": 512,
+              "leaf_page_size": 16,
+              "leaf_block_m": 64,
+              "leaf_block_n": 16,
+              "leaf_num_warps": 1,
+              "prefill_fused_route_coarse": true,
+              "decode_fused_state_route": true,
+              "max_open_centroid_leaves": 1024,
+              "leaf_seal_capacity": null
+            }
+          ],
+          "lod_cross_layer_prefill_group_size": 4,
+          "attached_lod_layers": 12,
+          "attention_layer_count": 12,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 94,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [
+            {
+              "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+              "size_bytes": 911024,
+              "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+              "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1398784,
+              "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+              "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            }
+          ],
+          "dense_gluon_decode_installed": false,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": true,
+          "lod_pool_count": 12,
+          "lod_engine_configurations": [
+            {
+              "family": "kimi-k3",
+              "mode": "two-tier",
+              "levels": 2,
+              "kv_bits": 0,
+              "prefill_routes": 8,
+              "decode_routes": 8,
+              "prefill_chunk_len": 16384,
+              "prefill_state_update_len": 16384,
+              "decode_state_update_len": 256,
+              "local_len": 512,
+              "leaf_page_size": 16,
+              "leaf_block_m": 64,
+              "leaf_block_n": 16,
+              "leaf_num_warps": 1,
+              "prefill_fused_route_coarse": true,
+              "decode_fused_state_route": true,
+              "max_open_centroid_leaves": 1024,
+              "leaf_seal_capacity": null
+            }
+          ],
+          "lod_cross_layer_prefill_group_size": 4,
+          "attached_lod_layers": 12,
+          "attention_layer_count": 12,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 94,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [
+            {
+              "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+              "size_bytes": 911024,
+              "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+              "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1398784,
+              "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+              "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            }
+          ],
+          "dense_gluon_decode_installed": false,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": true,
+          "lod_pool_count": 12,
+          "lod_engine_configurations": [
+            {
+              "family": "kimi-k3",
+              "mode": "two-tier",
+              "levels": 2,
+              "kv_bits": 0,
+              "prefill_routes": 8,
+              "decode_routes": 8,
+              "prefill_chunk_len": 16384,
+              "prefill_state_update_len": 16384,
+              "decode_state_update_len": 256,
+              "local_len": 512,
+              "leaf_page_size": 16,
+              "leaf_block_m": 64,
+              "leaf_block_n": 16,
+              "leaf_num_warps": 1,
+              "prefill_fused_route_coarse": true,
+              "decode_fused_state_route": true,
+              "max_open_centroid_leaves": 1024,
+              "leaf_seal_capacity": null
+            }
+          ],
+          "lod_cross_layer_prefill_group_size": 4,
+          "attached_lod_layers": 12,
+          "attention_layer_count": 12,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 94,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [
+            {
+              "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+              "size_bytes": 911024,
+              "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+              "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1398784,
+              "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+              "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            }
+          ],
+          "dense_gluon_decode_installed": false,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": true,
+          "lod_pool_count": 12,
+          "lod_engine_configurations": [
+            {
+              "family": "kimi-k3",
+              "mode": "two-tier",
+              "levels": 2,
+              "kv_bits": 0,
+              "prefill_routes": 8,
+              "decode_routes": 8,
+              "prefill_chunk_len": 16384,
+              "prefill_state_update_len": 16384,
+              "decode_state_update_len": 256,
+              "local_len": 512,
+              "leaf_page_size": 16,
+              "leaf_block_m": 64,
+              "leaf_block_n": 16,
+              "leaf_num_warps": 1,
+              "prefill_fused_route_coarse": true,
+              "decode_fused_state_route": true,
+              "max_open_centroid_leaves": 1024,
+              "leaf_seal_capacity": null
+            }
+          ],
+          "lod_cross_layer_prefill_group_size": 4,
+          "attached_lod_layers": 12,
+          "attention_layer_count": 12,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 94,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [
+            {
+              "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+              "size_bytes": 911024,
+              "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+              "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1398784,
+              "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+              "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            }
+          ],
+          "dense_gluon_decode_installed": false,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": true,
+          "lod_pool_count": 12,
+          "lod_engine_configurations": [
+            {
+              "family": "kimi-k3",
+              "mode": "two-tier",
+              "levels": 2,
+              "kv_bits": 0,
+              "prefill_routes": 8,
+              "decode_routes": 8,
+              "prefill_chunk_len": 16384,
+              "prefill_state_update_len": 16384,
+              "decode_state_update_len": 256,
+              "local_len": 512,
+              "leaf_page_size": 16,
+              "leaf_block_m": 64,
+              "leaf_block_n": 16,
+              "leaf_num_warps": 1,
+              "prefill_fused_route_coarse": true,
+              "decode_fused_state_route": true,
+              "max_open_centroid_leaves": 1024,
+              "leaf_seal_capacity": null
+            }
+          ],
+          "lod_cross_layer_prefill_group_size": 4,
+          "attached_lod_layers": 12,
+          "attention_layer_count": 12,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 94,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [
+            {
+              "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+              "size_bytes": 911024,
+              "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+              "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1398784,
+              "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+              "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            }
+          ],
+          "dense_gluon_decode_installed": false,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": true,
+          "lod_pool_count": 12,
+          "lod_engine_configurations": [
+            {
+              "family": "kimi-k3",
+              "mode": "two-tier",
+              "levels": 2,
+              "kv_bits": 0,
+              "prefill_routes": 8,
+              "decode_routes": 8,
+              "prefill_chunk_len": 16384,
+              "prefill_state_update_len": 16384,
+              "decode_state_update_len": 256,
+              "local_len": 512,
+              "leaf_page_size": 16,
+              "leaf_block_m": 64,
+              "leaf_block_n": 16,
+              "leaf_num_warps": 1,
+              "prefill_fused_route_coarse": true,
+              "decode_fused_state_route": true,
+              "max_open_centroid_leaves": 1024,
+              "leaf_seal_capacity": null
+            }
+          ],
+          "lod_cross_layer_prefill_group_size": 4,
+          "attached_lod_layers": 12,
+          "attention_layer_count": 12,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 94,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [
+            {
+              "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+              "size_bytes": 911024,
+              "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+              "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1398784,
+              "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+              "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            }
+          ],
+          "dense_gluon_decode_installed": false,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": true,
+          "lod_pool_count": 12,
+          "lod_engine_configurations": [
+            {
+              "family": "kimi-k3",
+              "mode": "two-tier",
+              "levels": 2,
+              "kv_bits": 0,
+              "prefill_routes": 8,
+              "decode_routes": 8,
+              "prefill_chunk_len": 16384,
+              "prefill_state_update_len": 16384,
+              "decode_state_update_len": 256,
+              "local_len": 512,
+              "leaf_page_size": 16,
+              "leaf_block_m": 64,
+              "leaf_block_n": 16,
+              "leaf_num_warps": 1,
+              "prefill_fused_route_coarse": true,
+              "decode_fused_state_route": true,
+              "max_open_centroid_leaves": 1024,
+              "leaf_seal_capacity": null
+            }
+          ],
+          "lod_cross_layer_prefill_group_size": 4,
+          "attached_lod_layers": 12,
+          "attention_layer_count": 12,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 94,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [
+            {
+              "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+              "size_bytes": 911024,
+              "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+              "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1398784,
+              "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+              "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            }
+          ],
+          "dense_gluon_decode_installed": false,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": true,
+          "lod_pool_count": 12,
+          "lod_engine_configurations": [
+            {
+              "family": "kimi-k3",
+              "mode": "two-tier",
+              "levels": 2,
+              "kv_bits": 0,
+              "prefill_routes": 8,
+              "decode_routes": 8,
+              "prefill_chunk_len": 16384,
+              "prefill_state_update_len": 16384,
+              "decode_state_update_len": 256,
+              "local_len": 512,
+              "leaf_page_size": 16,
+              "leaf_block_m": 64,
+              "leaf_block_n": 16,
+              "leaf_num_warps": 1,
+              "prefill_fused_route_coarse": true,
+              "decode_fused_state_route": true,
+              "max_open_centroid_leaves": 1024,
+              "leaf_seal_capacity": null
+            }
+          ],
+          "lod_cross_layer_prefill_group_size": 4,
+          "attached_lod_layers": 12,
+          "attention_layer_count": 12,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 94,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [
+            {
+              "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+              "size_bytes": 911024,
+              "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+              "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1398784,
+              "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+              "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            }
+          ],
+          "dense_gluon_decode_installed": false,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        }
+      ],
+      "worker_attention_audit_status": "passed"
+    },
+    "131072": {
+      "warmup_elapsed_seconds": 61.412154948338866,
+      "before_warmup_allocator_policy": [
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 41833988096,
+          "free_bytes_after": 41833988096,
+          "allocated_bytes": 20600736256,
+          "reserved_bytes": 101065949184,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 43713036288,
+          "free_bytes_after": 43713036288,
+          "allocated_bytes": 20600736256,
+          "reserved_bytes": 101065949184,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 41836085248,
+          "free_bytes_after": 41836085248,
+          "allocated_bytes": 20600736256,
+          "reserved_bytes": 101065949184,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 41836085248,
+          "free_bytes_after": 41836085248,
+          "allocated_bytes": 20600736256,
+          "reserved_bytes": 101065949184,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 42372956160,
+          "free_bytes_after": 42372956160,
+          "allocated_bytes": 20600736256,
+          "reserved_bytes": 101065949184,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 42104520704,
+          "free_bytes_after": 42104520704,
+          "allocated_bytes": 20600736256,
+          "reserved_bytes": 101065949184,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 42372956160,
+          "free_bytes_after": 42372956160,
+          "allocated_bytes": 20600736256,
+          "reserved_bytes": 101065949184,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 42372956160,
+          "free_bytes_after": 42372956160,
+          "allocated_bytes": 20600736256,
+          "reserved_bytes": 101065949184,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        }
+      ],
+      "warmup_allocator_policy": [
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 39225131008,
+          "free_bytes_after": 39225131008,
+          "allocated_bytes": 23277433856,
+          "reserved_bytes": 103620280320,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 41104179200,
+          "free_bytes_after": 41104179200,
+          "allocated_bytes": 23277433856,
+          "reserved_bytes": 103620280320,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 39227228160,
+          "free_bytes_after": 39227228160,
+          "allocated_bytes": 23277433856,
+          "reserved_bytes": 103620280320,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 39227228160,
+          "free_bytes_after": 39227228160,
+          "allocated_bytes": 23277433856,
+          "reserved_bytes": 103620280320,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 39764099072,
+          "free_bytes_after": 39764099072,
+          "allocated_bytes": 23277433856,
+          "reserved_bytes": 103620280320,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 39495663616,
+          "free_bytes_after": 39495663616,
+          "allocated_bytes": 23277433856,
+          "reserved_bytes": 103620280320,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 39764099072,
+          "free_bytes_after": 39764099072,
+          "allocated_bytes": 23277433856,
+          "reserved_bytes": 103620280320,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "retention_requested": true,
+          "reclaimed": false,
+          "free_bytes_before": 39764099072,
+          "free_bytes_after": 39764099072,
+          "allocated_bytes": 23277433856,
+          "reserved_bytes": 103620280320,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        }
+      ],
+      "elapsed_seconds": 61.423279353417456,
+      "prefill_seconds": 61.39728535246104,
+      "elapsed_samples_seconds": [
+        61.423279353417456
+      ],
+      "prefill_samples_seconds": [
+        61.39728535246104
+      ],
+      "decode_ms_per_batch_step": null,
+      "decode_samples_seconds_per_batch_step": [],
+      "aggregate_prompt_tokens_per_second": 17078.540101251707,
+      "generated_token_ids": [
+        [
+          44316
+        ],
+        [
+          88749
+        ],
+        [
+          105269
+        ],
+        [
+          11529
+        ],
+        [
+          82462
+        ],
+        [
+          115329
+        ],
+        [
+          137509
+        ],
+        [
+          48291
+        ]
+      ],
+      "owner_decode_update_deltas": [],
+      "owner_prefill_audit": [
+        {
+          "rank": 0,
+          "owned_query_sizes": {
+            "16384": 240
+          },
+          "transport_arena_allocations": 0,
+          "transport_arena_bytes": 0,
+          "allocator_pressure_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          },
+          "max_requests_per_prefill_call": 8,
+          "latest_full_cohort_previous": 114688
+        },
+        {
+          "rank": 1,
+          "owned_query_sizes": {
+            "16384": 240
+          },
+          "transport_arena_allocations": 0,
+          "transport_arena_bytes": 0,
+          "allocator_pressure_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          },
+          "max_requests_per_prefill_call": 8,
+          "latest_full_cohort_previous": 114688
+        },
+        {
+          "rank": 2,
+          "owned_query_sizes": {
+            "16384": 240
+          },
+          "transport_arena_allocations": 0,
+          "transport_arena_bytes": 0,
+          "allocator_pressure_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          },
+          "max_requests_per_prefill_call": 8,
+          "latest_full_cohort_previous": 114688
+        },
+        {
+          "rank": 3,
+          "owned_query_sizes": {
+            "16384": 240
+          },
+          "transport_arena_allocations": 0,
+          "transport_arena_bytes": 0,
+          "allocator_pressure_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          },
+          "max_requests_per_prefill_call": 8,
+          "latest_full_cohort_previous": 114688
+        },
+        {
+          "rank": 4,
+          "owned_query_sizes": {
+            "16384": 240
+          },
+          "transport_arena_allocations": 0,
+          "transport_arena_bytes": 0,
+          "allocator_pressure_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          },
+          "max_requests_per_prefill_call": 8,
+          "latest_full_cohort_previous": 114688
+        },
+        {
+          "rank": 5,
+          "owned_query_sizes": {
+            "16384": 240
+          },
+          "transport_arena_allocations": 0,
+          "transport_arena_bytes": 0,
+          "allocator_pressure_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          },
+          "max_requests_per_prefill_call": 8,
+          "latest_full_cohort_previous": 114688
+        },
+        {
+          "rank": 6,
+          "owned_query_sizes": {
+            "16384": 240
+          },
+          "transport_arena_allocations": 0,
+          "transport_arena_bytes": 0,
+          "allocator_pressure_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          },
+          "max_requests_per_prefill_call": 8,
+          "latest_full_cohort_previous": 114688
+        },
+        {
+          "rank": 7,
+          "owned_query_sizes": {
+            "16384": 240
+          },
+          "transport_arena_allocations": 0,
+          "transport_arena_bytes": 0,
+          "allocator_pressure_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          },
+          "max_requests_per_prefill_call": 8,
+          "latest_full_cohort_previous": 114688
+        }
+      ],
+      "prompt_token_sha256": [
+        "6b0b90d41b25dc3e2005b03208277854d351bc39f00de6c204e4b0c10e69e32e",
+        "f414e5bcf3bbaa7bfced05d0f4fcfcfd86d87521cced35e0e3b55802f1a6c2b0",
+        "ac75d2272d237d99da16f868b30df719064caf7cab9615c3274c96d3d270a5ac",
+        "374cf12ab400c496e0d30b8a68bf78ddb330e7095d107e6298b3f7e16825d29c",
+        "a42a5e2c129a7e321eadb8fbe1ea5a181428065baa2bb1e14c588b124150a33a",
+        "33fad530b6364031bfdc7f82193d56ff8b31226119ab7dd57549dfd276ef778d",
+        "194d131616306dea875f8c02cf6c30b565a6086c3eacd5afd6de7bf729875e1b",
+        "08e3ce17404ff9370551b4c1f040d4330d636c95cee5a672971a6b927ed70e13"
+      ],
+      "warmup_worker_memory": [
+        {
+          "rank": 0,
+          "peak_torch_allocated_bytes": 86962503168,
+          "peak_torch_reserved_bytes": 103620280320,
+          "current_torch_allocated_bytes": 23277433856,
+          "device_free_bytes_after_generation": 39225131008,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 1,
+          "peak_torch_allocated_bytes": 86962501632,
+          "peak_torch_reserved_bytes": 103620280320,
+          "current_torch_allocated_bytes": 23277433856,
+          "device_free_bytes_after_generation": 41104179200,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 2,
+          "peak_torch_allocated_bytes": 86962501632,
+          "peak_torch_reserved_bytes": 103620280320,
+          "current_torch_allocated_bytes": 23277433856,
+          "device_free_bytes_after_generation": 39227228160,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 3,
+          "peak_torch_allocated_bytes": 86962501632,
+          "peak_torch_reserved_bytes": 103620280320,
+          "current_torch_allocated_bytes": 23277433856,
+          "device_free_bytes_after_generation": 39227228160,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 4,
+          "peak_torch_allocated_bytes": 86962501632,
+          "peak_torch_reserved_bytes": 103620280320,
+          "current_torch_allocated_bytes": 23277433856,
+          "device_free_bytes_after_generation": 39764099072,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 5,
+          "peak_torch_allocated_bytes": 86962501632,
+          "peak_torch_reserved_bytes": 103620280320,
+          "current_torch_allocated_bytes": 23277433856,
+          "device_free_bytes_after_generation": 39495663616,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 6,
+          "peak_torch_allocated_bytes": 86962501632,
+          "peak_torch_reserved_bytes": 103620280320,
+          "current_torch_allocated_bytes": 23277433856,
+          "device_free_bytes_after_generation": 39764099072,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 7,
+          "peak_torch_allocated_bytes": 86962501632,
+          "peak_torch_reserved_bytes": 103620280320,
+          "current_torch_allocated_bytes": 23277433856,
+          "device_free_bytes_after_generation": 39764099072,
+          "device_total_bytes": 274861129728
+        }
+      ],
+      "worker_memory": [
+        {
+          "rank": 0,
+          "peak_torch_allocated_bytes": 86980160000,
+          "peak_torch_reserved_bytes": 103620280320,
+          "current_torch_allocated_bytes": 23277433856,
+          "device_free_bytes_after_generation": 39225131008,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 1,
+          "peak_torch_allocated_bytes": 86980158464,
+          "peak_torch_reserved_bytes": 103620280320,
+          "current_torch_allocated_bytes": 23277433856,
+          "device_free_bytes_after_generation": 41104179200,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 2,
+          "peak_torch_allocated_bytes": 86980158464,
+          "peak_torch_reserved_bytes": 103620280320,
+          "current_torch_allocated_bytes": 23277433856,
+          "device_free_bytes_after_generation": 39227228160,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 3,
+          "peak_torch_allocated_bytes": 86980158464,
+          "peak_torch_reserved_bytes": 103620280320,
+          "current_torch_allocated_bytes": 23277433856,
+          "device_free_bytes_after_generation": 39227228160,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 4,
+          "peak_torch_allocated_bytes": 86980158464,
+          "peak_torch_reserved_bytes": 103620280320,
+          "current_torch_allocated_bytes": 23277433856,
+          "device_free_bytes_after_generation": 39764099072,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 5,
+          "peak_torch_allocated_bytes": 86980158464,
+          "peak_torch_reserved_bytes": 103620280320,
+          "current_torch_allocated_bytes": 23277433856,
+          "device_free_bytes_after_generation": 39495663616,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 6,
+          "peak_torch_allocated_bytes": 86980158464,
+          "peak_torch_reserved_bytes": 103620280320,
+          "current_torch_allocated_bytes": 23277433856,
+          "device_free_bytes_after_generation": 39764099072,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 7,
+          "peak_torch_allocated_bytes": 86980158464,
+          "peak_torch_reserved_bytes": 103620280320,
+          "current_torch_allocated_bytes": 23277433856,
+          "device_free_bytes_after_generation": 39764099072,
+          "device_total_bytes": 274861129728
+        }
+      ],
+      "measurement_status": "complete",
+      "worker_attention_audit": [
+        {
+          "lod_runtime": true,
+          "lod_pool_count": 12,
+          "lod_engine_configurations": [
+            {
+              "family": "kimi-k3",
+              "mode": "two-tier",
+              "levels": 2,
+              "kv_bits": 0,
+              "prefill_routes": 8,
+              "decode_routes": 8,
+              "prefill_chunk_len": 16384,
+              "prefill_state_update_len": 16384,
+              "decode_state_update_len": 256,
+              "local_len": 512,
+              "leaf_page_size": 16,
+              "leaf_block_m": 64,
+              "leaf_block_n": 16,
+              "leaf_num_warps": 1,
+              "prefill_fused_route_coarse": true,
+              "decode_fused_state_route": true,
+              "max_open_centroid_leaves": 1024,
+              "leaf_seal_capacity": null
+            }
+          ],
+          "lod_cross_layer_prefill_group_size": 4,
+          "attached_lod_layers": 12,
+          "attention_layer_count": 12,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 94,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [
+            {
+              "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+              "size_bytes": 911024,
+              "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+              "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1398784,
+              "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+              "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            }
+          ],
+          "dense_gluon_decode_installed": false,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": true,
+          "lod_pool_count": 12,
+          "lod_engine_configurations": [
+            {
+              "family": "kimi-k3",
+              "mode": "two-tier",
+              "levels": 2,
+              "kv_bits": 0,
+              "prefill_routes": 8,
+              "decode_routes": 8,
+              "prefill_chunk_len": 16384,
+              "prefill_state_update_len": 16384,
+              "decode_state_update_len": 256,
+              "local_len": 512,
+              "leaf_page_size": 16,
+              "leaf_block_m": 64,
+              "leaf_block_n": 16,
+              "leaf_num_warps": 1,
+              "prefill_fused_route_coarse": true,
+              "decode_fused_state_route": true,
+              "max_open_centroid_leaves": 1024,
+              "leaf_seal_capacity": null
+            }
+          ],
+          "lod_cross_layer_prefill_group_size": 4,
+          "attached_lod_layers": 12,
+          "attention_layer_count": 12,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 94,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [
+            {
+              "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+              "size_bytes": 911024,
+              "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+              "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1398784,
+              "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+              "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            }
+          ],
+          "dense_gluon_decode_installed": false,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": true,
+          "lod_pool_count": 12,
+          "lod_engine_configurations": [
+            {
+              "family": "kimi-k3",
+              "mode": "two-tier",
+              "levels": 2,
+              "kv_bits": 0,
+              "prefill_routes": 8,
+              "decode_routes": 8,
+              "prefill_chunk_len": 16384,
+              "prefill_state_update_len": 16384,
+              "decode_state_update_len": 256,
+              "local_len": 512,
+              "leaf_page_size": 16,
+              "leaf_block_m": 64,
+              "leaf_block_n": 16,
+              "leaf_num_warps": 1,
+              "prefill_fused_route_coarse": true,
+              "decode_fused_state_route": true,
+              "max_open_centroid_leaves": 1024,
+              "leaf_seal_capacity": null
+            }
+          ],
+          "lod_cross_layer_prefill_group_size": 4,
+          "attached_lod_layers": 12,
+          "attention_layer_count": 12,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 94,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [
+            {
+              "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+              "size_bytes": 911024,
+              "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+              "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1398784,
+              "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+              "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            }
+          ],
+          "dense_gluon_decode_installed": false,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": true,
+          "lod_pool_count": 12,
+          "lod_engine_configurations": [
+            {
+              "family": "kimi-k3",
+              "mode": "two-tier",
+              "levels": 2,
+              "kv_bits": 0,
+              "prefill_routes": 8,
+              "decode_routes": 8,
+              "prefill_chunk_len": 16384,
+              "prefill_state_update_len": 16384,
+              "decode_state_update_len": 256,
+              "local_len": 512,
+              "leaf_page_size": 16,
+              "leaf_block_m": 64,
+              "leaf_block_n": 16,
+              "leaf_num_warps": 1,
+              "prefill_fused_route_coarse": true,
+              "decode_fused_state_route": true,
+              "max_open_centroid_leaves": 1024,
+              "leaf_seal_capacity": null
+            }
+          ],
+          "lod_cross_layer_prefill_group_size": 4,
+          "attached_lod_layers": 12,
+          "attention_layer_count": 12,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 94,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [
+            {
+              "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+              "size_bytes": 911024,
+              "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+              "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1398784,
+              "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+              "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            }
+          ],
+          "dense_gluon_decode_installed": false,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": true,
+          "lod_pool_count": 12,
+          "lod_engine_configurations": [
+            {
+              "family": "kimi-k3",
+              "mode": "two-tier",
+              "levels": 2,
+              "kv_bits": 0,
+              "prefill_routes": 8,
+              "decode_routes": 8,
+              "prefill_chunk_len": 16384,
+              "prefill_state_update_len": 16384,
+              "decode_state_update_len": 256,
+              "local_len": 512,
+              "leaf_page_size": 16,
+              "leaf_block_m": 64,
+              "leaf_block_n": 16,
+              "leaf_num_warps": 1,
+              "prefill_fused_route_coarse": true,
+              "decode_fused_state_route": true,
+              "max_open_centroid_leaves": 1024,
+              "leaf_seal_capacity": null
+            }
+          ],
+          "lod_cross_layer_prefill_group_size": 4,
+          "attached_lod_layers": 12,
+          "attention_layer_count": 12,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 94,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [
+            {
+              "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+              "size_bytes": 911024,
+              "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+              "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1398784,
+              "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+              "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            }
+          ],
+          "dense_gluon_decode_installed": false,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": true,
+          "lod_pool_count": 12,
+          "lod_engine_configurations": [
+            {
+              "family": "kimi-k3",
+              "mode": "two-tier",
+              "levels": 2,
+              "kv_bits": 0,
+              "prefill_routes": 8,
+              "decode_routes": 8,
+              "prefill_chunk_len": 16384,
+              "prefill_state_update_len": 16384,
+              "decode_state_update_len": 256,
+              "local_len": 512,
+              "leaf_page_size": 16,
+              "leaf_block_m": 64,
+              "leaf_block_n": 16,
+              "leaf_num_warps": 1,
+              "prefill_fused_route_coarse": true,
+              "decode_fused_state_route": true,
+              "max_open_centroid_leaves": 1024,
+              "leaf_seal_capacity": null
+            }
+          ],
+          "lod_cross_layer_prefill_group_size": 4,
+          "attached_lod_layers": 12,
+          "attention_layer_count": 12,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 94,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [
+            {
+              "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+              "size_bytes": 911024,
+              "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+              "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1398784,
+              "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+              "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            }
+          ],
+          "dense_gluon_decode_installed": false,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": true,
+          "lod_pool_count": 12,
+          "lod_engine_configurations": [
+            {
+              "family": "kimi-k3",
+              "mode": "two-tier",
+              "levels": 2,
+              "kv_bits": 0,
+              "prefill_routes": 8,
+              "decode_routes": 8,
+              "prefill_chunk_len": 16384,
+              "prefill_state_update_len": 16384,
+              "decode_state_update_len": 256,
+              "local_len": 512,
+              "leaf_page_size": 16,
+              "leaf_block_m": 64,
+              "leaf_block_n": 16,
+              "leaf_num_warps": 1,
+              "prefill_fused_route_coarse": true,
+              "decode_fused_state_route": true,
+              "max_open_centroid_leaves": 1024,
+              "leaf_seal_capacity": null
+            }
+          ],
+          "lod_cross_layer_prefill_group_size": 4,
+          "attached_lod_layers": 12,
+          "attention_layer_count": 12,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 94,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [
+            {
+              "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+              "size_bytes": 911024,
+              "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+              "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1398784,
+              "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+              "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            }
+          ],
+          "dense_gluon_decode_installed": false,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        },
+        {
+          "lod_runtime": true,
+          "lod_pool_count": 12,
+          "lod_engine_configurations": [
+            {
+              "family": "kimi-k3",
+              "mode": "two-tier",
+              "levels": 2,
+              "kv_bits": 0,
+              "prefill_routes": 8,
+              "decode_routes": 8,
+              "prefill_chunk_len": 16384,
+              "prefill_state_update_len": 16384,
+              "decode_state_update_len": 256,
+              "local_len": 512,
+              "leaf_page_size": 16,
+              "leaf_block_m": 64,
+              "leaf_block_n": 16,
+              "leaf_num_warps": 1,
+              "prefill_fused_route_coarse": true,
+              "decode_fused_state_route": true,
+              "max_open_centroid_leaves": 1024,
+              "leaf_seal_capacity": null
+            }
+          ],
+          "lod_cross_layer_prefill_group_size": 4,
+          "attached_lod_layers": 12,
+          "attention_layer_count": 12,
+          "attention_impl_classes": [
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl",
+            "TritonMLAImpl"
+          ],
+          "dummy_attention_layers": 0,
+          "dynamic_moe_layer_count": 94,
+          "model_class": "KimiK3ForConditionalGeneration",
+          "loaded_kimi_lod_modules": [
+            {
+              "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+              "size_bytes": 911024,
+              "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+              "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            },
+            {
+              "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+              "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+              "size_bytes": 1398784,
+              "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+              "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+              "route_build_flags": {
+                "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+                "CK_TILE_FMHA_ROUTE_TOPK": "8"
+              }
+            }
+          ],
+          "dense_gluon_decode_installed": false,
+          "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+          "device_name": "AMD Instinct MI325X",
+          "device_arch": "gfx942:sramecc+:xnack-",
+          "device_total_memory_bytes": 274861129728,
+          "torch_hip_version": "7.15.26333",
+          "cudagraph_mode": "FULL_DECODE_ONLY",
+          "breakable_cudagraph_entries": [],
+          "kimi_coarse_graphs": null,
+          "kimi_final_cache_graphs": null,
+          "kimi_state_update_graphs": null,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "retained": 0,
+            "reclaimed": 0,
+            "minimum_free_bytes_at_check": null
+          }
+        }
+      ],
+      "worker_attention_audit_status": "passed"
+    }
+  },
+  "gpu_memory_utilization": 0.8,
+  "kv_cache_memory_bytes": 6442450944,
+  "worker_attention_audit_status": "passed",
+  "measurement_status": "complete",
+  "graph_prefill_requested": false,
+  "current_phase": {
+    "length": 131072,
+    "phase": "point_complete",
+    "timestamp_unix": 1791240801.8025942
+  },
+  "phase_history": [
+    {
+      "length": 32768,
+      "phase": "warmup",
+      "timestamp_unix": 1791240648.6176944
+    },
+    {
+      "length": 32768,
+      "phase": "warmup_complete",
+      "timestamp_unix": 1791240664.0773883,
+      "warmup_elapsed_seconds": 15.4432104928419
+    },
+    {
+      "length": 32768,
+      "phase": "measurement",
+      "timestamp_unix": 1791240664.0800505,
+      "repeat_index": 0,
+      "repeats": 1
+    },
+    {
+      "length": 32768,
+      "phase": "auditing",
+      "timestamp_unix": 1791240678.8048615,
+      "prefill_seconds": 14.71197674702853,
+      "elapsed_seconds": 14.722925703972578
+    },
+    {
+      "length": 32768,
+      "phase": "point_complete",
+      "timestamp_unix": 1791240678.8597748
+    },
+    {
+      "length": 131072,
+      "phase": "warmup",
+      "timestamp_unix": 1791240678.86521
+    },
+    {
+      "length": 131072,
+      "phase": "warmup_complete",
+      "timestamp_unix": 1791240740.2919698,
+      "warmup_elapsed_seconds": 61.412154948338866
+    },
+    {
+      "length": 131072,
+      "phase": "measurement",
+      "timestamp_unix": 1791240740.2954206,
+      "repeat_index": 0,
+      "repeats": 1
+    },
+    {
+      "length": 131072,
+      "phase": "auditing",
+      "timestamp_unix": 1791240801.721555,
+      "prefill_seconds": 61.39728535246104,
+      "elapsed_seconds": 61.423279353417456
+    },
+    {
+      "length": 131072,
+      "phase": "point_complete",
+      "timestamp_unix": 1791240801.8025942
+    }
+  ],
+  "warmup_prefill_batch_audits": {
+    "32768": [
+      {
+        "rank": 0,
+        "chunks": [
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ]
+        ],
+        "prefill_tokens": 262144,
+        "row_count_histogram": {
+          "8": 2
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 1,
+        "chunks": [
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ]
+        ],
+        "prefill_tokens": 262144,
+        "row_count_histogram": {
+          "8": 2
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 2,
+        "chunks": [
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ]
+        ],
+        "prefill_tokens": 262144,
+        "row_count_histogram": {
+          "8": 2
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 3,
+        "chunks": [
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ]
+        ],
+        "prefill_tokens": 262144,
+        "row_count_histogram": {
+          "8": 2
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 4,
+        "chunks": [
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ]
+        ],
+        "prefill_tokens": 262144,
+        "row_count_histogram": {
+          "8": 2
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 5,
+        "chunks": [
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ]
+        ],
+        "prefill_tokens": 262144,
+        "row_count_histogram": {
+          "8": 2
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 6,
+        "chunks": [
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ]
+        ],
+        "prefill_tokens": 262144,
+        "row_count_histogram": {
+          "8": 2
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 7,
+        "chunks": [
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ]
+        ],
+        "prefill_tokens": 262144,
+        "row_count_histogram": {
+          "8": 2
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      }
+    ],
+    "131072": [
+      {
+        "rank": 0,
+        "chunks": [
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ]
+        ],
+        "prefill_tokens": 1048576,
+        "row_count_histogram": {
+          "8": 8
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 1,
+        "chunks": [
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ]
+        ],
+        "prefill_tokens": 1048576,
+        "row_count_histogram": {
+          "8": 8
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 2,
+        "chunks": [
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ]
+        ],
+        "prefill_tokens": 1048576,
+        "row_count_histogram": {
+          "8": 8
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 3,
+        "chunks": [
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ]
+        ],
+        "prefill_tokens": 1048576,
+        "row_count_histogram": {
+          "8": 8
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 4,
+        "chunks": [
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ]
+        ],
+        "prefill_tokens": 1048576,
+        "row_count_histogram": {
+          "8": 8
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 5,
+        "chunks": [
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ]
+        ],
+        "prefill_tokens": 1048576,
+        "row_count_histogram": {
+          "8": 8
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 6,
+        "chunks": [
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ]
+        ],
+        "prefill_tokens": 1048576,
+        "row_count_histogram": {
+          "8": 8
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      },
+      {
+        "rank": 7,
+        "chunks": [
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ],
+          [
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384,
+            16384
+          ]
+        ],
+        "prefill_tokens": 1048576,
+        "row_count_histogram": {
+          "8": 8
+        },
+        "scope": "untimed warmup only; no audit hooks in measured generation"
+      }
+    ]
+  },
+  "worker_attention_audit": [
+    {
+      "lod_runtime": true,
+      "lod_pool_count": 12,
+      "lod_engine_configurations": [
+        {
+          "family": "kimi-k3",
+          "mode": "two-tier",
+          "levels": 2,
+          "kv_bits": 0,
+          "prefill_routes": 8,
+          "decode_routes": 8,
+          "prefill_chunk_len": 16384,
+          "prefill_state_update_len": 16384,
+          "decode_state_update_len": 256,
+          "local_len": 512,
+          "leaf_page_size": 16,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "prefill_fused_route_coarse": true,
+          "decode_fused_state_route": true,
+          "max_open_centroid_leaves": 1024,
+          "leaf_seal_capacity": null
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "attached_lod_layers": 12,
+      "attention_layer_count": 12,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 94,
+      "model_class": "KimiK3ForConditionalGeneration",
+      "loaded_kimi_lod_modules": [
+        {
+          "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "size_bytes": 911024,
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1398784,
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        }
+      ],
+      "dense_gluon_decode_installed": false,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 0,
+        "retained": 0,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": null
+      }
+    },
+    {
+      "lod_runtime": true,
+      "lod_pool_count": 12,
+      "lod_engine_configurations": [
+        {
+          "family": "kimi-k3",
+          "mode": "two-tier",
+          "levels": 2,
+          "kv_bits": 0,
+          "prefill_routes": 8,
+          "decode_routes": 8,
+          "prefill_chunk_len": 16384,
+          "prefill_state_update_len": 16384,
+          "decode_state_update_len": 256,
+          "local_len": 512,
+          "leaf_page_size": 16,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "prefill_fused_route_coarse": true,
+          "decode_fused_state_route": true,
+          "max_open_centroid_leaves": 1024,
+          "leaf_seal_capacity": null
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "attached_lod_layers": 12,
+      "attention_layer_count": 12,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 94,
+      "model_class": "KimiK3ForConditionalGeneration",
+      "loaded_kimi_lod_modules": [
+        {
+          "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "size_bytes": 911024,
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1398784,
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        }
+      ],
+      "dense_gluon_decode_installed": false,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 0,
+        "retained": 0,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": null
+      }
+    },
+    {
+      "lod_runtime": true,
+      "lod_pool_count": 12,
+      "lod_engine_configurations": [
+        {
+          "family": "kimi-k3",
+          "mode": "two-tier",
+          "levels": 2,
+          "kv_bits": 0,
+          "prefill_routes": 8,
+          "decode_routes": 8,
+          "prefill_chunk_len": 16384,
+          "prefill_state_update_len": 16384,
+          "decode_state_update_len": 256,
+          "local_len": 512,
+          "leaf_page_size": 16,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "prefill_fused_route_coarse": true,
+          "decode_fused_state_route": true,
+          "max_open_centroid_leaves": 1024,
+          "leaf_seal_capacity": null
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "attached_lod_layers": 12,
+      "attention_layer_count": 12,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 94,
+      "model_class": "KimiK3ForConditionalGeneration",
+      "loaded_kimi_lod_modules": [
+        {
+          "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "size_bytes": 911024,
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1398784,
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        }
+      ],
+      "dense_gluon_decode_installed": false,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 0,
+        "retained": 0,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": null
+      }
+    },
+    {
+      "lod_runtime": true,
+      "lod_pool_count": 12,
+      "lod_engine_configurations": [
+        {
+          "family": "kimi-k3",
+          "mode": "two-tier",
+          "levels": 2,
+          "kv_bits": 0,
+          "prefill_routes": 8,
+          "decode_routes": 8,
+          "prefill_chunk_len": 16384,
+          "prefill_state_update_len": 16384,
+          "decode_state_update_len": 256,
+          "local_len": 512,
+          "leaf_page_size": 16,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "prefill_fused_route_coarse": true,
+          "decode_fused_state_route": true,
+          "max_open_centroid_leaves": 1024,
+          "leaf_seal_capacity": null
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "attached_lod_layers": 12,
+      "attention_layer_count": 12,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 94,
+      "model_class": "KimiK3ForConditionalGeneration",
+      "loaded_kimi_lod_modules": [
+        {
+          "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "size_bytes": 911024,
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1398784,
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        }
+      ],
+      "dense_gluon_decode_installed": false,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 0,
+        "retained": 0,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": null
+      }
+    },
+    {
+      "lod_runtime": true,
+      "lod_pool_count": 12,
+      "lod_engine_configurations": [
+        {
+          "family": "kimi-k3",
+          "mode": "two-tier",
+          "levels": 2,
+          "kv_bits": 0,
+          "prefill_routes": 8,
+          "decode_routes": 8,
+          "prefill_chunk_len": 16384,
+          "prefill_state_update_len": 16384,
+          "decode_state_update_len": 256,
+          "local_len": 512,
+          "leaf_page_size": 16,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "prefill_fused_route_coarse": true,
+          "decode_fused_state_route": true,
+          "max_open_centroid_leaves": 1024,
+          "leaf_seal_capacity": null
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "attached_lod_layers": 12,
+      "attention_layer_count": 12,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 94,
+      "model_class": "KimiK3ForConditionalGeneration",
+      "loaded_kimi_lod_modules": [
+        {
+          "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "size_bytes": 911024,
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1398784,
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        }
+      ],
+      "dense_gluon_decode_installed": false,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 0,
+        "retained": 0,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": null
+      }
+    },
+    {
+      "lod_runtime": true,
+      "lod_pool_count": 12,
+      "lod_engine_configurations": [
+        {
+          "family": "kimi-k3",
+          "mode": "two-tier",
+          "levels": 2,
+          "kv_bits": 0,
+          "prefill_routes": 8,
+          "decode_routes": 8,
+          "prefill_chunk_len": 16384,
+          "prefill_state_update_len": 16384,
+          "decode_state_update_len": 256,
+          "local_len": 512,
+          "leaf_page_size": 16,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "prefill_fused_route_coarse": true,
+          "decode_fused_state_route": true,
+          "max_open_centroid_leaves": 1024,
+          "leaf_seal_capacity": null
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "attached_lod_layers": 12,
+      "attention_layer_count": 12,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 94,
+      "model_class": "KimiK3ForConditionalGeneration",
+      "loaded_kimi_lod_modules": [
+        {
+          "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "size_bytes": 911024,
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1398784,
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        }
+      ],
+      "dense_gluon_decode_installed": false,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 0,
+        "retained": 0,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": null
+      }
+    },
+    {
+      "lod_runtime": true,
+      "lod_pool_count": 12,
+      "lod_engine_configurations": [
+        {
+          "family": "kimi-k3",
+          "mode": "two-tier",
+          "levels": 2,
+          "kv_bits": 0,
+          "prefill_routes": 8,
+          "decode_routes": 8,
+          "prefill_chunk_len": 16384,
+          "prefill_state_update_len": 16384,
+          "decode_state_update_len": 256,
+          "local_len": 512,
+          "leaf_page_size": 16,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "prefill_fused_route_coarse": true,
+          "decode_fused_state_route": true,
+          "max_open_centroid_leaves": 1024,
+          "leaf_seal_capacity": null
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "attached_lod_layers": 12,
+      "attention_layer_count": 12,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 94,
+      "model_class": "KimiK3ForConditionalGeneration",
+      "loaded_kimi_lod_modules": [
+        {
+          "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "size_bytes": 911024,
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1398784,
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        }
+      ],
+      "dense_gluon_decode_installed": false,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 0,
+        "retained": 0,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": null
+      }
+    },
+    {
+      "lod_runtime": true,
+      "lod_pool_count": 12,
+      "lod_engine_configurations": [
+        {
+          "family": "kimi-k3",
+          "mode": "two-tier",
+          "levels": 2,
+          "kv_bits": 0,
+          "prefill_routes": 8,
+          "decode_routes": 8,
+          "prefill_chunk_len": 16384,
+          "prefill_state_update_len": 16384,
+          "decode_state_update_len": 256,
+          "local_len": 512,
+          "leaf_page_size": 16,
+          "leaf_block_m": 64,
+          "leaf_block_n": 16,
+          "leaf_num_warps": 1,
+          "prefill_fused_route_coarse": true,
+          "decode_fused_state_route": true,
+          "max_open_centroid_leaves": 1024,
+          "leaf_seal_capacity": null
+        }
+      ],
+      "lod_cross_layer_prefill_group_size": 4,
+      "attached_lod_layers": 12,
+      "attention_layer_count": 12,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 94,
+      "model_class": "KimiK3ForConditionalGeneration",
+      "loaded_kimi_lod_modules": [
+        {
+          "module": "aiter.jit.mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_bias_nmask_lse_ndropout_nqscale_lod_kimi_d192v128_asyncbias_subtile64_score_probe1_v13.so",
+          "size_bytes": 911024,
+          "sha256": "6e125fdf9e1dfd6762665560e4fc503edc883cb9cc5d27e4ba22b044fc4db967",
+          "build_manifest_sha256": "07a97b7ba82df6f1423b8c2cad678d952fb09338ec9d18744028996c730c3dd7",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_GLOBAL_TOPK": "0",
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TILE_MAX_ONLY": "1",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        },
+        {
+          "module": "aiter.jit.mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3",
+          "path": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/jit/mha_fwd_bf16_nbias_mask_lse_ndropout_nqscale_lod_kimi_d192v128_v3.so",
+          "size_bytes": 1398784,
+          "sha256": "91e3e433cfc8c8b899a89639a58dae3817730cd5453677c5aad3098d2102bcca",
+          "build_manifest_sha256": "b61e583241ee346aff293ed90f3a87d4760236083c695bd319154919ee99f1e0",
+          "route_build_flags": {
+            "CK_TILE_FMHA_ROUTE_QUERY_NORMALIZE": "0",
+            "CK_TILE_FMHA_ROUTE_TOPK": "8"
+          }
+        }
+      ],
+      "dense_gluon_decode_installed": false,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 0,
+        "retained": 0,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": null
+      }
+    }
+  ]
+}

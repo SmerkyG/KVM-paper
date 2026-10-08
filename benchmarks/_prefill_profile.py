@@ -10,6 +10,7 @@ def start_prefill_profile(worker, collect_projection_usage=True):
     capture_path = os.environ.get("LOD_KIMI_CAPTURE_PREFILL")
     if capture_path:
         _install_leaf_capture(worker, capture_path)
+    _install_attention_shape_trace(worker)
     torch.cuda.synchronize()
     worker._lod_prefill_profile = torch.profiler.profile(
         activities=[torch.profiler.ProfilerActivity.CPU,
@@ -29,6 +30,7 @@ def stop_prefill_profile(worker):
     cpu_totals = {}
     gpu_start = float("inf")
     gpu_end = 0.0
+    chunk_kernels = []
     for event in profiler.events():
         if event.device_type == torch.autograd.DeviceType.CPU:
             item = cpu_totals.setdefault(event.name, {"calls": 0, "self_cpu_us": 0.0})
@@ -42,10 +44,19 @@ def stop_prefill_profile(worker):
         item["total_gpu_us"] += event.device_time_total
         gpu_start = min(gpu_start, event.time_range.start)
         gpu_end = max(gpu_end, event.time_range.end)
+        if any(name in event.name for name in (
+            "_latent_local_prefill_gluon", "latent_route_coarse_gluon",
+            "_mla_route_coarse_prefill_kernel", "_paged_leaf_attention_kernel",
+        )):
+            chunk_kernels.append(dict(name=event.name,
+                start_us=event.time_range.start, gpu_ms=event.device_time_total / 1000))
     del worker._lod_prefill_profile
     for engine, original in getattr(worker, "_lod_prefill_capture_hooks", []):
         engine._paged_leaf_attention = original
     worker._lod_prefill_capture_hooks = []
+    for engine, original in getattr(worker, "_lod_prefill_shape_hooks", []):
+        engine._two_level_attention = original
+    worker._lod_prefill_shape_hooks = []
     os.environ.pop("LOD_KIMI_PROFILE_PROJECTED_LEAVES", None)
     runtime = getattr(worker.model_runner, "_vllm_lod_runtime", None)
     # The V2 runner stores this extension on its model state instead.
@@ -71,7 +82,34 @@ def stop_prefill_profile(worker):
             key=lambda item: item["self_cpu_us"], reverse=True,
         )[:40],
         "leaf_projection_usage": usage,
+        "chunk_attention_kernels": sorted(chunk_kernels, key=lambda item: item["start_us"]),
+        "attention_shapes": getattr(worker, "_lod_prefill_attention_shapes", []),
     }
+
+
+def _install_attention_shape_trace(worker):
+    """Record host-known geometry; no GPU reads, events or synchronization."""
+    from types import MethodType
+
+    runner = worker.model_runner
+    runtime = getattr(runner, "_vllm_lod_runtime", None)
+    if runtime is None:
+        runtime = getattr(getattr(runner, "model_state", None), "_vllm_lod_runtime", None)
+    shapes, hooks = [], []
+    if runtime is not None:
+        for name, pool in runtime.pools.items():
+            engine, original = pool.engine, pool.engine._two_level_attention
+
+            def attention(self, q, k, v, *args, _original=original, _name=str(name), **kwargs):
+                shapes.append(dict(layer=_name, query_shape=list(q.shape),
+                    local_keys=int(k.size(2)), state_len=int(kwargs["state_len"]),
+                    context_len=kwargs.get("context_len")))
+                return _original(q, k, v, *args, **kwargs)
+
+            engine._two_level_attention = MethodType(attention, engine)
+            hooks.append((engine, original))
+    worker._lod_prefill_shape_hooks = hooks
+    worker._lod_prefill_attention_shapes = shapes
 
 
 def _install_leaf_capture(worker, capture_path):

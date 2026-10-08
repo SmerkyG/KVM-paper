@@ -228,27 +228,28 @@ def test_region_cap_filters_after_ranking_without_substitution() -> None:
     assert routes.item() == -1
 
 
-def test_recursive_mode_uses_one_exact_page_and_disjoint_residual() -> None:
+@pytest.mark.parametrize("remote_length", [2, 4, 6])
+def test_recursive_mode_uses_two_exact_pages_and_disjoint_residual(remote_length) -> None:
     from lod_attention.pytorch_engine import PytorchLODCache, PytorchLODState
 
-    key = torch.tensor([[[[3.0], [2.0], [1.0], [0.0]]]])
-    value = torch.tensor([[[[8.0], [4.0], [2.0], [1.0]]]])
+    key = torch.tensor([[[[3.0], [2.0], [1.0], [0.0], [-1.0], [-2.0]]]])[..., :remote_length, :]
+    value = torch.tensor([[[[8.0], [4.0], [2.0], [1.0], [6.0], [0.0]]]])[..., :remote_length, :]
     state = PytorchLODState(
         key_sum=key.sum(dim=2, keepdim=True),
         value_sum=value.sum(dim=2, keepdim=True),
-        count=torch.tensor([[[4.0]]]),
+        count=torch.tensor([[[float(remote_length)]]]),
         key_rms_sum=key.abs().sum(dim=2),
     )
     cache = PytorchLODCache(
         state=state,
-        owner=torch.zeros(1, 1, 4, dtype=torch.long),
+        owner=torch.zeros(1, 1, remote_length, dtype=torch.long),
         archive_key=key,
         archive_value=value,
-        archive_valid=torch.ones(1, 4, dtype=torch.bool),
-        coverage=4,
+        archive_valid=torch.ones(1, remote_length, dtype=torch.bool),
+        coverage=remote_length,
         sink_key=torch.tensor([[[[-2.0]]]]),
         sink_value=torch.tensor([[[[3.0]]]]),
-        total_length=6,
+        total_length=remote_length + 2,
     )
     engine = PytorchLODAttention(
         PytorchLODConfig(
@@ -280,9 +281,15 @@ def test_recursive_mode_uses_one_exact_page_and_disjoint_residual() -> None:
         full_regions=False,
     )
 
-    # Page [3, 2] is exact. Page [1, 0] remains one count-corrected residual.
-    frontier_score = torch.tensor([3.0, 2.0, 0.5 + math.log(2), -1.0, -2.0])
-    frontier_value = torch.tensor([[8.0], [4.0], [1.5], [5.0], [3.0]])
+    # Both leading pages are exact. Any third page is one disjoint residual.
+    opened = min(remote_length, 4)
+    remote_scores = [3.0, 2.0, 1.0, 0.0][:opened]
+    remote_values = [8.0, 4.0, 2.0, 1.0][:opened]
+    if remote_length == 6:
+        remote_scores.append(-1.5 + math.log(2))
+        remote_values.append(3.0)
+    frontier_score = torch.tensor(remote_scores + [-1.0, -2.0])
+    frontier_value = torch.tensor(remote_values + [5.0, 3.0]).unsqueeze(-1)
     expected = (frontier_score.softmax(dim=0).unsqueeze(-1) * frontier_value).sum(dim=0)
     torch.testing.assert_close(result.output[0, 0, 0], expected)
 

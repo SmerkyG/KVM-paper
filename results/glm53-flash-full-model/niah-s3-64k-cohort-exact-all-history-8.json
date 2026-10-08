@@ -1,0 +1,113 @@
+{
+  "aiter_fmoe_config": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/configs/tuned_fmoe.csv",
+  "aiter_gemm_config": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/configs/a8w8_blockscale_tuned_gemm.csv",
+  "argv": [
+    "/home/dan/subusers/agent/KVM-paper-release/benchmarks/glm53_flash_full.py",
+    "--checkpoint",
+    "/tmp/dan-agent/models/GLM-5.3-Flash",
+    "--mode",
+    "full",
+    "--exact-all-history",
+    "--tp",
+    "4",
+    "--length",
+    "65536",
+    "--batch-size",
+    "8",
+    "--measure",
+    "niah-s3",
+    "--niah-samples",
+    "8",
+    "--max-new-tokens",
+    "64",
+    "--weight-cache-id",
+    "glm53-flash-tp4",
+    "--output",
+    "results/glm53-flash-full-model/niah-s3-64k-cohort-exact-all-history-8.json"
+  ],
+  "attention_cache": "BF16",
+  "batch_size": 8,
+  "benchmark": "niah-s3-glm53-full-model",
+  "checkpoint": "/tmp/dan-agent/models/GLM-5.3-Flash",
+  "decode_tokens": 1026,
+  "enforce_eager": false,
+  "error": {
+    "message": "Engine core initialization failed. See root cause above. Failed core proc(s): {}",
+    "type": "RuntimeError"
+  },
+  "exact_all_history": true,
+  "hostname": "dev-shared-research-3-56bf6cfb94-4lgwz",
+  "kv_cache_memory_bytes": 17179869184,
+  "length": 65536,
+  "lm_eval_version": "0.4.13",
+  "max_new_tokens": 64,
+  "measurements": {},
+  "mode": "full",
+  "niah_samples": 8,
+  "prompt_generation_seeds": {
+    "numpy": 1234,
+    "python": 0
+  },
+  "prompt_manifest": [
+    {
+      "index": 0,
+      "input_tokens": 65098,
+      "target": "101bb5fa-6a67-4623-9ad1-daaaef8d9ff0",
+      "token_sha256": "de19574e2ec0077997e523c1b5946ea221bbcecd7353dcb4d6cf0ed82c2cce9a"
+    },
+    {
+      "index": 1,
+      "input_tokens": 65097,
+      "target": "ca9571e4-07dc-42b1-b45d-a406bbf9bb01",
+      "token_sha256": "82e63671f8107a9c2bad6b204fc69c1d5ab70c7ae25ebdfee87aa0591858f95c"
+    },
+    {
+      "index": 2,
+      "input_tokens": 65092,
+      "target": "eb561699-7f22-4d12-87b6-e08e6ac1ca75",
+      "token_sha256": "dc072c71273cc99d960e406a26cfa864a08ab8186d31cfe95da7756661dfa889"
+    },
+    {
+      "index": 3,
+      "input_tokens": 65097,
+      "target": "5bf80676-1f12-40e9-9201-1caa5a3da367",
+      "token_sha256": "390e1b4cf4b2d2d96664f081004e0518e490fc2ae99557c3cb179ed2c4ceeaba"
+    },
+    {
+      "index": 4,
+      "input_tokens": 65095,
+      "target": "f96d4403-d48c-43f3-828d-042b2d8b5b41",
+      "token_sha256": "a5a6fd007d4c4f22224a7069a24b4efc49490733ac9ac3fd777221bba871e7a5"
+    },
+    {
+      "index": 5,
+      "input_tokens": 65098,
+      "target": "353e0c86-24ae-4a79-a4b8-298798ba0f0e",
+      "token_sha256": "2d4bf71eb0dd2240de0af943442676bc52bfc29bc521d5de072d8edfff4a10a3"
+    },
+    {
+      "index": 6,
+      "input_tokens": 65095,
+      "target": "e6a1a40b-f031-44b9-bb6b-0095ac7b7ab2",
+      "token_sha256": "52ba0593636c63f296777bdd3866c3445d624e78d4531997bac31d7d8b8107cf"
+    },
+    {
+      "index": 7,
+      "input_tokens": 65097,
+      "target": "eecb325b-064f-468d-b080-e0035e7f503c",
+      "token_sha256": "60f7f21ffcc009b89ec1e5ce478599afe8c7642e2afca6755c6cec1fcdf5e167"
+    }
+  ],
+  "prompt_suffix": " from 60% to 90%. And since the number of new users was a function of the number of completed test drives, our revenue growth increased by 50%, just from that change. **Money** In the early 1990s I read an article in which someone said that software was a subscription business. At first this seemed a very cynical statement. But later I realized that it reflects reality: software development is an ongoing process. I\nWhat is the special magic uuid for breezy-sweater mentioned in the provided text?<|assistant|><think></think>The special magic uuid for breezy-sweater mentioned in the provided text is",
+  "random_weights": false,
+  "reference": "exact all-history dense MLA; learned indexer disabled",
+  "scheduler_budget": 16392,
+  "scheduler_chunk": 16384,
+  "seed": 1234,
+  "status": "failed",
+  "synchronized_prefill_cohort": true,
+  "tensor_parallel_size": 4,
+  "thinking": false,
+  "weight_cache_id": "glm53-flash-tp4",
+  "weights": "native FP8"
+}

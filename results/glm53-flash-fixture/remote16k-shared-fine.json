@@ -1,0 +1,82 @@
+{
+  "candidates": [
+    {
+      "block_m": 32,
+      "block_n": 16,
+      "phases_ms": {
+        "dispatch": 0.6435909867286682,
+        "dispatch_blocks": 0.0060800001956522465,
+        "dispatch_group": 0.615231990814209,
+        "dispatch_prepare": 0.016239000484347343,
+        "kernel": 10.568251609802246,
+        "pack": 0.0060800001956522465,
+        "total": 11.217923164367676
+      },
+      "refinement_ms": 11.934192657470703,
+      "status": "complete",
+      "waves": 2
+    },
+    {
+      "block_m": 16,
+      "block_n": 16,
+      "phases_ms": {
+        "dispatch": 0.6319109797477722,
+        "dispatch_blocks": 0.005679999943822622,
+        "dispatch_group": 0.60419100522995,
+        "dispatch_prepare": 0.016279999166727066,
+        "kernel": 14.698354721069336,
+        "pack": 0.005799999926239252,
+        "total": 15.336066246032715
+      },
+      "refinement_ms": 16.78956413269043,
+      "status": "complete",
+      "waves": 2
+    },
+    {
+      "block_m": 64,
+      "block_n": 16,
+      "phases_ms": {
+        "dispatch": 0.6232720017433167,
+        "dispatch_blocks": 0.0058399997651577,
+        "dispatch_group": 0.5929520130157471,
+        "dispatch_prepare": 0.01868000067770481,
+        "kernel": 36.505367279052734,
+        "pack": 0.0058399997651577,
+        "total": 37.13447952270508
+      },
+      "refinement_ms": 37.36307907104492,
+      "status": "complete",
+      "waves": 2
+    },
+    {
+      "block_m": 32,
+      "block_n": 16,
+      "phases_ms": {
+        "dispatch": 0.6227110028266907,
+        "dispatch_blocks": 0.005880000069737434,
+        "dispatch_group": 0.5969520211219788,
+        "dispatch_prepare": 0.014039999805390835,
+        "kernel": 12.10315227508545,
+        "pack": 0.005880000069737434,
+        "total": 12.731742858886719
+      },
+      "refinement_ms": 13.301335334777832,
+      "status": "complete",
+      "waves": 4
+    },
+    {
+      "block_m": 64,
+      "block_n": 16,
+      "error": "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help.",
+      "status": "failed",
+      "waves": 4
+    }
+  ],
+  "history": 16384,
+  "policy": "top-eight; oversized selected regions remain closed above 1024 leaves",
+  "queries": 16384,
+  "route_coarse_ms": 22.91156005859375,
+  "scope": "TP1 remote-only kernel diagnostic; random inputs; not model timings",
+  "shared_latent": true,
+  "slots": 2048
+}

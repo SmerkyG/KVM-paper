@@ -369,6 +369,7 @@ def _update_page_summaries_kernel(
     INDEXED: tl.constexpr,
     INT8_STORAGE: tl.constexpr,
     UPDATE_KEY: tl.constexpr,
+    UPDATE_VALUE: tl.constexpr = True,
 ):
     """Refresh every completed page and each slot's current partial page."""
     token_row = tl.program_id(0).to(tl.int64)
@@ -452,42 +453,43 @@ def _update_page_summaries_kernel(
             mask=refresh & (dimension < HEAD_DIM),
         )
 
-    value_valid = valid_page[:, None] & (dimension[None, :] < VALUE_DIM)
-    if INDEXED:
-        values = tl.load(
-            leaf_v
-            + batch * LEAF_V_BATCH_STRIDE
-            + kv_head * LEAF_V_HEAD_STRIDE
-            + leaf_index[:, None] * LEAF_V_TOKEN_STRIDE
-            + dimension[None, :],
-            mask=value_valid,
-            other=0.0,
-        ).to(tl.float32)
-        if INT8_STORAGE:
-            value_scales = tl.load(
-                leaf_v_scales
-                + batch * LEAF_V_BATCH_STRIDE // LEAF_V_TOKEN_STRIDE
-                + kv_head * LEAF_V_HEAD_STRIDE // LEAF_V_TOKEN_STRIDE
-                + leaf_index,
-                mask=valid_page,
+    if UPDATE_VALUE:
+        value_valid = valid_page[:, None] & (dimension[None, :] < VALUE_DIM)
+        if INDEXED:
+            values = tl.load(
+                leaf_v
+                + batch * LEAF_V_BATCH_STRIDE
+                + kv_head * LEAF_V_HEAD_STRIDE
+                + leaf_index[:, None] * LEAF_V_TOKEN_STRIDE
+                + dimension[None, :],
+                mask=value_valid,
                 other=0.0,
             ).to(tl.float32)
-            values *= value_scales[:, None]
-    else:
-        values = tl.load(
-            page_v
-            + ((kv_row * PAGE_CAPACITY + page_id) * PAGE_SIZE + page_offset[:, None])
-            * VALUE_DIM
-            + dimension[None, :],
-            mask=value_valid,
-            other=0.0,
-        ).to(tl.float32)
-    value_sum = tl.sum(values, axis=0)
-    tl.store(
-        page_sum_v + (kv_row * PAGE_CAPACITY + page_id) * VALUE_DIM + dimension,
-        value_sum,
-        mask=refresh & (dimension < VALUE_DIM),
-    )
+            if INT8_STORAGE:
+                value_scales = tl.load(
+                    leaf_v_scales
+                    + batch * LEAF_V_BATCH_STRIDE // LEAF_V_TOKEN_STRIDE
+                    + kv_head * LEAF_V_HEAD_STRIDE // LEAF_V_TOKEN_STRIDE
+                    + leaf_index,
+                    mask=valid_page,
+                    other=0.0,
+                ).to(tl.float32)
+                values *= value_scales[:, None]
+        else:
+            values = tl.load(
+                page_v
+                + ((kv_row * PAGE_CAPACITY + page_id) * PAGE_SIZE + page_offset[:, None])
+                * VALUE_DIM
+                + dimension[None, :],
+                mask=value_valid,
+                other=0.0,
+            ).to(tl.float32)
+        value_sum = tl.sum(values, axis=0)
+        tl.store(
+            page_sum_v + (kv_row * PAGE_CAPACITY + page_id) * VALUE_DIM + dimension,
+            value_sum,
+            mask=refresh & (dimension < VALUE_DIM),
+        )
     tl.store(
         page_counts + kv_row * PAGE_CAPACITY + page_id,
         page_count,
@@ -704,6 +706,7 @@ def _quantize_all_virtual_pages_grouped_int4_kernel(
     LEAF_V_HEAD_STRIDE,
     LEAF_V_TOKEN_STRIDE: tl.constexpr,
     OPTIMIZE_SCALE: tl.constexpr,
+    SHARED_KV: tl.constexpr = False,
 ):
     page_row = tl.program_id(0).to(tl.int64)
     group_begin = tl.program_id(1).to(tl.int64) * GROUPS_PER_PROGRAM
@@ -743,29 +746,15 @@ def _quantize_all_virtual_pages_grouped_int4_kernel(
         LEAF_K_TOKEN_STRIDE,
         OPTIMIZE_SCALE,
     )
-    _quantize_virtual_page_tensor_grouped_int4(
-        leaf_v,
-        page_sum_v,
-        quantized_leaf_v,
-        page_v_scales,
-        leaf_index,
-        valid_token,
-        refresh,
-        page_count,
-        batch,
-        kv_head,
-        kv_row,
-        page_id,
-        group_begin,
-        PAGE_CAPACITY,
-        VALUE_DIM,
-        GROUPS_PER_PROGRAM,
-        LEAF_CAPACITY,
-        LEAF_V_BATCH_STRIDE,
-        LEAF_V_HEAD_STRIDE,
-        LEAF_V_TOKEN_STRIDE,
-        OPTIMIZE_SCALE,
-    )
+    if not SHARED_KV:
+        _quantize_virtual_page_tensor_grouped_int4(
+            leaf_v, page_sum_v, quantized_leaf_v, page_v_scales,
+            leaf_index, valid_token, refresh, page_count,
+            batch, kv_head, kv_row, page_id, group_begin,
+            PAGE_CAPACITY, VALUE_DIM, GROUPS_PER_PROGRAM, LEAF_CAPACITY,
+            LEAF_V_BATCH_STRIDE, LEAF_V_HEAD_STRIDE, LEAF_V_TOKEN_STRIDE,
+            OPTIMIZE_SCALE,
+        )
     tl.store(
         page_quantized_counts + page_row,
         page_count,
@@ -1153,6 +1142,7 @@ def _append_quantized_virtual_pages_grouped_int4_kernel(
     QUANTIZED_SUMMARIES: tl.constexpr,
     OPTIMIZE_SUMMARY_SCALE: tl.constexpr,
     OPTIMIZE_LEAF_SCALE: tl.constexpr,
+    SHARED_KV: tl.constexpr = False,
 ):
     token_row = tl.program_id(0).to(tl.int64)
     group_begin = tl.program_id(1).to(tl.int64) * GROUPS_PER_PROGRAM
@@ -1231,37 +1221,16 @@ def _append_quantized_virtual_pages_grouped_int4_kernel(
         OPTIMIZE_SUMMARY_SCALE,
         OPTIMIZE_LEAF_SCALE,
     )
-    _requantize_appended_virtual_page_tensor_grouped_int4(
-        append_v,
-        page_sum_v,
-        quantized_page_sum_v,
-        page_sum_v_scales,
-        quantized_leaf_v,
-        page_v_scales,
-        leaf_index,
-        valid_token,
-        old_token,
-        refresh,
-        old_count,
-        new_count,
-        leaf_offset,
-        batch,
-        kv_head,
-        kv_row,
-        page_id,
-        group_begin,
-        PAGE_CAPACITY,
-        VALUE_DIM,
-        GROUPS_PER_PROGRAM,
-        LEAF_CAPACITY,
-        TOKENS,
-        APPEND_V_BATCH_STRIDE,
-        APPEND_V_HEAD_STRIDE,
-        APPEND_V_TOKEN_STRIDE,
-        QUANTIZED_SUMMARIES,
-        OPTIMIZE_SUMMARY_SCALE,
-        OPTIMIZE_LEAF_SCALE,
-    )
+    if not SHARED_KV:
+        _requantize_appended_virtual_page_tensor_grouped_int4(
+            append_v, page_sum_v, quantized_page_sum_v, page_sum_v_scales,
+            quantized_leaf_v, page_v_scales, leaf_index, valid_token,
+            old_token, refresh, old_count, new_count, leaf_offset,
+            batch, kv_head, kv_row, page_id, group_begin,
+            PAGE_CAPACITY, VALUE_DIM, GROUPS_PER_PROGRAM, LEAF_CAPACITY, TOKENS,
+            APPEND_V_BATCH_STRIDE, APPEND_V_HEAD_STRIDE, APPEND_V_TOKEN_STRIDE,
+            QUANTIZED_SUMMARIES, OPTIMIZE_SUMMARY_SCALE, OPTIMIZE_LEAF_SCALE,
+        )
 
 
 @triton.jit(
@@ -1500,6 +1469,7 @@ def append_virtual_paged_kv(
             INDEXED=True,
             INT8_STORAGE=False,
             UPDATE_KEY=True,
+            UPDATE_VALUE=page_sum_k.data_ptr() != page_sum_v.data_ptr(),
             num_warps=4,
         )
 
@@ -1683,6 +1653,9 @@ def quantize_virtual_paged_kv(
         LEAF_V_HEAD_STRIDE=int(leaf_v.stride(1)),
         LEAF_V_TOKEN_STRIDE=int(leaf_v.stride(2)),
         OPTIMIZE_SCALE=optimize_scale,
+        # MLA stores K and V's latent prefix once. A second V pass would
+        # use the wrong physical width for 512+64 K and overwrite K codes.
+        SHARED_KV=quantized_leaf_k.data_ptr() == quantized_leaf_v.data_ptr(),
         num_warps=1,
     )
 
@@ -2041,6 +2014,9 @@ def append_quantized_virtual_paged_kv(
         "QUANTIZED_SUMMARIES": quantized_summaries,
         "OPTIMIZE_SUMMARY_SCALE": optimize_summary_scale,
         "OPTIMIZE_LEAF_SCALE": optimize_leaf_scale,
+        # Requantization is read/modify/write. Processing an aliased V after
+        # K would decode already-updated codes against the old page anchor.
+        "SHARED_KV": quantized_leaf_k.data_ptr() == quantized_leaf_v.data_ptr(),
         "num_warps": 1,
     }
     _append_quantized_virtual_pages_grouped_int4_kernel[

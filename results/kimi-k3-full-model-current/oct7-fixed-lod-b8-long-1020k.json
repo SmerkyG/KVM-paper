@@ -441,7 +441,7 @@
   "gpu_memory_utilization": 0.8,
   "kv_cache_memory_bytes": 1073741824,
   "worker_attention_audit_status": "pending",
-  "measurement_status": "in_progress",
+  "measurement_status": "failed",
   "graph_prefill_requested": false,
   "allocation_worker_memory": [
     {
@@ -1600,5 +1600,9 @@
       "phase": "warmup",
       "timestamp_unix": 1791387696.2671509
     }
-  ]
+  ],
+  "failure": {
+    "exception_type": "EngineDeadError",
+    "message": "EngineCore encountered an issue. See stack trace (above) for the root cause."
+  }
 }

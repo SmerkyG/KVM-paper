@@ -1,0 +1,65 @@
+{
+  "candidates": [
+    {
+      "block_m": 64,
+      "block_n": 32,
+      "gpu_ms": 4.439857006072998,
+      "mfma": 16,
+      "status": "complete",
+      "value_splits": 1,
+      "warps": 4
+    },
+    {
+      "block_m": 64,
+      "block_n": 32,
+      "gpu_ms": 5.498403072357178,
+      "mfma": 16,
+      "status": "complete",
+      "value_splits": 2,
+      "warps": 4
+    },
+    {
+      "block_m": 64,
+      "block_n": 64,
+      "gpu_ms": 6.504228115081787,
+      "mfma": 16,
+      "status": "complete",
+      "value_splits": 2,
+      "warps": 4
+    },
+    {
+      "block_m": 128,
+      "block_n": 32,
+      "error": "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help.",
+      "mfma": 16,
+      "status": "failed",
+      "value_splits": 2,
+      "warps": 4
+    },
+    {
+      "block_m": 128,
+      "block_n": 64,
+      "error": "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help.",
+      "mfma": 16,
+      "status": "failed",
+      "value_splits": 2,
+      "warps": 8
+    },
+    {
+      "block_m": 64,
+      "block_n": 64,
+      "gpu_ms": 8.583599090576172,
+      "mfma": 16,
+      "status": "complete",
+      "value_splits": 4,
+      "warps": 4
+    }
+  ],
+  "scope": "diagnostic exact causal local kernel on random tensors",
+  "shape": [
+    1,
+    64,
+    4096,
+    512
+  ]
+}

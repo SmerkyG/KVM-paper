@@ -65,9 +65,15 @@ def snapshot_prefill_memory(worker) -> dict:
     # Immutable weight-source references may point into a daemon's much larger
     # IPC storage. They are not client scratch allocations. Actual client-owned
     # transformed weight layouts remain in the workspace accounting.
-    scratch = {name: value for name, value in
-               getattr(runtime, "_prefill_attention_buffers", {}).items()
-               if not name.endswith("_source")}
+    scratch = {}
+    for name, value in getattr(runtime, "_prefill_attention_buffers", {}).items():
+        if isinstance(name, str) and name.endswith("_source"):
+            continue
+        if isinstance(name, tuple) and name[:1] == ("mla_combined_kv",):
+            # (versions, packed layout, key source, value source). Only the
+            # packed layout is client-owned; source views retain IPC weights.
+            value = value[1]
+        scratch[name] = value
     groups = unique_storage_groups({
         "persistent_semantic_cache": {name: pool.state for name, pool in pools.items()},
         "owner_persistent_semantic_cache": {name: pool.state for name, pool in owners.items()},

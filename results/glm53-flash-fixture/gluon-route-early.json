@@ -1,0 +1,57 @@
+{
+  "candidates": [
+    {
+      "block_m": 64,
+      "block_n": 32,
+      "gluon_layout": false,
+      "gpu_ms": 10.616453170776367,
+      "query_tiled": true,
+      "status": "complete",
+      "warps": 4
+    },
+    {
+      "block_m": 32,
+      "block_n": 32,
+      "error": "at 71:20:\n        valid = (score_rows[:, None] < QUERY_LEN) & (begin + score_cols[None, :] < STATE_LEN)\n        scores = gl.where(valid, raw + log_count[None, :], -float(\"inf\"))\n        route_scores = gl.where(valid, raw + rms[:, None] * log_count[None, :], -float(\"inf\"))\n        remaining = _pack(route_scores, begin + score_cols[None, :])\n        minimum = gl.convert_layout(gl.min(best, 1), gl.SliceLayout(1, mfma))\n        remaining = gl.where(remaining > minimum[:, None], remaining, sentinel)\n        rank = 0\n        while rank < 8:\n            winning = gl.max(remaining, 1)\n            if EARLY_EXIT:\n                if gl.max(winning, 0) == sentinel:\n                    break\n                    ^\nunsupported AST node type: Break",
+      "gluon_layout": true,
+      "query_tiled": true,
+      "status": "failed",
+      "warps": 4
+    },
+    {
+      "block_m": 64,
+      "block_n": 32,
+      "error": "at 71:20:\n        valid = (score_rows[:, None] < QUERY_LEN) & (begin + score_cols[None, :] < STATE_LEN)\n        scores = gl.where(valid, raw + log_count[None, :], -float(\"inf\"))\n        route_scores = gl.where(valid, raw + rms[:, None] * log_count[None, :], -float(\"inf\"))\n        remaining = _pack(route_scores, begin + score_cols[None, :])\n        minimum = gl.convert_layout(gl.min(best, 1), gl.SliceLayout(1, mfma))\n        remaining = gl.where(remaining > minimum[:, None], remaining, sentinel)\n        rank = 0\n        while rank < 8:\n            winning = gl.max(remaining, 1)\n            if EARLY_EXIT:\n                if gl.max(winning, 0) == sentinel:\n                    break\n                    ^\nunsupported AST node type: Break",
+      "gluon_layout": true,
+      "query_tiled": true,
+      "status": "failed",
+      "warps": 4
+    },
+    {
+      "block_m": 32,
+      "block_n": 64,
+      "error": "at 71:20:\n        valid = (score_rows[:, None] < QUERY_LEN) & (begin + score_cols[None, :] < STATE_LEN)\n        scores = gl.where(valid, raw + log_count[None, :], -float(\"inf\"))\n        route_scores = gl.where(valid, raw + rms[:, None] * log_count[None, :], -float(\"inf\"))\n        remaining = _pack(route_scores, begin + score_cols[None, :])\n        minimum = gl.convert_layout(gl.min(best, 1), gl.SliceLayout(1, mfma))\n        remaining = gl.where(remaining > minimum[:, None], remaining, sentinel)\n        rank = 0\n        while rank < 8:\n            winning = gl.max(remaining, 1)\n            if EARLY_EXIT:\n                if gl.max(winning, 0) == sentinel:\n                    break\n                    ^\nunsupported AST node type: Break",
+      "gluon_layout": true,
+      "query_tiled": true,
+      "status": "failed",
+      "warps": 4
+    },
+    {
+      "block_m": 64,
+      "block_n": 64,
+      "error": "at 71:20:\n        valid = (score_rows[:, None] < QUERY_LEN) & (begin + score_cols[None, :] < STATE_LEN)\n        scores = gl.where(valid, raw + log_count[None, :], -float(\"inf\"))\n        route_scores = gl.where(valid, raw + rms[:, None] * log_count[None, :], -float(\"inf\"))\n        remaining = _pack(route_scores, begin + score_cols[None, :])\n        minimum = gl.convert_layout(gl.min(best, 1), gl.SliceLayout(1, mfma))\n        remaining = gl.where(remaining > minimum[:, None], remaining, sentinel)\n        rank = 0\n        while rank < 8:\n            winning = gl.max(remaining, 1)\n            if EARLY_EXIT:\n                if gl.max(winning, 0) == sentinel:\n                    break\n                    ^\nunsupported AST node type: Break",
+      "gluon_layout": true,
+      "query_tiled": true,
+      "status": "failed",
+      "warps": 4
+    }
+  ],
+  "query_shape": [
+    1,
+    64,
+    4096,
+    512
+  ],
+  "scope": "random-input GPU route/coarse layout diagnostic",
+  "slots": 2048
+}

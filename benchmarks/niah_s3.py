@@ -167,15 +167,18 @@ def evaluate_length(
     sample_offset: int,
     batch_size: int,
     max_new_tokens: int,
+    documents: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     from vllm import SamplingParams
 
-    documents = make_samples(
-        tokenizer,
-        length=length,
-        samples=samples,
-        sample_offset=sample_offset,
-    )
+    if documents is None:
+        documents = make_samples(
+            tokenizer,
+            length=length,
+            samples=samples,
+            sample_offset=sample_offset,
+        )
+    from .prolong import token_digest
     prompts = [
         {"prompt_token_ids": document["prompt_token_ids"]} for document in documents
     ]
@@ -199,8 +202,11 @@ def evaluate_length(
             {
                 "index": document["index"],
                 "input_tokens": len(document["prompt_token_ids"]),
+                "token_sha256": token_digest(document["prompt_token_ids"]),
                 "target": target,
                 "response": response,
+                "output_tokens": len(getattr(output.outputs[0], "token_ids", ())),
+                "finish_reason": getattr(output.outputs[0], "finish_reason", None),
                 "exact": target.lower() in response.lower(),
             }
         )

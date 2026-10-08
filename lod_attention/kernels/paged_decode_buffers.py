@@ -1567,7 +1567,7 @@ def new_fused_decode_buffers(
                         device=q.device,
                     ),
                 )
-                if head_dim == 576 and value_dim == 512:
+                if head_dim in (512, 576) and value_dim == 512:
                     from .kimi_gluon_decode import KIMI_GLUON_LOD_SPLITS
 
                     # Kimi's Gluon consumer emits one normalized latent value

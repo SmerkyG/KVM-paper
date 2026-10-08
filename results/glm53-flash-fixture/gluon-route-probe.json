@@ -1,0 +1,57 @@
+{
+  "candidates": [
+    {
+      "block_m": 64,
+      "block_n": 32,
+      "gluon_layout": false,
+      "gpu_ms": 10.534735679626465,
+      "query_tiled": true,
+      "status": "complete",
+      "warps": 4
+    },
+    {
+      "block_m": 32,
+      "block_n": 32,
+      "error": "at 65:19:\n        tile_best = gl.full((BLOCK_M, 8), sentinel, gl.int64, select)\n        for rank in gl.static_range(8):\n            winning = gl.max(remaining, 1)\n            remaining = gl.where(remaining == winning[:, None], sentinel, remaining)\n            winning = gl.convert_layout(winning, gl.SliceLayout(1, select))\n            tile_best = gl.where(ranks[None, :] == rank, winning[:, None], tile_best)\n        remaining_best = gl.join(best, tile_best).reshape((BLOCK_M, 16))\n        best = gl.full((BLOCK_M, 8), sentinel, gl.int64, select)\n        for rank in gl.static_range(8):\n            winning = gl.max(remaining_best, 1)\n            remaining_best = gl.where(remaining_best == winning[:, None], sentinel, remaining_best)\n            best = gl.where(ranks[None, :] == rank, winning[:, None], best)\n                   ^\nLayout mismatch in broadcast: BlockedLayout(size_per_thread=[1, 2], threads_per_warp=[4, 16], warps_per_cta=[4, 1], order=[1, 0], cga_layout=[]) vs BlockedLayout(size_per_thread=(1, 1), threads_per_warp=(4, 16), warps_per_cta=(4, 1), order=(1, 0), cga_layout=[])",
+      "gluon_layout": true,
+      "query_tiled": true,
+      "status": "failed",
+      "warps": 4
+    },
+    {
+      "block_m": 64,
+      "block_n": 32,
+      "error": "at 65:19:\n        tile_best = gl.full((BLOCK_M, 8), sentinel, gl.int64, select)\n        for rank in gl.static_range(8):\n            winning = gl.max(remaining, 1)\n            remaining = gl.where(remaining == winning[:, None], sentinel, remaining)\n            winning = gl.convert_layout(winning, gl.SliceLayout(1, select))\n            tile_best = gl.where(ranks[None, :] == rank, winning[:, None], tile_best)\n        remaining_best = gl.join(best, tile_best).reshape((BLOCK_M, 16))\n        best = gl.full((BLOCK_M, 8), sentinel, gl.int64, select)\n        for rank in gl.static_range(8):\n            winning = gl.max(remaining_best, 1)\n            remaining_best = gl.where(remaining_best == winning[:, None], sentinel, remaining_best)\n            best = gl.where(ranks[None, :] == rank, winning[:, None], best)\n                   ^\nLayout mismatch in broadcast: BlockedLayout(size_per_thread=[1, 2], threads_per_warp=[4, 16], warps_per_cta=[4, 1], order=[1, 0], cga_layout=[]) vs BlockedLayout(size_per_thread=(1, 1), threads_per_warp=(4, 16), warps_per_cta=(4, 1), order=(1, 0), cga_layout=[])",
+      "gluon_layout": true,
+      "query_tiled": true,
+      "status": "failed",
+      "warps": 4
+    },
+    {
+      "block_m": 32,
+      "block_n": 64,
+      "error": "at 65:19:\n        tile_best = gl.full((BLOCK_M, 8), sentinel, gl.int64, select)\n        for rank in gl.static_range(8):\n            winning = gl.max(remaining, 1)\n            remaining = gl.where(remaining == winning[:, None], sentinel, remaining)\n            winning = gl.convert_layout(winning, gl.SliceLayout(1, select))\n            tile_best = gl.where(ranks[None, :] == rank, winning[:, None], tile_best)\n        remaining_best = gl.join(best, tile_best).reshape((BLOCK_M, 16))\n        best = gl.full((BLOCK_M, 8), sentinel, gl.int64, select)\n        for rank in gl.static_range(8):\n            winning = gl.max(remaining_best, 1)\n            remaining_best = gl.where(remaining_best == winning[:, None], sentinel, remaining_best)\n            best = gl.where(ranks[None, :] == rank, winning[:, None], best)\n                   ^\nLayout mismatch in broadcast: BlockedLayout(size_per_thread=[1, 2], threads_per_warp=[4, 16], warps_per_cta=[4, 1], order=[1, 0], cga_layout=[]) vs BlockedLayout(size_per_thread=(1, 1), threads_per_warp=(4, 16), warps_per_cta=(4, 1), order=(1, 0), cga_layout=[])",
+      "gluon_layout": true,
+      "query_tiled": true,
+      "status": "failed",
+      "warps": 4
+    },
+    {
+      "block_m": 64,
+      "block_n": 64,
+      "error": "at 65:19:\n        tile_best = gl.full((BLOCK_M, 8), sentinel, gl.int64, select)\n        for rank in gl.static_range(8):\n            winning = gl.max(remaining, 1)\n            remaining = gl.where(remaining == winning[:, None], sentinel, remaining)\n            winning = gl.convert_layout(winning, gl.SliceLayout(1, select))\n            tile_best = gl.where(ranks[None, :] == rank, winning[:, None], tile_best)\n        remaining_best = gl.join(best, tile_best).reshape((BLOCK_M, 16))\n        best = gl.full((BLOCK_M, 8), sentinel, gl.int64, select)\n        for rank in gl.static_range(8):\n            winning = gl.max(remaining_best, 1)\n            remaining_best = gl.where(remaining_best == winning[:, None], sentinel, remaining_best)\n            best = gl.where(ranks[None, :] == rank, winning[:, None], best)\n                   ^\nLayout mismatch in broadcast: BlockedLayout(size_per_thread=[1, 2], threads_per_warp=[4, 16], warps_per_cta=[4, 1], order=[1, 0], cga_layout=[]) vs BlockedLayout(size_per_thread=(1, 1), threads_per_warp=(4, 16), warps_per_cta=(4, 1), order=(1, 0), cga_layout=[])",
+      "gluon_layout": true,
+      "query_tiled": true,
+      "status": "failed",
+      "warps": 4
+    }
+  ],
+  "query_shape": [
+    1,
+    64,
+    4096,
+    512
+  ],
+  "scope": "random-input GPU route/coarse layout diagnostic",
+  "slots": 2048
+}

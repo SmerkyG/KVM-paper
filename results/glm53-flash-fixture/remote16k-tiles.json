@@ -1,0 +1,52 @@
+{
+  "candidates": [
+    {
+      "block_m": 32,
+      "block_n": 16,
+      "refinement_ms": 12.183670997619629,
+      "status": "complete",
+      "waves": 2
+    },
+    {
+      "block_m": 16,
+      "block_n": 32,
+      "refinement_ms": 26.46175193786621,
+      "status": "complete",
+      "waves": 4
+    },
+    {
+      "block_m": 32,
+      "block_n": 32,
+      "refinement_ms": 24.91365623474121,
+      "status": "complete",
+      "waves": 4
+    },
+    {
+      "block_m": 64,
+      "block_n": 32,
+      "error": "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help.",
+      "status": "failed",
+      "waves": 4
+    },
+    {
+      "block_m": 32,
+      "block_n": 64,
+      "refinement_ms": 39.358097076416016,
+      "status": "complete",
+      "waves": 4
+    },
+    {
+      "block_m": 32,
+      "block_n": 32,
+      "refinement_ms": 50.51974105834961,
+      "status": "complete",
+      "waves": 8
+    }
+  ],
+  "history": 16384,
+  "policy": "top-eight; oversized selected regions remain closed above 1024 leaves",
+  "queries": 16384,
+  "route_coarse_ms": 42.635929107666016,
+  "scope": "TP1 remote-only kernel diagnostic; random inputs; not model timings",
+  "slots": 2048
+}

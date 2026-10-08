@@ -1,8 +1,10 @@
 """Source-derived AITER MLA route/coarse prefill for absorbed MLA.
 
-The work mapping follows AITER's MLA prefill kernel: a program processes one
-logical query token and sixteen query heads, scores the latent and direct-key
-parts separately, and accumulates only the latent value.  LoD adds centroid
+The direct-key work mapping follows AITER's MLA prefill kernel: a program
+processes one logical query token and a tile of query heads. For NoPE MLA a
+program instead tiles query positions for one head, reusing each loaded key
+across those positions. Both score the latent and any direct-key parts
+separately and accumulate only the latent value. LoD adds centroid
 count mass and retains the exact global top-eight centroid IDs while streaming
 the same score tiles used by coarse attention.
 
@@ -127,17 +129,18 @@ def project_kimi_head_values(
 ) -> torch.Tensor:
     """Project per-head latent values, retaining any route axis."""
     if values.ndim not in (4, 5) or int(values.size(-1)) != 512:
-        raise ValueError("Kimi per-head projection expects [...,512] values")
+        raise ValueError("MLA per-head projection expects [...,512] values")
     batch, heads = int(values.size(0)), int(values.size(1))
-    if tuple(w_uv.shape) != (heads, 512, 128):
-        raise ValueError("Kimi W_UV does not match the value head count")
+    value_dim = int(w_uv.size(-1))
+    if tuple(w_uv.shape[:2]) != (heads, 512) or value_dim not in (128, 256):
+        raise ValueError("MLA W_UV must be [H,512,128/256]")
     middle_shape = tuple(int(size) for size in values.shape[2:-1])
     head_major = values.permute(
         1, 0, *range(2, values.ndim)
     ).contiguous().view(heads, -1, 512)
     projected = torch.bmm(head_major, w_uv)
     return (
-        projected.view(heads, batch, *middle_shape, 128)
+        projected.view(heads, batch, *middle_shape, value_dim)
         .permute(1, 0, *range(2, values.ndim))
         .contiguous()
     )
@@ -149,16 +152,17 @@ def project_kimi_shared_values(
 ) -> torch.Tensor:
     """Project one shared latent-value head into every query head."""
     if values.ndim != 4 or int(values.size(1)) != 1 or int(values.size(-1)) != 512:
-        raise ValueError("Kimi shared projection expects [B,1,T,512]")
+        raise ValueError("MLA shared projection expects [B,1,T,512]")
     heads = int(w_uv.size(0))
-    if tuple(w_uv.shape[1:]) != (512, 128):
-        raise ValueError("Kimi W_UV must be [H,512,128]")
+    value_dim = int(w_uv.size(-1))
+    if int(w_uv.size(1)) != 512 or value_dim not in (128, 256):
+        raise ValueError("MLA W_UV must be [H,512,128/256]")
     batch, tokens = int(values.size(0)), int(values.size(2))
     latent = values[:, 0].reshape(batch * tokens, 512)
-    flat_weight = w_uv.permute(1, 0, 2).reshape(512, heads * 128)
+    flat_weight = w_uv.permute(1, 0, 2).reshape(512, heads * value_dim)
     return (
         torch.mm(latent, flat_weight)
-        .view(batch, tokens, heads, 128)
+        .view(batch, tokens, heads, value_dim)
         .permute(0, 2, 1, 3)
         .contiguous()
     )
@@ -562,36 +566,48 @@ def _mla_route_coarse_prefill_kernel(
     SCALE: tl.constexpr,
     NORMALIZE_ROUTE_QUERY: tl.constexpr,
     INCLUDE_DIRECT_KEY: tl.constexpr,
+    QUERY_TILED: tl.constexpr = False,
+    SHARED_LATENT: tl.constexpr = False,
 ):
     """Stream count-corrected MLA attention and exact top-eight routes."""
-    batch_kv = tl.program_id(0).to(tl.int64)
-    query = tl.program_id(1)
-    head_block = tl.program_id(2)
-    batch = batch_kv // KV_HEADS
-    kv_head = batch_kv - batch * KV_HEADS
-
     head_lane = tl.arange(0, BLOCK_M)
-    query_head = kv_head * KV_GROUP_SIZE + head_block * BLOCK_M + head_lane
-    valid_head = query_head < (kv_head + 1) * KV_GROUP_SIZE
-    valid_head &= query_head < QUERY_HEADS
+    if QUERY_TILED:
+        batch_head = tl.program_id(0).to(tl.int64)
+        batch = batch_head // QUERY_HEADS
+        head = batch_head % QUERY_HEADS
+        kv_head = head // KV_GROUP_SIZE
+        batch_kv = batch * KV_HEADS + kv_head
+        query = tl.program_id(1) * BLOCK_M + head_lane
+        query_head = tl.full((BLOCK_M,), head, tl.int32)
+        valid_head = query_head < QUERY_HEADS
+    else:
+        batch_kv = tl.program_id(0).to(tl.int64)
+        batch = batch_kv // KV_HEADS
+        kv_head = batch_kv - batch * KV_HEADS
+        query = tl.full((BLOCK_M,), tl.program_id(1), tl.int32)
+        head_block = tl.program_id(2)
+        query_head = kv_head * KV_GROUP_SIZE + head_block * BLOCK_M + head_lane
+        valid_head = query_head < (kv_head + 1) * KV_GROUP_SIZE
+        valid_head &= query_head < QUERY_HEADS
     valid_query = query < QUERY_LEN
+    valid_row = valid_head & valid_query
 
     latent_dim = tl.arange(0, LATENT_DIM)
     q_base = (
         batch * Q_BATCH_STRIDE
         + query_head[:, None] * Q_HEAD_STRIDE
-        + query * Q_TOKEN_STRIDE
+        + query[:, None] * Q_TOKEN_STRIDE
     )
     q_latent = tl.load(
         q + q_base + latent_dim[None, :],
-        mask=valid_query & valid_head[:, None],
+        mask=valid_row[:, None],
         other=0.0,
     )
     if INCLUDE_DIRECT_KEY:
         direct_dim = tl.arange(0, DIRECT_DIM)
         q_direct = tl.load(
             q + q_base + LATENT_DIM + direct_dim[None, :],
-            mask=valid_query & valid_head[:, None],
+            mask=valid_row[:, None],
             other=0.0,
         )
 
@@ -642,7 +658,7 @@ def _mla_route_coarse_prefill_kernel(
         count = tl.load(counts + state_row, mask=valid_slot, other=1.0).to(tl.float32)
         log_count = tl.log(count)
         score = raw_score.to(tl.float32) * SCALE + log_count[None, :]
-        valid = valid_head[:, None] & valid_query & valid_slot[None, :]
+        valid = valid_row[:, None] & valid_slot[None, :]
         score = tl.where(valid, score, -float("inf"))
 
         # Routing may normalize q, but coarse attention always retains the
@@ -668,11 +684,13 @@ def _mla_route_coarse_prefill_kernel(
         probability = tl.where(valid, probability, 0.0)
         denominator = denominator * correction + tl.sum(probability, axis=1)
         accumulator *= correction[:, None]
-        value = tl.load(
-            mean_v + state_row[:, None] * VALUE_DIM + value_dim[None, :],
-            mask=valid_slot[:, None],
-            other=0.0,
-        )
+        if SHARED_LATENT:
+            value = key_latent
+        else:
+            value = tl.load(
+                mean_v + state_row[:, None] * VALUE_DIM + value_dim[None, :],
+                mask=valid_slot[:, None], other=0.0,
+            )
         accumulator += tl.dot(probability.to(value.dtype), value)
         maximum = new_maximum
 
@@ -682,23 +700,23 @@ def _mla_route_coarse_prefill_kernel(
     tl.store(
         output + output_row[:, None] * VALUE_DIM + value_dim[None, :],
         result,
-        mask=valid_query & valid_head[:, None],
+        mask=valid_row[:, None],
     )
     lse = maximum + tl.log(denominator)
     lse_row = (batch * QUERY_HEADS + query_head) * QUERY_LEN + query
-    tl.store(output_lse + lse_row, lse, mask=valid_query & valid_head)
+    tl.store(output_lse + lse_row, lse, mask=valid_row)
 
     selected_scores, selected_slots = _unpack_route_score_index(best_packed)
     rank = tl.arange(0, ROUTE_COUNT)
     tl.store(
         top_slots + lse_row[:, None] * ROUTE_COUNT + rank[None, :],
         selected_slots,
-        mask=valid_query & valid_head[:, None],
+        mask=valid_row[:, None],
     )
     tl.store(
         selected_route_scores + lse_row[:, None] * ROUTE_COUNT + rank[None, :],
         selected_scores,
-        mask=valid_query & valid_head[:, None],
+        mask=valid_row[:, None],
     )
 
 
@@ -714,6 +732,11 @@ def aiter_mla_prefill_route_coarse_attention(
     normalize_route_query: bool,
     include_direct_key: bool = True,
     buffers: dict[str, torch.Tensor] | None = None,
+    query_tiled: bool | None = None,
+    block_m: int | None = None, block_n: int | None = None,
+    num_warps: int | None = None,
+    gluon_layout: bool | None = None,
+    early_exit: bool = True,
 ) -> tuple[
     torch.Tensor,
     AiterPrefillCoarse,
@@ -740,9 +763,9 @@ def aiter_mla_prefill_route_coarse_attention(
         raise ValueError("AITER MLA route/coarse prefill requires multiple queries")
     if query_heads != kv_heads * kv_group_size:
         raise ValueError("AITER MLA route/coarse prefill has incompatible GQA")
-    if direct_dim != 64 or value_dim <= 0 or key_dim > 576:
+    if direct_dim not in (0, 64) or value_dim <= 0 or key_dim > 576:
         raise ValueError(
-            "AITER MLA route/coarse prefill requires Kimi K/V=(L+64, L) "
+            "AITER MLA route/coarse prefill requires K/V=(L, L) or (L+64, L) "
             "with key width at most 576"
         )
     if tuple(state_k.shape[:2]) != (batch, kv_heads) or int(state_k.size(-1)) != key_dim:
@@ -819,38 +842,42 @@ def aiter_mla_prefill_route_coarse_attention(
         dtype=torch.float32,
         device=q.device,
     )
-    block_m = 32
+    if query_tiled is None:
+        query_tiled = direct_dim == 0 and value_dim == 512
+    shared_latent = (direct_dim == 0 and state_k.data_ptr() == state_v.data_ptr()
+                    and state_k.stride() == state_v.stride())
+    if gluon_layout is None:
+        gluon_layout = bool(torch.version.hip and query_tiled and shared_latent and value_dim == 512)
+    block_m = (64 if query_tiled else 32) if block_m is None else block_m
+    block_n = (64 if gluon_layout else 32 if query_tiled else 16) if block_n is None else block_n
+    num_warps = (4 if query_tiled else 8) if num_warps is None else num_warps
     head_blocks = triton.cdiv(kv_group_size, block_m)
-    _mla_route_coarse_prefill_kernel[(batch * kv_heads, query_len, head_blocks)](
-        q,
-        mean_k,
-        mean_v,
-        active_counts,
-        output,
-        output_lse,
-        top_slots,
-        selected_route_scores,
-        q.stride(0),
-        q.stride(1),
-        q.stride(2),
-        query_len,
-        state_len,
-        QUERY_HEADS=query_heads,
-        KV_HEADS=kv_heads,
-        KV_GROUP_SIZE=kv_group_size,
-        LATENT_DIM=value_dim,
-        DIRECT_DIM=direct_dim,
-        VALUE_DIM=value_dim,
-        BLOCK_M=block_m,
-        BLOCK_N=16,
-        HEAD_BLOCKS=head_blocks,
-        ROUTE_COUNT=8,
-        SCALE=float(scale),
-        NORMALIZE_ROUTE_QUERY=normalize_route_query,
-        INCLUDE_DIRECT_KEY=include_direct_key,
-        num_warps=8,
-        waves_per_eu=1,
-    )
+    grid = ((batch * query_heads, triton.cdiv(query_len, block_m), 1)
+            if query_tiled else (batch * kv_heads, query_len, head_blocks))
+    if gluon_layout:
+        if not query_tiled or not shared_latent or value_dim != 512 or num_warps != 4:
+            raise ValueError("Gluon route/coarse requires query-tiled shared L512 and four waves")
+        from .latent_route_coarse import latent_route_coarse_gluon
+        latent_route_coarse_gluon[grid[:2]](
+            q, mean_k, active_counts, output, output_lse, top_slots, selected_route_scores,
+            q.stride(0), q.stride(1), q.stride(2), query_len, state_len,
+            QUERY_HEADS=query_heads, KV_HEADS=kv_heads, KV_GROUP_SIZE=kv_group_size,
+            SCALE=float(scale), NORMALIZE_ROUTE_QUERY=normalize_route_query,
+            BLOCK_M=block_m, BLOCK_N=block_n, EARLY_EXIT=early_exit,
+            num_warps=4, num_stages=1)
+    else:
+        _mla_route_coarse_prefill_kernel[grid](
+            q, mean_k, mean_v, active_counts, output, output_lse,
+            top_slots, selected_route_scores,
+            q.stride(0), q.stride(1), q.stride(2), query_len, state_len,
+            QUERY_HEADS=query_heads, KV_HEADS=kv_heads, KV_GROUP_SIZE=kv_group_size,
+            LATENT_DIM=value_dim, DIRECT_DIM=direct_dim, VALUE_DIM=value_dim,
+            BLOCK_M=block_m, BLOCK_N=block_n, HEAD_BLOCKS=head_blocks,
+            ROUTE_COUNT=8, SCALE=float(scale), NORMALIZE_ROUTE_QUERY=normalize_route_query,
+            INCLUDE_DIRECT_KEY=include_direct_key and direct_dim > 0,
+            QUERY_TILED=query_tiled, SHARED_LATENT=shared_latent,
+            num_warps=num_warps, waves_per_eu=1,
+        )
     coarse = AiterPrefillCoarse(
         output_0=output,
         lse_0=output_lse,
@@ -1846,7 +1873,7 @@ def _merge_mla_route_refinement_kernel(
     sink_key_head = query_head // SINK_KEY_GROUP_SIZE
     valid_query = query < QUERY_LEN
     latent_dim = tl.arange(0, LATENT_DIM)
-    direct_dim = tl.arange(0, DIRECT_DIM)
+    direct_dim = tl.arange(0, max(1, DIRECT_DIM))
     value_dim = tl.arange(0, VALUE_DIM)
     query_base = (
         batch * Q_BATCH_STRIDE
@@ -1860,7 +1887,7 @@ def _merge_mla_route_refinement_kernel(
     )
     query_direct = tl.load(
         q + query_base + LATENT_DIM + direct_dim[None, :],
-        mask=valid_query[:, None],
+        mask=valid_query[:, None] & (direct_dim[None, :] < DIRECT_DIM),
         other=0.0,
     )
 
@@ -1948,7 +1975,8 @@ def _merge_mla_route_refinement_kernel(
             + sink_key_head * SINK_K_HEAD_STRIDE
             + sink_index * SINK_K_TOKEN_STRIDE
             + LATENT_DIM
-            + direct_dim
+            + direct_dim,
+            mask=direct_dim < DIRECT_DIM, other=0.0,
         )
         sink_score = tl.sum(query_latent.to(tl.float32) * sink_key_latent[None, :].to(tl.float32), axis=1)
         sink_score += tl.sum(query_direct.to(tl.float32) * sink_key_direct[None, :].to(tl.float32), axis=1)
@@ -2016,7 +2044,8 @@ def _merge_mla_route_refinement_kernel(
             + sink_key_head * SINK_K_HEAD_STRIDE
             + sink_index * SINK_K_TOKEN_STRIDE
             + LATENT_DIM
-            + direct_dim
+            + direct_dim,
+            mask=direct_dim < DIRECT_DIM, other=0.0,
         )
         sink_value = tl.load(
             sink_v
@@ -2070,14 +2099,15 @@ def merge_aiter_mla_prefill_refinement(
     state_len = int(coarse.mean_k.size(2))
     value_dim = int(coarse.mean_v.size(-1))
     projected_values = int(coarse.mean_v.size(1)) == query_heads
-    latent_dim = key_dim - 64 if projected_values else value_dim
+    latent_dim = (key_dim - (0 if key_dim in (256, 512) else 64)
+                  if projected_values else value_dim)
     direct_dim = key_dim - latent_dim
     route_count = int(slots.size(-1))
     expected_prefix = (batch, query_heads, query_len)
-    if direct_dim != 64 or latent_dim <= 0 or key_dim > 576:
+    if direct_dim not in (0, 64) or latent_dim <= 0 or key_dim > 576:
         raise ValueError(
-            "AITER MLA refinement requires Kimi K/V=(L+64, L) or a "
-            "projected value field with the same 64 direct-key channels"
+            "AITER MLA refinement requires Kimi K/V=(L+64,L) or "
+            "latent512 or projected256 NoPE keys with optional projected values"
         )
     expected_value_heads = query_heads if projected_values else kv_heads
     if (

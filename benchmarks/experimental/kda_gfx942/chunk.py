@@ -67,6 +67,7 @@ def chunk_kda_prepare(
     chunk_indices: torch.Tensor | None = None,
     scale: float | None = None,
     config: dict | None = None,
+    beta_activated: bool = False,
 ) -> dict[str, torch.Tensor]:
     """The walk's workspace in one launch; see chunk_kda."""
     assert _ARCH in (
@@ -132,6 +133,7 @@ def chunk_kda_prepare(
         BT=CHUNK_SIZE,
         NUM_WARPS=config["num_warps"],
         NC=config["nc"],
+        BETA_ACTIVATED=beta_activated,
         num_warps=config["num_warps"],
         waves_per_eu=config["waves_per_eu"],
     )
@@ -368,6 +370,7 @@ def chunk_kda(
     norm_weight: torch.Tensor | None = None,
     norm_eps: float = 1e-5,
     config: dict | None = None,
+    beta_activated: bool = False,
 ) -> tuple[torch.Tensor, torch.Tensor | None]:
     """Chunked KDA prefill from raw projections: chunk_kda_prepare, then chunk_kda_walk.
 
@@ -377,7 +380,8 @@ def chunk_kda(
 
     Args:
         q, k, v: [1, T, H, 128] raw projections; token rows may be strided.
-        g: [1, T, H, 128] raw gate projection. beta: [1, T, H] raw beta projection.
+        g: [1, T, H, 128] raw gate projection. beta: [1, T, H] raw beta projection,
+            or already sigmoid-activated probabilities when beta_activated=True.
         A_log: [H] gate parameter. dt_bias: [H * 128] gate bias.
         lower_bound: gate floor; g = lower_bound * sigmoid(exp(A_log) * (g + dt_bias)).
         cu_seqlens: int32 / int64 [N + 1] sequence offsets.
@@ -420,7 +424,7 @@ def chunk_kda(
             output_final_state=output_final_state,
             use_qk_l2norm_in_kernel=True,
             use_gate_in_kernel=True,
-            use_beta_sigmoid_in_kernel=True,
+            use_beta_sigmoid_in_kernel=not beta_activated,
             safe_gate=True,
             lower_bound=lower_bound,
             state_v_first=True,
@@ -448,6 +452,7 @@ def chunk_kda(
         cu_seqlens,
         chunk_indices,
         scale,
+        beta_activated=beta_activated,
     )
     return chunk_kda_walk(
         **ws,

@@ -1,0 +1,38 @@
+{
+  "candidates": [
+    {
+      "block_m": 32,
+      "block_n": 16,
+      "gluon_shared_latent": false,
+      "phases_ms": {
+        "dispatch": 0.6055930256843567,
+        "dispatch_blocks": 0.0061599998734891415,
+        "dispatch_group": 0.5777130126953125,
+        "dispatch_prepare": 0.015519999898970127,
+        "kernel": 10.424956321716309,
+        "pack": 0.006240000016987324,
+        "total": 11.036788940429688
+      },
+      "refinement_ms": 11.687061309814453,
+      "reuse_shared_latent": false,
+      "status": "complete",
+      "waves": 2
+    },
+    {
+      "block_m": 32,
+      "block_n": 16,
+      "error": "Tensor-likes are not close!\n\nMismatched elements: 573739 / 786432 (73.0%)\nGreatest absolute difference: 0.23828125 at index (911, 316) (up to 0.004 allowed)\nGreatest relative difference: 38400.0 at index (1307, 67) (up to 0.025 allowed)",
+      "gluon_shared_latent": true,
+      "reuse_shared_latent": true,
+      "status": "failed",
+      "waves": 2
+    }
+  ],
+  "history": 16384,
+  "policy": "top-eight; oversized selected regions remain closed above 1024 leaves",
+  "queries": 16384,
+  "route_coarse_ms": 22.714092254638672,
+  "scope": "TP1 remote-only kernel diagnostic; random inputs; not model timings",
+  "shared_latent": true,
+  "slots": 2048
+}

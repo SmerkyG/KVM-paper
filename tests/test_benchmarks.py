@@ -36,6 +36,38 @@ from benchmarks.prolong import (
 )
 
 
+def test_benchmark_json_atomic_replacement(tmp_path, monkeypatch):
+    from benchmarks._vllm import write_json
+
+    target = tmp_path / "result.json"
+    previous = {"status": "warmup"}
+    write_json(target, previous)
+    original_replace = os.replace
+    def replace(source, destination):
+        assert json.loads(target.read_text()) == previous
+        assert json.loads(Path(source).read_text()) == {"status": "complete"}
+        assert Path(source).parent == target.parent
+        original_replace(source, destination)
+    monkeypatch.setattr(os, "replace", replace)
+    write_json(target, {"status": "complete"})
+    assert json.loads(target.read_text()) == {"status": "complete"}
+    assert list(tmp_path.iterdir()) == [target]
+
+
+def test_benchmark_json_failed_replacement_keeps_previous_result(tmp_path, monkeypatch):
+    from benchmarks._vllm import write_json
+
+    target = tmp_path / "result.json"
+    write_json(target, {"status": "warmup"})
+    def fail(*args):
+        raise OSError("filesystem unavailable")
+    monkeypatch.setattr(os, "replace", fail)
+    with pytest.raises(OSError, match="filesystem unavailable"):
+        write_json(target, {"status": "complete"})
+    assert json.loads(target.read_text()) == {"status": "warmup"}
+    assert list(tmp_path.iterdir()) == [target]
+
+
 @pytest.mark.parametrize(
     "retain,free_gib,reclaimed",
     [(False, 100, True), (True, 100, False), (True, 8, False), (True, 7, True)],
@@ -900,3 +932,26 @@ def test_kimi_completed_point_is_audited_before_a_later_failure(monkeypatch, tmp
     assert list(result["measurements"]) == ["32"]
     assert result["measurements"]["32"]["worker_attention_audit_status"] == "passed"
     assert result["measurements"]["32"]["measurement_status"] == "complete"
+
+
+def test_prepared_niah_panel_preserves_order_and_token_digests(monkeypatch):
+    from benchmarks import niah_s3
+    from benchmarks.prolong import token_digest
+
+    docs = [{"index": 5, "prompt_token_ids": [1, 2], "target": "a-b"},
+            {"index": 6, "prompt_token_ids": [3, 4], "target": "c-d"}]
+    def generate(prompts, params, **kwargs):
+        assert prompts == [{"prompt_token_ids": [1, 2]}, {"prompt_token_ids": [3, 4]}]
+        return [SimpleNamespace(outputs=[SimpleNamespace(text=text)])
+                for text in ("A-B", "wrong")]
+    monkeypatch.setitem(sys.modules, "vllm", SimpleNamespace(
+        SamplingParams=lambda **kwargs: SimpleNamespace(**kwargs)))
+    monkeypatch.setattr(niah_s3, "make_samples", lambda *args, **kwargs:
+                        pytest.fail("must reuse the prepared panel"))
+    result = niah_s3.evaluate_length(SimpleNamespace(generate=generate), None,
+        length=64, samples=2, sample_offset=5, batch_size=2, max_new_tokens=64,
+        documents=docs)
+    assert result["correct"] == 1 and result["total"] == 2
+    assert [row["index"] for row in result["samples"]] == [5, 6]
+    assert [row["token_sha256"] for row in result["samples"]] == [
+        token_digest(doc["prompt_token_ids"]) for doc in docs]

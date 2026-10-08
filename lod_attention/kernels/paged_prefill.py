@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 
 import torch
+from .._config import DECODE_PAGE_COUNT
 import triton
 import triton.language as tl
 
@@ -1149,6 +1150,7 @@ def _query_major_residual_page_attention_kernel(
     VALUE_BLOCK_DIM: tl.constexpr,
     PAGE_SIZE: tl.constexpr,
     ROUTE_COUNT: tl.constexpr,
+    PAGES_PER_SLOT: tl.constexpr,
     SCALE_LOG2: tl.constexpr,
     PAGE_BLOCK_N: tl.constexpr,
     LEAF_K_BATCH_STRIDE,
@@ -1163,6 +1165,12 @@ def _query_major_residual_page_attention_kernel(
     PAGE_SUM_V_BATCH_STRIDE,
     PAGE_SUM_V_HEAD_STRIDE,
     PAGE_SUM_V_TOKEN_STRIDE,
+    PAGE_V_SCALE_BATCH_STRIDE,
+    PAGE_V_SCALE_HEAD_STRIDE,
+    PAGE_V_SCALE_TOKEN_STRIDE,
+    SUM_V_SCALE_BATCH_STRIDE,
+    SUM_V_SCALE_HEAD_STRIDE,
+    SUM_V_SCALE_TOKEN_STRIDE,
     LEAF_CAPACITY,
     QUANT_GROUP_SIZE: tl.constexpr,
     QUANT_TOKEN_GROUP_SIZE: tl.constexpr,
@@ -1174,7 +1182,7 @@ def _query_major_residual_page_attention_kernel(
     MLA_LATENT_DIM: tl.constexpr,
     MLA_NORM_EPS: tl.constexpr,
 ):
-    """Open one page per routed slot and summarize its disjoint residual."""
+    """Open top pages per routed slot and summarize their disjoint residual."""
     query_row = tl.program_id(0).to(tl.int64)
     active_route = tl.program_id(1).to(tl.int64)
     batch_head = query_row // query_len
@@ -1213,116 +1221,278 @@ def _query_major_residual_page_attention_kernel(
             page_table = (
                 slot_pages + (kv_row * STATE_CAPACITY + slot) * INLINE_PAGES_PER_SLOT
             )
-        selected_score = tl.full((), -float("inf"), tl.float32)
-        selected_page = tl.full((), 0, tl.int64)
-        # A singleton centroid has only one possible detail page, so avoid a
-        # redundant page-summary score.
-        single_page = valid_slot & (slot_page_count == 1)
-        if HASH_PROBES == 0:
-            first_page = tl.load(
-                page_table,
-                mask=single_page,
-                other=0,
-            ).to(tl.int64)
-        else:
-            first_page = _lookup_page_id(
-                slot_pages,
-                overflow_page_keys,
-                overflow_page_values,
-                overflow_used,
-                kv_row,
-                slot,
-                0,
-                single_page,
-                STATE_CAPACITY,
-                INLINE_PAGES_PER_SLOT,
-                PAGE_CAPACITY,
-                HASH_CAPACITY,
-                HASH_PROBES,
-            ).to(tl.int64)
-        single_page &= (first_page >= 0) & (first_page < PAGE_CAPACITY)
-        selected_score = tl.where(single_page, float("inf"), selected_score)
-        selected_page = tl.where(single_page, first_page, selected_page)
-        scan_page_count = tl.where(single_page, 0, slot_page_count)
-
-        for page_begin in tl.range(0, scan_page_count, PAGE_BLOCK_N, num_stages=1):
-            page_ordinal = page_begin + page_offset
-            valid_page = page_ordinal < scan_page_count
+        opened_pages = tl.full((PAGES_PER_SLOT,), -1, tl.int64)
+        opened_count = tl.zeros((), tl.float32)
+        opened_key_sum = tl.zeros((HEAD_BLOCK_DIM,), tl.float32)
+        opened_value_sum = tl.zeros((VALUE_BLOCK_DIM,), tl.float32)
+        runner_up_score = tl.full((), -float("inf"), tl.float32)
+        runner_up_page = tl.full((), 0, tl.int64)
+        for page_rank in tl.static_range(PAGES_PER_SLOT):
+            selected_score = tl.full((), -float("inf"), tl.float32)
+            selected_page = tl.full((), 0, tl.int64)
+            # A singleton centroid has only one possible detail page, so avoid a
+            # redundant page-summary score.
+            single_page = valid_slot & (slot_page_count == 1) & (page_rank == 0)
             if HASH_PROBES == 0:
-                page_id = tl.load(
-                    page_table + page_ordinal, mask=valid_page, other=0
+                first_page = tl.load(
+                    page_table,
+                    mask=single_page,
+                    other=0,
                 ).to(tl.int64)
             else:
-                page_id = _lookup_page_id(
+                first_page = _lookup_page_id(
                     slot_pages,
                     overflow_page_keys,
                     overflow_page_values,
                     overflow_used,
                     kv_row,
                     slot,
-                    page_ordinal,
-                    valid_page,
+                    0,
+                    single_page,
                     STATE_CAPACITY,
                     INLINE_PAGES_PER_SLOT,
                     PAGE_CAPACITY,
                     HASH_CAPACITY,
                     HASH_PROBES,
                 ).to(tl.int64)
-            valid_page &= (page_id >= 0) & (page_id < PAGE_CAPACITY)
-            page_id = tl.where(valid_page, page_id, 0)
-            if MATERIALIZED_PAGE_SCORES:
-                page_scores = tl.load(
-                    materialized_page_scores + query_row * PAGE_CAPACITY + page_id,
-                    mask=valid_page,
-                    other=-float("inf"),
+            single_page &= (first_page >= 0) & (first_page < PAGE_CAPACITY)
+            selected_score = tl.where(single_page, float("inf"), selected_score)
+            selected_page = tl.where(single_page, first_page, selected_page)
+            scan_page_count = tl.where(single_page, 0, slot_page_count)
+            if PAGES_PER_SLOT == 2 and page_rank == 1:
+                # The first scan retained both winners. Only the exact leaf
+                # work is repeated; page summaries and hash lookups are not.
+                selected_score = runner_up_score
+                selected_page = runner_up_page
+                scan_page_count = 0
+
+            for page_begin in tl.range(0, scan_page_count, PAGE_BLOCK_N, num_stages=1):
+                page_ordinal = page_begin + page_offset
+                valid_page = page_ordinal < scan_page_count
+                if HASH_PROBES == 0:
+                    page_id = tl.load(
+                        page_table + page_ordinal, mask=valid_page, other=0
+                    ).to(tl.int64)
+                else:
+                    page_id = _lookup_page_id(
+                        slot_pages,
+                        overflow_page_keys,
+                        overflow_page_values,
+                        overflow_used,
+                        kv_row,
+                        slot,
+                        page_ordinal,
+                        valid_page,
+                        STATE_CAPACITY,
+                        INLINE_PAGES_PER_SLOT,
+                        PAGE_CAPACITY,
+                        HASH_CAPACITY,
+                        HASH_PROBES,
+                    ).to(tl.int64)
+                valid_page &= (page_id >= 0) & (page_id < PAGE_CAPACITY)
+                page_id = tl.where(valid_page, page_id, 0)
+                if MATERIALIZED_PAGE_SCORES:
+                    page_scores = tl.load(
+                        materialized_page_scores + query_row * PAGE_CAPACITY + page_id,
+                        mask=valid_page,
+                        other=-float("inf"),
+                    ).to(tl.float32)
+                else:
+                    count = tl.load(
+                        page_counts + kv_row * PAGE_CAPACITY + page_id,
+                        mask=valid_page,
+                        other=1,
+                    ).to(tl.float32)
+                    if QUANTIZED_SUMMARIES:
+                        key_sum_codes = tl.load(
+                            quantized_page_sum_k
+                            + (kv_row * PAGE_CAPACITY + page_id[:, None]) * HEAD_DIM
+                            + head_offset[None, :],
+                            mask=valid_page[:, None] & (head_offset[None, :] < HEAD_DIM),
+                            other=0,
+                        ).to(tl.float32)
+                        key_sum_scales = tl.load(
+                            page_sum_k_scales
+                            + (kv_row * PAGE_CAPACITY + page_id[:, None])
+                            * (HEAD_DIM // QUANT_GROUP_SIZE)
+                            + head_offset[None, :] // QUANT_GROUP_SIZE,
+                            mask=valid_page[:, None] & (head_offset[None, :] < HEAD_DIM),
+                            other=0.0,
+                        ).to(tl.float32)
+                        key_sums = key_sum_codes * key_sum_scales
+                    else:
+                        key_sums = tl.load(
+                            page_sum_k
+                            + (kv_row * PAGE_CAPACITY + page_id[:, None]) * HEAD_DIM
+                            + head_offset[None, :],
+                            mask=valid_page[:, None] & (head_offset[None, :] < HEAD_DIM),
+                            other=0.0,
+                        )
+                    page_keys = key_sums.to(tl.float32) / count[:, None]
+                    if MLA_LATENT_DIM > 0:
+                        # Reproduce DeepSeek's latent RMSNorm ordering exactly:
+                        # average raw compressed latents, round the unit-RMS vector
+                        # to BF16, then apply the learned gain.  The appended RoPE
+                        # channels remain an ordinary arithmetic mean.
+                        page_keys = page_keys.to(tl.bfloat16)
+                        latent_mask = head_offset < MLA_LATENT_DIM
+                        latent_values = tl.where(
+                            latent_mask[None, :], page_keys.to(tl.float32), 0.0
+                        )
+                        inverse_rms = tl.rsqrt(
+                            tl.sum(latent_values * latent_values, axis=1) / MLA_LATENT_DIM
+                            + MLA_NORM_EPS
+                        )
+                        unit_latent = (page_keys.to(tl.float32) * inverse_rms[:, None]).to(
+                            tl.bfloat16
+                        )
+                        norm_gain = tl.load(
+                            mla_norm_weight + head_offset,
+                            mask=latent_mask,
+                            other=1.0,
+                        ).to(tl.bfloat16)
+                        normalized_latent = (unit_latent * norm_gain[None, :]).to(
+                            tl.bfloat16
+                        )
+                        page_keys = tl.where(
+                            latent_mask[None, :], normalized_latent, page_keys
+                        ).to(tl.float32)
+                    page_scores = SCALE_LOG2 * tl.sum(
+                        page_keys * query[None, :].to(tl.float32),
+                        axis=1,
+                    ) + tl.log2(count)
+                if PAGES_PER_SLOT > 2:
+                    already_open = tl.sum(
+                        (page_id[:, None] == opened_pages[None, :]).to(tl.int32), axis=1
+                    ) > 0
+                    valid_page &= ~already_open
+                page_scores = tl.where(valid_page, page_scores, -float("inf"))
+                block_score = tl.max(page_scores, axis=0)
+                block_page = tl.max(
+                    tl.where(page_scores == block_score, page_id, -1), axis=0
+                ).to(tl.int64)
+                better = block_score > selected_score
+                if PAGES_PER_SLOT == 2:
+                    # If this block supplies a new winner, the previous winner
+                    # becomes the runner-up candidate. Otherwise keep the old
+                    # runner-up. Strict comparisons preserve the existing tie
+                    # order: earliest block, then greatest physical page ID.
+                    runner_up_score = tl.where(better, selected_score, runner_up_score)
+                    runner_up_page = tl.where(better, selected_page, runner_up_page)
+                selected_score = tl.where(better, block_score, selected_score)
+                selected_page = tl.where(better, block_page, selected_page)
+                if PAGES_PER_SLOT == 2:
+                    second_scores = tl.where(
+                        page_id != selected_page, page_scores, -float("inf")
+                    )
+                    second_score = tl.max(second_scores, axis=0)
+                    second_page = tl.max(
+                        tl.where(second_scores == second_score, page_id, -1), axis=0
+                    ).to(tl.int64)
+                    better_second = second_score > runner_up_score
+                    runner_up_score = tl.where(
+                        better_second, second_score, runner_up_score
+                    )
+                    runner_up_page = tl.where(
+                        better_second, second_page, runner_up_page
+                    )
+
+            selected_valid = selected_score > -float("inf")
+            if PAGES_PER_SLOT > 1:
+                opened_pages = tl.where(
+                    tl.arange(0, PAGES_PER_SLOT) == page_rank,
+                    tl.where(selected_valid, selected_page, -1),
+                    opened_pages,
+                )
+            selected_count = tl.load(
+                page_counts + kv_row * PAGE_CAPACITY + selected_page,
+                mask=selected_valid,
+                other=0,
+            ).to(tl.float32)
+            state_count = tl.load(
+                state_counts + kv_row * STATE_CAPACITY + slot,
+                mask=valid_slot,
+                other=0,
+            ).to(tl.float32)
+            if QUANTIZED_SUMMARIES:
+                selected_key_sum = tl.load(
+                    quantized_page_sum_k
+                    + (kv_row * PAGE_CAPACITY + selected_page) * HEAD_DIM
+                    + head_offset,
+                    mask=selected_valid & (head_offset < HEAD_DIM),
+                    other=0,
+                ).to(tl.float32) * tl.load(
+                    page_sum_k_scales
+                    + (kv_row * PAGE_CAPACITY + selected_page)
+                    * (HEAD_DIM // QUANT_GROUP_SIZE)
+                    + head_offset // QUANT_GROUP_SIZE,
+                    mask=selected_valid & (head_offset < HEAD_DIM),
+                    other=0.0,
+                ).to(tl.float32)
+                selected_value_sum = tl.load(
+                    quantized_page_sum_v
+                    + cache_batch * PAGE_SUM_V_BATCH_STRIDE
+                    + kv_head * PAGE_SUM_V_HEAD_STRIDE
+                    + selected_page * PAGE_SUM_V_TOKEN_STRIDE
+                    + value_offset,
+                    mask=selected_valid & (value_offset < VALUE_DIM),
+                    other=0,
+                ).to(tl.float32) * tl.load(
+                    page_sum_v_scales
+                    + cache_batch * SUM_V_SCALE_BATCH_STRIDE
+                    + kv_head * SUM_V_SCALE_HEAD_STRIDE
+                    + selected_page * SUM_V_SCALE_TOKEN_STRIDE
+                    + value_offset // QUANT_GROUP_SIZE,
+                    mask=selected_valid & (value_offset < VALUE_DIM),
+                    other=0.0,
                 ).to(tl.float32)
             else:
-                count = tl.load(
-                    page_counts + kv_row * PAGE_CAPACITY + page_id,
-                    mask=valid_page,
-                    other=1,
+                selected_key_sum = tl.load(
+                    page_sum_k
+                    + (kv_row * PAGE_CAPACITY + selected_page) * HEAD_DIM
+                    + head_offset,
+                    mask=selected_valid & (head_offset < HEAD_DIM),
+                    other=0.0,
                 ).to(tl.float32)
-                if QUANTIZED_SUMMARIES:
-                    key_sum_codes = tl.load(
-                        quantized_page_sum_k
-                        + (kv_row * PAGE_CAPACITY + page_id[:, None]) * HEAD_DIM
-                        + head_offset[None, :],
-                        mask=valid_page[:, None] & (head_offset[None, :] < HEAD_DIM),
-                        other=0,
-                    ).to(tl.float32)
-                    key_sum_scales = tl.load(
-                        page_sum_k_scales
-                        + (kv_row * PAGE_CAPACITY + page_id[:, None])
-                        * (HEAD_DIM // QUANT_GROUP_SIZE)
-                        + head_offset[None, :] // QUANT_GROUP_SIZE,
-                        mask=valid_page[:, None] & (head_offset[None, :] < HEAD_DIM),
-                        other=0.0,
-                    ).to(tl.float32)
-                    key_sums = key_sum_codes * key_sum_scales
-                else:
-                    key_sums = tl.load(
-                        page_sum_k
-                        + (kv_row * PAGE_CAPACITY + page_id[:, None]) * HEAD_DIM
-                        + head_offset[None, :],
-                        mask=valid_page[:, None] & (head_offset[None, :] < HEAD_DIM),
-                        other=0.0,
-                    )
-                page_keys = key_sums.to(tl.float32) / count[:, None]
+                selected_value_sum = tl.load(
+                    page_sum_v
+                    + cache_batch * PAGE_SUM_V_BATCH_STRIDE
+                    + kv_head * PAGE_SUM_V_HEAD_STRIDE
+                    + selected_page * PAGE_SUM_V_TOKEN_STRIDE
+                    + value_offset,
+                    mask=selected_valid & (value_offset < VALUE_DIM),
+                    other=0.0,
+                ).to(tl.float32)
+            state_key_sum = tl.load(
+                state_k + (kv_row * STATE_CAPACITY + slot) * HEAD_DIM + head_offset,
+                mask=valid_slot & (head_offset < HEAD_DIM),
+                other=0.0,
+            ).to(tl.float32)
+            state_value_sum = tl.load(
+                state_v
+                + cache_batch * STATE_V_BATCH_STRIDE
+                + kv_head * STATE_V_HEAD_STRIDE
+                + slot * STATE_V_TOKEN_STRIDE
+                + value_offset,
+                mask=valid_slot & (value_offset < VALUE_DIM),
+                other=0.0,
+            ).to(tl.float32)
+
+            opened_count += selected_count
+            opened_key_sum += selected_key_sum
+            opened_value_sum += selected_value_sum
+            residual_count = state_count - opened_count
+            if page_rank == PAGES_PER_SLOT - 1 and residual_count > 0.0:
+                residual_key = (state_key_sum - opened_key_sum) / residual_count
                 if MLA_LATENT_DIM > 0:
-                    # Reproduce DeepSeek's latent RMSNorm ordering exactly:
-                    # average raw compressed latents, round the unit-RMS vector
-                    # to BF16, then apply the learned gain.  The appended RoPE
-                    # channels remain an ordinary arithmetic mean.
-                    page_keys = page_keys.to(tl.bfloat16)
+                    residual_key = residual_key.to(tl.bfloat16)
                     latent_mask = head_offset < MLA_LATENT_DIM
-                    latent_values = tl.where(
-                        latent_mask[None, :], page_keys.to(tl.float32), 0.0
-                    )
+                    latent_values = tl.where(latent_mask, residual_key.to(tl.float32), 0.0)
                     inverse_rms = tl.rsqrt(
-                        tl.sum(latent_values * latent_values, axis=1) / MLA_LATENT_DIM
+                        tl.sum(latent_values * latent_values, axis=0) / MLA_LATENT_DIM
                         + MLA_NORM_EPS
                     )
-                    unit_latent = (page_keys.to(tl.float32) * inverse_rms[:, None]).to(
+                    unit_latent = (residual_key.to(tl.float32) * inverse_rms).to(
                         tl.bfloat16
                     )
                     norm_gain = tl.load(
@@ -1330,325 +1500,221 @@ def _query_major_residual_page_attention_kernel(
                         mask=latent_mask,
                         other=1.0,
                     ).to(tl.bfloat16)
-                    normalized_latent = (unit_latent * norm_gain[None, :]).to(
-                        tl.bfloat16
-                    )
-                    page_keys = tl.where(
-                        latent_mask[None, :], normalized_latent, page_keys
+                    normalized_latent = (unit_latent * norm_gain).to(tl.bfloat16)
+                    residual_key = tl.where(
+                        latent_mask, normalized_latent, residual_key
                     ).to(tl.float32)
-                page_scores = SCALE_LOG2 * tl.sum(
-                    page_keys * query[None, :].to(tl.float32),
-                    axis=1,
-                ) + tl.log2(count)
-            page_scores = tl.where(valid_page, page_scores, -float("inf"))
-            block_score = tl.max(page_scores, axis=0)
-            block_page = tl.max(
-                tl.where(page_scores == block_score, page_id, -1), axis=0
-            ).to(tl.int64)
-            better = block_score > selected_score
-            selected_score = tl.where(better, block_score, selected_score)
-            selected_page = tl.where(better, block_page, selected_page)
+                residual_value = (state_value_sum - opened_value_sum) / residual_count
+                residual_score = SCALE_LOG2 * tl.sum(
+                    residual_key * query.to(tl.float32), axis=0
+                ) + tl.log2(residual_count)
+                new_maximum = tl.maximum(maximum, residual_score)
+                correction = tl.math.exp2(maximum - new_maximum)
+                probability = tl.math.exp2(residual_score - new_maximum)
+                denominator = denominator * correction + probability
+                accumulator = accumulator * correction + probability * residual_value
+                maximum = new_maximum
 
-        selected_valid = selected_score > -float("inf")
-        selected_count = tl.load(
-            page_counts + kv_row * PAGE_CAPACITY + selected_page,
-            mask=selected_valid,
-            other=0,
-        ).to(tl.float32)
-        state_count = tl.load(
-            state_counts + kv_row * STATE_CAPACITY + slot,
-            mask=valid_slot,
-            other=0,
-        ).to(tl.float32)
-        residual_count = state_count - selected_count
-        if QUANTIZED_SUMMARIES:
-            selected_key_sum = tl.load(
-                quantized_page_sum_k
-                + (kv_row * PAGE_CAPACITY + selected_page) * HEAD_DIM
-                + head_offset,
-                mask=selected_valid & (head_offset < HEAD_DIM),
-                other=0,
-            ).to(tl.float32) * tl.load(
-                page_sum_k_scales
-                + (kv_row * PAGE_CAPACITY + selected_page)
-                * (HEAD_DIM // QUANT_GROUP_SIZE)
-                + head_offset // QUANT_GROUP_SIZE,
-                mask=selected_valid & (head_offset < HEAD_DIM),
-                other=0.0,
-            ).to(tl.float32)
-            selected_value_sum = tl.load(
-                quantized_page_sum_v
-                + (kv_row * PAGE_CAPACITY + selected_page) * VALUE_DIM
-                + value_offset,
-                mask=selected_valid & (value_offset < VALUE_DIM),
-                other=0,
-            ).to(tl.float32) * tl.load(
-                page_sum_v_scales
-                + (kv_row * PAGE_CAPACITY + selected_page)
-                * (VALUE_DIM // QUANT_GROUP_SIZE)
-                + value_offset // QUANT_GROUP_SIZE,
-                mask=selected_valid & (value_offset < VALUE_DIM),
-                other=0.0,
-            ).to(tl.float32)
-        else:
-            selected_key_sum = tl.load(
-                page_sum_k
-                + (kv_row * PAGE_CAPACITY + selected_page) * HEAD_DIM
-                + head_offset,
-                mask=selected_valid & (head_offset < HEAD_DIM),
-                other=0.0,
-            ).to(tl.float32)
-            selected_value_sum = tl.load(
-                page_sum_v
-                + cache_batch * PAGE_SUM_V_BATCH_STRIDE
-                + kv_head * PAGE_SUM_V_HEAD_STRIDE
-                + selected_page * PAGE_SUM_V_TOKEN_STRIDE
-                + value_offset,
-                mask=selected_valid & (value_offset < VALUE_DIM),
-                other=0.0,
-            ).to(tl.float32)
-        state_key_sum = tl.load(
-            state_k + (kv_row * STATE_CAPACITY + slot) * HEAD_DIM + head_offset,
-            mask=valid_slot & (head_offset < HEAD_DIM),
-            other=0.0,
-        ).to(tl.float32)
-        state_value_sum = tl.load(
-            state_v
-            + cache_batch * STATE_V_BATCH_STRIDE
-            + kv_head * STATE_V_HEAD_STRIDE
-            + slot * STATE_V_TOKEN_STRIDE
-            + value_offset,
-            mask=valid_slot & (value_offset < VALUE_DIM),
-            other=0.0,
-        ).to(tl.float32)
-
-        if residual_count > 0.0:
-            residual_key = (state_key_sum - selected_key_sum) / residual_count
-            if MLA_LATENT_DIM > 0:
-                residual_key = residual_key.to(tl.bfloat16)
-                latent_mask = head_offset < MLA_LATENT_DIM
-                latent_values = tl.where(latent_mask, residual_key.to(tl.float32), 0.0)
-                inverse_rms = tl.rsqrt(
-                    tl.sum(latent_values * latent_values, axis=0) / MLA_LATENT_DIM
-                    + MLA_NORM_EPS
-                )
-                unit_latent = (residual_key.to(tl.float32) * inverse_rms).to(
-                    tl.bfloat16
-                )
-                norm_gain = tl.load(
-                    mla_norm_weight + head_offset,
-                    mask=latent_mask,
-                    other=1.0,
-                ).to(tl.bfloat16)
-                normalized_latent = (unit_latent * norm_gain).to(tl.bfloat16)
-                residual_key = tl.where(
-                    latent_mask, normalized_latent, residual_key
-                ).to(tl.float32)
-            residual_value = (state_value_sum - selected_value_sum) / residual_count
-            residual_score = SCALE_LOG2 * tl.sum(
-                residual_key * query.to(tl.float32), axis=0
-            ) + tl.log2(residual_count)
-            new_maximum = tl.maximum(maximum, residual_score)
-            correction = tl.math.exp2(maximum - new_maximum)
-            probability = tl.math.exp2(residual_score - new_maximum)
-            denominator = denominator * correction + probability
-            accumulator = accumulator * correction + probability * residual_value
-            maximum = new_maximum
-
-        valid_token = selected_valid & (token_offset < selected_count)
-        physical_token = (
-            kv_row * PAGE_CAPACITY + selected_page
-        ) * PAGE_SIZE + token_offset
-        if INDEXED:
-            leaf_index = tl.load(
-                page_indices + physical_token,
-                mask=valid_token,
-                other=0,
-            ).to(tl.int64)
-            valid_token &= (leaf_index >= 0) & (leaf_index < LEAF_CAPACITY)
-            leaf_index = tl.where(valid_token, leaf_index, 0)
-            if QUANT_BITS:
-                # Final conversion and every quantized append publish complete
-                # changed pages before attention can observe them.  The old
-                # mixed BF16 fallback kept a full-width conditional load and
-                # select live in this already register-heavy kernel even
-                # though finalized vLLM caches never exercised it.
-                use_quantized = valid_token
-                if QUANT_BITS == 4:
-                    packed_head_offset = head_offset // 2
-                    packed_value_offset = value_offset // 2
-                    packed_keys = tl.load(
-                        quantized_leaf_k
-                        + (kv_row * LEAF_CAPACITY + leaf_index[:, None])
-                        * (HEAD_DIM // 2)
-                        + packed_head_offset[None, :],
-                        mask=use_quantized[:, None] & (head_offset[None, :] < HEAD_DIM),
-                        other=0,
-                    ).to(tl.int32)
-                    packed_values = tl.load(
-                        quantized_leaf_v
-                        + (kv_row * LEAF_CAPACITY + leaf_index[:, None])
-                        * (VALUE_DIM // 2)
-                        + packed_value_offset[None, :],
-                        mask=use_quantized[:, None]
-                        & (value_offset[None, :] < VALUE_DIM),
-                        other=0,
-                    ).to(tl.int32)
-                    key_shift = (head_offset & 1) * 4
-                    value_shift = (value_offset & 1) * 4
-                    key_code = ((packed_keys >> key_shift[None, :]) & 15) - 8
-                    value_code = ((packed_values >> value_shift[None, :]) & 15) - 8
-                else:
-                    key_code = tl.load(
-                        quantized_leaf_k
-                        + (kv_row * LEAF_CAPACITY + leaf_index[:, None]) * HEAD_DIM
-                        + head_offset[None, :],
-                        mask=use_quantized[:, None] & (head_offset[None, :] < HEAD_DIM),
-                        other=0,
-                    ).to(tl.int32)
-                    value_code = tl.load(
-                        quantized_leaf_v
-                        + (kv_row * LEAF_CAPACITY + leaf_index[:, None]) * VALUE_DIM
-                        + value_offset[None, :],
-                        mask=use_quantized[:, None]
-                        & (value_offset[None, :] < VALUE_DIM),
-                        other=0,
-                    ).to(tl.int32)
-                if QUANT_TOKEN_GROUP_SIZE == PAGE_SIZE:
-                    # Keep the original broadcast load for the legacy layout.
-                    # Besides avoiding redundant scale traffic, this preserves
-                    # the exact reduction numerics of the established kernel.
-                    key_scale = tl.load(
-                        page_k_scales
-                        + (kv_row * PAGE_CAPACITY + selected_page)
-                        * (HEAD_DIM // QUANT_GROUP_SIZE)
-                        + head_offset // QUANT_GROUP_SIZE,
-                        mask=head_offset < HEAD_DIM,
-                        other=0.0,
-                    ).to(tl.float32)
-                    value_scale = tl.load(
-                        page_v_scales
-                        + (kv_row * PAGE_CAPACITY + selected_page)
-                        * (VALUE_DIM // QUANT_GROUP_SIZE)
-                        + value_offset // QUANT_GROUP_SIZE,
-                        mask=value_offset < VALUE_DIM,
-                        other=0.0,
-                    ).to(tl.float32)
-                else:
-                    key_scale_row = (
-                        (kv_row * PAGE_CAPACITY + selected_page)
-                        * (PAGE_SIZE // QUANT_TOKEN_GROUP_SIZE)
-                        + token_offset // QUANT_TOKEN_GROUP_SIZE
-                    ) * (HEAD_DIM // QUANT_GROUP_SIZE)
-                    value_scale_row = (
-                        (kv_row * PAGE_CAPACITY + selected_page)
-                        * (PAGE_SIZE // QUANT_TOKEN_GROUP_SIZE)
-                        + token_offset // QUANT_TOKEN_GROUP_SIZE
-                    ) * (VALUE_DIM // QUANT_GROUP_SIZE)
-                    if QUANT_GROUP_SIZE == HEAD_DIM:
-                        # Token-wise, whole-vector INT4 has one scale per key.
-                        # Load it once and broadcast in registers rather than
-                        # issuing HEAD_DIM identical scale loads per token.
-                        key_scale = tl.load(
-                            page_k_scales + key_scale_row,
-                            mask=valid_token,
-                            other=0.0,
-                        ).to(tl.float32)[:, None]
+            valid_token = selected_valid & (token_offset < selected_count)
+            physical_token = (
+                kv_row * PAGE_CAPACITY + selected_page
+            ) * PAGE_SIZE + token_offset
+            if INDEXED:
+                leaf_index = tl.load(
+                    page_indices + physical_token,
+                    mask=valid_token,
+                    other=0,
+                ).to(tl.int64)
+                valid_token &= (leaf_index >= 0) & (leaf_index < LEAF_CAPACITY)
+                leaf_index = tl.where(valid_token, leaf_index, 0)
+                if QUANT_BITS:
+                    # Final conversion and every quantized append publish complete
+                    # changed pages before attention can observe them.  The old
+                    # mixed BF16 fallback kept a full-width conditional load and
+                    # select live in this already register-heavy kernel even
+                    # though finalized vLLM caches never exercised it.
+                    use_quantized = valid_token
+                    if QUANT_BITS == 4:
+                        packed_head_offset = head_offset // 2
+                        packed_value_offset = value_offset // 2
+                        packed_keys = tl.load(
+                            quantized_leaf_k
+                            + (kv_row * LEAF_CAPACITY + leaf_index[:, None])
+                            * (HEAD_DIM // 2)
+                            + packed_head_offset[None, :],
+                            mask=use_quantized[:, None] & (head_offset[None, :] < HEAD_DIM),
+                            other=0,
+                        ).to(tl.int32)
+                        packed_values = tl.load(
+                            quantized_leaf_v
+                            + cache_batch * LEAF_V_BATCH_STRIDE
+                            + kv_head * LEAF_V_HEAD_STRIDE
+                            + leaf_index[:, None] * LEAF_V_TOKEN_STRIDE
+                            + packed_value_offset[None, :],
+                            mask=use_quantized[:, None]
+                            & (value_offset[None, :] < VALUE_DIM),
+                            other=0,
+                        ).to(tl.int32)
+                        key_shift = (head_offset & 1) * 4
+                        value_shift = (value_offset & 1) * 4
+                        key_code = ((packed_keys >> key_shift[None, :]) & 15) - 8
+                        value_code = ((packed_values >> value_shift[None, :]) & 15) - 8
                     else:
+                        key_code = tl.load(
+                            quantized_leaf_k
+                            + (kv_row * LEAF_CAPACITY + leaf_index[:, None]) * HEAD_DIM
+                            + head_offset[None, :],
+                            mask=use_quantized[:, None] & (head_offset[None, :] < HEAD_DIM),
+                            other=0,
+                        ).to(tl.int32)
+                        value_code = tl.load(
+                            quantized_leaf_v
+                            + cache_batch * LEAF_V_BATCH_STRIDE
+                            + kv_head * LEAF_V_HEAD_STRIDE
+                            + leaf_index[:, None] * LEAF_V_TOKEN_STRIDE
+                            + value_offset[None, :],
+                            mask=use_quantized[:, None]
+                            & (value_offset[None, :] < VALUE_DIM),
+                            other=0,
+                        ).to(tl.int32)
+                    if QUANT_TOKEN_GROUP_SIZE == PAGE_SIZE:
+                        # Keep the original broadcast load for the legacy layout.
+                        # Besides avoiding redundant scale traffic, this preserves
+                        # the exact reduction numerics of the established kernel.
                         key_scale = tl.load(
                             page_k_scales
-                            + key_scale_row[:, None]
-                            + head_offset[None, :] // QUANT_GROUP_SIZE,
-                            mask=valid_token[:, None]
-                            & (head_offset[None, :] < HEAD_DIM),
+                            + (kv_row * PAGE_CAPACITY + selected_page)
+                            * (HEAD_DIM // QUANT_GROUP_SIZE)
+                            + head_offset // QUANT_GROUP_SIZE,
+                            mask=head_offset < HEAD_DIM,
                             other=0.0,
                         ).to(tl.float32)
-                    if QUANT_GROUP_SIZE == VALUE_DIM:
-                        value_scale = tl.load(
-                            page_v_scales + value_scale_row,
-                            mask=valid_token,
-                            other=0.0,
-                        ).to(tl.float32)[:, None]
-                    else:
                         value_scale = tl.load(
                             page_v_scales
-                            + value_scale_row[:, None]
-                            + value_offset[None, :] // QUANT_GROUP_SIZE,
-                            mask=valid_token[:, None]
-                            & (value_offset[None, :] < VALUE_DIM),
+                            + cache_batch * PAGE_V_SCALE_BATCH_STRIDE
+                            + kv_head * PAGE_V_SCALE_HEAD_STRIDE
+                            + selected_page * PAGE_V_SCALE_TOKEN_STRIDE
+                            + value_offset // QUANT_GROUP_SIZE,
+                            mask=value_offset < VALUE_DIM,
                             other=0.0,
                         ).to(tl.float32)
-                key_residual = key_code.to(tl.float32) * key_scale
-                value_residual = value_code.to(tl.float32) * value_scale
-                inverse_selected_count = 1.0 / tl.maximum(selected_count, 1.0)
-                key_anchor = selected_key_sum * inverse_selected_count
-                value_anchor = selected_value_sum * inverse_selected_count
-                # The page mean is shared by all sixteen leaves. Keep it out
-                # of the token-by-channel residual matrices: adding it after
-                # the QK/PV reductions is algebraically identical, avoids two
-                # page-wide broadcasts, and materially lowers register
-                # pressure in the INT4 specialization.
-                quantized_exact_scores = SCALE_LOG2 * (
-                    tl.sum(key_residual * query[None, :].to(tl.float32), axis=1)
-                    + tl.sum(key_anchor * query.to(tl.float32), axis=0)
-                )
+                    else:
+                        key_scale_row = (
+                            (kv_row * PAGE_CAPACITY + selected_page)
+                            * (PAGE_SIZE // QUANT_TOKEN_GROUP_SIZE)
+                            + token_offset // QUANT_TOKEN_GROUP_SIZE
+                        ) * (HEAD_DIM // QUANT_GROUP_SIZE)
+                        value_scale_row = (
+                            cache_batch * PAGE_V_SCALE_BATCH_STRIDE
+                            + kv_head * PAGE_V_SCALE_HEAD_STRIDE
+                            + selected_page * PAGE_V_SCALE_TOKEN_STRIDE
+                            + token_offset // QUANT_TOKEN_GROUP_SIZE
+                            * (VALUE_DIM // QUANT_GROUP_SIZE)
+                        )
+                        if QUANT_GROUP_SIZE == HEAD_DIM:
+                            # Token-wise, whole-vector INT4 has one scale per key.
+                            # Load it once and broadcast in registers rather than
+                            # issuing HEAD_DIM identical scale loads per token.
+                            key_scale = tl.load(
+                                page_k_scales + key_scale_row,
+                                mask=valid_token,
+                                other=0.0,
+                            ).to(tl.float32)[:, None]
+                        else:
+                            key_scale = tl.load(
+                                page_k_scales
+                                + key_scale_row[:, None]
+                                + head_offset[None, :] // QUANT_GROUP_SIZE,
+                                mask=valid_token[:, None]
+                                & (head_offset[None, :] < HEAD_DIM),
+                                other=0.0,
+                            ).to(tl.float32)
+                        if QUANT_GROUP_SIZE == VALUE_DIM:
+                            value_scale = tl.load(
+                                page_v_scales + value_scale_row,
+                                mask=valid_token,
+                                other=0.0,
+                            ).to(tl.float32)[:, None]
+                        else:
+                            value_scale = tl.load(
+                                page_v_scales
+                                + value_scale_row[:, None]
+                                + value_offset[None, :] // QUANT_GROUP_SIZE,
+                                mask=valid_token[:, None]
+                                & (value_offset[None, :] < VALUE_DIM),
+                                other=0.0,
+                            ).to(tl.float32)
+                    key_residual = key_code.to(tl.float32) * key_scale
+                    value_residual = value_code.to(tl.float32) * value_scale
+                    inverse_selected_count = 1.0 / tl.maximum(selected_count, 1.0)
+                    key_anchor = selected_key_sum * inverse_selected_count
+                    value_anchor = selected_value_sum * inverse_selected_count
+                    # The page mean is shared by all sixteen leaves. Keep it out
+                    # of the token-by-channel residual matrices: adding it after
+                    # the QK/PV reductions is algebraically identical, avoids two
+                    # page-wide broadcasts, and materially lowers register
+                    # pressure in the INT4 specialization.
+                    quantized_exact_scores = SCALE_LOG2 * (
+                        tl.sum(key_residual * query[None, :].to(tl.float32), axis=1)
+                        + tl.sum(key_anchor * query.to(tl.float32), axis=0)
+                    )
+                else:
+                    keys = tl.load(
+                        leaf_k
+                        + cache_batch * LEAF_K_BATCH_STRIDE
+                        + kv_head * LEAF_K_HEAD_STRIDE
+                        + leaf_index[:, None] * LEAF_K_TOKEN_STRIDE
+                        + head_offset[None, :],
+                        mask=valid_token[:, None] & (head_offset[None, :] < HEAD_DIM),
+                        other=0.0,
+                    )
+                    values = tl.load(
+                        leaf_v
+                        + cache_batch * LEAF_V_BATCH_STRIDE
+                        + kv_head * LEAF_V_HEAD_STRIDE
+                        + leaf_index[:, None] * LEAF_V_TOKEN_STRIDE
+                        + value_offset[None, :],
+                        mask=valid_token[:, None] & (value_offset[None, :] < VALUE_DIM),
+                        other=0.0,
+                    )
             else:
                 keys = tl.load(
-                    leaf_k
-                    + cache_batch * LEAF_K_BATCH_STRIDE
-                    + kv_head * LEAF_K_HEAD_STRIDE
-                    + leaf_index[:, None] * LEAF_K_TOKEN_STRIDE
-                    + head_offset[None, :],
+                    page_k + physical_token[:, None] * HEAD_DIM + head_offset[None, :],
                     mask=valid_token[:, None] & (head_offset[None, :] < HEAD_DIM),
                     other=0.0,
                 )
                 values = tl.load(
-                    leaf_v
-                    + cache_batch * LEAF_V_BATCH_STRIDE
-                    + kv_head * LEAF_V_HEAD_STRIDE
-                    + leaf_index[:, None] * LEAF_V_TOKEN_STRIDE
-                    + value_offset[None, :],
+                    page_v + physical_token[:, None] * VALUE_DIM + value_offset[None, :],
                     mask=valid_token[:, None] & (value_offset[None, :] < VALUE_DIM),
                     other=0.0,
                 )
-        else:
-            keys = tl.load(
-                page_k + physical_token[:, None] * HEAD_DIM + head_offset[None, :],
-                mask=valid_token[:, None] & (head_offset[None, :] < HEAD_DIM),
-                other=0.0,
+            if INDEXED and QUANT_BITS:
+                exact_scores = quantized_exact_scores
+            else:
+                exact_scores = SCALE_LOG2 * tl.sum(
+                    keys.to(tl.float32) * query[None, :].to(tl.float32), axis=1
+                )
+            exact_scores = tl.where(valid_token, exact_scores, -float("inf"))
+            block_maximum = tl.max(exact_scores, axis=0)
+            new_maximum = tl.maximum(maximum, block_maximum)
+            correction = tl.where(
+                selected_valid,
+                tl.math.exp2(maximum - new_maximum),
+                1.0,
             )
-            values = tl.load(
-                page_v + physical_token[:, None] * VALUE_DIM + value_offset[None, :],
-                mask=valid_token[:, None] & (value_offset[None, :] < VALUE_DIM),
-                other=0.0,
-            )
-        if INDEXED and QUANT_BITS:
-            exact_scores = quantized_exact_scores
-        else:
-            exact_scores = SCALE_LOG2 * tl.sum(
-                keys.to(tl.float32) * query[None, :].to(tl.float32), axis=1
-            )
-        exact_scores = tl.where(valid_token, exact_scores, -float("inf"))
-        block_maximum = tl.max(exact_scores, axis=0)
-        new_maximum = tl.maximum(maximum, block_maximum)
-        correction = tl.where(
-            selected_valid,
-            tl.math.exp2(maximum - new_maximum),
-            1.0,
-        )
-        probabilities = tl.math.exp2(exact_scores - new_maximum)
-        probabilities = tl.where(valid_token, probabilities, 0.0)
-        denominator = denominator * correction + tl.sum(probabilities, axis=0)
-        if INDEXED and QUANT_BITS:
-            probability_sum = tl.sum(probabilities, axis=0)
-            value_update = (
-                tl.sum(probabilities[:, None] * value_residual, axis=0)
-                + probability_sum * value_anchor
-            )
-        else:
-            value_update = tl.sum(probabilities[:, None] * values, axis=0)
-        accumulator = accumulator * correction + value_update
-        maximum = tl.where(selected_valid, new_maximum, maximum)
+            probabilities = tl.math.exp2(exact_scores - new_maximum)
+            probabilities = tl.where(valid_token, probabilities, 0.0)
+            denominator = denominator * correction + tl.sum(probabilities, axis=0)
+            if INDEXED and QUANT_BITS:
+                probability_sum = tl.sum(probabilities, axis=0)
+                value_update = (
+                    tl.sum(probabilities[:, None] * value_residual, axis=0)
+                    + probability_sum * value_anchor
+                )
+            else:
+                value_update = tl.sum(probabilities[:, None] * values, axis=0)
+            accumulator = accumulator * correction + value_update
+            maximum = tl.where(selected_valid, new_maximum, maximum)
 
     output_row = query_row * ROUTE_COUNT + active_route if ROUTE_PARALLEL else query_row
     has_mass = denominator > 0.0
@@ -1714,8 +1780,15 @@ def query_major_residual_page_attention(
     mla_norm_weight: torch.Tensor | None = None,
     mla_norm_epsilon: float = 0.0,
     materialized_page_scores: torch.Tensor | None = None,
+    pages_per_slot: int = DECODE_PAGE_COUNT,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """Exact top page plus a count-corrected residual for each routed slot."""
+    """Exact top pages plus one count-corrected disjoint residual per slot.
+
+    Three-tier serving opens the best two pages using one summary scan.
+    ``pages_per_slot`` remains available for explicit low-level ablations.
+    """
+    if pages_per_slot not in (1, 2, 4, 8):
+        raise ValueError("pages_per_slot must be 1, 2, 4, or 8")
     indexed = page_indices is not None
     if indexed != (leaf_k is not None and leaf_v is not None):
         raise ValueError("indexed pages require indices and flat K/V together")
@@ -1863,6 +1936,23 @@ def query_major_residual_page_attention(
             raise ValueError("page K summaries do not match the page cache")
         if tuple(page_sum_v.shape) != expected_v_summary:
             raise ValueError("page V summaries do not match the page cache")
+    # Tune the default compiler occupancy hint for K2's native batch-8
+    # two-page decode. Keep its one-warp reduction layout and scan order.
+    if (
+        pages_per_slot == 2
+        and query_len == 1
+        and batch >= 8
+        and head_dim == value_dim == 128
+        and kv_group_size == 8
+        and num_warps == 1
+        and waves_per_eu == 1
+        and page_block_n == 16
+        and route_parallel
+    ):
+        if quantized and quant_bits == 4 and quantized_summaries:
+            waves_per_eu = 0
+        elif not quantized and not quantized_summaries:
+            waves_per_eu = 4
     rows = batch * query_heads * query_len
     if materialized_page_scores is not None:
         expected_scores = (batch, query_heads, query_len, int(page_shape[2]))
@@ -1946,20 +2036,27 @@ def query_major_residual_page_attention(
         VALUE_BLOCK_DIM=triton.next_power_of_2(value_dim),
         PAGE_SIZE=int(page_shape[3]),
         ROUTE_COUNT=int(top_slots.size(-1)),
+        PAGES_PER_SLOT=pages_per_slot,
         SCALE_LOG2=float(scale) * math.log2(math.e),
         PAGE_BLOCK_N=page_block_n,
         LEAF_K_BATCH_STRIDE=int(storage_k.stride(0)) if indexed else 0,
         LEAF_K_HEAD_STRIDE=int(storage_k.stride(1)) if indexed else 0,
         LEAF_K_TOKEN_STRIDE=int(storage_k.stride(2)) if indexed else 0,
-        LEAF_V_BATCH_STRIDE=int(storage_v.stride(0)) if indexed else 0,
-        LEAF_V_HEAD_STRIDE=int(storage_v.stride(1)) if indexed else 0,
-        LEAF_V_TOKEN_STRIDE=int(storage_v.stride(2)) if indexed else 0,
+        LEAF_V_BATCH_STRIDE=int((quantized_leaf_v if quantized else storage_v).stride(0)) if indexed else 0,
+        LEAF_V_HEAD_STRIDE=int((quantized_leaf_v if quantized else storage_v).stride(1)) if indexed else 0,
+        LEAF_V_TOKEN_STRIDE=int((quantized_leaf_v if quantized else storage_v).stride(2)) if indexed else 0,
         STATE_V_BATCH_STRIDE=int(state_v.stride(0)),
         STATE_V_HEAD_STRIDE=int(state_v.stride(1)),
         STATE_V_TOKEN_STRIDE=int(state_v.stride(2)),
-        PAGE_SUM_V_BATCH_STRIDE=int(page_sum_v.stride(0)),
-        PAGE_SUM_V_HEAD_STRIDE=int(page_sum_v.stride(1)),
-        PAGE_SUM_V_TOKEN_STRIDE=int(page_sum_v.stride(2)),
+        PAGE_SUM_V_BATCH_STRIDE=int((quantized_page_sum_v if quantized_summaries else page_sum_v).stride(0)),
+        PAGE_SUM_V_HEAD_STRIDE=int((quantized_page_sum_v if quantized_summaries else page_sum_v).stride(1)),
+        PAGE_SUM_V_TOKEN_STRIDE=int((quantized_page_sum_v if quantized_summaries else page_sum_v).stride(2)),
+        PAGE_V_SCALE_BATCH_STRIDE=int(page_v_scales.stride(0)) if quantized else 0,
+        PAGE_V_SCALE_HEAD_STRIDE=int(page_v_scales.stride(1)) if quantized else 0,
+        PAGE_V_SCALE_TOKEN_STRIDE=int(page_v_scales.stride(2)) if quantized else 0,
+        SUM_V_SCALE_BATCH_STRIDE=int(page_sum_v_scales.stride(0)) if quantized_summaries else 0,
+        SUM_V_SCALE_HEAD_STRIDE=int(page_sum_v_scales.stride(1)) if quantized_summaries else 0,
+        SUM_V_SCALE_TOKEN_STRIDE=int(page_sum_v_scales.stride(2)) if quantized_summaries else 0,
         LEAF_CAPACITY=(
             int(quantized_leaf_k.size(2)) if quantized else int(storage_k.size(2))
         ),
@@ -2080,6 +2177,12 @@ def paged_leaf_attention(
     """Attend to indexed BF16 or residual-INT4 leaves and merge by LSE."""
     if torch.is_grad_enabled() and q.requires_grad:
         raise RuntimeError("paged leaf Triton attention is forward-only")
+    # The expert kernel addresses q as flattened B,H,T,D rows. Adapters may
+    # supply a T,H,D transpose or a cropped query slice; those are not packed
+    # in that order. In particular GLM's projected-prefill shortcut bypasses
+    # the common core's contiguous-query preparation. Keep the contract here
+    # so every caller is safe; already-packed inputs incur no copy.
+    q = q.contiguous()
     batch, query_heads, query_len, head_dim = q.shape
     route_count = int(top_slots.size(-1))
     kv_heads = int(page_k.size(1))

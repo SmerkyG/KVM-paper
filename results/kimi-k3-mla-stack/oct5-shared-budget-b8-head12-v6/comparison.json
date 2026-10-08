@@ -1,0 +1,23 @@
+{
+  "fixture_only": true,
+  "batch_size": 8,
+  "native_cache_reservation_bytes": 4294967296,
+  "peak_definition": "maximum worker peak across warmup and measured pass",
+  "decode_note": "Two outputs test handoff only; not amortized decode timing.",
+  "measurements": {
+    "65536": {
+      "shared": {
+        "prefill_seconds": 13.378723273053765,
+        "peak_allocated_gib": 17.020116806030273,
+        "peak_reserved_gib": 19.76171875
+      }
+    },
+    "131072": {
+      "shared": {
+        "prefill_seconds": 33.45854792743921,
+        "peak_allocated_gib": 17.489063262939453,
+        "peak_reserved_gib": 20.6484375
+      }
+    }
+  }
+}

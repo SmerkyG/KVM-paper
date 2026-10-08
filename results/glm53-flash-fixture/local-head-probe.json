@@ -1,0 +1,71 @@
+{
+  "candidates": [
+    {
+      "block_m": 16,
+      "block_n": 32,
+      "gluon_warps": [
+        1,
+        4
+      ],
+      "gpu_ms": 6.63950777053833,
+      "mfma": 16,
+      "registers": 196,
+      "shared_bytes": 32768,
+      "spills": 0,
+      "status": "complete",
+      "warps": 4
+    },
+    {
+      "block_m": 16,
+      "block_n": 64,
+      "gluon_warps": [
+        1,
+        4
+      ],
+      "gpu_ms": 6.5129899978637695,
+      "mfma": 16,
+      "registers": 218,
+      "shared_bytes": 65536,
+      "spills": 0,
+      "status": "complete",
+      "warps": 4
+    },
+    {
+      "block_m": 32,
+      "block_n": 64,
+      "gluon_warps": [
+        2,
+        2
+      ],
+      "gpu_ms": 4.87257194519043,
+      "mfma": 16,
+      "registers": 364,
+      "shared_bytes": 65536,
+      "spills": 0,
+      "status": "complete",
+      "warps": 4
+    },
+    {
+      "block_m": 32,
+      "block_n": 64,
+      "gluon_warps": [
+        1,
+        4
+      ],
+      "gpu_ms": 4.5947771072387695,
+      "mfma": 16,
+      "registers": 370,
+      "shared_bytes": 65536,
+      "spills": 0,
+      "status": "complete",
+      "warps": 4
+    }
+  ],
+  "scope": "diagnostic exact causal local kernel on random tensors",
+  "shape": [
+    1,
+    64,
+    4096,
+    512
+  ]
+}

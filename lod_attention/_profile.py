@@ -45,8 +45,14 @@ def configure_engine(
         raise ValueError(
             f"{family.value} requires D/GQA={expected}, got {(head_dim, gqa)}"
         )
-    if family is ModelFamily.KIMI_K3 and (int(head_dim) <= 0 or int(gqa) <= 0):
-        raise ValueError("Kimi K3 requires positive absorbed MLA D/GQA geometry")
+    if family in (ModelFamily.KIMI_K3, ModelFamily.GLM53_FLASH) and (int(head_dim) <= 0 or int(gqa) <= 0):
+        raise ValueError("absorbed MLA requires positive D/GQA geometry")
+    # NoPE MLA stores exactly the same latent as both K and V. Preserve that
+    # invariant even when cached-prefill concatenations create fresh tensors.
+    engine._lod_shared_latent_kv = family is ModelFamily.GLM53_FLASH
+    # GLM's K256/V256 local and centroid projections are both faster than
+    # their absorbed512 prefill counterparts. Persistent/decode K=V stays512.
+    engine._lod_glm_project_local = family is ModelFamily.GLM53_FLASH
 
     engine.two_level_topk = ROUTE_COUNT
     engine.prefill_two_level_topk = ROUTE_COUNT

@@ -1,0 +1,18 @@
+{
+  "batch": 1,
+  "error": {
+    "message": "Engine core initialization failed. See root cause above. Failed core proc(s): {}",
+    "type": "RuntimeError"
+  },
+  "ffn_intermediate_size": 512,
+  "fixture": "tests/fixtures/glm53-flash-mixed4-fp8",
+  "initial_prefix": "native GLM learned sparse",
+  "length": 16384,
+  "mode": "two-tier",
+  "quality_evidence": false,
+  "random_weights": true,
+  "reference": "native learned sparse MLA (2048-token indexer budget), not dense attention",
+  "status": "failed",
+  "tensor_parallel_size": 1,
+  "timing": "one untimed exact-shape warmup followed by one synchronized pass"
+}

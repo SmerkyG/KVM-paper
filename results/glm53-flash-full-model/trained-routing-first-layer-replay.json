@@ -1,0 +1,141 @@
+{
+  "layer": "language_model.model.layers.3.self_attn.mla_attn.mla_attn",
+  "slot": 1,
+  "heads": 16,
+  "queries": 16,
+  "remote_leaves": 49333,
+  "local_tokens": 15763,
+  "regions": 3563,
+  "directory_covers_all_leaves": true,
+  "count_max_absolute_error": 0.0,
+  "state_sum_error": {
+    "relative_l2": 0.0026831626892089844,
+    "mean_head_query_relative_l2": 0.0013034482253715396,
+    "max_head_query_relative_l2": 0.003379324683919549,
+    "max_absolute": 2.3385009765625
+  },
+  "normal_output_vs_dense": {
+    "relative_l2": 0.278496652841568,
+    "mean_head_query_relative_l2": 0.23654800653457642,
+    "max_head_query_relative_l2": 1.1145178079605103,
+    "max_absolute": 0.1066591665148735
+  },
+  "absorbed_vs_expanded_dense": {
+    "relative_l2": 0.00042752272565849125,
+    "mean_head_query_relative_l2": 0.0004206790472380817,
+    "max_head_query_relative_l2": 0.0012484503677114844,
+    "max_absolute": 0.00017910078167915344
+  },
+  "normal_replay_vs_captured": {
+    "relative_l2": 0.28128206729888916,
+    "mean_head_query_relative_l2": 0.20455029606819153,
+    "max_head_query_relative_l2": 1.0675532817840576,
+    "max_absolute": 0.1085205078125
+  },
+  "all_exposed_vs_dense": {
+    "relative_l2": 0.5809706449508667,
+    "mean_head_query_relative_l2": 0.5232657194137573,
+    "max_head_query_relative_l2": 1.4528355598449707,
+    "max_absolute": 0.14121097326278687
+  },
+  "all_exposed_vs_expanded_dense": {
+    "relative_l2": 0.5809821486473083,
+    "mean_head_query_relative_l2": 0.5232738852500916,
+    "max_head_query_relative_l2": 1.4530718326568604,
+    "max_absolute": 0.14122450351715088
+  },
+  "selections": {
+    "normal_capped": {
+      "output_vs_dense": {
+        "relative_l2": 0.2698630392551422,
+        "mean_head_query_relative_l2": 0.2315559685230255,
+        "max_head_query_relative_l2": 1.1461124420166016,
+        "max_absolute": 0.09285317361354828
+      },
+      "fp32_mixed_vs_dense": {
+        "relative_l2": 0.11157625168561935,
+        "mean_head_query_relative_l2": 0.1095861941576004,
+        "max_head_query_relative_l2": 0.3079049289226532,
+        "max_absolute": 0.040036581456661224
+      },
+      "kernel_vs_fp32_mixed": {
+        "relative_l2": 0.25153806805610657,
+        "mean_head_query_relative_l2": 0.19987991452217102,
+        "max_head_query_relative_l2": 1.1053266525268555,
+        "max_absolute": 0.09325678646564484
+      },
+      "top_remote_leaf_owner_open_fraction": 0.30078125,
+      "opened_remote_mass_of_full_attention": 0.08148640394210815,
+      "opened_leaf_tokens_mean": 2333.73046875
+    },
+    "normal_uncapped": {
+      "output_vs_dense": {
+        "relative_l2": 0.26986393332481384,
+        "mean_head_query_relative_l2": 0.2315569818019867,
+        "max_head_query_relative_l2": 1.1461124420166016,
+        "max_absolute": 0.09285317361354828
+      },
+      "fp32_mixed_vs_dense": {
+        "relative_l2": 0.11157625168561935,
+        "mean_head_query_relative_l2": 0.1095861941576004,
+        "max_head_query_relative_l2": 0.3079049289226532,
+        "max_absolute": 0.040036581456661224
+      },
+      "kernel_vs_fp32_mixed": {
+        "relative_l2": 0.25153928995132446,
+        "mean_head_query_relative_l2": 0.19988101720809937,
+        "max_head_query_relative_l2": 1.1053266525268555,
+        "max_absolute": 0.09325678646564484
+      },
+      "top_remote_leaf_owner_open_fraction": 0.30078125,
+      "opened_remote_mass_of_full_attention": 0.08148640394210815,
+      "opened_leaf_tokens_mean": 2333.73046875
+    },
+    "leaf_max_oracle": {
+      "output_vs_dense": {
+        "relative_l2": 0.15187795460224152,
+        "mean_head_query_relative_l2": 0.134618878364563,
+        "max_head_query_relative_l2": 0.5721240043640137,
+        "max_absolute": 0.0667804628610611
+      },
+      "fp32_mixed_vs_dense": {
+        "relative_l2": 0.10161609947681427,
+        "mean_head_query_relative_l2": 0.10237744450569153,
+        "max_head_query_relative_l2": 0.21507589519023895,
+        "max_absolute": 0.026268184185028076
+      },
+      "kernel_vs_fp32_mixed": {
+        "relative_l2": 0.126411572098732,
+        "mean_head_query_relative_l2": 0.07517753541469574,
+        "max_head_query_relative_l2": 0.5786471962928772,
+        "max_absolute": 0.09304864704608917
+      },
+      "top_remote_leaf_owner_open_fraction": 1.0,
+      "opened_remote_mass_of_full_attention": 0.03199491649866104,
+      "opened_leaf_tokens_mean": 250.34765625
+    },
+    "leaf_mass_oracle": {
+      "output_vs_dense": {
+        "relative_l2": 0.26485249400138855,
+        "mean_head_query_relative_l2": 0.2277759164571762,
+        "max_head_query_relative_l2": 1.1561236381530762,
+        "max_absolute": 0.10485263913869858
+      },
+      "fp32_mixed_vs_dense": {
+        "relative_l2": 0.10687706619501114,
+        "mean_head_query_relative_l2": 0.10720264911651611,
+        "max_head_query_relative_l2": 0.25155192613601685,
+        "max_absolute": 0.03045082278549671
+      },
+      "kernel_vs_fp32_mixed": {
+        "relative_l2": 0.2500283718109131,
+        "mean_head_query_relative_l2": 0.19751447439193726,
+        "max_head_query_relative_l2": 1.1502536535263062,
+        "max_absolute": 0.10043752193450928
+      },
+      "top_remote_leaf_owner_open_fraction": 0.29296875,
+      "opened_remote_mass_of_full_attention": 0.08293037116527557,
+      "opened_leaf_tokens_mean": 2314.03125
+    }
+  }
+}

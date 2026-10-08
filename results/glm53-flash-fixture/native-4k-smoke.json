@@ -1,0 +1,15 @@
+{
+  "batch": 1,
+  "error": {
+    "message": "1 validation error for SchedulerConfig\n  Value error, long_prefill_token_threshold (16384) cannot be greater than the max_model_len (4105). [type=value_error, input_value=ArgsKwargs((), {'runner_t..., 'stream_interval': 1}), input_type=ArgsKwargs]\n    For further information visit https://errors.pydantic.dev/2.13/v/value_error",
+    "type": "ValidationError"
+  },
+  "fixture": "tests/fixtures/glm53-flash-mixed4-fp8",
+  "length": 4096,
+  "mode": "full",
+  "quality_evidence": false,
+  "random_weights": true,
+  "reference": "native learned sparse MLA (2048-token indexer budget), not dense attention",
+  "status": "failed",
+  "timing": "one untimed exact-shape warmup followed by one synchronized pass"
+}

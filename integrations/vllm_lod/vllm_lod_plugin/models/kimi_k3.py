@@ -256,6 +256,10 @@ def absorb_query(
     q_nope, q_direct = query.split([nope_dim, query.size(-1) - nope_dim], dim=-1)
     # [T,H,P] -> [H,T,P] @ [H,P,L] -> [T,H,L]
     q_latent = torch.bmm(q_nope.transpose(0, 1), w_uk_t).transpose(0, 1)
+    if q_direct.size(-1) == 0:
+        # NoPE MLA (GLM) has no direct-key tail. Concatenating an empty
+        # tensor copied the entire absorbed query for no mathematical work.
+        return q_latent
     return torch.cat((q_latent, q_direct), dim=-1)
 
 

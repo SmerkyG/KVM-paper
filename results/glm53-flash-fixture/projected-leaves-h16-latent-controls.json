@@ -1,0 +1,138 @@
+{
+  "all_leaf_head_pairs": 524272,
+  "attention_tiles": [
+    {
+      "complete_refinement_ms": 3.220397186279297,
+      "max_lse_difference": 6.0558319091796875e-05,
+      "relative_output_l2": 0.0038785128854215145,
+      "tile": [
+        16,
+        16,
+        2
+      ]
+    },
+    {
+      "complete_refinement_ms": 2.5403738021850586,
+      "max_lse_difference": 6.0558319091796875e-05,
+      "relative_output_l2": 0.0038785128854215145,
+      "tile": [
+        32,
+        16,
+        2
+      ]
+    },
+    {
+      "complete_refinement_ms": 3.08363037109375,
+      "max_lse_difference": 6.0558319091796875e-05,
+      "relative_output_l2": 0.0038785128854215145,
+      "tile": [
+        32,
+        16,
+        4
+      ]
+    },
+    {
+      "complete_refinement_ms": 2.6576044082641603,
+      "max_lse_difference": 6.0558319091796875e-05,
+      "relative_output_l2": 0.0038785128854215145,
+      "tile": [
+        64,
+        16,
+        2
+      ]
+    },
+    {
+      "complete_refinement_ms": 3.2483325958251954,
+      "max_lse_difference": 6.0558319091796875e-05,
+      "relative_output_l2": 0.0038772784173488617,
+      "tile": [
+        64,
+        32,
+        4
+      ]
+    }
+  ],
+  "baseline_after_ms": 3.64563102722168,
+  "baseline_before_ms": 3.75567741394043,
+  "best_attention_tile": [
+    32,
+    16,
+    2
+  ],
+  "best_projection_tile": [
+    64,
+    64,
+    4
+  ],
+  "heads": 16,
+  "history": 49152,
+  "includes": "dispatch + projection + exact leaf attention + route reduction",
+  "iterations": 5,
+  "latent_tiles": [
+    {
+      "complete_refinement_ms": 4.633066177368164,
+      "tile": [
+        16,
+        16,
+        2
+      ]
+    },
+    {
+      "complete_refinement_ms": 4.340494155883789,
+      "tile": [
+        32,
+        16,
+        4
+      ]
+    }
+  ],
+  "projected_attention_diagnostic_ms": {
+    "dispatch": 0.0737989991903305,
+    "dispatch_blocks": 0.005919999908655882,
+    "dispatch_group": 0.054639000445604324,
+    "dispatch_prepare": 0.007240000180900097,
+    "kernel": 1.5611389875411987,
+    "pack": 0.006000000052154064,
+    "reduce": 0.29719600081443787,
+    "total": 1.938133955001831
+  },
+  "projected_leaf_head_pairs": 18699,
+  "projection_tiles": [
+    {
+      "projection_only_ms": 0.1172063946723938,
+      "tile": [
+        32,
+        128,
+        4
+      ]
+    },
+    {
+      "projection_only_ms": 0.107110595703125,
+      "tile": [
+        64,
+        128,
+        4
+      ]
+    },
+    {
+      "projection_only_ms": 0.11415059566497802,
+      "tile": [
+        128,
+        128,
+        8
+      ]
+    },
+    {
+      "projection_only_ms": 0.10707060098648072,
+      "tile": [
+        64,
+        64,
+        4
+      ]
+    }
+  ],
+  "queries": 16384,
+  "scope": "random-input complete remote-refinement GPU interval, not model timing",
+  "slots": 2907,
+  "speedup_vs_bracketed_baseline": 1.4567360982064927
+}

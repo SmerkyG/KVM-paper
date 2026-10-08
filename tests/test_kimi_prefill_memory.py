@@ -19,12 +19,13 @@ def test_groups_count_backing_storage_once_across_aliases():
 
 
 def test_snapshot_deduplicates_shared_scratch_and_reports_only_real_shadows(monkeypatch):
-    latent, workspace, weight = [torch.empty(n) for n in (576, 99, 999)]
+    latent, workspace, weight, packed = [torch.empty(n) for n in (576, 99, 999, 33)]
     pool = NS(state={"state_k": latent, "state_v": latent[:512]},
               dcp_prefill_shadows={3: NS(state={"total_len": 16384, "leaf_k": workspace})},
               decode_buffer_storage=None, dcp_decode_buffer_storage={"tmp": workspace})
     runtime = NS(pools={"layer": pool},
-                 _prefill_attention_buffers={"tmp": workspace, "weight_source": weight})
+                 _prefill_attention_buffers={"tmp": workspace, "weight_source": weight,
+                     ("mla_combined_kv", 123): ((None, None), packed, weight, weight)})
     worker = NS(model_runner=NS(model_state=NS(_vllm_lod_runtime=runtime)))
     for name in ("memory_allocated", "memory_reserved", "max_memory_allocated"):
         monkeypatch.setattr(torch.cuda, name, lambda: 123)
@@ -32,8 +33,8 @@ def test_snapshot_deduplicates_shared_scratch_and_reports_only_real_shadows(monk
     snapshot = snapshot_prefill_memory(worker)
     assert snapshot["shadow_rows_by_layer"] == {"layer": [3]}
     assert snapshot["shadow_global_lengths_by_layer"] == {"layer": {"3": 16384}}
-    assert sum(snapshot["allocation_groups_bytes"].values()) == (576 + 99) * 4
-    assert snapshot["allocation_groups_bytes"]["shared_prefill_scratch"] == 0
+    assert sum(snapshot["allocation_groups_bytes"].values()) == (576 + 99 + 33) * 4
+    assert snapshot["allocation_groups_bytes"]["shared_prefill_scratch"] == 33 * 4
 
 
 def test_shared_decode_summary_counts_one_registry_not_24_copies():

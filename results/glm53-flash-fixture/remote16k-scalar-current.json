@@ -1,0 +1,46 @@
+{
+  "candidates": [
+    {
+      "block_m": 32,
+      "block_n": 16,
+      "phases_ms": {
+        "dispatch": 0.5871139764785767,
+        "dispatch_blocks": 0.006120000034570694,
+        "dispatch_group": 0.560073971748352,
+        "dispatch_prepare": 0.014759999699890614,
+        "kernel": 9.905694961547852,
+        "pack": 0.0061599998734891415,
+        "total": 10.498969078063965
+      },
+      "refinement_ms": 10.878645896911621,
+      "scalar_page_lookup": false,
+      "status": "complete",
+      "waves": 2
+    },
+    {
+      "block_m": 32,
+      "block_n": 16,
+      "phases_ms": {
+        "dispatch": 0.628354012966156,
+        "dispatch_blocks": 0.006639999803155661,
+        "dispatch_group": 0.5994740128517151,
+        "dispatch_prepare": 0.015560000203549862,
+        "kernel": 9.023584365844727,
+        "pack": 0.006639999803155661,
+        "total": 9.658577919006348
+      },
+      "refinement_ms": 10.672645568847656,
+      "scalar_page_lookup": true,
+      "status": "complete",
+      "waves": 2
+    }
+  ],
+  "coarse_reference": "FP32 output/LSE and top-eight checked at three query positions",
+  "history": 16384,
+  "policy": "top-eight; oversized selected regions remain closed above 1024 leaves",
+  "queries": 16384,
+  "route_coarse_ms": 22.64575958251953,
+  "scope": "TP1 remote-only kernel diagnostic; random inputs; not model timings",
+  "shared_latent": true,
+  "slots": 2048
+}

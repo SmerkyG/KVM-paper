@@ -1,0 +1,1094 @@
+{
+  "checkpoint": "tests/fixtures/kimi-k3-mla-stack",
+  "mode": "full",
+  "batch_size": 1,
+  "decode_tokens": 2,
+  "tensor_parallel_size": 8,
+  "decode_context_parallel_size": 8,
+  "repeats": 1,
+  "rotating_prefills": false,
+  "rotating_cohort": 1,
+  "distributed_prefill_construction": false,
+  "cross_layer_prefill_group": null,
+  "independent_local_dcp_prefill": false,
+  "replicated_summary_dcp_prefill": false,
+  "global_centroid_sharded_leaf_prefill": false,
+  "transient_reconstructed_prefill_workspace": false,
+  "sharded_workspace_layout": null,
+  "environment": {
+    "CLUSTER_RUN_NODE": "dev-shared-research-2.dev-training.svc.cluster.local",
+    "HSA_NO_SCRATCH_RECLAIM": "0",
+    "LOD_KIMI_SUBTILE64": "score",
+    "LOD_KIMI_CHUNK_TILE_PACK": "1",
+    "LOD_KIMI_TILE_PACK_QUERY_BLOCK": "1024",
+    "LOD_KIMI_SORT_LEAF_ROUTES": "1",
+    "LOD_KIMI_LEAF_BLOCK_M": "64",
+    "LOD_KIMI_LEAF_WARPS": "1",
+    "LOD_KIMI_PREFILL_RECLAIM_INTERVAL": "0",
+    "LOD_KIMI_REUSE_PREFILL_ALLOCATOR": "1",
+    "LOD_KIMI_PREFILL_MIN_FREE_GIB": "4",
+    "LOD_KIMI_TILE_REFINE": "1",
+    "LOD_KIMI_DIRECT_LEAF_RESULT": "1"
+  },
+  "measurements": {
+    "16384": {
+      "elapsed_seconds": 0.21439617034047842,
+      "prefill_seconds": 0.20889438595622778,
+      "elapsed_samples_seconds": [
+        0.21439617034047842
+      ],
+      "prefill_samples_seconds": [
+        0.20889438595622778
+      ],
+      "decode_ms_per_batch_step": 3.974245861172676,
+      "decode_samples_seconds_per_batch_step": [
+        0.003974245861172676
+      ],
+      "aggregate_prompt_tokens_per_second": 78431.97855701657,
+      "generated_token_ids": [
+        [
+          113,
+          178
+        ]
+      ],
+      "warmup_worker_memory": [
+        {
+          "rank": 0,
+          "peak_torch_allocated_bytes": 7478979584,
+          "peak_torch_reserved_bytes": 8017412096,
+          "current_torch_allocated_bytes": 5572666368,
+          "device_free_bytes_after_generation": 257769340928,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 1,
+          "peak_torch_allocated_bytes": 7478980096,
+          "peak_torch_reserved_bytes": 8017412096,
+          "current_torch_allocated_bytes": 5572666880,
+          "device_free_bytes_after_generation": 258708865024,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 2,
+          "peak_torch_allocated_bytes": 7478980096,
+          "peak_torch_reserved_bytes": 8017412096,
+          "current_torch_allocated_bytes": 5572666880,
+          "device_free_bytes_after_generation": 257769340928,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 3,
+          "peak_torch_allocated_bytes": 7478980096,
+          "peak_torch_reserved_bytes": 8017412096,
+          "current_torch_allocated_bytes": 5572666880,
+          "device_free_bytes_after_generation": 257769340928,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 4,
+          "peak_torch_allocated_bytes": 7478980096,
+          "peak_torch_reserved_bytes": 8017412096,
+          "current_torch_allocated_bytes": 5572666880,
+          "device_free_bytes_after_generation": 257366687744,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 5,
+          "peak_torch_allocated_bytes": 7478980096,
+          "peak_torch_reserved_bytes": 8017412096,
+          "current_torch_allocated_bytes": 5572666880,
+          "device_free_bytes_after_generation": 257232470016,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 6,
+          "peak_torch_allocated_bytes": 7478980096,
+          "peak_torch_reserved_bytes": 8017412096,
+          "current_torch_allocated_bytes": 5572666880,
+          "device_free_bytes_after_generation": 258037776384,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 7,
+          "peak_torch_allocated_bytes": 7478980096,
+          "peak_torch_reserved_bytes": 8017412096,
+          "current_torch_allocated_bytes": 5572666880,
+          "device_free_bytes_after_generation": 258037776384,
+          "device_total_bytes": 274861129728
+        }
+      ],
+      "worker_memory": [
+        {
+          "rank": 0,
+          "peak_torch_allocated_bytes": 7478979584,
+          "peak_torch_reserved_bytes": 8017412096,
+          "current_torch_allocated_bytes": 5572666368,
+          "device_free_bytes_after_generation": 257769340928,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 1,
+          "peak_torch_allocated_bytes": 7478980096,
+          "peak_torch_reserved_bytes": 8017412096,
+          "current_torch_allocated_bytes": 5572666880,
+          "device_free_bytes_after_generation": 258708865024,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 2,
+          "peak_torch_allocated_bytes": 7478980096,
+          "peak_torch_reserved_bytes": 8017412096,
+          "current_torch_allocated_bytes": 5572666880,
+          "device_free_bytes_after_generation": 257769340928,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 3,
+          "peak_torch_allocated_bytes": 7478980096,
+          "peak_torch_reserved_bytes": 8017412096,
+          "current_torch_allocated_bytes": 5572666880,
+          "device_free_bytes_after_generation": 257769340928,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 4,
+          "peak_torch_allocated_bytes": 7478980096,
+          "peak_torch_reserved_bytes": 8017412096,
+          "current_torch_allocated_bytes": 5572666880,
+          "device_free_bytes_after_generation": 257366687744,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 5,
+          "peak_torch_allocated_bytes": 7478980096,
+          "peak_torch_reserved_bytes": 8017412096,
+          "current_torch_allocated_bytes": 5572666880,
+          "device_free_bytes_after_generation": 257232470016,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 6,
+          "peak_torch_allocated_bytes": 7478980096,
+          "peak_torch_reserved_bytes": 8017412096,
+          "current_torch_allocated_bytes": 5572666880,
+          "device_free_bytes_after_generation": 258037776384,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 7,
+          "peak_torch_allocated_bytes": 7478980096,
+          "peak_torch_reserved_bytes": 8017412096,
+          "current_torch_allocated_bytes": 5572666880,
+          "device_free_bytes_after_generation": 258037776384,
+          "device_total_bytes": 274861129728
+        }
+      ]
+    },
+    "32768": {
+      "elapsed_seconds": 0.5133606167510152,
+      "prefill_seconds": 0.5074716005474329,
+      "elapsed_samples_seconds": [
+        0.5133606167510152
+      ],
+      "prefill_samples_seconds": [
+        0.5074716005474329
+      ],
+      "decode_ms_per_batch_step": 4.042613320052624,
+      "decode_samples_seconds_per_batch_step": [
+        0.004042613320052624
+      ],
+      "aggregate_prompt_tokens_per_second": 64571.101052062135,
+      "generated_token_ids": [
+        [
+          200,
+          155
+        ]
+      ],
+      "warmup_worker_memory": [
+        {
+          "rank": 0,
+          "peak_torch_allocated_bytes": 7482727424,
+          "peak_torch_reserved_bytes": 8019509248,
+          "current_torch_allocated_bytes": 5572742144,
+          "device_free_bytes_after_generation": 257763049472,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 1,
+          "peak_torch_allocated_bytes": 7482726400,
+          "peak_torch_reserved_bytes": 8019509248,
+          "current_torch_allocated_bytes": 5572742656,
+          "device_free_bytes_after_generation": 258702573568,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 2,
+          "peak_torch_allocated_bytes": 7482726400,
+          "peak_torch_reserved_bytes": 8019509248,
+          "current_torch_allocated_bytes": 5572742656,
+          "device_free_bytes_after_generation": 257763049472,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 3,
+          "peak_torch_allocated_bytes": 7482726400,
+          "peak_torch_reserved_bytes": 8019509248,
+          "current_torch_allocated_bytes": 5572742656,
+          "device_free_bytes_after_generation": 257763049472,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 4,
+          "peak_torch_allocated_bytes": 7482726400,
+          "peak_torch_reserved_bytes": 8019509248,
+          "current_torch_allocated_bytes": 5572742656,
+          "device_free_bytes_after_generation": 257360396288,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 5,
+          "peak_torch_allocated_bytes": 7482726400,
+          "peak_torch_reserved_bytes": 8019509248,
+          "current_torch_allocated_bytes": 5572742656,
+          "device_free_bytes_after_generation": 257226178560,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 6,
+          "peak_torch_allocated_bytes": 7482726400,
+          "peak_torch_reserved_bytes": 8019509248,
+          "current_torch_allocated_bytes": 5572742656,
+          "device_free_bytes_after_generation": 258031484928,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 7,
+          "peak_torch_allocated_bytes": 7482726400,
+          "peak_torch_reserved_bytes": 8019509248,
+          "current_torch_allocated_bytes": 5572742656,
+          "device_free_bytes_after_generation": 258031484928,
+          "device_total_bytes": 274861129728
+        }
+      ],
+      "worker_memory": [
+        {
+          "rank": 0,
+          "peak_torch_allocated_bytes": 7482727424,
+          "peak_torch_reserved_bytes": 8019509248,
+          "current_torch_allocated_bytes": 5572742144,
+          "device_free_bytes_after_generation": 257763049472,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 1,
+          "peak_torch_allocated_bytes": 7482726400,
+          "peak_torch_reserved_bytes": 8019509248,
+          "current_torch_allocated_bytes": 5572742656,
+          "device_free_bytes_after_generation": 258702573568,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 2,
+          "peak_torch_allocated_bytes": 7482726400,
+          "peak_torch_reserved_bytes": 8019509248,
+          "current_torch_allocated_bytes": 5572742656,
+          "device_free_bytes_after_generation": 257763049472,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 3,
+          "peak_torch_allocated_bytes": 7482726400,
+          "peak_torch_reserved_bytes": 8019509248,
+          "current_torch_allocated_bytes": 5572742656,
+          "device_free_bytes_after_generation": 257763049472,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 4,
+          "peak_torch_allocated_bytes": 7482726400,
+          "peak_torch_reserved_bytes": 8019509248,
+          "current_torch_allocated_bytes": 5572742656,
+          "device_free_bytes_after_generation": 257360396288,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 5,
+          "peak_torch_allocated_bytes": 7482726400,
+          "peak_torch_reserved_bytes": 8019509248,
+          "current_torch_allocated_bytes": 5572742656,
+          "device_free_bytes_after_generation": 257226178560,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 6,
+          "peak_torch_allocated_bytes": 7482726400,
+          "peak_torch_reserved_bytes": 8019509248,
+          "current_torch_allocated_bytes": 5572742656,
+          "device_free_bytes_after_generation": 258031484928,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 7,
+          "peak_torch_allocated_bytes": 7482726400,
+          "peak_torch_reserved_bytes": 8019509248,
+          "current_torch_allocated_bytes": 5572742656,
+          "device_free_bytes_after_generation": 258031484928,
+          "device_total_bytes": 274861129728
+        }
+      ]
+    },
+    "65536": {
+      "elapsed_seconds": 1.3900096816942096,
+      "prefill_seconds": 1.382653714157641,
+      "elapsed_samples_seconds": [
+        1.3900096816942096
+      ],
+      "prefill_samples_seconds": [
+        1.382653714157641
+      ],
+      "decode_ms_per_batch_step": 4.3604401871562,
+      "decode_samples_seconds_per_batch_step": [
+        0.0043604401871562
+      ],
+      "aggregate_prompt_tokens_per_second": 47398.708244115,
+      "generated_token_ids": [
+        [
+          246,
+          64
+        ]
+      ],
+      "warmup_worker_memory": [
+        {
+          "rank": 0,
+          "peak_torch_allocated_bytes": 7872945152,
+          "peak_torch_reserved_bytes": 8321499136,
+          "current_torch_allocated_bytes": 5572889600,
+          "device_free_bytes_after_generation": 257461059584,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 1,
+          "peak_torch_allocated_bytes": 7872944128,
+          "peak_torch_reserved_bytes": 8321499136,
+          "current_torch_allocated_bytes": 5572890112,
+          "device_free_bytes_after_generation": 258400583680,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 2,
+          "peak_torch_allocated_bytes": 7872944128,
+          "peak_torch_reserved_bytes": 8321499136,
+          "current_torch_allocated_bytes": 5572890112,
+          "device_free_bytes_after_generation": 257461059584,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 3,
+          "peak_torch_allocated_bytes": 7872944128,
+          "peak_torch_reserved_bytes": 8321499136,
+          "current_torch_allocated_bytes": 5572890112,
+          "device_free_bytes_after_generation": 257461059584,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 4,
+          "peak_torch_allocated_bytes": 7872944128,
+          "peak_torch_reserved_bytes": 8321499136,
+          "current_torch_allocated_bytes": 5572890112,
+          "device_free_bytes_after_generation": 257058406400,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 5,
+          "peak_torch_allocated_bytes": 7872944128,
+          "peak_torch_reserved_bytes": 8321499136,
+          "current_torch_allocated_bytes": 5572890112,
+          "device_free_bytes_after_generation": 256924188672,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 6,
+          "peak_torch_allocated_bytes": 7872944128,
+          "peak_torch_reserved_bytes": 8321499136,
+          "current_torch_allocated_bytes": 5572890112,
+          "device_free_bytes_after_generation": 257729495040,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 7,
+          "peak_torch_allocated_bytes": 7872944128,
+          "peak_torch_reserved_bytes": 8321499136,
+          "current_torch_allocated_bytes": 5572890112,
+          "device_free_bytes_after_generation": 257729495040,
+          "device_total_bytes": 274861129728
+        }
+      ],
+      "worker_memory": [
+        {
+          "rank": 0,
+          "peak_torch_allocated_bytes": 7872945152,
+          "peak_torch_reserved_bytes": 8321499136,
+          "current_torch_allocated_bytes": 5572889600,
+          "device_free_bytes_after_generation": 257461059584,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 1,
+          "peak_torch_allocated_bytes": 7872944128,
+          "peak_torch_reserved_bytes": 8321499136,
+          "current_torch_allocated_bytes": 5572890112,
+          "device_free_bytes_after_generation": 258400583680,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 2,
+          "peak_torch_allocated_bytes": 7872944128,
+          "peak_torch_reserved_bytes": 8321499136,
+          "current_torch_allocated_bytes": 5572890112,
+          "device_free_bytes_after_generation": 257461059584,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 3,
+          "peak_torch_allocated_bytes": 7872944128,
+          "peak_torch_reserved_bytes": 8321499136,
+          "current_torch_allocated_bytes": 5572890112,
+          "device_free_bytes_after_generation": 257461059584,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 4,
+          "peak_torch_allocated_bytes": 7872944128,
+          "peak_torch_reserved_bytes": 8321499136,
+          "current_torch_allocated_bytes": 5572890112,
+          "device_free_bytes_after_generation": 257058406400,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 5,
+          "peak_torch_allocated_bytes": 7872944128,
+          "peak_torch_reserved_bytes": 8321499136,
+          "current_torch_allocated_bytes": 5572890112,
+          "device_free_bytes_after_generation": 256924188672,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 6,
+          "peak_torch_allocated_bytes": 7872944128,
+          "peak_torch_reserved_bytes": 8321499136,
+          "current_torch_allocated_bytes": 5572890112,
+          "device_free_bytes_after_generation": 257729495040,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 7,
+          "peak_torch_allocated_bytes": 7872944128,
+          "peak_torch_reserved_bytes": 8321499136,
+          "current_torch_allocated_bytes": 5572890112,
+          "device_free_bytes_after_generation": 257729495040,
+          "device_total_bytes": 274861129728
+        }
+      ]
+    },
+    "131072": {
+      "elapsed_seconds": 4.381144551560283,
+      "prefill_seconds": 4.370628667064011,
+      "elapsed_samples_seconds": [
+        4.381144551560283
+      ],
+      "prefill_samples_seconds": [
+        4.370628667064011
+      ],
+      "decode_ms_per_batch_step": 4.653026349842548,
+      "decode_samples_seconds_per_batch_step": [
+        0.004653026349842548
+      ],
+      "aggregate_prompt_tokens_per_second": 29989.278427546713,
+      "generated_token_ids": [
+        [
+          19,
+          94
+        ]
+      ],
+      "warmup_worker_memory": [
+        {
+          "rank": 0,
+          "peak_torch_allocated_bytes": 8405391872,
+          "peak_torch_reserved_bytes": 9133096960,
+          "current_torch_allocated_bytes": 5573184512,
+          "device_free_bytes_after_generation": 256647364608,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 1,
+          "peak_torch_allocated_bytes": 8405390848,
+          "peak_torch_reserved_bytes": 9133096960,
+          "current_torch_allocated_bytes": 5573185024,
+          "device_free_bytes_after_generation": 257586888704,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 2,
+          "peak_torch_allocated_bytes": 8405390848,
+          "peak_torch_reserved_bytes": 9133096960,
+          "current_torch_allocated_bytes": 5573185024,
+          "device_free_bytes_after_generation": 256647364608,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 3,
+          "peak_torch_allocated_bytes": 8405390848,
+          "peak_torch_reserved_bytes": 9133096960,
+          "current_torch_allocated_bytes": 5573185024,
+          "device_free_bytes_after_generation": 256647364608,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 4,
+          "peak_torch_allocated_bytes": 8405390848,
+          "peak_torch_reserved_bytes": 9133096960,
+          "current_torch_allocated_bytes": 5573185024,
+          "device_free_bytes_after_generation": 256244711424,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 5,
+          "peak_torch_allocated_bytes": 8405390848,
+          "peak_torch_reserved_bytes": 9133096960,
+          "current_torch_allocated_bytes": 5573185024,
+          "device_free_bytes_after_generation": 256110493696,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 6,
+          "peak_torch_allocated_bytes": 8405390848,
+          "peak_torch_reserved_bytes": 9133096960,
+          "current_torch_allocated_bytes": 5573185024,
+          "device_free_bytes_after_generation": 256915800064,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 7,
+          "peak_torch_allocated_bytes": 8405390848,
+          "peak_torch_reserved_bytes": 9133096960,
+          "current_torch_allocated_bytes": 5573185024,
+          "device_free_bytes_after_generation": 256915800064,
+          "device_total_bytes": 274861129728
+        }
+      ],
+      "worker_memory": [
+        {
+          "rank": 0,
+          "peak_torch_allocated_bytes": 8405391872,
+          "peak_torch_reserved_bytes": 9133096960,
+          "current_torch_allocated_bytes": 5573184512,
+          "device_free_bytes_after_generation": 256647364608,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 1,
+          "peak_torch_allocated_bytes": 8405390848,
+          "peak_torch_reserved_bytes": 9133096960,
+          "current_torch_allocated_bytes": 5573185024,
+          "device_free_bytes_after_generation": 257586888704,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 2,
+          "peak_torch_allocated_bytes": 8405390848,
+          "peak_torch_reserved_bytes": 9133096960,
+          "current_torch_allocated_bytes": 5573185024,
+          "device_free_bytes_after_generation": 256647364608,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 3,
+          "peak_torch_allocated_bytes": 8405390848,
+          "peak_torch_reserved_bytes": 9133096960,
+          "current_torch_allocated_bytes": 5573185024,
+          "device_free_bytes_after_generation": 256647364608,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 4,
+          "peak_torch_allocated_bytes": 8405390848,
+          "peak_torch_reserved_bytes": 9133096960,
+          "current_torch_allocated_bytes": 5573185024,
+          "device_free_bytes_after_generation": 256244711424,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 5,
+          "peak_torch_allocated_bytes": 8405390848,
+          "peak_torch_reserved_bytes": 9133096960,
+          "current_torch_allocated_bytes": 5573185024,
+          "device_free_bytes_after_generation": 256110493696,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 6,
+          "peak_torch_allocated_bytes": 8405390848,
+          "peak_torch_reserved_bytes": 9133096960,
+          "current_torch_allocated_bytes": 5573185024,
+          "device_free_bytes_after_generation": 256915800064,
+          "device_total_bytes": 274861129728
+        },
+        {
+          "rank": 7,
+          "peak_torch_allocated_bytes": 8405390848,
+          "peak_torch_reserved_bytes": 9133096960,
+          "current_torch_allocated_bytes": 5573185024,
+          "device_free_bytes_after_generation": 256915800064,
+          "device_total_bytes": 274861129728
+        }
+      ]
+    }
+  },
+  "gpu_memory_utilization": 0.8,
+  "kv_cache_memory_bytes": 3221225472,
+  "worker_attention_audit_status": "passed",
+  "measurement_status": "complete",
+  "graph_prefill_requested": false,
+  "worker_attention_audit": [
+    {
+      "lod_runtime": false,
+      "lod_pool_count": 0,
+      "lod_engine_configurations": [],
+      "lod_cross_layer_prefill_group_size": null,
+      "attached_lod_layers": 0,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 0,
+      "model_class": "KimiLinearForCausalLM",
+      "loaded_kimi_lod_modules": [],
+      "dense_gluon_decode_installed": true,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 0,
+        "retained": 0,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": null
+      }
+    },
+    {
+      "lod_runtime": false,
+      "lod_pool_count": 0,
+      "lod_engine_configurations": [],
+      "lod_cross_layer_prefill_group_size": null,
+      "attached_lod_layers": 0,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 0,
+      "model_class": "KimiLinearForCausalLM",
+      "loaded_kimi_lod_modules": [],
+      "dense_gluon_decode_installed": true,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 0,
+        "retained": 0,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": null
+      }
+    },
+    {
+      "lod_runtime": false,
+      "lod_pool_count": 0,
+      "lod_engine_configurations": [],
+      "lod_cross_layer_prefill_group_size": null,
+      "attached_lod_layers": 0,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 0,
+      "model_class": "KimiLinearForCausalLM",
+      "loaded_kimi_lod_modules": [],
+      "dense_gluon_decode_installed": true,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 0,
+        "retained": 0,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": null
+      }
+    },
+    {
+      "lod_runtime": false,
+      "lod_pool_count": 0,
+      "lod_engine_configurations": [],
+      "lod_cross_layer_prefill_group_size": null,
+      "attached_lod_layers": 0,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 0,
+      "model_class": "KimiLinearForCausalLM",
+      "loaded_kimi_lod_modules": [],
+      "dense_gluon_decode_installed": true,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 0,
+        "retained": 0,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": null
+      }
+    },
+    {
+      "lod_runtime": false,
+      "lod_pool_count": 0,
+      "lod_engine_configurations": [],
+      "lod_cross_layer_prefill_group_size": null,
+      "attached_lod_layers": 0,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 0,
+      "model_class": "KimiLinearForCausalLM",
+      "loaded_kimi_lod_modules": [],
+      "dense_gluon_decode_installed": true,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 0,
+        "retained": 0,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": null
+      }
+    },
+    {
+      "lod_runtime": false,
+      "lod_pool_count": 0,
+      "lod_engine_configurations": [],
+      "lod_cross_layer_prefill_group_size": null,
+      "attached_lod_layers": 0,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 0,
+      "model_class": "KimiLinearForCausalLM",
+      "loaded_kimi_lod_modules": [],
+      "dense_gluon_decode_installed": true,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 0,
+        "retained": 0,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": null
+      }
+    },
+    {
+      "lod_runtime": false,
+      "lod_pool_count": 0,
+      "lod_engine_configurations": [],
+      "lod_cross_layer_prefill_group_size": null,
+      "attached_lod_layers": 0,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 0,
+      "model_class": "KimiLinearForCausalLM",
+      "loaded_kimi_lod_modules": [],
+      "dense_gluon_decode_installed": true,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 0,
+        "retained": 0,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": null
+      }
+    },
+    {
+      "lod_runtime": false,
+      "lod_pool_count": 0,
+      "lod_engine_configurations": [],
+      "lod_cross_layer_prefill_group_size": null,
+      "attached_lod_layers": 0,
+      "attention_layer_count": 24,
+      "attention_impl_classes": [
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl",
+        "TritonMLAImpl"
+      ],
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 0,
+      "model_class": "KimiLinearForCausalLM",
+      "loaded_kimi_lod_modules": [],
+      "dense_gluon_decode_installed": true,
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "device_name": "AMD Instinct MI325X",
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_total_memory_bytes": 274861129728,
+      "torch_hip_version": "7.15.26333",
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "breakable_cudagraph_entries": [],
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "prefill_allocator_audit": {
+        "calls": 0,
+        "retained": 0,
+        "reclaimed": 0,
+        "minimum_free_bytes_at_check": null
+      }
+    }
+  ]
+}

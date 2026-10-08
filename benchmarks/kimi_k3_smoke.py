@@ -33,6 +33,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--decode-tokens", type=int, default=64)
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--warmup-runs", type=int, default=0)
+    parser.add_argument("--fixture-layers", type=int,
+                        help="Keep 1--24 MLA-only fixture layers; requires dummy weights")
     parser.add_argument("--tensor-parallel-size", type=int, default=1)
     parser.add_argument("--decode-context-parallel-size", type=int, default=1)
     parser.add_argument("--gpu-memory-utilization", type=float, default=0.8)
@@ -201,6 +203,12 @@ def main() -> None:
     else:
         kwargs["load_format"] = args.load_format
     kwargs["skip_tokenizer_init"] = args.skip_tokenizer_init
+    if args.fixture_layers is not None:
+        config = json.loads((Path(args.checkpoint) / "config.json").read_text())
+        if args.load_format != "dummy" or not config.get("lod_attention_only_fixture"):
+            raise ValueError("--fixture-layers is restricted to the dummy attention-only fixture")
+        from benchmarks.kimi_k3_decode_fixture import fixture_overrides
+        kwargs["hf_overrides"] = fixture_overrides(args.fixture_layers)
     kwargs["enforce_eager"] = args.enforce_eager
     if args.kv_cache_memory_bytes is not None:
         if args.kv_cache_memory_bytes <= 0:
@@ -257,6 +265,7 @@ def main() -> None:
         result = {
             "checkpoint": args.checkpoint,
             "mode": args.mode,
+            "fixture_layers": args.fixture_layers,
             "dense_decode_backend": (
                 "gluon_absorbed_mla"
                 if args.mode == "full"

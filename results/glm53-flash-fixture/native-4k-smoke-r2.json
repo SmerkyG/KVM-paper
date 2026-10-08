@@ -1,0 +1,15 @@
+{
+  "batch": 1,
+  "error": {
+    "message": "Engine core initialization failed. See root cause above. Failed core proc(s): {}",
+    "type": "RuntimeError"
+  },
+  "fixture": "tests/fixtures/glm53-flash-mixed4-fp8",
+  "length": 4096,
+  "mode": "full",
+  "quality_evidence": false,
+  "random_weights": true,
+  "reference": "native learned sparse MLA (2048-token indexer budget), not dense attention",
+  "status": "failed",
+  "timing": "one untimed exact-shape warmup followed by one synchronized pass"
+}

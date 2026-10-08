@@ -160,9 +160,10 @@ class VLLMLayerLODPool:
             else int(layer.head_size_v)
         )
         self.kimi_head_tiled_decode = bool(
-            self.is_absorbed_mla and self.head_dim == 576
-            and self.value_dim == 512 and self.query_heads > 16
-            and self.query_heads % 16 == 0 and settings.levels == 2
+            self.is_absorbed_mla and self.head_dim in (512, 576)
+            and self.value_dim == 512
+            and ((self.query_heads > 16 and self.query_heads % 16 == 0)
+                 or 0 < self.query_heads <= 16)
         )
         self.speculative_tokens = int(speculative_tokens)
         gqa = self.query_heads // self.kv_heads
@@ -171,7 +172,9 @@ class VLLMLayerLODPool:
                 "LOD vLLM currently requires equal K and V widths"
             )
         if self.is_absorbed_mla:
-            self.family = ModelFamily.KIMI_K3
+            self.family = (ModelFamily.GLM53_FLASH
+                           if getattr(layer, "_vllm_lod_glm53", False)
+                           else ModelFamily.KIMI_K3)
             # Kimi supplies an already RMS-normalized latent, but the complete
             # [latent, direct-key] vector is not unit length.  Preserve raw
             # dot products and raw centroid sums in latent space.
@@ -497,7 +500,7 @@ class VLLMLayerLODPool:
         k2_int4 = self.family is ModelFamily.K2 and recursive and expected_bits == 4
         if self.family is ModelFamily.K2:
             expected_leaf_geometry = (256, 16) if k2_int4 else (128, 32)
-        elif self.family is ModelFamily.KIMI_K3:
+        elif self.family in (ModelFamily.KIMI_K3, ModelFamily.GLM53_FLASH):
             expected_leaf_geometry = (
                 int(os.getenv("LOD_KIMI_LEAF_BLOCK_M", "32")),
                 16,
@@ -506,7 +509,7 @@ class VLLMLayerLODPool:
             expected_leaf_geometry = (32, 16)
         expected_leaf_warps = (
             int(os.getenv("LOD_KIMI_LEAF_WARPS", "2"))
-            if self.family is ModelFamily.KIMI_K3
+            if self.family in (ModelFamily.KIMI_K3, ModelFamily.GLM53_FLASH)
             else (4 if k2_int4 else 2)
         )
         checks = {
@@ -551,7 +554,7 @@ class VLLMLayerLODPool:
             ),
             "GQA-aware AITER prefill route/coarse": (
                 self.engine.prefill_aiter_route_coarse
-                or self.family is ModelFamily.KIMI_K3
+                or self.family in (ModelFamily.KIMI_K3, ModelFamily.GLM53_FLASH)
             ),
             "complete-centroid prefill": (
                 not recursive or self.engine.recursive_prefill_all_leaves
@@ -592,7 +595,7 @@ class VLLMLayerLODPool:
         unified_page1 = (
             (
                 self.settings.levels == 2
-                or (self.settings.levels == 3 and self.family is ModelFamily.K2)
+                or (self.settings.levels == 3 and (self.family is ModelFamily.K2 or self.is_absorbed_mla))
             )
             and self.dtype == torch.bfloat16
             and (1 < self.query_heads // self.kv_heads <= 16
@@ -602,7 +605,7 @@ class VLLMLayerLODPool:
                 self.head_dim in (128, 256)
                 or (
                     self.is_absorbed_mla
-                    and self.head_dim == 576
+                    and self.head_dim in (512, 576)
                     and self.value_dim == 512
                 )
             )
@@ -652,9 +655,11 @@ class VLLMLayerLODPool:
                     + kv_rows * self.local_capacity
                 ].view(r, h, self.local_capacity, self.value_dim)
             )
-            if self.settings.decode_gqa_fixed_mask_aiter:
+            # The head-tiled MLA compact consumer uses the same persistent
+            # physical-leaf directory, even without the fixed-mask consumer.
+            if self.settings.decode_gqa_fixed_mask_aiter or self.kimi_head_tiled_decode:
                 fixed_capacity = (
-                    self.leaf_capacity
+                    (self.leaf_capacity if self.settings.levels == 2 else 0)
                     + self.decode_local_limit
                     + 1
                     + sink_capacity
@@ -673,7 +678,7 @@ class VLLMLayerLODPool:
                 unified_page1_fixed_leaf_owners = torch.empty(
                     r,
                     h,
-                    self.leaf_capacity,
+                    self.leaf_capacity if self.settings.levels == 2 else 0,
                     dtype=torch.int32,
                     device=self.device,
                 )
@@ -687,6 +692,22 @@ class VLLMLayerLODPool:
                 unified_page1_fixed_lengths = torch.zeros(
                     r, h, dtype=torch.int32, device=self.device
                 )
+                if self.settings.levels == 3:
+                    # Only the fixed coarse/local/sink prefix is consumed by
+                    # Gluon. Exact pages stay in their own BF16/INT4 archive;
+                    # no full-history leaf list is built or scanned.
+                    from lod_attention.kernels.paged_decode_kernels import (
+                        _initialize_page1_fixed_prefix_kernel,
+                    )
+                    _initialize_page1_fixed_prefix_kernel[(r * h, math.ceil(fixed_capacity / 64))](
+                        unified_page1_fixed_indices,
+                        ROW_OFFSET=0, KV_HEADS=h, FIXED_CAPACITY=fixed_capacity,
+                        LOCAL_OFFSET=arena_local_offset, LOCAL_CAPACITY=self.local_capacity,
+                        LOCAL_LIMIT=self.decode_local_limit,
+                        SINK_OFFSET=arena_sink_offset, SINK_CAPACITY=sink_capacity,
+                        SINK_LEN=sink_capacity, COARSE_OFFSET=arena_coarse_offset,
+                        STATE_CAPACITY=s, BLOCK_N=64, num_warps=1,
+                    )
             else:
                 unified_page1_fixed_indices = None
                 unified_page1_fixed_leaf_owners = None
@@ -1808,7 +1829,7 @@ class VLLMLayerLODPool:
                     active_state_len=active_state_len,
                 )
             begin = end
-        if self.settings.decode_gqa_fixed_mask_aiter:
+        if self.settings.decode_gqa_fixed_mask_aiter or self.kimi_head_tiled_decode:
             self._refresh_unified_page1_fixed(slots)
 
     def ensure_unified_page1_fixed(self, slots: tuple[int, ...]) -> None:
@@ -1822,6 +1843,9 @@ class VLLMLayerLODPool:
 
     def _refresh_unified_page1_fixed(self, slots: tuple[int, ...]) -> None:
         """Rebuild the persistent physical-leaf list after a state update."""
+        if self.settings.levels == 3:
+            # The prefix addresses do not change when centroids/pages change.
+            return
         if not slots:
             return
         page = self.state.get("page_cache")
@@ -4226,6 +4250,12 @@ class VLLMLayerLODPool:
         """Reserve graph scratch before vLLM computes its native cache budget."""
         if not 1 <= rows <= self.max_requests:
             raise ValueError("decode scratch rows exceed the fixed LOD pool")
+        if self.dcp_world_size > 1:
+            # DCP processes the gathered queries, not this rank's TP head
+            # shard. Allocate that geometry once; a later reservation must
+            # never reuse narrower scratch or replace captured pointers.
+            self.reserve_dcp_decode_buffers(rows, self.query_heads * self.dcp_world_size)
+            return
         query = torch.empty(
             rows,
             self.query_heads,
@@ -4244,13 +4274,18 @@ class VLLMLayerLODPool:
     ) -> dict[str, torch.Tensor]:
         """Fixed-address scratch for K3's 96-head DCP decode query."""
 
+        if not 1 <= rows <= self.max_requests:
+            raise ValueError("MLA decode scratch rows exceed the fixed LOD pool")
         if self.dcp_world_size == 1 and not self.kimi_head_tiled_decode:
             return self._buffers(query, rows)
-        if not self.is_absorbed_mla or int(query.size(1)) % 16:
+        if (not self.is_absorbed_mla or int(query.size(1)) <= 0
+                or (int(query.size(1)) > 16 and int(query.size(1)) % 16)):
             raise ValueError("Kimi DCP LoD requires 16-head query tiles")
         storage = self.dcp_decode_buffer_storage
+        if storage is not None and storage["route_top_slots"].size(1) != query.size(1):
+            raise ValueError("MLA decode query heads differ from the reserved scratch")
         if storage is None or storage["partial_out"].device != query.device:
-            virtual_kv_heads = int(query.size(1)) // 16
+            virtual_kv_heads = max(1, int(query.size(1)) // 16)
             template = query.new_empty(
                 self.max_requests,
                 int(query.size(1)),
@@ -4269,7 +4304,7 @@ class VLLMLayerLODPool:
                 route_segment_tiles=int(self.engine.decode_route_segment_tiles),
                 gqa_union_kv_heads=virtual_kv_heads,
                 gqa_union_index_capacity=(
-                    self.leaf_capacity
+                    (self.leaf_capacity if self.settings.levels == 2 else 0)
                     + self.decode_local_limit
                     + 1
                     + self.state_capacity
@@ -4656,11 +4691,12 @@ class VLLMLayerLODPool:
         if self.dcp_world_size <= 1 and not self.kimi_head_tiled_decode:
             raise RuntimeError("decode_dcp requires an initialized DCP group")
         rows, gathered_heads, head_dim = query.shape
-        if head_dim != self.head_dim or gathered_heads % 16:
+        if (head_dim != self.head_dim or gathered_heads <= 0
+                or (gathered_heads > 16 and gathered_heads % 16)):
             raise ValueError("unexpected gathered Kimi DCP query geometry")
         if tuple(key.shape[:2]) != (rows, self.kv_heads):
             raise ValueError("Kimi DCP current K/V geometry differs from its pool")
-        virtual_kv_heads = gathered_heads // 16
+        virtual_kv_heads = max(1, gathered_heads // 16)
         q = query.unsqueeze(2).contiguous()
         k = key.unsqueeze(2).contiguous()
         v = value.unsqueeze(2).contiguous()
@@ -4709,7 +4745,7 @@ class VLLMLayerLODPool:
             new_v=v.expand(rows, virtual_kv_heads, 1, self.value_dim),
             store_new_kv=True,
             advance_local_lens=False,
-            kv_group_size=16,
+            kv_group_size=min(16, gathered_heads),
             scale=float(self.engine.scaling),
             hash_probes=int(self.engine._page_lookup_probes(page)),
             block_n=int(self.engine.decode_block_n),
@@ -4747,6 +4783,10 @@ class VLLMLayerLODPool:
             protected_len=0,
             open_count=ROUTE_COUNT,
             flat_page_indices=virtual_heads(page["page_indices"]),
+            recursive_page_cache=page if self.settings.levels == 3 else None,
+            recursive_state_route_backend=self.engine.recursive_state_route_backend,
+            recursive_quant_group_size=self.engine.leaf_quant_group_size,
+            recursive_quant_token_group_size=self.engine.leaf_quant_token_group_size,
             exact_decode_threshold=0,
             output_buffer=output.unsqueeze(2),
             distributed_route_group=(

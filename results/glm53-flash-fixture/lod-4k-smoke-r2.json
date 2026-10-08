@@ -1,0 +1,15 @@
+{
+  "batch": 1,
+  "error": {
+    "message": "Object of type <class 'function'> is not serializableSet VLLM_ALLOW_INSECURE_SERIALIZATION=1 to allow fallback to pickle-based serialization.",
+    "type": "TypeError"
+  },
+  "fixture": "tests/fixtures/glm53-flash-mixed4-fp8",
+  "length": 4096,
+  "mode": "two-tier",
+  "quality_evidence": false,
+  "random_weights": true,
+  "reference": "native learned sparse MLA (2048-token indexer budget), not dense attention",
+  "status": "failed",
+  "timing": "one untimed exact-shape warmup followed by one synchronized pass"
+}

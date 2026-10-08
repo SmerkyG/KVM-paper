@@ -1,0 +1,92 @@
+{
+  "candidates": [
+    {
+      "block_m": 64,
+      "block_n": 32,
+      "gluon_warps": null,
+      "gpu_ms": 4.4383769035339355,
+      "mfma": 16,
+      "status": "complete",
+      "warps": 4
+    },
+    {
+      "block_m": 64,
+      "block_n": 32,
+      "error": "at 42:32:\n    score_cols = gl.arange(0, BLOCK_N, layout=gl.SliceLayout(0, mfma))\n    maximum = gl.full((BLOCK_M,), -float(\"inf\"), gl.float32, gl.SliceLayout(1, mfma))\n    denominator = gl.zeros((BLOCK_M,), gl.float32, gl.SliceLayout(1, mfma))\n    accumulator = gl.zeros((BLOCK_M, 512), gl.float32, mfma)\n    cols = gl.arange(0, BLOCK_N, layout=gl.SliceLayout(1, load_layout))\n    end = gl.minimum(KEY_LEN, QUERY_OFFSET + (gl.program_id(1) + 1) * BLOCK_M)\n    for begin in range(0, end, BLOCK_N):\n        positions = begin + cols\n        latent = gl.load(KV + batch * KV_BATCH_STRIDE\n                         + positions[:, None] * KV_TOKEN_STRIDE + dims[None, :],\n                         mask=positions[:, None] < KEY_LEN, other=0.0)\n        key = gl.convert_layout(gl.trans(latent), operand_b)\n                                ^\nAttributeError(\"module 'triton.experimental.gluon.language' has no attribute 'trans'\")",
+      "gluon_warps": [
+        1,
+        4
+      ],
+      "mfma": 16,
+      "status": "failed",
+      "warps": 4
+    },
+    {
+      "block_m": 64,
+      "block_n": 32,
+      "error": "at 42:32:\n    score_cols = gl.arange(0, BLOCK_N, layout=gl.SliceLayout(0, mfma))\n    maximum = gl.full((BLOCK_M,), -float(\"inf\"), gl.float32, gl.SliceLayout(1, mfma))\n    denominator = gl.zeros((BLOCK_M,), gl.float32, gl.SliceLayout(1, mfma))\n    accumulator = gl.zeros((BLOCK_M, 512), gl.float32, mfma)\n    cols = gl.arange(0, BLOCK_N, layout=gl.SliceLayout(1, load_layout))\n    end = gl.minimum(KEY_LEN, QUERY_OFFSET + (gl.program_id(1) + 1) * BLOCK_M)\n    for begin in range(0, end, BLOCK_N):\n        positions = begin + cols\n        latent = gl.load(KV + batch * KV_BATCH_STRIDE\n                         + positions[:, None] * KV_TOKEN_STRIDE + dims[None, :],\n                         mask=positions[:, None] < KEY_LEN, other=0.0)\n        key = gl.convert_layout(gl.trans(latent), operand_b)\n                                ^\nAttributeError(\"module 'triton.experimental.gluon.language' has no attribute 'trans'\")",
+      "gluon_warps": [
+        2,
+        2
+      ],
+      "mfma": 16,
+      "status": "failed",
+      "warps": 4
+    },
+    {
+      "block_m": 64,
+      "block_n": 64,
+      "error": "at 42:32:\n    score_cols = gl.arange(0, BLOCK_N, layout=gl.SliceLayout(0, mfma))\n    maximum = gl.full((BLOCK_M,), -float(\"inf\"), gl.float32, gl.SliceLayout(1, mfma))\n    denominator = gl.zeros((BLOCK_M,), gl.float32, gl.SliceLayout(1, mfma))\n    accumulator = gl.zeros((BLOCK_M, 512), gl.float32, mfma)\n    cols = gl.arange(0, BLOCK_N, layout=gl.SliceLayout(1, load_layout))\n    end = gl.minimum(KEY_LEN, QUERY_OFFSET + (gl.program_id(1) + 1) * BLOCK_M)\n    for begin in range(0, end, BLOCK_N):\n        positions = begin + cols\n        latent = gl.load(KV + batch * KV_BATCH_STRIDE\n                         + positions[:, None] * KV_TOKEN_STRIDE + dims[None, :],\n                         mask=positions[:, None] < KEY_LEN, other=0.0)\n        key = gl.convert_layout(gl.trans(latent), operand_b)\n                                ^\nAttributeError(\"module 'triton.experimental.gluon.language' has no attribute 'trans'\")",
+      "gluon_warps": [
+        2,
+        2
+      ],
+      "mfma": 16,
+      "status": "failed",
+      "warps": 4
+    },
+    {
+      "block_m": 64,
+      "block_n": 64,
+      "error": "at 42:32:\n    score_cols = gl.arange(0, BLOCK_N, layout=gl.SliceLayout(0, mfma))\n    maximum = gl.full((BLOCK_M,), -float(\"inf\"), gl.float32, gl.SliceLayout(1, mfma))\n    denominator = gl.zeros((BLOCK_M,), gl.float32, gl.SliceLayout(1, mfma))\n    accumulator = gl.zeros((BLOCK_M, 512), gl.float32, mfma)\n    cols = gl.arange(0, BLOCK_N, layout=gl.SliceLayout(1, load_layout))\n    end = gl.minimum(KEY_LEN, QUERY_OFFSET + (gl.program_id(1) + 1) * BLOCK_M)\n    for begin in range(0, end, BLOCK_N):\n        positions = begin + cols\n        latent = gl.load(KV + batch * KV_BATCH_STRIDE\n                         + positions[:, None] * KV_TOKEN_STRIDE + dims[None, :],\n                         mask=positions[:, None] < KEY_LEN, other=0.0)\n        key = gl.convert_layout(gl.trans(latent), operand_b)\n                                ^\nAttributeError(\"module 'triton.experimental.gluon.language' has no attribute 'trans'\")",
+      "gluon_warps": [
+        4,
+        1
+      ],
+      "mfma": 16,
+      "status": "failed",
+      "warps": 4
+    },
+    {
+      "block_m": 128,
+      "block_n": 32,
+      "error": "at 42:32:\n    score_cols = gl.arange(0, BLOCK_N, layout=gl.SliceLayout(0, mfma))\n    maximum = gl.full((BLOCK_M,), -float(\"inf\"), gl.float32, gl.SliceLayout(1, mfma))\n    denominator = gl.zeros((BLOCK_M,), gl.float32, gl.SliceLayout(1, mfma))\n    accumulator = gl.zeros((BLOCK_M, 512), gl.float32, mfma)\n    cols = gl.arange(0, BLOCK_N, layout=gl.SliceLayout(1, load_layout))\n    end = gl.minimum(KEY_LEN, QUERY_OFFSET + (gl.program_id(1) + 1) * BLOCK_M)\n    for begin in range(0, end, BLOCK_N):\n        positions = begin + cols\n        latent = gl.load(KV + batch * KV_BATCH_STRIDE\n                         + positions[:, None] * KV_TOKEN_STRIDE + dims[None, :],\n                         mask=positions[:, None] < KEY_LEN, other=0.0)\n        key = gl.convert_layout(gl.trans(latent), operand_b)\n                                ^\nAttributeError(\"module 'triton.experimental.gluon.language' has no attribute 'trans'\")",
+      "gluon_warps": [
+        2,
+        2
+      ],
+      "mfma": 16,
+      "status": "failed",
+      "warps": 4
+    },
+    {
+      "block_m": 128,
+      "block_n": 64,
+      "error": "at 42:32:\n    score_cols = gl.arange(0, BLOCK_N, layout=gl.SliceLayout(0, mfma))\n    maximum = gl.full((BLOCK_M,), -float(\"inf\"), gl.float32, gl.SliceLayout(1, mfma))\n    denominator = gl.zeros((BLOCK_M,), gl.float32, gl.SliceLayout(1, mfma))\n    accumulator = gl.zeros((BLOCK_M, 512), gl.float32, mfma)\n    cols = gl.arange(0, BLOCK_N, layout=gl.SliceLayout(1, load_layout))\n    end = gl.minimum(KEY_LEN, QUERY_OFFSET + (gl.program_id(1) + 1) * BLOCK_M)\n    for begin in range(0, end, BLOCK_N):\n        positions = begin + cols\n        latent = gl.load(KV + batch * KV_BATCH_STRIDE\n                         + positions[:, None] * KV_TOKEN_STRIDE + dims[None, :],\n                         mask=positions[:, None] < KEY_LEN, other=0.0)\n        key = gl.convert_layout(gl.trans(latent), operand_b)\n                                ^\nAttributeError(\"module 'triton.experimental.gluon.language' has no attribute 'trans'\")",
+      "gluon_warps": [
+        4,
+        2
+      ],
+      "mfma": 16,
+      "status": "failed",
+      "warps": 8
+    }
+  ],
+  "scope": "diagnostic exact causal local kernel on random tensors",
+  "shape": [
+    1,
+    64,
+    4096,
+    512
+  ]
+}

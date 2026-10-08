@@ -1,0 +1,1738 @@
+{
+  "aiter_fmoe_config": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/configs/tuned_fmoe.csv",
+  "aiter_gemm_config": "/home/dan/subusers/agent/.cache/kimi-k3-v10-image/bundle/rootfs/usr/local/lib/python3.12/dist-packages/aiter/configs/a8w8_blockscale_tuned_gemm.csv",
+  "argv": [
+    "/home/dan/subusers/agent/KVM-paper-release/benchmarks/glm53_flash_full.py",
+    "--checkpoint",
+    "/tmp/dan-agent/models/GLM-5.3-Flash",
+    "--tp",
+    "4",
+    "--length",
+    "65536",
+    "--decode-tokens",
+    "1026",
+    "--weight-cache-id",
+    "glm53-flash-tp4",
+    "--mode",
+    "full",
+    "--batch-size",
+    "8",
+    "--output",
+    "results/glm53-flash-full-model/full-tp4-b8-65536.json"
+  ],
+  "attention_audit": [
+    {
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "attached_lod_layers": 0,
+      "attention_impl_classes": [
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl"
+      ],
+      "attention_layer_count": 11,
+      "breakable_cudagraph_entries": [],
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "dense_gluon_decode_installed": false,
+      "dense_live_splits": false,
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_name": "AMD Instinct MI325X",
+      "device_total_memory_bytes": 274861129728,
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 84,
+      "expandable_eager_allocator": false,
+      "graph_collectives": {
+        "tp": {
+          "disabled": false,
+          "isolated_graph_allocator": true,
+          "registered_capture": true
+        }
+      },
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "loaded_kimi_lod_modules": [],
+      "lod_cross_layer_prefill_group_size": null,
+      "lod_engine_configurations": [],
+      "lod_pool_count": 0,
+      "lod_runtime": false,
+      "model_class": "Glm5NextForConditionalGeneration",
+      "prefill_allocator_audit": {
+        "calls": 0,
+        "minimum_free_bytes_at_check": null,
+        "reclaimed": 0,
+        "retained": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 0,
+        "registries": 0,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded",
+        "storage_bytes": 0,
+        "unique_tensor_count": 0
+      },
+      "torch_hip_version": "7.15.26333"
+    },
+    {
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "attached_lod_layers": 0,
+      "attention_impl_classes": [
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl"
+      ],
+      "attention_layer_count": 11,
+      "breakable_cudagraph_entries": [],
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "dense_gluon_decode_installed": false,
+      "dense_live_splits": false,
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_name": "AMD Instinct MI325X",
+      "device_total_memory_bytes": 274861129728,
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 84,
+      "expandable_eager_allocator": false,
+      "graph_collectives": {
+        "tp": {
+          "disabled": false,
+          "isolated_graph_allocator": true,
+          "registered_capture": true
+        }
+      },
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "loaded_kimi_lod_modules": [],
+      "lod_cross_layer_prefill_group_size": null,
+      "lod_engine_configurations": [],
+      "lod_pool_count": 0,
+      "lod_runtime": false,
+      "model_class": "Glm5NextForConditionalGeneration",
+      "prefill_allocator_audit": {
+        "calls": 0,
+        "minimum_free_bytes_at_check": null,
+        "reclaimed": 0,
+        "retained": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 0,
+        "registries": 0,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded",
+        "storage_bytes": 0,
+        "unique_tensor_count": 0
+      },
+      "torch_hip_version": "7.15.26333"
+    },
+    {
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "attached_lod_layers": 0,
+      "attention_impl_classes": [
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl"
+      ],
+      "attention_layer_count": 11,
+      "breakable_cudagraph_entries": [],
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "dense_gluon_decode_installed": false,
+      "dense_live_splits": false,
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_name": "AMD Instinct MI325X",
+      "device_total_memory_bytes": 274861129728,
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 84,
+      "expandable_eager_allocator": false,
+      "graph_collectives": {
+        "tp": {
+          "disabled": false,
+          "isolated_graph_allocator": true,
+          "registered_capture": true
+        }
+      },
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "loaded_kimi_lod_modules": [],
+      "lod_cross_layer_prefill_group_size": null,
+      "lod_engine_configurations": [],
+      "lod_pool_count": 0,
+      "lod_runtime": false,
+      "model_class": "Glm5NextForConditionalGeneration",
+      "prefill_allocator_audit": {
+        "calls": 0,
+        "minimum_free_bytes_at_check": null,
+        "reclaimed": 0,
+        "retained": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 0,
+        "registries": 0,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded",
+        "storage_bytes": 0,
+        "unique_tensor_count": 0
+      },
+      "torch_hip_version": "7.15.26333"
+    },
+    {
+      "aiter_route_source_sha256": "e23e015b1846a9ab58698fac3fa7d8a3a29f1a0cc0e0a2a27889e9dd50cc8c93",
+      "attached_lod_layers": 0,
+      "attention_impl_classes": [
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl",
+        "ROCMAiterMLASparseImpl"
+      ],
+      "attention_layer_count": 11,
+      "breakable_cudagraph_entries": [],
+      "cudagraph_mode": "FULL_DECODE_ONLY",
+      "dense_gluon_decode_installed": false,
+      "dense_live_splits": false,
+      "device_arch": "gfx942:sramecc+:xnack-",
+      "device_name": "AMD Instinct MI325X",
+      "device_total_memory_bytes": 274861129728,
+      "dummy_attention_layers": 0,
+      "dynamic_moe_layer_count": 84,
+      "expandable_eager_allocator": false,
+      "graph_collectives": {
+        "tp": {
+          "disabled": false,
+          "isolated_graph_allocator": true,
+          "registered_capture": true
+        }
+      },
+      "kimi_coarse_graphs": null,
+      "kimi_final_cache_graphs": null,
+      "kimi_state_update_graphs": null,
+      "loaded_kimi_lod_modules": [],
+      "lod_cross_layer_prefill_group_size": null,
+      "lod_engine_configurations": [],
+      "lod_pool_count": 0,
+      "lod_runtime": false,
+      "model_class": "Glm5NextForConditionalGeneration",
+      "prefill_allocator_audit": {
+        "calls": 0,
+        "minimum_free_bytes_at_check": null,
+        "reclaimed": 0,
+        "retained": 0
+      },
+      "shared_decode_scratch": {
+        "participating_layers": 0,
+        "registries": 0,
+        "scope": "shared transient tensors only; per-layer outputs/state excluded",
+        "storage_bytes": 0,
+        "unique_tensor_count": 0
+      },
+      "torch_hip_version": "7.15.26333"
+    }
+  ],
+  "attention_cache": "BF16",
+  "batch_size": 8,
+  "benchmark": "prolong-glm53-full-model",
+  "checkpoint": "/tmp/dan-agent/models/GLM-5.3-Flash",
+  "cohort_capacity": [
+    {
+      "max_concurrent_requests": 20.349206349206348,
+      "num_blocks": 1282
+    },
+    {
+      "max_concurrent_requests": 20.349206349206348,
+      "num_blocks": 1282
+    },
+    {
+      "max_concurrent_requests": 20.349206349206348,
+      "num_blocks": 1282
+    },
+    {
+      "max_concurrent_requests": 20.349206349206348,
+      "num_blocks": 1282
+    }
+  ],
+  "decode_tokens": 1026,
+  "enforce_eager": false,
+  "hostname": "dev-shared-research-3-56bf6cfb94-4lgwz",
+  "kv_cache_memory_bytes": 17179869184,
+  "length": 65536,
+  "loaded_workers": [
+    {
+      "daemon_endpoint": "/tmp/vllm-weight-cache-620101/glm53-flash-tp4/gpu-349a308c9dcc400011181c80.sock",
+      "daemon_resident_bytes": 80970737448,
+      "mla": [
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        }
+      ],
+      "modules": {
+        "ApplyRotaryEmb": 1,
+        "ColumnParallelLinear": 192,
+        "DeepSeekV2FusedQkvAProjLinear": 11,
+        "FusedRMSNormGated": 34,
+        "GateLinear": 42,
+        "Glm5NextDecoderLayer": 45,
+        "Glm5NextForCausalLM": 1,
+        "Glm5NextForConditionalGeneration": 1,
+        "Glm5NextIndexerCache": 11,
+        "Glm5NextLinearAttention": 34,
+        "Glm5NextMLAAttention": 11,
+        "Glm5NextMLP": 45,
+        "Glm5NextMoE": 42,
+        "Glm5NextModel": 1,
+        "Glm5NextTailCache": 11,
+        "Indexer": 11,
+        "LayerNorm": 11,
+        "LogitsProcessor": 1,
+        "MHCFusedPostPreOp": 45,
+        "MHCPostOp": 45,
+        "MHCPreOp": 45,
+        "MLAAttention": 11,
+        "MergedColumnParallelLinear": 56,
+        "MoERunner": 42,
+        "ModuleList": 2,
+        "MultiHeadLatentAttentionWrapper": 11,
+        "ParallelLMHead": 1,
+        "QuantFP8": 11,
+        "RMSNorm": 113,
+        "ReplicatedLinear": 11,
+        "RotaryEmbedding": 1,
+        "RoutedExperts": 42,
+        "RowParallelLinear": 90,
+        "SharedExperts": 42,
+        "SiluAndMulWithClamp": 45,
+        "SparseAttnIndexerKpool": 11,
+        "StageMissingLayer": 1,
+        "VocabParallelEmbedding": 1,
+        "_DecodeConcatQuantFP8": 11,
+        "_Glm5NextMergedColumnParallelLinear": 34
+      },
+      "parameter_dtypes": {
+        "torch.bfloat16": 404,
+        "torch.float32": 731,
+        "torch.float8_e4m3fnuz": 174
+      },
+      "pools": []
+    },
+    {
+      "daemon_endpoint": "/tmp/vllm-weight-cache-620101/glm53-flash-tp4/gpu-c0fee3a1a83ec2b6b57ac355.sock",
+      "daemon_resident_bytes": 80970737448,
+      "mla": [
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        }
+      ],
+      "modules": {
+        "ApplyRotaryEmb": 1,
+        "ColumnParallelLinear": 192,
+        "DeepSeekV2FusedQkvAProjLinear": 11,
+        "FusedRMSNormGated": 34,
+        "GateLinear": 42,
+        "Glm5NextDecoderLayer": 45,
+        "Glm5NextForCausalLM": 1,
+        "Glm5NextForConditionalGeneration": 1,
+        "Glm5NextIndexerCache": 11,
+        "Glm5NextLinearAttention": 34,
+        "Glm5NextMLAAttention": 11,
+        "Glm5NextMLP": 45,
+        "Glm5NextMoE": 42,
+        "Glm5NextModel": 1,
+        "Glm5NextTailCache": 11,
+        "Indexer": 11,
+        "LayerNorm": 11,
+        "LogitsProcessor": 1,
+        "MHCFusedPostPreOp": 45,
+        "MHCPostOp": 45,
+        "MHCPreOp": 45,
+        "MLAAttention": 11,
+        "MergedColumnParallelLinear": 56,
+        "MoERunner": 42,
+        "ModuleList": 2,
+        "MultiHeadLatentAttentionWrapper": 11,
+        "ParallelLMHead": 1,
+        "QuantFP8": 11,
+        "RMSNorm": 113,
+        "ReplicatedLinear": 11,
+        "RotaryEmbedding": 1,
+        "RoutedExperts": 42,
+        "RowParallelLinear": 90,
+        "SharedExperts": 42,
+        "SiluAndMulWithClamp": 45,
+        "SparseAttnIndexerKpool": 11,
+        "StageMissingLayer": 1,
+        "VocabParallelEmbedding": 1,
+        "_DecodeConcatQuantFP8": 11,
+        "_Glm5NextMergedColumnParallelLinear": 34
+      },
+      "parameter_dtypes": {
+        "torch.bfloat16": 404,
+        "torch.float32": 731,
+        "torch.float8_e4m3fnuz": 174
+      },
+      "pools": []
+    },
+    {
+      "daemon_endpoint": "/tmp/vllm-weight-cache-620101/glm53-flash-tp4/gpu-439a92d31675a7f14a640f06.sock",
+      "daemon_resident_bytes": 80970737448,
+      "mla": [
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        }
+      ],
+      "modules": {
+        "ApplyRotaryEmb": 1,
+        "ColumnParallelLinear": 192,
+        "DeepSeekV2FusedQkvAProjLinear": 11,
+        "FusedRMSNormGated": 34,
+        "GateLinear": 42,
+        "Glm5NextDecoderLayer": 45,
+        "Glm5NextForCausalLM": 1,
+        "Glm5NextForConditionalGeneration": 1,
+        "Glm5NextIndexerCache": 11,
+        "Glm5NextLinearAttention": 34,
+        "Glm5NextMLAAttention": 11,
+        "Glm5NextMLP": 45,
+        "Glm5NextMoE": 42,
+        "Glm5NextModel": 1,
+        "Glm5NextTailCache": 11,
+        "Indexer": 11,
+        "LayerNorm": 11,
+        "LogitsProcessor": 1,
+        "MHCFusedPostPreOp": 45,
+        "MHCPostOp": 45,
+        "MHCPreOp": 45,
+        "MLAAttention": 11,
+        "MergedColumnParallelLinear": 56,
+        "MoERunner": 42,
+        "ModuleList": 2,
+        "MultiHeadLatentAttentionWrapper": 11,
+        "ParallelLMHead": 1,
+        "QuantFP8": 11,
+        "RMSNorm": 113,
+        "ReplicatedLinear": 11,
+        "RotaryEmbedding": 1,
+        "RoutedExperts": 42,
+        "RowParallelLinear": 90,
+        "SharedExperts": 42,
+        "SiluAndMulWithClamp": 45,
+        "SparseAttnIndexerKpool": 11,
+        "StageMissingLayer": 1,
+        "VocabParallelEmbedding": 1,
+        "_DecodeConcatQuantFP8": 11,
+        "_Glm5NextMergedColumnParallelLinear": 34
+      },
+      "parameter_dtypes": {
+        "torch.bfloat16": 404,
+        "torch.float32": 731,
+        "torch.float8_e4m3fnuz": 174
+      },
+      "pools": []
+    },
+    {
+      "daemon_endpoint": "/tmp/vllm-weight-cache-620101/glm53-flash-tp4/gpu-61d9fee84cef2e7bb118319e.sock",
+      "daemon_resident_bytes": 80970737448,
+      "mla": [
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        },
+        {
+          "backend": "ROCMAiterMLASparseImpl",
+          "direct_dim": 0,
+          "expanded_key_dim": 256,
+          "expanded_value_dim": 256,
+          "heads": 16,
+          "key_dim": 512,
+          "latent_dim": 512,
+          "lod_pool": false,
+          "native_prefix_calls": 0,
+          "native_prefix_tokens": 0
+        }
+      ],
+      "modules": {
+        "ApplyRotaryEmb": 1,
+        "ColumnParallelLinear": 192,
+        "DeepSeekV2FusedQkvAProjLinear": 11,
+        "FusedRMSNormGated": 34,
+        "GateLinear": 42,
+        "Glm5NextDecoderLayer": 45,
+        "Glm5NextForCausalLM": 1,
+        "Glm5NextForConditionalGeneration": 1,
+        "Glm5NextIndexerCache": 11,
+        "Glm5NextLinearAttention": 34,
+        "Glm5NextMLAAttention": 11,
+        "Glm5NextMLP": 45,
+        "Glm5NextMoE": 42,
+        "Glm5NextModel": 1,
+        "Glm5NextTailCache": 11,
+        "Indexer": 11,
+        "LayerNorm": 11,
+        "LogitsProcessor": 1,
+        "MHCFusedPostPreOp": 45,
+        "MHCPostOp": 45,
+        "MHCPreOp": 45,
+        "MLAAttention": 11,
+        "MergedColumnParallelLinear": 56,
+        "MoERunner": 42,
+        "ModuleList": 2,
+        "MultiHeadLatentAttentionWrapper": 11,
+        "ParallelLMHead": 1,
+        "QuantFP8": 11,
+        "RMSNorm": 113,
+        "ReplicatedLinear": 11,
+        "RotaryEmbedding": 1,
+        "RoutedExperts": 42,
+        "RowParallelLinear": 90,
+        "SharedExperts": 42,
+        "SiluAndMulWithClamp": 45,
+        "SparseAttnIndexerKpool": 11,
+        "StageMissingLayer": 1,
+        "VocabParallelEmbedding": 1,
+        "_DecodeConcatQuantFP8": 11,
+        "_Glm5NextMergedColumnParallelLinear": 34
+      },
+      "parameter_dtypes": {
+        "torch.bfloat16": 404,
+        "torch.float32": 731,
+        "torch.float8_e4m3fnuz": 174
+      },
+      "pools": []
+    }
+  ],
+  "measurements": {
+    "65536": {
+      "allocator_after_warmup": [
+        {
+          "allocated_bytes": 18429200384,
+          "free_bytes_after": 158779572224,
+          "free_bytes_before": 158779572224,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "minimum_free_bytes_at_check": null,
+            "reclaimed": 0,
+            "retained": 0
+          },
+          "reclaimed": false,
+          "reserved_bytes": 23192403968,
+          "retention_requested": true
+        },
+        {
+          "allocated_bytes": 18429200384,
+          "free_bytes_after": 158697783296,
+          "free_bytes_before": 158697783296,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "minimum_free_bytes_at_check": null,
+            "reclaimed": 0,
+            "retained": 0
+          },
+          "reclaimed": false,
+          "reserved_bytes": 23192403968,
+          "retention_requested": true
+        },
+        {
+          "allocated_bytes": 18429200384,
+          "free_bytes_after": 158840389632,
+          "free_bytes_before": 158840389632,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "minimum_free_bytes_at_check": null,
+            "reclaimed": 0,
+            "retained": 0
+          },
+          "reclaimed": false,
+          "reserved_bytes": 23192403968,
+          "retention_requested": true
+        },
+        {
+          "allocated_bytes": 18429200384,
+          "free_bytes_after": 159142379520,
+          "free_bytes_before": 159142379520,
+          "prefill_allocator_audit": {
+            "calls": 0,
+            "minimum_free_bytes_at_check": null,
+            "reclaimed": 0,
+            "retained": 0
+          },
+          "reclaimed": false,
+          "reserved_bytes": 23192403968,
+          "retention_requested": true
+        }
+      ],
+      "cohort_decode_timings_seconds": [
+        18.302744144573808
+      ],
+      "cohort_prefill_timings_seconds": [
+        25.283025151118636
+      ],
+      "cohort_unattributed_wall_seconds": [
+        0.01588176004588604
+      ],
+      "cohort_wall_timings_seconds": [
+        43.60165105573833
+      ],
+      "decode_ms_per_batch_step": 17.856335750803716,
+      "decode_timings_seconds": [
+        18.302744144573808
+      ],
+      "decode_tokens_per_second": 448.02024959907686,
+      "first_mismatch_positions": [
+        [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "greedy_output_identical": true,
+      "measured_batch_timings": [
+        [
+          {
+            "all_requests_live_overlap_seconds": 18.302744144573808,
+            "decode_window_seconds": 18.302744144573808,
+            "first_token_spread_seconds": 22.120340820401907,
+            "last_token_spread_seconds": 0.0,
+            "metric_window_seconds": 43.585769295692444,
+            "prefill_window_seconds": 25.283025151118636,
+            "request_decode_seconds": [
+              40.423084964975715,
+              37.29225872643292,
+              34.10945560410619,
+              30.947387682273984,
+              27.774163907393813,
+              24.616355234757066,
+              21.45947073958814,
+              18.302744144573808
+            ],
+            "request_num_cached_tokens": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_num_preemptions": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_prefill_seconds": [
+              3.162684330716729,
+              3.940921565517783,
+              3.985024821013212,
+              3.9789445344358683,
+              3.9855031929910183,
+              3.9751683175563812,
+              3.968787496909499,
+              3.9659307654947042
+            ],
+            "unattributed_wall_seconds": 0.01588176004588604,
+            "wall_elapsed_seconds": 43.60165105573833
+          }
+        ]
+      ],
+      "measured_decode_update_counters": [
+        [
+          {},
+          {},
+          {},
+          {}
+        ]
+      ],
+      "measured_worker_memory": [
+        [
+          {
+            "centroid_leaf_stats": {},
+            "centroid_leaf_stats_scope": "untimed warmup, before request cleanup; absent if not armed",
+            "current_torch_allocated_bytes": 18429200384,
+            "device_free_bytes_after_generation": 158779572224,
+            "device_total_bytes": 274861129728,
+            "lod_storage_inventory": {
+              "allocation_groups_bytes": {
+                "construction_workspaces": 0,
+                "decode_scratch": 0,
+                "owner_construction_workspaces": 0,
+                "owner_decode_scratch": 0,
+                "owner_persistent_semantic_cache": 0,
+                "owner_prefill_rows": 0,
+                "owner_projection_weights": 0,
+                "owner_transport": 0,
+                "persistent_semantic_cache": 0,
+                "queued_construction_sources": 0,
+                "replicated_prefill_shadows": 0,
+                "shared_prefill_scratch": 0
+              },
+              "device_free_bytes": 158779572224,
+              "device_total_bytes": 274861129728,
+              "owner_remote_pool_backed_by_layer": {},
+              "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch",
+              "shadow_global_lengths_by_layer": {},
+              "shadow_rows_by_layer": {},
+              "sharded_prefill_archive_by_layer": {},
+              "shared_decode_scratch": {
+                "participating_layers": 0,
+                "registries": 0,
+                "scope": "shared transient tensors only; per-layer outputs/state excluded",
+                "storage_bytes": 0,
+                "unique_tensor_count": 0
+              },
+              "torch_allocated_bytes": 18429200384,
+              "torch_peak_allocated_bytes_so_far": 21454137856,
+              "torch_reserved_bytes": 23192403968
+            },
+            "peak_torch_allocated_bytes": 21454137856,
+            "peak_torch_reserved_bytes": 23192403968,
+            "rank": 0
+          },
+          {
+            "centroid_leaf_stats": {},
+            "centroid_leaf_stats_scope": "untimed warmup, before request cleanup; absent if not armed",
+            "current_torch_allocated_bytes": 18429200384,
+            "device_free_bytes_after_generation": 158697783296,
+            "device_total_bytes": 274861129728,
+            "lod_storage_inventory": {
+              "allocation_groups_bytes": {
+                "construction_workspaces": 0,
+                "decode_scratch": 0,
+                "owner_construction_workspaces": 0,
+                "owner_decode_scratch": 0,
+                "owner_persistent_semantic_cache": 0,
+                "owner_prefill_rows": 0,
+                "owner_projection_weights": 0,
+                "owner_transport": 0,
+                "persistent_semantic_cache": 0,
+                "queued_construction_sources": 0,
+                "replicated_prefill_shadows": 0,
+                "shared_prefill_scratch": 0
+              },
+              "device_free_bytes": 158697783296,
+              "device_total_bytes": 274861129728,
+              "owner_remote_pool_backed_by_layer": {},
+              "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch",
+              "shadow_global_lengths_by_layer": {},
+              "shadow_rows_by_layer": {},
+              "sharded_prefill_archive_by_layer": {},
+              "shared_decode_scratch": {
+                "participating_layers": 0,
+                "registries": 0,
+                "scope": "shared transient tensors only; per-layer outputs/state excluded",
+                "storage_bytes": 0,
+                "unique_tensor_count": 0
+              },
+              "torch_allocated_bytes": 18429200384,
+              "torch_peak_allocated_bytes_so_far": 21454136320,
+              "torch_reserved_bytes": 23192403968
+            },
+            "peak_torch_allocated_bytes": 21454136320,
+            "peak_torch_reserved_bytes": 23192403968,
+            "rank": 1
+          },
+          {
+            "centroid_leaf_stats": {},
+            "centroid_leaf_stats_scope": "untimed warmup, before request cleanup; absent if not armed",
+            "current_torch_allocated_bytes": 18429200384,
+            "device_free_bytes_after_generation": 158840389632,
+            "device_total_bytes": 274861129728,
+            "lod_storage_inventory": {
+              "allocation_groups_bytes": {
+                "construction_workspaces": 0,
+                "decode_scratch": 0,
+                "owner_construction_workspaces": 0,
+                "owner_decode_scratch": 0,
+                "owner_persistent_semantic_cache": 0,
+                "owner_prefill_rows": 0,
+                "owner_projection_weights": 0,
+                "owner_transport": 0,
+                "persistent_semantic_cache": 0,
+                "queued_construction_sources": 0,
+                "replicated_prefill_shadows": 0,
+                "shared_prefill_scratch": 0
+              },
+              "device_free_bytes": 158840389632,
+              "device_total_bytes": 274861129728,
+              "owner_remote_pool_backed_by_layer": {},
+              "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch",
+              "shadow_global_lengths_by_layer": {},
+              "shadow_rows_by_layer": {},
+              "sharded_prefill_archive_by_layer": {},
+              "shared_decode_scratch": {
+                "participating_layers": 0,
+                "registries": 0,
+                "scope": "shared transient tensors only; per-layer outputs/state excluded",
+                "storage_bytes": 0,
+                "unique_tensor_count": 0
+              },
+              "torch_allocated_bytes": 18429200384,
+              "torch_peak_allocated_bytes_so_far": 21454136320,
+              "torch_reserved_bytes": 23192403968
+            },
+            "peak_torch_allocated_bytes": 21454136320,
+            "peak_torch_reserved_bytes": 23192403968,
+            "rank": 2
+          },
+          {
+            "centroid_leaf_stats": {},
+            "centroid_leaf_stats_scope": "untimed warmup, before request cleanup; absent if not armed",
+            "current_torch_allocated_bytes": 18429200384,
+            "device_free_bytes_after_generation": 159142379520,
+            "device_total_bytes": 274861129728,
+            "lod_storage_inventory": {
+              "allocation_groups_bytes": {
+                "construction_workspaces": 0,
+                "decode_scratch": 0,
+                "owner_construction_workspaces": 0,
+                "owner_decode_scratch": 0,
+                "owner_persistent_semantic_cache": 0,
+                "owner_prefill_rows": 0,
+                "owner_projection_weights": 0,
+                "owner_transport": 0,
+                "persistent_semantic_cache": 0,
+                "queued_construction_sources": 0,
+                "replicated_prefill_shadows": 0,
+                "shared_prefill_scratch": 0
+              },
+              "device_free_bytes": 159142379520,
+              "device_total_bytes": 274861129728,
+              "owner_remote_pool_backed_by_layer": {},
+              "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch",
+              "shadow_global_lengths_by_layer": {},
+              "shadow_rows_by_layer": {},
+              "sharded_prefill_archive_by_layer": {},
+              "shared_decode_scratch": {
+                "participating_layers": 0,
+                "registries": 0,
+                "scope": "shared transient tensors only; per-layer outputs/state excluded",
+                "storage_bytes": 0,
+                "unique_tensor_count": 0
+              },
+              "torch_allocated_bytes": 18429200384,
+              "torch_peak_allocated_bytes_so_far": 21454136320,
+              "torch_reserved_bytes": 23192403968
+            },
+            "peak_torch_allocated_bytes": 21454136320,
+            "peak_torch_reserved_bytes": 23192403968,
+            "rank": 3
+          }
+        ]
+      ],
+      "output_token_sha256": [
+        [
+          "07737235840622195aa38bf42eee206bca93eea2e554094ac605e09b3221d346",
+          "e8087d1b7125df73975393fc276f7e74ead367e3a9c932f1f6b319d21e375ac8",
+          "cf8c947bbeb3ef7b8be9d77fc7560fb15e520132e14c25f61c3e1a94f96f8f7c",
+          "6e56c765ab74368c997229b60c765e392face6a94781c5decf3d6a763eac08c1",
+          "ec82925decc7554b6f0dc6d77644189cf46f7f981646f0c4110452d2c95b4e2b",
+          "cc4d72f983b4ea0e34a2173fbf99e29254f3f8628988aa9c10fa156a69882775",
+          "105d9cd0dd236d4ce7f2889919f24478c56a613645ecd31083e459bbbd14230a",
+          "f90f2e863031439c81b4ca35e5550e460758e32b6d8c6231aa5fc282bb37180c"
+        ]
+      ],
+      "prefill_prompt_tokens_per_second": 20736.759025721378,
+      "prefill_seconds": 25.283025151118636,
+      "prefill_timings_seconds": [
+        25.283025151118636
+      ],
+      "prompts": [
+        {
+          "panel_prompt_tokens": 65536,
+          "panel_source_stream_indices": [
+            0,
+            1
+          ],
+          "panel_token_sha256": "808d3523cd75c4ae3450893bf90e8e47a4fb9952597bdfe384b492b19f82d7ce",
+          "panel_total_tokens": 66562,
+          "request_index": 0,
+          "token_sha256": "d60c07e908b2043f9482154c82123fe89c636d825fabfb4fb8d2a3e699b24275",
+          "trace_token_sha256": "07737235840622195aa38bf42eee206bca93eea2e554094ac605e09b3221d346",
+          "trace_tokens": 1026,
+          "unique_16_token_block_ratio": 1.0
+        },
+        {
+          "panel_prompt_tokens": 65536,
+          "panel_source_stream_indices": [
+            2,
+            3,
+            4
+          ],
+          "panel_token_sha256": "a43ab3ab9b3df851e1888eec5b258ca858792ec744cf1f6b6a95e16f4b84aec3",
+          "panel_total_tokens": 66562,
+          "request_index": 1,
+          "token_sha256": "ccd400b9f29c080fe35f2a1cde1b39dd71faf781d5fc06571d5c4b25d4f1898d",
+          "trace_token_sha256": "e8087d1b7125df73975393fc276f7e74ead367e3a9c932f1f6b319d21e375ac8",
+          "trace_tokens": 1026,
+          "unique_16_token_block_ratio": 0.98681640625
+        },
+        {
+          "panel_prompt_tokens": 65536,
+          "panel_source_stream_indices": [
+            5,
+            6
+          ],
+          "panel_token_sha256": "a815e542d47738dcccdb796d10766b3f7622ac83415be9e0d291f5530c213195",
+          "panel_total_tokens": 66562,
+          "request_index": 2,
+          "token_sha256": "197cbc089771d48e8f9bcfcc583d5cb66d8eb95db65c21a22a04f6e0e7df1061",
+          "trace_token_sha256": "cf8c947bbeb3ef7b8be9d77fc7560fb15e520132e14c25f61c3e1a94f96f8f7c",
+          "trace_tokens": 1026,
+          "unique_16_token_block_ratio": 0.98828125
+        },
+        {
+          "panel_prompt_tokens": 65536,
+          "panel_source_stream_indices": [
+            7,
+            8
+          ],
+          "panel_token_sha256": "d09d38a360cb7c0c9ca7e144bfa86251abee76dd424037e8f7572dd68b6366ca",
+          "panel_total_tokens": 66562,
+          "request_index": 3,
+          "token_sha256": "c694e47c56236f0646d150d0623d7cce16c3bec31b5c2a9bf1e05aaa4c3d18aa",
+          "trace_token_sha256": "6e56c765ab74368c997229b60c765e392face6a94781c5decf3d6a763eac08c1",
+          "trace_tokens": 1026,
+          "unique_16_token_block_ratio": 1.0
+        },
+        {
+          "panel_prompt_tokens": 65536,
+          "panel_source_stream_indices": [
+            9
+          ],
+          "panel_token_sha256": "9a21e9b4a9ed1a953d1e00aa40159262225dd1cf88fbc4ecd5ce1385c60d5c01",
+          "panel_total_tokens": 66562,
+          "request_index": 4,
+          "token_sha256": "b08dce75500c4ad16c6fa9e0339bb408a3d43172614e0847eac1319e9d6cfff5",
+          "trace_token_sha256": "ec82925decc7554b6f0dc6d77644189cf46f7f981646f0c4110452d2c95b4e2b",
+          "trace_tokens": 1026,
+          "unique_16_token_block_ratio": 0.9951171875
+        },
+        {
+          "panel_prompt_tokens": 65536,
+          "panel_source_stream_indices": [
+            10,
+            11
+          ],
+          "panel_token_sha256": "99818f893cd1603571a13c1249a4769f176615c90e179b164e4781a0d2e287bc",
+          "panel_total_tokens": 66562,
+          "request_index": 5,
+          "token_sha256": "7bb464162109f950540c983cc3bf0ebe2fe4384de28e789b7762fba3bf5bbde1",
+          "trace_token_sha256": "cc4d72f983b4ea0e34a2173fbf99e29254f3f8628988aa9c10fa156a69882775",
+          "trace_tokens": 1026,
+          "unique_16_token_block_ratio": 1.0
+        },
+        {
+          "panel_prompt_tokens": 65536,
+          "panel_source_stream_indices": [
+            12,
+            13
+          ],
+          "panel_token_sha256": "4d1ce660396ec42196783c7d1c796dde943ae9cca70b3d84ee9b69a70acff302",
+          "panel_total_tokens": 66562,
+          "request_index": 6,
+          "token_sha256": "6afc236a4c5c8d35e9a7fee8bf9bb61d01397d6afc199214534013733e867e28",
+          "trace_token_sha256": "105d9cd0dd236d4ce7f2889919f24478c56a613645ecd31083e459bbbd14230a",
+          "trace_tokens": 1026,
+          "unique_16_token_block_ratio": 1.0
+        },
+        {
+          "panel_prompt_tokens": 65536,
+          "panel_source_stream_indices": [
+            14,
+            15
+          ],
+          "panel_token_sha256": "ea53e7a57fc2606a509e5c5dcfd25a08c4f2a16a730ff97ea93e26145abd14d7",
+          "panel_total_tokens": 66562,
+          "request_index": 7,
+          "token_sha256": "030e8cc4f301da3dc6889141ab58345aa349b9ad1e56570571e0ff715cb218c5",
+          "trace_token_sha256": "f90f2e863031439c81b4ca35e5550e460758e32b6d8c6231aa5fc282bb37180c",
+          "trace_tokens": 1026,
+          "unique_16_token_block_ratio": 1.0
+        }
+      ],
+      "speculative_measurements": [],
+      "warmup_batch_timings": [
+        {
+          "all_requests_live_overlap_seconds": 18.245778838172555,
+          "decode_window_seconds": 18.245778838172555,
+          "first_token_spread_seconds": 22.105653723701835,
+          "last_token_spread_seconds": 0.0,
+          "metric_window_seconds": 44.051323749125004,
+          "prefill_window_seconds": 25.80554491095245,
+          "request_decode_seconds": [
+            40.35143256187439,
+            37.22424419410527,
+            34.043538112193346,
+            30.888331975787878,
+            27.720093427225947,
+            24.562442395836115,
+            21.40027985535562,
+            18.245778838172555
+          ],
+          "request_num_cached_tokens": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "request_num_preemptions": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "request_prefill_seconds": [
+            3.699891187250614,
+            3.9381151031702757,
+            3.9829464871436357,
+            3.9731189738959074,
+            3.9786914195865393,
+            3.9743052683770657,
+            3.9741351325064898,
+            3.9647899717092514
+          ],
+          "unattributed_wall_seconds": 0.01701778545975685,
+          "wall_elapsed_seconds": 44.06834153458476
+        }
+      ],
+      "warmup_output_token_sha256": [
+        "07737235840622195aa38bf42eee206bca93eea2e554094ac605e09b3221d346",
+        "e8087d1b7125df73975393fc276f7e74ead367e3a9c932f1f6b319d21e375ac8",
+        "cf8c947bbeb3ef7b8be9d77fc7560fb15e520132e14c25f61c3e1a94f96f8f7c",
+        "6e56c765ab74368c997229b60c765e392face6a94781c5decf3d6a763eac08c1",
+        "ec82925decc7554b6f0dc6d77644189cf46f7f981646f0c4110452d2c95b4e2b",
+        "cc4d72f983b4ea0e34a2173fbf99e29254f3f8628988aa9c10fa156a69882775",
+        "105d9cd0dd236d4ce7f2889919f24478c56a613645ecd31083e459bbbd14230a",
+        "f90f2e863031439c81b4ca35e5550e460758e32b6d8c6231aa5fc282bb37180c"
+      ],
+      "warmup_worker_memory": [
+        {
+          "centroid_leaf_stats": {},
+          "centroid_leaf_stats_scope": "untimed warmup, before request cleanup; absent if not armed",
+          "current_torch_allocated_bytes": 18429200384,
+          "device_free_bytes_after_generation": 158779572224,
+          "device_total_bytes": 274861129728,
+          "lod_storage_inventory": {
+            "allocation_groups_bytes": {
+              "construction_workspaces": 0,
+              "decode_scratch": 0,
+              "owner_construction_workspaces": 0,
+              "owner_decode_scratch": 0,
+              "owner_persistent_semantic_cache": 0,
+              "owner_prefill_rows": 0,
+              "owner_projection_weights": 0,
+              "owner_transport": 0,
+              "persistent_semantic_cache": 0,
+              "queued_construction_sources": 0,
+              "replicated_prefill_shadows": 0,
+              "shared_prefill_scratch": 0
+            },
+            "device_free_bytes": 158779572224,
+            "device_total_bytes": 274861129728,
+            "owner_remote_pool_backed_by_layer": {},
+            "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch",
+            "shadow_global_lengths_by_layer": {},
+            "shadow_rows_by_layer": {},
+            "sharded_prefill_archive_by_layer": {},
+            "shared_decode_scratch": {
+              "participating_layers": 0,
+              "registries": 0,
+              "scope": "shared transient tensors only; per-layer outputs/state excluded",
+              "storage_bytes": 0,
+              "unique_tensor_count": 0
+            },
+            "torch_allocated_bytes": 18429200384,
+            "torch_peak_allocated_bytes_so_far": 21454137856,
+            "torch_reserved_bytes": 23192403968
+          },
+          "peak_torch_allocated_bytes": 21454137856,
+          "peak_torch_reserved_bytes": 23192403968,
+          "rank": 0
+        },
+        {
+          "centroid_leaf_stats": {},
+          "centroid_leaf_stats_scope": "untimed warmup, before request cleanup; absent if not armed",
+          "current_torch_allocated_bytes": 18429200384,
+          "device_free_bytes_after_generation": 158697783296,
+          "device_total_bytes": 274861129728,
+          "lod_storage_inventory": {
+            "allocation_groups_bytes": {
+              "construction_workspaces": 0,
+              "decode_scratch": 0,
+              "owner_construction_workspaces": 0,
+              "owner_decode_scratch": 0,
+              "owner_persistent_semantic_cache": 0,
+              "owner_prefill_rows": 0,
+              "owner_projection_weights": 0,
+              "owner_transport": 0,
+              "persistent_semantic_cache": 0,
+              "queued_construction_sources": 0,
+              "replicated_prefill_shadows": 0,
+              "shared_prefill_scratch": 0
+            },
+            "device_free_bytes": 158697783296,
+            "device_total_bytes": 274861129728,
+            "owner_remote_pool_backed_by_layer": {},
+            "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch",
+            "shadow_global_lengths_by_layer": {},
+            "shadow_rows_by_layer": {},
+            "sharded_prefill_archive_by_layer": {},
+            "shared_decode_scratch": {
+              "participating_layers": 0,
+              "registries": 0,
+              "scope": "shared transient tensors only; per-layer outputs/state excluded",
+              "storage_bytes": 0,
+              "unique_tensor_count": 0
+            },
+            "torch_allocated_bytes": 18429200384,
+            "torch_peak_allocated_bytes_so_far": 21454136320,
+            "torch_reserved_bytes": 23192403968
+          },
+          "peak_torch_allocated_bytes": 21454136320,
+          "peak_torch_reserved_bytes": 23192403968,
+          "rank": 1
+        },
+        {
+          "centroid_leaf_stats": {},
+          "centroid_leaf_stats_scope": "untimed warmup, before request cleanup; absent if not armed",
+          "current_torch_allocated_bytes": 18429200384,
+          "device_free_bytes_after_generation": 158840389632,
+          "device_total_bytes": 274861129728,
+          "lod_storage_inventory": {
+            "allocation_groups_bytes": {
+              "construction_workspaces": 0,
+              "decode_scratch": 0,
+              "owner_construction_workspaces": 0,
+              "owner_decode_scratch": 0,
+              "owner_persistent_semantic_cache": 0,
+              "owner_prefill_rows": 0,
+              "owner_projection_weights": 0,
+              "owner_transport": 0,
+              "persistent_semantic_cache": 0,
+              "queued_construction_sources": 0,
+              "replicated_prefill_shadows": 0,
+              "shared_prefill_scratch": 0
+            },
+            "device_free_bytes": 158840389632,
+            "device_total_bytes": 274861129728,
+            "owner_remote_pool_backed_by_layer": {},
+            "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch",
+            "shadow_global_lengths_by_layer": {},
+            "shadow_rows_by_layer": {},
+            "sharded_prefill_archive_by_layer": {},
+            "shared_decode_scratch": {
+              "participating_layers": 0,
+              "registries": 0,
+              "scope": "shared transient tensors only; per-layer outputs/state excluded",
+              "storage_bytes": 0,
+              "unique_tensor_count": 0
+            },
+            "torch_allocated_bytes": 18429200384,
+            "torch_peak_allocated_bytes_so_far": 21454136320,
+            "torch_reserved_bytes": 23192403968
+          },
+          "peak_torch_allocated_bytes": 21454136320,
+          "peak_torch_reserved_bytes": 23192403968,
+          "rank": 2
+        },
+        {
+          "centroid_leaf_stats": {},
+          "centroid_leaf_stats_scope": "untimed warmup, before request cleanup; absent if not armed",
+          "current_torch_allocated_bytes": 18429200384,
+          "device_free_bytes_after_generation": 159142379520,
+          "device_total_bytes": 274861129728,
+          "lod_storage_inventory": {
+            "allocation_groups_bytes": {
+              "construction_workspaces": 0,
+              "decode_scratch": 0,
+              "owner_construction_workspaces": 0,
+              "owner_decode_scratch": 0,
+              "owner_persistent_semantic_cache": 0,
+              "owner_prefill_rows": 0,
+              "owner_projection_weights": 0,
+              "owner_transport": 0,
+              "persistent_semantic_cache": 0,
+              "queued_construction_sources": 0,
+              "replicated_prefill_shadows": 0,
+              "shared_prefill_scratch": 0
+            },
+            "device_free_bytes": 159142379520,
+            "device_total_bytes": 274861129728,
+            "owner_remote_pool_backed_by_layer": {},
+            "scope": "live storage at untimed chunk boundary; excludes daemon weights and driver scratch",
+            "shadow_global_lengths_by_layer": {},
+            "shadow_rows_by_layer": {},
+            "sharded_prefill_archive_by_layer": {},
+            "shared_decode_scratch": {
+              "participating_layers": 0,
+              "registries": 0,
+              "scope": "shared transient tensors only; per-layer outputs/state excluded",
+              "storage_bytes": 0,
+              "unique_tensor_count": 0
+            },
+            "torch_allocated_bytes": 18429200384,
+            "torch_peak_allocated_bytes_so_far": 21454136320,
+            "torch_reserved_bytes": 23192403968
+          },
+          "peak_torch_allocated_bytes": 21454136320,
+          "peak_torch_reserved_bytes": 23192403968,
+          "rank": 3
+        }
+      ]
+    }
+  },
+  "mode": "full",
+  "random_weights": false,
+  "reference": "native learned sparse attention (2048-token budget)",
+  "scheduler_budget": 16392,
+  "scheduler_chunk": 16384,
+  "seed": 1234,
+  "status": "complete",
+  "tensor_parallel_size": 4,
+  "weight_cache_id": "glm53-flash-tp4",
+  "weights": "native FP8"
+}

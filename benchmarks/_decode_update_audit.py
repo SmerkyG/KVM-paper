@@ -11,7 +11,7 @@ from typing import Any
 
 def read_decode_update_counters(worker: Any) -> dict[str, dict[str, int]]:
     runner = getattr(worker, "model_runner", None)
-    state = getattr(runner, "model_state", None)
+    state = getattr(runner, "model_state", None) or runner
     runtime = getattr(state, "_vllm_lod_runtime", None)
     pools = getattr(runtime, "pools", {}) if runtime is not None else {}
     return {

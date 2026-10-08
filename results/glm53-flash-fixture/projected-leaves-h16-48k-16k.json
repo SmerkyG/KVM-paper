@@ -1,0 +1,88 @@
+{
+  "all_leaf_head_pairs": 524272,
+  "attention_tiles": [
+    {
+      "complete_refinement_ms": 2.550221824645996,
+      "max_lse_difference": 6.0558319091796875e-05,
+      "relative_output_l2": 0.0038785128854215145,
+      "tile": [
+        32,
+        16,
+        2
+      ]
+    },
+    {
+      "complete_refinement_ms": 2.7532512664794924,
+      "max_lse_difference": 6.0558319091796875e-05,
+      "relative_output_l2": 0.0038785128854215145,
+      "tile": [
+        64,
+        16,
+        2
+      ]
+    },
+    {
+      "complete_refinement_ms": 3.355131149291992,
+      "max_lse_difference": 6.0558319091796875e-05,
+      "relative_output_l2": 0.0038772784173488617,
+      "tile": [
+        64,
+        32,
+        4
+      ]
+    },
+    {
+      "complete_refinement_ms": 3.47957763671875,
+      "max_lse_difference": 6.0558319091796875e-05,
+      "relative_output_l2": 0.0038772784173488617,
+      "tile": [
+        64,
+        64,
+        4
+      ]
+    }
+  ],
+  "baseline_before_ms": 3.764949417114258,
+  "heads": 16,
+  "history": 49152,
+  "includes": "dispatch + projection + exact leaf attention + route reduction",
+  "iterations": 5,
+  "projected_leaf_head_pairs": 18699,
+  "projection_tiles": [
+    {
+      "projection_only_ms": 0.1499817967414856,
+      "tile": [
+        32,
+        128,
+        4
+      ]
+    },
+    {
+      "projection_only_ms": 0.16336560249328613,
+      "tile": [
+        64,
+        128,
+        4
+      ]
+    },
+    {
+      "projection_only_ms": 0.1557178020477295,
+      "tile": [
+        128,
+        128,
+        8
+      ]
+    },
+    {
+      "projection_only_ms": 0.15081379413604737,
+      "tile": [
+        64,
+        64,
+        4
+      ]
+    }
+  ],
+  "queries": 16384,
+  "scope": "random-input complete remote-refinement GPU interval, not model timing",
+  "slots": 2907
+}

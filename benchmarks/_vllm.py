@@ -118,6 +118,20 @@ def is_kimi_k3(checkpoint: str) -> bool:
     )
 
 
+def is_glm53_flash(checkpoint: str) -> bool:
+    normalized = checkpoint.lower().replace("-", "").replace("_", "")
+    if "glm5.3flash" in normalized or "glm53flash" in normalized:
+        return True
+    config_path = Path(checkpoint) / "config.json"
+    if not config_path.is_file():
+        return False
+    try:
+        config = json.loads(config_path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return False
+    return config.get("model_type") in ("glm5_next", "glm5_next_text")
+
+
 def _kimi_linear_architecture_override(checkpoint: str) -> dict[str, list[str]] | None:
     """Identify the text-only Kimi packaging whose config omits architectures."""
 
@@ -306,6 +320,14 @@ def llm_kwargs(
             }
     if is_qwen38(checkpoint) or is_kimi_k3(checkpoint):
         kwargs["language_model_only"] = True
+    if is_glm53_flash(checkpoint):
+        if decode_context_parallel_size != 1:
+            raise NotImplementedError("GLM5.3 currently requires DCP1")
+        kwargs["language_model_only"] = True
+        kwargs["attention_config"] = (
+            {"backend": "ROCM_AITER_MLA_SPARSE"} if mode == "full" else
+            {"backend": "CUSTOM", "backend_per_kind": {"mla_attention": "TRITON_MLA"}}
+        )
     if speculative_model:
         kwargs["speculative_config"] = {
             "method": "dflash",
@@ -335,6 +357,20 @@ def close_llm(llm: Any) -> None:
 
 def write_json(path: Path, value: Any) -> None:
     import json
+    import os
+    import tempfile
 
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n")
+    # Readers must never observe a truncated intermediate result. A temp file
+    # in the same directory makes replacement atomic on the shared filesystem.
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", dir=path.parent,
+                                         prefix=path.name + ".", delete=False) as stream:
+            temporary = stream.name
+            stream.write(json.dumps(value, indent=2, sort_keys=True) + "\n")
+        os.replace(temporary, path)
+        temporary = None
+    finally:
+        if temporary is not None:
+            os.unlink(temporary)

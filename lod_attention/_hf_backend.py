@@ -800,6 +800,8 @@ def install_hf_lod_attention(
     """Install fixed top-eight LoD on supported full-attention layers."""
 
     family = model_family(model)
+    if family is ModelFamily.GLM53_FLASH:
+        raise NotImplementedError("GLM5.3-Flash MLA currently has only an experimental vLLM adapter")
     resolved_mode = LODMode.parse(mode)
     if implementation not in ("kernel", "pytorch"):
         raise ValueError("LoD implementation must be 'kernel' or 'pytorch'")

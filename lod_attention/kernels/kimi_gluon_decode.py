@@ -212,6 +212,9 @@ def _absorbed_mla_stage1_gfx942(
     DCP_INTERLEAVE_SIZE: gl.constexpr,
     ADAPTIVE_DENSE_SPLITS: gl.constexpr = False,
     MIN_DENSE_SPLITS: gl.constexpr = 1,
+    HAS_DIRECT_KEY: gl.constexpr = True,
+    MASK_OPENED_PER_HEAD: gl.constexpr = False,
+    ROUTE_COUNT: gl.constexpr = 0,
 ):
     batch = gl.program_id(0)
     split = gl.program_id(1)
@@ -313,25 +316,26 @@ def _absorbed_mla_stage1_gfx942(
     )
     q = gl.convert_layout(q, mfma_a)
 
-    heads_direct = head_base + gl.arange(
-        0, BLOCK_H, layout=gl.SliceLayout(1, q_direct_layout)
-    )
-    d_direct_q = gl.arange(
-        0, D_DIRECT, layout=gl.SliceLayout(0, q_direct_layout)
-    )
-    q_direct_offsets = (
-        batch * stride_q_b
-        + heads_direct[:, None] * stride_q_h
-        + D_LATENT
-        + d_direct_q[None, :]
-    ).to(gl.int32)
-    q_direct = gl.amd.cdna3.buffer_load(
-        Q,
-        q_direct_offsets,
-        mask=(heads_direct < NHEAD)[:, None],
-        other=0.0,
-    )
-    q_direct = gl.convert_layout(q_direct, mfma_a)
+    if HAS_DIRECT_KEY:
+        heads_direct = head_base + gl.arange(
+            0, BLOCK_H, layout=gl.SliceLayout(1, q_direct_layout)
+        )
+        d_direct_q = gl.arange(
+            0, D_DIRECT, layout=gl.SliceLayout(0, q_direct_layout)
+        )
+        q_direct_offsets = (
+            batch * stride_q_b
+            + heads_direct[:, None] * stride_q_h
+            + D_LATENT
+            + d_direct_q[None, :]
+        ).to(gl.int32)
+        q_direct = gl.amd.cdna3.buffer_load(
+            Q,
+            q_direct_offsets,
+            mask=(heads_direct < NHEAD)[:, None],
+            other=0.0,
+        )
+        q_direct = gl.convert_layout(q_direct, mfma_a)
 
     num_tiles = gl.cdiv(split_end - split_start, BLOCK_N)
 
@@ -445,35 +449,36 @@ def _absorbed_mla_stage1_gfx942(
             gl.zeros([BLOCK_H, BLOCK_N], dtype=gl.float32, layout=mfma),
         )
 
-        d_direct = gl.arange(
-            0, D_DIRECT, layout=gl.SliceLayout(1, direct_layout)
-        )
-        pages_direct = gl.convert_layout(
-            pages, gl.SliceLayout(0, direct_layout)
-        )
-        valid_direct = gl.convert_layout(
-            valid, gl.SliceLayout(0, direct_layout)
-        )
-        direct_offsets = (
-            D_LATENT
-            + d_direct[:, None]
-            + pages_direct[None, :] * stride_kv_n
-        ).to(gl.int32)
-        direct = gl.amd.cdna3.buffer_load(
-            KV,
-            direct_offsets,
-            mask=valid_direct[None, :],
-            other=0.0,
-        )
-        qk = gl.amd.cdna3.mfma(
-            q_direct, gl.convert_layout(direct, mfma_b).to(dtype), qk
-        )
+        if HAS_DIRECT_KEY:
+            d_direct = gl.arange(
+                0, D_DIRECT, layout=gl.SliceLayout(1, direct_layout)
+            )
+            pages_direct = gl.convert_layout(
+                pages, gl.SliceLayout(0, direct_layout)
+            )
+            valid_direct = gl.convert_layout(
+                valid, gl.SliceLayout(0, direct_layout)
+            )
+            direct_offsets = (
+                D_LATENT
+                + d_direct[:, None]
+                + pages_direct[None, :] * stride_kv_n
+            ).to(gl.int32)
+            direct = gl.amd.cdna3.buffer_load(
+                KV,
+                direct_offsets,
+                mask=valid_direct[None, :],
+                other=0.0,
+            )
+            qk = gl.amd.cdna3.mfma(
+                q_direct, gl.convert_layout(direct, mfma_b).to(dtype), qk
+            )
         qk *= scale
         if HAS_BIAS:
             bias = gl.amd.cdna3.buffer_load(
                 Bias, pages, mask=valid, other=float("-inf")
             ).to(gl.float32)
-            if MASK_OPENED_COARSE:
+            if MASK_OPENED_COARSE or MASK_OPENED_PER_HEAD:
                 # Each 16-head tile has its own globally selected centroid
                 # union.  K/V rows remain shared; only the coarse replacement
                 # mask is tile-local.  Prefix positions after the compacted
@@ -492,15 +497,34 @@ def _absorbed_mla_stage1_gfx942(
                 safe_coarse_slot = gl.maximum(
                     0, gl.minimum(coarse_slot, STATE_CAPACITY - 1)
                 )
-                stamp = gl.amd.cdna3.buffer_load(
-                    OpenedStamps,
-                    metadata_row * stride_opened_b + safe_coarse_slot,
-                    mask=valid & is_coarse,
-                    other=0,
-                ).to(gl.int32)
-                epoch = gl.load(SequenceEpochs + metadata_row).to(gl.int32)
-                bias = gl.where(is_coarse & (stamp == epoch), float("-inf"), bias)
+                if MASK_OPENED_COARSE:
+                    stamp = gl.amd.cdna3.buffer_load(
+                        OpenedStamps,
+                        metadata_row * stride_opened_b + safe_coarse_slot,
+                        mask=valid & is_coarse,
+                        other=0,
+                    ).to(gl.int32)
+                    epoch = gl.load(SequenceEpochs + metadata_row).to(gl.int32)
+                    bias = gl.where(is_coarse & (stamp == epoch), float("-inf"), bias)
             qk += gl.convert_layout(bias, gl.SliceLayout(0, mfma))[None, :]
+            if MASK_OPENED_PER_HEAD:
+                # Three-tier replaces each head's own selected parents. Mask
+                # them before softmax, avoiding subtraction of nearly equal
+                # BF16 softmax outputs when a parent dominates the field.
+                mask_heads = head_base + gl.arange(
+                    0, BLOCK_H, layout=gl.SliceLayout(1, mfma)
+                )
+                mask_slots = gl.convert_layout(coarse_slot, gl.SliceLayout(0, mfma))
+                mask_coarse = gl.convert_layout(is_coarse, gl.SliceLayout(0, mfma))
+                for route in gl.static_range(ROUTE_COUNT):
+                    opened = gl.load(
+                        OpenedStamps + (batch * NHEAD + mask_heads) * ROUTE_COUNT + route,
+                        mask=mask_heads < NHEAD, other=-1,
+                    )
+                    qk = gl.where(
+                        mask_coarse[None, :] & (opened[:, None] == mask_slots[None, :]),
+                        float("-inf"), qk,
+                    )
         valid_scores = gl.convert_layout(valid, gl.SliceLayout(0, mfma))
         qk = gl.where(valid_scores[None, :], qk, float("-inf"))
 
@@ -582,8 +606,8 @@ def absorbed_mla_decode_gfx942(
     row partitions by its device-side live length, including during replay.
     """
     batch, nhead, qk_dim = q.shape
-    if qk_dim != 576 or kv.shape[-1] != 576 or out.shape != (batch, nhead, 512):
-        raise ValueError("expected q=[B,H,576], kv=[...,576], out=[B,H,512]")
+    if qk_dim not in (512, 576) or kv.shape[-1] != qk_dim or out.shape != (batch, nhead, 512):
+        raise ValueError("expected matching D512 or D512+64 q/kv, out=[B,H,512]")
     if nhead < 1:
         raise ValueError("q must contain at least one attention head")
     if q.dtype != torch.bfloat16 or kv.dtype != torch.bfloat16:
@@ -671,6 +695,7 @@ def absorbed_mla_decode_gfx942(
         DCP_INTERLEAVE_SIZE=1,
         ADAPTIVE_DENSE_SPLITS=adaptive_splits,
         MIN_DENSE_SPLITS=minimum_splits,
+        HAS_DIRECT_KEY=qk_dim == 576,
         num_warps=4,
     )
     if adaptive_splits:
@@ -739,6 +764,7 @@ def absorbed_mla_lod_decode_gfx942(
     local_limit: int,
     opened_stamps: torch.Tensor | None = None,
     sequence_epochs: torch.Tensor | None = None,
+    opened_slots: torch.Tensor | None = None,
     state_capacity: int = 0,
     sink_len: int = 0,
     head_tiled_metadata: bool = False,
@@ -752,18 +778,20 @@ def absorbed_mla_lod_decode_gfx942(
     partial_lse: torch.Tensor | None = None,
     final_lse: torch.Tensor | None = None,
 ) -> torch.Tensor:
-    """Run dense attention over a compact two-tier LoD effective sequence.
+    """Attend to a compact two-tier field or a three-tier fixed baseline.
 
     The prefix is addressed directly through ``fixed_indices``.  Its exact
     suffix is a packed list of 16-token leaf pages, matching the production
     two-tier compact-descriptor format.  ``bias`` stores zero for exact rows
-    and ``log(count)`` for coarse centroid rows.
+    and ``log(count)`` for coarse centroid rows. Three-tier passes no exact
+    suffix and masks each query head's selected parents with ``opened_slots``;
+    page refinements and their disjoint residuals are merged separately.
     """
     from aiter.ops.triton.gluon.mla_gluon import _mla_softmax_reducev_kernel
 
     batch, nhead, qk_dim = q.shape
-    if qk_dim != 576 or kv.shape[-1] != 576 or out.shape != (batch, nhead, 512):
-        raise ValueError("expected q=[B,H,576], kv=[N,576], out=[B,H,512]")
+    if qk_dim not in (512, 576) or kv.shape[-1] != qk_dim or out.shape != (batch, nhead, 512):
+        raise ValueError("expected matching D512 or D512+64 q/kv, out=[B,H,512]")
     if nhead < 1 or q.dtype != torch.bfloat16 or kv.dtype != torch.bfloat16:
         raise ValueError("gfx942 absorbed MLA requires BF16 and at least one head")
     if bias.shape != (kv.size(0),):
@@ -799,6 +827,14 @@ def absorbed_mla_lod_decode_gfx942(
         # callers; these pointers are never dereferenced in this mode.
         opened_stamps = page_descriptors
         sequence_epochs = seq_lens
+    if opened_slots is not None:
+        if mask_opened_coarse:
+            raise ValueError("choose head-specific slots or tile-union stamps, not both")
+        if (opened_slots.shape[:2] != (batch, nhead) or
+                opened_slots.numel() != batch * nhead * opened_slots.shape[-1] or
+                not opened_slots.is_contiguous() or state_capacity <= 0):
+            raise ValueError("opened slots must be contiguous [B,H,1,K] or [B,H,K]")
+        opened_stamps = opened_slots
     dcp_row_masked_new = dcp_global_lens is not None
     if dcp_row_masked_new:
         if dcp_global_lens.ndim != 1:
@@ -871,6 +907,9 @@ def absorbed_mla_lod_decode_gfx942(
         DCP_RANK=dcp_rank,
         DCP_WORLD_SIZE=dcp_world_size,
         DCP_INTERLEAVE_SIZE=dcp_interleave_size,
+        HAS_DIRECT_KEY=qk_dim == 576,
+        MASK_OPENED_PER_HEAD=opened_slots is not None,
+        ROUTE_COUNT=opened_slots.shape[-1] if opened_slots is not None else 0,
         num_warps=4,
     )
     if head_tiled_metadata:

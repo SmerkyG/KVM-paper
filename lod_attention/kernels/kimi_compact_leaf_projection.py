@@ -17,6 +17,7 @@ import triton.language as tl
 
 from ._paged_common import _lookup_page_id
 from .aiter_mla_prefill_attention import _workspace_tensor
+from .quantized_latent_load import load_latent
 
 
 def compact_row_capacity(tokens: int, slots: int, block_m: int) -> int:
@@ -58,6 +59,7 @@ def _head_tile_counts(starts, tiles, HEAD_ROWS, SLOTS,
 def _project_compact_tiles(
     source, uk, uv, starts, head_tiles, slot_pages, overflow_keys, overflow_values,
     overflow_used, page_indices, output_k, output_v,
+    scales, sums, sum_scales, page_counts,
     TOKENS, HEADS, SLOTS, OUTPUT_ROWS,
     SOURCE_BATCH_STRIDE: tl.constexpr, SOURCE_TOKEN_STRIDE: tl.constexpr,
     UK_HEAD_STRIDE: tl.constexpr, UK_ROW_STRIDE: tl.constexpr,
@@ -68,6 +70,7 @@ def _project_compact_tiles(
     HASH_PROBES: tl.constexpr, PAGE_SIZE: tl.constexpr,
     HEAD_ROWS: tl.constexpr, HEAD_SEARCH_STEPS: tl.constexpr,
     SLOT_SEARCH_STEPS: tl.constexpr, BLOCK_M: tl.constexpr,
+    QUANTIZED: tl.constexpr, QUANT_GROUP: tl.constexpr, INT8_SUMS: tl.constexpr,
 ):
     # A fixed grid consumes just the live compact tiles. Empty experts neither
     # project leaves nor require their own workgroup; zeros in the prefix are
@@ -128,8 +131,13 @@ def _project_compact_tiles(
         for latent_step in tl.range(0, 4, num_stages=1):
             latent_begin = latent_step * 128
             latent_lane = latent_begin + channels
-            latent = tl.load(source + source_row[:, None] + latent_lane[None, :],
-                             mask=valid[:, None], other=0.0)
+            if QUANTIZED:
+                latent = load_latent(source, scales, sums, sum_scales, page_counts,
+                    batch, page, leaf, latent_lane, valid,
+                    TOKENS, PAGE_CAPACITY, 576, QUANT_GROUP, INT8_SUMS)
+            else:
+                latent = tl.load(source + source_row[:, None] + latent_lane[None, :],
+                                 mask=valid[:, None], other=0.0)
             key_weight = tl.load(uk + head * UK_HEAD_STRIDE
                                  + latent_lane[:, None] * UK_LATENT_STRIDE
                                  + output_lane[None, :] * UK_ROW_STRIDE)
@@ -143,8 +151,13 @@ def _project_compact_tiles(
         tl.store(output_v + row[:, None] * 128 + output_lane[None, :], value, mask=valid[:, None])
         if tl.program_id(1) == 0:
             direct_lane = tl.arange(0, 64)
-            direct = tl.load(source + source_row[:, None] + 512 + direct_lane[None, :],
-                             mask=valid[:, None], other=0.0)
+            if QUANTIZED:
+                direct = load_latent(source, scales, sums, sum_scales, page_counts,
+                    batch, page, leaf, 512 + direct_lane, valid,
+                    TOKENS, PAGE_CAPACITY, 576, QUANT_GROUP, INT8_SUMS)
+            else:
+                direct = tl.load(source + source_row[:, None] + 512 + direct_lane[None, :],
+                                 mask=valid[:, None], other=0.0)
             tl.store(output_k + row[:, None] * 192 + 128 + direct_lane[None, :],
                      direct, mask=valid[:, None])
 
@@ -171,6 +184,12 @@ def project_compact_kimi_leaves(
     if key.ndim != 4 or key.size(1) != 1 or key.size(-1) != 576:
         raise ValueError("compact Kimi projection expects [B,1,T,576]")
     batch, tokens, heads = int(key.size(0)), int(key.size(2)), int(w_uk_t.size(0))
+    quantized = bool(page_cache.get("quantization_finalized", False))
+    quant_sums = bool(page_cache.get("summary_quantization_finalized", False))
+    if quantized:
+        tokens = int(page_cache["quantized_leaf_k"].size(2))
+    elif tokens < int(page_cache.get("leaf_count", 0)):
+        raise ValueError("Kimi projection cannot read a BF16 sentinel as a live leaf archive")
     if tuple(w_uk_t.shape) != (heads, 128, 512) or tuple(w_uv.shape) != (heads, 512, 128):
         raise ValueError("compact Kimi projection weights have incompatible geometry")
     if tuple(page_cache["slot_lengths"].shape[:2]) != (batch, 1):
@@ -214,9 +233,13 @@ def project_compact_kimi_leaves(
     indices = page_cache["page_indices"]
     workers = min(_projection_workers(key.device.index), batch * heads * triton.cdiv(capacity, block_m))
     _project_compact_tiles[(workers, 2)](
-        key, w_uk_t, w_uv, starts, head_tiles, directory, page_cache["overflow_page_keys"],
+        page_cache["quantized_leaf_k"] if quantized else key,
+        w_uk_t, w_uv, starts, head_tiles, directory, page_cache["overflow_page_keys"],
         page_cache["overflow_page_values"], page_cache["overflow_used"], indices,
-        output_k, output_v, tokens, heads, active_slots, batch * heads * capacity,
+        output_k, output_v, page_cache.get("page_k_scales", key),
+        page_cache.get("quantized_page_sum_k" if quant_sums else "page_sum_k", key),
+        page_cache.get("page_sum_k_scales", key), page_cache.get("page_counts", key),
+        tokens, heads, active_slots, batch * heads * capacity,
         SOURCE_BATCH_STRIDE=int(key.stride(0)), SOURCE_TOKEN_STRIDE=int(key.stride(2)),
         UK_HEAD_STRIDE=int(w_uk_t.stride(0)), UK_ROW_STRIDE=int(w_uk_t.stride(1)),
         UK_LATENT_STRIDE=int(w_uk_t.stride(2)), UV_HEAD_STRIDE=int(w_uv.stride(0)),
@@ -226,6 +249,8 @@ def project_compact_kimi_leaves(
         HASH_PROBES=hash_probes, PAGE_SIZE=16, HEAD_ROWS=batch * heads,
         HEAD_SEARCH_STEPS=(batch * heads).bit_length(),
         SLOT_SEARCH_STEPS=active_slots.bit_length(),
-        BLOCK_M=block_m, num_warps=4, num_stages=1,
+        BLOCK_M=block_m, QUANTIZED=quantized,
+        QUANT_GROUP=576 // page_cache["page_k_scales"].size(-1) if quantized else 32,
+        INT8_SUMS=quant_sums, num_warps=4, num_stages=1,
     )
     return output_k, output_v, starts

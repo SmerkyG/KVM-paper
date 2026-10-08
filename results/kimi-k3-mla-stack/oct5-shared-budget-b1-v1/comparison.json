@@ -1,0 +1,93 @@
+{
+  "fixture_only": true,
+  "batch_size": 1,
+  "native_cache_reservation_bytes": 3221225472,
+  "peak_definition": "maximum worker peak across warmup and measured pass",
+  "decode_note": "Two outputs test handoff only; not amortized decode timing.",
+  "measurements": {
+    "16384": {
+      "full": {
+        "prefill_seconds": 0.20889438595622778,
+        "peak_allocated_gib": 6.965342998504639,
+        "peak_reserved_gib": 7.466796875
+      },
+      "replicated": {
+        "prefill_seconds": 0.15329072531312704,
+        "peak_allocated_gib": 5.22012996673584,
+        "peak_reserved_gib": 5.97265625,
+        "generated_ids_match_replicated": true,
+        "relative_prefill_time": 1.0
+      },
+      "shared": {
+        "prefill_seconds": 0.1805680561810732,
+        "peak_allocated_gib": 7.806239128112793,
+        "peak_reserved_gib": 8.546875,
+        "generated_ids_match_replicated": true,
+        "relative_prefill_time": 1.1779450831889975
+      }
+    },
+    "32768": {
+      "full": {
+        "prefill_seconds": 0.5074716005474329,
+        "peak_allocated_gib": 6.968832969665527,
+        "peak_reserved_gib": 7.46875
+      },
+      "replicated": {
+        "prefill_seconds": 0.4092080909758806,
+        "peak_allocated_gib": 9.144115924835205,
+        "peak_reserved_gib": 10.884765625,
+        "generated_ids_match_replicated": true,
+        "relative_prefill_time": 1.0
+      },
+      "shared": {
+        "prefill_seconds": 0.6055896151810884,
+        "peak_allocated_gib": 12.226943492889404,
+        "peak_reserved_gib": 13.80859375,
+        "generated_ids_match_replicated": true,
+        "relative_prefill_time": 1.4799062592747778
+      }
+    },
+    "65536": {
+      "full": {
+        "prefill_seconds": 1.382653714157641,
+        "peak_allocated_gib": 7.33225154876709,
+        "peak_reserved_gib": 7.75
+      },
+      "replicated": {
+        "prefill_seconds": 0.9748650044202805,
+        "peak_allocated_gib": 10.60976505279541,
+        "peak_reserved_gib": 13.822265625,
+        "generated_ids_match_replicated": true,
+        "relative_prefill_time": 1.0
+      },
+      "shared": {
+        "prefill_seconds": 1.5659480104222894,
+        "peak_allocated_gib": 12.717612743377686,
+        "peak_reserved_gib": 14.7109375,
+        "generated_ids_match_replicated": true,
+        "relative_prefill_time": 1.6063229301717588
+      }
+    },
+    "131072": {
+      "full": {
+        "prefill_seconds": 4.370628667064011,
+        "peak_allocated_gib": 7.828131198883057,
+        "peak_reserved_gib": 8.505859375
+      },
+      "replicated": {
+        "prefill_seconds": 2.3478578124195337,
+        "peak_allocated_gib": 13.346025943756104,
+        "peak_reserved_gib": 19.0546875,
+        "generated_ids_match_replicated": true,
+        "relative_prefill_time": 1.0
+      },
+      "shared": {
+        "prefill_seconds": 3.9147288408130407,
+        "peak_allocated_gib": 13.600204944610596,
+        "peak_reserved_gib": 16.447265625,
+        "generated_ids_match_replicated": true,
+        "relative_prefill_time": 1.6673619757147058
+      }
+    }
+  }
+}
