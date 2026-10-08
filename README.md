@@ -13,8 +13,8 @@ contains one fixed production policy, not the research-time tuning matrix.
 | Mode | Remote detail | Leaf storage |
 |---|---|---|
 | `two-tier` | every leaf in each selected centroid | BF16 |
-| `three-tier-bf16` | best semantic page in each selected centroid | BF16 |
-| `three-tier-int4` | best semantic page in each selected centroid | residual INT4 |
+| `three-tier-bf16` | best two semantic pages in each selected centroid during decode | BF16 |
+| `three-tier-int4` | best two semantic pages in each selected centroid during decode | residual INT4 |
 
 All modes use exactly eight routed regions in prefill and decode, a
 `16 * sqrt(T)` centroid schedule, a 16K prefill catch-up, a 512-token base
@@ -29,6 +29,11 @@ tokens so a retained request can be rewound without restoring native K/V.
 Three-tier pages contain 16 leaves. INT4 is applied only to residuals within a
 centroid-owned semantic page; sequential K/V blocks are never quantized as if
 they were semantically coherent.
+
+Three-tier decode selects both pages in one summary scan and replaces their
+leaves exactly once, retaining one count-corrected residual for the rest of
+each centroid. This policy applies to both Qwen3.8 and K2 Horizon. Prefill
+continues to refine all leaves in selected centroids.
 
 The release supports:
 
@@ -210,6 +215,8 @@ only public tools:
 - [ProLong](benchmarks/PROLONG.md): prompt CE/perplexity and matched prefill and
   1,025-token decode speed sweeps.
 - [RULER NIAH-S3](benchmarks/NIAH_S3.md): long-context UUID retrieval.
+- [Three-tier top-2 decode](benchmarks/PRODUCTION_TOP2.md): native defaults,
+  validation, and K2 Horizon batch-8 performance tuning.
 - [KV-cache VRAM](benchmarks/KV_CACHE_VRAM.md): persistent full-attention BF16
   versus three-tier INT4 cache memory.
 

@@ -31,6 +31,24 @@ from benchmarks.prolong import (
 ROOT = Path(__file__).resolve().parents[1]
 
 
+@pytest.mark.parametrize("budget", [1, 2, 4, 8])
+def test_page_ablation_preserves_explicit_budget_and_prefill(monkeypatch, budget):
+    import runpy
+    from lod_attention.kernels import paged_prefill
+
+    observed = []
+    monkeypatch.setattr(
+        paged_prefill, "query_major_residual_page_attention",
+        lambda query, *args, **kwargs: observed.append(kwargs.get("pages_per_slot")),
+    )
+    monkeypatch.setenv("RULER_PAGES_PER_SLOT", str(budget))
+    monkeypatch.delenv("PAGE_KERNEL_SNAPSHOT", raising=False)
+    runpy.run_path(str(ROOT / "benchmarks/ruler_page_ablation/sitecustomize.py"))
+    paged_prefill.query_major_residual_page_attention(SimpleNamespace(size=lambda axis: 1))
+    paged_prefill.query_major_residual_page_attention(SimpleNamespace(size=lambda axis: 2))
+    assert observed == [budget, None]
+
+
 class _Tokenizer:
     def encode(self, prompt: str, *, add_special_tokens: bool) -> list[int]:
         assert not add_special_tokens

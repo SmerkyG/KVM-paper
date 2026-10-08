@@ -8,6 +8,8 @@ from typing import Any
 
 ROUTE_COUNT = 8
 PAGE_SIZE = 16
+# Three-tier decode opens two distinct pages per routed centroid in one scan.
+DECODE_PAGE_COUNT = 2
 CHUNK_SIZE = 256
 LOCAL_WINDOW = 512
 PREFIX_CACHE_LOCAL_WINDOW = 1_024

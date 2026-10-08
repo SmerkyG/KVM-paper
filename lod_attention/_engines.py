@@ -245,7 +245,7 @@ class KernelTwoLevelLODAttention(_KernelLODEngine):
 
 
 class KernelRecursivePagedLODAttention(_KernelLODEngine):
-    """Fast recursive one-page-per-region LOD with BF16 or INT4 K/V."""
+    """Fast recursive two-page-per-region decode with BF16 or INT4 K/V."""
 
     def __init__(
         self,

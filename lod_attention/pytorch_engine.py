@@ -29,6 +29,7 @@ from torch import nn
 
 from ._config import (
     CHUNK_SIZE,
+    DECODE_PAGE_COUNT,
     EXACT_DECODE_LIMIT,
     LOCAL_WINDOW,
     PAGE_SIZE,
@@ -565,7 +566,7 @@ class PytorchLODAttention(nn.Module):
         *,
         scale: float,
     ) -> tuple[list[torch.Tensor], list[torch.Tensor]]:
-        """Open one best chronological region-local page and its residual."""
+        """Open the best two region-local pages and one disjoint residual."""
 
         batch, query_heads, query_length, _ = query.shape
         value_dimension = int(cache.archive_value.size(-1))
@@ -629,10 +630,12 @@ class PytorchLODAttention(nn.Module):
                                 ).mean(dim=-1)
                                 + math.log(int(page_key.size(0)))
                             )
-                        best_page = int(
-                            torch.stack(page_scores).reshape(-1).argmax().item()
-                        )
-                        exact_key, exact_value = pages[best_page]
+                        # Preserve this reference's chronological tie order.
+                        selected_pages = torch.stack(page_scores).reshape(-1).argsort(
+                            descending=True, stable=True
+                        )[:DECODE_PAGE_COUNT].tolist()
+                        exact_key = torch.cat([pages[index][0] for index in selected_pages])
+                        exact_value = torch.cat([pages[index][1] for index in selected_pages])
                         exact_score = _scores(
                             query[
                                 batch_index : batch_index + 1,
