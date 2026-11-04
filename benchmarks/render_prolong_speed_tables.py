@@ -87,6 +87,7 @@ def _latex_cell(cell: str, kind: str) -> str:
 
 def _caption(table: SpeedTable) -> str:
     prefix = f"{table.heading}: "
+    policy = " Three-tier columns use optimized top-2 page opening; both LoD phases route eight centroids."
     if table.kind == "end-to-end":
         decode_unit = (
             "milliseconds per output token"
@@ -97,17 +98,20 @@ def _caption(table: SpeedTable) -> str:
             prefix
             + "end-to-end ProLong timing. Each cell reports prefill seconds / "
             + f"decode {decode_unit}."
+            + policy
         )
     if table.kind == "attention-core":
         return (
             prefix
             + "attention-subsystem timing from matched real-minus-dummy runs. "
             + "Each cell reports prefill seconds / decode milliseconds per batch step."
+            + policy
         )
     return (
         prefix
         + "DFlash2 verification behavior. Each cell reports target verification-cycle "
         + "milliseconds / pooled mean output tokens per cycle."
+        + policy
     )
 
 

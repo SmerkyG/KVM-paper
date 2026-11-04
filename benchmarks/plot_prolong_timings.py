@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import re
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import matplotlib
@@ -20,6 +22,7 @@ plt.rcParams.update({
     "xtick.labelsize": 20,
     "ytick.labelsize": 20,
     "legend.fontsize": 20,
+    "svg.hashsalt": "prolong-native-top2",
 })
 
 
@@ -60,6 +63,49 @@ class VerificationTiming:
 
 Panel = dict[str, dict[str, Timing | None]]
 VerificationPanel = dict[str, dict[str, VerificationTiming]]
+
+
+def _save_figure(figure, output_path: Path) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    figure.savefig(output_path, dpi=180)
+    figure.savefig(output_path.with_suffix(".pdf"), metadata={"CreationDate": None, "ModDate": None})
+    svg = output_path.with_suffix(".svg")
+    figure.savefig(svg, metadata={"Date": None})
+    svg.write_text("\n".join(line.rstrip() for line in svg.read_text().splitlines()) + "\n")
+    plt.close(figure)
+
+
+def write_figure_manifest(input_path: Path, output_dir: Path, panels, dflash) -> None:
+    """Record exact table data and hashes so stale exported figures are detectable."""
+    def digest(path):
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+
+    def serialize(panel):
+        return {context:{mode:asdict(timing) if timing is not None else None
+                         for mode,timing in row.items()}
+                for context,row in panel.items()}
+
+    data = {
+        'schema':1, 'input':str(input_path.resolve()), 'input_sha256':digest(input_path),
+        'routing_centroids':8, 'three_tier_pages_per_centroid':2,
+        'panels':{model:{setup:{kind:serialize(panel) for kind,panel in measurements.items()}
+                         for setup,measurements in setups.items()}
+                  for model,setups in panels.items()},
+        'dflash':{'end_to_end':serialize(dflash[0]), 'verification':serialize(dflash[1])},
+    }
+    summary_path = input_path.resolve().parents[1]/'results/top2-release/report-data/summary.json'
+    if summary_path.exists():
+        summary = json.loads(summary_path.read_text())
+        data['report_inputs'] = dict(path=str(summary_path), sha256=digest(summary_path),
+                                     source_identity=summary['source_identity'],
+                                     speed_inputs=summary.get('speed_inputs', {}),
+                                     outlier_reruns=summary.get('outlier_reruns', {}),
+                                     aggregation=summary.get('timing_aggregation'))
+    stems = [f'{model}_top8_{kind}' for model in MODEL_HEADINGS for kind in ('end_to_end','attention_core')]
+    stems += [f'qwen_dflash2_top8_{kind}' for kind in ('end_to_end','verification','combined')]
+    data['exports'] = {f'{stem}.{suffix}':digest(output_dir/f'{stem}.{suffix}')
+                       for stem in stems for suffix in ('png','pdf','svg')}
+    (output_dir/'manifest.json').write_text(json.dumps(data, indent=2, sort_keys=True)+'\n')
 
 
 def _parse_table(lines: list[str], start: int) -> tuple[Panel, int]:
@@ -213,11 +259,7 @@ def _plot_measurement(
         frameon=False,
     )
     figure.subplots_adjust(top=0.82, bottom=0.10, left=0.11, right=0.985, hspace=0.22)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    figure.savefig(output_path, dpi=180)
-    figure.savefig(output_path.with_suffix(".pdf"))
-    figure.savefig(output_path.with_suffix(".svg"))
-    plt.close(figure)
+    _save_figure(figure, output_path)
 
 
 def _plot_single_setup(
@@ -265,11 +307,7 @@ def _plot_single_setup(
         frameon=False,
     )
     figure.subplots_adjust(top=0.78, bottom=0.10, left=0.20, right=0.975, hspace=0.22)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    figure.savefig(output_path, dpi=180)
-    figure.savefig(output_path.with_suffix(".pdf"))
-    figure.savefig(output_path.with_suffix(".svg"))
-    plt.close(figure)
+    _save_figure(figure, output_path)
 
 
 
@@ -327,11 +365,7 @@ def _plot_dflash_combined(
         hspace=0.22,
         wspace=0.40,
     )
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    figure.savefig(output_path, dpi=180)
-    figure.savefig(output_path.with_suffix(".pdf"))
-    figure.savefig(output_path.with_suffix(".svg"))
-    plt.close(figure)
+    _save_figure(figure, output_path)
 
 
 def plot_dflash_panels(
@@ -394,12 +428,14 @@ def main() -> None:
         "--output-dir",
         type=Path,
         default=Path(__file__).with_name("figures"),
-        help="Directory for PNG and SVG outputs",
+        help="Directory for PNG, PDF, SVG, and figure provenance outputs",
     )
     args = parser.parse_args()
 
+    all_panels = {}
     for model_slug, heading_re in MODEL_HEADINGS.items():
         panels = load_panels(args.input, heading_re)
+        all_panels[model_slug] = panels
         _plot_measurement(
             panels,
             "end_to_end",
@@ -413,6 +449,8 @@ def main() -> None:
 
     dflash_end_to_end, dflash_verification = load_dflash_panels(args.input)
     plot_dflash_panels(dflash_end_to_end, dflash_verification, args.output_dir)
+    write_figure_manifest(args.input, args.output_dir, all_panels,
+                          (dflash_end_to_end, dflash_verification))
 
 
 if __name__ == "__main__":
