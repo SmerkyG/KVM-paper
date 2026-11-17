@@ -103,7 +103,7 @@ def require_post_qkv_output(output: torch.Tensor, tokens: int) -> torch.Tensor:
     return output
 
 
-def build_mixer(schedule: str, context: int) -> SequenceMixer:
+def build_mixer(schedule: str, context: int, *, heads: int = HEADS) -> SequenceMixer:
     mixer = SequenceMixer.__new__(SequenceMixer)
     nn.Module.__init__(mixer)
     mixer.layer_idx = 0
@@ -115,9 +115,12 @@ def build_mixer(schedule: str, context: int) -> SequenceMixer:
         kvm_apply_merge_gate_to_initial_state=False,
         kvm_use_head_temps=True,
         kvm_aotriton_forward_attention=True,
+        kvm_append_policy="least_redundant",
+        kvm_merge_old_slots_only=False,
     )
-    mixer.num_attention_heads = HEADS
-    mixer.num_key_value_heads = HEADS
+    mixer._append_seed_offset = 0
+    mixer.num_attention_heads = heads
+    mixer.num_key_value_heads = heads
     mixer.kv_group_size = 1
     mixer.d_qk_head = DIM
     mixer.d_v_head = DIM
@@ -141,10 +144,10 @@ def build_mixer(schedule: str, context: int) -> SequenceMixer:
     mixer.triton_update_token_block = 8
     mixer.ln_s_k = nn.LayerNorm(DIM, eps=1.0e-5, device="cuda", dtype=DTYPE)
     mixer.front_head_temp = nn.Parameter(
-        torch.ones(HEADS, device="cuda", dtype=DTYPE), requires_grad=True
+        torch.ones(heads, device="cuda", dtype=DTYPE), requires_grad=True
     )
     mixer.state_head_temp = nn.Parameter(
-        torch.ones(HEADS, device="cuda", dtype=DTYPE), requires_grad=True
+        torch.ones(heads, device="cuda", dtype=DTYPE), requires_grad=True
     )
     mixer.c_proj = nn.Identity()
     return mixer

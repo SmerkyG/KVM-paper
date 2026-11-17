@@ -1,0 +1,6 @@
+model:
+  token_mixer_class_path: model.kvm_experiment_mixer.SequenceMixer
+  kvm_append_policy: least_redundant
+  kvm_merge_strategy: nearest
+train:
+  wandb_name_suffix: wave1-K0-kvm-sqrt

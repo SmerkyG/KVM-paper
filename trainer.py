@@ -9,6 +9,24 @@ from train import timed
 from utils.logger import print0 as print
 
 
+def write_hf_compatibility_wrapper(logdir):
+    """Expose the config, model, and RoPE helpers used by exported adapters."""
+    model_code = """
+import os, sys
+hf_wrapper_base_path = os.environ.get('HF_WRAPPER_BASE_PATH')
+if hf_wrapper_base_path is not None:
+    sys.path.insert(0, hf_wrapper_base_path)
+
+from model.rwkv7_backbone import (
+    RWKV7BackboneForCausalLM, RWKV7BackboneModel, MixerConfig,
+    RotaryEmbedding, apply_rotary_embeddings,
+)
+RWKV7BackboneConfig = MixerConfig
+"""
+    with open(os.path.join(logdir, "rwkv7_backbone.py"), "w") as f:
+        f.write(model_code)
+
+
 def update_weight_decay_for_current_lr(optimizer: torch.optim.Optimizer):
     if not isinstance(optimizer, torch.optim.AdamW):
         return
@@ -261,7 +279,7 @@ class Trainer:
                 t0 = time.time()
 
             if master_process and (
-                last_step or (args.save_every > 0 and step % args.save_every == 0)
+                last_step or (args.save_every > 0 and step > 0 and step % args.save_every == 0)
             ):
                 torch.cuda.synchronize()
                 training_time_ms += 1000 * (time.time() - t0)
@@ -287,19 +305,7 @@ class Trainer:
                     tokenizer.save_pretrained(logdir)
                     # save_model_safetensors(raw_model, logdir + save_filename)
 
-                    with open(os.path.join(logdir, "rwkv7_backbone.py"), "w") as f:
-                        model_code = """
-import os, sys
-hf_wrapper_base_path = os.environ.get('HF_WRAPPER_BASE_PATH')
-if hf_wrapper_base_path is not None:
-    sys.path.insert(0, hf_wrapper_base_path)
-
-from model.rwkv7_backbone import RWKV7BackboneForCausalLM, RWKV7BackboneModel, MixerConfig
-RWKV7BackboneForCausalLM = RWKV7BackboneForCausalLM
-RWKV7BackboneModel = RWKV7BackboneModel
-RWKV7BackboneConfig = MixerConfig
-"""
-                        f.write(model_code)
+                    write_hf_compatibility_wrapper(logdir)
 
                     print("Done.\n")
 

@@ -1,0 +1,22 @@
+{
+  "model": {
+    "num_key_value_heads": 4,
+    "qwen_intermediate_size": 3072,
+    "model_class_path": "model.qwen3_backbone.Qwen3BackboneForCausalLM",
+    "token_mixer_class_path": null,
+    "use_tokenshift_att": 0,
+    "use_tokenshift_ffn": 0,
+    "use_value_residual": 0
+  },
+  "train": {
+    "grad_cp": 0,
+    "wandb_name_suffix": "Q0-350M-qwen3-halfrope-lr-2p52982e-3",
+    "optimizer_defaults": {
+      "adam": {
+        "args": {
+          "lr": 0.00252982
+        }
+      }
+    }
+  }
+}

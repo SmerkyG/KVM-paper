@@ -4,7 +4,7 @@
 The ``worker``/``submit``/``analyze`` commands reproduce the B8/H32/D128
 fixed-context benchmark. The ``decode-series-*`` commands reproduce the full
 one-token-to-32K decode trajectory. Both compare Triton KVM with PyTorch Flash
-SDPA.
+SDPA. The ``inference`` command measures full-model GPTA-2 or Triton KVM generation.
 """
 
 from __future__ import annotations
@@ -86,13 +86,26 @@ def parse_args() -> argparse.Namespace:
     )
     series_analyze.add_argument("--root", type=Path, required=True)
     series_analyze.add_argument("--runs", type=int, default=10)
+
+    inference = subparsers.add_parser("inference", help="time full-model GPTA-2 or Triton KVM generation")
+    inference.add_argument("--checkpoint", type=Path, required=True)
+    inference.add_argument("--contexts", nargs="+", type=int, default=[1024, 8192, 32768])
+    inference.add_argument("--batch-size", type=int, default=1)
+    inference.add_argument("--new-tokens", type=int, default=32)
+    inference.add_argument("--prefill-chunk-size", type=int, help="tokens per model-wide prefill chunk")
+    inference.add_argument("--warmup", type=int, default=2)
+    inference.add_argument("--rounds", type=int, default=7)
+    inference.add_argument("--device", type=int, default=0)
+    inference.add_argument("--seed", type=int, default=0)
+    inference.add_argument("--cudagraph", action="store_true", help="also time CUDA Graph replay")
+    inference.add_argument("--output", type=Path, required=True)
     return parser.parse_args()
 
 
 def validate_args(args: argparse.Namespace) -> None:
-    if args.command in ("worker", "decode-series-worker") and args.output.exists():
+    if args.command in ("worker", "decode-series-worker", "inference") and args.output.exists():
         raise FileExistsError(args.output)
-    if args.command in ("worker", "decode-series-worker") and args.device < 0:
+    if args.command in ("worker", "decode-series-worker", "inference") and args.device < 0:
         raise ValueError("device must be nonnegative")
     if args.command == "worker":
         if args.warmup < 0 or args.rounds <= 0 or args.target_ms <= 0:
@@ -104,6 +117,13 @@ def validate_args(args: argparse.Namespace) -> None:
             raise ValueError("run and seed must be nonnegative")
         if not (2 <= args.end_position <= DECODE_SERIES_END):
             raise ValueError("end-position must be between 2 and 32768")
+    if args.command == "inference":
+        if min(args.contexts) <= 0 or len(set(args.contexts)) != len(args.contexts):
+            raise ValueError("contexts must be positive and unique")
+        if min(args.batch_size, args.warmup, args.rounds) <= 0 or args.new_tokens < 2:
+            raise ValueError("batch size, warmup and rounds must be positive, new-tokens at least two")
+        if args.prefill_chunk_size is not None and args.prefill_chunk_size <= 0:
+            raise ValueError("prefill chunk size must be positive")
     if args.command in ("submit", "decode-series-submit") and args.max_parallel <= 0:
         raise ValueError("max-parallel must be positive")
 
@@ -111,6 +131,11 @@ def validate_args(args: argparse.Namespace) -> None:
 def main() -> None:
     args = parse_args()
     validate_args(args)
+    if args.command == "inference":
+        from kvm_benchmark.inference import run_inference
+
+        run_inference(args)
+        return
     handlers = {
         "worker": run_worker,
         "submit": submit,

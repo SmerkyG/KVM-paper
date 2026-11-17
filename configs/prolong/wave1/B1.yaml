@@ -1,0 +1,6 @@
+model:
+  token_mixer_class_path: model.kvm_experiment_mixer.SequenceMixer
+  kvm_merge_strategy: bipartite
+  kvm_bipartite_chunk_size: 256
+train:
+  wandb_name_suffix: wave1-B1-bipartite

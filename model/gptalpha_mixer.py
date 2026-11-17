@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
+from torch.nn.attention.bias import causal_lower_right
 from torch.nn.attention.flex_attention import (
     flex_attention,
     create_block_mask,
@@ -146,6 +147,8 @@ class GeneralGPTAlphaSequenceMixer(ValueResidualMixin):
 
 
 class SequenceMixer(GeneralGPTAlphaSequenceMixer):
+    supports_chunked_prefill = True
+
     def __init__(self, config, layer_idx: int):
         super().__init__(
             config,
@@ -170,18 +173,6 @@ class SequenceMixer(GeneralGPTAlphaSequenceMixer):
             )
             k, v = states_dict["k"], states_dict["v"]
 
-        is_causal = False
-        if attn_mask is None:
-            if q.size(1) == 1:
-                is_causal = False
-            else:
-                if q.size(1) == k.size(1):
-                    is_causal = True
-                else:
-                    raise NotImplementedError(
-                        f"Unsupported attention mask configuration: attn_mask is None but sequence lengths of q and k do not match: {q.shape} vs {k.shape}"
-                    )
-
         if block_mask is not None:
             return separately_compiled_flex_attention(
                 q.transpose(1, 2),
@@ -189,11 +180,16 @@ class SequenceMixer(GeneralGPTAlphaSequenceMixer):
                 v.transpose(1, 2),
                 block_mask=block_mask,
             )
-        else:
-            return F.scaled_dot_product_attention(
-                q.transpose(1, 2),
-                k.transpose(1, 2),
-                v.transpose(1, 2),
-                attn_mask=attn_mask,
-                is_causal=is_causal,
-            )
+        q_len, kv_len = q.size(1), k.size(1)
+        if attn_mask is None and q_len > kv_len:
+            raise ValueError("Causal self-attention requires at least one key per query")
+        is_causal = attn_mask is None and q_len > 1 and q_len == kv_len
+        if attn_mask is None and 1 < q_len < kv_len:
+            attn_mask = causal_lower_right(q_len, kv_len)
+        return F.scaled_dot_product_attention(
+            q.transpose(1, 2),
+            k.transpose(1, 2),
+            v.transpose(1, 2),
+            attn_mask=attn_mask,
+            is_causal=is_causal,
+        )

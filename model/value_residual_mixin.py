@@ -189,7 +189,7 @@ class ValueResidualMixin(nn.Module):
             else 0
         )
         cached_decode = past_seq_len > 0
-        if cached_decode and x.size(1) != 1:
+        if cached_decode and seq_len != 1 and not getattr(self, "supports_chunked_prefill", False):
             raise AssertionError(f"cached decode expects single-token inputs.")
 
         q = self.c_q(x)
@@ -207,15 +207,17 @@ class ValueResidualMixin(nn.Module):
             k_prior_token = cache_states.get(self._CACHE_K_FINAL)
             v_prior_token = cache_states.get(self._CACHE_V_FINAL)
             x_prior_token = cache_states.get(self._CACHE_X_FINAL)
+            final_tokens = {
+                self._CACHE_Q_FINAL: q[:, -1:].detach(),
+                self._CACHE_K_FINAL: k[:, -1:].detach(),
+                self._CACHE_V_FINAL: v[:, -1:].detach(),
+                self._CACHE_X_FINAL: x[:, -1:].detach(),
+            }
+            if seq_len > 1:
+                # Views of the last token would retain the full prefill activations.
+                final_tokens = {name: token.clone() for name, token in final_tokens.items()}
             past_key_values.update(
-                self.layer_idx,
-                offset=0,
-                states_dict={
-                    self._CACHE_Q_FINAL: q[:, -1:].detach(),
-                    self._CACHE_K_FINAL: k[:, -1:].detach(),
-                    self._CACHE_V_FINAL: v[:, -1:].detach(),
-                    self._CACHE_X_FINAL: x[:, -1:].detach(),
-                },
+                self.layer_idx, offset=0, states_dict=final_tokens,
             )
 
         if self.tokenshift_mode == "rwkv":

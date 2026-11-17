@@ -56,6 +56,7 @@ class TritonKVMDecodeCache:
         self.kv_heads = int(snapshot.state_k.size(1))
         self.q_heads = int(mixer.num_attention_heads)
         self.head_dim = int(mixer.d_qk_head)
+        self.recent_key_dim = int(snapshot.recent_k.size(-1))
         self.value_dim = int(mixer.d_v_head)
         self.chunk_len = int(mixer.chunk_len)
         self.ring_capacity = int(mixer.n_bswa_chunks * mixer.chunk_len)
@@ -93,7 +94,7 @@ class TritonKVMDecodeCache:
         self.recent_k = torch.empty(
             self.kv_rows,
             2 * self.ring_capacity,
-            self.head_dim,
+            self.recent_key_dim,
             device=self.device,
             dtype=self.dtype,
         )
@@ -280,15 +281,21 @@ class TritonKVMDecodeCache:
         normalized_k = self.mixer.ln_s_k(snapshot.state_k).reshape(
             self.kv_rows, state_len, self.head_dim
         )
-        normalized_v = (
-            F.normalize(snapshot.state_v.float(), dim=-1)
-            * snapshot.state_vlen.float()
-        ).to(self.dtype).reshape(self.kv_rows, state_len, self.value_dim)
+        if self.mixer.config.kvm_use_vlens:
+            normalized_v = (
+                F.normalize(snapshot.state_v.float(), dim=-1)
+                * snapshot.state_vlen.float()
+            )
+        else:
+            normalized_v = snapshot.state_v.float() / snapshot.state_vlen.float()
+        normalized_v = normalized_v.to(self.dtype).reshape(
+            self.kv_rows, state_len, self.value_dim
+        )
         self.state_k_attn[:, :state_len].copy_(normalized_k)
         self.state_v_attn[:, :state_len].copy_(normalized_v)
 
         flat_recent_k = snapshot.recent_k.reshape(
-            self.kv_rows, recent_len, self.head_dim
+            self.kv_rows, recent_len, self.recent_key_dim
         )
         flat_recent_v = snapshot.recent_v.reshape(
             self.kv_rows, recent_len, self.value_dim
@@ -375,7 +382,7 @@ class TritonKVMDecodeCache:
             mixer._CACHE_STATE_COVERAGE_LEN: self.state_coverage_len,
             mixer._CACHE_BSWA_BEGIN: self.recent_begin,
             mixer._CACHE_BSWA_K: recent_k.reshape(
-                self.batch, self.kv_heads, self.recent_len, self.head_dim
+                self.batch, self.kv_heads, self.recent_len, self.recent_key_dim
             ),
             mixer._CACHE_BSWA_V: recent_v.reshape(
                 self.batch, self.kv_heads, self.recent_len, self.value_dim

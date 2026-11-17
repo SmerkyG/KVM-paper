@@ -373,9 +373,13 @@ def evaluate_batch_loss_by_position(
         )
 
     with torch.inference_mode():
-        hidden_states = model.transformer(
-            input_ids=input_ids, use_cache=False
-        ).last_hidden_state
+        forward_hidden_states = getattr(model, "forward_hidden_states", None)
+        if forward_hidden_states is not None:
+            hidden_states = forward_hidden_states(input_ids)
+        else:
+            hidden_states = model.transformer(
+                input_ids=input_ids, use_cache=False
+            ).last_hidden_state
 
     seq_len = int(labels.shape[1])
     valid_mask = labels != -100

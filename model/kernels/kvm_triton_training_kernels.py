@@ -19,6 +19,9 @@ import triton
 import triton.language as tl
 from triton.language.extra.hip import libdevice
 
+from . import kvm_triton_count_kernels as count_kernels
+from .kvm_triton_append_kernels import write_append_priorities
+
 
 _AOTRITON_FORWARD_BINARY_ENV = "KVM_AOTRITON_FORWARD_BINARY_DIR"
 
@@ -81,6 +84,24 @@ class MixerPrefillSchedule:
     initial_state_len: int
     final_state_len: int
     final_state_coverage_len: int
+
+
+@dataclass(frozen=True)
+class PrefillDeviceSchedule:
+    attention_state_len_by_macro: torch.Tensor
+    before_by_macro: torch.Tensor
+    after_by_macro: torch.Tensor
+    n_append_by_macro: torch.Tensor
+
+    @classmethod
+    def from_host(cls, schedule: MixerPrefillSchedule, device: torch.device):
+        return cls(
+            schedule.attention_state_len_by_macro.to(device),
+            schedule.before_by_macro.to(device),
+            schedule.after_by_macro.to(device),
+            schedule.n_append_by_macro.to(device),
+        )
+
 
 def build_mixer_prefill_schedule(
     *,
@@ -1556,6 +1577,7 @@ def run_forward_state_update(
     before_by_macro_device: torch.Tensor | None = None,
     after_by_macro_device: torch.Tensor | None = None,
     n_append_by_macro_device: torch.Tensor | None = None,
+    append_generator: torch.Generator | None = None,
 ):
     round_route_scores_to_bf16 = _round_route_scores_to_bf16(args)
     round_append_scores_to_bf16 = _round_append_scores_to_bf16(args)
@@ -1584,25 +1606,23 @@ def run_forward_state_update(
         has_appends = append_count > 0
     append_policy = getattr(args, "append_policy", "global")
     merge_order = getattr(args, "merge_order", "append_before_merge")
-    if append_policy != "global":
-        raise ValueError("kvm_triton_training_kernels only supports global append")
-    if merge_order != "append_before_merge":
-        raise ValueError(
-            "kvm_triton_training_kernels only supports append_before_merge"
-        )
+    if append_policy not in ("global", "random", "uniform"):
+        raise ValueError(f"Unsupported Triton KVM append policy: {append_policy!r}")
+    if merge_order not in ("append_before_merge", "old_slots_only"):
+        raise ValueError(f"Unsupported Triton KVM merge order: {merge_order!r}")
     if not getattr(args, "cache_from_rounded_state", False):
         raise ValueError(
             "kvm_triton_training_kernels requires cache_from_rounded_state"
         )
+    count_value_readout = getattr(args, "count_value_readout", False)
 
     state_before_host = int(schedule.before_by_macro[overflow_macro_id].item())
     scan_state_chunk = getattr(args, "scan_state_chunk", 0) or args.state_chunk
     active_state_chunks = triton.cdiv(state_before_host, scan_state_chunk)
     active_state_groups = triton.cdiv(active_state_chunks, args.group_chunks)
 
-    scan_select_k = (
-        overflow_select_k_flat if has_appends else overflow_merge_k_flat
-    )
+    scan_select_and_merge = has_appends and append_policy == "global"
+    scan_select_k = overflow_select_k_flat if scan_select_and_merge else overflow_merge_k_flat
     _grouped_scan_oldstate_maxsim_kernel[
         (kv_rows, active_state_groups, sub_blocks)
     ](
@@ -1624,7 +1644,7 @@ def run_forward_state_update(
         SUB_BLOCKS=sub_blocks,
         HEAD_DIM=args.dim,
         SINK_LEN=args.sink_len,
-        SPLIT_SELECT_MERGE=has_appends,
+        SPLIT_SELECT_MERGE=scan_select_and_merge,
         ROUND_SELECT_SCORES_TO_BF16=round_append_scores_to_bf16,
         ROUND_MERGE_SCORES_TO_BF16=round_route_scores_to_bf16,
         **triton_launch_kwargs(
@@ -1635,7 +1655,44 @@ def run_forward_state_update(
         n_append = n_append_by_macro_device
         if n_append is None:
             n_append = schedule.n_append_by_macro.to(overflow_select_k_flat.device)
-        _reduce_oldstate_maxsim_global_append_kernel[(kv_rows,)](
+        append_score_groups = buffers["max_state_groups"]
+        if append_policy != "global":
+            random_seed = None
+            inverse_append_count = 0.0
+            if append_policy == "random":
+                # Checkpoint recomputation restores the default device RNG
+                # used in training. Evaluation supplies its own generator.
+                random_seed = torch.randint(
+                    0,
+                    torch.iinfo(torch.int64).max,
+                    (),
+                    device=state_k.device,
+                    dtype=torch.int64,
+                    generator=append_generator,
+                )
+            else:
+                append_count = int(schedule.n_append_by_macro[overflow_macro_id].item())
+                inverse_append_count = 1.0 / append_count
+            # The append writer can consume one compact score group per row.
+            # Reuse the selection scratch after scanning the old merge targets.
+            append_score_groups = 1
+            write_append_priorities[(kv_rows,)](
+                buffers["partial_select_scores"],
+                n_append,
+                random_seed,
+                overflow_macro_id,
+                inverse_append_count,
+                MACRO_BLOCK=args.macro_block,
+                APPEND_POLICY=append_policy,
+                SEED_OFFSET=getattr(args, "append_seed_offset", 0),
+                num_warps=2,
+            )
+        append_kernel = (
+            count_kernels._reduce_oldstate_maxsim_global_append_kernel
+            if count_value_readout
+            else _reduce_oldstate_maxsim_global_append_kernel
+        )
+        append_kernel[(kv_rows,)](
             state_k,
             state_v,
             state_k_attn,
@@ -1651,7 +1708,7 @@ def run_forward_state_update(
             ln_weight,
             ln_bias,
             MAX_STATE_LEN=buffers["max_state_len"],
-            MAX_STATE_GROUPS=buffers["max_state_groups"],
+            MAX_STATE_GROUPS=append_score_groups,
             MACRO_BLOCKS=macro_blocks,
             MACRO_BLOCK=args.macro_block,
             SUB_BLOCK=args.sub_block,
@@ -1665,7 +1722,8 @@ def run_forward_state_update(
                 args.update_waves_per_eu or args.waves_per_eu,
             ),
         )
-    use_precomputed_append_targets = has_appends and bool(
+    scan_append_targets = has_appends and merge_order == "append_before_merge"
+    use_precomputed_append_targets = scan_append_targets and bool(
         getattr(args, "split_append_target_scan", False)
     )
     if use_precomputed_append_targets:
@@ -1724,13 +1782,17 @@ def run_forward_state_update(
         HEAD_DIM=args.dim,
         VALUE_DIM=args.value_dim,
         STORE_UNDO=store_undo,
-        SCAN_APPEND_TARGETS=has_appends,
+        SCAN_APPEND_TARGETS=scan_append_targets,
         USE_PRECOMPUTED_APPEND_TARGETS=use_precomputed_append_targets,
         ROUND_MERGE_SCORES_TO_BF16=round_route_scores_to_bf16,
         **triton_launch_kwargs(
             args.update_num_warps, 1, args.update_waves_per_eu or args.waves_per_eu
         ),
     )
+    if count_value_readout:
+        count_kernels.adjust_counts_by_route(
+            state_vlen, best_idx_by_token, after, overflow_macro_id, 1.0
+        )
     _forward_apply_fp16_delta_normcache(
         args,
         schedule,
@@ -1771,7 +1833,12 @@ def _forward_apply_fp16_delta_normcache(
         raise ValueError("kvm_triton_training_kernels requires cache_from_rounded_state")
     active_state_after = int(schedule.after_by_macro[overflow_macro_id].item())
     apply_state_chunks = triton.cdiv(active_state_after, apply_state_chunk)
-    _apply_fp16_delta_normcache_rounded_kernel[(kv_rows, apply_state_chunks)](
+    apply_kernel = (
+        count_kernels._apply_fp16_delta_normcache_rounded_kernel
+        if getattr(args, "count_value_readout", False)
+        else _apply_fp16_delta_normcache_rounded_kernel
+    )
+    apply_kernel[(kv_rows, apply_state_chunks)](
         state_k,
         state_v,
         state_k_attn,
@@ -1825,6 +1892,7 @@ def _kvm_attn_live_state_fwd_kernel(
     HEAD_DIM: tl.constexpr,
     VALUE_DIM: tl.constexpr,
     SCALE_LOG2: tl.constexpr,
+    state_q=None,
 ):
     q_row = tl.program_id(0).to(tl.int64)
     local_block = tl.program_id(1).to(tl.int64)
@@ -1848,7 +1916,11 @@ def _kvm_attn_live_state_fwd_kernel(
     out_row = out + q_row * total_len * VALUE_DIM
     lse_row = lse + q_row * total_len
 
+    q_offsets = q_row * total_len * HEAD_DIM + q_idx[:, None] * HEAD_DIM + key_offsets[None, :]
     q_block = tl.load(q_row_ptr + q_idx[:, None] * HEAD_DIM + key_offsets[None, :])
+    state_q_block = q_block
+    if state_q is not None:
+        state_q_block = tl.load(state_q + q_offsets)
     active_state_len = tl.load(active_state_len_by_macro + macro_id)
     active_chunks = tl.cdiv(active_state_len, STATE_CHUNK)
     state_temp = tl.load(state_temperature + q_head).to(tl.float32)
@@ -1866,7 +1938,7 @@ def _kvm_attn_live_state_fwd_kernel(
             other=0.0,
         )
         k_eff = (k_chunk.to(tl.float32) * state_temp).to(tl.bfloat16)
-        scores = tl.dot(q_block, tl.trans(k_eff), out_dtype=tl.float32) * SCALE_LOG2
+        scores = tl.dot(state_q_block, tl.trans(k_eff), out_dtype=tl.float32) * SCALE_LOG2
         scores = tl.where(valid_state[None, :], scores, -float("inf"))
         block_m = tl.max(scores, axis=1)
         m_new = tl.maximum(m_i, block_m)
@@ -1975,6 +2047,8 @@ def _kvm_attn_live_state_dq_kernel(
     VALUE_DIM: tl.constexpr,
     SCALE_LOG2: tl.constexpr,
     SCALE: tl.constexpr,
+    state_q=None,
+    dq_state=None,
 ):
     q_row = tl.program_id(0).to(tl.int64)
     local_block = tl.program_id(1).to(tl.int64)
@@ -2000,7 +2074,11 @@ def _kvm_attn_live_state_dq_kernel(
     bswa_k_row = bswa_k + kv_row * total_len * HEAD_DIM
     bswa_v_row = bswa_v + kv_row * total_len * VALUE_DIM
 
+    q_offsets = q_row * total_len * HEAD_DIM + q_idx[:, None] * HEAD_DIM + key_offsets[None, :]
     q_block = tl.load(q_row_ptr + q_idx[:, None] * HEAD_DIM + key_offsets[None, :])
+    state_q_block = q_block
+    if state_q is not None:
+        state_q_block = tl.load(state_q + q_offsets)
     do = tl.load(dout_row + q_idx[:, None] * VALUE_DIM + value_offsets[None, :]).to(
         tl.float32
     )
@@ -2027,13 +2105,17 @@ def _kvm_attn_live_state_dq_kernel(
             other=0.0,
         )
         k_eff = (k_chunk.to(tl.float32) * state_temp).to(tl.bfloat16)
-        scores = tl.dot(q_block, tl.trans(k_eff), out_dtype=tl.float32) * SCALE_LOG2
+        scores = tl.dot(state_q_block, tl.trans(k_eff), out_dtype=tl.float32) * SCALE_LOG2
         scores = tl.where(valid_state[None, :], scores, -float("inf"))
         p = tl.exp2(scores - lse_i[:, None])
         p = tl.where(valid_state[None, :], p, 0.0)
         dp = tl.dot(do_bf16, tl.trans(v_chunk), out_dtype=tl.float32)
         ds = p * (dp - delta_i[:, None])
         dq_acc += tl.dot(ds.to(tl.bfloat16), k_eff, out_dtype=tl.float32) * SCALE
+
+    if dq_state is not None:
+        tl.store(dq_state + q_offsets, dq_acc)
+        dq_acc = tl.zeros((ATTN_BLOCK, HEAD_DIM), tl.float32)
 
     for prev_distance in tl.static_range(BSWA_CHUNKS - 1, 0, -1):
         if macro_id >= prev_distance:
@@ -2826,6 +2908,9 @@ def _kvm_aotriton_source_online_update(
     MASK_SEQUENCE: tl.constexpr,
     CAUSAL_BEFORE_DOT: tl.constexpr,
     BIAS_AFTER_DOT: tl.constexpr,
+    state_q_block=None,
+    state_len=0,
+    key_start=0,
 ):
     # Preserve AOTriton's operation order. In particular, padded and causal
     # masks are installed into a zero score tile before the QK dot, whereas an
@@ -2843,9 +2928,18 @@ def _kvm_aotriton_source_online_update(
             score_mask &= logical_key[None, :] <= causal_limit
         scores = tl.where(score_mask, scores, -float("inf"))
 
-    scores += SCALE_LOG2 * tl.dot(
-        q_block, k_block, out_dtype=tl.float32
-    )
+    if state_q_block is None:
+        qk = tl.dot(q_block, k_block, out_dtype=tl.float32)
+    elif key_start + k_block.shape[1] <= state_len:
+        qk = tl.dot(state_q_block, k_block, out_dtype=tl.float32)
+    elif key_start >= state_len:
+        qk = tl.dot(q_block, k_block, out_dtype=tl.float32)
+    else:
+        # At the state/front boundary, choose the query per key before softmax.
+        qk_state = tl.dot(state_q_block, k_block, out_dtype=tl.float32)
+        qk_front = tl.dot(q_block, k_block, out_dtype=tl.float32)
+        qk = tl.where(logical_key[None, :] < state_len, qk_state, qk_front)
+    scores += SCALE_LOG2 * qk
     if BIAS_AFTER_DOT:
         causal_limit = query_offsets[:, None] + key_len - query_len
         visible = logical_key[None, :] <= causal_limit
@@ -2899,6 +2993,7 @@ def _kvm_aotriton_source_attention_fwd_kernel(
     IS_INITIAL_CAUSAL: tl.constexpr,
     EPILOGUE_MODE: tl.constexpr,
     TAIL_COMPAT_MODE: tl.constexpr,
+    state_q=None,
 ):
     """KVM-specialized AOTriton 0.11 attention forward.
 
@@ -2936,6 +3031,14 @@ def _kvm_aotriton_source_attention_fwd_kernel(
         mask=valid_query[:, None],
         other=0.0,
     )
+    state_q_block = None
+    if state_q is not None:
+        state_q_row = state_q + q_row * TOTAL_LEN * HEAD_DIM
+        state_q_block = tl.load(
+            state_q_row + q_indices[:, None] * HEAD_DIM + head_offsets[None, :],
+            mask=valid_query[:, None],
+            other=0.0,
+        )
     state_temp = tl.load(state_temperature + q_head).to(tl.bfloat16)
     front_temp = tl.load(front_temperature + q_head).to(tl.bfloat16)
     key_len = state_len + front_len
@@ -2993,6 +3096,9 @@ def _kvm_aotriton_source_attention_fwd_kernel(
             MASK_SEQUENCE=False,
             CAUSAL_BEFORE_DOT=False,
             BIAS_AFTER_DOT=not IS_INITIAL_CAUSAL,
+            state_q_block=state_q_block,
+            state_len=state_len,
+            key_start=key_block * BLOCK_N,
         )
 
     tl.debug_barrier()
@@ -3032,6 +3138,9 @@ def _kvm_aotriton_source_attention_fwd_kernel(
             MASK_SEQUENCE=True,
             CAUSAL_BEFORE_DOT=IS_INITIAL_CAUSAL,
             BIAS_AFTER_DOT=not IS_INITIAL_CAUSAL,
+            state_q_block=state_q_block,
+            state_len=state_len,
+            key_start=key_block * BLOCK_N,
         )
 
     if not IS_INITIAL_CAUSAL and TAIL_COMPAT_MODE:
@@ -3150,6 +3259,7 @@ def _enable_kvm_attention_compile_hook(binary_dir: Path) -> None:
             and constants.get("EPILOGUE_MODE") == 0
             and constants.get("TAIL_COMPAT_MODE") == 1
             and str(signature.get("q")) == "*bf16"
+            and not str(signature.get("state_q", "")).startswith("*")
             and str(signature.get("state_temperature")) == "*fp32"
             and str(signature.get("front_temperature")) == "*fp32"
             and (
@@ -3212,6 +3322,7 @@ def _run_aotriton_source_attention_forward(
     is_initial_causal: bool,
     epilogue_mode: int = 0,
     tail_compat_mode: int = 1,
+    state_q_flat: torch.Tensor | None = None,
 ):
     q_rows = args.batch * args.q_heads
     grid = (q_rows, triton.cdiv(query_len, query_block))
@@ -3244,6 +3355,7 @@ def _run_aotriton_source_attention_forward(
         IS_INITIAL_CAUSAL=is_initial_causal,
         EPILOGUE_MODE=epilogue_mode,
         TAIL_COMPAT_MODE=tail_compat_mode,
+        state_q=state_q_flat,
         **triton_launch_kwargs(num_warps, 1, waves_per_eu),
     )
     compiled = _kvm_aotriton_source_attention_fwd_kernel[grid](
@@ -3257,7 +3369,8 @@ def _run_aotriton_source_attention_forward(
     # result only when the compile hook was unavailable at module import time.
     binary_dir = os.environ.get(_AOTRITON_FORWARD_BINARY_ENV)
     binary_compatible = (
-        args.batch == 8
+        state_q_flat is None
+        and args.batch == 8
         and args.q_len == 8192
         and args.q_heads == 6
         and args.kv_heads == 6
@@ -3354,6 +3467,7 @@ def _run_aotriton_recurrent_attention_forward(
     front_temperature: torch.Tensor,
     out: torch.Tensor,
     lse: torch.Tensor,
+    state_q_flat: torch.Tensor | None = None,
 ) -> None:
     """Run recurrent attention with the direct source-derived Triton kernel."""
     query_begin = macro_id * args.macro_block
@@ -3379,6 +3493,7 @@ def _run_aotriton_recurrent_attention_forward(
         num_warps=2,
         waves_per_eu=3,
         is_initial_causal=False,
+        state_q_flat=state_q_flat,
     )
 
 
@@ -3396,6 +3511,7 @@ def build_prefill_forward(
     state_temperature: torch.Tensor,
     front_temperature: torch.Tensor,
     *,
+    state_q_flat: torch.Tensor | None = None,
     initial_k_flat: torch.Tensor | None = None,
     initial_v_flat: torch.Tensor | None = None,
     overflow_select_k_flat: torch.Tensor | None = None,
@@ -3403,6 +3519,10 @@ def build_prefill_forward(
     overflow_append_v_flat: torch.Tensor | None = None,
     overflow_merge_k_flat: torch.Tensor | None = None,
     overflow_merge_v_flat: torch.Tensor | None = None,
+    append_generator: torch.Generator | None = None,
+    device_schedule: PrefillDeviceSchedule | None = None,
+    initial_live_state: dict[str, torch.Tensor] | None = None,
+    first_query_macro: int = 0,
 ) -> dict:
     _round_route_scores_to_bf16(args)
     device = q_flat.device
@@ -3449,43 +3569,59 @@ def build_prefill_forward(
     use_aotriton_attention = bool(
         getattr(args, "aotriton_forward_attention", False)
     )
-    if initial_k_flat is None:
-        initial_k_flat = overflow_k_flat
-    if initial_v_flat is None:
-        initial_v_flat = overflow_v_flat
-    state_k[:, : args.initial_state_len].copy_(
-        initial_k_flat[:, : args.initial_state_len]
-    )
-    state_v[:, : args.initial_state_len].copy_(
-        initial_v_flat[:, : args.initial_state_len]
-    )
-    initial_chunks = triton.cdiv(args.initial_state_len, args.state_chunk)
-    update_kwargs = triton_launch_kwargs(
-        args.update_num_warps, 1, args.update_waves_per_eu or args.waves_per_eu
-    )
     attn_kwargs = triton_launch_kwargs(
         args.attn_num_warps, 1, args.attn_waves_per_eu or args.waves_per_eu
     )
-    _init_state_normcache_kernel[(kv_rows, initial_chunks)](
-        state_k,
-        state_v,
-        state_k_attn,
-        state_v_attn,
-        state_vlen,
-        ln_weight,
-        ln_bias,
-        INITIAL_STATE_LEN=args.initial_state_len,
-        MAX_STATE_LEN=max_state_len,
-        STATE_CHUNK=args.state_chunk,
-        HEAD_DIM=args.dim,
-        VALUE_DIM=args.value_dim,
-        LN_EPS=args.ln_eps,
-        **update_kwargs,
-    )
+    if initial_live_state is None:
+        if initial_k_flat is None:
+            initial_k_flat = overflow_k_flat
+        if initial_v_flat is None:
+            initial_v_flat = overflow_v_flat
+        state_k[:, :args.initial_state_len].copy_(initial_k_flat[:, :args.initial_state_len])
+        state_v[:, :args.initial_state_len].copy_(initial_v_flat[:, :args.initial_state_len])
+        initial_chunks = triton.cdiv(args.initial_state_len, args.state_chunk)
+        update_kwargs = triton_launch_kwargs(
+            args.update_num_warps, 1, args.update_waves_per_eu or args.waves_per_eu
+        )
+        init_kernel = (
+            count_kernels._init_state_normcache_kernel
+            if getattr(args, "count_value_readout", False)
+            else _init_state_normcache_kernel
+        )
+        init_kernel[(kv_rows, initial_chunks)](
+            state_k,
+            state_v,
+            state_k_attn,
+            state_v_attn,
+            state_vlen,
+            ln_weight,
+            ln_bias,
+            INITIAL_STATE_LEN=args.initial_state_len,
+            MAX_STATE_LEN=max_state_len,
+            STATE_CHUNK=args.state_chunk,
+            HEAD_DIM=args.dim,
+            VALUE_DIM=args.value_dim,
+            LN_EPS=args.ln_eps,
+            **update_kwargs,
+        )
+    else:
+        if use_aotriton_attention:
+            raise ValueError("Resuming prefill requires live-state Triton attention")
+        for name, destination in (
+            ("state_k", state_k), ("state_v", state_v),
+            ("state_k_attn", state_k_attn), ("state_v_attn", state_v_attn),
+            ("state_vlen", state_vlen),
+        ):
+            destination[:, :args.initial_state_len].copy_(initial_live_state[name])
 
-    active = schedule.attention_state_len_by_macro.to(device)
-    before_by_macro_device = schedule.before_by_macro.to(device)
-    after_by_macro_device = schedule.after_by_macro.to(device)
+    if device_schedule is None:
+        active = schedule.attention_state_len_by_macro.to(device)
+        before_by_macro_device = schedule.before_by_macro.to(device)
+        after_by_macro_device = schedule.after_by_macro.to(device)
+    else:
+        active = device_schedule.attention_state_len_by_macro
+        before_by_macro_device = device_schedule.before_by_macro
+        after_by_macro_device = device_schedule.after_by_macro
     valid_update = schedule.valid_update_by_macro
     update_macro_ids = {
         int(x)
@@ -3499,9 +3635,13 @@ def build_prefill_forward(
                 schedule.n_append_by_macro, as_tuple=False
             ).flatten().tolist()
         }
-    n_append_by_macro_device = (
-        schedule.n_append_by_macro.to(device) if append_macro_ids else None
-    )
+    n_append_by_macro_device = None
+    if append_macro_ids:
+        n_append_by_macro_device = (
+            schedule.n_append_by_macro.to(device)
+            if device_schedule is None
+            else device_schedule.n_append_by_macro
+        )
     scale_log2 = math.log2(math.e) / math.sqrt(float(args.dim))
     if use_aotriton_attention:
         _run_aotriton_initial_attention_forward(
@@ -3518,11 +3658,13 @@ def build_prefill_forward(
     capture_state_snapshots = bool(getattr(args, "capture_state_snapshots", False))
     state_k_attn_by_macro: list[torch.Tensor] = []
     state_v_attn_by_macro: list[torch.Tensor] = []
-    for macro_id in range(macro_blocks):
+    # The final macro of the saved window can trigger the overflow update
+    # needed by the first new query macro.
+    for macro_id in range(max(0, first_query_macro - 1), macro_blocks):
         if capture_state_snapshots:
             state_k_attn_by_macro.append(state_k_attn.clone())
             state_v_attn_by_macro.append(state_v_attn.clone())
-        if not use_aotriton_attention:
+        if not use_aotriton_attention and macro_id >= first_query_macro:
             _kvm_attn_live_state_fwd_kernel[(q_rows, attn_blocks_per_macro)](
                 q_flat,
                 state_k_attn,
@@ -3547,6 +3689,7 @@ def build_prefill_forward(
                 HEAD_DIM=args.dim,
                 VALUE_DIM=args.value_dim,
                 SCALE_LOG2=scale_log2,
+                state_q=state_q_flat,
                 **attn_kwargs,
             )
         if use_aotriton_attention and macro_id >= args.bswa_chunks:
@@ -3563,6 +3706,7 @@ def build_prefill_forward(
                 front_temperature,
                 out,
                 lse,
+                state_q_flat=state_q_flat,
             )
         overflow_macro_id = macro_id - (args.bswa_chunks - 1)
         if overflow_macro_id not in update_macro_ids:
@@ -3599,6 +3743,7 @@ def build_prefill_forward(
             before_by_macro_device=before_by_macro_device,
             after_by_macro_device=after_by_macro_device,
             n_append_by_macro_device=n_append_by_macro_device,
+            append_generator=append_generator,
         )
 
     return {
@@ -3631,6 +3776,7 @@ def run_training_backward_reconstruct_live_state(
     state_temperature: torch.Tensor,
     front_temperature: torch.Tensor,
     *,
+    state_q_flat: torch.Tensor | None = None,
     initial_k_flat: torch.Tensor | None = None,
     initial_v_flat: torch.Tensor | None = None,
     overflow_select_k_flat: torch.Tensor | None = None,
@@ -3700,6 +3846,7 @@ def run_training_backward_reconstruct_live_state(
             ln_bias,
             state_temperature,
             front_temperature,
+            state_q_flat=state_q_flat,
             initial_k_flat=initial_k_flat,
             initial_v_flat=initial_v_flat,
             overflow_select_k_flat=overflow_select_k_flat,
@@ -3716,6 +3863,7 @@ def run_training_backward_reconstruct_live_state(
     dq = torch.empty(
         q_rows, args.q_len, args.dim, device=device, dtype=q_flat.dtype
     )
+    dq_state = torch.empty_like(dq) if state_q_flat is not None else None
     d_bswa_k = torch.empty(
         kv_rows, args.q_len, args.dim, device=device, dtype=bswa_k_flat.dtype
     )
@@ -3791,6 +3939,17 @@ def run_training_backward_reconstruct_live_state(
     before_by_macro = schedule.before_by_macro.to(device)
     after_by_macro = schedule.after_by_macro.to(device)
     has_appends = schedule.final_state_len > schedule.initial_state_len
+    count_value_readout = getattr(args, "count_value_readout", False)
+    state_grad_kernel = (
+        count_kernels._live_state_dkdv_to_raw_grad_kernel
+        if count_value_readout
+        else _live_state_dkdv_to_raw_grad_kernel
+    )
+    restore_kernel = (
+        count_kernels._restore_refresh_from_undo_routes_kernel
+        if count_value_readout
+        else _restore_refresh_from_undo_routes_kernel
+    )
     token_groups_total = args.macro_block // args.update_token_block
 
     _kvm_attn_bwd_preprocess_kernel[
@@ -3940,12 +4099,14 @@ def run_training_backward_reconstruct_live_state(
             VALUE_DIM=args.value_dim,
             SCALE_LOG2=scale_log2,
             SCALE=scale,
+            state_q=state_q_flat,
+            dq_state=dq_state,
             **attn_kwargs,
         )
         if active_len > 0:
             active_state_chunks = triton.cdiv(active_len, args.state_chunk)
-            _live_state_dkdv_to_raw_grad_kernel[(kv_rows, active_state_chunks)](
-                q_flat,
+            state_grad_kernel[(kv_rows, active_state_chunks)](
+                q_flat if state_q_flat is None else state_q_flat,
                 state_k_attn,
                 state_v_attn,
                 state_k,
@@ -3996,7 +4157,7 @@ def run_training_backward_reconstruct_live_state(
             continue
         if not bool(schedule.valid_update_by_macro[overflow_macro_id].item()):
             continue
-        if not has_appends:
+        if not has_appends and not count_value_readout:
             _reverse_scatter_restore_merge_only_kernel[
                 (kv_rows, token_groups_total)
             ](
@@ -4061,7 +4222,17 @@ def run_training_backward_reconstruct_live_state(
             VALUE_DIM=args.value_dim,
             **update_kwargs,
         )
-        _restore_refresh_from_undo_routes_kernel[(kv_rows, token_groups_total)](
+        if count_value_readout:
+            # Rewind old slots before restoring their readout. The restore
+            # kernel discards any slots born during this update.
+            count_kernels.adjust_counts_by_route(
+                state_vlen,
+                forward["best_idx_by_token"],
+                before_by_macro,
+                overflow_macro_id,
+                -1.0,
+            )
+        restore_kernel[(kv_rows, token_groups_total)](
             state_k,
             state_v,
             state_k_attn,
@@ -4107,6 +4278,7 @@ def run_training_backward_reconstruct_live_state(
     return {
         "out": out,
         "dq": dq,
+        "dq_state": dq_state,
         "d_bswa_k": d_bswa_k,
         "d_bswa_v": d_bswa_v,
         "d_overflow_k": d_overflow_k,

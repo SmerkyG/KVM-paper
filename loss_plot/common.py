@@ -138,6 +138,7 @@ def resolve_dataset(
     dataset_name: str | None,
     split: str,
 ):
+    dataset_id = dataset
     errors = []
     try:
         ds = load_dataset(
@@ -255,7 +256,7 @@ def preprocess_dataset(
     def filter_function(example):
         return len(example[text_column]) >= target_token_count * 2.5
 
-    num_proc = max(1, os.cpu_count() - 2)
+    num_proc = max(1, min(8, (os.cpu_count() or 1) - 2))
 
     dataset = dataset.filter(filter_function, num_proc=num_proc)
 

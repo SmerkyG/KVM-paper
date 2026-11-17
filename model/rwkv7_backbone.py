@@ -165,8 +165,11 @@ class MLP(nn.Module):
                         "RWKV7 backbone cached MLP decode requires 'mlp_final_token' to have shape "
                         f"{(x.shape[0], 1, x.shape[2])}, got {tuple(old_final_token.shape)}."
                     )
+                final_token = x[:, -1:]
+                if current_seq_len > 1:
+                    final_token = final_token.clone()
                 past_key_values.update(
-                    self.layer_idx, offset=0, states_dict={"mlp_final_token": x[:, -1:]}
+                    self.layer_idx, offset=0, states_dict={"mlp_final_token": final_token}
                 )
             xk = x + self.x_k * token_shift_delta(x, old_final_token, fallback="zero")
         else:
@@ -177,6 +180,13 @@ class MLP(nn.Module):
         return x
 
 
+def is_alternate_layer(config, layer_idx):
+    return (
+        config.alt_layer_every > 1
+        and layer_idx % config.alt_layer_every == config.alt_layer_offset
+    )
+
+
 class Block(nn.Module):
     def __init__(self, config, layer_idx):
         super().__init__()
@@ -184,7 +194,8 @@ class Block(nn.Module):
         self.layer_idx = layer_idx
         self.residual_scale = self.config.residual_scale or 1.0
 
-        if config.alt_layer_every > 1 and layer_idx % config.alt_layer_every == 0:
+        self.is_alt_layer = is_alternate_layer(config, layer_idx)
+        if self.is_alt_layer:
             token_mixer_class_path = config.alt_token_mixer_class_path
             if token_mixer_class_path is None:
                 token_mixer_class_path = (
@@ -209,7 +220,7 @@ class Block(nn.Module):
 
     def forward(self, x, x0, **kwargs):
         # NOTE - we separate these so that compilation is faster when changing things in each part
-        if self.training:
+        if self.training and getattr(self.attn, "compile_attention", True):
             x = self.forward_attn_maybe_compiled(x, x0, **kwargs)
         else:
             x = self.forward_attn(x, x0, **kwargs)
@@ -301,6 +312,7 @@ class RWKV7BackboneConfigDataclass(BaseModel):
     alt_token_mixer: str = "swa"
     alt_token_mixer_class_path: str | None = None
     alt_layer_every: int = -1
+    alt_layer_offset: int = 0
     use_tokenshift_ffn: int = False
     use_block_lambdas: int = False
     use_skip_connections: int = False
@@ -323,6 +335,16 @@ class MixerConfigDataclass(RWKV7BackboneConfigDataclass):
     kvm_use_merge_gate_values: int = 1
     kvm_use_head_temps: int = 1
     kvm_use_vlens: int = 1
+    kvm_use_gate_weight_vlen: int = 0
+    kvm_use_shared_value_radius: int = 0
+    kvm_merge_old_slots_only: int = 0
+    kvm_append_policy: str = "least_redundant"
+    kvm_merge_strategy: str = "nearest"
+    kvm_routing_seed: int = 0
+    kvm_bipartite_chunk_size: int = 256
+    qwen_intermediate_size: int = 2304
+    qwen_rms_norm_eps: float = 1e-6
+    qwen_initializer_range: float = 0.02
     kvm_aotriton_forward_attention: int = 1
     # The normal path is fully self-contained Triton source. On gfx942, this
     # opt-in loads the older shape-guarded Triton 3.4 code objects instead.
@@ -371,6 +393,8 @@ class MixerConfigDataclass(RWKV7BackboneConfigDataclass):
     state_round_down: int = 1
     state_min_len: int = -1
     state_saturation_n: int | None = None
+    state_linear_cap: int | None = None
+    state_linear_end: int | None = None
     use_overflow_v_key_weighting: int = 1
     use_state_deltarule: int = 0
     use_state_decay: int = 0
@@ -444,6 +468,11 @@ class RWKV7BackboneModel(RWKV7BackbonePreTrainedModel):
             nn.Embedding(config.vocab_size, config.hidden_size, self.padding_idx),
             mup_d_in_ratio=1.0,
         )
+        if config.alt_layer_every > 1 and not (
+            0 <= config.alt_layer_offset < min(config.alt_layer_every, config.num_hidden_layers)
+            and config.num_hidden_layers > 1
+        ):
+            raise ValueError("Hybrid attention needs an in-range offset and both layer types")
         self.h = nn.ModuleList(
             [Block(config, layer_idx) for layer_idx in range(config.num_hidden_layers)]
         )
@@ -499,7 +528,10 @@ class RWKV7BackboneModel(RWKV7BackbonePreTrainedModel):
             inputs_embeds = self.embed(input_ids)
 
         past_seen_tokens = None
-        if cache_position is not None and cache_position.numel() > 0:
+        if isinstance(past_key_values, StatesDictCache) and past_key_values.use_host_positions:
+            # The unrolled graph knows each logical cache length at capture time.
+            past_seen_tokens = past_key_values.get_seq_length(0)
+        elif cache_position is not None and cache_position.numel() > 0:
             past_seen_tokens = int(cache_position.reshape(-1)[0].item())
         elif position_ids is not None and position_ids.numel() > 0:
             past_seen_tokens = int(position_ids.reshape(-1)[0].item())
@@ -540,24 +572,10 @@ class RWKV7BackboneModel(RWKV7BackbonePreTrainedModel):
                 )
 
         if past_seen_tokens > 0 and inputs_embeds.shape[1] > 1:
-            assert False, (
-                "The current implementation does not support multi-token generation with past_key_values. This is because the attention mask handling for such a case is non-trivial and has not been implemented yet. Please use single-token generation when past_key_values are involved."
-            )
-
-            def _lower_right_causal_mask(
-                q_len: int, kv_len: int, device: torch.device
-            ) -> torch.Tensor:
-                diagonal_offset = kv_len - q_len
-                q_idx = torch.arange(q_len, device=device).unsqueeze(1)
-                kv_idx = torch.arange(kv_len, device=device).unsqueeze(0)
-                return kv_idx <= (q_idx + diagonal_offset)
-
-            print("Creating lower right causal mask")
-            attention_mask = _lower_right_causal_mask(
-                inputs_embeds.shape[1],
-                past_seen_tokens + inputs_embeds.shape[1],
-                inputs_embeds.device,
-            )
+            if self.training or not isinstance(past_key_values, StatesDictCache) or not all(
+                getattr(layer.attn, "supports_chunked_prefill", False) for layer in self.h
+            ):
+                raise NotImplementedError("Chunked prefill requires cached inference with a compatible mixer")
 
         hidden_states = inputs_embeds
 
@@ -590,9 +608,9 @@ class RWKV7BackboneModel(RWKV7BackbonePreTrainedModel):
             self.alt_rotary(position_ids) if hasattr(self, "alt_rotary") else None
         )
 
-        if self.config.alt_layer_every > 0:
-            first_main_layer = self.h[1]
-            first_alt_layer = self.h[0]
+        if self.config.alt_layer_every > 1:
+            first_main_layer = self.h[1 if self.config.alt_layer_offset == 0 else 0]
+            first_alt_layer = self.h[self.config.alt_layer_offset]
         else:
             first_main_layer = self.h[0]
             first_alt_layer = None
@@ -629,14 +647,12 @@ class RWKV7BackboneModel(RWKV7BackbonePreTrainedModel):
         skip_connections = []
 
         for i in range(self.encoder_layers):
-            is_alt_layer = self.config.alt_layer_every > 0 and (
-                i % self.config.alt_layer_every == 0
-            )
+            is_alt_layer = self.h[i].is_alt_layer
             layer_kwargs = alt_layer_kwargs if is_alt_layer else main_layer_kwargs
             layer_kwargs["position_embeddings"] = (
                 alt_position_embeddings
                 if alt_position_embeddings is not None
-                and (i % self.config.alt_layer_every == 0)
+                and is_alt_layer
                 else position_embeddings
             )
             # FIXME - how do we want to integrate with HF on this? should we obey self.gradient_checkpointing?
@@ -645,21 +661,20 @@ class RWKV7BackboneModel(RWKV7BackbonePreTrainedModel):
                 skip_connections.append(x)
 
         for i in range(self.decoder_layers):
-            is_alt_layer = self.config.alt_layer_every > 0 and (
-                i % self.config.alt_layer_every == 0
-            )
+            layer = self.h[self.encoder_layers + i]
+            is_alt_layer = layer.is_alt_layer
             layer_kwargs = alt_layer_kwargs if is_alt_layer else main_layer_kwargs
             layer_kwargs["position_embeddings"] = (
                 alt_position_embeddings
                 if alt_position_embeddings is not None
-                and (i % self.config.alt_layer_every == 0)
+                and is_alt_layer
                 else position_embeddings
             )
             skip_connection = skip_connections.pop()
             weighted_skip = self.skip_weights[i] * skip_connection
             # FIXME - how do we want to integrate with HF on this? should we obey self.gradient_checkpointing?
             x = maybe_ckpt(
-                self.h[self.encoder_layers + i], x + weighted_skip, **layer_kwargs
+                layer, x + weighted_skip, **layer_kwargs
             )
 
         x = self.ln_head(x)

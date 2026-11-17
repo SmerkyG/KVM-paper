@@ -3,7 +3,8 @@ from __future__ import annotations
 import argparse
 import math
 import os
-from typing import Any
+from dataclasses import dataclass, replace
+from typing import Any, TYPE_CHECKING
 
 import torch
 import torch.nn.functional as F
@@ -11,6 +12,31 @@ from torch.autograd import Function
 
 from .kvm_triton_decode import TritonKVMDecodeCache, DecodeCacheSnapshot
 from .kvm_mixer import SequenceMixer as TorchKVMSequenceMixer
+from .statesdictcache import StatesDictCache
+
+if TYPE_CHECKING:
+    from .kernels.kvm_triton_training_kernels import MixerPrefillSchedule, PrefillDeviceSchedule
+
+
+@dataclass(frozen=True)
+class TritonKVMPrefillState:
+    """State and raw recent window carried between model-wide prefill chunks."""
+
+    state_len: int
+    live_state: dict[str, torch.Tensor]
+    recent: tuple[torch.Tensor, torch.Tensor, torch.Tensor]
+
+
+class TritonKVMReplayCache(StatesDictCache):
+    """Retain device schedules across requests for fixed-shape graph replay."""
+
+    use_host_positions = True
+
+    def __init__(self):
+        super().__init__()
+        self.prefill_schedules: dict[
+            tuple[int, int, int, int, torch.device], tuple[MixerPrefillSchedule, PrefillDeviceSchedule]
+        ] = {}
 
 
 
@@ -43,6 +69,7 @@ class _KvmTritonTrainingFunction(Function):
         front_temperature: torch.Tensor,
         triton_args: argparse.Namespace,
         schedule: Any,
+        state_q_flat: torch.Tensor | None,
     ) -> torch.Tensor:
         from model.kernels.kvm_triton_training_kernels import (
             build_prefill_forward,
@@ -70,6 +97,7 @@ class _KvmTritonTrainingFunction(Function):
             overflow_append_v_flat=overflow_append_v_flat,
             overflow_merge_k_flat=overflow_merge_k_flat,
             overflow_merge_v_flat=overflow_merge_v_flat,
+            state_q_flat=state_q_flat,
         )
         ctx.triton_args = triton_args
         ctx.schedule = schedule
@@ -90,6 +118,7 @@ class _KvmTritonTrainingFunction(Function):
             ln_bias,
             state_temperature,
             front_temperature,
+            state_q_flat,
             forward["out"],
             forward["lse"],
             forward["state_k"],
@@ -127,6 +156,7 @@ class _KvmTritonTrainingFunction(Function):
             ln_bias,
             state_temperature,
             front_temperature,
+            state_q_flat,
             out,
             lse,
             state_k,
@@ -172,6 +202,7 @@ class _KvmTritonTrainingFunction(Function):
             overflow_merge_k_flat=overflow_merge_k_flat,
             overflow_merge_v_flat=overflow_merge_v_flat,
             saved_forward=saved_forward,
+            state_q_flat=state_q_flat,
         )
         return (
             result["dq"].to(q_flat.dtype),
@@ -192,18 +223,17 @@ class _KvmTritonTrainingFunction(Function):
             result["d_front_temperature"].to(front_temperature.dtype),
             None,
             None,
+            result["dq_state"],
         )
 
 
 class SequenceMixer(TorchKVMSequenceMixer):
     """KVM backed by the optimized Triton training/prefill kernels.
 
-    Append selection is ranked globally across each overflow chunk, and
-    selected tokens are appended before merge targets are chosen. These are
-    the eager ``kvm_mixer.py`` routing semantics.
+    Append selection is ranked globally across each overflow chunk. Merge
+    targets include new slots by default, or only old slots for the A6 ablation.
 
     Remaining intentional differences from the dense PyTorch implementation:
-    - `kvm_use_vlens=1` is required;
     - prefill inputs are padded to the next chunk for Triton launch, but the
       schedule and returned outputs use the real ragged length;
     - state updates use FP32 merge accumulation, one rounded BF16 state write,
@@ -212,11 +242,32 @@ class SequenceMixer(TorchKVMSequenceMixer):
     """
 
     _CACHE_TRITON_DECODE = "kvm_triton_decode_cache"
+    _CACHE_TRITON_PREFILL = "kvm_triton_prefill_state"
+    supports_chunked_prefill = True
+    state_position_mode = "zero"
 
     def __init__(self, config, layer_idx: int):
         super().__init__(config, layer_idx)
-        if not config.kvm_use_vlens:
-            raise ValueError("kvm_triton_mixer currently requires kvm_use_vlens=1")
+        self.state_rope_zero_dim = (
+            self.rope_partial_dim if self.state_position_mode == "zero" else 0
+        )
+        if config.kvm_use_gate_weight_vlen:
+            raise ValueError("Triton KVM does not support gate-weighted counts")
+        if config.kvm_merge_strategy != "nearest":
+            raise ValueError("Triton KVM requires nearest-key merging")
+        if config.kvm_append_policy not in ("least_redundant", "random", "uniform"):
+            raise ValueError(f"Unsupported Triton KVM append policy: {config.kvm_append_policy!r}")
+        # Policy-specific routing can specialize the compiled graph by layer.
+        # Keep the attention wrapper stable across checkpoint recomputation.
+        self.compile_attention = config.kvm_append_policy == "least_redundant"
+        self._eval_append_generators: dict[torch.device, torch.Generator] = {}
+        self._append_seed_offset = 0
+        if config.kvm_append_policy == "random":
+            self._append_seed_offset = (
+                config.kvm_routing_seed
+                + 1_000_003 * layer_idx
+                + 10_000_019 * int(os.environ.get("RANK", "0"))
+            ) % (1 << 64)
 
         self.triton_sub_block = _choose_dividing_block(
             self.chunk_len, (128, 64, 32, 16)
@@ -333,14 +384,67 @@ class SequenceMixer(TorchKVMSequenceMixer):
             aotriton_forward_attention=bool(
                 self.config.kvm_aotriton_forward_attention
             ),
-            append_policy="global",
-            merge_order="append_before_merge",
+            append_policy=(
+                "global" if self.config.kvm_append_policy == "least_redundant"
+                else self.config.kvm_append_policy
+            ),
+            append_seed_offset=self._append_seed_offset,
+            merge_order=(
+                "old_slots_only"
+                if self.config.kvm_merge_old_slots_only
+                else "append_before_merge"
+            ),
+            count_value_readout=not self.config.kvm_use_vlens,
         )
 
     def _make_schedule(self, triton_args: argparse.Namespace):
         from model.kernels.kvm_triton_training_kernels import make_schedule
 
         return make_schedule(triton_args)
+
+    def _make_continuation_schedule(self, args, total_len, state_len):
+        full = self._make_schedule(self._make_triton_args(args.batch, total_len))
+        origin = total_len - args.logical_q_len
+        offset = origin // self.chunk_len
+        return replace(
+            full,
+            before_by_macro=full.before_by_macro[offset:].contiguous(),
+            after_by_macro=full.after_by_macro[offset:].contiguous(),
+            n_append_by_macro=full.n_append_by_macro[offset:].contiguous(),
+            valid_update_by_macro=full.valid_update_by_macro[offset:].contiguous(),
+            attention_state_len_by_macro=full.attention_state_len_by_macro[offset:].contiguous(),
+            front_len=max(0, full.front_len - origin),
+            initial_state_len=state_len,
+        )
+
+    def _eval_append_generator(self, device: torch.device) -> torch.Generator | None:
+        if self.training or self.config.kvm_append_policy != "random":
+            return None
+        if device not in self._eval_append_generators:
+            self._eval_append_generators[device] = torch.Generator(device=device).manual_seed(
+                100_000_007
+            )
+        return self._eval_append_generators[device]
+
+    def _position_qk(self, q, k, position_embeddings):
+        local_q, local_k = super()._position_qk(q, k, position_embeddings)
+        if self.state_position_mode == "unrotated":
+            # Keep just the unrotated channels replaced by local RoPE.
+            rotary = self.rope_partial_dim
+            local_q = torch.cat((local_q, q[..., :rotary]), dim=-1)
+            local_k = torch.cat((local_k, k[..., :rotary]), dim=-1)
+        return local_q, local_k
+
+    def _unrotated_qk(self, packed: torch.Tensor) -> torch.Tensor:
+        head = self.d_qk_head
+        return torch.cat((packed[..., head:], packed[..., self.rope_partial_dim:head]), dim=-1)
+
+    def _prepare_state_update_k(self, k_block: torch.Tensor) -> torch.Tensor:
+        if self.state_position_mode == "unrotated":
+            return self.ln_s_k(self._unrotated_qk(k_block))
+        if self.state_position_mode == "rotated":
+            return self.ln_s_k(k_block)
+        return super()._prepare_state_update_k(k_block)
 
     def _flatten_qkv_for_triton(
         self,
@@ -383,10 +487,13 @@ class SequenceMixer(TorchKVMSequenceMixer):
             v = F.pad(v, (0, 0, 0, pad_len))
             merge_gate = F.pad(merge_gate, (0, 0, 0, pad_len), value=1.0)
 
-        q_flat = q.reshape(
+        separate_state_q = self.state_position_mode == "unrotated"
+        local_q = q[..., :self.d_qk_head] if separate_state_q else q
+        local_k = k[..., :self.d_qk_head] if separate_state_q else k
+        q_flat = local_q.reshape(
             batch_size * q_heads, padded_len, self.d_qk_head
         ).contiguous()
-        k_flat = k.reshape(
+        k_flat = local_k.reshape(
             batch_size * kv_heads, padded_len, self.d_qk_head
         ).contiguous()
         v_flat = v.reshape(
@@ -402,12 +509,12 @@ class SequenceMixer(TorchKVMSequenceMixer):
             )
 
             prepared_k, gated_k, gated_v = prepare_kvm_streams(
-                k,
+                self._unrotated_qk(k) if separate_state_q else k,
                 v,
                 merge_gate,
                 self.ln_s_k.weight,
                 self.ln_s_k.bias,
-                rope_partial_dim=self.rope_partial_dim,
+                rope_partial_dim=self.state_rope_zero_dim,
                 ln_eps=float(self.ln_s_k.eps),
             )
             prepared_k = prepared_k.reshape(
@@ -445,7 +552,7 @@ class SequenceMixer(TorchKVMSequenceMixer):
             initial_k = prepared_k
             initial_v = v_flat
 
-        return {
+        streams = {
             "q": q_flat,
             "bswa_k": k_flat,
             "bswa_v": v_flat,
@@ -457,6 +564,9 @@ class SequenceMixer(TorchKVMSequenceMixer):
             "initial_k": initial_k,
             "initial_v": initial_v,
         }
+        if separate_state_q:
+            streams["state_q"] = self._unrotated_qk(q).view_as(q_flat)
+        return streams
 
     def _head_temperatures(self, device: torch.device) -> tuple[torch.Tensor, torch.Tensor]:
         if self.config.kvm_use_head_temps:
@@ -475,15 +585,26 @@ class SequenceMixer(TorchKVMSequenceMixer):
         merge_gate: torch.Tensor,
         triton_args: argparse.Namespace,
         schedule,
+        *,
+        device_schedule: PrefillDeviceSchedule | None = None,
+        initial_live_state: dict[str, torch.Tensor] | None = None,
+        first_query_macro: int = 0,
     ) -> dict[str, torch.Tensor]:
         flat = self._flatten_qkv_for_triton(q, k, v, merge_gate, triton_args.q_len)
-        return self._triton_forward_prefill_raw_from_flat(flat, triton_args, schedule)
+        return self._triton_forward_prefill_raw_from_flat(
+            flat, triton_args, schedule, device_schedule=device_schedule,
+            initial_live_state=initial_live_state, first_query_macro=first_query_macro,
+        )
 
     def _triton_forward_prefill_raw_from_flat(
         self,
         flat: dict[str, torch.Tensor],
         triton_args: argparse.Namespace,
         schedule,
+        *,
+        device_schedule: PrefillDeviceSchedule | None = None,
+        initial_live_state: dict[str, torch.Tensor] | None = None,
+        first_query_macro: int = 0,
     ) -> dict[str, torch.Tensor]:
         from model.kernels.kvm_triton_training_kernels import (
             build_prefill_forward,
@@ -521,6 +642,11 @@ class SequenceMixer(TorchKVMSequenceMixer):
             overflow_append_v_flat=flat["append_v"],
             overflow_merge_k_flat=flat["merge_k"],
             overflow_merge_v_flat=flat["merge_v"],
+            state_q_flat=flat.get("state_q"),
+            append_generator=self._eval_append_generator(q_flat.device),
+            device_schedule=device_schedule,
+            initial_live_state=initial_live_state,
+            first_query_macro=first_query_macro,
         )
 
     def _triton_prefill_out(
@@ -554,8 +680,27 @@ class SequenceMixer(TorchKVMSequenceMixer):
             front_temperature,
             triton_args,
             schedule,
+            flat.get("state_q"),
         )
         return out_flat.reshape(batch_size, q_heads, triton_args.q_len, self.d_v_head)
+
+    def forward_inference(
+        self, x, v_first, position_embeddings, attention_mask, past_key_values=None,
+        *, prefill_has_more=None, **kwargs,
+    ):
+        if prefill_has_more is None:
+            return super().forward_inference(
+                x, v_first, position_embeddings, attention_mask, past_key_values, **kwargs,
+            )
+        if past_key_values is None:
+            raise ValueError("Chunked KVM prefill requires a cache")
+        q, k, v, merge_gate = self.forward_prefix(
+            x, v_first, position_embeddings, attention_mask, past_key_values, **kwargs,
+        )
+        return self.forward_prefill(
+            q, k, v, merge_gate, v_first, position_embeddings, attention_mask,
+            past_key_values, keep_prefill_state=prefill_has_more,
+        )
 
     def forward_prefill(
         self,
@@ -567,6 +712,8 @@ class SequenceMixer(TorchKVMSequenceMixer):
         position_embeddings,
         attention_mask,
         past_key_values=None,
+        *,
+        keep_prefill_state=False,
         **kwargs,
     ):
         del v_first, position_embeddings, kwargs
@@ -574,8 +721,43 @@ class SequenceMixer(TorchKVMSequenceMixer):
             raise ValueError("kvm_triton_mixer does not support attention_mask")
 
         batch_size, _, prefill_len, _ = q.size()
-        triton_args = self._make_triton_args(batch_size, int(prefill_len))
-        schedule = self._make_schedule(triton_args)
+        past_len = past_key_values.get_seq_length(self.layer_idx) if past_key_values is not None else 0
+        total_len = past_len + prefill_len
+        if keep_prefill_state and total_len % self.chunk_len:
+            raise ValueError("Intermediate KVM prefill chunks must end at a recurrent chunk boundary")
+        previous = None
+        recent_len = 0
+        if past_len:
+            previous = past_key_values.get_states(self.layer_idx).get(self._CACHE_TRITON_PREFILL)
+            if not isinstance(previous, TritonKVMPrefillState):
+                raise ValueError("KVM prefill continuation requires a saved prefill state")
+            recent_k, recent_v, recent_gate = previous.recent
+            recent_len = recent_k.size(2)
+            q = F.pad(q, (0, 0, recent_len, 0))
+            k = torch.cat((recent_k, k), dim=2)
+            v = torch.cat((recent_v, v), dim=2)
+            merge_gate = torch.cat((recent_gate, merge_gate), dim=2)
+
+        triton_args = self._make_triton_args(batch_size, recent_len + prefill_len)
+
+        def make_schedule():
+            if previous is None:
+                return self._make_schedule(triton_args)
+            return self._make_continuation_schedule(triton_args, total_len, previous.state_len)
+
+        device_schedule = None
+        if isinstance(past_key_values, TritonKVMReplayCache):
+            from .kernels.kvm_triton_training_kernels import PrefillDeviceSchedule
+
+            key = (id(self), batch_size, past_len, prefill_len, q.device)
+            schedules = past_key_values.prefill_schedules
+            if key not in schedules:
+                schedule = make_schedule()
+                schedules[key] = (schedule, PrefillDeviceSchedule.from_host(schedule, q.device))
+            schedule, device_schedule = schedules[key]
+        else:
+            schedule = make_schedule()
+        triton_args.initial_state_len = schedule.initial_state_len
 
         needs_grad = torch.is_grad_enabled() and any(
             tensor.requires_grad
@@ -602,23 +784,42 @@ class SequenceMixer(TorchKVMSequenceMixer):
             return self.c_proj(y)
 
         forward = self._triton_forward_prefill_raw(
-            q, k, v, merge_gate, triton_args, schedule
+            q, k, v, merge_gate, triton_args, schedule, device_schedule=device_schedule,
+            initial_live_state=None if previous is None else previous.live_state,
+            first_query_macro=recent_len // self.chunk_len,
         )
         out = forward["out"].reshape(
             batch_size, self.num_attention_heads, triton_args.q_len, self.d_v_head
-        )[:, :, :prefill_len, :]
+        )[:, :, recent_len:recent_len + prefill_len, :]
         y = out.transpose(1, 2).contiguous().view(batch_size, prefill_len, -1)
         y = self.c_proj(y)
 
         if past_key_values is not None:
             final_state_len = int(schedule.final_state_len)
-            bswa_begin = self._bswa_begin_for_total_len(prefill_len)
+            bswa_begin = self._bswa_begin_for_total_len(total_len)
+            local_bswa_begin = bswa_begin - (past_len - recent_len)
             state_coverage_len = int(schedule.final_state_coverage_len)
-            expected_state_coverage_len = max(triton_args.initial_state_len, bswa_begin)
+            expected_state_coverage_len = max(min(total_len, self.chunk_len), bswa_begin)
             if state_coverage_len != expected_state_coverage_len:
                 raise AssertionError(
                     "KVM Triton prefill state progression drifted from cache bookkeeping."
                 )
+            recent = (k[:, :, local_bswa_begin:], v[:, :, local_bswa_begin:], merge_gate[:, :, local_bswa_begin:])
+            if keep_prefill_state:
+                state = TritonKVMPrefillState(
+                    state_len=final_state_len,
+                    live_state={
+                        name: forward[name][:, :final_state_len]
+                        for name in ("state_k", "state_v", "state_k_attn", "state_v_attn", "state_vlen")
+                    },
+                    recent=tuple(tensor.clone(memory_format=torch.contiguous_format) for tensor in recent),
+                )
+                past_key_values.update(
+                    self.layer_idx, offset=prefill_len, states_dict={self._CACHE_TRITON_PREFILL: state},
+                )
+                return y
+            if previous is not None:
+                past_key_values.get_states(self.layer_idx).pop(self._CACHE_TRITON_PREFILL)
             snapshot = DecodeCacheSnapshot(
                 state_k=forward["state_k"][:, :final_state_len].reshape(
                     batch_size,
@@ -635,10 +836,10 @@ class SequenceMixer(TorchKVMSequenceMixer):
                 state_vlen=forward["state_vlen"][:, :final_state_len].reshape(
                     batch_size, self.num_key_value_heads, final_state_len, 1
                 ),
-                recent_k=k[:, :, bswa_begin:, :],
-                recent_v=v[:, :, bswa_begin:, :],
-                recent_gate=merge_gate[:, :, bswa_begin:, :],
-                total_len=prefill_len,
+                recent_k=recent[0],
+                recent_v=recent[1],
+                recent_gate=recent[2],
+                total_len=total_len,
                 state_coverage_len=state_coverage_len,
                 recent_begin=bswa_begin,
             )
@@ -647,7 +848,7 @@ class SequenceMixer(TorchKVMSequenceMixer):
                 min(self.chunk_len, self.max_state_len),
                 TritonKVMDecodeCache.state_length_after_cycle(
                     self,
-                    prefill_len,
+                    total_len,
                     final_state_len,
                     self.n_bswa_chunks * self.chunk_len,
                 ),
@@ -778,6 +979,10 @@ class SequenceMixer(TorchKVMSequenceMixer):
         )
         state_after = current_state_len + n_append
         decode_cache._reserve_state_capacity(state_after)
+        if n_append == 0:
+            # Decode reuses one route buffer across all updates. With no new
+            # slots, the append kernel does not overwrite the previous routes.
+            decode_cache.append_pos_by_token.fill_(-1)
         gather_overflow(
             decode_cache.recent_k,
             decode_cache.recent_v,
@@ -787,7 +992,7 @@ class SequenceMixer(TorchKVMSequenceMixer):
             zeroed_k=decode_cache.overflow_zeroed_k,
             raw_v=decode_cache.overflow_raw_v,
             gate_out=decode_cache.overflow_gate,
-            rope_partial_dim=int(self.rope_partial_dim),
+            rope_partial_dim=self.state_rope_zero_dim,
         )
         torch.ops.aten.native_layer_norm.out(
             decode_cache.overflow_zeroed_k,
@@ -859,6 +1064,7 @@ class SequenceMixer(TorchKVMSequenceMixer):
             before_by_macro_device=decode_cache.before_device,
             after_by_macro_device=decode_cache.after_device,
             n_append_by_macro_device=decode_cache.n_append_device,
+            append_generator=self._eval_append_generator(decode_cache.device),
         )
         decode_cache.state_len = state_after
         decode_cache.update_count += 1
@@ -881,21 +1087,25 @@ class SequenceMixer(TorchKVMSequenceMixer):
 
         flat_k = prepared_k.reshape(decode_cache.kv_rows, decode_cache.head_dim)
         flat_v = stored_v.reshape(decode_cache.kv_rows, decode_cache.value_dim)
-        raw_v = new_v.reshape(decode_cache.kv_rows, decode_cache.value_dim)
-        vlen = torch.linalg.vector_norm(raw_v.float(), dim=-1)
         state_position = decode_cache.state_len
         decode_cache.state_k[:, state_position].copy_(flat_k)
         decode_cache.state_v[:, state_position].copy_(flat_v)
-        decode_cache.state_vlen[:, state_position].copy_(vlen)
         decode_cache.state_k_attn[:, state_position].copy_(
             self.ln_s_k(prepared_k).reshape(
                 decode_cache.kv_rows,
                 decode_cache.head_dim,
             )
         )
-        normalized_v = (
-            F.normalize(flat_v.float(), dim=-1) * vlen[:, None]
-        ).to(decode_cache.dtype)
+        if self.config.kvm_use_vlens:
+            raw_v = new_v.reshape(decode_cache.kv_rows, decode_cache.value_dim)
+            vlen = torch.linalg.vector_norm(raw_v.float(), dim=-1)
+            decode_cache.state_vlen[:, state_position].copy_(vlen)
+            normalized_v = (
+                F.normalize(flat_v.float(), dim=-1) * vlen[:, None]
+            ).to(decode_cache.dtype)
+        else:
+            decode_cache.state_vlen[:, state_position].fill_(1.0)
+            normalized_v = flat_v
         decode_cache.state_v_attn[:, state_position].copy_(normalized_v)
         decode_cache.state_len = required
 
@@ -912,6 +1122,10 @@ class SequenceMixer(TorchKVMSequenceMixer):
             if decode_cache.total_len > decode_cache.ring_capacity
             else 0
         )
+        state_q = None
+        if self.state_position_mode == "unrotated":
+            state_q = self._unrotated_qk(q)
+            q = q[..., :self.d_qk_head]
         return kvm_decode_attention(
             q,
             decode_cache.state_k_attn,
@@ -926,6 +1140,7 @@ class SequenceMixer(TorchKVMSequenceMixer):
             q_heads=self.num_attention_heads,
             kv_heads=self.num_key_value_heads,
             out=decode_cache.out,
+            state_q=state_q,
         )
 
     def _make_generation_update_schedule(

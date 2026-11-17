@@ -98,6 +98,7 @@ class Hyperparameters(BaseModel):
     save_every: int = (
         0  # every how many steps to save the checkpoint? 0 for only at the end
     )
+    output_dir: str | None = None
     grad_cp: int = 0
     compile: int = 1
     debug_cuda_memory: int = 0
@@ -325,6 +326,7 @@ if __name__ == "__main__":
         loss = test_results["loss"]
         del test_results
         loss.backward()
+        model.zero_grad(set_to_none=True)
 
     if args.compile:
         with timed("Reloading model class with torch.compile allowed"):
@@ -499,6 +501,11 @@ if __name__ == "__main__":
     run_id = str(uuid.uuid4())
     logdir = f"logs/{run_id}/"
     logfile_path = f"logs/{run_id}.txt"
+    if args.output_dir is not None:
+        logdir = os.path.abspath(args.output_dir) + os.sep
+        logfile_path = os.path.join(logdir, "train.log")
+        if master_process and os.path.exists(logfile_path):
+            raise FileExistsError(f"Refusing to overwrite an existing training run: {logdir}")
     memory_logfile_path = None  # logfile_path
 
     from trainer import Trainer

@@ -8,7 +8,7 @@ import torch.nn.functional as F
 
 from utils.opt import set_label
 
-from .rwkv7_backbone import StatesDictCache, apply_rotary_embeddings
+from .rwkv7_backbone import StatesDictCache, apply_rotary_embeddings, is_alternate_layer
 
 from model.value_residual_mixin import ValueResidualMixin
 
@@ -85,9 +85,13 @@ class SequenceMixer(ValueResidualMixin):
             qk_norm=True,
         )
 
-        # FIXME - this works for our current configs but won't if kvm is the alt layer
+        partial_dim = (
+            config.alt_rope_partial_dim
+            if is_alternate_layer(config, layer_idx)
+            else config.rope_partial_dim
+        )
         self.rope_partial_dim = (
-            config.rope_partial_dim if config.rope_partial_dim > 0 else self.d_qk_head
+            partial_dim if partial_dim > 0 else self.d_qk_head
         )
 
         self.ln_s_k = set_label("scalars", nn.LayerNorm(self.d_qk_head))
@@ -103,6 +107,28 @@ class SequenceMixer(ValueResidualMixin):
         self.state_round_down = config.state_round_down
         self.state_min_len = config.state_min_len
         self.state_saturation_n = config.state_saturation_n
+        self.state_linear_cap = config.state_linear_cap
+        self.state_linear_end = config.state_linear_end
+        if self.state_budget_mode == "capped_linear" and (
+            self.state_linear_cap is None
+            or not self.state_min_len <= self.state_linear_cap <= self.max_state_len
+            or self.state_linear_end is None
+            or self.state_linear_end <= 0
+        ):
+            raise ValueError("Capped linear growth needs a valid slot cap and positive endpoint")
+
+        if config.kvm_use_gate_weight_vlen and (
+            config.kvm_use_vlens
+            or config.kvm_apply_merge_gate_to_initial_state
+            or config.kvm_apply_merge_gate_to_appends
+        ):
+            raise ValueError("Gate-weight readout requires ungated slot births and count readout")
+        if config.kvm_use_shared_value_radius:
+            if not config.kvm_use_vlens:
+                raise ValueError("Shared value radius requires normalized value directions")
+            self.log_value_radius = set_label(
+                "scalars", nn.Parameter(torch.zeros(self.num_key_value_heads))
+            )
 
         if self.config.kvm_use_merge_gate_keys or self.config.kvm_use_merge_gate_values:
             self.key_weighting = set_label(
@@ -127,6 +153,15 @@ class SequenceMixer(ValueResidualMixin):
                 dim=-1,
             )
         )
+
+    def _position_qk(self, q, k, position_embeddings):
+        return (
+            apply_rotary_embeddings(q, position_embeddings),
+            apply_rotary_embeddings(k, position_embeddings),
+        )
+
+    def _join_attention_keys(self, state_k, local_k):
+        return torch.cat([state_k, local_k], dim=2)
 
     def _desired_state_len(
         self, ctx_len: int, available_context: int, current_state_len: int
@@ -153,6 +188,13 @@ class SequenceMixer(ValueResidualMixin):
                     (float(self.state_saturation_n) * t)
                     / (float(self.state_saturation_n) + t)
                 )
+            )
+            target = _round_down_to_multiple(target, self.state_round_down)
+            target = max(target, self.state_min_len)
+        elif self.state_budget_mode == "capped_linear":
+            target = min(
+                self.state_linear_cap,
+                self.state_linear_cap * ctx_len_i // self.state_linear_end,
             )
             target = _round_down_to_multiple(target, self.state_round_down)
             target = max(target, self.state_min_len)
@@ -203,9 +245,11 @@ class SequenceMixer(ValueResidualMixin):
         s_k_norm = self._repeat_kv_for_query_heads(self.ln_s_k(s_k))
         bswa_k = self._repeat_kv_for_query_heads(bswa_k)
         if self.config.kvm_use_vlens:
+            if self.config.kvm_use_shared_value_radius:
+                s_vlen = self.log_value_radius.float().exp().view(1, -1, 1, 1)
             s_v_norm = (F.normalize(s_v.float(), dim=-1) * s_vlen).bfloat16()
         else:
-            s_v_norm = s_v / s_vlen
+            s_v_norm = (s_v.float() / s_vlen).to(s_v.dtype)
         s_v_norm = self._repeat_kv_for_query_heads(s_v_norm)
         bswa_v = self._repeat_kv_for_query_heads(bswa_v)
 
@@ -216,11 +260,14 @@ class SequenceMixer(ValueResidualMixin):
             state_head_temp = 1.0
             front_head_temp = 1.0
 
-        k_star = torch.cat(
-            [s_k_norm * state_head_temp, bswa_k * front_head_temp], dim=2
+        k_star = self._join_attention_keys(
+            s_k_norm * state_head_temp, bswa_k * front_head_temp
         )
         v_star = torch.cat([s_v_norm, bswa_v], dim=2)
 
+        return self._state_attention(q, k_star, v_star)
+
+    def _state_attention(self, q, k_star, v_star):
         causal_mask = _lower_right_causal_mask(
             int(q.size(2)), int(k_star.size(2)), device=q.device
         )
@@ -241,7 +288,7 @@ class SequenceMixer(ValueResidualMixin):
         if self.config.kvm_use_vlens:
             vlen_new = torch.norm(v_new.float(), dim=-1, keepdim=True)
         else:
-            vlen_new = torch.ones_like(v_new[..., :1])
+            vlen_new = torch.ones_like(v_new[..., :1], dtype=torch.float32)
         s_k = torch.cat([s_k, k_new], dim=2)
         s_v = torch.cat([s_v, v_new], dim=2)
         s_vlen = torch.cat([s_vlen, vlen_new], dim=2)
@@ -286,8 +333,11 @@ class SequenceMixer(ValueResidualMixin):
         )
         overflow_len = int(overflow_k_ungated.size(2))
         n_append = min(max(desired_state_len - current_state_len, 0), overflow_len)
+        merge_weights = None
+        if self.config.kvm_use_gate_weight_vlen and self.config.kvm_use_merge_gate_values:
+            merge_weights = merge_gate
         if n_append > 0:
-            append_idx, merge_idx = _split_append_merge_idx_by_maxsim(
+            append_idx, merge_idx = self._split_append_merge_indices(
                 overflow_k_ungated,
                 n_append,
                 self.ln_s_k(s_k),
@@ -296,29 +346,40 @@ class SequenceMixer(ValueResidualMixin):
             v_append = _gather_by_idx(overflow_v_append, append_idx)
             k_merge = _gather_by_idx(overflow_k_gated, merge_idx)
             v_merge = _gather_by_idx(overflow_v_gated, merge_idx)
-            s_k, s_v, s_vlen = self._append_to_state(
-                s_k, s_v, s_vlen, k_append, v_append
-            )
+            if merge_weights is not None:
+                merge_weights = _gather_by_idx(merge_weights, merge_idx)
+            if not self.config.kvm_merge_old_slots_only:
+                s_k, s_v, s_vlen = self._append_to_state(
+                    s_k, s_v, s_vlen, k_append, v_append
+                )
         else:
             k_merge = overflow_k_gated
             v_merge = overflow_v_gated
 
-        if int(k_merge.size(2)) == 0:
-            return s_k, s_v, s_vlen
+        if int(k_merge.size(2)) > 0:
+            current_state_len = int(s_k.size(2))
+            protected_slots = min(self.sink_len, current_state_len)
+            if current_state_len <= protected_slots:
+                raise AssertionError(
+                    "KVM state update requires at least one non-sink slot before merging."
+                )
 
-        current_state_len = int(s_k.size(2))
-        protected_slots = min(self.sink_len, current_state_len)
-        if current_state_len <= protected_slots:
-            raise AssertionError(
-                "KVM state update requires at least one non-sink slot before merging."
+            merge_kwargs = {} if merge_weights is None else {"merge_weights": merge_weights}
+            s_k, s_v, s_vlen = self._merge_into_state(
+                k_merge, v_merge, s_k, s_v, s_vlen, protected_slots, **merge_kwargs
             )
-
-        s_k, s_v, s_vlen = self._merge_into_state(
-            k_merge, v_merge, s_k, s_v, s_vlen, protected_slots
-        )
+        if n_append > 0 and self.config.kvm_merge_old_slots_only:
+            s_k, s_v, s_vlen = self._append_to_state(
+                s_k, s_v, s_vlen, k_append, v_append
+            )
         return s_k, s_v, s_vlen
 
-    def _merge_into_state(self, k_merge, v_merge, s_k, s_v, s_vlen, protected_slots):
+    def _split_append_merge_indices(self, k_block, n_append, k_ref):
+        return _split_append_merge_idx_by_maxsim(k_block, n_append, k_ref)
+
+    def _merge_into_state(
+        self, k_merge, v_merge, s_k, s_v, s_vlen, protected_slots, *, merge_weights=None
+    ):
         # obtain normalized state keys
         s_k_norm = self.ln_s_k(s_k)
 
@@ -334,8 +395,12 @@ class SequenceMixer(ValueResidualMixin):
         s_k = s_k + (scores.mT @ k_merge)
         s_v = s_v + (scores.mT @ v_merge)
 
-        if not self.config.kvm_use_vlens:
-            s_vlen = s_vlen + scores.sum(-1, keepdim=True)
+        if merge_weights is not None:
+            s_vlen = s_vlen.squeeze(-1).scatter_add(
+                -1, best_s_idx.squeeze(-1), merge_weights.squeeze(-1).float()
+            ).unsqueeze(-1)
+        elif not self.config.kvm_use_vlens:
+            s_vlen = s_vlen.float() + scores.float().sum(dim=-2).unsqueeze(-1)
 
         return s_k, s_v, s_vlen
 
@@ -378,8 +443,7 @@ class SequenceMixer(ValueResidualMixin):
 
         q, k, v = self.calc_qkv(x, v_first, past_key_values)
 
-        q = apply_rotary_embeddings(q, position_embeddings)
-        k = apply_rotary_embeddings(k, position_embeddings)
+        q, k = self._position_qk(q, k, position_embeddings)
 
         if self.config.kvm_use_merge_gate_keys or self.config.kvm_use_merge_gate_values:
             merge_gate = 1.0 + F.elu(
@@ -443,7 +507,7 @@ class SequenceMixer(ValueResidualMixin):
                 v[..., :init_state_len, :].float(), dim=-1, keepdim=True
             )
         else:
-            s_vlen = torch.ones_like(v[..., :init_state_len, :1])
+            s_vlen = torch.ones_like(v[..., :init_state_len, :1], dtype=torch.float32)
         state_coverage_len = init_state_len
 
         # chunkwise processing for attention and state

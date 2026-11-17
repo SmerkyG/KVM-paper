@@ -1,0 +1,8 @@
+model:
+  token_mixer: rwkv7
+  alt_token_mixer: kvm
+  alt_layer_every: 4
+  alt_layer_offset: 3
+  alt_rope_partial_dim: 64
+train:
+  wandb_name_suffix: wave5-H4

@@ -33,18 +33,22 @@ def _write_recent_ring_kernel(
     KV_HEADS: tl.constexpr,
     RING_CAPACITY: tl.constexpr,
     HEAD_DIM: tl.constexpr,
+    PADDED_KEY_DIM: tl.constexpr,
     VALUE_DIM: tl.constexpr,
 ):
     row = tl.program_id(0).to(tl.int64)
     batch_id = row // KV_HEADS
     kv_head = row - batch_id * KV_HEADS
-    key_offsets = tl.arange(0, HEAD_DIM)
+    key_offsets = tl.arange(0, PADDED_KEY_DIM)
+    key_mask = key_offsets < HEAD_DIM
     value_offsets = tl.arange(0, VALUE_DIM)
     k = tl.load(
         new_k
         + batch_id * NEW_K_BATCH_STRIDE
         + kv_head * NEW_K_HEAD_STRIDE
-        + key_offsets
+        + key_offsets,
+        mask=key_mask,
+        other=0.0,
     )
     v = tl.load(
         new_v
@@ -62,8 +66,8 @@ def _write_recent_ring_kernel(
     gate_base = ring_gate + row * (2 * RING_CAPACITY)
     first = write_pos
     second = write_pos + RING_CAPACITY
-    tl.store(k_base + first * HEAD_DIM + key_offsets, k)
-    tl.store(k_base + second * HEAD_DIM + key_offsets, k)
+    tl.store(k_base + first * HEAD_DIM + key_offsets, k, mask=key_mask)
+    tl.store(k_base + second * HEAD_DIM + key_offsets, k, mask=key_mask)
     tl.store(v_base + first * VALUE_DIM + value_offsets, v)
     tl.store(v_base + second * VALUE_DIM + value_offsets, v)
     tl.store(gate_base + first, gate)
@@ -143,6 +147,7 @@ def _gather_overflow_kernel(
     RING_CAPACITY: tl.constexpr,
     OVERFLOW_LEN: tl.constexpr,
     HEAD_DIM: tl.constexpr,
+    RECENT_KEY_DIM: tl.constexpr,
     VALUE_DIM: tl.constexpr,
     ROPE_PARTIAL_DIM: tl.constexpr,
 ):
@@ -151,11 +156,16 @@ def _gather_overflow_kernel(
     key_offsets = tl.arange(0, HEAD_DIM)
     value_offsets = tl.arange(0, VALUE_DIM)
     source_token = ring_start + token
+    # A wider recent key carries the original rotary channels at its end.
+    original_rotary_dim: tl.constexpr = RECENT_KEY_DIM - HEAD_DIM
+    key_source_offsets = tl.where(
+        key_offsets < original_rotary_dim, HEAD_DIM + key_offsets, key_offsets
+    )
     source_k = (
         ring_k
-        + row * (2 * RING_CAPACITY) * HEAD_DIM
-        + source_token * HEAD_DIM
-        + key_offsets
+        + row * (2 * RING_CAPACITY) * RECENT_KEY_DIM
+        + source_token * RECENT_KEY_DIM
+        + key_source_offsets
     )
     source_v = (
         ring_v
@@ -192,10 +202,14 @@ def _kvm_decode_attention_kernel(
     Q_HEADS: tl.constexpr,
     KV_HEADS: tl.constexpr,
     HEAD_DIM: tl.constexpr,
+    RECENT_KEY_DIM: tl.constexpr,
     VALUE_DIM: tl.constexpr,
     STATE_BLOCK: tl.constexpr,
     FRONT_BLOCK: tl.constexpr,
     SCALE_LOG2: tl.constexpr,
+    state_q=None,
+    STATE_Q_BATCH_STRIDE: tl.constexpr = 0,
+    STATE_Q_HEAD_STRIDE: tl.constexpr = 0,
 ):
     q_row = tl.program_id(0).to(tl.int64)
     group_size: tl.constexpr = Q_HEADS // KV_HEADS
@@ -211,11 +225,17 @@ def _kvm_decode_attention_kernel(
     q_vec = tl.load(
         q + batch_id * Q_BATCH_STRIDE + q_head * Q_HEAD_STRIDE + key_offsets
     )
+    state_q_vec = q_vec
+    if state_q is not None:
+        state_q_vec = tl.load(
+            state_q + batch_id * STATE_Q_BATCH_STRIDE
+            + q_head * STATE_Q_HEAD_STRIDE + key_offsets
+        )
     state_temp = tl.load(state_temperature + q_head).to(tl.float32)
     front_temp = tl.load(front_temperature + q_head).to(tl.float32)
     state_k_base = state_k + kv_row * STATE_CAPACITY * HEAD_DIM
     state_v_base = state_v + kv_row * STATE_CAPACITY * VALUE_DIM
-    recent_k_base = recent_k + kv_row * (2 * RING_CAPACITY) * HEAD_DIM
+    recent_k_base = recent_k + kv_row * (2 * RING_CAPACITY) * RECENT_KEY_DIM
     recent_v_base = recent_v + kv_row * (2 * RING_CAPACITY) * VALUE_DIM
 
     maximum = -float("inf")
@@ -232,7 +252,7 @@ def _kvm_decode_attention_kernel(
         )
         effective_keys = (keys.to(tl.float32) * state_temp).to(tl.bfloat16)
         scores = tl.sum(
-            effective_keys.to(tl.float32) * q_vec[None, :].to(tl.float32), axis=1
+            effective_keys.to(tl.float32) * state_q_vec[None, :].to(tl.float32), axis=1
         ) * SCALE_LOG2
         scores = tl.where(valid, scores, -float("inf"))
         block_max = tl.max(scores, axis=0)
@@ -256,7 +276,7 @@ def _kvm_decode_attention_kernel(
         valid = logical_idx < recent_len
         idx = recent_start + logical_idx
         keys = tl.load(
-            recent_k_base + idx[:, None] * HEAD_DIM + key_offsets[None, :],
+            recent_k_base + idx[:, None] * RECENT_KEY_DIM + key_offsets[None, :],
             mask=valid[:, None],
             other=0.0,
         )
@@ -317,6 +337,7 @@ def write_recent_ring(
         KV_HEADS=kv_heads,
         RING_CAPACITY=capacity,
         HEAD_DIM=head_dim,
+        PADDED_KEY_DIM=triton.next_power_of_2(head_dim),
         VALUE_DIM=value_dim,
         num_warps=4,
     )
@@ -386,7 +407,8 @@ def gather_overflow(
     rope_partial_dim: int,
 ) -> None:
     """Gather one ring chunk into preallocated eager-equivalent update inputs."""
-    kv_rows, doubled_capacity, head_dim = ring_k.shape
+    kv_rows, doubled_capacity, recent_key_dim = ring_k.shape
+    head_dim = int(zeroed_k.size(-1))
     capacity = doubled_capacity // 2
     value_dim = int(ring_v.size(-1))
     _gather_overflow_kernel[(kv_rows, overflow_len)](
@@ -400,6 +422,7 @@ def gather_overflow(
         RING_CAPACITY=capacity,
         OVERFLOW_LEN=overflow_len,
         HEAD_DIM=head_dim,
+        RECENT_KEY_DIM=recent_key_dim,
         VALUE_DIM=value_dim,
         ROPE_PARTIAL_DIM=int(rope_partial_dim),
         num_warps=4,
@@ -421,6 +444,7 @@ def kvm_decode_attention(
     q_heads: int,
     kv_heads: int,
     out: torch.Tensor | None = None,
+    state_q: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """Run one online-softmax attention over separate state and front banks."""
     batch = int(q.size(0))
@@ -458,10 +482,14 @@ def kvm_decode_attention(
         Q_HEADS=q_heads,
         KV_HEADS=kv_heads,
         HEAD_DIM=head_dim,
+        RECENT_KEY_DIM=int(recent_k.size(-1)),
         VALUE_DIM=value_dim,
         STATE_BLOCK=state_block,
         FRONT_BLOCK=front_block,
         SCALE_LOG2=math.log2(math.e) / math.sqrt(float(head_dim)),
+        state_q=state_q,
+        STATE_Q_BATCH_STRIDE=int(state_q.stride(0)) if state_q is not None else 0,
+        STATE_Q_HEAD_STRIDE=int(state_q.stride(1)) if state_q is not None else 0,
         num_warps=4,
     )
     return out

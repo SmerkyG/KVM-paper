@@ -106,3 +106,38 @@ The fixed-context output contains one JSON file per coordinate under `raw/`,
 output contains one JSON file per run under `raw/`,
 `decode_series_runs.csv`, `decode_series_mean.csv`,
 `decode_series_speedup.csv`, and its figure under `plots/`.
+
+### Full-model inference
+
+```bash
+cluster-run --num-gpus 1 -- uv run --no-sync python scripts/benchmark_kvm.py inference \
+  --checkpoint /path/to/gpta2-checkpoint --contexts 1024 8192 32768 \
+  --batch-size 1 --new-tokens 32 --cudagraph --output experiments/gpta2-inference.json
+```
+
+The benchmark starts with device-resident token IDs and times the entire
+greedy generation path, including embedding, token shift, attention, FFN,
+cache updates, and the output head. It reports prefill through the first
+generated token, the remaining decode steps, and synchronized wall time.
+The JSON includes every timed trial, capture time, and peak allocator memory.
+
+Use the same command with a Triton KVM checkpoint to benchmark KVM. Both models
+report ordinary `eager` timings. GPTA-2 `static_eager` uses a preallocated KV
+cache. Triton KVM `prepared_eager` retains the prefill schedule tensors on the
+device between requests and uses the existing preallocated decode ring.
+
+`--cudagraph` captures prefill and the full decode trajectory with those caches
+(`static_graph` for GPTA-2 and `prepared_graph` for Triton KVM). KVM replay
+includes any recurrent state updates during prefill and decode. The benchmark
+captures at most 32 decode steps per graph and replays the graphs in order
+with the same growing cache. Replay uses a fixed batch size, prompt length,
+and number of generated tokens. Graph setup
+and warmup are outside the timed trials. The benchmark checks greedy tokens and
+logits on two prompts before timing replay.
+
+Add `--prefill-chunk-size 2048` to process the prompt in model-wide chunks.
+GPTA-2 carries the full-attention KV cache and uses a lower-right causal mask.
+Triton KVM carries its recurrent state and recent-token window, and its
+model-wide chunk size must be a multiple of the recurrent chunk length.
+Both carry token-shift state and position IDs across chunks and use the same
+decode cache layouts as one-shot prefill.

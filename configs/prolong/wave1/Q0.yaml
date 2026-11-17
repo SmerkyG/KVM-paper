@@ -1,0 +1,10 @@
+model:
+  model_class_path: model.qwen3_backbone.Qwen3BackboneForCausalLM
+  token_mixer_class_path: null
+  num_key_value_heads: 3
+  qwen_intermediate_size: 2304
+  use_tokenshift_att: 0
+  use_tokenshift_ffn: 0
+  use_value_residual: 0
+train:
+  wandb_name_suffix: wave1-Q0-qwen3-halfrope

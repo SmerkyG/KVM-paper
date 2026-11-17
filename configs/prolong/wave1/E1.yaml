@@ -1,0 +1,7 @@
+model:
+  token_mixer_class_path: model.kvm_experiment_mixer.SequenceMixer
+  kvm_append_policy: random
+  kvm_routing_seed: 0
+  kvm_merge_strategy: nearest
+train:
+  wandb_name_suffix: wave1-E1-random-append

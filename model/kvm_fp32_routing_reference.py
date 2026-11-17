@@ -44,6 +44,6 @@ class SequenceMixer(HistoricalGoldenSequenceMixer):
         s_v = s_v + (scores.mT @ v_merge)
 
         if not self.config.kvm_use_vlens:
-            s_vlen = s_vlen + scores.sum(-1, keepdim=True)
+            s_vlen = s_vlen.float() + scores.float().sum(dim=-2).unsqueeze(-1)
 
         return s_k, s_v, s_vlen

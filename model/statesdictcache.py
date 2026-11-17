@@ -126,6 +126,8 @@ class StatesDictLayer(CacheLayerMixin):
 
 
 class StatesDictCache(HuggingFaceCache):
+    use_host_positions = False
+
     def __init__(
         self,
         layers: list[CacheLayerMixin] | None = None,
@@ -185,3 +187,53 @@ class StatesDictCache(HuggingFaceCache):
             self.offload(layer_idx, self.only_non_sliding)
 
         return states_dict
+
+
+class PreallocatedKVLayer(StatesDictLayer):
+    """Store a growing [batch, time, heads, dim] prefix in fixed storage."""
+
+    def __init__(self, capacity: int):
+        self.capacity = capacity
+        self.storage: dict[str, torch.Tensor] = {}
+        super().__init__()
+
+    def update(self, *, states_dict=None, offset: int, **kwargs):
+        if states_dict is None or not (states_dict.keys() & {"k", "v"}):
+            return super().update(states_dict=states_dict, offset=offset, **kwargs)
+        if states_dict.keys() != {"k", "v"} or offset <= 0:
+            raise ValueError("Expected a positive-length key and value update")
+        end = self._seen_tokens + offset
+        if end > self.capacity:
+            raise ValueError(f"KV length {end} exceeds preallocated capacity {self.capacity}")
+        for name, value in states_dict.items():
+            if value.size(1) != offset:
+                raise ValueError("KV update length must match the cache offset")
+            if name not in self.storage:
+                self.storage[name] = value.new_empty(value.size(0), self.capacity, *value.shape[2:])
+            buffer = self.storage[name]
+            if (buffer.size(0), *buffer.shape[2:]) != (value.size(0), *value.shape[2:]):
+                raise ValueError("KV batch and head shapes must stay fixed")
+            if buffer.dtype != value.dtype or buffer.device != value.device:
+                raise ValueError("KV dtype and device must stay fixed")
+            buffer[:, self._seen_tokens:end].copy_(value)
+        self.states_dict.update({name: self.storage[name][:, :end] for name in states_dict})
+        self._seen_tokens = end
+        return self.states_dict
+
+    def get_max_cache_shape(self) -> int:
+        return self.capacity
+
+
+class PreallocatedKVCache(StatesDictCache):
+    """Fixed-capacity KV storage with host lengths for an unrolled decode graph.
+
+    Reset clears logical lengths and token-shift state while preserving storage.
+    Replay must follow the same prefill and decode order as capture.
+    """
+
+    use_host_positions = True
+
+    def __init__(self, num_layers: int, capacity: int):
+        if num_layers <= 0 or capacity <= 0:
+            raise ValueError("KV cache requires positive layer count and capacity")
+        super().__init__(layers=[PreallocatedKVLayer(capacity) for _ in range(num_layers)])

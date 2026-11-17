@@ -1,7 +1,13 @@
+import os
+from pathlib import Path
+
 from utils.env import setup_env
 
 if __name__ == "__main__":
     setup_env()
+    if module_cache := os.environ.get("KVM_EVAL_MODULE_CACHE"):
+        # Transformers' dynamic wrapper file copies are not atomic across ranks.
+        os.environ["HF_MODULES_CACHE"] = str(Path(module_cache) / os.environ.get("RANK", "0"))
 
 import copy
 

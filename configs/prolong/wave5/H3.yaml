@@ -1,0 +1,10 @@
+model:
+  token_mixer: swa
+  alt_token_mixer: kvm
+  alt_layer_every: 4
+  alt_layer_offset: 3
+  rope_partial_dim: 128
+  alt_rope_partial_dim: 64
+  swa_window_size: 256
+train:
+  wandb_name_suffix: wave5-H3
